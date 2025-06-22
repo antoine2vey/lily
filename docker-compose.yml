@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: lily-postgres
+    environment:
+      POSTGRES_DB: lily
+      POSTGRES_USER: lily
+      POSTGRES_PASSWORD: lily123
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lily -d lily']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lily-api
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://lily:lily123@postgres:5432/lily
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./packages/api:/app/packages/api
+      - /app/packages/api/node_modules
+    command: bun run dev
+
+volumes:
+  postgres_data:

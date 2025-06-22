@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlantHealth {
+  THRIVING
+  HEALTHY
+  NEEDS_ATTENTION
+  SICK
+  RECOVERING
+}
+
+model User {
+  id        String   @id @default(uuid())
+  appleId   String   @unique // Apple OAuth ID
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  plants Plant[]
+  notifications Notification[]
+  deviceTokens DeviceToken[]
+
+  @@map("users")
+}
+
+model Plant {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+  category    String?  // User-defined or AI-suggested category
+  dateAdded   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Care ratings (1-5 scale)
+  humidityRating    Int // 1-5
+  lightingRating    Int // 1-5
+  petToxicityRating Int // 1-5
+  wateringRating    Int // 1-5
+
+  // Plant health
+  health PlantHealth @default(HEALTHY)
+
+  // Watering schedule
+  wateringFrequencyDays Int     // How often to water (in days)
+  lastWateredAt         DateTime? // Last watering date
+  nextWateringAt        DateTime? // Calculated next watering date
+
+  // Relations
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+  wateringHistory WateringHistory[]
+
+  @@map("plants")
+}
+
+model WateringHistory {
+  id        String   @id @default(uuid())
+  wateredAt DateTime @default(now())
+  notes     String?  // Optional notes about the watering
+  createdAt DateTime @default(now())
+
+  // Relations
+  plantId String
+  plant   Plant  @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@map("watering_history")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  token     String   @unique // Push notification device token
+  platform  String   // "ios", "android", "web"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // e.g., "watering_reminder"
+  title     String
+  body      String
+  scheduledAt DateTime
+  sentAt    DateTime?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plantId String?
+  plant   Plant? @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+} 
