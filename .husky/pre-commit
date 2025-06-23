@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit lint check..."
+
+# Run linting on staged files
+bunx --bun biome check --write-unsafe .
+
+# Check if linting passed
+if [ $? -ne 0 ]; then
+    echo "❌ Linting failed! Please fix the issues before committing."
+    exit 1
+fi
+
+echo "✅ Pre-commit checks passed!" 

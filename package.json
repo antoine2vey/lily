@@ -11,10 +11,12 @@
     "test": "bun run --filter=* test",
     "lint": "bun run --filter=* lint",
     "lint:fix": "bun run --filter=* lint:fix",
-    "clean": "bun run --filter=* clean"
+    "clean": "bun run --filter=* clean",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.4",
+    "husky": "^9.0.11",
     "prisma": "^6.10.1",
     "typescript": "^5.3.3"
   },

@@ -1,0 +1,2 @@
+# Use Bun for running scripts in Husky hooks
+export PATH="$(bun pm bin):$PATH" 
