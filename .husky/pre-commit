@@ -4,7 +4,7 @@
 echo "🔍 Running pre-commit lint check..."
 
 # Run linting on staged files
-bunx --bun biome check --write-unsafe .
+bun run lint
 
 # Check if linting passed
 if [ $? -ne 0 ]; then
