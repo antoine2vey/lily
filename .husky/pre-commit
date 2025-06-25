@@ -1,7 +1,7 @@
 echo "🔍 Running pre-commit lint check..."
 
 # Run linting on staged files
-bun run lint
+bun run lint:fix
 
 # Check if linting passed
 if [ $? -ne 0 ]; then

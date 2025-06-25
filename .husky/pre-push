@@ -1,7 +1,7 @@
 echo "🔍 Running pre-push lint check..."
 
 # Run linting on all packages
-bun run lint
+bun run lint:fix
 
 # Check if linting passed
 if [ $? -ne 0 ]; then
