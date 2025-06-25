@@ -83,20 +83,23 @@ export class PlantWaterRequest extends Schema.Class<PlantWaterRequest>(
 export class PlantRpcs extends RpcGroup.make(
   // Get all plants
   Rpc.make('PlantList', {
-    success: Schema.Array(Plant),
+    success: Plant,
+    stream: true,
     error: DatabaseError,
   }),
 
   // Get plant by ID
   Rpc.make('PlantById', {
     success: Plant,
+    stream: true,
     error: Schema.Union(DatabaseError, PlantNotFoundError),
     payload: PlantByIdRequest,
   }),
 
   // Get plants by user ID
   Rpc.make('PlantByUserId', {
-    success: Schema.Array(Plant),
+    success: Plant,
+    stream: true,
     error: DatabaseError,
     payload: PlantByUserIdRequest,
   }),

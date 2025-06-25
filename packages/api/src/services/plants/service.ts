@@ -93,7 +93,7 @@ const createPlant = (request: PlantCreateRequest) =>
 const updatePlant = (request: PlantUpdateRequest) =>
   Effect.gen(function* () {
     const db = yield* Database
-    const prismaData = pipe(
+    const data = pipe(
       Object.entries(request),
       Record.fromEntries,
       Record.remove('id'),
@@ -104,7 +104,7 @@ const updatePlant = (request: PlantUpdateRequest) =>
       try: () =>
         db.client.plant.update({
           where: { id: request.id },
-          data: prismaData,
+          data,
           select: plantSelector,
         }),
       catch: () => new DatabaseError(),
