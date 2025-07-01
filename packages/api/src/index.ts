@@ -2,17 +2,17 @@ import { HttpRouter } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { RpcSerialization, RpcServer } from '@effect/rpc'
 import { LoggerLayer } from '@lily/api/logger'
-import { PlantsLive } from '@lily/api/services/plants/handler'
-import { PlantRpcs } from '@lily/api/services/plants/requests'
-import { UsersLive } from '@lily/api/services/user/handler'
-import { UserRpcs } from '@lily/api/services/user/requests'
+import { PlantServiceLive } from '@lily/api/services/plants/handler'
+import { PlantRpc } from '@lily/api/services/plants/rpc'
+import { UserServiceLive } from '@lily/api/services/user/handler'
+import { UserRpc } from '@lily/api/services/user/rpc'
 import { Layer } from 'effect'
 
 // Combine both RPC groups
-const CombinedRpcs = UserRpcs.merge(PlantRpcs)
+const CombinedRpcs = PlantRpc.merge(UserRpc)
 
 // Combine both service layers
-const CombinedServices = Layer.merge(UsersLive, PlantsLive)
+const CombinedServices = Layer.merge(PlantServiceLive, UserServiceLive)
 
 const RpcLayer = RpcServer.layer(CombinedRpcs).pipe(
   Layer.provide(CombinedServices)

@@ -13,3 +13,6 @@ export class Database extends Effect.Service<Database>()('Database', {
     }
   }),
 }) {}
+
+// Export the database service as default
+export default Database

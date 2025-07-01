@@ -18,16 +18,15 @@
     "@effect/platform": "^0.85.2",
     "@effect/platform-bun": "^0.70.4",
     "@effect/platform-node": "^0.86.4",
-    "@effect/rpc": "^0.62.4",
+    "@effect/rpc": "^0.64.2",
     "@effect/sql": "^0.38.2",
-    "@prisma/client": "^6.10.1",
+    "@lily/db": "workspace:*",
     "@lily/shared": "workspace:*",
-    "effect": "^3.16.8"
+    "effect": "^3.16.10"
   },
   "devDependencies": {
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^1.0.4",
-    "prisma": "^6.10.1",
     "supertest": "^6.3.3",
     "tsx": "^4.6.2",
     "vitest": "^1.0.4"

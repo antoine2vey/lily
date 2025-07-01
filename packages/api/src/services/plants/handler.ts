@@ -1,9 +1,9 @@
-import { Database } from '@lily/api/services/database/service'
-import { PlantRpcs } from '@lily/api/services/plants/requests'
+import { PlantRpc } from '@lily/api/services/plants/rpc'
 import { PlantsService } from '@lily/api/services/plants/service'
+import { Database } from '@lily/db'
 import { Effect, Layer, Stream } from 'effect'
 
-export const PlantsLive = PlantRpcs.toLayer(
+export const PlantServiceLive = PlantRpc.toLayer(
   Effect.gen(function* () {
     const plantsService = yield* PlantsService
 

@@ -1,6 +1,6 @@
-import { DatabaseError } from '@lily/api/services/database/error'
-import { Database } from '@lily/api/services/database/service'
-import { UserNotFoundError } from '@lily/api/services/user/error'
+import { Database } from '@lily/db'
+import { DatabaseError } from '@lily/shared/errors/database'
+import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 
 // User service methods

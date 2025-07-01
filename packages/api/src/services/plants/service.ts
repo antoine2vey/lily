@@ -1,6 +1,6 @@
-import { DatabaseError } from '@lily/api/services/database/error'
-import { Database } from '@lily/api/services/database/service'
-import { PlantNotFoundError } from '@lily/api/services/plants/error'
+import { Database } from '@lily/db'
+import { DatabaseError } from '@lily/shared/errors/database'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
   PlantByIdRequest,
   PlantByUserIdRequest,
@@ -8,8 +8,8 @@ import type {
   PlantDeleteRequest,
   PlantUpdateRequest,
   PlantWaterRequest,
-} from '@lily/api/services/plants/requests'
-import { plantSelector } from '@lily/api/services/plants/selector'
+} from '@lily/shared/plant'
+import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect, pipe, Record } from 'effect'
 
 const findPlants = Effect.gen(function* () {

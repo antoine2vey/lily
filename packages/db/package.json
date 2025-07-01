@@ -1,0 +1,27 @@
+{
+  "name": "@lily/db",
+  "version": "1.0.0",
+  "description": "Database service and Prisma configuration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun --watch src/index.ts",
+    "test": "echo 'No tests yet'",
+    "lint": "bunx --bun biome check .",
+    "lint:fix": "bunx --bun biome check --write .",
+    "clean": "rm -rf dist",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.10.1",
+    "effect": "^3.16.8"
+  },
+  "devDependencies": {
+    "prisma": "^6.10.1",
+    "typescript": "^5.3.3"
+  }
+}

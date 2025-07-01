@@ -1,15 +1,16 @@
 // handlers.ts
-import { Database } from '@lily/api/services/database/service.js'
-import { UserRpcs } from '@lily/api/services/user/requests'
-import { UserService } from '@lily/api/services/user/service.js'
-import { Effect, Layer } from 'effect'
 
-export const UsersLive = UserRpcs.toLayer(
+import { UserRpc } from '@lily/api/services/user/rpc'
+import { UserService } from '@lily/api/services/user/service'
+import { Database } from '@lily/db'
+import { Effect, Layer, Stream } from 'effect'
+
+export const UserServiceLive = UserRpc.toLayer(
   Effect.gen(function* () {
     const userService = yield* UserService
 
     return {
-      UserList: () => userService.findUsers,
+      UserList: () => Stream.fromIterableEffect(userService.findUsers),
       UserById: ({ id }) => userService.findUserById(id),
       UserCreate: ({ name, email, appleId }) =>
         userService.createUser(name, email, appleId),
