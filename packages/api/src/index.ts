@@ -1,34 +1,24 @@
-import { HttpRouter } from '@effect/platform'
+import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
-import { RpcSerialization, RpcServer } from '@effect/rpc'
-import { LoggerLayer } from '@lily/api/logger'
-import { PlantServiceLive } from '@lily/api/services/plants/handler'
-import { PlantRpc } from '@lily/api/services/plants/rpc'
-import { UserServiceLive } from '@lily/api/services/user/handler'
-import { UserRpc } from '@lily/api/services/user/rpc'
+import { Api } from '@lily/api/api'
+import { PlantsApiLive } from '@lily/api/services/plants/handlers'
+import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { Layer } from 'effect'
 
-// Combine both RPC groups
-const CombinedRpcs = PlantRpc.merge(UserRpc)
-
-// Combine both service layers
-const CombinedServices = Layer.merge(PlantServiceLive, UserServiceLive)
-
-const RpcLayer = RpcServer.layer(CombinedRpcs).pipe(
-  Layer.provide(CombinedServices)
+// Provide the implementation for both APIs
+const ApiLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide(PlantsApiLive(Api)),
+  Layer.provide(UsersApiLive(Api))
 )
 
-// Choose the protocol and serialization format
-const HttpProtocol = RpcServer.layerProtocolHttp({
-  path: '/rpc',
-}).pipe(Layer.provide(RpcSerialization.layerNdjson))
-
-// Create the main server layer
-const Main = HttpRouter.Default.serve().pipe(
-  Layer.provide(RpcLayer),
-  Layer.provide(HttpProtocol),
-  Layer.provide(LoggerLayer),
+// Set up the server using BunHttpServer on port 3000
+const ServerLive = HttpApiBuilder.serve().pipe(
+  Layer.provide(HttpApiBuilder.middlewareCors()),
+  Layer.provide(HttpApiSwagger.layer()),
+  Layer.provide(ApiLive),
+  HttpServer.withLogAddress,
   Layer.provide(BunHttpServer.layer({ port: 3000 }))
 )
 
-BunRuntime.runMain(Layer.launch(Main))
+// Launch the server
+Layer.launch(ServerLive).pipe(BunRuntime.runMain)

@@ -6,7 +6,6 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "bun --watch src/index.ts",
     "test": "echo 'No tests yet'",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",

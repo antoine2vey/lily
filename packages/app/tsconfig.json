@@ -1,6 +1,13 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lily/api": ["../api/src"],
+      "@lily/api/*": ["../api/src/*"],
+      "@lily/shared": ["../shared/src"],
+      "@lily/shared/*": ["../shared/src/*"]
+    }
   }
 }

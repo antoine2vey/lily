@@ -13,16 +13,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@effect/cluster": "^0.39.4",
-    "@effect/experimental": "^0.49.2",
-    "@effect/platform": "^0.85.2",
-    "@effect/platform-bun": "^0.70.4",
-    "@effect/platform-node": "^0.86.4",
-    "@effect/rpc": "^0.64.2",
-    "@effect/sql": "^0.38.2",
+    "@effect/platform": "^0.87.7",
+    "@effect/platform-bun": "^0.72.11",
     "@lily/db": "workspace:*",
     "@lily/shared": "workspace:*",
-    "effect": "^3.16.10"
+    "effect": "^3.16.12"
   },
   "devDependencies": {
     "@types/supertest": "^6.0.2",

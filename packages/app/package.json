@@ -12,6 +12,10 @@
     "lint:fix": "bunx --bun biome check --write ."
   },
   "dependencies": {
+    "@effect/platform": "^0.87.7",
+    "@lily/api": "workspace:*",
+    "@tanstack/react-query": "^5.81.5",
+    "effect": "^3.16.12",
     "expo": "~53.0.12",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",

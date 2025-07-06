@@ -25,6 +25,8 @@ const findPlants = Effect.gen(function* () {
     catch: () => new DatabaseError(),
   })
 
+  yield* Effect.log(plants)
+
   return plants
 })
 
