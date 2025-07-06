@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   FetchHttpClient,
   HttpApiClient,
@@ -41,6 +40,7 @@ class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
 type GetRequestParams<
   X extends keyof Client,
   Y extends keyof Client[X],
+  // biome-ignore lint/suspicious/noExplicitAny: needed for conditional type matching
 > = Client[X][Y] extends (...args: any[]) => any
   ? Parameters<Client[X][Y]>[0]
   : never
@@ -48,6 +48,7 @@ type GetRequestParams<
 type GetReturnType<
   X extends keyof Client,
   Y extends keyof Client[X],
+  // biome-ignore lint/suspicious/noExplicitAny: needed for conditional type matching
 > = Client[X][Y] extends (...args: any[]) => any
   ? ReturnType<Client[X][Y]>
   : never
@@ -72,7 +73,7 @@ function apiEffect<X extends keyof Client, Y extends keyof Client[X]>(
 
 type ExcludeHttpResponseTuple<T> = Exclude<
   T,
-  readonly [any, HttpClientResponse.HttpClientResponse]
+  readonly [unknown, HttpClientResponse.HttpClientResponse]
 >
 
 type GetCleanSuccessType<
