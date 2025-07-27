@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,50 +15,68 @@ enum PlantHealth {
   RECOVERING
 }
 
-model User {
-  id        String   @id @default(uuid())
-  appleId   String   @unique // Apple OAuth ID
-  email     String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum AchievementKey {
+  FIRST_PLANT_ADDED
+  WATERING_NOVICE
+  PLANT_COLLECTOR
+  DEDICATED_CARETAKER
+  ATTENTION_ALERT
+  PHOTO_PRO
+  RARE_COLLECTOR
+  SCAN_CHAMP
+  FERTILIZER_GURU
+  HISTORY_HERO
+  AI_CONVERSATIONALIST
+  DISEASE_DETECTIVE
+  GROWTH_TRACKER
+  REMINDER_RESCUER
+  SHARE_SPROUT
+}
 
-  // Relations
-  plants Plant[]
-  notifications Notification[]
-  deviceTokens DeviceToken[]
+model User {
+  id              String             @id @default(uuid())
+  email           String             @unique
+  name            String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  emailVerified   Boolean
+  image           String?
+  plants          Plant[]
+  notifications   Notification[]
+  deviceTokens    DeviceToken[]
+  sessions        Session[]
+  accounts        Account[]
+  achievements    UserAchievement[]
 
   @@map("users")
 }
 
 model Plant {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  imageUrl    String?
-  category    String?  // User-defined or AI-suggested category
-  dateAdded   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Care ratings (1-5 scale)
-  humidityRating    Int // 1-5
-  lightingRating    Int // 1-5
-  petToxicityRating Int // 1-5
-  wateringRating    Int // 1-5
-
-  // Plant health
-  health PlantHealth @default(HEALTHY)
-
-  // Watering schedule
-  wateringFrequencyDays Int     // How often to water (in days)
-  lastWateredAt         DateTime? // Last watering date
-  nextWateringAt        DateTime? // Calculated next watering date
-
-  // Relations
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  notifications Notification[]
-  wateringHistory WateringHistory[]
+  id                        String                   @id @default(uuid())
+  name                      String
+  description               String?
+  imageUrl                  String?
+  category                  String?
+  dateAdded                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  humidityRating            Int                      // 1-5
+  lightingRating            Int                      // 1-5
+  petToxicityRating         Int                      // 1-5
+  wateringRating            Int                      // 1-5
+  health                    PlantHealth              @default(HEALTHY)
+  wateringFrequencyDays     Int
+  lastWateredAt             DateTime?
+  nextWateringAt            DateTime?
+  fertilizationFrequencyDays Int?
+  lastFertilizedAt          DateTime?
+  nextFertilizationAt       DateTime?
+  remindersEnabled          Boolean                  @default(true)
+  userId                    String
+  user                      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications             Notification[]
+  wateringHistory           WateringHistory[]
+  fertilizationHistory      FertilizationHistory[]
+  photos                    PlantPhoto[]
 
   @@map("plants")
 }
@@ -69,46 +84,116 @@ model Plant {
 model WateringHistory {
   id        String   @id @default(uuid())
   wateredAt DateTime @default(now())
-  notes     String?  // Optional notes about the watering
+  notes     String?
   createdAt DateTime @default(now())
-
-  // Relations
-  plantId String
-  plant   Plant  @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  plantId   String
+  plant     Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
   @@map("watering_history")
 }
 
-model DeviceToken {
-  id        String   @id @default(uuid())
-  token     String   @unique // Push notification device token
-  platform  String   // "ios", "android", "web"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model FertilizationHistory {
+  id             String   @id @default(uuid())
+  fertilizedAt   DateTime @default(now())
+  notes          String?
+  createdAt      DateTime @default(now())
+  plantId        String
+  plant          Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
-  // Relations
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("fertilization_history")
+}
+
+model PlantPhoto {
+  id        String   @id @default(uuid())
+  url       String
+  takenAt   DateTime @default(now())
+  plantId   String
+  plant     Plant    @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@map("plant_photos")
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  platform   String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("device_tokens")
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  type      String   // e.g., "watering_reminder"
-  title     String
-  body      String
+  id          String    @id @default(uuid())
+  type        String
+  title       String
+  body        String
   scheduledAt DateTime
-  sentAt    DateTime?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  // Relations
-  userId  String
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plantId String?
-  plant   Plant? @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  sentAt      DateTime?
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plantId     String?
+  plant       Plant?    @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
-} 
+}
+
+model Session {
+  id          String   @id
+  expiresAt   DateTime
+  token       String   @unique
+  createdAt   DateTime
+  updatedAt   DateTime
+  ipAddress   String?
+  userAgent   String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model UserAchievement {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement  AchievementKey
+  unlockedAt   DateTime       @default(now())
+
+  @@unique([userId, achievement])
+  @@map("user_achievements")
+}

@@ -38,7 +38,7 @@ const createUser = (name: string, email: string, appleId: string) =>
     return yield* Effect.tryPromise({
       try: () =>
         db.client.user.create({
-          data: { name, email, appleId },
+          data: { name, email, appleId, emailVerified: false },
         }),
       catch: () => new DatabaseError(),
     })

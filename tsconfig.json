@@ -27,5 +27,11 @@
     "baseUrl": "."
   },
   "include": ["packages/*/src/**/*", "packages/*/test/**/*"],
-  "exclude": ["node_modules", "dist", "build", "coverage"]
+  "exclude": ["node_modules", "dist", "build", "coverage"],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/api" },
+    { "path": "./packages/db" },
+    { "path": "./packages/app" }
+  ]
 }

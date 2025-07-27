@@ -9,12 +9,13 @@
     "paths": {
       "@lily/api": ["./src"],
       "@lily/api/*": ["./src/*"],
-      "@lily/shared": ["../shared/dist"],
-      "@lily/shared/*": ["../shared/dist/*"],
-      "@lily/db": ["../db/dist"],
-      "@lily/db/*": ["../db/dist/*"]
+      "@lily/shared": ["../shared/src"],
+      "@lily/shared/*": ["../shared/src/*"],
+      "@lily/db": ["../db/src"],
+      "@lily/db/*": ["../db/src/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "test"]
+  "exclude": ["dist", "node_modules", "test"],
+  "references": [{ "path": "../shared" }, { "path": "../db" }]
 }
