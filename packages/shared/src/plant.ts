@@ -1,35 +1,33 @@
 import { Schema } from 'effect'
 
-// Plant health enum matching Prisma schema
-export const PlantHealth = Schema.Enums({
-  THRIVING: 'THRIVING',
-  HEALTHY: 'HEALTHY',
-  NEEDS_ATTENTION: 'NEEDS_ATTENTION',
-  SICK: 'SICK',
-  RECOVERING: 'RECOVERING',
-})
-
-// Define a plant with all fields from Prisma schema
-export class Plant extends Schema.Class<Plant>('Plant')({
+export const Plant = Schema.Struct({
   id: Schema.String,
-  name: Schema.String,
-  description: Schema.NullOr(Schema.String),
-  wateringFrequencyDays: Schema.Number,
-}) {}
-
-// Request schemas for plant operations
-export class PlantByIdRequest extends Schema.Class<PlantByIdRequest>(
-  'PlantByIdRequest'
-)({
-  id: Schema.String,
-}) {}
-
-export class PlantCreateRequest extends Schema.Class<PlantCreateRequest>(
-  'PlantCreateRequest'
-)({
   name: Schema.String,
   description: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
+  category: Schema.optional(Schema.String),
+  dateAdded: Schema.Date,
+  updatedAt: Schema.Date,
+  humidityRating: Schema.Number,
+  lightingRating: Schema.Number,
+  petToxicityRating: Schema.Number,
+  wateringRating: Schema.Number,
+  health: Schema.Union(
+    Schema.Literal('THRIVING'),
+    Schema.Literal('HEALTHY'),
+    Schema.Literal('NEEDS_ATTENTION'),
+    Schema.Literal('SICK'),
+    Schema.Literal('RECOVERING')
+  ),
+  wateringFrequencyDays: Schema.Number,
+  lastWateredAt: Schema.optional(Schema.Date),
+  nextWateringAt: Schema.optional(Schema.Date),
+  userId: Schema.String,
+})
+
+export const PlantCreateRequest = Schema.Struct({
+  name: Schema.String,
+  description: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
   humidityRating: Schema.Number,
   lightingRating: Schema.Number,
@@ -37,41 +35,84 @@ export class PlantCreateRequest extends Schema.Class<PlantCreateRequest>(
   wateringRating: Schema.Number,
   wateringFrequencyDays: Schema.Number,
   userId: Schema.String,
-}) {}
+})
 
-export class PlantUpdateRequest extends Schema.Class<PlantUpdateRequest>(
-  'PlantUpdateRequest'
-)({
-  id: Schema.String,
+export const PlantUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
-  imageUrl: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
+  imageUrl: Schema.optional(Schema.String),
+  wateringFrequencyDays: Schema.optional(Schema.Number),
   humidityRating: Schema.optional(Schema.Number),
   lightingRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
-  health: Schema.optional(PlantHealth),
-  wateringFrequencyDays: Schema.optional(Schema.Number),
-  lastWateredAt: Schema.optional(Schema.Date),
-  nextWateringAt: Schema.optional(Schema.Date),
-}) {}
+})
 
-export class PlantDeleteRequest extends Schema.Class<PlantDeleteRequest>(
-  'PlantDeleteRequest'
-)({
-  id: Schema.String,
-}) {}
-
-export class PlantByUserIdRequest extends Schema.Class<PlantByUserIdRequest>(
-  'PlantByUserIdRequest'
-)({
-  userId: Schema.String,
-}) {}
-
-export class PlantWaterRequest extends Schema.Class<PlantWaterRequest>(
-  'PlantWaterRequest'
-)({
-  id: Schema.String,
+export const PlantWaterRequest = Schema.Struct({
   notes: Schema.optional(Schema.String),
-}) {}
+})
+
+// Enhanced plant creation request
+export const EnhancedPlantCreateRequest = Schema.Struct({
+  name: Schema.String,
+  description: Schema.optional(Schema.String),
+  category: Schema.optional(Schema.String),
+  plantingDate: Schema.optional(Schema.Date),
+  wateringFrequencyDays: Schema.Number,
+  sunlightPreference: Schema.String,
+  humidityRating: Schema.optional(Schema.Number),
+  petToxicityRating: Schema.Number,
+  remindersEnabled: Schema.optional(Schema.Boolean),
+})
+
+// Scan card response
+export const ScanCardResponse = Schema.Struct({
+  name: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  category: Schema.optional(Schema.String),
+  wateringFrequencyDays: Schema.optional(Schema.Number),
+  sunlightPreference: Schema.optional(Schema.String),
+  humidityRating: Schema.optional(Schema.Number),
+  petToxicityRating: Schema.optional(Schema.Number),
+})
+
+// AI identify response
+export const AIIdentifyResponse = Schema.Struct({
+  species: Schema.optional(Schema.String),
+  commonName: Schema.optional(Schema.String),
+  category: Schema.optional(Schema.String),
+  wateringFrequencyDays: Schema.optional(Schema.Number),
+  sunlightPreference: Schema.optional(Schema.String),
+  humidityRating: Schema.optional(Schema.Number),
+  lightingRating: Schema.optional(Schema.Number),
+  petToxicityRating: Schema.optional(Schema.Number),
+  confidence: Schema.Number,
+})
+
+// Plant photo schema
+export const PlantPhoto = Schema.Struct({
+  id: Schema.String,
+  url: Schema.String,
+  plantId: Schema.String,
+  createdAt: Schema.Date,
+})
+
+// Plants list response
+export const PlantsListResponse = Schema.Struct({
+  plants: Schema.Array(Plant),
+  total: Schema.Number,
+  page: Schema.Number,
+  limit: Schema.Number,
+})
+
+// Type exports
+export type Plant = typeof Plant.Type
+export type PlantCreateRequest = typeof PlantCreateRequest.Type
+export type PlantUpdateRequest = typeof PlantUpdateRequest.Type
+export type PlantWaterRequest = typeof PlantWaterRequest.Type
+export type EnhancedPlantCreateRequest = typeof EnhancedPlantCreateRequest.Type
+export type ScanCardResponse = typeof ScanCardResponse.Type
+export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
+export type PlantPhoto = typeof PlantPhoto.Type
+export type PlantsListResponse = typeof PlantsListResponse.Type

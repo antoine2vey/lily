@@ -5,8 +5,14 @@
     "noEmit": false,
     "composite": true,
     "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "baseUrl": ".",
     "rootDir": "./src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
     "paths": {
       "@lily/shared": ["./src"],
       "@lily/shared/*": ["./src/*"]

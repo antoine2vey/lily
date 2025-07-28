@@ -14,11 +14,20 @@ export const UsersApiLive = (api: Api) =>
         .handle('getUsers', () => userService.findUsers)
         .handle('getUser', ({ path: { id } }) => userService.findUserById(id))
         .handle('createUser', ({ payload }) =>
-          userService.createUser(payload.name, payload.email, payload.appleId)
+          userService.createUser(payload.name, payload.email)
         )
         .handle('updateUser', ({ path: { id }, payload }) =>
-          userService.updateUser(id, payload)
+          userService.updateUser(id, {
+            ...(payload.name !== undefined && { name: payload.name }),
+            ...(payload.email !== undefined && { email: payload.email }),
+          })
         )
         .handle('deleteUser', ({ path: { id } }) => userService.deleteUser(id))
+        .handle('getUserSettings', ({ path: { id } }) =>
+          userService.getUserSettings(id)
+        )
+        .handle('updateUserSettings', ({ path: { id }, payload }) =>
+          userService.updateUserSettings(id, payload)
+        )
     })
   ).pipe(Layer.provide(UserService.Default), Layer.provide(Database.Default))

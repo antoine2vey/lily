@@ -1,7 +1,13 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { User, UserCreateRequest, UserUpdateRequest } from '@lily/shared/user'
+import {
+  User,
+  UserCreateRequest,
+  UserSettings,
+  UserSettingsUpdateRequest,
+  UserUpdateRequest,
+} from '@lily/shared/user'
 import { Schema } from 'effect'
 
 // Path parameter for user ID
@@ -43,5 +49,22 @@ export const UsersApi = HttpApiGroup.make('users')
       .addSuccess(User)
       .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
+  )
+  .add(
+    // GET /users/:userId/settings - Fetch profile info & notification prefs
+    HttpApiEndpoint.get('getUserSettings')`/${userIdParam}/settings`
+      .addSuccess(UserSettings)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // PUT /users/:userId/settings - Update profile & global notification settings
+    HttpApiEndpoint.put('updateUserSettings')`/${userIdParam}/settings`
+      .setPayload(UserSettingsUpdateRequest)
+      .addSuccess(UserSettings)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/users')

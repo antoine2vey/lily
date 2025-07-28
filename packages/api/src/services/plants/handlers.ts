@@ -11,24 +11,42 @@ export const PlantsApiLive = (api: Api) =>
       const plantsService = yield* PlantsService
 
       return handlers
-        .handle('getPlants', () => plantsService.findPlants)
-        .handle('getPlant', ({ path: { id } }) =>
-          plantsService.findPlantById({ id })
-        )
-        .handle('getPlantsByUser', ({ path: { userId } }) =>
-          plantsService.findPlantsByUserId({ userId })
+        .handle('getPlants', () =>
+          plantsService.findPlants({
+            page: 1,
+            limit: 10,
+            filter: 'all',
+            sort: 'added',
+          })
         )
         .handle('createPlant', ({ payload }) =>
           plantsService.createPlant(payload)
         )
-        .handle('deletePlant', ({ path: { id } }) =>
-          plantsService.deletePlant({ id })
+        .handle('scanCard', () => plantsService.scanCard())
+        .handle('aiIdentify', () => plantsService.aiIdentify())
+        .handle('getPlant', ({ path: { id } }) =>
+          plantsService.findPlantById({ id })
         )
         .handle('updatePlant', ({ path: { id }, payload }) =>
           plantsService.updatePlant({ ...payload, id })
         )
+        .handle('deletePlant', ({ path: { id } }) =>
+          plantsService.deletePlant({ id })
+        )
+        .handle('getPlantPhotos', ({ path: { id } }) =>
+          plantsService.getPlantPhotos({ plantId: id })
+        )
+        .handle('uploadPlantPhoto', ({ path: { id } }) =>
+          plantsService.uploadPlantPhoto({ plantId: id })
+        )
+        .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
+          plantsService.deletePlantPhoto({ plantId: id, photoId })
+        )
         .handle('waterPlant', ({ path: { id }, payload }) =>
           plantsService.waterPlant({ ...payload, id })
+        )
+        .handle('fertilizePlant', ({ path: { id } }) =>
+          plantsService.fertilizePlant({ id })
         )
     })
   ).pipe(Layer.provide(PlantsService.Default), Layer.provide(Database.Default))
