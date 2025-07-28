@@ -1,4 +1,4 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type {
   Achievement,
   UnlockAchievementRequest,
@@ -9,9 +9,9 @@ import { Effect } from 'effect'
 export const unlockAchievement = (
   userId: string,
   request: UnlockAchievementRequest
-) =>
+): Effect.Effect<Achievement, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake achievement data
     return {
@@ -22,5 +22,5 @@ export const unlockAchievement = (
       iconUrl: '/icons/manual-achievement.png',
       unlockedAt: new Date(),
       userId,
-    } satisfies Achievement
+    }
   })

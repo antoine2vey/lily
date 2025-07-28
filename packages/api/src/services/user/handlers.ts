@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { UserService } from '@lily/api/services/user/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Users API group
@@ -11,7 +11,7 @@ export const UsersApiLive = (api: Api) =>
       const userService = yield* UserService
 
       return handlers
-        .handle('getUsers', () => userService.findUsers)
+        .handle('getUsers', () => userService.findUsers())
         .handle('getUser', ({ path: { id } }) => userService.findUserById(id))
         .handle('createUser', ({ payload }) =>
           userService.createUser(payload.name, payload.email)
@@ -30,4 +30,7 @@ export const UsersApiLive = (api: Api) =>
           userService.updateUserSettings(id, payload)
         )
     })
-  ).pipe(Layer.provide(UserService.Default), Layer.provide(Database.Default))
+  ).pipe(
+    Layer.provide(UserService.Default),
+    Layer.provide(PrismaService.Default)
+  )

@@ -1,12 +1,14 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
+import { type PrismaError, PrismaService } from '@lily/db'
+import type { User } from '@lily/shared'
 import { Effect } from 'effect'
 
 // User service methods
-export const findUsers = Effect.gen(function* (_) {
-  const db = yield* Database
-  return yield* Effect.tryPromise({
-    try: () => db.client.user.findMany(),
-    catch: () => new DatabaseError(),
+export const findUsers = (): Effect.Effect<
+  User[],
+  PrismaError,
+  PrismaService
+> =>
+  Effect.gen(function* () {
+    const prisma = yield* PrismaService
+    return yield* prisma.user.findMany()
   })
-})

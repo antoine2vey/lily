@@ -1,4 +1,4 @@
-import { client } from '@lily/db'
+import { client } from '@lily/db/client'
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { magicLink } from 'better-auth/plugins'

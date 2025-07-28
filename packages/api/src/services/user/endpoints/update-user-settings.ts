@@ -1,5 +1,4 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
+import { type PrismaError, PrismaService } from '@lily/db'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect } from 'effect'
@@ -8,22 +7,22 @@ import { Effect } from 'effect'
 export const updateUserSettings = (
   id: string,
   data: UserSettingsUpdateRequest
-): Effect.Effect<UserSettings, DatabaseError | UserNotFoundError, Database> =>
+): Effect.Effect<
+  UserSettings,
+  PrismaError | UserNotFoundError,
+  PrismaService
+> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
     // Update user profile fields (name, image)
     const updateData: { name?: string; image?: string } = {}
     if (data.name !== undefined) updateData.name = data.name
     if (data.image !== undefined) updateData.image = data.image
 
-    const user = yield* Effect.tryPromise({
-      try: () =>
-        db.client.user.update({
-          where: { id },
-          data: updateData,
-        }),
-      catch: () => new DatabaseError(),
+    const user = yield* prisma.user.update({
+      where: { id },
+      data: updateData,
     })
 
     if (!user) {

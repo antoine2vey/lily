@@ -1,4 +1,4 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { CareLog, CareLogUpdateRequest } from '@lily/shared/care-log'
 import { Effect } from 'effect'
 
@@ -7,9 +7,9 @@ export const updateCareLog = (
   plantId: string,
   logId: string,
   request: CareLogUpdateRequest
-) =>
+): Effect.Effect<CareLog, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake updated care log
     const now = new Date()
@@ -21,5 +21,5 @@ export const updateCareLog = (
       plantId,
       createdAt: new Date('2024-01-15T10:00:00Z'), // Preserve original creation date
       updatedAt: now,
-    } satisfies CareLog
+    }
   })

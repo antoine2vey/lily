@@ -1,11 +1,15 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { Notification } from '@lily/shared/notification'
 import { Effect } from 'effect'
 
 // Get notifications
-export const getNotifications = () =>
+export const getNotifications = (): Effect.Effect<
+  Notification[],
+  PrismaError,
+  PrismaService
+> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake notifications
     return [
@@ -32,5 +36,5 @@ export const getNotifications = () =>
         userId: 'user_123',
         createdAt: new Date('2024-01-14T08:00:00Z'),
       },
-    ] satisfies Notification[]
+    ]
   })

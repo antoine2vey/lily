@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AchievementsService } from '@lily/api/services/achievements/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Achievements API group
@@ -20,5 +20,5 @@ export const AchievementsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(AchievementsService.Default),
-    Layer.provide(Database.Default)
+    Layer.provide(PrismaService.Default)
   )

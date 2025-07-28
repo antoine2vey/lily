@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { NotificationsService } from '@lily/api/services/notifications/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Notifications API group
@@ -20,5 +20,5 @@ export const NotificationsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(NotificationsService.Default),
-    Layer.provide(Database.Default)
+    Layer.provide(PrismaService.Default)
   )

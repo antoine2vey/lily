@@ -1,28 +1,20 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { PlantWaterRequest } from '@lily/shared/plant'
+import { type PrismaError, PrismaService } from '@lily/db'
+import type { Plant, PlantWaterRequest } from '@lily/shared/plant'
 import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect } from 'effect'
 import { transformPlant } from '../utils'
 
-export const waterPlant = (request: PlantWaterRequest & { id: string }) =>
+export const waterPlant = (
+  request: PlantWaterRequest & { id: string }
+): Effect.Effect<Plant, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
     // First get the plant to calculate next watering date
-    const rawPlant = yield* Effect.tryPromise({
-      try: () =>
-        db.client.plant.findUnique({
-          where: { id: request.id },
-          select: plantSelector,
-        }),
-      catch: () => new DatabaseError(),
+    const rawPlant = yield* prisma.plant.findUniqueOrThrow({
+      where: { id: request.id },
+      select: plantSelector,
     })
-
-    if (!rawPlant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
 
     const now = new Date()
     const nextWateringAt = new Date(
@@ -30,29 +22,21 @@ export const waterPlant = (request: PlantWaterRequest & { id: string }) =>
     )
 
     // Update the plant with watering info
-    const updatedRawPlant = yield* Effect.tryPromise({
-      try: () =>
-        db.client.plant.update({
-          where: { id: request.id },
-          data: {
-            lastWateredAt: now,
-            nextWateringAt,
-          },
-          select: plantSelector,
-        }),
-      catch: () => new DatabaseError(),
+    const updatedRawPlant = yield* prisma.plant.update({
+      where: { id: request.id },
+      data: {
+        lastWateredAt: now,
+        nextWateringAt,
+      },
+      select: plantSelector,
     })
 
     // Create watering history record
-    yield* Effect.tryPromise({
-      try: () =>
-        db.client.wateringHistory.create({
-          data: {
-            plantId: request.id,
-            notes: request.notes || null,
-          },
-        }),
-      catch: () => new DatabaseError(),
+    yield* prisma.wateringHistory.create({
+      data: {
+        plantId: request.id,
+        notes: request.notes || null,
+      },
     })
 
     return transformPlant(updatedRawPlant)

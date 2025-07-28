@@ -1,26 +1,19 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { type PrismaError, PrismaService } from '@lily/db'
+import type { Plant } from '@lily/shared/plant'
 import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect } from 'effect'
 import { type PlantByIdRequest, transformPlant } from '../utils'
 
-export const findPlantById = (request: PlantByIdRequest) =>
+export const findPlantById = (
+  request: PlantByIdRequest
+): Effect.Effect<Plant, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
-    const rawPlant = yield* Effect.tryPromise({
-      try: () =>
-        db.client.plant.findUnique({
-          where: { id: request.id },
-          select: plantSelector,
-        }),
-      catch: () => new DatabaseError(),
+    const rawPlant = yield* prisma.plant.findUniqueOrThrow({
+      where: { id: request.id },
+      select: plantSelector,
     })
-
-    if (!rawPlant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
 
     return transformPlant(rawPlant)
   })

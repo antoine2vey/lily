@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AIChatService } from '@lily/api/services/ai-chat/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the AI Chat API group
@@ -18,4 +18,7 @@ export const AIChatApiLive = (api: Api) =>
           aiChatService.getChatHistory(plantId)
         )
     })
-  ).pipe(Layer.provide(AIChatService.Default), Layer.provide(Database.Default))
+  ).pipe(
+    Layer.provide(AIChatService.Default),
+    Layer.provide(PrismaService.Default)
+  )

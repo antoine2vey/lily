@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Care Logs API group
@@ -29,5 +29,5 @@ export const CareLogsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(CareLogsService.Default),
-    Layer.provide(Database.Default)
+    Layer.provide(PrismaService.Default)
   )

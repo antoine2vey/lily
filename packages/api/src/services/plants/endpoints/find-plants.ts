@@ -1,5 +1,4 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { PlantsListResponse } from '@lily/shared/plant'
 import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect } from 'effect'
@@ -11,9 +10,9 @@ export const findPlants = (params: {
   limit?: number
   filter?: 'needsAttention' | 'all'
   sort?: 'added' | 'name'
-}) =>
+}): Effect.Effect<PlantsListResponse, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
     const page = params.page ?? 1
     const limit = params.limit ?? 10
     const offset = (page - 1) * limit
@@ -21,22 +20,14 @@ export const findPlants = (params: {
     yield* Effect.log('Finding plants with pagination')
 
     // Get total count
-    const total = yield* Effect.tryPromise({
-      try: () => db.client.plant.count(),
-      catch: () => new DatabaseError(),
-    })
+    const total = yield* prisma.plant.count()
 
     // Get plants with pagination
-    const rawPlants = yield* Effect.tryPromise({
-      try: () =>
-        db.client.plant.findMany({
-          select: plantSelector,
-          skip: offset,
-          take: limit,
-          orderBy:
-            params.sort === 'name' ? { name: 'asc' } : { dateAdded: 'desc' },
-        }),
-      catch: () => new DatabaseError(),
+    const rawPlants = yield* prisma.plant.findMany({
+      select: plantSelector,
+      skip: offset,
+      take: limit,
+      orderBy: params.sort === 'name' ? { name: 'asc' } : { dateAdded: 'desc' },
     })
 
     const plants = rawPlants.map(transformPlant)
@@ -46,5 +37,5 @@ export const findPlants = (params: {
       total,
       page,
       limit,
-    } satisfies PlantsListResponse
+    }
   })

@@ -1,4 +1,4 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type {
   DeviceToken,
   DeviceTokenCreateRequest,
@@ -6,9 +6,11 @@ import type {
 import { Effect } from 'effect'
 
 // Register device token
-export const registerDeviceToken = (request: DeviceTokenCreateRequest) =>
+export const registerDeviceToken = (
+  request: DeviceTokenCreateRequest
+): Effect.Effect<DeviceToken, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake device token
     return {
@@ -19,5 +21,5 @@ export const registerDeviceToken = (request: DeviceTokenCreateRequest) =>
       userId: 'user_123',
       createdAt: new Date(),
       updatedAt: new Date(),
-    } satisfies DeviceToken
+    }
   })

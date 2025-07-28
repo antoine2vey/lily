@@ -1,27 +1,17 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
-import { UserNotFoundError } from '@lily/shared/errors/user'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { UserSettings } from '@lily/shared/user'
 import { Effect } from 'effect'
 
 // Get user settings (profile + notification preferences)
 export const getUserSettings = (
   id: string
-): Effect.Effect<UserSettings, DatabaseError | UserNotFoundError, Database> =>
+): Effect.Effect<UserSettings, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
-    const user = yield* Effect.tryPromise({
-      try: () =>
-        db.client.user.findUnique({
-          where: { id },
-        }),
-      catch: () => new DatabaseError(),
+    const user = yield* prisma.user.findUniqueOrThrow({
+      where: { id },
     })
-
-    if (!user) {
-      return yield* Effect.fail(new UserNotFoundError())
-    }
 
     // Transform database user to UserSettings format
     // Using default notification settings since they're not in the database yet

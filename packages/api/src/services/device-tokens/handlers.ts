@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { DeviceTokensService } from '@lily/api/services/device-tokens/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Device Tokens API group
@@ -20,5 +20,5 @@ export const DeviceTokensApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(DeviceTokensService.Default),
-    Layer.provide(Database.Default)
+    Layer.provide(PrismaService.Default)
   )

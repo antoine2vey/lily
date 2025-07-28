@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { PlantsService } from '@lily/api/services/plants/service'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Plants API group
@@ -49,4 +49,7 @@ export const PlantsApiLive = (api: Api) =>
           plantsService.fertilizePlant({ id })
         )
     })
-  ).pipe(Layer.provide(PlantsService.Default), Layer.provide(Database.Default))
+  ).pipe(
+    Layer.provide(PlantsService.Default),
+    Layer.provide(PrismaService.Default)
+  )

@@ -1,18 +1,16 @@
-import { Database } from '@lily/db'
-import { DatabaseError } from '@lily/shared/errors/database'
+import { type PrismaError, PrismaService } from '@lily/db'
+import type { User } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 
-export const deleteUser = (id: string) =>
+export const deleteUser = (
+  id: string
+): Effect.Effect<User, PrismaError | UserNotFoundError, PrismaService> =>
   Effect.gen(function* () {
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
-    const user = yield* Effect.tryPromise({
-      try: () =>
-        db.client.user.delete({
-          where: { id },
-        }),
-      catch: () => new DatabaseError(),
+    const user = yield* prisma.user.delete({
+      where: { id },
     })
 
     if (!user) {

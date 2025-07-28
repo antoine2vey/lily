@@ -1,5 +1,5 @@
 import type { HttpServerRequest } from '@effect/platform/HttpServerRequest'
-import { Database } from '@lily/db'
+import { PrismaService } from '@lily/db'
 import { Auth } from '@lily/db/lib/auth'
 import type { MagicLinkRequest } from '@lily/shared/auth'
 import { Effect } from 'effect'
@@ -8,10 +8,14 @@ import { Effect } from 'effect'
 export const sendMagicLink = (
   req: HttpServerRequest,
   { email }: MagicLinkRequest
-) =>
+): Effect.Effect<
+  { message: string },
+  { message: string },
+  PrismaService | Auth
+> =>
   Effect.gen(function* () {
     const auth = yield* Auth
-    const db = yield* Database
+    const prisma = yield* PrismaService
 
     const magicLinkResponse = yield* Effect.tryPromise({
       try: () =>

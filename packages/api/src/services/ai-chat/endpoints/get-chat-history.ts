@@ -1,11 +1,13 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { ChatMessage } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 
 // Get chat history
-export const getChatHistory = (plantId: string) =>
+export const getChatHistory = (
+  plantId: string
+): Effect.Effect<ChatMessage[], PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake chat history
     return [
@@ -26,5 +28,5 @@ export const getChatHistory = (plantId: string) =>
         userId: 'user_123',
         createdAt: new Date('2024-01-15T10:01:00Z'),
       },
-    ] satisfies ChatMessage[]
+    ]
   })

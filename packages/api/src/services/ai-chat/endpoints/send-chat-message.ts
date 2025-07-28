@@ -1,11 +1,14 @@
-import { Database } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 
 // Send chat message
-export const sendChatMessage = (plantId: string, request: ChatRequest) =>
+export const sendChatMessage = (
+  plantId: string,
+  request: ChatRequest
+): Effect.Effect<ChatResponse, PrismaError, PrismaService> =>
   Effect.gen(function* () {
-    const _db = yield* Database
+    const prisma = yield* PrismaService
 
     // Return fake chat response
     return {
@@ -18,5 +21,5 @@ export const sendChatMessage = (plantId: string, request: ChatRequest) =>
         createdAt: new Date(),
       },
       response: 'AI assistant response text',
-    } satisfies ChatResponse as ChatResponse
+    }
   })
