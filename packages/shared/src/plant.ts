@@ -3,9 +3,9 @@ import { Schema } from 'effect'
 export const Plant = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  description: Schema.optional(Schema.String),
-  imageUrl: Schema.optional(Schema.String),
-  category: Schema.optional(Schema.String),
+  description: Schema.NullOr(Schema.String),
+  imageUrl: Schema.NullOr(Schema.String),
+  category: Schema.NullOr(Schema.String),
   dateAdded: Schema.Date,
   updatedAt: Schema.Date,
   humidityRating: Schema.Number,
@@ -20,8 +20,8 @@ export const Plant = Schema.Struct({
     Schema.Literal('RECOVERING')
   ),
   wateringFrequencyDays: Schema.Number,
-  lastWateredAt: Schema.optional(Schema.Date),
-  nextWateringAt: Schema.optional(Schema.Date),
+  lastWateredAt: Schema.NullOr(Schema.Date),
+  nextWateringAt: Schema.NullOr(Schema.Date),
   userId: Schema.String,
 })
 
@@ -68,13 +68,15 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
 
 // Scan card response
 export const ScanCardResponse = Schema.Struct({
-  name: Schema.optional(Schema.String),
-  description: Schema.optional(Schema.String),
-  category: Schema.optional(Schema.String),
-  wateringFrequencyDays: Schema.optional(Schema.Number),
-  sunlightPreference: Schema.optional(Schema.String),
-  humidityRating: Schema.optional(Schema.Number),
-  petToxicityRating: Schema.optional(Schema.Number),
+  name: Schema.NullOr(Schema.String),
+  humidityRating: Schema.NullOr(Schema.Number),
+  lightingRating: Schema.NullOr(Schema.Number),
+  petToxicityRating: Schema.NullOr(Schema.Number),
+  wateringRating: Schema.NullOr(Schema.Number),
+  wateringFrequencyDays: Schema.NullOr(Schema.Number),
+  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
+  category: Schema.NullOr(Schema.String),
+  description: Schema.NullOr(Schema.String),
 })
 
 // AI identify response
@@ -94,8 +96,8 @@ export const AIIdentifyResponse = Schema.Struct({
 export const PlantPhoto = Schema.Struct({
   id: Schema.String,
   url: Schema.String,
+  takenAt: Schema.Date,
   plantId: Schema.String,
-  createdAt: Schema.Date,
 })
 
 // Plants list response

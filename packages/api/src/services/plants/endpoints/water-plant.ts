@@ -1,8 +1,7 @@
 import { type PrismaError, PrismaService } from '@lily/db'
 import type { Plant, PlantWaterRequest } from '@lily/shared/plant'
 import { plantSelector } from '@lily/shared/selectors/plant'
-import { Effect } from 'effect'
-import { transformPlant } from '../utils'
+import { Duration, Effect } from 'effect'
 
 export const waterPlant = (
   request: PlantWaterRequest & { id: string }
@@ -11,18 +10,19 @@ export const waterPlant = (
     const prisma = yield* PrismaService
 
     // First get the plant to calculate next watering date
-    const rawPlant = yield* prisma.plant.findUniqueOrThrow({
+    const plant = yield* prisma.plant.findUniqueOrThrow({
       where: { id: request.id },
       select: plantSelector,
     })
 
     const now = new Date()
     const nextWateringAt = new Date(
-      now.getTime() + rawPlant.wateringFrequencyDays * 24 * 60 * 60 * 1000
+      now.getTime() +
+        Duration.toMillis(Duration.days(plant.wateringFrequencyDays))
     )
 
     // Update the plant with watering info
-    const updatedRawPlant = yield* prisma.plant.update({
+    const updatedPlant = yield* prisma.plant.update({
       where: { id: request.id },
       data: {
         lastWateredAt: now,
@@ -39,5 +39,5 @@ export const waterPlant = (
       },
     })
 
-    return transformPlant(updatedRawPlant)
+    return updatedPlant
   })

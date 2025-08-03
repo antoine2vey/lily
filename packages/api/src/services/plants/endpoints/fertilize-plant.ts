@@ -1,8 +1,6 @@
 import { type PrismaError, PrismaService } from '@lily/db'
 import type { Plant } from '@lily/shared/plant'
-import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect } from 'effect'
-import { transformPlant } from '../utils'
 
 export const fertilizePlant = (request: {
   id: string
@@ -10,10 +8,12 @@ export const fertilizePlant = (request: {
   Effect.gen(function* () {
     const prisma = yield* PrismaService
 
-    const rawPlant = yield* prisma.plant.findUniqueOrThrow({
+    const plant = yield* prisma.plant.update({
       where: { id: request.id },
-      select: plantSelector,
+      data: {
+        lastFertilizedAt: new Date(),
+      },
     })
 
-    return transformPlant(rawPlant)
+    return plant
   })

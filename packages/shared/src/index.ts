@@ -13,5 +13,9 @@ export * from './notification'
 export * from './plant'
 // Export selectors
 export * from './selectors/plant'
+// Export services
+export * from './services/ai/service'
+export * from './services/file/fileservice'
+export * from './services/file/gcs'
 export * from './user'
 export * from './username'

@@ -2,7 +2,6 @@ import { type PrismaError, PrismaService } from '@lily/db'
 import type { PlantsListResponse } from '@lily/shared/plant'
 import { plantSelector } from '@lily/shared/selectors/plant'
 import { Effect } from 'effect'
-import { transformPlant } from '../utils'
 
 // Get plants with pagination and filtering
 export const findPlants = (params: {
@@ -17,20 +16,16 @@ export const findPlants = (params: {
     const limit = params.limit ?? 10
     const offset = (page - 1) * limit
 
-    yield* Effect.log('Finding plants with pagination')
-
     // Get total count
     const total = yield* prisma.plant.count()
 
     // Get plants with pagination
-    const rawPlants = yield* prisma.plant.findMany({
+    const plants = yield* prisma.plant.findMany({
       select: plantSelector,
       skip: offset,
       take: limit,
       orderBy: params.sort === 'name' ? { name: 'asc' } : { dateAdded: 'desc' },
     })
-
-    const plants = rawPlants.map(transformPlant)
 
     return {
       plants,

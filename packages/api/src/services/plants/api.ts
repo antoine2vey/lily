@@ -1,8 +1,12 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import {
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpApiSchema,
+  Multipart,
+} from '@effect/platform'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
-  AIIdentifyResponse,
   EnhancedPlantCreateRequest,
   Plant,
   PlantPhoto,
@@ -70,6 +74,13 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // POST /plants/scan-card - Scan nursery card
     HttpApiEndpoint.post('scanCard')`/scan-card`
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            images: Multipart.FilesSchema,
+          })
+        )
+      )
       .addSuccess(ScanCardResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
@@ -78,7 +89,21 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // POST /plants/ai-identify - AI-identify species & care ratings
     HttpApiEndpoint.post('aiIdentify')`/ai-identify`
-      .addSuccess(AIIdentifyResponse)
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            images: Multipart.FilesSchema,
+          })
+        )
+      )
+      .addSuccess(
+        Schema.String.pipe(
+          HttpApiSchema.withEncoding({
+            kind: 'Text',
+            contentType: 'application/octet-stream',
+          })
+        )
+      )
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

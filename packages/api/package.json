@@ -13,11 +13,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.0-beta.13",
     "@effect/platform": "^0.87.7",
     "@effect/platform-bun": "^0.72.11",
     "@lily/db": "workspace:*",
     "@lily/shared": "workspace:*",
-    "effect": "^3.16.12"
+    "ai": "^5.0.0-beta.29",
+    "effect": "^3.16.12",
+    "zod": "^4.0.10"
   },
   "devDependencies": {
     "@types/supertest": "^6.0.2",

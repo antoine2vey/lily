@@ -1,8 +1,20 @@
-import type { PrismaError, PrismaService } from '@lily/db'
+import { type PrismaError, PrismaService } from '@lily/db'
 import { Effect } from 'effect'
 
-export const deletePlantPhoto = (_request: {
+export const deletePlantPhoto = ({
+  plantId,
+  photoId,
+}: {
   plantId: string
   photoId: string
-}): Effect.Effect<{ message: string }, PrismaError, PrismaService> =>
-  Effect.succeed({ message: 'Photo deleted successfully' })
+}): Effect.Effect<void, PrismaError, PrismaService> => {
+  return Effect.gen(function* () {
+    const prisma = yield* PrismaService
+
+    yield* prisma.plantPhoto.delete({
+      where: { id: photoId, plantId },
+    })
+
+    return yield* Effect.void
+  })
+}
