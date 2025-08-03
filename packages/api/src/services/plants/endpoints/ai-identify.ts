@@ -7,7 +7,11 @@ import {
   type MultipleFilesError,
   type NoFilesError,
 } from '@lily/shared/services/file/fileservice'
-import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
+import {
+  type GCSConfigError,
+  GCSService,
+  type GCSUploadError,
+} from '@lily/shared/services/file/gcs'
 import {
   type AiApiCallError,
   type AiGenericError,
@@ -20,6 +24,7 @@ export const aiIdentify = (
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
   | GCSUploadError
+  | GCSConfigError
   | MultipleFilesError
   | NoFilesError
   | PlatformError

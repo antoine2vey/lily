@@ -12,11 +12,11 @@ export const AuthApiLive = (api: Api) =>
       const authService = yield* AuthService
 
       return handlers
-        .handle('sendMagicLink', ({ payload, request }) =>
-          authService.sendMagicLink(request, payload)
+        .handle('sendMagicLink', ({ payload }) =>
+          authService.sendMagicLink(payload)
         )
-        .handle('verifyMagicLink', ({ payload, request }) =>
-          authService.verifyMagicLink(request, payload)
+        .handle('verifyMagicLink', ({ payload }) =>
+          authService.verifyMagicLink(payload)
         )
         .handle('getCurrentUser', () => authService.getCurrentUser())
         .handle('signOut', () => authService.signOut())

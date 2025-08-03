@@ -43,8 +43,8 @@ export const PlantsApiLive = (api: Api) =>
         .handle('getPlantPhotos', ({ path: { id } }) =>
           plantsService.getPlantPhotos({ plantId: id })
         )
-        .handle('uploadPlantPhoto', ({ path: { id } }) =>
-          plantsService.uploadPlantPhoto({ plantId: id })
+        .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
+          plantsService.uploadPlantPhoto({ plantId: id, files })
         )
         .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
           plantsService.deletePlantPhoto({ plantId: id, photoId })

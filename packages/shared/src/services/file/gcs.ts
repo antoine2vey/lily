@@ -1,13 +1,10 @@
 import { Storage } from '@google-cloud/storage'
-import { Duration, Effect, Schema } from 'effect'
+import { Duration, Effect, Match, Schema } from 'effect'
 
-// GCS Configuration Schema
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
   keyFilename: Schema.optional(Schema.String), // Optional if using default credentials
 })
-
-export type GCSConfig = Schema.Schema.Type<typeof GCSConfigSchema>
 
 // Upload Request Schema
 export const GCSUploadRequestSchema = Schema.Struct({
@@ -69,9 +66,33 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
       ...(config.keyFilename && { keyFilename: config.keyFilename }),
     })
 
+    const bucketNameStrategy = (bucketTag: 'plant' | 'ai'): string => {
+      const match = Match.type<'ai' | 'plant'>().pipe(
+        Match.when('ai', () => {
+          if (!process.env.GCS_AI_BUCKET) {
+            throw new GCSConfigError({
+              message: 'GCS_AI_BUCKET is not set',
+            })
+          }
+          return process.env.GCS_AI_BUCKET
+        }),
+        Match.when('plant', () => {
+          if (!process.env.GCS_PLANT_BUCKET) {
+            throw new GCSConfigError({
+              message: 'GCS_PLANT_BUCKET is not set',
+            })
+          }
+          return process.env.GCS_PLANT_BUCKET
+        }),
+        Match.exhaustive
+      )
+
+      return match(bucketTag)
+    }
+
     const buckets = {
-      plant: storage.bucket(process.env.GCS_PLANT_BUCKET ?? ''),
-      ai: storage.bucket(process.env.GCS_AI_BUCKET ?? ''),
+      plant: storage.bucket(bucketNameStrategy('plant')),
+      ai: storage.bucket(bucketNameStrategy('ai')),
     }
 
     return {

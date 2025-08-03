@@ -1,31 +1,28 @@
-import type { HttpServerRequest } from '@effect/platform/HttpServerRequest'
+import { HttpServerRequest } from '@effect/platform'
 import { PrismaService } from '@lily/db'
 import { Auth } from '@lily/db/lib/auth'
 import type { MagicLinkRequest } from '@lily/shared/auth'
 import { Effect } from 'effect'
 
 // Send magic link
-export const sendMagicLink = (
-  req: HttpServerRequest,
-  { email }: MagicLinkRequest
-): Effect.Effect<
+export const sendMagicLink = ({
+  email,
+}: MagicLinkRequest): Effect.Effect<
   { message: string },
   { message: string },
-  PrismaService | Auth
+  PrismaService | Auth | HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
     const auth = yield* Auth
     const prisma = yield* PrismaService
+    const req = yield* HttpServerRequest.HttpServerRequest
 
     const magicLinkResponse = yield* Effect.tryPromise({
       try: () =>
         auth.api.signInMagicLink({
           body: {
             email, // Use actual email from request
-            name: 'User', // Could be derived from email or made optional
             callbackURL: 'http://localhost:3000/dashboard',
-            newUserCallbackURL: 'http://localhost:3000/welcome',
-            errorCallbackURL: 'http://localhost:3000/error',
           },
           headers: req.headers,
         }),

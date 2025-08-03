@@ -144,7 +144,14 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // POST /plants/:plantId/photos - Upload a new plant photo
     HttpApiEndpoint.post('uploadPlantPhoto')`/${plantIdParam}/photos`
-      .addSuccess(PlantPhoto, { status: 201 })
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            files: Multipart.FilesSchema,
+          })
+        )
+      )
+      .addSuccess(Schema.Void, { status: 201 })
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
@@ -155,7 +162,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.del(
       'deletePlantPhoto'
     )`/${plantIdParam}/photos/${photoIdParam}`
-      .addSuccess(Schema.Struct({ message: Schema.String }))
+      .addSuccess(Schema.Void)
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 404 })

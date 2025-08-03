@@ -12,14 +12,15 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.0-beta.13",
+    "@ai-sdk/openai": "^2.0.0",
     "@google-cloud/storage": "^7.16.0",
-    "ai": "^5.0.0-beta.30",
-    "effect": "^3.16.8",
-    "@effect/platform": "^0.87.7",
-    "zod": "^4.0.13"
+    "ai": "^5.0.0",
+    "effect": "^3.17.5",
+    "@effect/platform": "^0.90.0",
+    "@lily/db": "workspace:*",
+    "zod": "^4.0.14"
   }
 }

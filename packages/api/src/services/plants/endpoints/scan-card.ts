@@ -6,6 +6,7 @@ import {
   type AiGenericError,
   AiService,
   FileService,
+  type GCSConfigError,
   GCSService,
   type GCSUploadError,
   type MultipleFilesError,
@@ -19,6 +20,7 @@ export const scanCard = (
 ): Effect.Effect<
   ScanCardResponse,
   | GCSUploadError
+  | GCSConfigError
   | MultipleFilesError
   | NoFilesError
   | PlatformError
