@@ -1,9 +1,9 @@
 import { Storage } from '@google-cloud/storage'
-import { Duration, Effect, Match, Schema } from 'effect'
+import { Config, Duration, Effect, Schema } from 'effect'
 
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
-  keyFilename: Schema.optional(Schema.String), // Optional if using default credentials
+  keyFilename: Schema.String, // Optional if using default credentials
 })
 
 // Upload Request Schema
@@ -35,6 +35,7 @@ export class GCSUploadError extends Schema.Class<GCSUploadError>(
 )({
   message: Schema.String,
 }) {}
+
 export class GCSConfigError extends Schema.Class<GCSConfigError>(
   'GCSConfigError'
 )({
@@ -46,8 +47,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
       const rawConfig = {
-        projectId: process.env.GCP_PROJECT_ID,
-        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        projectId: yield* Config.string('GCP_PROJECT_ID'),
+        keyFilename: yield* Config.string('GOOGLE_APPLICATION_CREDENTIALS'),
       }
 
       return yield* Schema.decodeUnknown(GCSConfigSchema)(rawConfig).pipe(
@@ -63,36 +64,12 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
     // Initialize Google Cloud Storage client
     const storage = new Storage({
       projectId: config.projectId,
-      ...(config.keyFilename && { keyFilename: config.keyFilename }),
+      keyFilename: config.keyFilename,
     })
 
-    const bucketNameStrategy = (bucketTag: 'plant' | 'ai'): string => {
-      const match = Match.type<'ai' | 'plant'>().pipe(
-        Match.when('ai', () => {
-          if (!process.env.GCS_AI_BUCKET) {
-            throw new GCSConfigError({
-              message: 'GCS_AI_BUCKET is not set',
-            })
-          }
-          return process.env.GCS_AI_BUCKET
-        }),
-        Match.when('plant', () => {
-          if (!process.env.GCS_PLANT_BUCKET) {
-            throw new GCSConfigError({
-              message: 'GCS_PLANT_BUCKET is not set',
-            })
-          }
-          return process.env.GCS_PLANT_BUCKET
-        }),
-        Match.exhaustive
-      )
-
-      return match(bucketTag)
-    }
-
     const buckets = {
-      plant: storage.bucket(bucketNameStrategy('plant')),
-      ai: storage.bucket(bucketNameStrategy('ai')),
+      plant: storage.bucket(yield* Config.string('GCS_PLANT_BUCKET')),
+      ai: storage.bucket(yield* Config.string('GCS_AI_BUCKET')),
     }
 
     return {
