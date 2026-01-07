@@ -1,6 +1,6 @@
 {
-  "id": "f63ad9f7-5b54-401f-bf1b-94ef6677f050",
-  "prevId": "59fa416c-b347-4f8d-9a56-0c6bce831cd6",
+  "id": "f7e37fdf-7486-4b5f-8d46-69ca42b59255",
+  "prevId": "f63ad9f7-5b54-401f-bf1b-94ef6677f050",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -42,8 +42,12 @@
           "name": "user_achievements_user_id_users_id_fk",
           "tableFrom": "user_achievements",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -53,7 +57,10 @@
         "user_achievements_user_id_achievement_unique": {
           "name": "user_achievements_user_id_achievement_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id", "achievement"]
+          "columns": [
+            "user_id",
+            "achievement"
+          ]
         }
       },
       "policies": {},
@@ -149,8 +156,12 @@
           "name": "account_user_id_users_id_fk",
           "tableFrom": "account",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -220,8 +231,12 @@
           "name": "session_user_id_users_id_fk",
           "tableFrom": "session",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -231,7 +246,9 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -344,8 +361,12 @@
           "name": "device_tokens_user_id_users_id_fk",
           "tableFrom": "device_tokens",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -355,7 +376,9 @@
         "device_tokens_token_unique": {
           "name": "device_tokens_token_unique",
           "nullsNotDistinct": false,
-          "columns": ["token"]
+          "columns": [
+            "token"
+          ]
         }
       },
       "policies": {},
@@ -436,8 +459,12 @@
           "name": "notifications_user_id_users_id_fk",
           "tableFrom": "notifications",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -445,8 +472,12 @@
           "name": "notifications_plant_id_plants_id_fk",
           "tableFrom": "notifications",
           "tableTo": "plants",
-          "columnsFrom": ["plant_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -521,64 +552,12 @@
           "name": "care_logs_plant_id_plants_id_fk",
           "tableFrom": "care_logs",
           "tableTo": "plants",
-          "columnsFrom": ["plant_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.fertilization_history": {
-      "name": "fertilization_history",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "fertilized_at": {
-          "name": "fertilized_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "plant_id": {
-          "name": "plant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "fertilization_history_plant_id_plants_id_fk": {
-          "name": "fertilization_history_plant_id_plants_id_fk",
-          "tableFrom": "fertilization_history",
-          "tableTo": "plants",
-          "columnsFrom": ["plant_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -626,64 +605,12 @@
           "name": "plant_photos_plant_id_plants_id_fk",
           "tableFrom": "plant_photos",
           "tableTo": "plants",
-          "columnsFrom": ["plant_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.watering_history": {
-      "name": "watering_history",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "watered_at": {
-          "name": "watered_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "plant_id": {
-          "name": "plant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "watering_history_plant_id_plants_id_fk": {
-          "name": "watering_history_plant_id_plants_id_fk",
-          "tableFrom": "watering_history",
-          "tableTo": "plants",
-          "columnsFrom": ["plant_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -831,8 +758,12 @@
           "name": "plants_user_id_users_id_fk",
           "tableFrom": "plants",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -900,12 +831,16 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": ["email"]
+          "columns": [
+            "email"
+          ]
         },
         "users_name_unique": {
           "name": "users_name_unique",
           "nullsNotDistinct": false,
-          "columns": ["name"]
+          "columns": [
+            "name"
+          ]
         }
       },
       "policies": {},
@@ -938,12 +873,21 @@
     "public.care_log_type": {
       "name": "care_log_type",
       "schema": "public",
-      "values": ["watering", "fertilization"]
+      "values": [
+        "watering",
+        "fertilization"
+      ]
     },
     "public.plant_health": {
       "name": "plant_health",
       "schema": "public",
-      "values": ["THRIVING", "HEALTHY", "NEEDS_ATTENTION", "SICK", "RECOVERING"]
+      "values": [
+        "THRIVING",
+        "HEALTHY",
+        "NEEDS_ATTENTION",
+        "SICK",
+        "RECOVERING"
+      ]
     }
   },
   "schemas": {},

@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plantPhotos, plants, wateringHistory } from '@lily/db'
+import { plantPhotos, plants } from '@lily/db'
 import { and, asc, count, desc, eq } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
@@ -67,10 +67,6 @@ export interface IPlantRepository {
   readonly delete: (
     id: string
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
-  readonly addWateringHistory: (
-    plantId: string,
-    notes: string | null
-  ) => Effect.Effect<void, SqlError>
   readonly findPhotos: (
     plantId: string
   ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
@@ -158,11 +154,6 @@ export const PlantRepositoryLive = Layer.effect(
           return plant ?? null
         }),
 
-      addWateringHistory: (plantId: string, notes: string | null) =>
-        Effect.gen(function* () {
-          yield* db.insert(wateringHistory).values({ plantId, notes })
-        }),
-
       findPhotos: (plantId: string) =>
         db.select().from(plantPhotos).where(eq(plantPhotos.plantId, plantId)),
 
@@ -175,7 +166,9 @@ export const PlantRepositoryLive = Layer.effect(
           return photo ?? null
         }),
 
-      addPhotos: (photos: Array<{ plantId: string; url: string; takenAt: Date }>) =>
+      addPhotos: (
+        photos: Array<{ plantId: string; url: string; takenAt: Date }>
+      ) =>
         Effect.gen(function* () {
           yield* db.insert(plantPhotos).values(photos)
         }),
@@ -193,7 +186,9 @@ export const PlantRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           yield* db
             .delete(plantPhotos)
-            .where(and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId)))
+            .where(
+              and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
+            )
         }),
     }
   })

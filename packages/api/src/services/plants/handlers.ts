@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { DrizzleLive } from '@lily/db'
@@ -60,6 +61,7 @@ export const PlantsApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(PlantsService.Default),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareLogRepositoryLive),
     Layer.provide(DrizzleLive),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),

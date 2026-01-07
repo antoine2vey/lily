@@ -1,5 +1,5 @@
 import { Storage } from '@google-cloud/storage'
-import { Config, Duration, Effect, Schema } from 'effect'
+import { Config, Duration, Effect, Redacted, Schema } from 'effect'
 
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
@@ -46,9 +46,14 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
   effect: Effect.gen(function* () {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
+      const projectIdRedacted = yield* Config.redacted('GCP_PROJECT_ID')
+      const keyFilenameRedacted = yield* Config.redacted(
+        'GOOGLE_APPLICATION_CREDENTIALS'
+      )
+
       const rawConfig = {
-        projectId: yield* Config.redacted('GCP_PROJECT_ID'),
-        keyFilename: yield* Config.redacted('GOOGLE_APPLICATION_CREDENTIALS'),
+        projectId: Redacted.value(projectIdRedacted),
+        keyFilename: Redacted.value(keyFilenameRedacted),
       }
 
       return yield* Schema.decodeUnknown(GCSConfigSchema)(rawConfig).pipe(

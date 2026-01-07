@@ -9,11 +9,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { plantHealthEnum } from './enums'
 import { notifications } from './notifications'
-import {
-  fertilizationHistory,
-  plantPhotos,
-  wateringHistory,
-} from './plant-history'
+import { careLogs, plantPhotos } from './plant-history'
 import { users } from './users'
 
 export const plants = pgTable('plants', {
@@ -44,7 +40,6 @@ export const plants = pgTable('plants', {
 export const plantsRelations = relations(plants, ({ one, many }) => ({
   user: one(users, { fields: [plants.userId], references: [users.id] }),
   notifications: many(notifications),
-  wateringHistory: many(wateringHistory),
-  fertilizationHistory: many(fertilizationHistory),
+  careLogs: many(careLogs),
   photos: many(plantPhotos),
 }))
