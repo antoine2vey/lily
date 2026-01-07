@@ -1,9 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plants } from '@lily/db'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant } from '@lily/shared/plant'
-import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 import type { PlantByIdRequest } from '../utils'
 
@@ -12,12 +10,11 @@ export const findPlantById = ({
 }: PlantByIdRequest): Effect.Effect<
   Plant,
   SqlError | PlantNotFoundError,
-  PgDrizzle.PgDrizzle
+  PlantRepository
 > =>
   Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
-
-    const [plant] = yield* db.select().from(plants).where(eq(plants.id, id))
+    const repo = yield* PlantRepository
+    const plant = yield* repo.findById(id)
 
     if (!plant) {
       return yield* Effect.fail(new PlantNotFoundError())

@@ -1,12 +1,15 @@
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import {
   MockDrizzleLive,
   resetMockStore,
   setMockStore,
   setMockWhereFilter,
 } from '@lily/api/test-utils/mocks/drizzle'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { updateUser } from './update-user'
+
+const TestLayer = UserRepositoryLive.pipe(Layer.provide(MockDrizzleLive))
 
 describe('updateUser', () => {
   beforeEach(() => {
@@ -18,7 +21,7 @@ describe('updateUser', () => {
 
     const result = await Effect.runPromise(
       updateUser('user-1', { name: 'Updated Name' }).pipe(
-        Effect.provide(MockDrizzleLive)
+        Effect.provide(TestLayer)
       )
     )
 
@@ -30,9 +33,7 @@ describe('updateUser', () => {
     setMockWhereFilter((user) => user.id === 'non-existent')
 
     const result = await Effect.runPromiseExit(
-      updateUser('non-existent', { name: 'Test' }).pipe(
-        Effect.provide(MockDrizzleLive)
-      )
+      updateUser('non-existent', { name: 'Test' }).pipe(Effect.provide(TestLayer))
     )
 
     expect(result._tag).toBe('Failure')

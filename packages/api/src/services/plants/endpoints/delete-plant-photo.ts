@@ -1,7 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plantPhotos } from '@lily/db'
-import { and, eq } from 'drizzle-orm'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Effect } from 'effect'
 
 export const deletePlantPhoto = ({
@@ -10,14 +8,9 @@ export const deletePlantPhoto = ({
 }: {
   plantId: string
   photoId: string
-}): Effect.Effect<void, SqlError, PgDrizzle.PgDrizzle> => {
+}): Effect.Effect<void, SqlError, PlantRepository> => {
   return Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
-
-    yield* db
-      .delete(plantPhotos)
-      .where(and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId)))
-
-    return yield* Effect.void
+    const repo = yield* PlantRepository
+    yield* repo.deletePhotoByPlantId(plantId, photoId)
   })
 }

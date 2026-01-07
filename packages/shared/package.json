@@ -8,9 +8,65 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./*": {
-      "types": "./src/*.ts",
-      "default": "./src/*.ts"
+    "./achievement": {
+      "types": "./src/domains/achievement/schema.ts",
+      "default": "./src/domains/achievement/schema.ts"
+    },
+    "./ai-chat": {
+      "types": "./src/domains/ai-chat/schema.ts",
+      "default": "./src/domains/ai-chat/schema.ts"
+    },
+    "./auth": {
+      "types": "./src/domains/auth/schema.ts",
+      "default": "./src/domains/auth/schema.ts"
+    },
+    "./care-log": {
+      "types": "./src/domains/care-log/schema.ts",
+      "default": "./src/domains/care-log/schema.ts"
+    },
+    "./common": {
+      "types": "./src/domains/common/schema.ts",
+      "default": "./src/domains/common/schema.ts"
+    },
+    "./device-token": {
+      "types": "./src/domains/device-token/schema.ts",
+      "default": "./src/domains/device-token/schema.ts"
+    },
+    "./notification": {
+      "types": "./src/domains/notification/schema.ts",
+      "default": "./src/domains/notification/schema.ts"
+    },
+    "./plant": {
+      "types": "./src/domains/plant/schema.ts",
+      "default": "./src/domains/plant/schema.ts"
+    },
+    "./user": {
+      "types": "./src/domains/user/schema.ts",
+      "default": "./src/domains/user/schema.ts"
+    },
+    "./username": {
+      "types": "./src/domains/username/schema.ts",
+      "default": "./src/domains/username/schema.ts"
+    },
+    "./errors/database": {
+      "types": "./src/domains/common/errors.ts",
+      "default": "./src/domains/common/errors.ts"
+    },
+    "./errors/plant": {
+      "types": "./src/domains/plant/errors.ts",
+      "default": "./src/domains/plant/errors.ts"
+    },
+    "./errors/user": {
+      "types": "./src/domains/user/errors.ts",
+      "default": "./src/domains/user/errors.ts"
+    },
+    "./selectors/plant": {
+      "types": "./src/domains/plant/selectors.ts",
+      "default": "./src/domains/plant/selectors.ts"
+    },
+    "./services/*": {
+      "types": "./src/services/*.ts",
+      "default": "./src/services/*.ts"
     }
   },
   "scripts": {

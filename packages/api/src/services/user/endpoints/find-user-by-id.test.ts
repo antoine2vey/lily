@@ -1,3 +1,4 @@
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import {
   MockDrizzleLive,
   mockUsers,
@@ -5,9 +6,11 @@ import {
   setMockStore,
   setMockWhereFilter,
 } from '@lily/api/test-utils/mocks/drizzle'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { findUserById } from './find-user-by-id'
+
+const TestLayer = UserRepositoryLive.pipe(Layer.provide(MockDrizzleLive))
 
 describe('findUserById', () => {
   beforeEach(() => {
@@ -18,7 +21,7 @@ describe('findUserById', () => {
     setMockWhereFilter((user) => user.id === 'user-1')
 
     const result = await Effect.runPromise(
-      findUserById('user-1').pipe(Effect.provide(MockDrizzleLive))
+      findUserById('user-1').pipe(Effect.provide(TestLayer))
     )
 
     expect(result).toEqual(mockUsers[0])
@@ -28,7 +31,7 @@ describe('findUserById', () => {
     setMockWhereFilter((user) => user.id === 'non-existent')
 
     const result = await Effect.runPromiseExit(
-      findUserById('non-existent').pipe(Effect.provide(MockDrizzleLive))
+      findUserById('non-existent').pipe(Effect.provide(TestLayer))
     )
 
     expect(result._tag).toBe('Failure')
@@ -39,7 +42,7 @@ describe('findUserById', () => {
     setMockWhereFilter(() => true)
 
     const result = await Effect.runPromiseExit(
-      findUserById('any-id').pipe(Effect.provide(MockDrizzleLive))
+      findUserById('any-id').pipe(Effect.provide(TestLayer))
     )
 
     expect(result._tag).toBe('Failure')

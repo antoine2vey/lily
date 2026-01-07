@@ -1,33 +1,23 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { users } from '@lily/db'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
   id: string,
   data: UserSettingsUpdateRequest
-): Effect.Effect<
-  UserSettings,
-  SqlError | UserNotFoundError,
-  PgDrizzle.PgDrizzle
-> =>
+): Effect.Effect<UserSettings, SqlError | UserNotFoundError, UserRepository> =>
   Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
+    const repo = yield* UserRepository
 
     // Update user profile fields (name, image)
     const updateData: { name?: string; image?: string } = {}
     if (data.name !== undefined) updateData.name = data.name
     if (data.image !== undefined) updateData.image = data.image
 
-    const [user] = yield* db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, id))
-      .returning()
+    const user = yield* repo.update(id, updateData)
 
     if (!user) {
       return yield* Effect.fail(new UserNotFoundError())

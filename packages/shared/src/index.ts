@@ -1,21 +1,20 @@
-// Export all shared modules
-export * from './achievement'
-export * from './ai-chat'
-export * from './auth'
-export * from './care-log'
-export * from './common'
-export * from './device-token'
-// Export error types
-export * from './errors/database'
-export * from './errors/plant'
-export * from './errors/user'
-export * from './notification'
-export * from './plant'
-// Export selectors
-export * from './selectors/plant'
-// Export services
+// Domain exports
+export * from './domains/achievement/schema'
+export * from './domains/ai-chat/schema'
+export * from './domains/auth/schema'
+export * from './domains/care-log/schema'
+export * from './domains/common/errors'
+export * from './domains/common/schema'
+export * from './domains/device-token/schema'
+export * from './domains/notification/schema'
+export * from './domains/plant/errors'
+export * from './domains/plant/schema'
+export * from './domains/plant/selectors'
+export * from './domains/user/errors'
+export * from './domains/user/schema'
+export * from './domains/username/schema'
+
+// Services (cross-cutting concerns)
 export * from './services/ai/service'
 export * from './services/file/fileservice'
 export * from './services/file/gcs'
-export * from './user'
-export * from './username'

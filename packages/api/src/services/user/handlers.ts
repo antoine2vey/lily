@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { UserService } from '@lily/api/services/user/service'
 import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
@@ -30,4 +31,8 @@ export const UsersApiLive = (api: Api) =>
           userService.updateUserSettings(id, payload)
         )
     })
-  ).pipe(Layer.provide(UserService.Default), Layer.provide(DrizzleLive))
+  ).pipe(
+    Layer.provide(UserService.Default),
+    Layer.provide(UserRepositoryLive),
+    Layer.provide(DrizzleLive)
+  )

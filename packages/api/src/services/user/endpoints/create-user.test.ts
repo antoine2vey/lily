@@ -1,11 +1,14 @@
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import {
   getMockStore,
   MockDrizzleLive,
   resetMockStore,
 } from '@lily/api/test-utils/mocks/drizzle'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createUser } from './create-user'
+
+const TestLayer = UserRepositoryLive.pipe(Layer.provide(MockDrizzleLive))
 
 describe('createUser', () => {
   beforeEach(() => {
@@ -16,9 +19,7 @@ describe('createUser', () => {
     const initialCount = getMockStore().length
 
     const result = await Effect.runPromise(
-      createUser('New User', 'new@example.com').pipe(
-        Effect.provide(MockDrizzleLive)
-      )
+      createUser('New User', 'new@example.com').pipe(Effect.provide(TestLayer))
     )
 
     expect(result.name).toBe('New User')
@@ -29,7 +30,7 @@ describe('createUser', () => {
 
   it('should return the created user with an id', async () => {
     const result = await Effect.runPromise(
-      createUser('Test', 'test@test.com').pipe(Effect.provide(MockDrizzleLive))
+      createUser('Test', 'test@test.com').pipe(Effect.provide(TestLayer))
     )
 
     expect(result.id).toBeTruthy()
@@ -38,7 +39,7 @@ describe('createUser', () => {
 
   it('should set emailVerified to false by default', async () => {
     const result = await Effect.runPromise(
-      createUser('Test', 'test@test.com').pipe(Effect.provide(MockDrizzleLive))
+      createUser('Test', 'test@test.com').pipe(Effect.provide(TestLayer))
     )
 
     expect(result.emailVerified).toBe(false)

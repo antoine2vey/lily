@@ -1,14 +1,12 @@
 import type { HttpServerRequest } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { users } from '@lily/db'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/db/lib/auth'
 import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
 import {
   SessionNotFoundError,
   UserNotFoundError,
 } from '@lily/shared/errors/user'
-import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 // Set username
@@ -17,10 +15,10 @@ export const setUsername = (
 ): Effect.Effect<
   UserProfile,
   SqlError | SessionNotFoundError | UserNotFoundError,
-  PgDrizzle.PgDrizzle | Auth | HttpServerRequest.HttpServerRequest
+  UserRepository | Auth | HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
+    const repo = yield* UserRepository
     const auth = yield* Auth
     const session = yield* auth.session
 
@@ -32,13 +30,7 @@ export const setUsername = (
       )
     }
 
-    const [user] = yield* db
-      .update(users)
-      .set({
-        name: request.username,
-      })
-      .where(eq(users.id, session.user.id))
-      .returning()
+    const user = yield* repo.update(session.user.id, { name: request.username })
 
     if (!user) {
       return yield* Effect.fail(new UserNotFoundError())

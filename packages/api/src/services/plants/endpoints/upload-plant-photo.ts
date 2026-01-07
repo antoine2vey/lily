@@ -1,9 +1,7 @@
 import { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plantPhotos } from '@lily/db'
-
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   type GCSConfigError,
   GCSService,
@@ -20,13 +18,13 @@ export const uploadPlantPhoto = ({
 }): Effect.Effect<
   void,
   SqlError | GCSUploadError | GCSConfigError,
-  PgDrizzle.PgDrizzle | GCSService | FileSystem
+  PlantRepository | GCSService | FileSystem
 > => {
   return Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
+    const repo = yield* PlantRepository
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
-    const urls: string[] = []
+    const photos: Array<{ plantId: string; url: string; takenAt: Date }> = []
 
     for (const file of files) {
       const buffer = yield* fileSystem.readFile(file.path)
@@ -37,15 +35,9 @@ export const uploadPlantPhoto = ({
         contentType: file.contentType,
       })
 
-      urls.push(url)
+      photos.push({ plantId, url, takenAt: new Date() })
     }
 
-    yield* db.insert(plantPhotos).values(
-      urls.map((url) => ({
-        plantId,
-        url,
-        takenAt: new Date(),
-      }))
-    )
+    yield* repo.addPhotos(photos)
   })
 }

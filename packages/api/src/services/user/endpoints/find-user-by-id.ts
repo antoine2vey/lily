@@ -1,18 +1,15 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { users } from '@lily/db'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { User } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 export const findUserById = (
   id: string
-): Effect.Effect<User, SqlError | UserNotFoundError, PgDrizzle.PgDrizzle> =>
+): Effect.Effect<User, SqlError | UserNotFoundError, UserRepository> =>
   Effect.gen(function* () {
-    const db = yield* PgDrizzle.PgDrizzle
-
-    const [user] = yield* db.select().from(users).where(eq(users.id, id))
+    const repo = yield* UserRepository
+    const user = yield* repo.findById(id)
 
     if (!user) {
       return yield* Effect.fail(new UserNotFoundError())
