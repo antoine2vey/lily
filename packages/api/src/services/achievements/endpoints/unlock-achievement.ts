@@ -1,4 +1,4 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type {
   Achievement,
   UnlockAchievementRequest,
@@ -9,9 +9,9 @@ import { Effect } from 'effect'
 export const unlockAchievement = (
   userId: string,
   request: UnlockAchievementRequest
-): Effect.Effect<Achievement, PrismaError, PrismaService> =>
+): Effect.Effect<Achievement, never, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
 
     // Return fake achievement data
     return {

@@ -1,4 +1,4 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type {
   DeviceToken,
   DeviceTokenCreateRequest,
@@ -8,9 +8,9 @@ import { Effect } from 'effect'
 // Register device token
 export const registerDeviceToken = (
   request: DeviceTokenCreateRequest
-): Effect.Effect<DeviceToken, PrismaError, PrismaService> =>
+): Effect.Effect<DeviceToken, never, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
 
     // Return fake device token
     return {

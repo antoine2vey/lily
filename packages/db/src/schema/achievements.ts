@@ -1,0 +1,27 @@
+import { relations } from 'drizzle-orm'
+import { pgTable, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
+import { achievementKeyEnum } from './enums'
+import { users } from './users'
+
+export const userAchievements = pgTable(
+  'user_achievements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    achievement: achievementKeyEnum('achievement').notNull(),
+    unlockedAt: timestamp('unlocked_at').notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.userId, table.achievement)]
+)
+
+export const userAchievementsRelations = relations(
+  userAchievements,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userAchievements.userId],
+      references: [users.id],
+    }),
+  })
+)

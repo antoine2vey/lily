@@ -1,15 +1,15 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { Notification } from '@lily/shared/notification'
 import { Effect } from 'effect'
 
 // Get notifications
 export const getNotifications = (): Effect.Effect<
   Notification[],
-  PrismaError,
-  PrismaService
+  never,
+  PgDrizzle.PgDrizzle
 > =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
 
     // Return fake notifications
     return [

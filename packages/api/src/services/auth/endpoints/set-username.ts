@@ -1,21 +1,48 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { HttpServerRequest } from '@effect/platform'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { users } from '@lily/db'
+import { Auth } from '@lily/db/lib/auth'
 import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
+import {
+  SessionNotFoundError,
+  UserNotFoundError,
+} from '@lily/shared/errors/user'
+import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 // Set username
 export const setUsername = (
   request: UsernameRequest
-): Effect.Effect<UserProfile, PrismaError, PrismaService> =>
+): Effect.Effect<
+  UserProfile,
+  SqlError | SessionNotFoundError | UserNotFoundError,
+  PgDrizzle.PgDrizzle | Auth | HttpServerRequest.HttpServerRequest
+> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
+    const auth = yield* Auth
+    const session = yield* auth.session
 
-    // Return fake updated user profile
-    return {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: 'Test User',
-      username: request.username,
-      createdAt: new Date('2024-01-01T00:00:00Z'),
-      updatedAt: new Date(),
+    if (!session) {
+      return yield* Effect.fail(
+        new SessionNotFoundError({
+          message: 'No session found',
+        })
+      )
     }
+
+    const [user] = yield* db
+      .update(users)
+      .set({
+        name: request.username,
+      })
+      .where(eq(users.id, session.user.id))
+      .returning()
+
+    if (!user) {
+      return yield* Effect.fail(new UserNotFoundError())
+    }
+
+    return user
   })

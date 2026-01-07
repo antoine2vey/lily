@@ -1,5 +1,5 @@
 import { HttpServerRequest } from '@effect/platform'
-import { PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { Auth } from '@lily/db/lib/auth'
 import type { MagicLinkVerifyRequest, UserProfile } from '@lily/shared/auth'
 import { Effect } from 'effect'
@@ -10,11 +10,12 @@ export const verifyMagicLink = ({
 }: MagicLinkVerifyRequest): Effect.Effect<
   { token: string; user: UserProfile },
   { message: string },
-  PrismaService | Auth | HttpServerRequest.HttpServerRequest
+  PgDrizzle.PgDrizzle | Auth | HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
     const auth = yield* Auth
+    const authClient = yield* auth.client
     const req = yield* HttpServerRequest.HttpServerRequest
 
     yield* Effect.log(token)
@@ -22,7 +23,7 @@ export const verifyMagicLink = ({
 
     const response = yield* Effect.tryPromise({
       try: () =>
-        auth.api.magicLinkVerify({
+        authClient.api.magicLinkVerify({
           query: {
             token,
             callbackURL: 'http://localhost:3000/dashboard',

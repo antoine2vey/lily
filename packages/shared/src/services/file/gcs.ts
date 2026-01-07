@@ -47,8 +47,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
       const rawConfig = {
-        projectId: yield* Config.string('GCP_PROJECT_ID'),
-        keyFilename: yield* Config.string('GOOGLE_APPLICATION_CREDENTIALS'),
+        projectId: yield* Config.redacted('GCP_PROJECT_ID'),
+        keyFilename: yield* Config.redacted('GOOGLE_APPLICATION_CREDENTIALS'),
       }
 
       return yield* Schema.decodeUnknown(GCSConfigSchema)(rawConfig).pipe(

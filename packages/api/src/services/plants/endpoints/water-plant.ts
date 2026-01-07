@@ -1,19 +1,26 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { plants, wateringHistory } from '@lily/db'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant, PlantWaterRequest } from '@lily/shared/plant'
-import { plantSelector } from '@lily/shared/selectors/plant'
+import { eq } from 'drizzle-orm'
 import { Duration, Effect } from 'effect'
 
 export const waterPlant = (
   request: PlantWaterRequest & { id: string }
-): Effect.Effect<Plant, PrismaError, PrismaService> =>
+): Effect.Effect<Plant, SqlError | PlantNotFoundError, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
 
     // First get the plant to calculate next watering date
-    const plant = yield* prisma.plant.findUniqueOrThrow({
-      where: { id: request.id },
-      select: plantSelector,
-    })
+    const [plant] = yield* db
+      .select()
+      .from(plants)
+      .where(eq(plants.id, request.id))
+
+    if (!plant) {
+      return yield* Effect.fail(new PlantNotFoundError())
+    }
 
     const now = new Date()
     const nextWateringAt = new Date(
@@ -22,21 +29,23 @@ export const waterPlant = (
     )
 
     // Update the plant with watering info
-    const updatedPlant = yield* prisma.plant.update({
-      where: { id: request.id },
-      data: {
+    const [updatedPlant] = yield* db
+      .update(plants)
+      .set({
         lastWateredAt: now,
         nextWateringAt,
-      },
-      select: plantSelector,
-    })
+      })
+      .where(eq(plants.id, request.id))
+      .returning()
+
+    if (!updatedPlant) {
+      return yield* Effect.fail(new PlantNotFoundError())
+    }
 
     // Create watering history record
-    yield* prisma.wateringHistory.create({
-      data: {
-        plantId: request.id,
-        notes: request.notes || null,
-      },
+    yield* db.insert(wateringHistory).values({
+      plantId: request.id,
+      notes: request.notes || null,
     })
 
     return updatedPlant

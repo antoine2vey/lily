@@ -35,4 +35,4 @@ const ServerLive = HttpApiBuilder.serve().pipe(
 )
 
 // Launch the server
-Layer.launch(ServerLive).pipe(BunRuntime.runMain)
+BunRuntime.runMain(Layer.launch(ServerLive))

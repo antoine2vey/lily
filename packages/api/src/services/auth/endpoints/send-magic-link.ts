@@ -1,5 +1,5 @@
 import { HttpServerRequest } from '@effect/platform'
-import { PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { Auth } from '@lily/db/lib/auth'
 import type { MagicLinkRequest } from '@lily/shared/auth'
 import { Effect } from 'effect'
@@ -10,16 +10,17 @@ export const sendMagicLink = ({
 }: MagicLinkRequest): Effect.Effect<
   { message: string },
   { message: string },
-  PrismaService | Auth | HttpServerRequest.HttpServerRequest
+  PgDrizzle.PgDrizzle | Auth | HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
     const auth = yield* Auth
-    const prisma = yield* PrismaService
+    const authClient = yield* auth.client
+    const _db = yield* PgDrizzle.PgDrizzle
     const req = yield* HttpServerRequest.HttpServerRequest
 
-    const magicLinkResponse = yield* Effect.tryPromise({
+    const _magicLinkResponse = yield* Effect.tryPromise({
       try: () =>
-        auth.api.signInMagicLink({
+        authClient.api.signInMagicLink({
           body: {
             email, // Use actual email from request
             callbackURL: 'http://localhost:3000/dashboard',

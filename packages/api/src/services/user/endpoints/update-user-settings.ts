@@ -1,6 +1,9 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { users } from '@lily/db'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
+import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 // Update user settings (profile + notification preferences)
@@ -9,21 +12,22 @@ export const updateUserSettings = (
   data: UserSettingsUpdateRequest
 ): Effect.Effect<
   UserSettings,
-  PrismaError | UserNotFoundError,
-  PrismaService
+  SqlError | UserNotFoundError,
+  PgDrizzle.PgDrizzle
 > =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
 
     // Update user profile fields (name, image)
     const updateData: { name?: string; image?: string } = {}
     if (data.name !== undefined) updateData.name = data.name
     if (data.image !== undefined) updateData.image = data.image
 
-    const user = yield* prisma.user.update({
-      where: { id },
-      data: updateData,
-    })
+    const [user] = yield* db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning()
 
     if (!user) {
       return yield* Effect.fail(new UserNotFoundError())

@@ -1,4 +1,4 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 
@@ -6,9 +6,9 @@ import { Effect } from 'effect'
 export const sendChatMessage = (
   plantId: string,
   request: ChatRequest
-): Effect.Effect<ChatResponse, PrismaError, PrismaService> =>
+): Effect.Effect<ChatResponse, never, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
 
     // Return fake chat response
     return {

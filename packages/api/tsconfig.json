@@ -2,17 +2,14 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "noEmit": false,
     "composite": true,
     "target": "ES2022",
     "baseUrl": ".",
     "paths": {
       "@lily/api": ["./src"],
-      "@lily/api/*": ["./src/*"],
-      "@lily/shared": ["../shared/src"],
-      "@lily/shared/*": ["../shared/src/*"],
-      "@lily/db": ["../db/src"],
-      "@lily/db/*": ["../db/src/*"]
+      "@lily/api/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

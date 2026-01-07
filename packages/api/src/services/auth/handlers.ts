@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AuthService } from '@lily/api/services/auth/service'
-import { PrismaService } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
 import { Auth } from '@lily/db/lib/auth'
 import { Effect, Layer } from 'effect'
 
@@ -26,6 +26,6 @@ export const AuthApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(AuthService.Default),
-    Layer.provide(PrismaService.Default),
+    Layer.provide(DrizzleLive),
     Layer.provide(Auth.Default)
   )

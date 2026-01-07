@@ -1,10 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { PlantsService } from '@lily/api/services/plants/service'
-import { PrismaService } from '@lily/db'
-import { AiService } from '@lily/shared/src/services/ai/service'
-import { FileService } from '@lily/shared/src/services/file/fileservice'
-import { GCSService } from '@lily/shared/src/services/file/gcs'
+import { DrizzleLive } from '@lily/db'
+import { AiService } from '@lily/shared/services/ai/service'
+import { FileService } from '@lily/shared/services/file/fileservice'
+import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer } from 'effect'
 
 // Implement the Plants API group
@@ -58,7 +58,7 @@ export const PlantsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(PlantsService.Default),
-    Layer.provide(PrismaService.Default),
+    Layer.provide(DrizzleLive),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default)

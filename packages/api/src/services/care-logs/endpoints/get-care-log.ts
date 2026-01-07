@@ -1,4 +1,4 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { CareLog } from '@lily/shared/care-log'
 import { Effect } from 'effect'
 
@@ -6,9 +6,9 @@ import { Effect } from 'effect'
 export const getCareLog = (
   plantId: string,
   logId: string
-): Effect.Effect<CareLog, PrismaError, PrismaService> =>
+): Effect.Effect<CareLog, never, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const _db = yield* PgDrizzle.PgDrizzle
 
     // Return fake care log
     return {

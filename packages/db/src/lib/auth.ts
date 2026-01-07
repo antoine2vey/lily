@@ -1,12 +1,13 @@
-import { client } from '@lily/db/client'
+import { HttpServerRequest } from '@effect/platform'
+import { db } from '@lily/db/client'
 import { betterAuth } from 'better-auth'
-import { prismaAdapter } from 'better-auth/adapters/prisma'
+import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { magicLink } from 'better-auth/plugins'
 import { Effect } from 'effect'
 
 export const auth = betterAuth({
-  database: prismaAdapter(client, {
-    provider: 'postgresql',
+  database: drizzleAdapter(db, {
+    provider: 'pg',
   }),
   plugins: [
     magicLink({
@@ -19,5 +20,27 @@ export const auth = betterAuth({
 })
 
 export class Auth extends Effect.Service<Auth>()('Auth', {
-  effect: Effect.succeed(auth),
+  effect: Effect.gen(function* () {
+    return {
+      client: Effect.succeed(auth),
+      session: Effect.gen(function* () {
+        const req = yield* HttpServerRequest.HttpServerRequest
+
+        const session = yield* Effect.tryPromise({
+          try: () =>
+            auth.api.getSession({
+              headers: new Headers(req.headers),
+              query: {
+                disableCookieCache: true,
+              },
+            }),
+          catch: () => {
+            return new Error('No session found')
+          },
+        })
+
+        return session
+      }),
+    }
+  }),
 }) {}

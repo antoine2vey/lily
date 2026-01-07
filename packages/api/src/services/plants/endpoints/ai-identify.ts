@@ -3,6 +3,11 @@ import type { PlatformError } from '@effect/platform/Error'
 import type { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
 import {
+  type AiApiCallError,
+  type AiGenericError,
+  AiService,
+} from '@lily/shared/services/ai/service'
+import {
   FileService,
   type MultipleFilesError,
   type NoFilesError,
@@ -12,11 +17,6 @@ import {
   GCSService,
   type GCSUploadError,
 } from '@lily/shared/services/file/gcs'
-import {
-  type AiApiCallError,
-  type AiGenericError,
-  AiService,
-} from '@lily/shared/src/services/ai/service'
 import { Effect } from 'effect'
 
 export const aiIdentify = (

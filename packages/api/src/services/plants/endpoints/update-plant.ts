@@ -1,14 +1,17 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { plants } from '@lily/db'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant, PlantUpdateRequest } from '@lily/shared/plant'
-import { plantSelector } from '@lily/shared/selectors/plant'
+import { eq } from 'drizzle-orm'
 import { Effect, pipe, Record } from 'effect'
 import { transformPlant } from '../utils'
 
 export const updatePlant = (
   request: PlantUpdateRequest & { id: string }
-): Effect.Effect<Plant, PrismaError, PrismaService> =>
+): Effect.Effect<Plant, SqlError | PlantNotFoundError, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
 
     const data = pipe(
       Object.entries(request),
@@ -17,11 +20,15 @@ export const updatePlant = (
       Record.filter((_, value) => value !== undefined)
     )
 
-    const rawPlant = yield* prisma.plant.update({
-      where: { id: request.id },
-      data,
-      select: plantSelector,
-    })
+    const [rawPlant] = yield* db
+      .update(plants)
+      .set(data)
+      .where(eq(plants.id, request.id))
+      .returning()
+
+    if (!rawPlant) {
+      return yield* Effect.fail(new PlantNotFoundError())
+    }
 
     return transformPlant(rawPlant)
   })

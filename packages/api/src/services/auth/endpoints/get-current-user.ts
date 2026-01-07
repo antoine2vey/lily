@@ -1,23 +1,25 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { HttpServerRequest } from '@effect/platform'
+import { Auth } from '@lily/db/lib/auth'
 import type { UserProfile } from '@lily/shared/auth'
+import { SessionNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 
-// Get current user
 export const getCurrentUser = (): Effect.Effect<
   UserProfile,
-  PrismaError,
-  PrismaService
+  SessionNotFoundError,
+  Auth | HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const auth = yield* Auth
+    const session = yield* auth.session
 
-    // Return fake user profile
-    return {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: 'Test User',
-      username: 'testuser',
-      createdAt: new Date('2024-01-01T00:00:00Z'),
-      updatedAt: new Date(),
+    if (!session) {
+      return yield* Effect.fail(
+        new SessionNotFoundError({
+          message: 'No session found',
+        })
+      )
     }
+
+    return session.user
   })

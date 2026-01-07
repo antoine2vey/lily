@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
-import { PrismaService } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Care Logs API group
@@ -27,7 +27,4 @@ export const CareLogsApiLive = (api: Api) =>
           careLogsService.deleteCareLog(plantId, logId)
         )
     })
-  ).pipe(
-    Layer.provide(CareLogsService.Default),
-    Layer.provide(PrismaService.Default)
-  )
+  ).pipe(Layer.provide(CareLogsService.Default), Layer.provide(DrizzleLive))

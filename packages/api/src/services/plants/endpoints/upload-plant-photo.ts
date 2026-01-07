@@ -1,6 +1,8 @@
 import { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { plantPhotos } from '@lily/db'
 
 import {
   type GCSConfigError,
@@ -17,11 +19,11 @@ export const uploadPlantPhoto = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   void,
-  PrismaError | GCSUploadError | GCSConfigError,
-  PrismaService | GCSService | FileSystem
+  SqlError | GCSUploadError | GCSConfigError,
+  PgDrizzle.PgDrizzle | GCSService | FileSystem
 > => {
   return Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
     const urls: string[] = []
@@ -38,12 +40,12 @@ export const uploadPlantPhoto = ({
       urls.push(url)
     }
 
-    yield* prisma.plantPhoto.createMany({
-      data: urls.map((url) => ({
+    yield* db.insert(plantPhotos).values(
+      urls.map((url) => ({
         plantId,
         url,
         takenAt: new Date(),
-      })),
-    })
+      }))
+    )
   })
 }

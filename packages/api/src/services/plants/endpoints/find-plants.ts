@@ -1,6 +1,8 @@
-import { type PrismaError, PrismaService } from '@lily/db'
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { plants } from '@lily/db'
 import type { PlantsListResponse } from '@lily/shared/plant'
-import { plantSelector } from '@lily/shared/selectors/plant'
+import { asc, count, desc } from 'drizzle-orm'
 import { Effect } from 'effect'
 
 // Get plants with pagination and filtering
@@ -9,26 +11,29 @@ export const findPlants = (params: {
   limit?: number
   filter?: 'needsAttention' | 'all'
   sort?: 'added' | 'name'
-}): Effect.Effect<PlantsListResponse, PrismaError, PrismaService> =>
+}): Effect.Effect<PlantsListResponse, SqlError, PgDrizzle.PgDrizzle> =>
   Effect.gen(function* () {
-    const prisma = yield* PrismaService
+    const db = yield* PgDrizzle.PgDrizzle
     const page = params.page ?? 1
     const limit = params.limit ?? 10
     const offset = (page - 1) * limit
 
     // Get total count
-    const total = yield* prisma.plant.count()
+    const countResult = yield* db.select({ value: count() }).from(plants)
+    const total = countResult[0]?.value ?? 0
 
     // Get plants with pagination
-    const plants = yield* prisma.plant.findMany({
-      select: plantSelector,
-      skip: offset,
-      take: limit,
-      orderBy: params.sort === 'name' ? { name: 'asc' } : { dateAdded: 'desc' },
-    })
+    const plantsList = yield* db
+      .select()
+      .from(plants)
+      .offset(offset)
+      .limit(limit)
+      .orderBy(
+        params.sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
+      )
 
     return {
-      plants,
+      plants: plantsList,
       total,
       page,
       limit,
