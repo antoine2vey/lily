@@ -48,6 +48,10 @@
       "types": "./src/domains/username/schema.ts",
       "default": "./src/domains/username/schema.ts"
     },
+    "./errors/care-log": {
+      "types": "./src/domains/care-log/errors.ts",
+      "default": "./src/domains/care-log/errors.ts"
+    },
     "./errors/database": {
       "types": "./src/domains/common/errors.ts",
       "default": "./src/domains/common/errors.ts"

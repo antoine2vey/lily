@@ -1,5 +1,10 @@
 import { pgEnum } from 'drizzle-orm/pg-core'
 
+export const careLogTypeEnum = pgEnum('care_log_type', [
+  'watering',
+  'fertilization',
+])
+
 export const plantHealthEnum = pgEnum('plant_health', [
   'THRIVING',
   'HEALTHY',

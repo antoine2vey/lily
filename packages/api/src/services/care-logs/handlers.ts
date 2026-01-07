@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
 import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
@@ -27,4 +28,8 @@ export const CareLogsApiLive = (api: Api) =>
           careLogsService.deleteCareLog(plantId, logId)
         )
     })
-  ).pipe(Layer.provide(CareLogsService.Default), Layer.provide(DrizzleLive))
+  ).pipe(
+    Layer.provide(CareLogsService.Default),
+    Layer.provide(CareLogRepositoryLive),
+    Layer.provide(DrizzleLive)
+  )

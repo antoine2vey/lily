@@ -1,24 +1,27 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import type { SqlError } from '@effect/sql/SqlError'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
+import { DatabaseError } from '@lily/shared/errors/database'
 import { Effect } from 'effect'
 
 // Create care log
 export const createCareLog = (
   plantId: string,
   request: CareLogCreateRequest
-): Effect.Effect<CareLog, never, PgDrizzle.PgDrizzle> =>
+): Effect.Effect<CareLog, SqlError | DatabaseError, CareLogRepository> =>
   Effect.gen(function* () {
-    const _db = yield* PgDrizzle.PgDrizzle
-
-    // Return fake new care log
-    const now = new Date()
-    return {
-      id: 'new_log',
+    const repo = yield* CareLogRepository
+    const log = yield* repo.create({
       type: request.type,
       notes: request.notes,
-      date: request.date || now,
+      date: request.date,
+      photoUrl: request.photoUrl,
       plantId,
-      createdAt: now,
-      updatedAt: now,
+    })
+
+    if (!log) {
+      return yield* Effect.fail(new DatabaseError())
     }
+
+    return log
   })

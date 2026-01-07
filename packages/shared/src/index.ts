@@ -2,6 +2,7 @@
 export * from './domains/achievement/schema'
 export * from './domains/ai-chat/schema'
 export * from './domains/auth/schema'
+export * from './domains/care-log/errors'
 export * from './domains/care-log/schema'
 export * from './domains/common/errors'
 export * from './domains/common/schema'
