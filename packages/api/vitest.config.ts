@@ -4,15 +4,18 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    include: ['src/**/*.test.ts'],
+    setupFiles: ['./src/test-utils/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
         'dist/',
-        'test/',
+        '**/*.test.ts',
         '**/*.d.ts',
         '**/*.config.*',
+        'src/test-utils/**',
       ],
     },
   },
