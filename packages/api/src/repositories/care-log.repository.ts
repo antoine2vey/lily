@@ -71,7 +71,9 @@ export const CareLogRepositoryLive = Layer.effect(
             const rows = yield* db
               .select()
               .from(careLogs)
-              .where(and(eq(careLogs.plantId, plantId), eq(careLogs.type, type)))
+              .where(
+                and(eq(careLogs.plantId, plantId), eq(careLogs.type, type))
+              )
               .orderBy(desc(careLogs.date))
             return rows.map(mapToCareLog)
           }

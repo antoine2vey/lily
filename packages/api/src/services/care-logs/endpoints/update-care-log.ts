@@ -9,11 +9,7 @@ export const updateCareLog = (
   plantId: string,
   logId: string,
   request: CareLogUpdateRequest
-): Effect.Effect<
-  CareLog,
-  SqlError | CareLogNotFoundError,
-  CareLogRepository
-> =>
+): Effect.Effect<CareLog, SqlError | CareLogNotFoundError, CareLogRepository> =>
   Effect.gen(function* () {
     const repo = yield* CareLogRepository
 

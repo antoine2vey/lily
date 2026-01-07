@@ -33,7 +33,9 @@ describe('updateUser', () => {
     setMockWhereFilter((user) => user.id === 'non-existent')
 
     const result = await Effect.runPromiseExit(
-      updateUser('non-existent', { name: 'Test' }).pipe(Effect.provide(TestLayer))
+      updateUser('non-existent', { name: 'Test' }).pipe(
+        Effect.provide(TestLayer)
+      )
     )
 
     expect(result._tag).toBe('Failure')
