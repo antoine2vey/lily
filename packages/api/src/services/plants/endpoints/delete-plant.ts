@@ -3,7 +3,7 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
-import { type PlantDeleteRequest, transformPlant } from '../utils'
+import { type PlantDeleteRequest } from '../utils'
 
 export const deletePlant = ({
   id,
@@ -14,12 +14,11 @@ export const deletePlant = ({
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
+    const plant = yield* repo.delete(id)
 
-    const rawPlant = yield* repo.delete(id)
-
-    if (!rawPlant) {
+    if (!plant) {
       return yield* Effect.fail(new PlantNotFoundError())
     }
 
-    return transformPlant(rawPlant)
+    return plant
   })

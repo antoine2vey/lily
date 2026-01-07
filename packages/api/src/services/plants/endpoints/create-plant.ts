@@ -3,7 +3,6 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { DatabaseError } from '@lily/shared/errors/database'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
-import { transformPlant } from '../utils'
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
@@ -11,7 +10,7 @@ export const createPlant = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
 
-    const rawPlant = yield* repo.create({
+    const plant = yield* repo.create({
       name: request.name,
       description: request.description || null,
       category: request.category || null,
@@ -24,9 +23,9 @@ export const createPlant = (
       userId: 'placeholder', // TODO: Get from context
     })
 
-    if (!rawPlant) {
+    if (!plant) {
       return yield* Effect.fail(new DatabaseError())
     }
 
-    return transformPlant(rawPlant)
+    return plant
   })
