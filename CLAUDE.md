@@ -279,3 +279,4 @@ When adding a new domain/service:
 4. **Error propagation** - Use typed errors that flow through the Effect system
 5. **No semicolons** - Biome enforces this automatically
 6. **Single quotes** - Use single quotes for strings
+7. **Use bunx, not npx** - Always use `bunx` instead of `npx` for running CLI tools (e.g., `bunx tsc --build` for type checking)
