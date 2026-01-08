@@ -13,6 +13,10 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   emailVerified: boolean('email_verified').notNull(),
   image: text('image'),
+  bio: text('bio'),
+  soilAlerts: boolean('soil_alerts').notNull().default(true),
+  wateringReminders: boolean('watering_reminders').notNull().default(true),
+  ads: boolean('ads').notNull().default(false),
 })
 
 export const usersRelations = relations(users, ({ many }) => ({

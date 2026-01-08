@@ -8,6 +8,10 @@ export const User = Schema.Struct({
   updatedAt: Schema.Date,
   emailVerified: Schema.Boolean,
   image: Schema.NullOr(Schema.String),
+  bio: Schema.NullOr(Schema.String),
+  soilAlerts: Schema.Boolean,
+  wateringReminders: Schema.Boolean,
+  ads: Schema.Boolean,
 })
 
 export const UserCreateRequest = Schema.Struct({

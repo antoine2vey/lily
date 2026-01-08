@@ -16,17 +16,15 @@ export const getUserSettings = (
       return yield* Effect.fail(new UserNotFoundError())
     }
 
-    // Transform database user to UserSettings format
-    // Using default notification settings since they're not in the database yet
     return {
       name: user.name,
       email: user.email,
       image: user.image || undefined,
-      bio: undefined, // Not implemented in database yet
+      bio: user.bio || undefined,
       notifications: {
-        soilAlerts: true, // Default values
-        wateringReminders: true,
-        ads: false,
+        soilAlerts: user.soilAlerts,
+        wateringReminders: user.wateringReminders,
+        ads: user.ads,
       },
     }
   })

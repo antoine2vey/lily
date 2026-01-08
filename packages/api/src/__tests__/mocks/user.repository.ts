@@ -27,6 +27,10 @@ export const createMockUserRepository = (
         email: data.email,
         emailVerified: data.emailVerified ?? false,
         image: null,
+        bio: null,
+        soilAlerts: true,
+        wateringReminders: true,
+        ads: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       }

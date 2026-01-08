@@ -9,6 +9,10 @@ export const mockUsers: User[] = [
     updatedAt: new Date('2024-01-01'),
     emailVerified: true,
     image: null,
+    bio: null,
+    soilAlerts: true,
+    wateringReminders: true,
+    ads: false,
   },
   {
     id: 'user-2',
@@ -18,6 +22,10 @@ export const mockUsers: User[] = [
     updatedAt: new Date('2024-01-02'),
     emailVerified: false,
     image: 'https://example.com/avatar.png',
+    bio: 'Plant enthusiast',
+    soilAlerts: false,
+    wateringReminders: true,
+    ads: true,
   },
 ]
 
@@ -29,5 +37,9 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   updatedAt: new Date(),
   emailVerified: false,
   image: null,
+  bio: null,
+  soilAlerts: true,
+  wateringReminders: true,
+  ads: false,
   ...overrides,
 })

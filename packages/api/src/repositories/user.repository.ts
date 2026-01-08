@@ -15,6 +15,10 @@ export interface UpdateUserData {
   name?: string
   email?: string
   image?: string
+  bio?: string
+  soilAlerts?: boolean
+  wateringReminders?: boolean
+  ads?: boolean
 }
 
 // Repository service interface
