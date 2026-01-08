@@ -1,14 +1,23 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockSession } from '@lily/api/__tests__/mocks/session'
 import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getCareLogs', () => {
+  const createTestLayer = () =>
+    Layer.mergeAll(
+      createMockCareLogRepository(mockCareLogs),
+      createMockEventBus(),
+      createMockSession({ userId: 'user-1' })
+    )
+
   it('should return care logs for a plant with pagination info', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'plant-1' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -23,7 +32,7 @@ describe('getCareLogs', () => {
   it('should return empty array when no logs exist for plant', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'non-existent-plant' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -35,7 +44,7 @@ describe('getCareLogs', () => {
   it('should filter by watering type', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'plant-1', type: 'watering' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -46,7 +55,7 @@ describe('getCareLogs', () => {
   it('should filter by fertilization type', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'plant-1', type: 'fertilization' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -57,7 +66,7 @@ describe('getCareLogs', () => {
   it('should return logs sorted by date descending', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'plant-1' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -75,7 +84,7 @@ describe('getCareLogs', () => {
   it('should respect page and limit parameters', async () => {
     const result = await Effect.runPromise(
       getCareLogs({ plantId: 'plant-1', page: 1, limit: 2 }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 

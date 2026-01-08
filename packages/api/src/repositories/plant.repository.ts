@@ -83,7 +83,7 @@ export interface IPlantRepository {
   ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
   readonly addPhotos: (
     photos: Array<{ plantId: string; url: string; takenAt: Date }>
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
   readonly deletePhoto: (
     photoId: string
   ) => Effect.Effect<typeof plantPhotos.$inferSelect | null, SqlError>
@@ -207,7 +207,11 @@ export const PlantRepositoryLive = Layer.effect(
         photos: Array<{ plantId: string; url: string; takenAt: Date }>
       ) =>
         Effect.gen(function* () {
-          yield* db.insert(plantPhotos).values(photos)
+          const result = yield* db
+            .insert(plantPhotos)
+            .values(photos)
+            .returning()
+          return result
         }),
 
       deletePhoto: (photoId: string) =>

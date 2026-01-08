@@ -49,18 +49,74 @@ const onChatMessageSent = (event: { userId: string }) =>
     yield* repo.unlock(event.userId, 'AI_CONVERSATIONALIST')
   })
 
-const onPhotoUploaded = (event: { userId: string }) =>
+const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
+
+    // Check PHOTO_PRO (10+ photos total)
     const photoCount = yield* repo.countPhotos(event.userId)
-    if (photoCount >= 10) {
+    if (photoCount >= (ACHIEVEMENTS.PHOTO_PRO.threshold ?? 10)) {
       yield* repo.unlock(event.userId, 'PHOTO_PRO')
+    }
+
+    // Check GROWTH_TRACKER (5+ photos of same plant)
+    const plantPhotoCount = yield* repo.countPhotosForPlant(
+      event.userId,
+      event.plantId
+    )
+    if (plantPhotoCount >= 5) {
+      yield* repo.unlock(event.userId, 'GROWTH_TRACKER')
     }
   })
 
-const onPlantScanned = (_event: { userId: string }) =>
+const onPlantScanned = (event: { userId: string }) =>
   Effect.gen(function* () {
-    // TODO: Count scans and unlock SCAN_CHAMP when >= 5
+    const repo = yield* AchievementRepository
+    const scanCount = yield* repo.countScans(event.userId)
+    if (scanCount >= (ACHIEVEMENTS.SCAN_CHAMP.threshold ?? 5)) {
+      yield* repo.unlock(event.userId, 'SCAN_CHAMP')
+    }
+  })
+
+const onAttentionResponded = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'ATTENTION_ALERT')
+  })
+
+const onCareHistoryViewed = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+
+    // Increment view count and check threshold
+    const viewCount = yield* repo.incrementHistoryViews(event.userId)
+    if (viewCount >= 5) {
+      yield* repo.unlock(event.userId, 'HISTORY_HERO')
+    }
+  })
+
+const onDiseaseIdentified = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'DISEASE_DETECTIVE')
+  })
+
+const onRarePlantIdentified = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'RARE_COLLECTOR')
+  })
+
+const onReminderResponded = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'REMINDER_RESCUER')
+  })
+
+const onPlantShared = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'SHARE_SPROUT')
   })
 
 // Pattern matching for events (exported for testing)
@@ -71,6 +127,12 @@ export const processEvent = (event: AppEvent) =>
     Match.tag('ChatMessageSent', onChatMessageSent),
     Match.tag('PhotoUploaded', onPhotoUploaded),
     Match.tag('PlantScanned', onPlantScanned),
+    Match.tag('AttentionResponded', onAttentionResponded),
+    Match.tag('CareHistoryViewed', onCareHistoryViewed),
+    Match.tag('DiseaseIdentified', onDiseaseIdentified),
+    Match.tag('RarePlantIdentified', onRarePlantIdentified),
+    Match.tag('ReminderResponded', onReminderResponded),
+    Match.tag('PlantShared', onPlantShared),
     Match.exhaustive
   )
 

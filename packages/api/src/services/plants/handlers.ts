@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import { withSession } from '@lily/api/services/auth/session'
 import { PlantsService } from '@lily/api/services/plants/service'
@@ -31,7 +32,7 @@ export const PlantsApiLive = (api: Api) =>
           withSession(plantsService.createPlant(payload))
         )
         .handle('scanCard', ({ payload: { images } }) =>
-          plantsService.scanCard(images)
+          withSession(plantsService.scanCard(images))
         )
         .handle('aiIdentify', ({ payload: { images } }) =>
           plantsService.aiIdentify(images)
@@ -53,7 +54,7 @@ export const PlantsApiLive = (api: Api) =>
           })
         )
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
-          plantsService.uploadPlantPhoto({ plantId: id, files })
+          withSession(plantsService.uploadPlantPhoto({ plantId: id, files }))
         )
         .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
           plantsService.deletePlantPhoto({ plantId: id, photoId })
@@ -70,6 +71,7 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(PlantRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
+    Layer.provide(ScanRepositoryLive),
     Layer.provide(Auth.Default),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),

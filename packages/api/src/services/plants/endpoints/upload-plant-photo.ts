@@ -1,7 +1,10 @@
 import { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
+import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { Session } from '@lily/api/services/auth/session'
+import type { SessionNotFoundError } from '@lily/shared/errors/user'
 import {
   type GCSConfigError,
   GCSService,
@@ -17,13 +20,15 @@ export const uploadPlantPhoto = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   void,
-  SqlError | GCSUploadError | GCSConfigError,
-  PlantRepository | GCSService | FileSystem
+  SqlError | GCSUploadError | GCSConfigError | SessionNotFoundError,
+  PlantRepository | GCSService | FileSystem | EventBus | Session
 > => {
   return Effect.gen(function* () {
     const repo = yield* PlantRepository
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
+    const eventBus = yield* EventBus
+    const { userId } = yield* Session
     const photos: Array<{ plantId: string; url: string; takenAt: Date }> = []
 
     for (const file of files) {
@@ -38,6 +43,18 @@ export const uploadPlantPhoto = ({
       photos.push({ plantId, url, takenAt: new Date() })
     }
 
-    yield* repo.addPhotos(photos)
+    const createdPhotos = yield* repo.addPhotos(photos)
+
+    // Emit PhotoUploaded event for each photo
+    yield* Effect.forEach(createdPhotos, (photo) =>
+      publishWithRetry(
+        eventBus.publish({
+          _tag: 'PhotoUploaded',
+          userId,
+          plantId,
+          photoId: photo.id,
+        })
+      )
+    )
   })
 }

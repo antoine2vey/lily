@@ -117,7 +117,15 @@ export const createMockPlantRepository = (
       return Effect.succeed(newPhoto)
     },
 
-    addPhotos: () => Effect.succeed(undefined),
+    addPhotos: (photosData) =>
+      Effect.succeed(
+        photosData.map((p) => ({
+          id: `photo-${crypto.randomUUID()}`,
+          url: p.url,
+          takenAt: p.takenAt,
+          plantId: p.plantId,
+        }))
+      ),
 
     deletePhoto: (photoId: string) => {
       const photo = photos.find((p) => p.id === photoId)

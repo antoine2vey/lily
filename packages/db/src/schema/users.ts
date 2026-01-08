@@ -3,7 +3,14 @@ import { accounts, sessions } from '@lily/db/schema/auth'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
 import { relations } from 'drizzle-orm'
-import { boolean, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -17,6 +24,7 @@ export const users = pgTable('users', {
   soilAlerts: boolean('soil_alerts').notNull().default(true),
   wateringReminders: boolean('watering_reminders').notNull().default(true),
   ads: boolean('ads').notNull().default(false),
+  historyViewCount: integer('history_view_count').notNull().default(0),
 })
 
 export const usersRelations = relations(users, ({ many }) => ({

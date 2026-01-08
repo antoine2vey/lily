@@ -14,6 +14,9 @@ export interface MockAchievementRepositoryData {
   careLogCounts?: { watering: number; fertilization: number }
   photoCount?: number
   careStreak?: number
+  scanCount?: number
+  plantPhotoCount?: number
+  historyViewCount?: number
 }
 
 export const createMockAchievementRepository = (
@@ -59,6 +62,20 @@ export const createMockAchievementRepository = (
     countPhotos: (_userId: string) => Effect.succeed(data.photoCount ?? 0),
 
     getCareStreak: (_userId: string) => Effect.succeed(data.careStreak ?? 0),
+
+    countScans: (_userId: string) => Effect.succeed(data.scanCount ?? 0),
+
+    countPhotosForPlant: (_userId: string, _plantId: string) =>
+      Effect.succeed(data.plantPhotoCount ?? 0),
+
+    incrementHistoryViews: (_userId: string) => {
+      const currentCount = data.historyViewCount ?? 0
+      data.historyViewCount = currentCount + 1
+      return Effect.succeed(data.historyViewCount)
+    },
+
+    getHistoryViewCount: (_userId: string) =>
+      Effect.succeed(data.historyViewCount ?? 0),
   }
 
   return Layer.succeed(AchievementRepository, repo)

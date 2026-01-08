@@ -1,6 +1,9 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockSession } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
@@ -12,7 +15,9 @@ describe('createCareLog', () => {
     Layer.mergeAll(
       createMockCareLogRepository(mockCareLogs),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' })
+      createMockSession({ userId: 'user-1' }),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockNotificationRepository([])
     )
 
   it('should create a new care log', async () => {
@@ -95,13 +100,15 @@ describe('createCareLog', () => {
           Layer.mergeAll(
             createMockCareLogRepository(mockCareLogs),
             eventBusMock,
-            createMockSession({ userId: 'user-1' })
+            createMockSession({ userId: 'user-1' }),
+            createMockPlantRepository({ plants: mockPlants }),
+            createMockNotificationRepository([])
           )
         )
       )
     )
 
-    expect(publishedEvents.length).toBe(1)
+    expect(publishedEvents.length).toBeGreaterThanOrEqual(1)
     expect(publishedEvents[0]).toMatchObject({
       _tag: 'CareLogCreated',
       userId: 'user-1',

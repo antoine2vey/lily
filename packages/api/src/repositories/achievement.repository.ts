@@ -1,6 +1,13 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { careLogs, plants, userAchievements } from '@lily/db'
+import {
+  careLogs,
+  plantPhotos,
+  plantScans,
+  plants,
+  userAchievements,
+  users,
+} from '@lily/db'
 import type { AchievementKey } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
@@ -30,6 +37,21 @@ export interface IAchievementRepository {
   readonly countPhotos: (userId: string) => Effect.Effect<number, SqlError>
 
   readonly getCareStreak: (userId: string) => Effect.Effect<number, SqlError>
+
+  readonly countScans: (userId: string) => Effect.Effect<number, SqlError>
+
+  readonly countPhotosForPlant: (
+    userId: string,
+    plantId: string
+  ) => Effect.Effect<number, SqlError>
+
+  readonly incrementHistoryViews: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
+
+  readonly getHistoryViewCount: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
 }
 
 export class AchievementRepository extends Context.Tag('AchievementRepository')<
@@ -95,7 +117,15 @@ export const AchievementRepositoryLive = Layer.effect(
           return result?.count ?? 0
         }),
 
-      countPhotos: (_userId: string) => Effect.succeed(0), // TODO: Implement when photo tracking is needed
+      countPhotos: (userId: string) =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(plantPhotos)
+            .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
+            .where(eq(plants.userId, userId))
+          return result?.count ?? 0
+        }),
 
       getCareStreak: (userId: string) =>
         Effect.gen(function* () {
@@ -118,6 +148,48 @@ export const AchievementRepositoryLive = Layer.effect(
             WHERE grp = (SELECT grp FROM streak LIMIT 1)
           `)
           return Number(result[0]?.streak ?? 0)
+        }),
+
+      countScans: (userId: string) =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(plantScans)
+            .where(eq(plantScans.userId, userId))
+          return result?.count ?? 0
+        }),
+
+      countPhotosForPlant: (userId: string, plantId: string) =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(plantPhotos)
+            .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
+            .where(
+              and(eq(plants.userId, userId), eq(plantPhotos.plantId, plantId))
+            )
+          return result?.count ?? 0
+        }),
+
+      incrementHistoryViews: (userId: string) =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .update(users)
+            .set({
+              historyViewCount: sql`${users.historyViewCount} + 1`,
+            })
+            .where(eq(users.id, userId))
+            .returning({ historyViewCount: users.historyViewCount })
+          return result?.historyViewCount ?? 0
+        }),
+
+      getHistoryViewCount: (userId: string) =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .select({ historyViewCount: users.historyViewCount })
+            .from(users)
+            .where(eq(users.id, userId))
+          return result?.historyViewCount ?? 0
         }),
     }
   })

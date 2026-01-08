@@ -1,5 +1,6 @@
 import { careLogTypeEnum } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
@@ -37,5 +38,22 @@ export const careLogsRelations = relations(careLogs, ({ one }) => ({
   plant: one(plants, {
     fields: [careLogs.plantId],
     references: [plants.id],
+  }),
+}))
+
+// Plant scans for SCAN_CHAMP achievement
+export const plantScans = pgTable('plant_scans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scanType: text('scan_type').notNull(), // 'card' | 'identify'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+})
+
+export const plantScansRelations = relations(plantScans, ({ one }) => ({
+  user: one(users, {
+    fields: [plantScans.userId],
+    references: [users.id],
   }),
 }))

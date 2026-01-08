@@ -82,6 +82,10 @@ export interface INotificationRepository {
     plantId: string,
     type: string
   ) => Effect.Effect<void, SqlError>
+  readonly hasNotificationToday: (
+    userId: string,
+    plantId: string
+  ) => Effect.Effect<boolean, SqlError>
 }
 
 // Tag for dependency injection
@@ -247,6 +251,28 @@ export const NotificationRepositoryLive = Layer.effect(
                 eq(notifications.status, 'pending')
               )
             )
+        }),
+
+      hasNotificationToday: (userId: string, plantId: string) =>
+        Effect.gen(function* () {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const tomorrow = new Date(today)
+          tomorrow.setDate(tomorrow.getDate() + 1)
+
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.plantId, plantId),
+                eq(notifications.status, 'sent'),
+                sql`${notifications.sentAt} >= ${today}`,
+                sql`${notifications.sentAt} < ${tomorrow}`
+              )
+            )
+          return (result?.count ?? 0) > 0
         }),
     }
   })

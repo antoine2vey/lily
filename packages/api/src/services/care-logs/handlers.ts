@@ -1,6 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import { withSession } from '@lily/api/services/auth/session'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
@@ -14,16 +16,18 @@ export const CareLogsApiLive = (api: Api) =>
 
       return handlers
         .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
-          careLogsService.getCareLogs({
-            plantId,
-            page: parseInt(urlParams.page, 10) || 1,
-            limit: parseInt(urlParams.limit, 10) || 20,
-            type:
-              urlParams.type === 'watering' ||
-              urlParams.type === 'fertilization'
-                ? urlParams.type
-                : 'all',
-          })
+          withSession(
+            careLogsService.getCareLogs({
+              plantId,
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+              type:
+                urlParams.type === 'watering' ||
+                urlParams.type === 'fertilization'
+                  ? urlParams.type
+                  : 'all',
+            })
+          )
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
           withSession(careLogsService.createCareLog(plantId, payload))
@@ -41,5 +45,7 @@ export const CareLogsApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(CareLogsService.Default),
     Layer.provide(CareLogRepositoryLive),
+    Layer.provide(PlantRepositoryLive),
+    Layer.provide(NotificationRepositoryLive),
     Layer.provide(Auth.Default)
   )

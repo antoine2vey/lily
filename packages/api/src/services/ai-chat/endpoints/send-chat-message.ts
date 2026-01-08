@@ -79,7 +79,7 @@ export const sendChatMessage = (
       return yield* Effect.fail(new Error('Failed to save assistant message'))
     }
 
-    // 7. Publish event
+    // 7. Publish ChatMessageSent event
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'ChatMessageSent',
@@ -89,7 +89,57 @@ export const sendChatMessage = (
       })
     )
 
-    // 8. Return response
+    // 8. Check for disease-related keywords in response for DISEASE_DETECTIVE achievement
+    const diseaseKeywords = [
+      'disease',
+      'infection',
+      'fungus',
+      'pest',
+      'rot',
+      'blight',
+      'mold',
+      'wilting',
+      'mildew',
+      'bacterial',
+    ]
+    const lowerResponse = responseText.toLowerCase()
+    const hasDiseaseDetection = diseaseKeywords.some((keyword) =>
+      lowerResponse.includes(keyword)
+    )
+
+    if (hasDiseaseDetection) {
+      yield* publishWithRetry(
+        eventBus.publish({
+          _tag: 'DiseaseIdentified',
+          userId,
+          plantId,
+        })
+      )
+    }
+
+    // 9. Check for rarity keywords in response for RARE_COLLECTOR achievement
+    const rarityKeywords = [
+      'rare',
+      'uncommon',
+      'exotic',
+      'endangered',
+      'unusual',
+    ]
+    const isRarePlant = rarityKeywords.some((keyword) =>
+      lowerResponse.includes(keyword)
+    )
+
+    if (isRarePlant) {
+      yield* publishWithRetry(
+        eventBus.publish({
+          _tag: 'RarePlantIdentified',
+          userId,
+          plantId,
+        })
+      )
+    }
+
+    // 10. Return response
     return {
       message: savedUserMessage,
       response: responseText,

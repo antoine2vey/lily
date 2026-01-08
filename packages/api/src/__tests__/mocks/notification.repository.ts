@@ -131,6 +131,9 @@ export const createMockNotificationRepository = (
         notificationsState.length = 0
         notificationsState.push(...toKeep)
       }),
+
+    hasNotificationToday: (_userId: string, _plantId: string) =>
+      Effect.succeed(false),
   }
 
   return Layer.succeed(NotificationRepository, repo)

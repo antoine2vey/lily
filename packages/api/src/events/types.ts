@@ -37,13 +37,54 @@ export const PlantScannedEvent = Schema.Struct({
   scanId: Schema.String,
 })
 
+export const AttentionRespondedEvent = Schema.Struct({
+  _tag: Schema.Literal('AttentionResponded'),
+  userId: Schema.String,
+  plantId: Schema.String,
+})
+
+export const CareHistoryViewedEvent = Schema.Struct({
+  _tag: Schema.Literal('CareHistoryViewed'),
+  userId: Schema.String,
+})
+
+export const DiseaseIdentifiedEvent = Schema.Struct({
+  _tag: Schema.Literal('DiseaseIdentified'),
+  userId: Schema.String,
+  plantId: Schema.String,
+})
+
+export const RarePlantIdentifiedEvent = Schema.Struct({
+  _tag: Schema.Literal('RarePlantIdentified'),
+  userId: Schema.String,
+  plantId: Schema.String,
+})
+
+export const ReminderRespondedEvent = Schema.Struct({
+  _tag: Schema.Literal('ReminderResponded'),
+  userId: Schema.String,
+  plantId: Schema.String,
+})
+
+export const PlantSharedEvent = Schema.Struct({
+  _tag: Schema.Literal('PlantShared'),
+  userId: Schema.String,
+  plantId: Schema.String,
+})
+
 // Union of all events
 export const AppEvent = Schema.Union(
   PlantCreatedEvent,
   CareLogCreatedEvent,
   ChatMessageSentEvent,
   PhotoUploadedEvent,
-  PlantScannedEvent
+  PlantScannedEvent,
+  AttentionRespondedEvent,
+  CareHistoryViewedEvent,
+  DiseaseIdentifiedEvent,
+  RarePlantIdentifiedEvent,
+  ReminderRespondedEvent,
+  PlantSharedEvent
 )
 
 export type AppEvent = typeof AppEvent.Type
@@ -52,3 +93,9 @@ export type CareLogCreatedEvent = typeof CareLogCreatedEvent.Type
 export type ChatMessageSentEvent = typeof ChatMessageSentEvent.Type
 export type PhotoUploadedEvent = typeof PhotoUploadedEvent.Type
 export type PlantScannedEvent = typeof PlantScannedEvent.Type
+export type AttentionRespondedEvent = typeof AttentionRespondedEvent.Type
+export type CareHistoryViewedEvent = typeof CareHistoryViewedEvent.Type
+export type DiseaseIdentifiedEvent = typeof DiseaseIdentifiedEvent.Type
+export type RarePlantIdentifiedEvent = typeof RarePlantIdentifiedEvent.Type
+export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
+export type PlantSharedEvent = typeof PlantSharedEvent.Type
