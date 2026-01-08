@@ -2,14 +2,10 @@ import {
   type IScanRepository,
   ScanRepository,
 } from '@lily/api/repositories/scan.repository'
+import type { plantScans } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
-interface PlantScan {
-  id: string
-  userId: string
-  scanType: 'card' | 'identify'
-  createdAt: Date
-}
+type PlantScan = typeof plantScans.$inferSelect
 
 export const createMockScanRepository = (): Layer.Layer<ScanRepository> => {
   const scans: PlantScan[] = []

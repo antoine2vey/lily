@@ -37,11 +37,11 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]!.topic).toBe('watering_reminder')
-      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe(
+      expect(enqueuedMessages[0]?.topic).toBe('watering_reminder')
+      expect(enqueuedMessages[0]?.message.payload.notificationId).toBe(
         'pending-1'
       )
-      expect(enqueuedMessages[0]!.message.payload.title).toBe(
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
         pendingNotification.title
       )
     })
@@ -75,7 +75,7 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(1)
-      expect(enqueuedMessages[0]!.topic).toBe('fertilization_reminder')
+      expect(enqueuedMessages[0]?.topic).toBe('fertilization_reminder')
     })
 
     it('should skip notifications with unknown types', async () => {
@@ -190,10 +190,10 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(2)
-      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe(
+      expect(enqueuedMessages[0]?.message.payload.notificationId).toBe(
         'pending-a'
       )
-      expect(enqueuedMessages[1]!.message.payload.notificationId).toBe(
+      expect(enqueuedMessages[1]?.message.payload.notificationId).toBe(
         'pending-b'
       )
     })

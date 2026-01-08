@@ -4,7 +4,6 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -24,10 +23,10 @@ describe('waterPlant', () => {
     const after = new Date()
 
     expect(result.lastWateredAt).toBeDefined()
-    expect(result.lastWateredAt!.getTime()).toBeGreaterThanOrEqual(
+    expect(result.lastWateredAt?.getTime()).toBeGreaterThanOrEqual(
       before.getTime()
     )
-    expect(result.lastWateredAt!.getTime()).toBeLessThanOrEqual(after.getTime())
+    expect(result.lastWateredAt?.getTime()).toBeLessThanOrEqual(after.getTime())
     expect(result.nextWateringAt).toBeDefined()
   })
 
@@ -38,9 +37,9 @@ describe('waterPlant', () => {
 
     // plant-1 has wateringFrequencyDays = 7
     const expectedNextWatering = new Date(
-      result.lastWateredAt!.getTime() + 7 * 24 * 60 * 60 * 1000
+      result.lastWateredAt?.getTime() + 7 * 24 * 60 * 60 * 1000
     )
-    expect(result.nextWateringAt!.getTime()).toBeCloseTo(
+    expect(result.nextWateringAt?.getTime()).toBeCloseTo(
       expectedNextWatering.getTime(),
       -3 // within 1 second
     )

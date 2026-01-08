@@ -56,6 +56,7 @@ export const createMockAuth = (
           token: 'mock-token',
           user: {
             id: 'user-1',
+            name: 'Test User',
             email: 'test@example.com',
             username: 'testuser',
             createdAt: new Date(),

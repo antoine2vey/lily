@@ -12,6 +12,7 @@ export const User = Schema.Struct({
   soilAlerts: Schema.Boolean,
   wateringReminders: Schema.Boolean,
   ads: Schema.Boolean,
+  historyViewCount: Schema.Number,
 })
 
 export const UserCreateRequest = Schema.Struct({

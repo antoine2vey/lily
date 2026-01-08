@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getPlantPhotos', () => {

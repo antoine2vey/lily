@@ -1,7 +1,7 @@
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { checkUsername } from '@lily/api/services/username/endpoints/check-username'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('checkUsername', () => {

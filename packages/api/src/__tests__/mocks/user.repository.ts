@@ -31,6 +31,7 @@ export const createMockUserRepository = (
         soilAlerts: true,
         wateringReminders: true,
         ads: false,
+        historyViewCount: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }

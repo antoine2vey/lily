@@ -10,7 +10,6 @@ import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   EnhancedPlantCreateRequest,
   Plant,
-  PlantPhoto,
   PlantPhotosListResponse,
   PlantsListResponse,
   PlantUpdateRequest,

@@ -72,7 +72,7 @@ export const createMockMessageQueueWithMessages = (
         if (!queues.has(topic)) {
           queues.set(topic, [])
         }
-        queues.get(topic)!.push(message)
+        queues.get(topic)?.push(message)
       }),
 
     dequeue: (topic) =>

@@ -17,7 +17,7 @@ import {
   handleFailedMessage,
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
-import type { NotificationTopic, PushMessage, QueueMessage } from '@lily/shared'
+import type { PushMessage, QueueMessage } from '@lily/shared'
 import { Effect, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -68,8 +68,8 @@ describe('Notification Worker', () => {
 
       // user-1 has 2 active tokens
       expect(sentMessages).toHaveLength(2)
-      expect(sentMessages[0]!.title).toBe('Test notification')
-      expect(sentMessages[0]!.body).toBe('Test body')
+      expect(sentMessages[0]?.title).toBe('Test notification')
+      expect(sentMessages[0]?.body).toBe('Test body')
     })
 
     it('should mark notification as sent on success', async () => {
@@ -167,10 +167,10 @@ describe('Notification Worker', () => {
       )
 
       expect(capturedMessages).toHaveLength(1)
-      expect(capturedMessages[0]!.originalMessageId).toBe('msg-1')
-      expect(capturedMessages[0]!.topic).toBe('watering_reminder')
-      expect(capturedMessages[0]!.error).toContain('Test error')
-      expect(capturedMessages[0]!.retryCount).toBe(2)
+      expect(capturedMessages[0]?.originalMessageId).toBe('msg-1')
+      expect(capturedMessages[0]?.topic).toBe('watering_reminder')
+      expect(capturedMessages[0]?.error).toContain('Test error')
+      expect(capturedMessages[0]?.retryCount).toBe(2)
     })
 
     it('should mark notification as failed', async () => {
@@ -217,7 +217,7 @@ describe('Notification Worker', () => {
         )
       )
 
-      expect(capturedMessages[0]!.plantId).toBe('plant-123')
+      expect(capturedMessages[0]?.plantId).toBe('plant-123')
     })
   })
 

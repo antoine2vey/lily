@@ -23,10 +23,10 @@ describe('fertilizePlant', () => {
     const after = new Date()
 
     expect(result.lastFertilizedAt).toBeDefined()
-    expect(result.lastFertilizedAt!.getTime()).toBeGreaterThanOrEqual(
+    expect(result.lastFertilizedAt?.getTime()).toBeGreaterThanOrEqual(
       before.getTime()
     )
-    expect(result.lastFertilizedAt!.getTime()).toBeLessThanOrEqual(
+    expect(result.lastFertilizedAt?.getTime()).toBeLessThanOrEqual(
       after.getTime()
     )
   })
@@ -39,9 +39,9 @@ describe('fertilizePlant', () => {
 
     expect(result.nextFertilizationAt).toBeDefined()
     const expectedNextFertilization = new Date(
-      result.lastFertilizedAt!.getTime() + 30 * 24 * 60 * 60 * 1000
+      result.lastFertilizedAt?.getTime() + 30 * 24 * 60 * 60 * 1000
     )
-    expect(result.nextFertilizationAt!.getTime()).toBeCloseTo(
+    expect(result.nextFertilizationAt?.getTime()).toBeCloseTo(
       expectedNextFertilization.getTime(),
       -3
     )

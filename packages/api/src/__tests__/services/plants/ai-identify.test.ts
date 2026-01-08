@@ -8,13 +8,13 @@ import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('aiIdentify', () => {
-  const mockFile: PersistedFile = {
+  const mockFile = {
     _tag: 'PersistedFile',
     key: 'file',
     name: 'plant-photo.jpg',
     contentType: 'image/jpeg',
     path: '/tmp/plant-photo.jpg',
-  }
+  } as unknown as PersistedFile
 
   const createTestLayer = () =>
     Layer.mergeAll(

@@ -12,13 +12,13 @@ import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('scanCard', () => {
-  const mockFile: PersistedFile = {
+  const mockFile = {
     _tag: 'PersistedFile',
     key: 'file',
     name: 'plant-card.jpg',
     contentType: 'image/jpeg',
     path: '/tmp/plant-card.jpg',
-  }
+  } as unknown as PersistedFile
 
   const createTestLayer = () =>
     Layer.mergeAll(

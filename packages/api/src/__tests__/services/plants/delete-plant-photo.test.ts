@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('deletePlantPhoto', () => {

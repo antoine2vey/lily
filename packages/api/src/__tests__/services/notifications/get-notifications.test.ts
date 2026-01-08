@@ -68,7 +68,7 @@ describe('getNotifications', () => {
     )
 
     expect(result.items.length).toBe(1)
-    expect(result.items[0]!.id).toBe('notification-3')
+    expect(result.items[0]?.id).toBe('notification-3')
   })
 
   it('should respect page and limit parameters', async () => {

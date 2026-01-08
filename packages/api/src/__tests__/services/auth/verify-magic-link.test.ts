@@ -15,6 +15,7 @@ describe('verifyMagicLink', () => {
           token: 'verified-token',
           user: {
             id: 'user-1',
+            name: 'Verified User',
             email: 'verified@example.com',
             username: 'verifieduser',
             createdAt: new Date(),

@@ -13,6 +13,7 @@ export const mockUsers: User[] = [
     soilAlerts: true,
     wateringReminders: true,
     ads: false,
+    historyViewCount: 0,
   },
   {
     id: 'user-2',
@@ -26,6 +27,7 @@ export const mockUsers: User[] = [
     soilAlerts: false,
     wateringReminders: true,
     ads: true,
+    historyViewCount: 0,
   },
 ]
 
@@ -41,5 +43,6 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   soilAlerts: true,
   wateringReminders: true,
   ads: false,
+  historyViewCount: 0,
   ...overrides,
 })

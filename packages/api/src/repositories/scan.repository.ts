@@ -30,7 +30,7 @@ export const ScanRepositoryLive = Layer.effect(
               scanType: data.scanType,
             })
             .returning()
-          return scan
+          return scan!
         }),
     }
   })

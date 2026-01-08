@@ -1,7 +1,7 @@
 import { mockUserAchievements } from '@lily/api/__tests__/fixtures/achievements'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { getUserAchievements } from '@lily/api/services/achievements/endpoints/get-user-achievements'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getUserAchievements', () => {
