@@ -40,9 +40,11 @@ describe('registerDeviceToken', () => {
   })
 
   it('should update isActive to true when re-registering', async () => {
+    const firstToken = mockDeviceTokens[0]
+    if (!firstToken) throw new Error('Test setup: missing mock token')
     const tokens = [
       {
-        ...mockDeviceTokens[0]!,
+        ...firstToken,
         isActive: false,
       },
     ]

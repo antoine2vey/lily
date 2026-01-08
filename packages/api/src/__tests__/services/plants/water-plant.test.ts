@@ -36,8 +36,10 @@ describe('waterPlant', () => {
     )
 
     // plant-1 has wateringFrequencyDays = 7
+    expect(result.lastWateredAt).toBeDefined()
+    const lastWateredTime = result.lastWateredAt?.getTime() ?? 0
     const expectedNextWatering = new Date(
-      result.lastWateredAt?.getTime() + 7 * 24 * 60 * 60 * 1000
+      lastWateredTime + 7 * 24 * 60 * 60 * 1000
     )
     expect(result.nextWateringAt?.getTime()).toBeCloseTo(
       expectedNextWatering.getTime(),

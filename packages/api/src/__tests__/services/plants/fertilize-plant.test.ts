@@ -38,8 +38,10 @@ describe('fertilizePlant', () => {
     )
 
     expect(result.nextFertilizationAt).toBeDefined()
+    expect(result.lastFertilizedAt).toBeDefined()
+    const lastFertilizedTime = result.lastFertilizedAt?.getTime() ?? 0
     const expectedNextFertilization = new Date(
-      result.lastFertilizedAt?.getTime() + 30 * 24 * 60 * 60 * 1000
+      lastFertilizedTime + 30 * 24 * 60 * 60 * 1000
     )
     expect(result.nextFertilizationAt?.getTime()).toBeCloseTo(
       expectedNextFertilization.getTime(),

@@ -20,10 +20,13 @@ export const createMockMessageQueue = (
   const queues = new Map<NotificationTopic, QueueMessage[]>()
 
   const getQueue = (topic: NotificationTopic): QueueMessage[] => {
-    if (!queues.has(topic)) {
-      queues.set(topic, [])
+    const existing = queues.get(topic)
+    if (existing) {
+      return existing
     }
-    return queues.get(topic)!
+    const newQueue: QueueMessage[] = []
+    queues.set(topic, newQueue)
+    return newQueue
   }
 
   const service: IMessageQueue = {

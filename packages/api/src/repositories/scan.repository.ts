@@ -23,14 +23,20 @@ export const ScanRepositoryLive = Layer.effect(
     return {
       create: (data: { userId: string; scanType: 'card' | 'identify' }) =>
         Effect.gen(function* () {
-          const [scan] = yield* db
+          const results = yield* db
             .insert(plantScans)
             .values({
               userId: data.userId,
               scanType: data.scanType,
             })
             .returning()
-          return scan!
+          const scan = results[0]
+          if (!scan) {
+            return yield* Effect.die(
+              new Error('Insert did not return a result')
+            )
+          }
+          return scan
         }),
     }
   })

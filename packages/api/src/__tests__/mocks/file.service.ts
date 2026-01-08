@@ -25,7 +25,10 @@ export const createMockFileService = (): Layer.Layer<FileService> => {
         )
       }
 
-      const file = files[0]!
+      const file = files[0]
+      if (!file) {
+        return Effect.fail(new NoFilesError({ message: 'No files provided' }))
+      }
       return Effect.succeed({
         buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), // Mock PNG header
         key: file.key,
