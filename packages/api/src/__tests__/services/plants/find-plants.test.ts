@@ -1,5 +1,5 @@
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -58,9 +58,9 @@ describe('findPlants', () => {
       )
     )
 
-    expect(
-      result.plants.every((p) => p.health === 'NEEDS_ATTENTION')
-    ).toBe(true)
+    expect(result.plants.every((p) => p.health === 'NEEDS_ATTENTION')).toBe(
+      true
+    )
   })
 
   it('should sort by name when specified', async () => {

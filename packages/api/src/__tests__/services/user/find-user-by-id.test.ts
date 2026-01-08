@@ -1,5 +1,5 @@
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findUserById } from '@lily/api/services/user/endpoints/find-user-by-id'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'

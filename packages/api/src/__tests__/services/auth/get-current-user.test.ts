@@ -1,8 +1,8 @@
+import { mockSession } from '@lily/api/__tests__/fixtures/auth'
 import {
   createMockAuth,
   createMockHttpServerRequest,
 } from '@lily/api/__tests__/mocks/auth'
-import { mockSession } from '@lily/api/__tests__/fixtures/auth'
 import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'

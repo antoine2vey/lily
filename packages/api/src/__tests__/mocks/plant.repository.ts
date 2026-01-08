@@ -1,10 +1,10 @@
 import {
-  PlantRepository,
-  type IPlantRepository,
   type FindPlantsParams,
+  type IPlantRepository,
+  PlantRepository,
 } from '@lily/api/repositories/plant.repository'
-import type { PlantPhoto } from '@lily/shared/plant'
 import type { plants } from '@lily/db'
+import type { PlantPhoto } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
@@ -38,9 +38,7 @@ export const createMockPlantRepository = (
       if (params.sort === 'name') {
         filtered.sort((a, b) => a.name.localeCompare(b.name))
       } else {
-        filtered.sort(
-          (a, b) => b.dateAdded.getTime() - a.dateAdded.getTime()
-        )
+        filtered.sort((a, b) => b.dateAdded.getTime() - a.dateAdded.getTime())
       }
 
       const paginated = filtered.slice(offset, offset + limit)

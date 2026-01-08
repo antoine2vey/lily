@@ -1,5 +1,5 @@
-import type { PlantPhoto } from '@lily/shared/plant'
 import type { plants } from '@lily/db'
+import type { PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = typeof plants.$inferSelect
 

@@ -1,5 +1,5 @@
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -43,9 +43,7 @@ describe('updatePlant', () => {
         name: 'Updated Name',
         description: 'Updated description',
         wateringFrequencyDays: 14,
-      }).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
+      }).pipe(Effect.provide(createMockPlantRepository({ plants: mockPlants })))
     )
 
     expect(result.name).toBe('Updated Name')
@@ -55,7 +53,9 @@ describe('updatePlant', () => {
 
   it('should update health status', async () => {
     const result = await Effect.runPromise(
-      updatePlant({ id: 'plant-1', health: 'THRIVING' } as Parameters<typeof updatePlant>[0]).pipe(
+      updatePlant({ id: 'plant-1', health: 'THRIVING' } as Parameters<
+        typeof updatePlant
+      >[0]).pipe(
         Effect.provide(createMockPlantRepository({ plants: mockPlants }))
       )
     )

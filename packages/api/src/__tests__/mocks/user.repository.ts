@@ -1,6 +1,6 @@
 import {
-  UserRepository,
   type IUserRepository,
+  UserRepository,
 } from '@lily/api/repositories/user.repository'
 import type { User } from '@lily/shared'
 import { Effect, Layer } from 'effect'

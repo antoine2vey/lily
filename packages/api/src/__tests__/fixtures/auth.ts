@@ -19,14 +19,16 @@ export const mockUserProfiles: UserProfile[] = [
   },
 ]
 
+const defaultMockUser = mockUserProfiles[0]
+
 export const mockSession = {
-  user: mockUserProfiles[0]!,
+  user: defaultMockUser ?? mockUserProfiles[1],
   session: {
     id: 'session-1',
     userId: 'user-1',
     expiresAt: new Date('2025-01-01'),
   },
-}
+} as const
 
 export const createTestUserProfile = (
   overrides: Partial<UserProfile> = {}

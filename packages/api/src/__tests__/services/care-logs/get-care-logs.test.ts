@@ -1,5 +1,5 @@
-import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -59,7 +59,9 @@ describe('getCareLogs', () => {
       const current = result[i]
       const next = result[i + 1]
       if (current && next) {
-        expect(current.date.getTime()).toBeGreaterThanOrEqual(next.date.getTime())
+        expect(current.date.getTime()).toBeGreaterThanOrEqual(
+          next.date.getTime()
+        )
       }
     }
   })

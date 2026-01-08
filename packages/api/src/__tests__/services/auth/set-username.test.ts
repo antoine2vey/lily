@@ -1,10 +1,10 @@
+import { mockSession } from '@lily/api/__tests__/fixtures/auth'
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import {
   createMockAuth,
   createMockHttpServerRequest,
 } from '@lily/api/__tests__/mocks/auth'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { mockSession } from '@lily/api/__tests__/fixtures/auth'
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
