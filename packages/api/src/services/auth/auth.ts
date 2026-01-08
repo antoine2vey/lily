@@ -1,5 +1,6 @@
 import { HttpServerRequest } from '@effect/platform'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import { sendVerificationEmail } from '@lily/api/services/email/send-verification-email'
 import { db } from '@lily/db/client'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -10,6 +11,13 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
   }),
+  emailVerification: {
+    sendOnSignUp: true,
+    expiresIn: 86400, // 24 hours
+    sendVerificationEmail: async ({ user, url, token }) => {
+      await sendVerificationEmail({ email: user.email, url, token })
+    },
+  },
   rateLimit: {
     window: 60,
     max: 100,

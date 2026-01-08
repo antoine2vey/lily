@@ -3,8 +3,12 @@ import {
   AuthResponse,
   MagicLinkRequest,
   MagicLinkVerifyRequest,
+  ResendVerificationRequest,
+  ResendVerificationResponse,
   UsernameRequest,
   UserProfile,
+  VerifyEmailRequest,
+  VerifyEmailResponse,
 } from '@lily/shared/auth'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { Schema } from 'effect'
@@ -48,5 +52,21 @@ export const AuthApi = HttpApiGroup.make('auth')
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // POST /auth/email/resend-verification - Resend verification email
+    HttpApiEndpoint.post('resendVerificationEmail')`/email/resend-verification`
+      .setPayload(ResendVerificationRequest)
+      .addSuccess(ResendVerificationResponse)
+      .addError(DatabaseError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+  )
+  .add(
+    // POST /auth/email/verify - Verify email with token
+    HttpApiEndpoint.post('verifyEmail')`/email/verify`
+      .setPayload(VerifyEmailRequest)
+      .addSuccess(VerifyEmailResponse)
+      .addError(DatabaseError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
   )
   .prefix('/auth')

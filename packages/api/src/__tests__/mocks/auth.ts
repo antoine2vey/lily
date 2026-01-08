@@ -22,6 +22,14 @@ interface MockAuthClient {
       query: { token: string; callbackURL: string; errorCallbackURL: string }
       headers: unknown
     }) => Promise<{ token: string; user: UserProfile }>
+    sendVerificationEmail: (args: {
+      body: { email: string }
+      headers: unknown
+    }) => Promise<{ status: boolean }>
+    verifyEmail: (args: {
+      query: { token: string }
+      headers: unknown
+    }) => Promise<{ user: UserProfile | null }>
   }
 }
 
@@ -34,6 +42,10 @@ export interface MockAuthOptions {
   session?: MockSession | null
   magicLinkResponse?: { message: string }
   verifyResponse?: { token: string; user: UserProfile }
+  sendVerificationEmailResponse?: { status: boolean }
+  verifyEmailResponse?: { user: UserProfile | null }
+  sendVerificationEmailError?: boolean
+  verifyEmailError?: boolean
 }
 
 export const createMockAuth = (
@@ -63,6 +75,29 @@ export const createMockAuth = (
             updatedAt: new Date(),
           },
         },
+      sendVerificationEmail: async () => {
+        if (options.sendVerificationEmailError) {
+          throw new Error('Failed to send verification email')
+        }
+        return options.sendVerificationEmailResponse ?? { status: true }
+      },
+      verifyEmail: async () => {
+        if (options.verifyEmailError) {
+          throw new Error('Invalid or expired verification token')
+        }
+        return (
+          options.verifyEmailResponse ?? {
+            user: {
+              id: 'user-1',
+              name: 'Test User',
+              email: 'test@example.com',
+              username: 'testuser',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          }
+        )
+      },
     },
   }
 

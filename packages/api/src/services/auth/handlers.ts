@@ -24,6 +24,12 @@ export const AuthApiLive = (api: Api) =>
         .handle('setUsername', ({ payload }) =>
           authService.setUsername(payload)
         )
+        .handle('resendVerificationEmail', ({ payload }) =>
+          authService.resendVerificationEmail(payload)
+        )
+        .handle('verifyEmail', ({ payload }) =>
+          authService.verifyEmail(payload)
+        )
     })
   ).pipe(
     Layer.provide(AuthService.Default),
