@@ -13,6 +13,11 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/__tests__",
+    "**/*.test.ts"
+  ],
   "references": [{ "path": "../shared" }, { "path": "../db" }]
 }
