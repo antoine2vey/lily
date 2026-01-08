@@ -1,11 +1,16 @@
 import { Data, Schema } from 'effect'
 
 // Notification topics - extensible for new notification types
+// Add new topics here - the worker will fail at compile/runtime if not handled
+export const NOTIFICATION_TOPICS = [
+  'watering_reminder',
+  'fertilization_reminder',
+] as const
+
 export const NotificationTopic = Schema.Union(
-  Schema.Literal('watering_reminder'),
-  Schema.Literal('fertilization_reminder')
+  ...NOTIFICATION_TOPICS.map((t) => Schema.Literal(t))
 )
-export type NotificationTopic = typeof NotificationTopic.Type
+export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({

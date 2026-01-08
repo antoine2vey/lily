@@ -64,7 +64,7 @@ Imports should always be absolute imports (with @). Never use relative imports
 
 ### Effect.js Patterns
 
-This codebase uses Effect.js for functional programming. Follow these patterns:
+This codebase uses Effect.js for functional programming. **Always prefer Effect utilities over native JavaScript methods** for composition, iteration, mapping, filtering, and pattern matching.
 
 **Generator syntax for Effects:**
 ```typescript
@@ -73,6 +73,44 @@ Effect.gen(function* () {
   const data = yield* repo.findById(id)
   return data
 })
+```
+
+**Use Effect utilities instead of native JS:**
+```typescript
+// Mapping - use Effect.map
+Effect.map(effect, (value) => transform(value))
+
+// Chaining - use Effect.flatMap
+Effect.flatMap(effect, (value) => anotherEffect(value))
+
+// Iteration with effects - use Effect.forEach
+Effect.forEach(items, (item) => processItem(item))
+
+// Parallel execution - use Effect.all
+Effect.all([effectA, effectB, effectC])
+
+// Filtering with effects - use Effect.filter
+Effect.filter(items, (item) => Effect.succeed(item.isActive))
+
+// Pattern matching - use Match for exhaustive checks
+import { Match } from 'effect'
+const handler = Match.type<MyUnion>().pipe(
+  Match.when('case1', () => handleCase1()),
+  Match.when('case2', () => handleCase2()),
+  Match.exhaustive // Compile + runtime exhaustiveness check
+)
+```
+
+**Use Effect's Array module for pure transformations:**
+```typescript
+import { Array } from 'effect'
+
+// Instead of native .map/.filter/.reduce
+Array.map(items, transform)
+Array.filter(items, predicate)
+Array.reduce(items, initial, reducer)
+Array.head(items)  // Option<T> instead of T | undefined
+Array.findFirst(items, predicate)
 ```
 
 **Service definition:**
@@ -278,9 +316,11 @@ When adding a new domain/service:
 ## Important Notes
 
 1. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
-2. **Type safety** - Leverage Effect Schema for runtime validation
-3. **Layer composition** - Properly provide all dependencies via Layers
-4. **Error propagation** - Use typed errors that flow through the Effect system
-5. **No semicolons** - Biome enforces this automatically
-6. **Single quotes** - Use single quotes for strings
-7. **Use bunx, not npx** - Always use `bunx` instead of `npx` for running CLI tools (e.g., `bunx tsc --build` for type checking)
+2. **Prefer Effect utilities** - Use Effect.map, Effect.forEach, Effect.all, Match, and the Array module instead of native JS methods
+3. **Type safety** - Leverage Effect Schema for runtime validation
+4. **Layer composition** - Properly provide all dependencies via Layers
+5. **Error propagation** - Use typed errors that flow through the Effect system
+6. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases at compile and runtime
+7. **No semicolons** - Biome enforces this automatically
+8. **Single quotes** - Use single quotes for strings
+9. **Use bunx, not npx** - Always use `bunx` instead of `npx` for running CLI tools (e.g., `bunx tsc --build` for type checking)

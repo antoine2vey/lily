@@ -3,11 +3,12 @@ import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repos
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   MessageQueue,
+  NOTIFICATION_TOPICS,
   type NotificationTopic,
   PushService,
   type QueueMessage,
 } from '@lily/shared'
-import { Effect, Schedule } from 'effect'
+import { Effect, Match, Schedule } from 'effect'
 
 const MAX_RETRIES = 3
 
@@ -140,15 +141,23 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
     yield* queue.ack(topic, message.id)
   })
 
+// Exhaustive topic validation using Effect Match
+// Fails at compile time if a topic is not handled, throws at runtime
+const validateTopic = Match.type<NotificationTopic>().pipe(
+  Match.when('watering_reminder', () => true),
+  Match.when('fertilization_reminder', () => true),
+  Match.exhaustive
+)
+
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
-  const topics: NotificationTopic[] = [
-    'watering_reminder',
-    'fertilization_reminder',
-  ]
+  // Validate all topics are handled at startup (compile + runtime check)
+  for (const topic of NOTIFICATION_TOPICS) {
+    validateTopic(topic)
+  }
 
   // Start a worker for each topic
-  for (const topic of topics) {
+  for (const topic of NOTIFICATION_TOPICS) {
     yield* Effect.fork(
       Effect.forever(
         consumeFromTopic(topic).pipe(
@@ -162,5 +171,5 @@ export const startNotificationWorker = Effect.gen(function* () {
     )
   }
 
-  yield* Effect.log('Notification workers started', { topics })
+  yield* Effect.log('Notification workers started', { topics: NOTIFICATION_TOPICS })
 })
