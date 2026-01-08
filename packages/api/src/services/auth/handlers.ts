@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import { AuthService } from '@lily/api/services/auth/service'
+import { withSession } from '@lily/api/services/auth/session'
 import { Effect, Layer } from 'effect'
 
 // Implement the Auth API group
@@ -19,7 +20,7 @@ export const AuthApiLive = (api: Api) =>
           authService.verifyMagicLink(payload)
         )
         .handle('getCurrentUser', () => authService.getCurrentUser())
-        .handle('signOut', () => authService.signOut())
+        .handle('signOut', () => withSession(authService.signOut()))
         .handle('setUsername', ({ payload }) =>
           authService.setUsername(payload)
         )

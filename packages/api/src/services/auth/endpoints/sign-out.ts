@@ -1,15 +1,22 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { HttpServerRequest } from '@effect/platform'
+import { auth } from '@lily/api/services/auth/auth'
 import { Effect } from 'effect'
 
-// Sign out
 export const signOut = (): Effect.Effect<
   { message: string },
-  never,
-  PgDrizzle.PgDrizzle
+  Error,
+  HttpServerRequest.HttpServerRequest
 > =>
   Effect.gen(function* () {
-    const _db = yield* PgDrizzle.PgDrizzle
+    const req = yield* HttpServerRequest.HttpServerRequest
 
-    // Return fake success message
+    yield* Effect.tryPromise({
+      try: () =>
+        auth.api.signOut({
+          headers: new Headers(req.headers),
+        }),
+      catch: () => new Error('Failed to sign out'),
+    })
+
     return { message: 'Successfully signed out' }
   })
