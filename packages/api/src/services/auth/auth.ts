@@ -10,8 +10,24 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
   }),
+  rateLimit: {
+    window: 60,
+    max: 100,
+    storage: 'database',
+    customRules: {
+      '/api/auth/magic-link': {
+        window: 60,
+        max: 3,
+      },
+      '/api/auth/magic-link/verify': {
+        window: 10,
+        max: 5,
+      },
+    },
+  },
   plugins: [
     magicLink({
+      expiresIn: 600,
       sendMagicLink: async ({ email, token, url }) => {
         await sendMagicLinkEmail({ email, token, url })
       },
