@@ -1,13 +1,30 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import type { SqlError } from '@effect/sql/SqlError'
+import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
+import { Session } from '@lily/api/services/auth/session'
+import { DeviceTokenNotFoundError } from '@lily/shared'
 import { Effect } from 'effect'
 
 // Unregister device token
 export const unregisterDeviceToken = (
   tokenId: string
-): Effect.Effect<{ message: string }, never, PgDrizzle.PgDrizzle> =>
+): Effect.Effect<
+  { message: string },
+  SqlError | DeviceTokenNotFoundError,
+  DeviceTokenRepository | Session
+> =>
   Effect.gen(function* () {
-    const _db = yield* PgDrizzle.PgDrizzle
+    const repo = yield* DeviceTokenRepository
+    const { userId } = yield* Session
 
-    // Return fake success message
-    return { message: `Device token ${tokenId} unregistered successfully` }
+    // Find the token and verify ownership
+    const token = yield* repo.findById(tokenId)
+
+    if (!token || token.userId !== userId) {
+      return yield* Effect.fail(new DeviceTokenNotFoundError())
+    }
+
+    // Delete the token
+    yield* repo.delete(tokenId)
+
+    return { message: 'Device token unregistered successfully' }
   })

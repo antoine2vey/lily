@@ -1,5 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { Auth } from '@lily/api/services/auth/auth'
+import { withSession } from '@lily/api/services/auth/session'
 import { NotificationsService } from '@lily/api/services/notifications/service'
 import { Effect, Layer } from 'effect'
 
@@ -11,10 +14,14 @@ export const NotificationsApiLive = (api: Api) =>
 
       return handlers
         .handle('getNotifications', () =>
-          notificationsService.getNotifications()
+          withSession(notificationsService.getNotifications())
         )
         .handle('markNotificationRead', ({ path: { notificationId } }) =>
-          notificationsService.markNotificationRead(notificationId)
+          withSession(notificationsService.markNotificationRead(notificationId))
         )
     })
-  ).pipe(Layer.provide(NotificationsService.Default))
+  ).pipe(
+    Layer.provide(NotificationsService.Default),
+    Layer.provide(NotificationRepositoryLive),
+    Layer.provide(Auth.Default)
+  )

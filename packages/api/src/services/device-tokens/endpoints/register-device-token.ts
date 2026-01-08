@@ -1,25 +1,35 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import type { SqlError } from '@effect/sql/SqlError'
+import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
+import { Session } from '@lily/api/services/auth/session'
 import type {
   DeviceToken,
   DeviceTokenCreateRequest,
 } from '@lily/shared/device-token'
 import { Effect } from 'effect'
 
-// Register device token
+// Register or update device token
 export const registerDeviceToken = (
   request: DeviceTokenCreateRequest
-): Effect.Effect<DeviceToken, never, PgDrizzle.PgDrizzle> =>
+): Effect.Effect<DeviceToken, SqlError, DeviceTokenRepository | Session> =>
   Effect.gen(function* () {
-    const _db = yield* PgDrizzle.PgDrizzle
+    const repo = yield* DeviceTokenRepository
+    const { userId } = yield* Session
 
-    // Return fake device token
-    return {
-      id: 'token_123',
+    // Check if token already exists for this user
+    const existing = yield* repo.findByTokenAndUserId(request.token, userId)
+
+    if (existing) {
+      // Update existing token to mark as active
+      const updated = yield* repo.update(existing.id, { isActive: true })
+      return updated as DeviceToken
+    }
+
+    // Create new device token
+    const created = yield* repo.create({
       token: request.token,
       platform: request.platform,
-      isActive: true,
-      userId: 'user_123',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
+      userId,
+    })
+
+    return created as DeviceToken
   })
