@@ -79,6 +79,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 const ServerLive = HttpApiBuilder.serve().pipe(
   Layer.provide(HttpApiBuilder.middlewareCors()),
   Layer.provide(HttpApiSwagger.layer()),
+  Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
   Layer.provide(AchievementSubscriberLive),
   Layer.provide(NotificationSchedulerLive),
