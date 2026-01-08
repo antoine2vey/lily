@@ -12,17 +12,62 @@ interface MockSession {
   }
 }
 
+interface MockAuthClient {
+  api: {
+    signInMagicLink: (args: {
+      body: { email: string; callbackURL: string }
+      headers: unknown
+    }) => Promise<{ message: string }>
+    magicLinkVerify: (args: {
+      query: { token: string; callbackURL: string; errorCallbackURL: string }
+      headers: unknown
+    }) => Promise<{ token: string; user: UserProfile }>
+  }
+}
+
 type AuthService = {
-  readonly client: Effect.Effect<unknown>
+  readonly client: Effect.Effect<MockAuthClient>
   readonly session: Effect.Effect<MockSession | null>
 }
 
+export interface MockAuthOptions {
+  session?: MockSession | null
+  magicLinkResponse?: { message: string }
+  verifyResponse?: { token: string; user: UserProfile }
+}
+
 export const createMockAuth = (
-  session: MockSession | null
+  sessionOrOptions: MockSession | null | MockAuthOptions
 ): Layer.Layer<Auth> => {
+  // Handle backwards compatibility
+  const options: MockAuthOptions =
+    sessionOrOptions === null ||
+    ('user' in (sessionOrOptions ?? {}) &&
+      'session' in (sessionOrOptions ?? {}))
+      ? { session: sessionOrOptions as MockSession | null }
+      : (sessionOrOptions as MockAuthOptions)
+
+  const mockClient: MockAuthClient = {
+    api: {
+      signInMagicLink: async () =>
+        options.magicLinkResponse ?? { message: 'Magic link sent' },
+      magicLinkVerify: async () =>
+        options.verifyResponse ?? {
+          token: 'mock-token',
+          user: {
+            id: 'user-1',
+            email: 'test@example.com',
+            username: 'testuser',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+    },
+  }
+
   const mockService: AuthService = {
-    client: Effect.succeed({}),
-    session: Effect.succeed(session),
+    client: Effect.succeed(mockClient),
+    session: Effect.succeed(options.session ?? null),
   }
 
   return Layer.succeed(Auth, mockService as unknown as typeof Auth.Service)
