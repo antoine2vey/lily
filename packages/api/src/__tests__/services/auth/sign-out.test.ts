@@ -1,8 +1,8 @@
+import { mock } from 'bun:test'
 import { HttpServerRequest } from '@effect/platform'
 import { signOut } from '@lily/api/services/auth/endpoints/sign-out'
-import { mock } from 'bun:test'
 import { Effect, Layer } from 'effect'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // Mock the auth module using Bun's mock
 mock.module('@lily/api/services/auth/auth', () => ({

@@ -1,5 +1,9 @@
-import { Context, Effect } from 'effect'
-import type { EmailConfigError, EmailSendError, SendEmailRequest } from './types'
+import { Context, type Effect } from 'effect'
+import type {
+  EmailConfigError,
+  EmailSendError,
+  SendEmailRequest,
+} from './types'
 
 // Email service interface - provider agnostic
 export interface IEmailService {

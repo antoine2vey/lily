@@ -5,8 +5,8 @@ import {
   type IEmailService,
   type SendEmailRequest,
 } from '@lily/shared'
-import { Resend } from 'resend'
 import { Effect, Layer } from 'effect'
+import { Resend } from 'resend'
 
 // Environment configuration
 interface ResendConfig {
