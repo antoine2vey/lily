@@ -1,7 +1,10 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { notifications } from '@lily/db'
-import type { Notification, NotificationStatus } from '@lily/shared/notification'
+import type {
+  Notification,
+  NotificationStatus,
+} from '@lily/shared/notification'
 import { and, desc, eq, lte, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 

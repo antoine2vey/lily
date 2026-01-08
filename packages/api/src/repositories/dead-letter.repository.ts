@@ -56,7 +56,9 @@ export interface IDeadLetterRepository {
   readonly findAll: (
     limit?: number
   ) => Effect.Effect<DeadLetterMessage[], SqlError>
-  readonly delete: (id: string) => Effect.Effect<DeadLetterMessage | null, SqlError>
+  readonly delete: (
+    id: string
+  ) => Effect.Effect<DeadLetterMessage | null, SqlError>
 }
 
 // Tag for dependency injection

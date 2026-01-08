@@ -15,7 +15,10 @@ export interface IMessageQueue {
 
   readonly dequeue: (
     topic: NotificationTopic
-  ) => Effect.Effect<QueueMessage | null, QueueOperationError | QueueConnectionError>
+  ) => Effect.Effect<
+    QueueMessage | null,
+    QueueOperationError | QueueConnectionError
+  >
 
   readonly ack: (
     topic: NotificationTopic,

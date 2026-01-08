@@ -1,5 +1,10 @@
 import { Context, type Effect } from 'effect'
-import type { PushConfigError, PushMessage, PushSendError, PushTicket } from './types'
+import type {
+  PushConfigError,
+  PushMessage,
+  PushSendError,
+  PushTicket,
+} from './types'
 
 // Provider-agnostic push notification interface
 export interface IPushService {

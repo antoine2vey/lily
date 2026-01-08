@@ -7,7 +7,10 @@ import {
   type PushTicket,
 } from '@lily/shared'
 import { Config, Effect, Layer } from 'effect'
-import Expo, { type ExpoPushMessage, type ExpoPushTicket } from 'expo-server-sdk'
+import Expo, {
+  type ExpoPushMessage,
+  type ExpoPushTicket,
+} from 'expo-server-sdk'
 
 // Helper to build Expo push message
 const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {

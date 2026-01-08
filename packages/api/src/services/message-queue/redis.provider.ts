@@ -33,8 +33,7 @@ export const RedisMessageQueueLive = Layer.effect(
     const queue: IMessageQueue = {
       enqueue: (topic, message) =>
         Effect.tryPromise({
-          try: () =>
-            redis.lpush(getQueueKey(topic), JSON.stringify(message)),
+          try: () => redis.lpush(getQueueKey(topic), JSON.stringify(message)),
           catch: (error) =>
             new QueueOperationError({
               message: `Failed to enqueue message to ${topic}`,

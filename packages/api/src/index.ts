@@ -12,7 +12,10 @@ import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
-import { RedisClientLive, RedisMessageQueueLive } from '@lily/api/services/message-queue/redis.provider'
+import {
+  RedisClientLive,
+  RedisMessageQueueLive,
+} from '@lily/api/services/message-queue/redis.provider'
 import { startNotificationScheduler } from '@lily/api/services/notification-scheduler/scheduler'
 import { startNotificationWorker } from '@lily/api/services/notification-scheduler/worker'
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'

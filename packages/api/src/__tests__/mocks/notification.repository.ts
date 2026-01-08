@@ -98,7 +98,11 @@ export const createMockNotificationRepository = (
       Effect.sync(() => {
         const toKeep = notificationsState.filter(
           (n) =>
-            !(n.plantId === plantId && n.type === type && n.status === 'pending')
+            !(
+              n.plantId === plantId &&
+              n.type === type &&
+              n.status === 'pending'
+            )
         )
         notificationsState.length = 0
         notificationsState.push(...toKeep)

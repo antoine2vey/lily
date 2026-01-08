@@ -9,7 +9,10 @@ import { describe, expect, it } from 'vitest'
 describe('Notification Scheduler', () => {
   describe('pollAndEnqueue', () => {
     it('should enqueue pending watering reminders', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       const pendingNotification = createTestNotification({
         id: 'pending-1',
@@ -35,14 +38,19 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]!.topic).toBe('watering_reminder')
-      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe('pending-1')
+      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe(
+        'pending-1'
+      )
       expect(enqueuedMessages[0]!.message.payload.title).toBe(
         pendingNotification.title
       )
     })
 
     it('should enqueue pending fertilization reminders', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       const pendingNotification = createTestNotification({
         id: 'pending-2',
@@ -71,7 +79,10 @@ describe('Notification Scheduler', () => {
     })
 
     it('should skip notifications with unknown types', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       const pendingNotification = createTestNotification({
         id: 'pending-3',
@@ -99,7 +110,10 @@ describe('Notification Scheduler', () => {
     })
 
     it('should do nothing when no pending notifications exist', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       await Effect.runPromise(
         pollAndEnqueue.pipe(
@@ -142,7 +156,10 @@ describe('Notification Scheduler', () => {
     })
 
     it('should enqueue multiple notifications in order', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       const notifications = [
         createTestNotification({
@@ -173,12 +190,19 @@ describe('Notification Scheduler', () => {
       )
 
       expect(enqueuedMessages).toHaveLength(2)
-      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe('pending-a')
-      expect(enqueuedMessages[1]!.message.payload.notificationId).toBe('pending-b')
+      expect(enqueuedMessages[0]!.message.payload.notificationId).toBe(
+        'pending-a'
+      )
+      expect(enqueuedMessages[1]!.message.payload.notificationId).toBe(
+        'pending-b'
+      )
     })
 
     it('should not enqueue future notifications', async () => {
-      const enqueuedMessages: { topic: NotificationTopic; message: QueueMessage }[] = []
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
 
       // Mock repo only returns notifications where scheduledAt <= now
       // A notification scheduled in the future won't be returned by findPendingToSchedule

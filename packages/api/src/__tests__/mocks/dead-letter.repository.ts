@@ -38,8 +38,7 @@ export const createMockDeadLetterRepository = (
     findByTopic: (topic) =>
       Effect.succeed(messages.filter((m) => m.topic === topic)),
 
-    findAll: (limit = 100) =>
-      Effect.succeed(messages.slice(0, limit)),
+    findAll: (limit = 100) => Effect.succeed(messages.slice(0, limit)),
 
     delete: (id) => {
       const idx = messages.findIndex((m) => m.id === id)
