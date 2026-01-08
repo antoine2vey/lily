@@ -11,7 +11,10 @@ export const createMockFileService = (): Layer.Layer<FileService> => {
   const mockService = {
     getFirstUploadedFile: (
       files: readonly PersistedFile[]
-    ): Effect.Effect<PersistedFileBuffer, MultipleFilesError | NoFilesError> => {
+    ): Effect.Effect<
+      PersistedFileBuffer,
+      MultipleFilesError | NoFilesError
+    > => {
       if (files.length === 0) {
         return Effect.fail(new NoFilesError({ message: 'No files provided' }))
       }

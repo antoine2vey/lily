@@ -1,3 +1,4 @@
+import type { PersistedFile } from '@effect/platform/Multipart'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -6,7 +7,6 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockSession } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -79,7 +79,9 @@ describe('uploadPlantPhoto', () => {
     ]
 
     await Effect.runPromise(
-      uploadPlantPhoto({ plantId: 'plant-1', files }).pipe(Effect.provide(layer))
+      uploadPlantPhoto({ plantId: 'plant-1', files }).pipe(
+        Effect.provide(layer)
+      )
     )
 
     expect(publishedEvents.length).toBe(2)
