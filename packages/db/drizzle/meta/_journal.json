@@ -22,6 +22,13 @@
       "when": 1767826461533,
       "tag": "0002_dazzling_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1767873699291,
+      "tag": "0003_dizzy_blacklash",
+      "breakpoints": true
     }
   ]
 }

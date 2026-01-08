@@ -2,6 +2,7 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import type { AppEvent } from '@lily/api/events'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -74,7 +75,7 @@ describe('createPlant', () => {
   })
 
   it('should publish PlantCreated event', async () => {
-    const publishedEvents: unknown[] = []
+    const publishedEvents: AppEvent[] = []
     const eventBusMock = createMockEventBus({ publishedEvents })
 
     const result = await Effect.runPromise(

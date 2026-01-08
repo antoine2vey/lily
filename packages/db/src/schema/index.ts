@@ -1,5 +1,6 @@
 export * from './achievements'
 export * from './auth'
+export * from './chat'
 export * from './enums'
 export * from './notifications'
 export * from './plant-history'

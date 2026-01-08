@@ -2,6 +2,7 @@ import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import type { AppEvent } from '@lily/api/events'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -85,7 +86,7 @@ describe('createCareLog', () => {
   })
 
   it('should publish CareLogCreated event', async () => {
-    const publishedEvents: unknown[] = []
+    const publishedEvents: AppEvent[] = []
     const eventBusMock = createMockEventBus({ publishedEvents })
 
     const result = await Effect.runPromise(
