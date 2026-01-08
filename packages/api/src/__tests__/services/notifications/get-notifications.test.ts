@@ -62,6 +62,6 @@ describe('getNotifications', () => {
     )
 
     expect(result.length).toBe(1)
-    expect(result[0].id).toBe('notification-3')
+    expect(result[0]!.id).toBe('notification-3')
   })
 })

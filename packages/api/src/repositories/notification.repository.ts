@@ -1,8 +1,8 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { notifications } from '@lily/db'
-import type { Notification } from '@lily/shared/notification'
-import { desc, eq } from 'drizzle-orm'
+import type { Notification, NotificationStatus } from '@lily/shared/notification'
+import { and, desc, eq, lte, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
@@ -26,6 +26,9 @@ const mapToNotification = (
   scheduledAt: row.scheduledAt,
   sentAt: row.sentAt ?? undefined,
   isRead: row.isRead,
+  status: row.status as NotificationStatus,
+  retryCount: row.retryCount,
+  lastError: row.lastError ?? undefined,
   userId: row.userId,
   plantId: row.plantId ?? undefined,
   createdAt: row.createdAt,
@@ -46,6 +49,27 @@ export interface INotificationRepository {
     data: CreateNotificationData
   ) => Effect.Effect<Notification | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<Notification | null, SqlError>
+  // Scheduler methods
+  readonly findPendingToSchedule: (
+    limit: number
+  ) => Effect.Effect<Notification[], SqlError>
+  readonly markAsQueued: (
+    id: string
+  ) => Effect.Effect<Notification | null, SqlError>
+  readonly markAsSent: (
+    id: string
+  ) => Effect.Effect<Notification | null, SqlError>
+  readonly markAsFailed: (
+    id: string,
+    error: string
+  ) => Effect.Effect<Notification | null, SqlError>
+  readonly incrementRetryCount: (
+    id: string
+  ) => Effect.Effect<Notification | null, SqlError>
+  readonly deletePendingByPlantAndType: (
+    plantId: string,
+    type: string
+  ) => Effect.Effect<void, SqlError>
 }
 
 // Tag for dependency injection
@@ -112,6 +136,84 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
+        }),
+
+      // Scheduler methods
+      findPendingToSchedule: (limit: number) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.status, 'pending'),
+                lte(notifications.scheduledAt, new Date())
+              )
+            )
+            .orderBy(notifications.scheduledAt)
+            .limit(limit)
+          return rows.map(mapToNotification)
+        }),
+
+      markAsQueued: (id: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .update(notifications)
+            .set({ status: 'queued' })
+            .where(eq(notifications.id, id))
+            .returning()
+          return row ? mapToNotification(row) : null
+        }),
+
+      markAsSent: (id: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .update(notifications)
+            .set({
+              status: 'sent',
+              sentAt: new Date(),
+            })
+            .where(eq(notifications.id, id))
+            .returning()
+          return row ? mapToNotification(row) : null
+        }),
+
+      markAsFailed: (id: string, error: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .update(notifications)
+            .set({
+              status: 'failed',
+              lastError: error,
+            })
+            .where(eq(notifications.id, id))
+            .returning()
+          return row ? mapToNotification(row) : null
+        }),
+
+      incrementRetryCount: (id: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .update(notifications)
+            .set({
+              retryCount: sql`${notifications.retryCount} + 1`,
+            })
+            .where(eq(notifications.id, id))
+            .returning()
+          return row ? mapToNotification(row) : null
+        }),
+
+      deletePendingByPlantAndType: (plantId: string, type: string) =>
+        Effect.gen(function* () {
+          yield* db
+            .delete(notifications)
+            .where(
+              and(
+                eq(notifications.plantId, plantId),
+                eq(notifications.type, type),
+                eq(notifications.status, 'pending')
+              )
+            )
         }),
     }
   })

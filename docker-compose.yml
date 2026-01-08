@@ -18,6 +18,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: lily-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -27,9 +40,12 @@ services:
       - '3000:3000'
     environment:
       DATABASE_URL: postgresql://lily:lily123@postgres:5432/lily
+      REDIS_URL: redis://redis:6379
       NODE_ENV: development
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./packages/api:/app/packages/api
@@ -38,3 +54,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

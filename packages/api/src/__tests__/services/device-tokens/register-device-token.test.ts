@@ -42,7 +42,7 @@ describe('registerDeviceToken', () => {
   it('should update isActive to true when re-registering', async () => {
     const tokens = [
       {
-        ...mockDeviceTokens[0],
+        ...mockDeviceTokens[0]!,
         isActive: false,
       },
     ]

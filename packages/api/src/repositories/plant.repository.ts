@@ -46,6 +46,7 @@ export interface UpdatePlantData {
   lastWateredAt?: Date
   nextWateringAt?: Date
   lastFertilizedAt?: Date
+  nextFertilizationAt?: Date
   health?: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
 }
 

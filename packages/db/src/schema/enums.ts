@@ -5,6 +5,13 @@ export const careLogTypeEnum = pgEnum('care_log_type', [
   'fertilization',
 ])
 
+export const notificationStatusEnum = pgEnum('notification_status', [
+  'pending',
+  'queued',
+  'sent',
+  'failed',
+])
+
 export const plantHealthEnum = pgEnum('plant_health', [
   'THRIVING',
   'HEALTHY',

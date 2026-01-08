@@ -22,6 +22,10 @@ export const Plant = Schema.Struct({
   wateringFrequencyDays: Schema.Number,
   lastWateredAt: Schema.NullOr(Schema.Date),
   nextWateringAt: Schema.NullOr(Schema.Date),
+  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
+  lastFertilizedAt: Schema.NullOr(Schema.Date),
+  nextFertilizationAt: Schema.NullOr(Schema.Date),
+  remindersEnabled: Schema.Boolean,
   userId: Schema.String,
 })
 

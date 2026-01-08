@@ -29,6 +29,8 @@
     "@lily/shared": "workspace:*",
     "ai": "^5.0.0",
     "effect": "^3.17.5",
+    "expo-server-sdk": "^4.0.0",
+    "ioredis": "^5.9.1",
     "resend": "^6.7.0",
     "zod": "^4.0.14"
   },

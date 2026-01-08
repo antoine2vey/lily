@@ -1,5 +1,13 @@
 import { relations } from 'drizzle-orm'
-import { boolean, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
+import { notificationStatusEnum } from './enums'
 import { plants } from './plants'
 import { users } from './users'
 
@@ -27,6 +35,9 @@ export const notifications = pgTable('notifications', {
   scheduledAt: timestamp('scheduled_at').notNull(),
   sentAt: timestamp('sent_at'),
   isRead: boolean('is_read').notNull().default(false),
+  status: notificationStatusEnum('status').notNull().default('pending'),
+  retryCount: integer('retry_count').notNull().default(0),
+  lastError: text('last_error'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   userId: uuid('user_id')
     .notNull()
