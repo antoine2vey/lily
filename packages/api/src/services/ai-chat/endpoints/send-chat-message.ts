@@ -37,11 +37,15 @@ export const sendChatMessage = (
       return yield* Effect.fail(new Error('Failed to save user message'))
     }
 
-    // 2. Load chat history from database
-    const history = yield* chatRepo.findByPlantId(plantId, userId)
+    // 2. Load chat history from database (get all messages without pagination)
+    const historyResult = yield* chatRepo.findByPlantId({
+      plantId,
+      userId,
+      limit: 100, // Get last 100 messages for context
+    })
 
     // 3. Convert to UIMessage[] format for AI SDK
-    const uiMessages: UIMessage[] = history.map((msg) => ({
+    const uiMessages: UIMessage[] = historyResult.items.map((msg) => ({
       id: msg.id,
       role: msg.role as 'user' | 'assistant',
       parts: [{ type: 'text' as const, text: msg.content }],

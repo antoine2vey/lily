@@ -1,14 +1,23 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { notifications } from '@lily/db'
+import { paginate } from '@lily/shared'
 import type {
   Notification,
   NotificationStatus,
+  NotificationsListResponse,
 } from '@lily/shared/notification'
-import { and, desc, eq, lte, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lte, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
+export interface FindNotificationsParams {
+  userId: string
+  page?: number
+  limit?: number
+  status?: 'pending' | 'queued' | 'sent' | 'failed' | 'all'
+}
+
 export interface CreateNotificationData {
   type: string
   title: string
@@ -40,8 +49,8 @@ const mapToNotification = (
 // Repository service interface
 export interface INotificationRepository {
   readonly findByUserId: (
-    userId: string
-  ) => Effect.Effect<Notification[], SqlError>
+    params: FindNotificationsParams
+  ) => Effect.Effect<NotificationsListResponse, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
@@ -87,14 +96,35 @@ export const NotificationRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByUserId: (userId: string) =>
+      findByUserId: (params: FindNotificationsParams) =>
         Effect.gen(function* () {
+          const page = params.page ?? 1
+          const limit = params.limit ?? 20
+          const offset = (page - 1) * limit
+
+          const filterConditions =
+            params.status && params.status !== 'all'
+              ? and(
+                  eq(notifications.userId, params.userId),
+                  eq(notifications.status, params.status)
+                )
+              : eq(notifications.userId, params.userId)
+
+          const countResult = yield* db
+            .select({ value: count() })
+            .from(notifications)
+            .where(filterConditions)
+          const total = countResult[0]?.value ?? 0
+
           const rows = yield* db
             .select()
             .from(notifications)
-            .where(eq(notifications.userId, userId))
+            .where(filterConditions)
+            .offset(offset)
+            .limit(limit)
             .orderBy(desc(notifications.createdAt))
-          return rows.map(mapToNotification)
+
+          return paginate(rows.map(mapToNotification), total, page, limit)
         }),
 
       findById: (id: string) =>

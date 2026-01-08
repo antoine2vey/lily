@@ -13,8 +13,17 @@ export const CareLogsApiLive = (api: Api) =>
       const careLogsService = yield* CareLogsService
 
       return handlers
-        .handle('getCareLogs', ({ path: { plantId } }) =>
-          careLogsService.getCareLogs(plantId)
+        .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
+          careLogsService.getCareLogs({
+            plantId,
+            page: parseInt(urlParams.page, 10) || 1,
+            limit: parseInt(urlParams.limit, 10) || 20,
+            type:
+              urlParams.type === 'watering' ||
+              urlParams.type === 'fertilization'
+                ? urlParams.type
+                : 'all',
+          })
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
           withSession(careLogsService.createCareLog(plantId, payload))

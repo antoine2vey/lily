@@ -1,25 +1,28 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
-import { Notification } from '@lily/shared/notification'
+import {
+  Notification,
+  NotificationsListResponse,
+} from '@lily/shared/notification'
 import { Schema } from 'effect'
 
 // Path parameter for notification ID
 const notificationIdParam = HttpApiSchema.param('notificationId', Schema.String)
 
-// Query parameter for sent filter - TODO: Fix HttpApiSchema.query compatibility
-// const sentQuery = HttpApiSchema.query(
-//   'sent',
-//   Schema.optional(Schema.Union(Schema.Literal('true'), Schema.Literal('false')))
-// )
+// Query parameters for notifications listing (extends base pagination)
+export const NotificationsQueryParams = Schema.Struct({
+  ...PaginationParams.fields,
+  status: Schema.optionalWith(Schema.String, { default: () => 'all' }),
+})
 
 // Define the Notifications API group
 export const NotificationsApi = HttpApiGroup.make('notifications')
   .add(
-    // GET /notifications - List notifications (filter by sent)
+    // GET /notifications - List notifications with pagination
     HttpApiEndpoint.get('getNotifications')`/`
-      // TODO: Add back query parameter when HttpApiSchema.query is available
-      // .setUrlParams(Schema.Struct({ sent: sentQuery }))
-      .addSuccess(Schema.Array(Notification))
+      .setUrlParams(NotificationsQueryParams)
+      .addSuccess(NotificationsListResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

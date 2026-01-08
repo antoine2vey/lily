@@ -31,10 +31,7 @@ export const verifyMagicLink = ({
           },
           headers: req.headers,
         }),
-      catch: (error) => {
-        console.log(error)
-        return { message: 'Failed to verify magic link' }
-      },
+      catch: () => ({ message: 'Failed to verify magic link' }),
     })
 
     yield* Effect.log(response)

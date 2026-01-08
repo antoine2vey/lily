@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { PaginatedResponse } from '../common/pagination'
 
 // AI chat schemas
 export const ChatMessage = Schema.Struct({
@@ -20,6 +21,10 @@ export const ChatResponse = Schema.Struct({
   message: ChatMessage,
   response: Schema.String,
 })
+
+// Chat history list response - uses standard pagination format
+export const ChatHistoryListResponse = PaginatedResponse(ChatMessage)
+export type ChatHistoryListResponse = typeof ChatHistoryListResponse.Type
 
 // Type exports
 export type ChatMessage = typeof ChatMessage.Type

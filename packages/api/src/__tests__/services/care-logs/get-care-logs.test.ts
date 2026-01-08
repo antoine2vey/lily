@@ -5,64 +5,84 @@ import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getCareLogs', () => {
-  it('should return care logs for a plant', async () => {
+  it('should return care logs for a plant with pagination info', async () => {
     const result = await Effect.runPromise(
-      getCareLogs('plant-1').pipe(
+      getCareLogs({ plantId: 'plant-1' }).pipe(
         Effect.provide(createMockCareLogRepository(mockCareLogs))
       )
     )
 
-    expect(result.length).toBe(3)
-    expect(result.every((log) => log.plantId === 'plant-1')).toBe(true)
+    expect(result.items.length).toBe(3)
+    expect(result.items.every((log) => log.plantId === 'plant-1')).toBe(true)
+    expect(result.total).toBe(3)
+    expect(result.page).toBe(1)
+    expect(result.limit).toBe(20)
+    expect(result.hasMore).toBe(false)
   })
 
   it('should return empty array when no logs exist for plant', async () => {
     const result = await Effect.runPromise(
-      getCareLogs('non-existent-plant').pipe(
+      getCareLogs({ plantId: 'non-existent-plant' }).pipe(
         Effect.provide(createMockCareLogRepository(mockCareLogs))
       )
     )
 
-    expect(result).toEqual([])
+    expect(result.items).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.hasMore).toBe(false)
   })
 
   it('should filter by watering type', async () => {
     const result = await Effect.runPromise(
-      getCareLogs('plant-1', 'watering').pipe(
+      getCareLogs({ plantId: 'plant-1', type: 'watering' }).pipe(
         Effect.provide(createMockCareLogRepository(mockCareLogs))
       )
     )
 
-    expect(result.every((log) => log.type === 'watering')).toBe(true)
-    expect(result.length).toBe(2)
+    expect(result.items.every((log) => log.type === 'watering')).toBe(true)
+    expect(result.items.length).toBe(2)
   })
 
   it('should filter by fertilization type', async () => {
     const result = await Effect.runPromise(
-      getCareLogs('plant-1', 'fertilization').pipe(
+      getCareLogs({ plantId: 'plant-1', type: 'fertilization' }).pipe(
         Effect.provide(createMockCareLogRepository(mockCareLogs))
       )
     )
 
-    expect(result.every((log) => log.type === 'fertilization')).toBe(true)
-    expect(result.length).toBe(1)
+    expect(result.items.every((log) => log.type === 'fertilization')).toBe(true)
+    expect(result.items.length).toBe(1)
   })
 
   it('should return logs sorted by date descending', async () => {
     const result = await Effect.runPromise(
-      getCareLogs('plant-1').pipe(
+      getCareLogs({ plantId: 'plant-1' }).pipe(
         Effect.provide(createMockCareLogRepository(mockCareLogs))
       )
     )
 
-    for (let i = 0; i < result.length - 1; i++) {
-      const current = result[i]
-      const next = result[i + 1]
+    for (let i = 0; i < result.items.length - 1; i++) {
+      const current = result.items[i]
+      const next = result.items[i + 1]
       if (current && next) {
         expect(current.date.getTime()).toBeGreaterThanOrEqual(
           next.date.getTime()
         )
       }
     }
+  })
+
+  it('should respect page and limit parameters', async () => {
+    const result = await Effect.runPromise(
+      getCareLogs({ plantId: 'plant-1', page: 1, limit: 2 }).pipe(
+        Effect.provide(createMockCareLogRepository(mockCareLogs))
+      )
+    )
+
+    expect(result.items.length).toBe(2)
+    expect(result.total).toBe(3)
+    expect(result.hasMore).toBe(true)
+    expect(result.page).toBe(1)
+    expect(result.limit).toBe(2)
   })
 })

@@ -18,12 +18,13 @@ export const PlantsApiLive = (api: Api) =>
       const plantsService = yield* PlantsService
 
       return handlers
-        .handle('getPlants', () =>
+        .handle('getPlants', ({ urlParams }) =>
           plantsService.findPlants({
-            page: 1,
-            limit: 10,
-            filter: 'all',
-            sort: 'added',
+            page: parseInt(urlParams.page, 10) || 1,
+            limit: parseInt(urlParams.limit, 10) || 20,
+            filter:
+              urlParams.filter === 'needsAttention' ? 'needsAttention' : 'all',
+            sort: urlParams.sort === 'name' ? 'name' : 'added',
           })
         )
         .handle('createPlant', ({ payload }) =>
@@ -44,8 +45,12 @@ export const PlantsApiLive = (api: Api) =>
         .handle('deletePlant', ({ path: { id } }) =>
           plantsService.deletePlant({ id })
         )
-        .handle('getPlantPhotos', ({ path: { id } }) =>
-          plantsService.getPlantPhotos({ plantId: id })
+        .handle('getPlantPhotos', ({ path: { id }, urlParams }) =>
+          plantsService.getPlantPhotos({
+            plantId: id,
+            page: parseInt(urlParams.page, 10) || 1,
+            limit: parseInt(urlParams.limit, 10) || 20,
+          })
         )
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
           plantsService.uploadPlantPhoto({ plantId: id, files })

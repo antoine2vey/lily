@@ -1,8 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { careLogs } from '@lily/db'
-import type { CareLog } from '@lily/shared/care-log'
-import { and, desc, eq } from 'drizzle-orm'
+import { paginate } from '@lily/shared'
+import type { CareLog, CareLogsListResponse } from '@lily/shared/care-log'
+import { and, count, desc, eq } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
@@ -20,6 +21,13 @@ export interface UpdateCareLogData {
   photoUrl?: string | undefined
 }
 
+export interface FindCareLogsParams {
+  plantId: string
+  page?: number
+  limit?: number
+  type?: 'watering' | 'fertilization' | 'all'
+}
+
 // Helper to map database row to API CareLog type (null -> undefined)
 const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   id: row.id,
@@ -35,9 +43,8 @@ const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
 // Repository service interface
 export interface ICareLogRepository {
   readonly findByPlantId: (
-    plantId: string,
-    type?: 'watering' | 'fertilization'
-  ) => Effect.Effect<CareLog[], SqlError>
+    params: FindCareLogsParams
+  ) => Effect.Effect<CareLogsListResponse, SqlError>
   readonly findById: (
     id: string,
     plantId: string
@@ -65,24 +72,35 @@ export const CareLogRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByPlantId: (plantId: string, type?: 'watering' | 'fertilization') =>
+      findByPlantId: (params: FindCareLogsParams) =>
         Effect.gen(function* () {
-          if (type) {
-            const rows = yield* db
-              .select()
-              .from(careLogs)
-              .where(
-                and(eq(careLogs.plantId, plantId), eq(careLogs.type, type))
-              )
-              .orderBy(desc(careLogs.date))
-            return rows.map(mapToCareLog)
-          }
+          const page = params.page ?? 1
+          const limit = params.limit ?? 20
+          const offset = (page - 1) * limit
+
+          const filterConditions =
+            params.type && params.type !== 'all'
+              ? and(
+                  eq(careLogs.plantId, params.plantId),
+                  eq(careLogs.type, params.type)
+                )
+              : eq(careLogs.plantId, params.plantId)
+
+          const countResult = yield* db
+            .select({ value: count() })
+            .from(careLogs)
+            .where(filterConditions)
+          const total = countResult[0]?.value ?? 0
+
           const rows = yield* db
             .select()
             .from(careLogs)
-            .where(eq(careLogs.plantId, plantId))
+            .where(filterConditions)
+            .offset(offset)
+            .limit(limit)
             .orderBy(desc(careLogs.date))
-          return rows.map(mapToCareLog)
+
+          return paginate(rows.map(mapToCareLog), total, page, limit)
         }),
 
       findById: (id: string, plantId: string) =>

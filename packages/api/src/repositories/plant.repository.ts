@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantPhotos, plants } from '@lily/db'
+import { type PaginatedResponse, paginate } from '@lily/shared'
 import { and, asc, count, desc, eq } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
@@ -13,12 +14,7 @@ export interface FindPlantsParams {
   userId?: string
 }
 
-export interface FindPlantsResult {
-  plants: Array<typeof plants.$inferSelect>
-  total: number
-  page: number
-  limit: number
-}
+export type FindPlantsResult = PaginatedResponse<typeof plants.$inferSelect>
 
 export interface CreatePlantData {
   name: string
@@ -50,6 +46,16 @@ export interface UpdatePlantData {
   health?: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
 }
 
+export interface FindPhotosParams {
+  plantId: string
+  page?: number
+  limit?: number
+}
+
+export type FindPhotosResult = PaginatedResponse<
+  typeof plantPhotos.$inferSelect
+>
+
 // Repository service interface
 export interface IPlantRepository {
   readonly findAll: (
@@ -69,8 +75,8 @@ export interface IPlantRepository {
     id: string
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
   readonly findPhotos: (
-    plantId: string
-  ) => Effect.Effect<Array<typeof plantPhotos.$inferSelect>, SqlError>
+    params: FindPhotosParams
+  ) => Effect.Effect<FindPhotosResult, SqlError>
   readonly addPhoto: (
     plantId: string,
     url: string
@@ -103,22 +109,32 @@ export const PlantRepositoryLive = Layer.effect(
       findAll: (params: FindPlantsParams) =>
         Effect.gen(function* () {
           const page = params.page ?? 1
-          const limit = params.limit ?? 10
+          const limit = params.limit ?? 20
           const offset = (page - 1) * limit
 
-          const countResult = yield* db.select({ value: count() }).from(plants)
+          // Build filter conditions
+          const filterConditions =
+            params.filter === 'needsAttention'
+              ? eq(plants.health, 'NEEDS_ATTENTION')
+              : undefined
+
+          const countResult = yield* db
+            .select({ value: count() })
+            .from(plants)
+            .where(filterConditions)
           const total = countResult[0]?.value ?? 0
 
-          const plantsList = yield* db
+          const items = yield* db
             .select()
             .from(plants)
+            .where(filterConditions)
             .offset(offset)
             .limit(limit)
             .orderBy(
               params.sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
             )
 
-          return { plants: plantsList, total, page, limit }
+          return paginate(items, total, page, limit)
         }),
 
       findById: (id: string) =>
@@ -155,8 +171,28 @@ export const PlantRepositoryLive = Layer.effect(
           return plant ?? null
         }),
 
-      findPhotos: (plantId: string) =>
-        db.select().from(plantPhotos).where(eq(plantPhotos.plantId, plantId)),
+      findPhotos: (params: FindPhotosParams) =>
+        Effect.gen(function* () {
+          const page = params.page ?? 1
+          const limit = params.limit ?? 20
+          const offset = (page - 1) * limit
+
+          const countResult = yield* db
+            .select({ value: count() })
+            .from(plantPhotos)
+            .where(eq(plantPhotos.plantId, params.plantId))
+          const total = countResult[0]?.value ?? 0
+
+          const items = yield* db
+            .select()
+            .from(plantPhotos)
+            .where(eq(plantPhotos.plantId, params.plantId))
+            .offset(offset)
+            .limit(limit)
+            .orderBy(desc(plantPhotos.takenAt))
+
+          return paginate(items, total, page, limit)
+        }),
 
       addPhoto: (plantId: string, url: string) =>
         Effect.gen(function* () {

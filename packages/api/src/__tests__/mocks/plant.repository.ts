@@ -1,9 +1,11 @@
 import {
+  type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
   PlantRepository,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db'
+import { paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 
@@ -22,7 +24,7 @@ export const createMockPlantRepository = (
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
       const page = params.page ?? 1
-      const limit = params.limit ?? 10
+      const limit = params.limit ?? 20
       const offset = (page - 1) * limit
 
       let filtered = [...plants]
@@ -41,13 +43,15 @@ export const createMockPlantRepository = (
         filtered.sort((a, b) => b.dateAdded.getTime() - a.dateAdded.getTime())
       }
 
-      const paginated = filtered.slice(offset, offset + limit)
+      const items = filtered.slice(offset, offset + limit)
+      const total = filtered.length
 
       return Effect.succeed({
-        plants: paginated,
-        total: filtered.length,
+        items,
+        total,
         page,
         limit,
+        hasMore: page * limit < total,
       })
     },
 
@@ -91,8 +95,17 @@ export const createMockPlantRepository = (
       return Effect.succeed(plant ?? null)
     },
 
-    findPhotos: (plantId: string) =>
-      Effect.succeed(photos.filter((p) => p.plantId === plantId)),
+    findPhotos: (params: FindPhotosParams) => {
+      const page = params.page ?? 1
+      const limit = params.limit ?? 20
+      const offset = (page - 1) * limit
+
+      const filtered = photos.filter((p) => p.plantId === params.plantId)
+      const total = filtered.length
+      const items = filtered.slice(offset, offset + limit)
+
+      return Effect.succeed(paginate(items, total, page, limit))
+    },
 
     addPhoto: (plantId: string, url: string) => {
       const newPhoto: PlantPhoto = {

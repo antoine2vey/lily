@@ -1,12 +1,16 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Session } from '@lily/api/services/auth/session'
-import type { Notification } from '@lily/shared/notification'
+import type { NotificationsListResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
 
 // Get notifications for current user
-export const getNotifications = (): Effect.Effect<
-  Notification[],
+export const getNotifications = (params: {
+  page?: number
+  limit?: number
+  status?: 'pending' | 'queued' | 'sent' | 'failed' | 'all'
+}): Effect.Effect<
+  NotificationsListResponse,
   SqlError,
   NotificationRepository | Session
 > =>
@@ -14,7 +18,10 @@ export const getNotifications = (): Effect.Effect<
     const repo = yield* NotificationRepository
     const { userId } = yield* Session
 
-    const notifications = yield* repo.findByUserId(userId)
-
-    return notifications
+    return yield* repo.findByUserId({
+      userId,
+      ...(params.page !== undefined && { page: params.page }),
+      ...(params.limit !== undefined && { limit: params.limit }),
+      ...(params.status !== undefined && { status: params.status }),
+    })
   })

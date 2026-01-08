@@ -17,8 +17,14 @@ export const AIChatApiLive = (api: Api) =>
         .handle('sendChatMessage', ({ path: { plantId }, payload }) =>
           withSession(aiChatService.sendChatMessage(plantId, payload))
         )
-        .handle('getChatHistory', ({ path: { plantId } }) =>
-          withSession(aiChatService.getChatHistory(plantId))
+        .handle('getChatHistory', ({ path: { plantId }, urlParams }) =>
+          withSession(
+            aiChatService.getChatHistory({
+              plantId,
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+            })
+          )
         )
     })
   ).pipe(

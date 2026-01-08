@@ -1,7 +1,9 @@
 import {
+  type FindNotificationsParams,
   type INotificationRepository,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
+import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 
@@ -19,8 +21,30 @@ export const createMockNotificationRepository = (
   }))
 
   const repo: INotificationRepository = {
-    findByUserId: (userId: string) =>
-      Effect.succeed(notificationsState.filter((n) => n.userId === userId)),
+    findByUserId: (params: FindNotificationsParams) => {
+      const page = params.page ?? 1
+      const limit = params.limit ?? 20
+      const offset = (page - 1) * limit
+
+      let filtered = notificationsState.filter(
+        (n) => n.userId === params.userId
+      )
+
+      if (params.status && params.status !== 'all') {
+        filtered = filtered.filter((n) => n.status === params.status)
+      }
+
+      // Sort by createdAt descending
+      filtered.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      const total = filtered.length
+      const items = filtered.slice(offset, offset + limit)
+
+      return Effect.succeed(paginate(items, total, page, limit))
+    },
 
     findById: (id: string) =>
       Effect.succeed(notificationsState.find((n) => n.id === id) ?? null),

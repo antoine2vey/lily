@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { PaginatedResponse } from '../common/pagination'
 
 // Care log schemas
 export const CareLog = Schema.Struct({
@@ -30,6 +31,10 @@ export const CareLogUpdateRequest = Schema.Struct({
   date: Schema.optional(Schema.Date),
   photoUrl: Schema.optional(Schema.String),
 })
+
+// Care logs list response - uses standard pagination format
+export const CareLogsListResponse = PaginatedResponse(CareLog)
+export type CareLogsListResponse = typeof CareLogsListResponse.Type
 
 // Type exports
 export type CareLog = typeof CareLog.Type

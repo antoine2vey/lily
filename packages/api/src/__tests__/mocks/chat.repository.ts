@@ -1,7 +1,9 @@
 import {
   ChatRepository,
+  type FindChatHistoryParams,
   type IChatRepository,
 } from '@lily/api/repositories/chat.repository'
+import { paginate } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
 import { Effect, Layer } from 'effect'
 
@@ -13,9 +15,13 @@ export const createMockChatRepository = (
   data: MockChatRepositoryData = { messages: [] }
 ): Layer.Layer<ChatRepository> => {
   const repo: IChatRepository = {
-    findByPlantId: (plantId: string, userId: string, limit?: number) => {
-      let filtered = data.messages.filter(
-        (msg) => msg.plantId === plantId && msg.userId === userId
+    findByPlantId: (params: FindChatHistoryParams) => {
+      const page = params.page ?? 1
+      const limit = params.limit ?? 20
+      const offset = (page - 1) * limit
+
+      const filtered = data.messages.filter(
+        (msg) => msg.plantId === params.plantId && msg.userId === params.userId
       )
 
       // Sort by createdAt ascending (oldest first)
@@ -24,11 +30,10 @@ export const createMockChatRepository = (
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       )
 
-      if (limit) {
-        filtered = filtered.slice(0, limit)
-      }
+      const total = filtered.length
+      const items = filtered.slice(offset, offset + limit)
 
-      return Effect.succeed(filtered)
+      return Effect.succeed(paginate(items, total, page, limit))
     },
 
     create: (createData) => {

@@ -1,7 +1,9 @@
 import {
   CareLogRepository,
+  type FindCareLogsParams,
   type ICareLogRepository,
 } from '@lily/api/repositories/care-log.repository'
+import { paginate } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { Effect, Layer } from 'effect'
 
@@ -9,17 +11,24 @@ export const createMockCareLogRepository = (
   careLogs: CareLog[]
 ): Layer.Layer<CareLogRepository> => {
   const repo: ICareLogRepository = {
-    findByPlantId: (plantId: string, type?: 'watering' | 'fertilization') => {
-      let filtered = careLogs.filter((log) => log.plantId === plantId)
+    findByPlantId: (params: FindCareLogsParams) => {
+      const page = params.page ?? 1
+      const limit = params.limit ?? 20
+      const offset = (page - 1) * limit
 
-      if (type) {
-        filtered = filtered.filter((log) => log.type === type)
+      let filtered = careLogs.filter((log) => log.plantId === params.plantId)
+
+      if (params.type && params.type !== 'all') {
+        filtered = filtered.filter((log) => log.type === params.type)
       }
 
       // Sort by date descending
       filtered.sort((a, b) => b.date.getTime() - a.date.getTime())
 
-      return Effect.succeed(filtered)
+      const total = filtered.length
+      const items = filtered.slice(offset, offset + limit)
+
+      return Effect.succeed(paginate(items, total, page, limit))
     },
 
     findById: (id: string, plantId: string) => {

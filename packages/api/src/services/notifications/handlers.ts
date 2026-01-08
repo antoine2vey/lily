@@ -13,8 +13,18 @@ export const NotificationsApiLive = (api: Api) =>
       const notificationsService = yield* NotificationsService
 
       return handlers
-        .handle('getNotifications', () =>
-          withSession(notificationsService.getNotifications())
+        .handle('getNotifications', ({ urlParams }) =>
+          withSession(
+            notificationsService.getNotifications({
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+              status: ['pending', 'queued', 'sent', 'failed'].includes(
+                urlParams.status
+              )
+                ? (urlParams.status as 'pending' | 'queued' | 'sent' | 'failed')
+                : 'all',
+            })
+          )
         )
         .handle('markNotificationRead', ({ path: { notificationId } }) =>
           withSession(notificationsService.markNotificationRead(notificationId))

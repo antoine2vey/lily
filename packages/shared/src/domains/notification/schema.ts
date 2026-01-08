@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { PaginatedResponse } from '../common/pagination'
 
 // Notification status enum
 export const NotificationStatus = Schema.Union(
@@ -25,6 +26,10 @@ export const Notification = Schema.Struct({
   plantId: Schema.optional(Schema.String),
   createdAt: Schema.Date,
 })
+
+// Notifications list response - uses standard pagination format
+export const NotificationsListResponse = PaginatedResponse(Notification)
+export type NotificationsListResponse = typeof NotificationsListResponse.Type
 
 // Type exports
 export type Notification = typeof Notification.Type

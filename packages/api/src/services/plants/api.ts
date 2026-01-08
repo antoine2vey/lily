@@ -4,12 +4,14 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
+import { PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   EnhancedPlantCreateRequest,
   Plant,
   PlantPhoto,
+  PlantPhotosListResponse,
   PlantsListResponse,
   PlantUpdateRequest,
   PlantWaterRequest,
@@ -21,44 +23,21 @@ import { Schema } from 'effect'
 const plantIdParam = HttpApiSchema.param('id', Schema.String)
 const photoIdParam = HttpApiSchema.param('photoId', Schema.String)
 
-// Path parameter for user ID (unused but may be needed for future endpoints)
-// const _userIdParam = HttpApiSchema.param('userId', Schema.String)
+// Query parameters for plants listing (extends base pagination)
+export const PlantsQueryParams = Schema.Struct({
+  ...PaginationParams.fields,
+  filter: Schema.optionalWith(Schema.String, { default: () => 'all' }),
+  sort: Schema.optionalWith(Schema.String, { default: () => 'added' }),
+})
 
-// Query parameters for plants listing
-// TODO: Fix HttpApiSchema.query API compatibility issue
-// const pageQuery = HttpApiSchema.query(
-//   'page',
-//   Schema.optional(Schema.NumberFromString)
-// )
-// const limitQuery = HttpApiSchema.query(
-//   'limit',
-//   Schema.optional(Schema.NumberFromString)
-// )
-// const filterQuery = HttpApiSchema.query(
-//   'filter',
-//   Schema.optional(
-//     Schema.Union(Schema.Literal('needsAttention'), Schema.Literal('all'))
-//   )
-// )
-// const sortQuery = HttpApiSchema.query(
-//   'sort',
-//   Schema.optional(Schema.Union(Schema.Literal('added'), Schema.Literal('name')))
-// )
+export type PlantsQueryParams = typeof PlantsQueryParams.Type
 
 // Define the Plants API group
 export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // GET /plants - List user's plants with filtering and pagination
     HttpApiEndpoint.get('getPlants')`/`
-      // TODO: Add back query parameters when HttpApiSchema.query is available
-      // .setUrlParams(
-      //   Schema.Struct({
-      //     page: pageQuery,
-      //     limit: limitQuery,
-      //     filter: filterQuery,
-      //     sort: sortQuery,
-      //   })
-      // )
+      .setUrlParams(PlantsQueryParams)
       .addSuccess(PlantsListResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -136,7 +115,8 @@ export const PlantsApi = HttpApiGroup.make('plants')
   .add(
     // GET /plants/:plantId/photos - List all photos for a plant
     HttpApiEndpoint.get('getPlantPhotos')`/${plantIdParam}/photos`
-      .addSuccess(Schema.Array(PlantPhoto))
+      .setUrlParams(PaginationParams)
+      .addSuccess(PlantPhotosListResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

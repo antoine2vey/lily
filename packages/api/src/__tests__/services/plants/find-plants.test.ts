@@ -5,17 +5,18 @@ import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('findPlants', () => {
-  it('should return plants with pagination info', async () => {
+  it('should return items with pagination info', async () => {
     const result = await Effect.runPromise(
       findPlants({}).pipe(
         Effect.provide(createMockPlantRepository({ plants: mockPlants }))
       )
     )
 
-    expect(result.plants).toBeDefined()
+    expect(result.items).toBeDefined()
     expect(result.total).toBe(mockPlants.length)
     expect(result.page).toBe(1)
-    expect(result.limit).toBe(10)
+    expect(result.limit).toBe(20)
+    expect(result.hasMore).toBe(false)
   })
 
   it('should return empty array when no plants exist', async () => {
@@ -25,8 +26,9 @@ describe('findPlants', () => {
       )
     )
 
-    expect(result.plants).toEqual([])
+    expect(result.items).toEqual([])
     expect(result.total).toBe(0)
+    expect(result.hasMore).toBe(false)
   })
 
   it('should respect page parameter', async () => {
@@ -37,7 +39,7 @@ describe('findPlants', () => {
     )
 
     expect(result.page).toBe(2)
-    expect(result.plants.length).toBeLessThanOrEqual(1)
+    expect(result.items.length).toBeLessThanOrEqual(1)
   })
 
   it('should respect limit parameter', async () => {
@@ -47,8 +49,9 @@ describe('findPlants', () => {
       )
     )
 
-    expect(result.plants.length).toBe(2)
+    expect(result.items.length).toBe(2)
     expect(result.limit).toBe(2)
+    expect(result.hasMore).toBe(true)
   })
 
   it('should filter by needsAttention', async () => {
@@ -58,9 +61,7 @@ describe('findPlants', () => {
       )
     )
 
-    expect(result.plants.every((p) => p.health === 'NEEDS_ATTENTION')).toBe(
-      true
-    )
+    expect(result.items.every((p) => p.health === 'NEEDS_ATTENTION')).toBe(true)
   })
 
   it('should sort by name when specified', async () => {
@@ -70,7 +71,7 @@ describe('findPlants', () => {
       )
     )
 
-    const names = result.plants.map((p) => p.name)
+    const names = result.items.map((p) => p.name)
     const sortedNames = [...names].sort()
     expect(names).toEqual(sortedNames)
   })

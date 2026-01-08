@@ -18,7 +18,7 @@ const Plants = () => {
   const { data: plants, isLoading: isLoadingPlants } = useEffectQuery(
     'plants',
     'getPlants',
-    {}
+    { urlParams: { page: '1', limit: '20', filter: 'all', sort: 'added' } }
   )
 
   if (isLoadingPlants) {
@@ -29,7 +29,7 @@ const Plants = () => {
     <SafeAreaView>
       <Text>plants</Text>
       <FlatList
-        data={plants?.plants}
+        data={plants?.items}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <Text>{item.name}</Text>}
       />

@@ -1,7 +1,9 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { PaginationParams } from '@lily/shared'
 import {
   CareLog,
   CareLogCreateRequest,
+  CareLogsListResponse,
   CareLogUpdateRequest,
 } from '@lily/shared/care-log'
 import { DatabaseError } from '@lily/shared/errors/database'
@@ -12,22 +14,19 @@ import { Schema } from 'effect'
 const plantIdParam = HttpApiSchema.param('plantId', Schema.String)
 const logIdParam = HttpApiSchema.param('logId', Schema.String)
 
-// Query parameter for log type - TODO: Fix HttpApiSchema.query compatibility
-// const typeQuery = HttpApiSchema.query(
-//   'type',
-//   Schema.optional(
-//     Schema.Union(Schema.Literal('watering'), Schema.Literal('fertilization'))
-//   )
-// )
+// Query parameters for care logs listing (extends base pagination)
+export const CareLogsQueryParams = Schema.Struct({
+  ...PaginationParams.fields,
+  type: Schema.optionalWith(Schema.String, { default: () => 'all' }),
+})
 
 // Define the Care Logs API group - nested under plants
 export const CareLogsApi = HttpApiGroup.make('careLogs')
   .add(
     // GET /plants/:plantId/logs - List care logs (filter by type)
     HttpApiEndpoint.get('getCareLogs')`/plants/${plantIdParam}/logs`
-      // TODO: Add back query parameter when HttpApiSchema.query is available
-      // .setUrlParams(Schema.Struct({ type: typeQuery }))
-      .addSuccess(Schema.Array(CareLog))
+      .setUrlParams(CareLogsQueryParams)
+      .addSuccess(CareLogsListResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

@@ -1,5 +1,10 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
-import { ChatMessage, ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
+import { PaginationParams } from '@lily/shared'
+import {
+  ChatHistoryListResponse,
+  ChatRequest,
+  ChatResponse,
+} from '@lily/shared/ai-chat'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
@@ -22,7 +27,8 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
   .add(
     // GET /plants/:plantId/chat/history - Fetch past chat messages
     HttpApiEndpoint.get('getChatHistory')`/plants/${plantIdParam}/chat/history`
-      .addSuccess(Schema.Array(ChatMessage))
+      .setUrlParams(PaginationParams)
+      .addSuccess(ChatHistoryListResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

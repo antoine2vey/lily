@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { PaginatedResponse } from '../common/pagination'
 
 export const Plant = Schema.Struct({
   id: Schema.String,
@@ -104,13 +105,11 @@ export const PlantPhoto = Schema.Struct({
   plantId: Schema.String,
 })
 
-// Plants list response
-export const PlantsListResponse = Schema.Struct({
-  plants: Schema.Array(Plant),
-  total: Schema.Number,
-  page: Schema.Number,
-  limit: Schema.Number,
-})
+// Plants list response - uses standard pagination format
+export const PlantsListResponse = PaginatedResponse(Plant)
+
+// Plant photos list response - uses standard pagination format
+export const PlantPhotosListResponse = PaginatedResponse(PlantPhoto)
 
 // Type exports
 export type Plant = typeof Plant.Type
@@ -122,3 +121,4 @@ export type ScanCardResponse = typeof ScanCardResponse.Type
 export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type
 export type PlantsListResponse = typeof PlantsListResponse.Type
+export type PlantPhotosListResponse = typeof PlantPhotosListResponse.Type

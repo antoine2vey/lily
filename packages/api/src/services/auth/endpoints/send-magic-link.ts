@@ -27,10 +27,7 @@ export const sendMagicLink = ({
           },
           headers: req.headers,
         }),
-      catch: (error) => {
-        console.error(error)
-        return { message: 'Failed to send magic link' }
-      },
+      catch: () => ({ message: 'Failed to send magic link' }),
     })
 
     return { message: `Magic link sent to ${email}` }
