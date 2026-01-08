@@ -3,7 +3,6 @@ import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantsService } from '@lily/api/services/plants/service'
-import { DrizzleLive } from '@lily/db'
 import { AiService } from '@lily/shared/services/ai/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
@@ -62,7 +61,6 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(PlantsService.Default),
     Layer.provide(PlantRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
-    Layer.provide(DrizzleLive),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default)

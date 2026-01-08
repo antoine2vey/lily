@@ -1,14 +1,18 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('createCareLog', () => {
+  const createTestLayer = () =>
+    Layer.merge(createMockCareLogRepository(mockCareLogs), createMockEventBus())
+
   it('should create a new care log', async () => {
     const result = await Effect.runPromise(
       createCareLog('plant-1', { type: 'watering' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -20,7 +24,7 @@ describe('createCareLog', () => {
   it('should return the created log with an id', async () => {
     const result = await Effect.runPromise(
       createCareLog('plant-1', { type: 'fertilization' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -33,7 +37,7 @@ describe('createCareLog', () => {
       createCareLog('plant-1', {
         type: 'watering',
         notes: 'Test notes',
-      }).pipe(Effect.provide(createMockCareLogRepository(mockCareLogs)))
+      }).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.notes).toBe('Test notes')
@@ -44,7 +48,7 @@ describe('createCareLog', () => {
       createCareLog('plant-1', {
         type: 'fertilization',
         photoUrl: 'https://example.com/photo.jpg',
-      }).pipe(Effect.provide(createMockCareLogRepository(mockCareLogs)))
+      }).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.photoUrl).toBe('https://example.com/photo.jpg')
@@ -54,7 +58,7 @@ describe('createCareLog', () => {
     const before = new Date()
     const result = await Effect.runPromise(
       createCareLog('plant-1', { type: 'watering' }).pipe(
-        Effect.provide(createMockCareLogRepository(mockCareLogs))
+        Effect.provide(createTestLayer())
       )
     )
     const after = new Date()
@@ -69,9 +73,31 @@ describe('createCareLog', () => {
       createCareLog('plant-1', {
         type: 'watering',
         date: customDate,
-      }).pipe(Effect.provide(createMockCareLogRepository(mockCareLogs)))
+      }).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.date).toEqual(customDate)
+  })
+
+  it('should publish CareLogCreated event', async () => {
+    const publishedEvents: unknown[] = []
+    const eventBusMock = createMockEventBus({ publishedEvents })
+
+    const result = await Effect.runPromise(
+      createCareLog('plant-1', { type: 'watering' }).pipe(
+        Effect.provide(
+          Layer.merge(createMockCareLogRepository(mockCareLogs), eventBusMock)
+        )
+      )
+    )
+
+    expect(publishedEvents.length).toBe(1)
+    expect(publishedEvents[0]).toMatchObject({
+      _tag: 'CareLogCreated',
+      userId: 'user-1',
+      plantId: 'plant-1',
+      careLogId: result.id,
+      type: 'watering',
+    })
   })
 })

@@ -1,7 +1,8 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('createPlant', () => {
@@ -15,11 +16,15 @@ describe('createPlant', () => {
     petToxicityRating: 1,
   }
 
+  const createTestLayer = () =>
+    Layer.merge(
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockEventBus()
+    )
+
   it('should create a new plant', async () => {
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.name).toBe('New Plant')
@@ -28,9 +33,7 @@ describe('createPlant', () => {
 
   it('should return the created plant with an id', async () => {
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.id).toBeTruthy()
@@ -39,9 +42,7 @@ describe('createPlant', () => {
 
   it('should set default health to HEALTHY', async () => {
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.health).toBe('HEALTHY')
@@ -55,7 +56,7 @@ describe('createPlant', () => {
 
     const result = await Effect.runPromise(
       createPlant(requestWithoutDescription).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
+        Effect.provide(createTestLayer())
       )
     )
 
@@ -64,11 +65,32 @@ describe('createPlant', () => {
 
   it('should set watering frequency correctly', async () => {
     const result = await Effect.runPromise(
-      createPlant(validRequest).pipe(
-        Effect.provide(createMockPlantRepository({ plants: mockPlants }))
-      )
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.wateringFrequencyDays).toBe(7)
+  })
+
+  it('should publish PlantCreated event', async () => {
+    const publishedEvents: unknown[] = []
+    const eventBusMock = createMockEventBus({ publishedEvents })
+
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(
+        Effect.provide(
+          Layer.merge(
+            createMockPlantRepository({ plants: mockPlants }),
+            eventBusMock
+          )
+        )
+      )
+    )
+
+    expect(publishedEvents.length).toBe(1)
+    expect(publishedEvents[0]).toMatchObject({
+      _tag: 'PlantCreated',
+      userId: 'user-1',
+      plantId: result.id,
+    })
   })
 })

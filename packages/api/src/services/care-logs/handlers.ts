@@ -2,7 +2,6 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
-import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Care Logs API group
@@ -30,6 +29,5 @@ export const CareLogsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(CareLogsService.Default),
-    Layer.provide(CareLogRepositoryLive),
-    Layer.provide(DrizzleLive)
+    Layer.provide(CareLogRepositoryLive)
   )

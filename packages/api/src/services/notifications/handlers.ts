@@ -1,7 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { NotificationsService } from '@lily/api/services/notifications/service'
-import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Notifications API group
@@ -18,7 +17,4 @@ export const NotificationsApiLive = (api: Api) =>
           notificationsService.markNotificationRead(notificationId)
         )
     })
-  ).pipe(
-    Layer.provide(NotificationsService.Default),
-    Layer.provide(DrizzleLive)
-  )
+  ).pipe(Layer.provide(NotificationsService.Default))

@@ -1,0 +1,95 @@
+import { type AppEvent, EventBus } from '@lily/api/events'
+import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
+import { ACHIEVEMENTS } from '@lily/shared'
+import { Effect, Match, Queue } from 'effect'
+
+// Individual event handlers
+// Note: unlock() uses onConflictDoNothing() so we don't need to check hasAchievement first
+
+const onPlantCreated = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+
+    // Always unlock FIRST_PLANT_ADDED (DB handles duplicates)
+    yield* repo.unlock(event.userId, 'FIRST_PLANT_ADDED')
+
+    // Check PLANT_COLLECTOR (5+ plants)
+    const plantCount = yield* repo.countPlants(event.userId)
+    if (plantCount >= (ACHIEVEMENTS.PLANT_COLLECTOR.threshold ?? 5)) {
+      yield* repo.unlock(event.userId, 'PLANT_COLLECTOR')
+    }
+  })
+
+const onCareLogCreated = (event: {
+  userId: string
+  type: 'watering' | 'fertilization'
+}) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+
+    // Check thresholds, then unlock (DB handles duplicates)
+    const careCount = yield* repo.countCareLogsByType(event.userId, event.type)
+    if (event.type === 'watering' && careCount >= 10) {
+      yield* repo.unlock(event.userId, 'WATERING_NOVICE')
+    }
+    if (event.type === 'fertilization' && careCount >= 10) {
+      yield* repo.unlock(event.userId, 'FERTILIZER_GURU')
+    }
+
+    // Check DEDICATED_CARETAKER (3-day streak)
+    const streak = yield* repo.getCareStreak(event.userId)
+    if (streak >= 3) {
+      yield* repo.unlock(event.userId, 'DEDICATED_CARETAKER')
+    }
+  })
+
+const onChatMessageSent = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    yield* repo.unlock(event.userId, 'AI_CONVERSATIONALIST')
+  })
+
+const onPhotoUploaded = (event: { userId: string }) =>
+  Effect.gen(function* () {
+    const repo = yield* AchievementRepository
+    const photoCount = yield* repo.countPhotos(event.userId)
+    if (photoCount >= 10) {
+      yield* repo.unlock(event.userId, 'PHOTO_PRO')
+    }
+  })
+
+const onPlantScanned = (_event: { userId: string }) =>
+  Effect.gen(function* () {
+    // TODO: Count scans and unlock SCAN_CHAMP when >= 5
+  })
+
+// Pattern matching for events (exported for testing)
+export const processEvent = (event: AppEvent) =>
+  Match.value(event).pipe(
+    Match.tag('PlantCreated', onPlantCreated),
+    Match.tag('CareLogCreated', onCareLogCreated),
+    Match.tag('ChatMessageSent', onChatMessageSent),
+    Match.tag('PhotoUploaded', onPhotoUploaded),
+    Match.tag('PlantScanned', onPlantScanned),
+    Match.exhaustive
+  )
+
+// Start the achievement subscriber
+export const startAchievementSubscriber = Effect.gen(function* () {
+  const eventBus = yield* EventBus
+  const queue = yield* eventBus.subscribe
+
+  // Process events in background
+  yield* Effect.fork(
+    Effect.forever(
+      Effect.gen(function* () {
+        const event = yield* Queue.take(queue)
+        yield* processEvent(event).pipe(
+          Effect.catchAll((error) =>
+            Effect.logError('Achievement check failed', error)
+          )
+        )
+      })
+    )
+  )
+})

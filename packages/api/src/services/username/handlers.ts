@@ -2,7 +2,6 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { UsernameService } from '@lily/api/services/username/service'
-import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Implement the Username API group
@@ -17,6 +16,5 @@ export const UsernameApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(UsernameService.Default),
-    Layer.provide(UserRepositoryLive),
-    Layer.provide(DrizzleLive)
+    Layer.provide(UserRepositoryLive)
   )
