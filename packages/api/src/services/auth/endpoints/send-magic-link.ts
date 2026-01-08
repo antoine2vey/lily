@@ -1,6 +1,6 @@
 import { HttpServerRequest } from '@effect/platform'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { Auth } from '@lily/db/lib/auth'
+import { Auth } from '@lily/api/services/auth/auth'
 import type { MagicLinkRequest } from '@lily/shared/auth'
 import { Effect } from 'effect'
 

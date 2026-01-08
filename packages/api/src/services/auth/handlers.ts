@@ -1,8 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { Auth } from '@lily/api/services/auth/auth'
 import { AuthService } from '@lily/api/services/auth/service'
-import { Auth } from '@lily/db/lib/auth'
 import { Effect, Layer } from 'effect'
 
 // Implement the Auth API group

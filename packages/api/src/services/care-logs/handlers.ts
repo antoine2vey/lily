@@ -1,6 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { Auth } from '@lily/api/services/auth/auth'
+import { withSession } from '@lily/api/services/auth/session'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
 import { Effect, Layer } from 'effect'
 
@@ -15,7 +17,7 @@ export const CareLogsApiLive = (api: Api) =>
           careLogsService.getCareLogs(plantId)
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
-          careLogsService.createCareLog(plantId, payload)
+          withSession(careLogsService.createCareLog(plantId, payload))
         )
         .handle('getCareLog', ({ path: { plantId, logId } }) =>
           careLogsService.getCareLog(plantId, logId)
@@ -29,5 +31,6 @@ export const CareLogsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(CareLogsService.Default),
-    Layer.provide(CareLogRepositoryLive)
+    Layer.provide(CareLogRepositoryLive),
+    Layer.provide(Auth.Default)
   )

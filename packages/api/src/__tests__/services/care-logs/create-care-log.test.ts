@@ -1,13 +1,18 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockSession } from '@lily/api/__tests__/mocks/session'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('createCareLog', () => {
   const createTestLayer = () =>
-    Layer.merge(createMockCareLogRepository(mockCareLogs), createMockEventBus())
+    Layer.mergeAll(
+      createMockCareLogRepository(mockCareLogs),
+      createMockEventBus(),
+      createMockSession({ userId: 'user-1' })
+    )
 
   it('should create a new care log', async () => {
     const result = await Effect.runPromise(
@@ -86,7 +91,11 @@ describe('createCareLog', () => {
     const result = await Effect.runPromise(
       createCareLog('plant-1', { type: 'watering' }).pipe(
         Effect.provide(
-          Layer.merge(createMockCareLogRepository(mockCareLogs), eventBusMock)
+          Layer.mergeAll(
+            createMockCareLogRepository(mockCareLogs),
+            eventBusMock,
+            createMockSession({ userId: 'user-1' })
+          )
         )
       )
     )

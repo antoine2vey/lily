@@ -1,26 +1,24 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { Session } from '@lily/api/services/auth/session'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
 import { DatabaseError } from '@lily/shared/errors/database'
+import type { SessionNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 
-// TODO: Get real userId from Auth service when auth is integrated
-const TEMP_USER_ID = '550e8400-e29b-41d4-a716-446655440000'
-
-// Create care log
 export const createCareLog = (
   plantId: string,
   request: CareLogCreateRequest
 ): Effect.Effect<
   CareLog,
-  SqlError | DatabaseError,
-  CareLogRepository | EventBus
+  SqlError | DatabaseError | SessionNotFoundError,
+  CareLogRepository | EventBus | Session
 > =>
   Effect.gen(function* () {
     const repo = yield* CareLogRepository
     const eventBus = yield* EventBus
-    const userId = TEMP_USER_ID
+    const { userId } = yield* Session
 
     const log = yield* repo.create({
       type: request.type,

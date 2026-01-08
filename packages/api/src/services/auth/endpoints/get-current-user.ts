@@ -1,5 +1,5 @@
 import type { HttpServerRequest } from '@effect/platform'
-import { Auth } from '@lily/db/lib/auth'
+import { Auth } from '@lily/api/services/auth/auth'
 import type { UserProfile } from '@lily/shared/auth'
 import { SessionNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'

@@ -1,7 +1,7 @@
 import type { HttpServerRequest } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { Auth } from '@lily/db/lib/auth'
+import { Auth } from '@lily/api/services/auth/auth'
 import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
 import {
   SessionNotFoundError,

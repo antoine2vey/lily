@@ -2,6 +2,8 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { Auth } from '@lily/api/services/auth/auth'
+import { withSession } from '@lily/api/services/auth/session'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { AiService } from '@lily/shared/services/ai/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
@@ -24,7 +26,7 @@ export const PlantsApiLive = (api: Api) =>
           })
         )
         .handle('createPlant', ({ payload }) =>
-          plantsService.createPlant(payload)
+          withSession(plantsService.createPlant(payload))
         )
         .handle('scanCard', ({ payload: { images } }) =>
           plantsService.scanCard(images)
@@ -61,6 +63,7 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(PlantsService.Default),
     Layer.provide(PlantRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
+    Layer.provide(Auth.Default),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default)

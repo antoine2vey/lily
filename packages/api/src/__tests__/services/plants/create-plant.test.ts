@@ -1,6 +1,7 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockSession } from '@lily/api/__tests__/mocks/session'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -17,9 +18,10 @@ describe('createPlant', () => {
   }
 
   const createTestLayer = () =>
-    Layer.merge(
+    Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
-      createMockEventBus()
+      createMockEventBus(),
+      createMockSession({ userId: 'user-1' })
     )
 
   it('should create a new plant', async () => {
@@ -78,9 +80,10 @@ describe('createPlant', () => {
     const result = await Effect.runPromise(
       createPlant(validRequest).pipe(
         Effect.provide(
-          Layer.merge(
+          Layer.mergeAll(
             createMockPlantRepository({ plants: mockPlants }),
-            eventBusMock
+            eventBusMock,
+            createMockSession({ userId: 'user-1' })
           )
         )
       )
