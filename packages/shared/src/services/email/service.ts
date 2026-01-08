@@ -1,9 +1,9 @@
-import { Context, type Effect } from 'effect'
 import type {
   EmailConfigError,
   EmailSendError,
   SendEmailRequest,
-} from './types'
+} from '@lily/shared/services/email/types'
+import { Context, type Effect } from 'effect'
 
 // Email service interface - provider agnostic
 export interface IEmailService {

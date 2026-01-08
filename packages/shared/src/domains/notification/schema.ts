@@ -1,5 +1,5 @@
+import { PaginatedResponse } from '@lily/shared/domains/common/pagination'
 import { Schema } from 'effect'
-import { PaginatedResponse } from '../common/pagination'
 
 // Notification status enum
 export const NotificationStatus = Schema.Union(

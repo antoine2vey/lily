@@ -1,10 +1,10 @@
-import { Context, type Effect } from 'effect'
 import type {
   NotificationTopic,
   QueueConnectionError,
   QueueMessage,
   QueueOperationError,
-} from './types'
+} from '@lily/shared/services/message-queue/types'
+import { Context, type Effect } from 'effect'
 
 // Provider-agnostic message queue interface
 export interface IMessageQueue {

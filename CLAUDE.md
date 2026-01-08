@@ -58,6 +58,10 @@ bun run db:studio        # Open Drizzle Studio
 - 80-character line width
 - ES5 trailing commas
 
+## Imports
+
+Imports should always be absolute imports (with @). Never use relative imports
+
 ### Effect.js Patterns
 
 This codebase uses Effect.js for functional programming. Follow these patterns:

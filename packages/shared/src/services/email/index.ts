@@ -1,2 +1,2 @@
-export * from './service'
-export * from './types'
+export * from '@lily/shared/services/email/service'
+export * from '@lily/shared/services/email/types'

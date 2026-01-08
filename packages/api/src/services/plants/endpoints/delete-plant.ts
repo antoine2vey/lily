@@ -1,9 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantDeleteRequest } from '@lily/api/services/plants/utils'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
-import type { PlantDeleteRequest } from '../utils'
 
 export const deletePlant = ({
   id,

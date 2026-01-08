@@ -1,9 +1,9 @@
+import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
+import { sendMagicLink } from '@lily/api/services/auth/endpoints/send-magic-link'
+import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
+import { signOut } from '@lily/api/services/auth/endpoints/sign-out'
+import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { Effect } from 'effect'
-import { getCurrentUser } from './endpoints/get-current-user'
-import { sendMagicLink } from './endpoints/send-magic-link'
-import { setUsername } from './endpoints/set-username'
-import { signOut } from './endpoints/sign-out'
-import { verifyMagicLink } from './endpoints/verify-magic-link'
 
 // Auth service implementation
 export class AuthService extends Effect.Service<AuthService>()('AuthService', {

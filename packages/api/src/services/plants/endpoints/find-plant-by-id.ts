@@ -1,9 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantByIdRequest } from '@lily/api/services/plants/utils'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
-import type { PlantByIdRequest } from '../utils'
 
 export const findPlantById = ({
   id,

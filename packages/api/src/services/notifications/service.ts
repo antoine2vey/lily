@@ -1,6 +1,6 @@
+import { getNotifications } from '@lily/api/services/notifications/endpoints/get-notifications'
+import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { Effect } from 'effect'
-import { getNotifications } from './endpoints/get-notifications'
-import { markNotificationRead } from './endpoints/mark-notification-read'
 
 // Notifications service implementation
 export class NotificationsService extends Effect.Service<NotificationsService>()(

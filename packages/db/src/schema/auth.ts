@@ -1,6 +1,6 @@
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { users } from './users'
 
 export const sessions = pgTable('session', {
   id: text('id').primaryKey(),

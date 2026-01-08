@@ -1,3 +1,5 @@
+import { plants } from '@lily/db/schema/plants'
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
   integer,
@@ -7,8 +9,6 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { plants } from './plants'
-import { users } from './users'
 
 export const deadLetterMessages = pgTable('dead_letter_messages', {
   id: uuid('id').primaryKey().defaultRandom(),

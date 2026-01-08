@@ -1,7 +1,7 @@
+import { achievementKeyEnum } from '@lily/db/schema/enums'
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import { pgTable, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
-import { achievementKeyEnum } from './enums'
-import { users } from './users'
 
 export const userAchievements = pgTable(
   'user_achievements',

@@ -1,6 +1,6 @@
+import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
 import { EmailService } from '@lily/shared'
 import { Effect } from 'effect'
-import { ResendEmailServiceLive } from './resend.provider'
 
 interface MagicLinkRequest {
   email: string

@@ -1,2 +1,2 @@
-export * from './resend.provider'
-export * from './send-magic-link'
+export * from '@lily/api/services/email/resend.provider'
+export * from '@lily/api/services/email/send-magic-link'

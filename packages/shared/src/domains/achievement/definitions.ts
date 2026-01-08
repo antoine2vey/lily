@@ -1,4 +1,4 @@
-import type { AchievementKey } from './schema'
+import type { AchievementKey } from '@lily/shared/domains/achievement/schema'
 
 export interface AchievementDefinition {
   name: string

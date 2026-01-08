@@ -1,5 +1,5 @@
+import type { AppEvent } from '@lily/api/events/types'
 import { Context, Effect, Layer, PubSub, type Queue, type Scope } from 'effect'
-import type { AppEvent } from './types'
 
 // EventBus interface
 export interface IEventBus {

@@ -1,3 +1,6 @@
+import { notificationStatusEnum } from '@lily/db/schema/enums'
+import { plants } from '@lily/db/schema/plants'
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -7,9 +10,6 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { notificationStatusEnum } from './enums'
-import { plants } from './plants'
-import { users } from './users'
 
 export const deviceTokens = pgTable('device_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),

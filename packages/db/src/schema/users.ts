@@ -1,9 +1,9 @@
+import { userAchievements } from '@lily/db/schema/achievements'
+import { accounts, sessions } from '@lily/db/schema/auth'
+import { deviceTokens, notifications } from '@lily/db/schema/notifications'
+import { plants } from '@lily/db/schema/plants'
 import { relations } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
-import { userAchievements } from './achievements'
-import { accounts, sessions } from './auth'
-import { deviceTokens, notifications } from './notifications'
-import { plants } from './plants'
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),

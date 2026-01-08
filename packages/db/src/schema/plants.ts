@@ -1,3 +1,7 @@
+import { plantHealthEnum } from '@lily/db/schema/enums'
+import { notifications } from '@lily/db/schema/notifications'
+import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
+import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -7,10 +11,6 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { plantHealthEnum } from './enums'
-import { notifications } from './notifications'
-import { careLogs, plantPhotos } from './plant-history'
-import { users } from './users'
 
 export const plants = pgTable('plants', {
   id: uuid('id').primaryKey().defaultRandom(),

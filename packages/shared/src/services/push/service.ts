@@ -1,10 +1,10 @@
-import { Context, type Effect } from 'effect'
 import type {
   PushConfigError,
   PushMessage,
   PushSendError,
   PushTicket,
-} from './types'
+} from '@lily/shared/services/push/types'
+import { Context, type Effect } from 'effect'
 
 // Provider-agnostic push notification interface
 export interface IPushService {

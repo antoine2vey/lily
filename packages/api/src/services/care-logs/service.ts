@@ -1,9 +1,9 @@
+import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
+import { getCareLog } from '@lily/api/services/care-logs/endpoints/get-care-log'
+import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
+import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
 import { Effect } from 'effect'
-import { createCareLog } from './endpoints/create-care-log'
-import { deleteCareLog } from './endpoints/delete-care-log'
-import { getCareLog } from './endpoints/get-care-log'
-import { getCareLogs } from './endpoints/get-care-logs'
-import { updateCareLog } from './endpoints/update-care-log'
 
 // Care Logs service implementation
 export class CareLogsService extends Effect.Service<CareLogsService>()(
