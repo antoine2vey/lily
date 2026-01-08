@@ -168,19 +168,100 @@ export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()
 
 ## Testing Guidelines
 
-- Test files are colocated with source: `*.test.ts`
-- Use `MockDrizzleLive` for isolated database testing
-- Provide test layers with mocked dependencies
+**Tests are mandatory when writing any new feature or endpoint.** Every new endpoint must have corresponding tests before it can be considered complete.
+
+### Test Structure
+
+Tests are centralized in `packages/api/src/__tests__/`:
+
+```
+packages/api/src/__tests__/
+├── setup.ts                    # Global test setup
+├── fixtures/                   # Reusable test data
+│   ├── users.ts
+│   ├── plants.ts
+│   └── care-logs.ts
+├── mocks/                      # Mock repository layers
+│   ├── user.repository.ts
+│   ├── plant.repository.ts
+│   └── care-log.repository.ts
+└── services/                   # Test files by domain
+    ├── user/
+    │   ├── find-users.test.ts
+    │   ├── find-user-by-id.test.ts
+    │   ├── create-user.test.ts
+    │   ├── update-user.test.ts
+    │   └── delete-user.test.ts
+    ├── plants/
+    │   └── ...
+    └── care-logs/
+        └── ...
+```
+
+### Mock Pattern
+
+Mock at the **Repository level**, not at the database level. This leverages Effect's DI properly:
 
 ```typescript
-const TestLayer = UserRepositoryLive.pipe(
-  Layer.provide(MockDrizzleLive)
-)
-
-const result = await Effect.runPromise(
-  myEffect.pipe(Effect.provide(TestLayer))
-)
+// __tests__/mocks/user.repository.ts
+export const createMockUserRepository = (
+  users: User[]
+): Layer.Layer<UserRepository> => {
+  const repo: IUserRepository = {
+    findAll: () => Effect.succeed(users),
+    findById: (id) => Effect.succeed(users.find(u => u.id === id) ?? null),
+    // ... other methods
+  }
+  return Layer.succeed(UserRepository, repo)
+}
 ```
+
+### Writing Tests
+
+```typescript
+// __tests__/services/user/find-user-by-id.test.ts
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { findUserById } from '@lily/api/services/user/endpoints/find-user-by-id'
+import { Effect } from 'effect'
+import { describe, expect, it } from 'vitest'
+
+describe('findUserById', () => {
+  it('should return user when found', async () => {
+    const result = await Effect.runPromise(
+      findUserById('user-1').pipe(
+        Effect.provide(createMockUserRepository(mockUsers))
+      )
+    )
+    expect(result).toEqual(mockUsers[0])
+  })
+
+  it('should fail with UserNotFoundError when not found', async () => {
+    const result = await Effect.runPromiseExit(
+      findUserById('non-existent').pipe(
+        Effect.provide(createMockUserRepository(mockUsers))
+      )
+    )
+    expect(result._tag).toBe('Failure')
+  })
+})
+```
+
+### Test Commands
+
+```bash
+bun test                    # Run all tests
+bun test --watch            # Watch mode
+```
+
+### Adding Tests for New Features
+
+When adding a new domain/service:
+
+1. Create fixtures in `__tests__/fixtures/{domain}.ts`
+2. Create mock repository in `__tests__/mocks/{domain}.repository.ts`
+3. Create test files in `__tests__/services/{domain}/`
+4. Test all CRUD operations and error cases
 
 ## Database
 
