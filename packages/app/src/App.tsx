@@ -29,7 +29,7 @@ const Plants = () => {
     <SafeAreaView>
       <Text>plants</Text>
       <FlatList
-        data={plants}
+        data={plants?.plants}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <Text>{item.name}</Text>}
       />
