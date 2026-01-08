@@ -1,46 +1,26 @@
 import {
-  EmailConfigError,
   EmailSendError,
   EmailService,
   type IEmailService,
   type SendEmailRequest,
 } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Config, Effect, Layer, Redacted } from 'effect'
 import { Resend } from 'resend'
 
-// Environment configuration
-interface ResendConfig {
-  apiKey: string
-  fromEmail: string
-  fromName: string
-}
-
-const getConfig = (): Effect.Effect<ResendConfig, EmailConfigError> =>
-  Effect.gen(function* () {
-    const apiKey = process.env.RESEND_API_KEY
-    const fromEmail = process.env.EMAIL_FROM_ADDRESS
-    const fromName = process.env.EMAIL_FROM_NAME ?? 'Lily'
-
-    if (!apiKey) {
-      return yield* Effect.fail(
-        new EmailConfigError({ message: 'RESEND_API_KEY is not configured' })
-      )
-    }
-
-    if (!fromEmail) {
-      return yield* Effect.fail(
-        new EmailConfigError({
-          message: 'EMAIL_FROM_ADDRESS is not configured',
-        })
-      )
-    }
-
-    return { apiKey, fromEmail, fromName }
-  })
+// Environment configuration using Effect Config
+const ResendConfig = Config.all({
+  apiKey: Config.redacted('RESEND_API_KEY'),
+  fromEmail: Config.string('EMAIL_FROM_ADDRESS'),
+  fromName: Config.string('EMAIL_FROM_NAME').pipe(Config.withDefault('Lily')),
+})
 
 // Create the Resend email service implementation
-const createResendService = (config: ResendConfig): IEmailService => {
-  const resend = new Resend(config.apiKey)
+const createResendService = (config: {
+  apiKey: Redacted.Redacted<string>
+  fromEmail: string
+  fromName: string
+}): IEmailService => {
+  const resend = new Resend(Redacted.value(config.apiKey))
 
   return {
     send: (request: SendEmailRequest) =>
@@ -77,7 +57,7 @@ const createResendService = (config: ResendConfig): IEmailService => {
 export const ResendEmailServiceLive = Layer.effect(
   EmailService,
   Effect.gen(function* () {
-    const config = yield* getConfig()
+    const config = yield* ResendConfig
     return createResendService(config)
   })
 )
