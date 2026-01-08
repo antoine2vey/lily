@@ -1,4 +1,5 @@
 import { HttpServerRequest } from '@effect/platform'
+import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import { db } from '@lily/db/client'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -12,8 +13,7 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, token, url }) => {
-        // send email to user
-        console.log('sendMagicLink', email, token, url)
+        await sendMagicLinkEmail({ email, token, url })
       },
     }),
   ],

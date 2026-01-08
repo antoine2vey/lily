@@ -29,6 +29,7 @@
     "@lily/shared": "workspace:*",
     "ai": "^5.0.0",
     "effect": "^3.17.5",
+    "resend": "^6.7.0",
     "zod": "^4.0.14"
   },
   "devDependencies": {
