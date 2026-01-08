@@ -171,5 +171,7 @@ export const startNotificationWorker = Effect.gen(function* () {
     )
   }
 
-  yield* Effect.log('Notification workers started', { topics: NOTIFICATION_TOPICS })
+  yield* Effect.log('Notification workers started', {
+    topics: NOTIFICATION_TOPICS,
+  })
 })
