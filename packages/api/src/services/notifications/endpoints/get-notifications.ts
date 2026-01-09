@@ -4,7 +4,6 @@ import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { NotificationsListResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
 
-// Get notifications for current user
 export const getNotifications = (params: {
   page?: number
   limit?: number

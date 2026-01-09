@@ -1,3 +1,4 @@
+import type { PlatformError } from '@effect/platform/Error'
 import { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
@@ -19,32 +20,32 @@ export const uploadPlantPhoto = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   void,
-  SqlError | GCSUploadError | GCSConfigError,
+  SqlError | GCSUploadError | GCSConfigError | PlatformError,
   PlantRepository | GCSService | FileSystem | EventBus | CurrentUser
-> => {
-  return Effect.gen(function* () {
+> =>
+  Effect.gen(function* () {
     const repo = yield* PlantRepository
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
-    const photos: Array<{ plantId: string; url: string; takenAt: Date }> = []
 
-    for (const file of files) {
-      const buffer = yield* fileSystem.readFile(file.path)
+    const photos = yield* Effect.forEach(files, (file) =>
+      Effect.gen(function* () {
+        const buffer = yield* fileSystem.readFile(file.path)
 
-      const { url } = yield* gcs.uploadFile({
-        fileBuffer: Buffer.from(buffer),
-        fileName: file.name,
-        contentType: file.contentType,
+        const { url } = yield* gcs.uploadFile({
+          fileBuffer: Buffer.from(buffer),
+          fileName: file.name,
+          contentType: file.contentType,
+        })
+
+        return { plantId, url, takenAt: new Date() }
       })
-
-      photos.push({ plantId, url, takenAt: new Date() })
-    }
+    )
 
     const createdPhotos = yield* repo.addPhotos(photos)
 
-    // Emit PhotoUploaded event for each photo
     yield* Effect.forEach(createdPhotos, (photo) =>
       publishWithRetry(
         eventBus.publish({
@@ -56,4 +57,3 @@ export const uploadPlantPhoto = ({
       )
     )
   })
-}

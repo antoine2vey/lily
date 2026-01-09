@@ -74,13 +74,14 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "test": "echo 'No tests yet'",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.9.2"
   },
   "dependencies": {

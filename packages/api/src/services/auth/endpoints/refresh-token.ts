@@ -16,7 +16,6 @@ export const refreshToken = (): Effect.Effect<
     const authClient = yield* auth.client
     const req = yield* HttpServerRequest.HttpServerRequest
 
-    // Get current session from cookies/headers
     const session = yield* Effect.tryPromise({
       try: () =>
         authClient.api.getSession({
@@ -30,21 +29,9 @@ export const refreshToken = (): Effect.Effect<
       return yield* Effect.fail({ error: 'Invalid or expired session' })
     }
 
-    // Get a new JWT token by calling getSession which returns JWT in header
-    // The JWT plugin adds the token to the response
-    const tokenResponse = yield* Effect.tryPromise({
-      try: () =>
-        authClient.api.getSession({
-          headers: new Headers(req.headers),
-          query: { disableCookieCache: true },
-        }),
-      catch: () => ({ error: 'Failed to generate access token' }),
-    })
-
-    // The JWT is returned in the session token field when JWT plugin is enabled
-    if (!tokenResponse?.session?.token) {
+    if (!session.session?.token) {
       return yield* Effect.fail({ error: 'Failed to generate access token' })
     }
 
-    return { accessToken: tokenResponse.session.token }
+    return { accessToken: session.session.token }
   })

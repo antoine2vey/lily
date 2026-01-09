@@ -6,7 +6,27 @@ import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import { AiService } from '@lily/shared/services/ai/service'
 import type { UIMessage } from 'ai'
-import { Effect, Stream } from 'effect'
+import { Array as Arr, Effect, Stream } from 'effect'
+
+const DISEASE_KEYWORDS = [
+  'disease',
+  'infection',
+  'fungus',
+  'pest',
+  'rot',
+  'blight',
+  'mold',
+  'wilting',
+  'mildew',
+  'bacterial',
+]
+
+const RARITY_KEYWORDS = ['rare', 'uncommon', 'exotic', 'endangered', 'unusual']
+
+function containsKeyword(text: string, keywords: readonly string[]): boolean {
+  const lowerText = text.toLowerCase()
+  return Arr.some(keywords, (keyword) => lowerText.includes(keyword))
+}
 
 export const sendChatMessage = (
   plantId: string,
@@ -24,7 +44,6 @@ export const sendChatMessage = (
 
     const userMessage = request.message ?? ''
 
-    // 1. Save user message to database
     const savedUserMessage = yield* chatRepo.create({
       role: 'user',
       content: userMessage,
@@ -37,24 +56,20 @@ export const sendChatMessage = (
       return yield* Effect.fail(new Error('Failed to save user message'))
     }
 
-    // 2. Load chat history from database (get all messages without pagination)
     const historyResult = yield* chatRepo.findByPlantId({
       plantId,
       userId,
-      limit: 100, // Get last 100 messages for context
+      limit: 100,
     })
 
-    // 3. Convert to UIMessage[] format for AI SDK
-    const uiMessages: UIMessage[] = historyResult.items.map((msg) => ({
+    const uiMessages: UIMessage[] = Arr.map(historyResult.items, (msg) => ({
       id: msg.id,
       role: msg.role as 'user' | 'assistant',
       parts: [{ type: 'text' as const, text: msg.content }],
     }))
 
-    // 4. Call AI service with history context
     const textStream = yield* aiService.plantChat(plantId, uiMessages)
 
-    // 5. Collect streamed response
     const chunks: Uint8Array[] = []
     yield* Stream.runForEach(textStream, (chunk) =>
       Effect.sync(() => {
@@ -63,10 +78,9 @@ export const sendChatMessage = (
     )
 
     const responseText = new TextDecoder().decode(
-      new Uint8Array(chunks.flatMap((chunk) => Array.from(chunk)))
+      new Uint8Array(Arr.flatMap(chunks, (chunk) => [...chunk]))
     )
 
-    // 6. Save assistant message to database
     const savedAssistantMessage = yield* chatRepo.create({
       role: 'assistant',
       content: responseText,
@@ -79,7 +93,6 @@ export const sendChatMessage = (
       return yield* Effect.fail(new Error('Failed to save assistant message'))
     }
 
-    // 7. Publish ChatMessageSent event
     yield* publishWithRetry(
       eventBus.publish({
         _tag: 'ChatMessageSent',
@@ -89,25 +102,7 @@ export const sendChatMessage = (
       })
     )
 
-    // 8. Check for disease-related keywords in response for DISEASE_DETECTIVE achievement
-    const diseaseKeywords = [
-      'disease',
-      'infection',
-      'fungus',
-      'pest',
-      'rot',
-      'blight',
-      'mold',
-      'wilting',
-      'mildew',
-      'bacterial',
-    ]
-    const lowerResponse = responseText.toLowerCase()
-    const hasDiseaseDetection = diseaseKeywords.some((keyword) =>
-      lowerResponse.includes(keyword)
-    )
-
-    if (hasDiseaseDetection) {
+    if (containsKeyword(responseText, DISEASE_KEYWORDS)) {
       yield* publishWithRetry(
         eventBus.publish({
           _tag: 'DiseaseIdentified',
@@ -117,19 +112,7 @@ export const sendChatMessage = (
       )
     }
 
-    // 9. Check for rarity keywords in response for RARE_COLLECTOR achievement
-    const rarityKeywords = [
-      'rare',
-      'uncommon',
-      'exotic',
-      'endangered',
-      'unusual',
-    ]
-    const isRarePlant = rarityKeywords.some((keyword) =>
-      lowerResponse.includes(keyword)
-    )
-
-    if (isRarePlant) {
+    if (containsKeyword(responseText, RARITY_KEYWORDS)) {
       yield* publishWithRetry(
         eventBus.publish({
           _tag: 'RarePlantIdentified',
@@ -139,7 +122,6 @@ export const sendChatMessage = (
       )
     }
 
-    // 10. Return response
     return {
       message: savedUserMessage,
       response: responseText,
