@@ -8,6 +8,8 @@ export const mockUserProfiles: UserProfile[] = [
     username: 'testuser',
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
+    role: 'user',
+    status: 'active',
   },
   {
     id: 'user-2',
@@ -16,6 +18,8 @@ export const mockUserProfiles: UserProfile[] = [
     username: undefined,
     createdAt: new Date('2024-01-02'),
     updatedAt: new Date('2024-01-02'),
+    role: 'user',
+    status: 'active',
   },
 ]
 
@@ -43,5 +47,7 @@ export const createTestUserProfile = (
   username: undefined,
   createdAt: new Date(),
   updatedAt: new Date(),
+  role: 'user',
+  status: 'active',
   ...overrides,
 })

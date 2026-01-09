@@ -14,6 +14,8 @@ export const mockUsers: User[] = [
     wateringReminders: true,
     ads: false,
     historyViewCount: 0,
+    role: 'user',
+    status: 'active',
   },
   {
     id: 'user-2',
@@ -28,8 +30,44 @@ export const mockUsers: User[] = [
     wateringReminders: true,
     ads: true,
     historyViewCount: 0,
+    role: 'user',
+    status: 'active',
   },
 ]
+
+export const mockAdminUser: User = {
+  id: 'admin-1',
+  name: 'Admin User',
+  email: 'admin@example.com',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+  emailVerified: true,
+  image: null,
+  bio: 'System Administrator',
+  soilAlerts: true,
+  wateringReminders: true,
+  ads: false,
+  historyViewCount: 0,
+  role: 'admin',
+  status: 'active',
+}
+
+export const mockSuspendedUser: User = {
+  id: 'user-suspended',
+  name: 'Suspended User',
+  email: 'suspended@example.com',
+  createdAt: new Date('2024-01-03'),
+  updatedAt: new Date('2024-01-03'),
+  emailVerified: true,
+  image: null,
+  bio: null,
+  soilAlerts: true,
+  wateringReminders: true,
+  ads: false,
+  historyViewCount: 0,
+  role: 'user',
+  status: 'suspended',
+}
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
   id: `user-${crypto.randomUUID()}`,
@@ -44,5 +82,7 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   wateringReminders: true,
   ads: false,
   historyViewCount: 0,
+  role: 'user',
+  status: 'active',
   ...overrides,
 })

@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { CurrentUser, Unauthorized } from '@lily/api/services/auth/middleware'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect, Record } from 'effect'
@@ -12,8 +13,21 @@ const compact = <T extends Record<string, unknown>>(obj: T) =>
 export const updateUserSettings = (
   id: string,
   data: UserSettingsUpdateRequest
-): Effect.Effect<UserSettings, SqlError | UserNotFoundError, UserRepository> =>
+): Effect.Effect<
+  UserSettings,
+  SqlError | UserNotFoundError | Unauthorized,
+  UserRepository | CurrentUser
+> =>
   Effect.gen(function* () {
+    const currentUser = yield* CurrentUser
+
+    // Users can only update their own settings
+    if (currentUser.id !== id) {
+      return yield* Effect.fail(
+        new Unauthorized({ message: 'Cannot modify other user settings' })
+      )
+    }
+
     const repo = yield* UserRepository
 
     const updateData = compact({

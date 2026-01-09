@@ -1,14 +1,21 @@
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('updateUserSettings', () => {
+  const createTestLayer = (userId: string) =>
+    Layer.mergeAll(
+      createMockUserRepository([...mockUsers]),
+      createMockCurrentUser({ id: userId })
+    )
+
   it('should update user name', async () => {
     const result = await Effect.runPromise(
       updateUserSettings('user-1', { name: 'Updated Name' }).pipe(
-        Effect.provide(createMockUserRepository([...mockUsers]))
+        Effect.provide(createTestLayer('user-1'))
       )
     )
 
@@ -18,7 +25,7 @@ describe('updateUserSettings', () => {
   it('should update user bio', async () => {
     const result = await Effect.runPromise(
       updateUserSettings('user-1', { bio: 'New bio text' }).pipe(
-        Effect.provide(createMockUserRepository([...mockUsers]))
+        Effect.provide(createTestLayer('user-1'))
       )
     )
 
@@ -33,7 +40,7 @@ describe('updateUserSettings', () => {
           wateringReminders: false,
           ads: true,
         },
-      }).pipe(Effect.provide(createMockUserRepository([...mockUsers])))
+      }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.notifications.soilAlerts).toBe(false)
@@ -47,7 +54,7 @@ describe('updateUserSettings', () => {
         notifications: {
           soilAlerts: false,
         },
-      }).pipe(Effect.provide(createMockUserRepository([...mockUsers])))
+      }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.notifications.soilAlerts).toBe(false)
@@ -65,7 +72,7 @@ describe('updateUserSettings', () => {
         notifications: {
           ads: true,
         },
-      }).pipe(Effect.provide(createMockUserRepository([...mockUsers])))
+      }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.name).toBe('New Name')
@@ -77,7 +84,7 @@ describe('updateUserSettings', () => {
   it('should fail with UserNotFoundError when user does not exist', async () => {
     const result = await Effect.runPromiseExit(
       updateUserSettings('non-existent', { name: 'Test' }).pipe(
-        Effect.provide(createMockUserRepository([...mockUsers]))
+        Effect.provide(createTestLayer('non-existent'))
       )
     )
 
@@ -87,7 +94,7 @@ describe('updateUserSettings', () => {
   it('should preserve unchanged fields', async () => {
     const result = await Effect.runPromise(
       updateUserSettings('user-2', { name: 'Changed Name' }).pipe(
-        Effect.provide(createMockUserRepository([...mockUsers]))
+        Effect.provide(createTestLayer('user-2'))
       )
     )
 
@@ -95,5 +102,19 @@ describe('updateUserSettings', () => {
     expect(result.email).toBe('another@example.com')
     expect(result.bio).toBe('Plant enthusiast')
     expect(result.notifications.soilAlerts).toBe(false)
+  })
+
+  it('should fail with Unauthorized when updating other user settings', async () => {
+    const result = await Effect.runPromiseExit(
+      updateUserSettings('user-2', { name: 'Hacked' }).pipe(
+        Effect.provide(createTestLayer('user-1'))
+      )
+    )
+
+    expect(result._tag).toBe('Failure')
+    if (result._tag === 'Failure' && result.cause._tag === 'Fail') {
+      const error = result.cause.error as { message?: string }
+      expect(error.message).toBe('Cannot modify other user settings')
+    }
   })
 })

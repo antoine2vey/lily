@@ -1,0 +1,77 @@
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { AdminAuth } from '@lily/api/services/admin/middleware'
+import {
+  AdminRoleChangeRequest,
+  AdminStatusChangeRequest,
+  AdminUser,
+  AdminUserListParams,
+  AdminUserUpdateRequest,
+} from '@lily/shared/admin'
+import { PaginatedResponse } from '@lily/shared'
+import { CannotModifySelfError, ForbiddenError } from '@lily/shared/errors/admin'
+import { DatabaseError } from '@lily/shared/errors/database'
+import { UserNotFoundError } from '@lily/shared/errors/user'
+import { Schema } from 'effect'
+
+// Path parameter for user ID
+const userIdParam = HttpApiSchema.param('id', Schema.String)
+
+// Define the Admin API group
+export const AdminApi = HttpApiGroup.make('admin')
+  .add(
+    // GET /admin/users - List all users (paginated with filters)
+    HttpApiEndpoint.get('listUsers')`/users`
+      .setUrlParams(AdminUserListParams)
+      .addSuccess(PaginatedResponse(AdminUser))
+      .addError(DatabaseError, { status: 500 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/users/:id - Get user by ID
+    HttpApiEndpoint.get('getUser')`/users/${userIdParam}`
+      .addSuccess(AdminUser)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // PUT /admin/users/:id - Update user
+    HttpApiEndpoint.put('updateUser')`/users/${userIdParam}`
+      .setPayload(AdminUserUpdateRequest)
+      .addSuccess(AdminUser)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // PUT /admin/users/:id/role - Change user role
+    HttpApiEndpoint.put('updateUserRole')`/users/${userIdParam}/role`
+      .setPayload(AdminRoleChangeRequest)
+      .addSuccess(AdminUser)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // PUT /admin/users/:id/status - Change user status
+    HttpApiEndpoint.put('updateUserStatus')`/users/${userIdParam}/status`
+      .setPayload(AdminStatusChangeRequest)
+      .addSuccess(AdminUser)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // DELETE /admin/users/:id - Delete user
+    HttpApiEndpoint.del('deleteUser')`/users/${userIdParam}`
+      .addSuccess(AdminUser)
+      .addError(DatabaseError, { status: 500 })
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .prefix('/admin')
+  .middleware(AdminAuth)

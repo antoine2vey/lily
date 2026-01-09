@@ -1,7 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db'
-import { eq } from 'drizzle-orm'
+import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
@@ -14,11 +14,22 @@ export interface CreateUserData {
 export interface UpdateUserData {
   name?: string
   email?: string
-  image?: string
-  bio?: string
+  image?: string | null
+  bio?: string | null
   soilAlerts?: boolean
   wateringReminders?: boolean
   ads?: boolean
+  emailVerified?: boolean
+  role?: 'user' | 'admin'
+  status?: 'active' | 'suspended' | 'banned'
+}
+
+export interface FindUsersFilters {
+  page: number
+  limit: number
+  role?: 'user' | 'admin'
+  status?: 'active' | 'suspended' | 'banned'
+  search?: string
 }
 
 // Repository service interface
@@ -45,6 +56,20 @@ export interface IUserRepository {
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly delete: (
     id: string
+  ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
+  readonly findAllPaginated: (
+    filters: FindUsersFilters
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
+  readonly countUsers: (
+    filters: Omit<FindUsersFilters, 'page' | 'limit'>
+  ) => Effect.Effect<number, SqlError>
+  readonly updateRole: (
+    id: string,
+    role: 'user' | 'admin'
+  ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
+  readonly updateStatus: (
+    id: string,
+    status: 'active' | 'suspended' | 'banned'
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
 }
 
@@ -110,6 +135,86 @@ export const UserRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const [user] = yield* db
             .delete(users)
+            .where(eq(users.id, id))
+            .returning()
+          return user ?? null
+        }),
+
+      findAllPaginated: (filters: FindUsersFilters) =>
+        Effect.gen(function* () {
+          const { page, limit, role, status, search } = filters
+          const offset = (page - 1) * limit
+
+          // Build where conditions
+          const conditions = []
+          if (role) conditions.push(eq(users.role, role))
+          if (status) conditions.push(eq(users.status, status))
+          if (search) {
+            conditions.push(
+              or(
+                ilike(users.email, `%${search}%`),
+                ilike(users.name, `%${search}%`)
+              )
+            )
+          }
+
+          const whereClause =
+            conditions.length > 0 ? and(...conditions) : undefined
+
+          const results = yield* db
+            .select()
+            .from(users)
+            .where(whereClause)
+            .orderBy(desc(users.createdAt))
+            .limit(limit)
+            .offset(offset)
+
+          return results
+        }),
+
+      countUsers: (filters: Omit<FindUsersFilters, 'page' | 'limit'>) =>
+        Effect.gen(function* () {
+          const { role, status, search } = filters
+
+          // Build where conditions
+          const conditions = []
+          if (role) conditions.push(eq(users.role, role))
+          if (status) conditions.push(eq(users.status, status))
+          if (search) {
+            conditions.push(
+              or(
+                ilike(users.email, `%${search}%`),
+                ilike(users.name, `%${search}%`)
+              )
+            )
+          }
+
+          const whereClause =
+            conditions.length > 0 ? and(...conditions) : undefined
+
+          const result = yield* db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(users)
+            .where(whereClause)
+
+          return result[0]?.count ?? 0
+        }),
+
+      updateRole: (id: string, role: 'user' | 'admin') =>
+        Effect.gen(function* () {
+          const [user] = yield* db
+            .update(users)
+            .set({ role, updatedAt: new Date() })
+            .where(eq(users.id, id))
+            .returning()
+          return user ?? null
+        }),
+
+      updateStatus: (id: string, status: 'active' | 'suspended' | 'banned') =>
+        Effect.gen(function* () {
+          const [user] = yield* db
+            .update(users)
+            .set({ status, updatedAt: new Date() })
             .where(eq(users.id, id))
             .returning()
           return user ?? null

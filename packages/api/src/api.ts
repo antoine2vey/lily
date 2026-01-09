@@ -1,5 +1,6 @@
 import { HttpApi } from '@effect/platform'
 import { AchievementsApi } from '@lily/api/services/achievements/api'
+import { AdminApi } from '@lily/api/services/admin/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
@@ -14,6 +15,7 @@ export const Api = HttpApi.make('Api')
   .add(AuthApi)
   .add(UsernameApi)
   .add(UsersApi)
+  .add(AdminApi)
   .add(PlantsApi)
   .add(CareLogsApi)
   .add(NotificationsApi)

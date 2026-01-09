@@ -1,5 +1,12 @@
 import { Schema } from 'effect'
 
+// Role and status literals
+export const UserRole = Schema.Literal('user', 'admin')
+export const UserStatus = Schema.Literal('active', 'suspended', 'banned')
+
+export type UserRole = typeof UserRole.Type
+export type UserStatus = typeof UserStatus.Type
+
 export const User = Schema.Struct({
   id: Schema.String,
   email: Schema.String,
@@ -13,6 +20,8 @@ export const User = Schema.Struct({
   wateringReminders: Schema.Boolean,
   ads: Schema.Boolean,
   historyViewCount: Schema.Number,
+  role: UserRole,
+  status: UserStatus,
 })
 
 export const UserCreateRequest = Schema.Struct({

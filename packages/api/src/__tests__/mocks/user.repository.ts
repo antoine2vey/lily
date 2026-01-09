@@ -1,4 +1,5 @@
 import {
+  type FindUsersFilters,
   type IUserRepository,
   UserRepository,
 } from '@lily/api/repositories/user.repository'
@@ -32,6 +33,8 @@ export const createMockUserRepository = (
         wateringReminders: true,
         ads: false,
         historyViewCount: 0,
+        role: 'user',
+        status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -47,6 +50,67 @@ export const createMockUserRepository = (
     delete: (id) => {
       const user = users.find((u) => u.id === id)
       return Effect.succeed(user ?? null)
+    },
+
+    findAllPaginated: (filters: FindUsersFilters) =>
+      Effect.succeed(
+        (() => {
+          let filtered = users
+
+          if (filters.role) {
+            filtered = filtered.filter((u) => u.role === filters.role)
+          }
+          if (filters.status) {
+            filtered = filtered.filter((u) => u.status === filters.status)
+          }
+          if (filters.search) {
+            const search = filters.search.toLowerCase()
+            filtered = filtered.filter(
+              (u) =>
+                u.email.toLowerCase().includes(search) ||
+                u.name.toLowerCase().includes(search)
+            )
+          }
+
+          const offset = (filters.page - 1) * filters.limit
+          return filtered.slice(offset, offset + filters.limit)
+        })()
+      ),
+
+    countUsers: (filters) =>
+      Effect.succeed(
+        (() => {
+          let filtered = users
+
+          if (filters.role) {
+            filtered = filtered.filter((u) => u.role === filters.role)
+          }
+          if (filters.status) {
+            filtered = filtered.filter((u) => u.status === filters.status)
+          }
+          if (filters.search) {
+            const search = filters.search.toLowerCase()
+            filtered = filtered.filter(
+              (u) =>
+                u.email.toLowerCase().includes(search) ||
+                u.name.toLowerCase().includes(search)
+            )
+          }
+
+          return filtered.length
+        })()
+      ),
+
+    updateRole: (id, role) => {
+      const user = users.find((u) => u.id === id)
+      if (!user) return Effect.succeed(null)
+      return Effect.succeed({ ...user, role, updatedAt: new Date() })
+    },
+
+    updateStatus: (id, status) => {
+      const user = users.find((u) => u.id === id)
+      if (!user) return Effect.succeed(null)
+      return Effect.succeed({ ...user, status, updatedAt: new Date() })
     },
   }
 

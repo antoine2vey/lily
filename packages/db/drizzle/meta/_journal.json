@@ -50,6 +50,13 @@
       "when": 1767893069785,
       "tag": "0006_reflective_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767967732924,
+      "tag": "0007_smart_odin",
+      "breakpoints": true
     }
   ]
 }

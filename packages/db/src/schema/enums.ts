@@ -37,3 +37,11 @@ export const achievementKeyEnum = pgEnum('achievement_key', [
   'REMINDER_RESCUER',
   'SHARE_SPROUT',
 ])
+
+export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
+
+export const userStatusEnum = pgEnum('user_status', [
+  'active',
+  'suspended',
+  'banned',
+])

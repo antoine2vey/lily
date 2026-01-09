@@ -38,6 +38,8 @@ export const UserProfile = Schema.Struct({
   username: Schema.optional(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
+  role: Schema.Literal('user', 'admin'),
+  status: Schema.Literal('active', 'suspended', 'banned'),
 })
 
 // Auth response schemas

@@ -15,6 +15,8 @@ export const createMockSession = (
       name: 'Test User',
       createdAt: new Date(),
       updatedAt: new Date(),
+      role: 'user',
+      status: 'active',
     },
   }
 
@@ -32,6 +34,8 @@ export const createMockCurrentUser = (
     username: options.username,
     createdAt: options.createdAt ?? new Date(),
     updatedAt: options.updatedAt ?? new Date(),
+    role: options.role ?? 'user',
+    status: options.status ?? 'active',
   }
 
   return Layer.succeed(CurrentUser, mockUser)

@@ -1,6 +1,5 @@
 import {
   HttpApiMiddleware,
-  HttpApiSchema,
   HttpApiSecurity,
   HttpServerRequest,
 } from '@effect/platform'
@@ -9,39 +8,28 @@ import {
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
+import { Unauthorized } from '@lily/api/services/auth/middleware'
+import { ForbiddenError } from '@lily/shared/errors/admin'
 import type { UserProfile } from '@lily/shared/auth'
-import { Context, Effect, Layer, Redacted, Schema } from 'effect'
+import { Context, Effect, Layer, Redacted } from 'effect'
 
 /**
- * Current authenticated user context provided by auth middleware
+ * Admin user context - CurrentUser with verified admin role
  */
-export class CurrentUser extends Context.Tag('CurrentUser')<
-  CurrentUser,
+export class AdminUser extends Context.Tag('AdminUser')<
+  AdminUser,
   UserProfile
 >() {}
 
 /**
- * Unauthorized error returned when authentication fails
+ * Admin authorization middleware
+ * Validates bearer token AND verifies admin role
  */
-export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
-  'Unauthorized',
+export class AdminAuth extends HttpApiMiddleware.Tag<AdminAuth>()(
+  'AdminAuth',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Unauthorized',
-    }),
-  },
-  HttpApiSchema.annotations({ status: 401 })
-) {}
-
-/**
- * Authentication middleware using Bearer token
- * Validates JWT token and provides CurrentUser context to handlers
- */
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
-  'Authentication',
-  {
-    failure: Unauthorized,
-    provides: CurrentUser,
+    failure: ForbiddenError,
+    provides: AdminUser,
     security: {
       bearer: HttpApiSecurity.bearer,
     },
@@ -49,20 +37,17 @@ export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
 ) {}
 
 /**
- * Live implementation of Authentication middleware
- * Validates bearer token using better-auth session
+ * Base layer for AdminAuth middleware
+ * Validates bearer token and checks admin role in one step
  */
-/**
- * Base layer for Authentication middleware (requires Auth and UserRepository)
- */
-const AuthenticationBase = Layer.effect(
-  Authentication,
+const AdminAuthBase = Layer.effect(
+  AdminAuth,
   Effect.gen(function* () {
     const authService = yield* Auth
     const authClient = yield* authService.client
     const userRepo = yield* UserRepository
 
-    return Authentication.of({
+    return AdminAuth.of({
       bearer: (token) =>
         Effect.gen(function* () {
           const req = yield* HttpServerRequest.HttpServerRequest
@@ -78,38 +63,45 @@ const AuthenticationBase = Layer.effect(
                 headers,
                 query: { disableCookieCache: true },
               }),
-            catch: () => new Unauthorized({ message: 'Invalid token' }),
+            catch: () =>
+              new ForbiddenError({ message: 'Invalid token' }),
           })
 
           if (!session?.user) {
             return yield* Effect.fail(
-              new Unauthorized({ message: 'Invalid or expired token' })
+              new ForbiddenError({ message: 'Invalid or expired token' })
             )
           }
 
           // Fetch full user with role and status from database
           const user = yield* Effect.catchAll(
             userRepo.findById(session.user.id),
-            () => Effect.fail(new Unauthorized({ message: 'Database error' }))
+            () => Effect.fail(new ForbiddenError({ message: 'User not found' }))
           )
 
           if (!user) {
             return yield* Effect.fail(
-              new Unauthorized({ message: 'User not found' })
+              new ForbiddenError({ message: 'User not found' })
             )
           }
 
           // Check if user is active
           if (user.status !== 'active') {
             return yield* Effect.fail(
-              new Unauthorized({
+              new ForbiddenError({
                 message: `Account is ${user.status}`,
               })
             )
           }
 
-          // Return user profile for CurrentUser context
-          // Note: 'name' field is used as the username in this app
+          // Verify admin role
+          if (user.role !== 'admin') {
+            return yield* Effect.fail(
+              new ForbiddenError({ message: 'Admin access required' })
+            )
+          }
+
+          // Return user profile for AdminUser context
           return {
             id: user.id,
             email: user.email,
@@ -126,10 +118,10 @@ const AuthenticationBase = Layer.effect(
 )
 
 /**
- * Authentication middleware with all dependencies bundled
- * Use this in handler files instead of AuthenticationBase
+ * AdminAuth middleware with all dependencies bundled
+ * Use this in handler files
  */
-export const AuthenticationLive = AuthenticationBase.pipe(
+export const AdminAuthLive = AdminAuthBase.pipe(
   Layer.provide(Auth.Default),
   Layer.provide(UserRepositoryLive)
 )

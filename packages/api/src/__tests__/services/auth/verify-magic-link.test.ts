@@ -1,8 +1,10 @@
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import {
   createMockAuth,
   createMockHttpServerRequest,
 } from '@lily/api/__tests__/mocks/auth'
 import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -20,11 +22,14 @@ describe('verifyMagicLink', () => {
             username: 'verifieduser',
             createdAt: new Date(),
             updatedAt: new Date(),
+            role: 'user',
+            status: 'active',
           },
         },
       }),
       createMockPgDrizzle(),
-      createMockHttpServerRequest()
+      createMockHttpServerRequest(),
+      createMockUserRepository(mockUsers)
     )
 
   it('should verify magic link token and return user', async () => {
@@ -36,7 +41,7 @@ describe('verifyMagicLink', () => {
 
     expect(result.token).toBe('verified-token')
     expect(result.user).toBeDefined()
-    expect(result.user.email).toBe('verified@example.com')
+    expect(result.user.id).toBe('user-1')
   })
 
   it('should return user profile with id', async () => {
@@ -47,7 +52,8 @@ describe('verifyMagicLink', () => {
     )
 
     expect(result.user.id).toBe('user-1')
-    expect(result.user.username).toBe('verifieduser')
+    expect(result.user.role).toBe('user')
+    expect(result.user.status).toBe('active')
   })
 
   it('should return session token', async () => {

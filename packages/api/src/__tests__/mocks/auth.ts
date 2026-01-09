@@ -73,6 +73,8 @@ export const createMockAuth = (
             username: 'testuser',
             createdAt: new Date(),
             updatedAt: new Date(),
+            role: 'user',
+            status: 'active',
           },
         },
       sendVerificationEmail: async () => {
@@ -94,6 +96,8 @@ export const createMockAuth = (
               username: 'testuser',
               createdAt: new Date(),
               updatedAt: new Date(),
+              role: 'user',
+              status: 'active',
             },
           }
         )

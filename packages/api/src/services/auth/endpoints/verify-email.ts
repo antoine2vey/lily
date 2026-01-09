@@ -1,6 +1,8 @@
 import { HttpServerRequest } from '@effect/platform'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import {
+  type UserProfile,
   type VerifyEmailRequest,
   VerifyEmailRequestZod,
 } from '@lily/shared/auth'
@@ -10,17 +12,11 @@ export const verifyEmail = ({
   token,
 }: VerifyEmailRequest): Effect.Effect<
   {
-    user: {
-      id: string
-      email: string
-      name: string
-      createdAt: Date
-      updatedAt: Date
-    }
+    user: UserProfile
     verified: boolean
   },
   { error: string },
-  Auth | HttpServerRequest.HttpServerRequest
+  Auth | HttpServerRequest.HttpServerRequest | UserRepository
 > =>
   Effect.gen(function* () {
     // Validate token using Zod
@@ -49,14 +45,30 @@ export const verifyEmail = ({
       })
     }
 
+    // Fetch full user from database to get role and status
+    const userRepo = yield* UserRepository
+    const user = yield* Effect.catchAll(
+      userRepo.findById(result.user.id),
+      () => Effect.fail({ error: 'User not found' })
+    )
+
+    if (!user) {
+      return yield* Effect.fail({ error: 'User not found' })
+    }
+
+    const userProfile: UserProfile = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      username: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      role: user.role,
+      status: user.status,
+    }
+
     return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
-        createdAt: result.user.createdAt,
-        updatedAt: result.user.updatedAt,
-      },
+      user: userProfile,
       verified: true,
     }
   })

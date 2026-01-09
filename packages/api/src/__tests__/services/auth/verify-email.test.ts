@@ -1,14 +1,21 @@
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import {
   createMockAuth,
   createMockHttpServerRequest,
+  type MockAuthOptions,
 } from '@lily/api/__tests__/mocks/auth'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { verifyEmail } from '@lily/api/services/auth/endpoints/verify-email'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('verifyEmail', () => {
-  const createTestLayer = (options = {}) =>
-    Layer.mergeAll(createMockAuth(options), createMockHttpServerRequest())
+  const createTestLayer = (options: MockAuthOptions = {}) =>
+    Layer.mergeAll(
+      createMockAuth(options),
+      createMockHttpServerRequest(),
+      createMockUserRepository(mockUsers)
+    )
 
   it('should verify email and return user with verified status', async () => {
     const result = await Effect.runPromise(
@@ -21,6 +28,8 @@ describe('verifyEmail', () => {
     expect(result.user).toBeDefined()
     expect(result.user.id).toBe('user-1')
     expect(result.user.email).toBe('test@example.com')
+    expect(result.user.role).toBe('user')
+    expect(result.user.status).toBe('active')
   })
 
   it('should fail with empty token', async () => {
@@ -71,12 +80,14 @@ describe('verifyEmail', () => {
 
   it('should return correct user data on successful verification', async () => {
     const mockUser = {
-      id: 'custom-user-id',
+      id: 'user-1',
       name: 'Custom User',
       email: 'custom@example.com',
       username: 'customuser',
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-02'),
+      role: 'user' as const,
+      status: 'active' as const,
     }
 
     const result = await Effect.runPromise(
@@ -88,8 +99,8 @@ describe('verifyEmail', () => {
     )
 
     expect(result.verified).toBe(true)
-    expect(result.user.id).toBe('custom-user-id')
-    expect(result.user.name).toBe('Custom User')
-    expect(result.user.email).toBe('custom@example.com')
+    expect(result.user.id).toBe('user-1')
+    expect(result.user.role).toBe('user')
+    expect(result.user.status).toBe('active')
   })
 })

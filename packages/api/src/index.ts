@@ -8,6 +8,7 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
+import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
@@ -73,6 +74,7 @@ const NotificationWorkerLive = Layer.scopedDiscard(
 // Provide the implementation for all APIs
 const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AchievementsApiLive(Api)),
+  Layer.provide(AdminApiLive(Api)),
   Layer.provide(AIChatApiLive(Api)),
   Layer.provide(AuthApiLive(Api)),
   Layer.provide(CareLogsApiLive(Api)),

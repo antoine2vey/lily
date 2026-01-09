@@ -12,18 +12,6 @@ export const UsersApiLive = (api: Api) =>
       const userService = yield* UserService
 
       return handlers
-        .handle('getUsers', () => userService.findUsers())
-        .handle('getUser', ({ path: { id } }) => userService.findUserById(id))
-        .handle('createUser', ({ payload }) =>
-          userService.createUser(payload.name, payload.email)
-        )
-        .handle('updateUser', ({ path: { id }, payload }) =>
-          userService.updateUser(id, {
-            ...(payload.name !== undefined && { name: payload.name }),
-            ...(payload.email !== undefined && { email: payload.email }),
-          })
-        )
-        .handle('deleteUser', ({ path: { id } }) => userService.deleteUser(id))
         .handle('getUserSettings', ({ path: { id } }) =>
           userService.getUserSettings(id)
         )

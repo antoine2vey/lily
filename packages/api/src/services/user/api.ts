@@ -1,13 +1,10 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
-import { Authentication } from '@lily/api/services/auth/middleware'
+import { Authentication, Unauthorized } from '@lily/api/services/auth/middleware'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
-  User,
-  UserCreateRequest,
   UserSettings,
   UserSettingsUpdateRequest,
-  UserUpdateRequest,
 } from '@lily/shared/user'
 import { Schema } from 'effect'
 
@@ -17,47 +14,12 @@ const userIdParam = HttpApiSchema.param('id', Schema.String)
 // Define the Users API group
 export const UsersApi = HttpApiGroup.make('users')
   .add(
-    // GET /users - List all users
-    HttpApiEndpoint.get('getUsers')`/`
-      .addSuccess(Schema.Array(User))
-      .addError(DatabaseError, { status: 500 })
-  )
-  .add(
-    // GET /users/:id - Get user by ID
-    HttpApiEndpoint.get('getUser')`/${userIdParam}`
-      .addSuccess(User)
-      .addError(DatabaseError, { status: 500 })
-      .addError(UserNotFoundError, { status: 404 })
-  )
-  .add(
-    // POST /users - Create user
-    HttpApiEndpoint.post('createUser')`/`
-      .setPayload(UserCreateRequest)
-      .addSuccess(User, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
-  )
-  .add(
-    // PUT /users/:id - Update user
-    HttpApiEndpoint.put('updateUser')`/${userIdParam}`
-      .setPayload(UserUpdateRequest)
-      .addSuccess(User)
-      .addError(DatabaseError, { status: 500 })
-      .addError(UserNotFoundError, { status: 404 })
-  )
-  .add(
-    // DELETE /users/:id - Delete user
-    HttpApiEndpoint.del('deleteUser')`/${userIdParam}`
-      .addSuccess(User)
-      .addError(DatabaseError, { status: 500 })
-      .addError(UserNotFoundError, { status: 404 })
-  )
-  .add(
     // GET /users/:userId/settings - Fetch profile info & notification prefs
     HttpApiEndpoint.get('getUserSettings')`/${userIdParam}/settings`
       .addSuccess(UserSettings)
       .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+      .addError(Unauthorized, { status: 401 })
   )
   .add(
     // PUT /users/:userId/settings - Update profile & global notification settings
@@ -66,7 +28,7 @@ export const UsersApi = HttpApiGroup.make('users')
       .addSuccess(UserSettings)
       .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+      .addError(Unauthorized, { status: 401 })
   )
   .prefix('/users')
   .middleware(Authentication)
