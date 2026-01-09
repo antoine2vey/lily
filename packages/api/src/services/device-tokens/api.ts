@@ -1,4 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { Authentication } from '@lily/api/services/auth/middleware'
 import {
   DeviceToken,
   DeviceTokenCreateRequest,
@@ -29,3 +30,4 @@ export const DeviceTokensApi = HttpApiGroup.make('deviceTokens')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/device-tokens')
+  .middleware(Authentication)

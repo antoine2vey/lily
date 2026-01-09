@@ -4,8 +4,7 @@ import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repositor
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
-import { Auth } from '@lily/api/services/auth/auth'
-import { withSession } from '@lily/api/services/auth/session'
+import { AuthenticationLive } from '@lily/api/services/auth/middleware'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { AiService } from '@lily/shared/services/ai/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
@@ -29,10 +28,10 @@ export const PlantsApiLive = (api: Api) =>
           })
         )
         .handle('createPlant', ({ payload }) =>
-          withSession(plantsService.createPlant(payload))
+          plantsService.createPlant(payload)
         )
         .handle('scanCard', ({ payload: { images } }) =>
-          withSession(plantsService.scanCard(images))
+          plantsService.scanCard(images)
         )
         .handle('aiIdentify', ({ payload: { images } }) =>
           plantsService.aiIdentify(images)
@@ -54,7 +53,7 @@ export const PlantsApiLive = (api: Api) =>
           })
         )
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
-          withSession(plantsService.uploadPlantPhoto({ plantId: id, files }))
+          plantsService.uploadPlantPhoto({ plantId: id, files })
         )
         .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
           plantsService.deletePlantPhoto({ plantId: id, photoId })
@@ -72,8 +71,8 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
     Layer.provide(ScanRepositoryLive),
-    Layer.provide(Auth.Default),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),
-    Layer.provide(FileService.Default)
+    Layer.provide(FileService.Default),
+    Layer.provide(AuthenticationLive)
   )

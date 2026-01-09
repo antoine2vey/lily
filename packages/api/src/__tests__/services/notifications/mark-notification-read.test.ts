@@ -1,6 +1,6 @@
 import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { NotificationNotFoundError } from '@lily/shared'
 import { Effect, Exit, Layer } from 'effect'
@@ -10,7 +10,7 @@ describe('markNotificationRead', () => {
   const createTestLayer = (userId: string = 'user-1') =>
     Layer.mergeAll(
       createMockNotificationRepository([...mockNotifications]),
-      createMockSession({ userId })
+      createMockCurrentUser({ id: userId })
     )
 
   it('should mark notification as read', async () => {

@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { NotificationNotFoundError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect } from 'effect'
@@ -11,11 +11,11 @@ export const markNotificationRead = (
 ): Effect.Effect<
   Notification,
   SqlError | NotificationNotFoundError,
-  NotificationRepository | Session
+  NotificationRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* NotificationRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     // Find the notification and verify ownership
     const notification = yield* repo.findById(notificationId)

@@ -1,7 +1,7 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -11,7 +11,7 @@ describe('getCareLogs', () => {
     Layer.mergeAll(
       createMockCareLogRepository(mockCareLogs),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' })
     )
 
   it('should return care logs for a plant with pagination info', async () => {

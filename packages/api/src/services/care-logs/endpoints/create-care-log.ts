@@ -3,10 +3,9 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
 import { DatabaseError } from '@lily/shared/errors/database'
-import type { SessionNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
 
 export const createCareLog = (
@@ -14,10 +13,10 @@ export const createCareLog = (
   request: CareLogCreateRequest
 ): Effect.Effect<
   CareLog,
-  SqlError | DatabaseError | SessionNotFoundError,
+  SqlError | DatabaseError,
   | CareLogRepository
   | EventBus
-  | Session
+  | CurrentUser
   | PlantRepository
   | NotificationRepository
 > =>
@@ -26,7 +25,7 @@ export const createCareLog = (
     const plantRepo = yield* PlantRepository
     const notificationRepo = yield* NotificationRepository
     const eventBus = yield* EventBus
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     // Get plant to check health status
     const plant = yield* plantRepo.findById(plantId)

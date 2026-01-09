@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type {
   DeviceToken,
   DeviceTokenCreateRequest,
@@ -10,10 +10,10 @@ import { Effect } from 'effect'
 // Register or update device token
 export const registerDeviceToken = (
   request: DeviceTokenCreateRequest
-): Effect.Effect<DeviceToken, SqlError, DeviceTokenRepository | Session> =>
+): Effect.Effect<DeviceToken, SqlError, DeviceTokenRepository | CurrentUser> =>
   Effect.gen(function* () {
     const repo = yield* DeviceTokenRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     // Check if token already exists for this user
     const existing = yield* repo.findByTokenAndUserId(request.token, userId)

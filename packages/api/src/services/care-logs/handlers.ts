@@ -3,8 +3,7 @@ import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
-import { Auth } from '@lily/api/services/auth/auth'
-import { withSession } from '@lily/api/services/auth/session'
+import { AuthenticationLive } from '@lily/api/services/auth/middleware'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
 import { Effect, Layer } from 'effect'
 
@@ -16,21 +15,19 @@ export const CareLogsApiLive = (api: Api) =>
 
       return handlers
         .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
-          withSession(
-            careLogsService.getCareLogs({
-              plantId,
-              page: parseInt(urlParams.page, 10) || 1,
-              limit: parseInt(urlParams.limit, 10) || 20,
-              type:
-                urlParams.type === 'watering' ||
-                urlParams.type === 'fertilization'
-                  ? urlParams.type
-                  : 'all',
-            })
-          )
+          careLogsService.getCareLogs({
+            plantId,
+            page: parseInt(urlParams.page, 10) || 1,
+            limit: parseInt(urlParams.limit, 10) || 20,
+            type:
+              urlParams.type === 'watering' ||
+              urlParams.type === 'fertilization'
+                ? urlParams.type
+                : 'all',
+          })
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
-          withSession(careLogsService.createCareLog(plantId, payload))
+          careLogsService.createCareLog(plantId, payload)
         )
         .handle('getCareLog', ({ path: { plantId, logId } }) =>
           careLogsService.getCareLog(plantId, logId)
@@ -47,5 +44,5 @@ export const CareLogsApiLive = (api: Api) =>
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(PlantRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
-    Layer.provide(Auth.Default)
+    Layer.provide(AuthenticationLive)
   )

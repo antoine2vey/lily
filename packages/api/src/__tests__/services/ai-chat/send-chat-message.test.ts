@@ -3,7 +3,7 @@ import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { sendChatMessage } from '@lily/api/services/ai-chat/endpoints/send-chat-message'
 import { Effect, Layer } from 'effect'
@@ -15,7 +15,7 @@ describe('sendChatMessage', () => {
       createMockChatRepository({ messages }),
       createMockAiService({ plantChatResponse: 'AI response text' }),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockPgDrizzle()
     )
 
@@ -50,7 +50,7 @@ describe('sendChatMessage', () => {
       createMockChatRepository({ messages }),
       createMockAiService({ plantChatResponse: 'AI says hello' }),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockPgDrizzle()
     )
 
@@ -73,7 +73,7 @@ describe('sendChatMessage', () => {
       createMockChatRepository({ messages: [] }),
       createMockAiService(),
       createMockEventBus({ publishedEvents }),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockPgDrizzle()
     )
 

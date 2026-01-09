@@ -1,6 +1,6 @@
 import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getNotifications } from '@lily/api/services/notifications/endpoints/get-notifications'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ describe('getNotifications', () => {
   const createTestLayer = (userId: string = 'user-1') =>
     Layer.mergeAll(
       createMockNotificationRepository([...mockNotifications]),
-      createMockSession({ userId })
+      createMockCurrentUser({ id: userId })
     )
 
   it('should return notifications for the current user with pagination info', async () => {

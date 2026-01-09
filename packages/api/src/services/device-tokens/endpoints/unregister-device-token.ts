@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { DeviceTokenNotFoundError } from '@lily/shared'
 import { Effect } from 'effect'
 
@@ -10,11 +10,11 @@ export const unregisterDeviceToken = (
 ): Effect.Effect<
   { message: string },
   SqlError | DeviceTokenNotFoundError,
-  DeviceTokenRepository | Session
+  DeviceTokenRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* DeviceTokenRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     // Find the token and verify ownership
     const token = yield* repo.findById(tokenId)

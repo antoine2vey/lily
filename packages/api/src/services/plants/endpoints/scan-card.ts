@@ -4,7 +4,7 @@ import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type AiApiCallError,
   type AiGenericError,
@@ -16,7 +16,6 @@ import {
   type MultipleFilesError,
   type NoFilesError,
 } from '@lily/shared'
-import type { SessionNotFoundError } from '@lily/shared/errors/user'
 import type { ScanCardResponse } from '@lily/shared/plant'
 import { Effect } from 'effect'
 
@@ -31,14 +30,13 @@ export const scanCard = (
   | PlatformError
   | AiApiCallError
   | AiGenericError
-  | SqlError
-  | SessionNotFoundError,
+  | SqlError,
   | AiService
   | GCSService
   | FileService
   | FileSystem
   | EventBus
-  | Session
+  | CurrentUser
   | ScanRepository
 > =>
   Effect.gen(function* () {
@@ -47,7 +45,7 @@ export const scanCard = (
     const fileService = yield* FileService
     const eventBus = yield* EventBus
     const scanRepo = yield* ScanRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     const file = yield* fileService.getFirstUploadedFile(images)
 

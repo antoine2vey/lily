@@ -1,4 +1,5 @@
 import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
+import { refreshToken } from '@lily/api/services/auth/endpoints/refresh-token'
 import { resendVerificationEmail } from '@lily/api/services/auth/endpoints/resend-verification-email'
 import { sendMagicLink } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
@@ -17,5 +18,6 @@ export class AuthService extends Effect.Service<AuthService>()('AuthService', {
     setUsername,
     resendVerificationEmail,
     verifyEmail,
+    refreshToken,
   }),
 }) {}

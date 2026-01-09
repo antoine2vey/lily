@@ -1,9 +1,8 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { DatabaseError } from '@lily/shared/errors/database'
-import type { SessionNotFoundError } from '@lily/shared/errors/user'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Effect } from 'effect'
 
@@ -11,13 +10,13 @@ export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
-  SqlError | DatabaseError | SessionNotFoundError,
-  PlantRepository | EventBus | Session
+  SqlError | DatabaseError,
+  PlantRepository | EventBus | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const eventBus = yield* EventBus
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     const plant = yield* repo.create({
       name: request.name,

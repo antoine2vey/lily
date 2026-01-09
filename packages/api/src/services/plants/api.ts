@@ -4,6 +4,7 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
+import { Authentication } from '@lily/api/services/auth/middleware'
 import { PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -165,3 +166,4 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/plants')
+  .middleware(Authentication)

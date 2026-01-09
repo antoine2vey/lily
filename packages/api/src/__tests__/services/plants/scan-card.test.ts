@@ -5,7 +5,7 @@ import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { Effect, Layer } from 'effect'
@@ -27,7 +27,7 @@ describe('scanCard', () => {
       createMockFileService(),
       createMockFileSystem(),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockScanRepository()
     )
 
@@ -57,7 +57,7 @@ describe('scanCard', () => {
       createMockFileService(),
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockScanRepository()
     )
 

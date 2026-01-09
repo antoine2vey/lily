@@ -3,8 +3,7 @@ import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { Session } from '@lily/api/services/auth/session'
-import type { SessionNotFoundError } from '@lily/shared/errors/user'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type GCSConfigError,
   GCSService,
@@ -20,15 +19,15 @@ export const uploadPlantPhoto = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   void,
-  SqlError | GCSUploadError | GCSConfigError | SessionNotFoundError,
-  PlantRepository | GCSService | FileSystem | EventBus | Session
+  SqlError | GCSUploadError | GCSConfigError,
+  PlantRepository | GCSService | FileSystem | EventBus | CurrentUser
 > => {
   return Effect.gen(function* () {
     const repo = yield* PlantRepository
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
     const eventBus = yield* EventBus
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
     const photos: Array<{ plantId: string; url: string; takenAt: Date }> = []
 
     for (const file of files) {

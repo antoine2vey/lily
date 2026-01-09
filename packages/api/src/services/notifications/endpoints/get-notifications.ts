@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { NotificationsListResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
 
@@ -12,11 +12,11 @@ export const getNotifications = (params: {
 }): Effect.Effect<
   NotificationsListResponse,
   SqlError,
-  NotificationRepository | Session
+  NotificationRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* NotificationRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     return yield* repo.findByUserId({
       userId,

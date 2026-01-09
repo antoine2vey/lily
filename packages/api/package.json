@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "bun --watch src/index.ts",
-    "test": "bun test",
+    "test": "vitest run",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
     "clean": "rm -rf dist"

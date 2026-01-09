@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { ChatHistoryListResponse } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 
@@ -11,11 +11,11 @@ export const getChatHistory = (params: {
 }): Effect.Effect<
   ChatHistoryListResponse,
   SqlError,
-  ChatRepository | Session
+  ChatRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     return yield* chatRepo.findByPlantId({
       plantId: params.plantId,

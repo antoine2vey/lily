@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import type { PgDrizzle } from '@effect/sql-drizzle/Pg'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
-import { Session } from '@lily/api/services/auth/session'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import { AiService } from '@lily/shared/services/ai/service'
 import type { UIMessage } from 'ai'
@@ -14,13 +14,13 @@ export const sendChatMessage = (
 ): Effect.Effect<
   ChatResponse,
   Error | SqlError,
-  ChatRepository | AiService | EventBus | Session | PgDrizzle
+  ChatRepository | AiService | EventBus | CurrentUser | PgDrizzle
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
     const eventBus = yield* EventBus
-    const { userId } = yield* Session
+    const { id: userId } = yield* CurrentUser
 
     const userMessage = request.message ?? ''
 

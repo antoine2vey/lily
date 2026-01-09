@@ -1,4 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { Authentication } from '@lily/api/services/auth/middleware'
 import { Achievement, UnlockAchievementRequest } from '@lily/shared/achievement'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
@@ -31,3 +32,4 @@ export const AchievementsApi = HttpApiGroup.make('achievements')
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
+  .middleware(Authentication)

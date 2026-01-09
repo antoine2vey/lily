@@ -1,4 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { Authentication } from '@lily/api/services/auth/middleware'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
@@ -68,3 +69,4 @@ export const UsersApi = HttpApiGroup.make('users')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/users')
+  .middleware(Authentication)

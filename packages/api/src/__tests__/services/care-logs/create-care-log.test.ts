@@ -4,7 +4,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { Effect, Layer } from 'effect'
@@ -15,7 +15,7 @@ describe('createCareLog', () => {
     Layer.mergeAll(
       createMockCareLogRepository(mockCareLogs),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' }),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockNotificationRepository([])
     )
@@ -100,7 +100,7 @@ describe('createCareLog', () => {
           Layer.mergeAll(
             createMockCareLogRepository(mockCareLogs),
             eventBusMock,
-            createMockSession({ userId: 'user-1' }),
+            createMockCurrentUser({ id: 'user-1' }),
             createMockPlantRepository({ plants: mockPlants }),
             createMockNotificationRepository([])
           )

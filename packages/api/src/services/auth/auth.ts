@@ -2,14 +2,28 @@ import { HttpServerRequest } from '@effect/platform'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import { sendVerificationEmail } from '@lily/api/services/email/send-verification-email'
 import { db } from '@lily/db/client'
+import {
+  accounts,
+  rateLimit,
+  sessions,
+  verifications,
+} from '@lily/db/schema/auth'
+import { users } from '@lily/db/schema/users'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { magicLink } from 'better-auth/plugins'
+import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { Effect } from 'effect'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: 'pg',
+    schema: {
+      user: users,
+      session: sessions,
+      account: accounts,
+      verification: verifications,
+      rateLimit: rateLimit,
+    },
   }),
   emailVerification: {
     sendOnSignUp: true,
@@ -40,6 +54,12 @@ export const auth = betterAuth({
         await sendMagicLinkEmail({ email, token, url })
       },
     }),
+    jwt({
+      jwks: {
+        keyPairConfig: { alg: 'EdDSA' },
+      },
+    }),
+    bearer(),
   ],
 })
 

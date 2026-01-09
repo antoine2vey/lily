@@ -1,6 +1,6 @@
 import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-history'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ describe('getChatHistory', () => {
   const createTestLayer = (messages = [...mockChatMessages]) =>
     Layer.mergeAll(
       createMockChatRepository({ messages }),
-      createMockSession({ userId: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' })
     )
 
   it('should return chat history for plant and user with pagination info', async () => {

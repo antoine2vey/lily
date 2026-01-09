@@ -69,4 +69,11 @@ export const AuthApi = HttpApiGroup.make('auth')
       .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
   )
+  .add(
+    // POST /auth/refresh - Refresh access token using session
+    HttpApiEndpoint.post('refreshToken')`/refresh`
+      .addSuccess(Schema.Struct({ accessToken: Schema.String }))
+      .addError(DatabaseError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
   .prefix('/auth')

@@ -4,7 +4,7 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { Effect, Layer } from 'effect'
@@ -25,7 +25,7 @@ describe('uploadPlantPhoto', () => {
       createMockGCSService(),
       createMockFileSystem(),
       createMockEventBus(),
-      createMockSession({ userId: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' })
     )
 
   it('should upload photo successfully', async () => {
@@ -46,7 +46,7 @@ describe('uploadPlantPhoto', () => {
       createMockGCSService(),
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
-      createMockSession({ userId: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' })
     )
 
     await Effect.runPromise(
@@ -70,7 +70,7 @@ describe('uploadPlantPhoto', () => {
       createMockGCSService(),
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
-      createMockSession({ userId: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' })
     )
 
     const files: PersistedFile[] = [

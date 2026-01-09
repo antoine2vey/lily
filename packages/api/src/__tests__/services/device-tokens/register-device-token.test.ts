@@ -1,6 +1,6 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
-import { createMockSession } from '@lily/api/__tests__/mocks/session'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { registerDeviceToken } from '@lily/api/services/device-tokens/endpoints/register-device-token'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -9,7 +9,7 @@ describe('registerDeviceToken', () => {
   const createTestLayer = (userId: string = 'user-1') =>
     Layer.mergeAll(
       createMockDeviceTokenRepository([...mockDeviceTokens]),
-      createMockSession({ userId })
+      createMockCurrentUser({ id: userId })
     )
 
   it('should create a new device token', async () => {
@@ -57,7 +57,7 @@ describe('registerDeviceToken', () => {
         Effect.provide(
           Layer.mergeAll(
             createMockDeviceTokenRepository(tokens),
-            createMockSession({ userId: 'user-1' })
+            createMockCurrentUser({ id: 'user-1' })
           )
         )
       )

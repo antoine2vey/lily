@@ -1,4 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
+import { Authentication } from '@lily/api/services/auth/middleware'
 import { PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import {
@@ -35,3 +36,4 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/notifications')
+  .middleware(Authentication)
