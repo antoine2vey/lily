@@ -47,9 +47,8 @@ export const verifyEmail = ({
 
     // Fetch full user from database to get role and status
     const userRepo = yield* UserRepository
-    const user = yield* Effect.catchAll(
-      userRepo.findById(result.user.id),
-      () => Effect.fail({ error: 'User not found' })
+    const user = yield* Effect.catchAll(userRepo.findById(result.user.id), () =>
+      Effect.fail({ error: 'User not found' })
     )
 
     if (!user) {

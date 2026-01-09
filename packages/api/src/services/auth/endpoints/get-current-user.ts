@@ -24,12 +24,14 @@ export const getCurrentUser = (): Effect.Effect<
 
     // Fetch full user from database to get role and status
     const userRepo = yield* UserRepository
-    const user = yield* Effect.catchAll(userRepo.findById(session.user.id), () =>
-      Effect.fail(
-        new SessionNotFoundError({
-          message: 'User not found',
-        })
-      )
+    const user = yield* Effect.catchAll(
+      userRepo.findById(session.user.id),
+      () =>
+        Effect.fail(
+          new SessionNotFoundError({
+            message: 'User not found',
+          })
+        )
     )
 
     if (!user) {

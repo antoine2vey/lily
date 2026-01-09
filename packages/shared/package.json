@@ -12,6 +12,10 @@
       "types": "./src/domains/achievement/schema.ts",
       "default": "./src/domains/achievement/schema.ts"
     },
+    "./admin": {
+      "types": "./src/domains/admin/schema.ts",
+      "default": "./src/domains/admin/schema.ts"
+    },
     "./ai-chat": {
       "types": "./src/domains/ai-chat/schema.ts",
       "default": "./src/domains/ai-chat/schema.ts"
@@ -63,6 +67,10 @@
     "./errors/user": {
       "types": "./src/domains/user/errors.ts",
       "default": "./src/domains/user/errors.ts"
+    },
+    "./errors/admin": {
+      "types": "./src/domains/admin/errors.ts",
+      "default": "./src/domains/admin/errors.ts"
     },
     "./selectors/plant": {
       "types": "./src/domains/plant/selectors.ts",

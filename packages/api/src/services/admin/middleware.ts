@@ -9,8 +9,8 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import { Unauthorized } from '@lily/api/services/auth/middleware'
-import { ForbiddenError } from '@lily/shared/errors/admin'
 import type { UserProfile } from '@lily/shared/auth'
+import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Context, Effect, Layer, Redacted } from 'effect'
 
 /**
@@ -25,16 +25,13 @@ export class AdminUser extends Context.Tag('AdminUser')<
  * Admin authorization middleware
  * Validates bearer token AND verifies admin role
  */
-export class AdminAuth extends HttpApiMiddleware.Tag<AdminAuth>()(
-  'AdminAuth',
-  {
-    failure: ForbiddenError,
-    provides: AdminUser,
-    security: {
-      bearer: HttpApiSecurity.bearer,
-    },
-  }
-) {}
+export class AdminAuth extends HttpApiMiddleware.Tag<AdminAuth>()('AdminAuth', {
+  failure: ForbiddenError,
+  provides: AdminUser,
+  security: {
+    bearer: HttpApiSecurity.bearer,
+  },
+}) {}
 
 /**
  * Base layer for AdminAuth middleware
@@ -63,8 +60,7 @@ const AdminAuthBase = Layer.effect(
                 headers,
                 query: { disableCookieCache: true },
               }),
-            catch: () =>
-              new ForbiddenError({ message: 'Invalid token' }),
+            catch: () => new ForbiddenError({ message: 'Invalid token' }),
           })
 
           if (!session?.user) {

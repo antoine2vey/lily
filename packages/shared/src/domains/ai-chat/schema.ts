@@ -1,5 +1,5 @@
-import { PaginatedResponse } from '@lily/shared/domains/common/pagination'
 import { Schema } from 'effect'
+import { PaginatedResponse } from '../common/pagination'
 
 // AI chat schemas
 export const ChatMessage = Schema.Struct({

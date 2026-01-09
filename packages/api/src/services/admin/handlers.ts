@@ -11,7 +11,9 @@ export const AdminApiLive = (api: Api) =>
       const adminService = yield* AdminService
 
       return handlers
-        .handle('listUsers', ({ urlParams }) => adminService.listUsers(urlParams))
+        .handle('listUsers', ({ urlParams }) =>
+          adminService.listUsers(urlParams)
+        )
         .handle('getUser', ({ path: { id } }) => adminService.getUser(id))
         .handle('updateUser', ({ path: { id }, payload }) =>
           adminService.updateUser(id, payload)

@@ -1,5 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware'
+import { PaginatedResponse } from '@lily/shared'
 import {
   AdminRoleChangeRequest,
   AdminStatusChangeRequest,
@@ -7,8 +8,10 @@ import {
   AdminUserListParams,
   AdminUserUpdateRequest,
 } from '@lily/shared/admin'
-import { PaginatedResponse } from '@lily/shared'
-import { CannotModifySelfError, ForbiddenError } from '@lily/shared/errors/admin'
+import {
+  CannotModifySelfError,
+  ForbiddenError,
+} from '@lily/shared/errors/admin'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'

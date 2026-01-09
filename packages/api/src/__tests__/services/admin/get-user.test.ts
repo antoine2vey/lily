@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest'
 describe('getUser', () => {
   it('should return user when found', async () => {
     const result = await Effect.runPromise(
-      getUser('user-1').pipe(Effect.provide(createMockUserRepository(mockUsers)))
+      getUser('user-1').pipe(
+        Effect.provide(createMockUserRepository(mockUsers))
+      )
     )
 
     expect(result.id).toBe('user-1')

@@ -29,7 +29,10 @@ export const withSession = <A, E, R>(
 ): Effect.Effect<
   A,
   E | SessionNotFoundError,
-  Exclude<R, Session> | Auth | HttpServerRequest.HttpServerRequest | UserRepository
+  | Exclude<R, Session>
+  | Auth
+  | HttpServerRequest.HttpServerRequest
+  | UserRepository
 > =>
   Effect.gen(function* () {
     const auth = yield* Auth
@@ -47,7 +50,9 @@ export const withSession = <A, E, R>(
     )
 
     if (!user) {
-      return yield* Effect.fail(new SessionNotFoundError({ message: 'User not found' }))
+      return yield* Effect.fail(
+        new SessionNotFoundError({ message: 'User not found' })
+      )
     }
 
     const userProfile: UserProfile = {

@@ -1,11 +1,11 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
-import { Authentication, Unauthorized } from '@lily/api/services/auth/middleware'
+import {
+  Authentication,
+  Unauthorized,
+} from '@lily/api/services/auth/middleware'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
-import {
-  UserSettings,
-  UserSettingsUpdateRequest,
-} from '@lily/shared/user'
+import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 
 // Path parameter for user ID

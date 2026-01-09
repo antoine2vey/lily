@@ -1,10 +1,10 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { AdminUser } from '@lily/api/services/admin/middleware'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
+import { AdminUser } from '@lily/api/services/admin/middleware'
+import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import type { UserProfile } from '@lily/shared/auth'
 
 const mockAdminContext: UserProfile = {
   id: mockAdminUser.id,
