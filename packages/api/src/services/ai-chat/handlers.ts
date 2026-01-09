@@ -1,8 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { RedisEventBusLive } from '@lily/api/events'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { AIChatService } from '@lily/api/services/ai-chat/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware'
+import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { AiService } from '@lily/shared/services/ai/service'
 import { Effect, Layer } from 'effect'
 
@@ -28,5 +30,7 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(AIChatService.Default),
     Layer.provide(ChatRepositoryLive),
     Layer.provide(AiService.Default),
+    Layer.provide(RedisEventBusLive),
+    Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)
   )

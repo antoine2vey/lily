@@ -1,5 +1,6 @@
-import { Schema } from 'effect'
+import { Data, Schema } from 'effect'
 
+// Event schemas
 export const PlantCreatedEvent = Schema.Struct({
   _tag: Schema.Literal('PlantCreated'),
   userId: Schema.String,
@@ -99,3 +100,18 @@ export type DiseaseIdentifiedEvent = typeof DiseaseIdentifiedEvent.Type
 export type RarePlantIdentifiedEvent = typeof RarePlantIdentifiedEvent.Type
 export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
 export type PlantSharedEvent = typeof PlantSharedEvent.Type
+
+// Error types
+export class EventBusConnectionError extends Data.TaggedError(
+  'EventBusConnectionError'
+)<{
+  message: string
+  cause?: unknown
+}> {}
+
+export class EventBusPublishError extends Data.TaggedError(
+  'EventBusPublishError'
+)<{
+  message: string
+  cause?: unknown
+}> {}

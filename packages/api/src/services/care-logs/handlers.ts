@@ -1,10 +1,12 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { RedisEventBusLive } from '@lily/api/events'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
+import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { Effect, Layer } from 'effect'
 
 // Implement the Care Logs API group
@@ -44,5 +46,7 @@ export const CareLogsApiLive = (api: Api) =>
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(PlantRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
+    Layer.provide(RedisEventBusLive),
+    Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)
   )

@@ -1,10 +1,12 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { RedisEventBusLive } from '@lily/api/events'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware'
+import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { AiService } from '@lily/shared/services/ai/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
@@ -74,5 +76,7 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default),
+    Layer.provide(RedisEventBusLive),
+    Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)
   )

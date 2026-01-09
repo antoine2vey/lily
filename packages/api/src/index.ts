@@ -1,7 +1,7 @@
 import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
-import { EventBusLive } from '@lily/api/events'
+import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
@@ -27,7 +27,12 @@ import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Shared infrastructure layers
-const SharedLive = Layer.mergeAll(EventBusLive, DrizzleLive)
+const SharedLive = Layer.mergeAll(DrizzleLive)
+
+// Redis event bus layer with its dependency
+const RedisEventBusFullLive = RedisEventBusLive.pipe(
+  Layer.provide(RedisClientLive)
+)
 
 // Achievement subscriber layer - starts the background event processor
 const AchievementSubscriberLive = Layer.scopedDiscard(
@@ -35,7 +40,10 @@ const AchievementSubscriberLive = Layer.scopedDiscard(
     yield* startAchievementSubscriber
     yield* Effect.log('Achievement subscriber started')
   })
-).pipe(Layer.provide(AchievementRepositoryLive))
+).pipe(
+  Layer.provide(AchievementRepositoryLive),
+  Layer.provide(RedisEventBusFullLive)
+)
 
 // Notification scheduler layer - polls DB and enqueues to Redis
 const NotificationSchedulerLive = Layer.scopedDiscard(

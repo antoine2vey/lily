@@ -1,5 +1,4 @@
-import type { AppEvent } from '@lily/api/events'
-import { EventBus, type IEventBus } from '@lily/api/events'
+import { type AppEvent, EventBus, type IEventBus } from '@lily/shared'
 import { Effect, Layer, Queue } from 'effect'
 
 export interface MockEventBusData {

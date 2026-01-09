@@ -1,17 +1,23 @@
-export {
-  EventBus,
-  EventBusLive,
-  type IEventBus,
-} from '@lily/api/events/event-bus'
+// Re-export from shared for backward compatibility
+
+// Retry policy
 export {
   eventRetryPolicy,
   publishWithRetry,
 } from '@lily/api/events/retry-policy'
-export type {
-  AppEvent,
-  CareLogCreatedEvent,
-  ChatMessageSentEvent,
-  PhotoUploadedEvent,
-  PlantCreatedEvent,
-  PlantScannedEvent,
-} from '@lily/api/events/types'
+
+// Re-export providers from services
+export {
+  InMemoryEventBusLive,
+  RedisEventBusLive,
+} from '@lily/api/services/event-bus'
+export {
+  type AppEvent,
+  type CareLogCreatedEvent,
+  type ChatMessageSentEvent,
+  EventBus,
+  type IEventBus,
+  type PhotoUploadedEvent,
+  type PlantCreatedEvent,
+  type PlantScannedEvent,
+} from '@lily/shared'
