@@ -5,6 +5,8 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
+import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import {
   type AiApiCallError,
   type AiGenericError,
@@ -13,6 +15,7 @@ import {
   type GCSConfigError,
   GCSService,
   type GCSUploadError,
+  type LimitExceededError,
   type MultipleFilesError,
   type NoFilesError,
 } from '@lily/shared'
@@ -30,7 +33,8 @@ export const scanCard = (
   | PlatformError
   | AiApiCallError
   | AiGenericError
-  | SqlError,
+  | SqlError
+  | LimitExceededError,
   | AiService
   | GCSService
   | FileService
@@ -38,6 +42,8 @@ export const scanCard = (
   | EventBus
   | CurrentUser
   | ScanRepository
+  | LimitChecker
+  | UsageTracker
 > =>
   Effect.gen(function* () {
     const ai = yield* AiService
@@ -46,6 +52,11 @@ export const scanCard = (
     const eventBus = yield* EventBus
     const scanRepo = yield* ScanRepository
     const { id: userId } = yield* CurrentUser
+    const limitChecker = yield* LimitChecker
+    const usageTracker = yield* UsageTracker
+
+    // Check if user has reached their card scan limit
+    yield* limitChecker.checkCardScanLimit(userId)
 
     const file = yield* fileService.getFirstUploadedFile(images)
 
@@ -68,6 +79,9 @@ export const scanCard = (
         scanId: scan.id,
       })
     )
+
+    // Track usage after successful scan
+    yield* usageTracker.trackCardScan(userId)
 
     return result
   })

@@ -8,7 +8,6 @@ import {
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
-import { Unauthorized } from '@lily/api/services/auth/middleware'
 import type { UserProfile } from '@lily/shared/auth'
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Context, Effect, Layer, Redacted } from 'effect'

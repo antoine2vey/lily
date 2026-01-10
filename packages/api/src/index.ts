@@ -22,6 +22,10 @@ import { startNotificationWorker } from '@lily/api/services/notification-schedul
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
+import {
+  SubscriptionsApiLive,
+  SubscriptionWebhooksApiLive,
+} from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
 import { DrizzleLive } from '@lily/db'
@@ -81,6 +85,8 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(DeviceTokensApiLive(Api)),
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
+  Layer.provide(SubscriptionsApiLive(Api)),
+  Layer.provide(SubscriptionWebhooksApiLive(Api)),
   Layer.provide(UsernameApiLive(Api)),
   Layer.provide(UsersApiLive(Api))
 )

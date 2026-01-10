@@ -3,6 +3,9 @@ import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -21,7 +24,10 @@ describe('aiIdentify', () => {
       createMockAiService(),
       createMockGCSService(),
       createMockFileService(),
-      createMockFileSystem()
+      createMockFileSystem(),
+      createMockCurrentUser({ id: 'user-1' }),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
   it('should identify plant species from image', async () => {

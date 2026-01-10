@@ -18,6 +18,23 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: lily-postgres-test
+    environment:
+      POSTGRES_DB: lily_test
+      POSTGRES_USER: lily
+      POSTGRES_PASSWORD: lily123
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lily -d lily_test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: lily-redis
@@ -54,4 +71,5 @@ services:
 
 volumes:
   postgres_data:
+  postgres_test_data:
   redis_data:

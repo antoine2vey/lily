@@ -3,6 +3,9 @@ import type { PgDrizzle } from '@effect/sql-drizzle/Pg'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
+import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import type { LimitExceededError } from '@lily/shared'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import { AiService } from '@lily/shared/services/ai/service'
 import type { UIMessage } from 'ai'
@@ -33,14 +36,25 @@ export const sendChatMessage = (
   request: ChatRequest
 ): Effect.Effect<
   ChatResponse,
-  Error | SqlError,
-  ChatRepository | AiService | EventBus | CurrentUser | PgDrizzle
+  Error | SqlError | LimitExceededError,
+  | ChatRepository
+  | AiService
+  | EventBus
+  | CurrentUser
+  | PgDrizzle
+  | LimitChecker
+  | UsageTracker
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
+    const limitChecker = yield* LimitChecker
+    const usageTracker = yield* UsageTracker
+
+    // Check if user has reached their AI chat limit
+    yield* limitChecker.checkAiChatLimit(userId)
 
     const userMessage = request.message ?? ''
 
@@ -121,6 +135,9 @@ export const sendChatMessage = (
         })
       )
     }
+
+    // Track usage after successful chat
+    yield* usageTracker.trackAiChat(userId)
 
     return {
       message: savedUserMessage,

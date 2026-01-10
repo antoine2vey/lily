@@ -5,7 +5,7 @@ import {
   Multipart,
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware'
-import { PaginationParams } from '@lily/shared'
+import { LimitExceededError, PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
@@ -48,6 +48,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .setPayload(EnhancedPlantCreateRequest)
       .addSuccess(Plant, { status: 201 })
       .addError(DatabaseError, { status: 500 })
+      .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -62,6 +63,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       )
       .addSuccess(ScanCardResponse)
       .addError(DatabaseError, { status: 500 })
+      .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -84,6 +86,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         )
       )
       .addError(DatabaseError, { status: 500 })
+      .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

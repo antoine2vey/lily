@@ -27,7 +27,10 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "seed:admin": "bun run scripts/seed-admin.ts"
+    "seed:admin": "bun run scripts/seed-admin.ts",
+    "seed:tiers": "bun run scripts/seed-subscription-tiers.ts",
+    "db:push-test": "DATABASE_URL=$DATABASE_URL_TEST drizzle-kit push",
+    "db:setup-test": "bun run db:push-test && bun run scripts/setup-test-db.ts"
   },
   "dependencies": {
     "@effect/platform": "^0.90.0",

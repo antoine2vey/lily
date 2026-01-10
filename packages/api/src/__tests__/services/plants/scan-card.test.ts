@@ -4,8 +4,10 @@ import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
+import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockScanRepository } from '@lily/api/__tests__/mocks/scan.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { Effect, Layer } from 'effect'
@@ -28,7 +30,9 @@ describe('scanCard', () => {
       createMockFileSystem(),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockScanRepository()
+      createMockScanRepository(),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
   it('should parse nursery card and return plant data', async () => {
@@ -58,7 +62,9 @@ describe('scanCard', () => {
       createMockFileSystem(),
       createMockEventBus({ publishedEvents }),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockScanRepository()
+      createMockScanRepository(),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
     await Effect.runPromise(scanCard([mockFile]).pipe(Effect.provide(layer)))

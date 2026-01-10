@@ -3,6 +3,11 @@ import { accounts, sessions } from '@lily/db/schema/auth'
 import { userRoleEnum, userStatusEnum } from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
+import {
+  subscriptionEvents,
+  subscriptionUsage,
+  userSubscriptions,
+} from '@lily/db/schema/subscriptions'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -30,11 +35,14 @@ export const users = pgTable('users', {
   status: userStatusEnum('status').notNull().default('active'),
 })
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   plants: many(plants),
   notifications: many(notifications),
   deviceTokens: many(deviceTokens),
   sessions: many(sessions),
   accounts: many(accounts),
   achievements: many(userAchievements),
+  subscription: one(userSubscriptions),
+  subscriptionUsage: many(subscriptionUsage),
+  subscriptionEvents: many(subscriptionEvents),
 }))

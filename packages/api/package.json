@@ -17,6 +17,7 @@
     "build": "tsc --build tsconfig.build.json",
     "dev": "bun --watch src/index.ts",
     "test": "vitest run",
+    "test:integration": "vitest run src/__tests__/integration --no-file-parallelism",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
     "clean": "rm -rf dist"
@@ -32,11 +33,14 @@
     "expo-server-sdk": "^4.0.0",
     "ioredis": "^5.9.1",
     "resend": "^6.7.0",
+    "stripe": "^20.1.2",
     "zod": "^4.0.14"
   },
   "devDependencies": {
+    "@types/pg": "^8.16.0",
     "@types/supertest": "^6.0.3",
     "@vitest/coverage-v8": "^3.2.4",
+    "pg": "^8.16.3",
     "supertest": "^7.1.4",
     "tsx": "^4.20.3",
     "vite-tsconfig-paths": "^6.0.3",

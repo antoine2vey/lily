@@ -2,8 +2,10 @@ import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
 import { sendChatMessage } from '@lily/api/services/ai-chat/endpoints/send-chat-message'
 import { Effect, Layer } from 'effect'
@@ -16,7 +18,9 @@ describe('sendChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI response text' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle()
+      createMockPgDrizzle(),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
   it('should save user message and return AI response', async () => {
@@ -51,7 +55,9 @@ describe('sendChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI says hello' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle()
+      createMockPgDrizzle(),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
     await Effect.runPromise(
@@ -74,7 +80,9 @@ describe('sendChatMessage', () => {
       createMockAiService(),
       createMockEventBus({ publishedEvents }),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle()
+      createMockPgDrizzle(),
+      MockLimitCheckerLive,
+      MockUsageTrackerLive
     )
 
     await Effect.runPromise(

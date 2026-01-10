@@ -35,7 +35,7 @@ describe('listUsers', () => {
     expect(result.items).toHaveLength(1)
     const firstItem = result.items[0]
     expect(firstItem).toBeDefined()
-    expect(firstItem!.role).toBe('admin')
+    expect(firstItem?.role).toBe('admin')
   })
 
   it('should filter users by status', async () => {
@@ -48,7 +48,7 @@ describe('listUsers', () => {
     expect(result.items).toHaveLength(1)
     const firstItem = result.items[0]
     expect(firstItem).toBeDefined()
-    expect(firstItem!.status).toBe('suspended')
+    expect(firstItem?.status).toBe('suspended')
   })
 
   it('should search users by email', async () => {
@@ -61,7 +61,7 @@ describe('listUsers', () => {
     expect(result.items).toHaveLength(1)
     const firstItem = result.items[0]
     expect(firstItem).toBeDefined()
-    expect(firstItem!.email).toContain('admin')
+    expect(firstItem?.email).toContain('admin')
   })
 
   it('should search users by name', async () => {
@@ -74,7 +74,7 @@ describe('listUsers', () => {
     expect(result.items).toHaveLength(1)
     const firstItem = result.items[0]
     expect(firstItem).toBeDefined()
-    expect(firstItem!.name).toBe('Another User')
+    expect(firstItem?.name).toBe('Another User')
   })
 
   it('should paginate correctly', async () => {

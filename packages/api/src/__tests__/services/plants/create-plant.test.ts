@@ -1,5 +1,6 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
@@ -22,7 +23,8 @@ describe('createPlant', () => {
     Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
       createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' })
+      createMockCurrentUser({ id: 'user-1' }),
+      MockLimitCheckerLive
     )
 
   it('should create a new plant', async () => {
@@ -84,7 +86,8 @@ describe('createPlant', () => {
           Layer.mergeAll(
             createMockPlantRepository({ plants: mockPlants }),
             eventBusMock,
-            createMockCurrentUser({ id: 'user-1' })
+            createMockCurrentUser({ id: 'user-1' }),
+            MockLimitCheckerLive
           )
         )
       )

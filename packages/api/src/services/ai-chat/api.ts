@@ -1,6 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware'
-import { PaginationParams } from '@lily/shared'
+import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
   ChatHistoryListResponse,
   ChatRequest,
@@ -21,6 +21,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .setPayload(ChatRequest)
       .addSuccess(ChatResponse)
       .addError(DatabaseError, { status: 500 })
+      .addError(LimitExceededError, { status: 403 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

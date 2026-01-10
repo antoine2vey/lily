@@ -1,13 +1,17 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
+import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { PlantsService } from '@lily/api/services/plants/service'
+import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
+import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
 import { AiService } from '@lily/shared/services/ai/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
@@ -78,5 +82,9 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(FileService.Default),
     Layer.provide(RedisEventBusLive),
     Layer.provide(RedisClientLive),
-    Layer.provide(AuthenticationLive)
+    Layer.provide(AuthenticationLive),
+    Layer.provide(LimitCheckerLive),
+    Layer.provide(UsageTrackerLive),
+    Layer.provide(SubscriptionRepositoryLive),
+    Layer.provide(AchievementRepositoryLive)
   )
