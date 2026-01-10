@@ -1,7 +1,7 @@
-import { drizzle } from 'drizzle-orm/node-postgres'
 import * as schema from '@lily/db/schema'
 import { LimitExceededError } from '@lily/shared'
-import { sql, eq, and, count } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -29,17 +29,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     }
 
     const resetDb = async () => {
-      await db.execute(sql`TRUNCATE TABLE subscription_events RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE subscription_usage RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE user_subscriptions RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE user_achievements RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE chat_messages RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE plant_photos RESTART IDENTITY CASCADE`)
+      await db.execute(
+        sql`TRUNCATE TABLE subscription_events RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE subscription_usage RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE user_subscriptions RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE user_achievements RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE chat_messages RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE plant_photos RESTART IDENTITY CASCADE`
+      )
       await db.execute(sql`TRUNCATE TABLE care_logs RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE plant_scans RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE device_tokens RESTART IDENTITY CASCADE`)
+      await db.execute(
+        sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
+      )
+      await db.execute(
+        sql`TRUNCATE TABLE device_tokens RESTART IDENTITY CASCADE`
+      )
       await db.execute(sql`TRUNCATE TABLE session RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE account RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
@@ -52,7 +68,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       // Verify seed data
       const tiers = await db.select().from(schema.subscriptionTiers)
       if (tiers.length === 0) {
-        throw new Error('Subscription tiers not seeded. Run: bun run db:setup-test')
+        throw new Error(
+          'Subscription tiers not seeded. Run: bun run db:setup-test'
+        )
       }
     })
 

@@ -7,10 +7,7 @@ import {
   SubscriptionServiceLive,
 } from '@lily/api/services/subscriptions/service'
 import type { userSubscriptions } from '@lily/db'
-import {
-  PaymentProviderError,
-  SubscriptionNotFoundError,
-} from '@lily/shared'
+import { PaymentProviderError, SubscriptionNotFoundError } from '@lily/shared'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -47,7 +44,7 @@ describe('cancelSubscription', () => {
           status: 'active',
           currentPeriodStart: new Date(),
           currentPeriodEnd: new Date(),
-          customerId: '1'
+          customerId: '1',
         }),
     }
 

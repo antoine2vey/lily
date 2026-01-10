@@ -25,7 +25,7 @@ describe('getCurrentSubscription', () => {
         status: 'active',
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(),
-        customerId: '1'
+        customerId: '1',
       }),
   }
 
