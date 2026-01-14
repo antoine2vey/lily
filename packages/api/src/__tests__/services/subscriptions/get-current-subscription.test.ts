@@ -19,7 +19,10 @@ describe('getCurrentSubscription', () => {
       }),
     cancelSubscription: () => Effect.void,
     constructWebhookEvent: () =>
-      Effect.succeed({ type: 'test', data: { object: {} } } as any),
+      Effect.succeed({
+        type: 'test',
+        data: { object: {} },
+      } as unknown as never),
     getSubscriptionDetails: () =>
       Effect.succeed({
         status: 'active',
