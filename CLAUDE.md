@@ -30,23 +30,50 @@ packages/
 ## Common Commands
 
 ```bash
-# Development
-bun run dev              # Start all packages in dev mode
-bun run build            # Build all packages
+# Docker Services
+docker-compose up -d                    # Start all services (postgres, redis, api)
+docker-compose up -d postgres redis     # Start only infrastructure services
+docker-compose down                     # Stop all services
+docker-compose down -v                  # Stop and remove volumes
+docker-compose logs -f api              # Follow API logs
+docker-compose ps                       # Show service status
 
-# Linting
-bun run lint             # Check all packages
-bun run lint:fix         # Auto-fix issues
+# Development (with Docker services running)
+bun run dev                             # Start all packages in dev mode
+bun run build                           # Build all packages
+
+# Database (with Docker postgres running)
+docker-compose exec postgres psql -U lily -d lily   # Connect to database
+bun run db:generate                     # Generate Drizzle migrations
+bun run db:push                         # Push schema to database
+bun run db:migrate                      # Run pending migrations
+bun run db:studio                       # Open Drizzle Studio
 
 # Testing
-bun run test             # Run all tests
+docker-compose up -d postgres-test      # Start test database
+bun run test                            # Run all tests
+bun run test:integration                # Run integration tests
 
-# Database
-bun run db:generate      # Generate Drizzle migrations
-bun run db:push          # Push schema to database
-bun run db:migrate       # Run pending migrations
-bun run db:studio        # Open Drizzle Studio
+# Linting
+bun run lint                            # Check all packages
+bun run lint:fix                        # Auto-fix issues
 ```
+
+## Docker Infrastructure
+
+The project uses Docker Compose for local development with these services:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| postgres | 5432 | Development database |
+| postgres-test | 5433 | Test database |
+| redis | 6379 | Caching/session storage |
+| api | 3000 | Application server |
+
+**Database Credentials:**
+- User: `lily`
+- Password: `lily123`
+- Database: `lily` (dev) / `lily_test` (test)
 
 ## Code Conventions
 
@@ -184,6 +211,77 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(PlantsService.Default),
     Layer.provide(PlantRepositoryLive)
   )
+```
+
+### Service File Structure
+
+Each service domain in `packages/api/src/services/` follows this structure:
+
+```
+services/{domain}/
+├── api.ts              # HttpApiEndpoint definitions
+├── handlers.ts         # HttpApiBuilder.group implementation
+├── service.ts          # Effect.Service aggregator
+├── middleware.ts       # Auth/permission middleware (if needed)
+└── endpoints/          # Individual endpoint functions
+    ├── find-{entity}s.ts
+    ├── find-{entity}-by-id.ts
+    ├── create-{entity}.ts
+    ├── update-{entity}.ts
+    └── delete-{entity}.ts
+```
+
+### Request/Response Naming
+
+Follow these naming conventions for API DTOs:
+- **Requests**: `{Entity}CreateRequest`, `{Entity}UpdateRequest`
+- **Responses**: `{Entity}ListResponse`, `{Entity}Response`
+- **Params**: `Find{Entity}sParams`, `PaginationParams`
+- **Data types**: `Create{Entity}Data`, `Update{Entity}Data` (suffixed with `Data`)
+
+### Middleware Pattern
+
+Use `HttpApiMiddleware.Tag` for cross-cutting concerns:
+
+```typescript
+export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
+  'Authentication',
+  {
+    failure: Unauthorized,
+    provides: CurrentUser,
+    security: { bearer: HttpApiSecurity.bearer },
+  }
+) {}
+```
+
+### Pagination Pattern
+
+- Use `PaginationParams` schema with `page` and `limit` as strings (for URL encoding)
+- Use `parsePaginationParams()` to convert to numbers
+- Use `paginate()` helper for building responses
+- Return `PaginatedResponse<T>` with `hasMore` field
+
+### Event Publishing
+
+Events are discriminated unions with `_tag` field:
+
+```typescript
+eventBus.publish({
+  _tag: 'PlantCreated',
+  userId,
+  plantId: plant.id,
+})
+```
+
+Use `publishWithRetry()` for resilient event publishing.
+
+### Logging
+
+Use Effect's built-in logger:
+
+```typescript
+yield* Effect.log('message', { context: value })
+yield* Effect.logWarning('warning message')
 ```
 
 ### Domain Structure
