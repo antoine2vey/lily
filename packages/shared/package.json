@@ -98,7 +98,6 @@
     "ai": "^5.0.0",
     "effect": "^3.17.5",
     "@effect/platform": "^0.90.0",
-    "@lily/db": "workspace:*",
     "zod": "^4.0.14"
   }
 }

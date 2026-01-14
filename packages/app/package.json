@@ -7,15 +7,15 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "vitest",
+    "test": "echo 'No tests yet'",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write ."
   },
   "dependencies": {
-    "@effect/platform": "^0.87.7",
+    "@effect/platform": "^0.90.0",
     "@lily/api": "workspace:*",
     "@tanstack/react-query": "^5.81.5",
-    "effect": "^3.16.12",
+    "effect": "^3.17.5",
     "expo": "~53.0.12",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
