@@ -4,12 +4,12 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
+import { AiService } from '@lily/api/services/ai/service'
 import { AIChatService } from '@lily/api/services/ai-chat/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
-import { AiService } from '@lily/shared/services/ai/service'
 import { Effect, Layer } from 'effect'
 
 // Implement the AI Chat API group

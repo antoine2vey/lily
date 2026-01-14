@@ -22,7 +22,6 @@ export * from './domains/user/schema'
 export * from './domains/username/schema'
 
 // Services (cross-cutting concerns)
-export * from './services/ai/service'
 export * from './services/email/service'
 export * from './services/email/types'
 export * from './services/event-bus'

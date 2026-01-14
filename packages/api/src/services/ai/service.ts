@@ -1,8 +1,9 @@
 import { plantCardScan } from '@lily/shared/services/ai/plant-card-scan'
-import { plantChat } from '@lily/shared/services/ai/plant-chat'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { AISDKError, type AsyncIterableStream, type UIMessage } from 'ai'
 import { Effect, Schema, Stream } from 'effect'
+
+import { plantChat } from '../ai-chat/plant-chat'
 
 const streamSdk = (textStream: AsyncIterableStream<string>) =>
   Stream.fromAsyncIterable(

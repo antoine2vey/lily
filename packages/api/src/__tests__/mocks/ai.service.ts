@@ -1,4 +1,4 @@
-import { AiService } from '@lily/shared/services/ai/service'
+import { AiService } from '@lily/api/services/ai/service'
 import type { UIMessage } from 'ai'
 import { Effect, Layer, Stream } from 'effect'
 
