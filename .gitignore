@@ -16,9 +16,15 @@ node_modules/
 dist/
 build/
 out/
+.turbo/
 
 # TypeScript
 *.tsbuildinfo
+
+# TypeScript build artifacts in scripts folders (run directly with Bun)
+packages/*/scripts/*.js
+packages/*/scripts/*.d.ts
+packages/*/scripts/*.map
 
 # Environment variables
 .env
