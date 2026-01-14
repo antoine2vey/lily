@@ -4,7 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getPlantPhotos', () => {
@@ -19,9 +19,9 @@ describe('getPlantPhotos', () => {
     )
 
     expect(result.items.length).toBe(2)
-    expect(result.items.every((photo) => photo.plantId === 'plant-1')).toBe(
-      true
-    )
+    expect(
+      Array.every(result.items, (photo) => photo.plantId === 'plant-1')
+    ).toBe(true)
     expect(result.total).toBe(2)
     expect(result.page).toBe(1)
     expect(result.limit).toBe(20)

@@ -4,7 +4,7 @@ import {
   type ResendVerificationRequest,
   ResendVerificationRequestZod,
 } from '@lily/shared/auth'
-import { Effect } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
 export const resendVerificationEmail = ({
   email,
@@ -17,8 +17,11 @@ export const resendVerificationEmail = ({
     // Validate email format using Zod
     const validation = ResendVerificationRequestZod.safeParse({ email })
     if (!validation.success) {
-      const message =
-        validation.error.issues[0]?.message ?? 'Invalid email format'
+      const message = pipe(
+        Array.head(validation.error.issues),
+        Option.flatMap((issue) => Option.fromNullable(issue.message)),
+        Option.getOrElse(() => 'Invalid email format')
+      )
       return yield* Effect.fail({ error: message })
     }
 

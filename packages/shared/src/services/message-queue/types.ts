@@ -1,4 +1,4 @@
-import { Data, Schema } from 'effect'
+import { Array, Data, Schema } from 'effect'
 
 // Notification topics - extensible for new notification types
 // Add new topics here - the worker will fail at compile/runtime if not handled
@@ -8,7 +8,7 @@ export const NOTIFICATION_TOPICS = [
 ] as const
 
 export const NotificationTopic = Schema.Union(
-  ...NOTIFICATION_TOPICS.map((t) => Schema.Literal(t))
+  ...Array.map(NOTIFICATION_TOPICS, (t) => Schema.Literal(t))
 )
 export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 

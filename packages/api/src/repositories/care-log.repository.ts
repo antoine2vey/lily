@@ -4,7 +4,7 @@ import { careLogs } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { CareLog, CareLogsListResponse } from '@lily/shared/care-log'
 import { and, count, desc, eq } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface CreateCareLogData {
@@ -32,9 +32,9 @@ export interface FindCareLogsParams {
 const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   id: row.id,
   type: row.type,
-  notes: row.notes ?? undefined,
+  notes: Option.getOrUndefined(Option.fromNullable(row.notes)),
   date: row.date,
-  photoUrl: row.photoUrl ?? undefined,
+  photoUrl: Option.getOrUndefined(Option.fromNullable(row.photoUrl)),
   plantId: row.plantId,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -74,8 +74,14 @@ export const CareLogRepositoryLive = Layer.effect(
     return {
       findByPlantId: (params: FindCareLogsParams) =>
         Effect.gen(function* () {
-          const page = params.page ?? 1
-          const limit = params.limit ?? 20
+          const page = pipe(
+            Option.fromNullable(params.page),
+            Option.getOrElse(() => 1)
+          )
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 20)
+          )
           const offset = (page - 1) * limit
 
           const filterConditions =
@@ -90,7 +96,11 @@ export const CareLogRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(careLogs)
             .where(filterConditions)
-          const total = countResult[0]?.value ?? 0
+          const total = pipe(
+            Array.head(countResult),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0)
+          )
 
           const rows = yield* db
             .select()
@@ -100,7 +110,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .limit(limit)
             .orderBy(desc(careLogs.date))
 
-          return paginate(rows.map(mapToCareLog), total, page, limit)
+          return paginate(Array.map(rows, mapToCareLog), total, page, limit)
         }),
 
       findById: (id: string, plantId: string) =>
@@ -118,9 +128,12 @@ export const CareLogRepositoryLive = Layer.effect(
             .insert(careLogs)
             .values({
               type: data.type,
-              notes: data.notes ?? null,
-              date: data.date ?? new Date(),
-              photoUrl: data.photoUrl ?? null,
+              notes: Option.getOrNull(Option.fromNullable(data.notes)),
+              date: pipe(
+                Option.fromNullable(data.date),
+                Option.getOrElse(() => new Date())
+              ),
+              photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
               plantId: data.plantId,
             })
             .returning()
@@ -132,9 +145,9 @@ export const CareLogRepositoryLive = Layer.effect(
           const [row] = yield* db
             .update(careLogs)
             .set({
-              notes: data.notes ?? null,
+              notes: Option.getOrNull(Option.fromNullable(data.notes)),
               date: data.date,
-              photoUrl: data.photoUrl ?? null,
+              photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
               updatedAt: new Date(),
             })
             .where(eq(careLogs.id, id))

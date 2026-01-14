@@ -18,7 +18,7 @@ import {
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
 import type { PushMessage, QueueMessage } from '@lily/shared'
-import { Effect, Logger, LogLevel } from 'effect'
+import { Effect, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helper to create a test queue message
@@ -242,7 +242,11 @@ describe('Notification Worker', () => {
         consumeFromTopic('watering_reminder').pipe(
           Effect.provide(
             createMockMessageQueue({
-              onDequeue: () => queueMessages.shift() ?? null,
+              onDequeue: () =>
+                pipe(
+                  Option.fromNullable(queueMessages.shift()),
+                  Option.getOrNull
+                ),
               onAck: (_, messageId) => ackedMessages.push(messageId),
             })
           ),

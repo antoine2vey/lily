@@ -493,20 +493,20 @@ export const startNotificationScheduler = Effect.gen(function* () {
 
 ```typescript
 import { PaginationParams } from '@lily/shared'
+import { Option, pipe } from 'effect'
 
 export const findAll = (params: PaginationParams) =>
   Effect.gen(function* () {
     const repo = yield* MyRepository
-    const { items, total } = yield* repo.findAll({
-      page: params.page ?? 1,
-      limit: params.limit ?? 20,
-    })
+    const page = pipe(Option.fromNullable(params.page), Option.getOrElse(() => 1))
+    const limit = pipe(Option.fromNullable(params.limit), Option.getOrElse(() => 20))
+    const { items, total } = yield* repo.findAll({ page, limit })
 
     return {
       items,
       total,
-      page: params.page ?? 1,
-      limit: params.limit ?? 20,
+      page,
+      limit,
     }
   })
 ```

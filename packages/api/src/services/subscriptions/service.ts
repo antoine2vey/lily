@@ -9,7 +9,7 @@ import {
   type SubscriptionTier,
   type TierConfig,
 } from '@lily/shared'
-import { Context, Effect, Layer } from 'effect'
+import { Context, Effect, Layer, Match, Option, pipe } from 'effect'
 
 export interface CreateCheckoutParams {
   userId: string
@@ -88,11 +88,17 @@ export const SubscriptionServiceLive = Layer.effect(
                   userId: subscription.userId,
                   tier: subscription.tier as SubscriptionTier,
                   status: subscription.status as SubscriptionStatus,
-                  trialStartsAt: subscription.trialStartsAt ?? null,
-                  trialEndsAt: subscription.trialEndsAt ?? null,
+                  trialStartsAt: Option.getOrNull(
+                    Option.fromNullable(subscription.trialStartsAt)
+                  ),
+                  trialEndsAt: Option.getOrNull(
+                    Option.fromNullable(subscription.trialEndsAt)
+                  ),
                   currentPeriodStart: subscription.currentPeriodStart,
                   currentPeriodEnd: subscription.currentPeriodEnd,
-                  canceledAt: subscription.canceledAt ?? null,
+                  canceledAt: Option.getOrNull(
+                    Option.fromNullable(subscription.canceledAt)
+                  ),
                   createdAt: subscription.createdAt,
                   updatedAt: subscription.updatedAt,
                 }
@@ -158,133 +164,146 @@ export const SubscriptionServiceLive = Layer.effect(
             signature
           )
 
-          switch (event.type) {
-            case 'checkout.session.completed': {
-              const session = event.data.object as {
-                metadata?: { userId?: string }
-                subscription?: string
-                customer?: string
-              }
+          const handleCheckoutCompleted = Effect.gen(function* () {
+            const session = event.data.object as {
+              metadata?: { userId?: string }
+              subscription?: string
+              customer?: string
+            }
 
-              const userId = session.metadata?.userId
-              const subscriptionId = session.subscription
-              const customerId = session.customer
+            const userId = session.metadata?.userId
+            const subscriptionId = session.subscription
+            const customerId = session.customer
 
-              if (!userId || !subscriptionId) {
-                return
-              }
+            if (!userId || !subscriptionId) {
+              return
+            }
 
-              // Get subscription details from provider
-              const details = yield* paymentProvider.getSubscriptionDetails(
-                subscriptionId as string
+            // Get subscription details from provider
+            const details = yield* paymentProvider.getSubscriptionDetails(
+              subscriptionId as string
+            )
+
+            // Create subscription record
+            yield* subRepo.create({
+              userId,
+              tier: 'paid',
+              status: details.status as SubscriptionStatus,
+              trialStartsAt: Option.getOrNull(
+                Option.fromNullable(details.trialStart)
+              ),
+              trialEndsAt: Option.getOrNull(
+                Option.fromNullable(details.trialEnd)
+              ),
+              currentPeriodStart: details.currentPeriodStart,
+              currentPeriodEnd: details.currentPeriodEnd,
+              externalSubscriptionId: subscriptionId as string,
+              externalCustomerId: customerId as string,
+              provider: 'stripe',
+            })
+
+            yield* subRepo.logEvent(userId, 'subscription_created', {
+              tier: 'paid',
+              status: details.status,
+              trialEnd: details.trialEnd,
+            })
+          })
+
+          const handleSubscriptionUpdated = Effect.gen(function* () {
+            const subscription = event.data.object as {
+              id: string
+              status: string
+              current_period_start: number
+              current_period_end: number
+              trial_start?: number | null
+              trial_end?: number | null
+              metadata?: { userId?: string }
+            }
+
+            yield* subRepo.updateFromWebhook(subscription.id, {
+              status: subscription.status as SubscriptionStatus,
+              currentPeriodStart: new Date(
+                subscription.current_period_start * 1000
+              ),
+              currentPeriodEnd: new Date(
+                subscription.current_period_end * 1000
+              ),
+              trialStartsAt: subscription.trial_start
+                ? new Date(subscription.trial_start * 1000)
+                : null,
+              trialEndsAt: subscription.trial_end
+                ? new Date(subscription.trial_end * 1000)
+                : null,
+            })
+
+            if (subscription.metadata?.userId) {
+              yield* subRepo.logEvent(
+                subscription.metadata.userId,
+                'subscription_updated',
+                {
+                  status: subscription.status,
+                }
               )
+            }
+          })
 
-              // Create subscription record
-              yield* subRepo.create({
-                userId,
-                tier: 'paid',
-                status: details.status as SubscriptionStatus,
-                trialStartsAt: details.trialStart ?? null,
-                trialEndsAt: details.trialEnd ?? null,
-                currentPeriodStart: details.currentPeriodStart,
-                currentPeriodEnd: details.currentPeriodEnd,
-                externalSubscriptionId: subscriptionId as string,
-                externalCustomerId: customerId as string,
-                provider: 'stripe',
-              })
-
-              yield* subRepo.logEvent(userId, 'subscription_created', {
-                tier: 'paid',
-                status: details.status,
-                trialEnd: details.trialEnd,
-              })
-              break
+          const handleSubscriptionDeleted = Effect.gen(function* () {
+            const subscription = event.data.object as {
+              id: string
+              metadata?: { userId?: string }
             }
 
-            case 'customer.subscription.updated': {
-              const subscription = event.data.object as {
-                id: string
-                status: string
-                current_period_start: number
-                current_period_end: number
-                trial_start?: number | null
-                trial_end?: number | null
-                metadata?: { userId?: string }
-              }
+            yield* subRepo.updateFromWebhook(subscription.id, {
+              status: 'canceled',
+            })
 
-              yield* subRepo.updateFromWebhook(subscription.id, {
-                status: subscription.status as SubscriptionStatus,
-                currentPeriodStart: new Date(
-                  subscription.current_period_start * 1000
-                ),
-                currentPeriodEnd: new Date(
-                  subscription.current_period_end * 1000
-                ),
-                trialStartsAt: subscription.trial_start
-                  ? new Date(subscription.trial_start * 1000)
-                  : null,
-                trialEndsAt: subscription.trial_end
-                  ? new Date(subscription.trial_end * 1000)
-                  : null,
-              })
+            if (subscription.metadata?.userId) {
+              yield* subRepo.logEvent(
+                subscription.metadata.userId,
+                'subscription_deleted',
+                {}
+              )
+            }
+          })
 
-              if (subscription.metadata?.userId) {
-                yield* subRepo.logEvent(
-                  subscription.metadata.userId,
-                  'subscription_updated',
-                  {
-                    status: subscription.status,
-                  }
-                )
-              }
-              break
+          const handlePaymentFailed = Effect.gen(function* () {
+            const invoice = event.data.object as {
+              subscription?: string
+              metadata?: { userId?: string }
             }
 
-            case 'customer.subscription.deleted': {
-              const subscription = event.data.object as {
-                id: string
-                metadata?: { userId?: string }
-              }
-
-              yield* subRepo.updateFromWebhook(subscription.id, {
-                status: 'canceled',
+            if (invoice.subscription) {
+              yield* subRepo.updateFromWebhook(invoice.subscription as string, {
+                status: 'past_due',
               })
 
-              if (subscription.metadata?.userId) {
+              if (invoice.metadata?.userId) {
                 yield* subRepo.logEvent(
-                  subscription.metadata.userId,
-                  'subscription_deleted',
+                  invoice.metadata.userId,
+                  'payment_failed',
                   {}
                 )
               }
-              break
             }
+          })
 
-            case 'invoice.payment_failed': {
-              const invoice = event.data.object as {
-                subscription?: string
-                metadata?: { userId?: string }
-              }
-
-              if (invoice.subscription) {
-                yield* subRepo.updateFromWebhook(
-                  invoice.subscription as string,
-                  {
-                    status: 'past_due',
-                  }
-                )
-
-                if (invoice.metadata?.userId) {
-                  yield* subRepo.logEvent(
-                    invoice.metadata.userId,
-                    'payment_failed',
-                    {}
-                  )
-                }
-              }
-              break
-            }
-          }
+          yield* pipe(
+            Match.value(event.type),
+            Match.when(
+              'checkout.session.completed',
+              () => handleCheckoutCompleted
+            ),
+            Match.when(
+              'customer.subscription.updated',
+              () => handleSubscriptionUpdated
+            ),
+            Match.when(
+              'customer.subscription.deleted',
+              () => handleSubscriptionDeleted
+            ),
+            Match.when('invoice.payment_failed', () => handlePaymentFailed),
+            Match.orElse(() => Effect.void)
+          )
         }),
 
       getAllTiers: () => subRepo.getAllTiers(),

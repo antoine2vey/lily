@@ -1,7 +1,7 @@
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Effect, Match, Queue } from 'effect'
+import { Effect, Match, Option, pipe, Queue } from 'effect'
 
 // Individual event handlers
 // Note: unlock() uses onConflictDoNothing() so we don't need to check hasAchievement first
@@ -15,7 +15,11 @@ const onPlantCreated = (event: { userId: string }) =>
 
     // Check PLANT_COLLECTOR (5+ plants)
     const plantCount = yield* repo.countPlants(event.userId)
-    if (plantCount >= (ACHIEVEMENTS.PLANT_COLLECTOR.threshold ?? 5)) {
+    const plantCollectorThreshold = pipe(
+      Option.fromNullable(ACHIEVEMENTS.PLANT_COLLECTOR.threshold),
+      Option.getOrElse(() => 5)
+    )
+    if (plantCount >= plantCollectorThreshold) {
       yield* repo.unlock(event.userId, 'PLANT_COLLECTOR')
     }
   })
@@ -55,7 +59,11 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
 
     // Check PHOTO_PRO (10+ photos total)
     const photoCount = yield* repo.countPhotos(event.userId)
-    if (photoCount >= (ACHIEVEMENTS.PHOTO_PRO.threshold ?? 10)) {
+    const photoProThreshold = pipe(
+      Option.fromNullable(ACHIEVEMENTS.PHOTO_PRO.threshold),
+      Option.getOrElse(() => 10)
+    )
+    if (photoCount >= photoProThreshold) {
       yield* repo.unlock(event.userId, 'PHOTO_PRO')
     }
 
@@ -73,7 +81,11 @@ const onPlantScanned = (event: { userId: string }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
     const scanCount = yield* repo.countScans(event.userId)
-    if (scanCount >= (ACHIEVEMENTS.SCAN_CHAMP.threshold ?? 5)) {
+    const scanChampThreshold = pipe(
+      Option.fromNullable(ACHIEVEMENTS.SCAN_CHAMP.threshold),
+      Option.getOrElse(() => 5)
+    )
+    if (scanCount >= scanChampThreshold) {
       yield* repo.unlock(event.userId, 'SCAN_CHAMP')
     }
   })

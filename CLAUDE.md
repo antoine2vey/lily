@@ -261,6 +261,130 @@ Array.head(items)  // Option<T> instead of T | undefined
 Array.findFirst(items, predicate)
 ```
 
+### Strict Effect-First Rules (MANDATORY)
+
+**This codebase enforces Effect utilities everywhere. Native JavaScript methods are PROHIBITED.**
+
+#### Prohibited Native Methods
+
+The following are **FORBIDDEN** and must never be used:
+
+- Array methods: `.map()`, `.filter()`, `.reduce()`, `.find()`, `.findIndex()`, `.forEach()`, `.some()`, `.every()`, `.includes()`, `.flat()`, `.flatMap()`
+- Object methods: `Object.keys()`, `Object.values()`, `Object.entries()`
+- Control flow: `switch` statements (use `Match` instead)
+- Nullable patterns: ternary operators for null checks, `??` for Option-like patterns
+
+#### Required Effect Replacements
+
+| Native JS | Effect Replacement |
+|-----------|-------------------|
+| `arr.map(fn)` | `Array.map(arr, fn)` or `pipe(arr, Array.map(fn))` |
+| `arr.filter(fn)` | `Array.filter(arr, fn)` |
+| `arr.reduce(fn, init)` | `Array.reduce(arr, init, fn)` |
+| `arr.find(fn)` | `Array.findFirst(arr, fn)` → returns `Option<T>` |
+| `arr[0]` | `Array.head(arr)` → returns `Option<T>` |
+| `arr[arr.length - 1]` | `Array.last(arr)` → returns `Option<T>` |
+| `arr.forEach(fn)` | `Array.forEach(arr, fn)` or `Effect.forEach` |
+| `arr.some(fn)` | `Array.some(arr, fn)` |
+| `arr.every(fn)` | `Array.every(arr, fn)` |
+| `arr.includes(x)` | `Array.contains(arr, x)` |
+| `arr.flat()` | `Array.flatten(arr)` |
+| `arr.flatMap(fn)` | `Array.flatMap(arr, fn)` |
+| `Object.keys(obj)` | `Record.keys(obj)` |
+| `Object.values(obj)` | `Record.values(obj)` |
+| `Object.entries(obj)` | `Record.toEntries(obj)` |
+| `{ ...obj, key: val }` | `Struct.evolve(obj, { key: () => val })` |
+| `x ?? defaultVal` | `Option.getOrElse(option, () => defaultVal)` |
+| `x != null ? x : y` | `Option.match(option, { onNone: () => y, onSome: (x) => x })` |
+| `switch (x._tag)` | `Match.type<T>().pipe(Match.when(...), Match.exhaustive)` |
+| `if/else chains` | `Match` module for complex branching |
+| `str.toUpperCase()` | `String.toUpperCase(str)` |
+| `str.includes(x)` | `String.includes(str, x)` |
+| `str.split(x)` | `String.split(str, x)` |
+
+#### Effect Modules Reference
+
+Always import and use these Effect modules:
+
+```typescript
+import {
+  Array,      // Array operations (map, filter, reduce, head, etc.)
+  Record,     // Object operations (keys, values, map, filter)
+  Option,     // Nullable handling (Some, None, getOrElse)
+  Either,     // Error handling (Left, Right)
+  Match,      // Pattern matching (exhaustive)
+  Struct,     // Object manipulation (pick, omit, evolve)
+  String,     // String operations (toUpperCase, includes, etc.)
+  Number,     // Number utilities
+  Predicate,  // Type guards (isString, isNumber, etc.)
+  pipe,       // Function composition
+  flow,       // Point-free function composition
+  Effect,     // Effectful operations
+} from 'effect'
+```
+
+#### Code Examples
+
+**Array transformations:**
+```typescript
+// ❌ FORBIDDEN - Native JS
+const names = users.map(u => u.name)
+const active = users.filter(u => u.isActive)
+const first = users[0]
+const found = users.find(u => u.id === id)
+
+// ✅ REQUIRED - Effect
+const names = Array.map(users, (u) => u.name)
+const active = Array.filter(users, (u) => u.isActive)
+const first = Array.head(users) // Option<User>
+const found = Array.findFirst(users, (u) => u.id === id) // Option<User>
+```
+
+**Pattern matching (replace switch):**
+```typescript
+// ❌ FORBIDDEN - Switch statements
+switch (action._tag) {
+  case 'Create': return handleCreate()
+  case 'Update': return handleUpdate()
+  default: throw new Error('Unknown')
+}
+
+// ✅ REQUIRED - Match module
+pipe(
+  Match.type<Action>(),
+  Match.when({ _tag: 'Create' }, () => handleCreate()),
+  Match.when({ _tag: 'Update' }, () => handleUpdate()),
+  Match.exhaustive
+)(action)
+```
+
+**Nullable handling:**
+```typescript
+// ❌ FORBIDDEN - Nullable handling
+const value = maybeValue ?? 'default'
+const result = user ? user.name : 'Anonymous'
+
+// ✅ REQUIRED - Option module
+const value = Option.getOrElse(maybeOption, () => 'default')
+const result = Option.match(maybeUser, {
+  onNone: () => 'Anonymous',
+  onSome: (user) => user.name,
+})
+```
+
+**Object operations:**
+```typescript
+// ❌ FORBIDDEN - Native Object methods
+const keys = Object.keys(config)
+const values = Object.values(config)
+const updated = { ...user, name: 'New Name' }
+
+// ✅ REQUIRED - Record and Struct modules
+const keys = Record.keys(config)
+const values = Record.values(config)
+const updated = Struct.evolve(user, { name: () => 'New Name' })
+```
+
 **Service definition:**
 ```typescript
 export class MyService extends Effect.Service<MyService>()('MyService', {
@@ -470,7 +594,13 @@ export const createMockUserRepository = (
 ): Layer.Layer<UserRepository> => {
   const repo: IUserRepository = {
     findAll: () => Effect.succeed(users),
-    findById: (id) => Effect.succeed(users.find(u => u.id === id) ?? null),
+    findById: (id) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(users, (u) => u.id === id),
+          Option.getOrNull
+        )
+      ),
     // ... other methods
   }
   return Layer.succeed(UserRepository, repo)
@@ -535,11 +665,21 @@ When adding a new domain/service:
 ## Important Notes
 
 1. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
-2. **Prefer Effect utilities** - Use Effect.map, Effect.forEach, Effect.all, Match, and the Array module instead of native JS methods
-3. **Type safety** - Leverage Effect Schema for runtime validation
-4. **Layer composition** - Properly provide all dependencies via Layers
-5. **Error propagation** - Use typed errors that flow through the Effect system
-6. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases at compile and runtime
-7. **No semicolons** - Biome enforces this automatically
-8. **Single quotes** - Use single quotes for strings
-9. **Use bunx, not npx** - Always use `bunx` instead of `npx` for running CLI tools (e.g., `bunx tsc --build` for type checking)
+2. **NEVER use native array methods** - Always use Effect's Array module (`.map()`, `.filter()`, `.reduce()` are FORBIDDEN)
+3. **NEVER use switch statements** - Always use Match module with `Match.exhaustive`
+4. **NEVER use null/undefined directly** - Wrap in Option and use Option utilities
+5. **ALWAYS use pipe()** - For all data transformations, use `pipe()` for composition
+6. **Use Effect.gen for effects** - Use `Effect.gen` for effectful sequences, `pipe` for pure transformations
+7. **Type safety** - Leverage Effect Schema for runtime validation
+8. **Layer composition** - Properly provide all dependencies via Layers
+9. **Error propagation** - Use typed errors that flow through the Effect system
+10. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases at compile and runtime
+11. **No semicolons** - Biome enforces this automatically
+12. **Single quotes** - Use single quotes for strings
+
+## Effect Documentation
+
+An Effect documentation MCP server is available for reference. Use it to:
+- Look up Effect module APIs (Array, Option, Match, Record, Struct, etc.)
+- Find correct function signatures and usage patterns
+- Discover available utilities for any Effect module

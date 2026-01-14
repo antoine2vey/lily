@@ -1,7 +1,7 @@
 import { HttpServerRequest } from '@effect/platform'
 import { Auth } from '@lily/api/services/auth/auth'
 import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option, pipe } from 'effect'
 
 interface MockSession {
   user: UserProfile
@@ -52,43 +52,34 @@ export const createMockAuth = (
   sessionOrOptions: MockSession | null | MockAuthOptions
 ): Layer.Layer<Auth> => {
   // Handle backwards compatibility
+  const emptyObj = {}
   const options: MockAuthOptions =
     sessionOrOptions === null ||
-    ('user' in (sessionOrOptions ?? {}) &&
-      'session' in (sessionOrOptions ?? {}))
+    ('user' in
+      pipe(
+        Option.fromNullable(sessionOrOptions),
+        Option.getOrElse(() => emptyObj)
+      ) &&
+      'session' in
+        pipe(
+          Option.fromNullable(sessionOrOptions),
+          Option.getOrElse(() => emptyObj)
+        ))
       ? { session: sessionOrOptions as MockSession | null }
       : (sessionOrOptions as MockAuthOptions)
 
   const mockClient: MockAuthClient = {
     api: {
       signInMagicLink: async () =>
-        options.magicLinkResponse ?? { message: 'Magic link sent' },
+        pipe(
+          Option.fromNullable(options.magicLinkResponse),
+          Option.getOrElse(() => ({ message: 'Magic link sent' }))
+        ),
       magicLinkVerify: async () =>
-        options.verifyResponse ?? {
-          token: 'mock-token',
-          user: {
-            id: 'user-1',
-            name: 'Test User',
-            email: 'test@example.com',
-            username: 'testuser',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            role: 'user',
-            status: 'active',
-          },
-        },
-      sendVerificationEmail: async () => {
-        if (options.sendVerificationEmailError) {
-          throw new Error('Failed to send verification email')
-        }
-        return options.sendVerificationEmailResponse ?? { status: true }
-      },
-      verifyEmail: async () => {
-        if (options.verifyEmailError) {
-          throw new Error('Invalid or expired verification token')
-        }
-        return (
-          options.verifyEmailResponse ?? {
+        pipe(
+          Option.fromNullable(options.verifyResponse),
+          Option.getOrElse(() => ({
+            token: 'mock-token',
             user: {
               id: 'user-1',
               name: 'Test User',
@@ -96,10 +87,38 @@ export const createMockAuth = (
               username: 'testuser',
               createdAt: new Date(),
               updatedAt: new Date(),
-              role: 'user',
-              status: 'active',
+              role: 'user' as const,
+              status: 'active' as const,
             },
-          }
+          }))
+        ),
+      sendVerificationEmail: async () => {
+        if (options.sendVerificationEmailError) {
+          throw new Error('Failed to send verification email')
+        }
+        return pipe(
+          Option.fromNullable(options.sendVerificationEmailResponse),
+          Option.getOrElse(() => ({ status: true }))
+        )
+      },
+      verifyEmail: async () => {
+        if (options.verifyEmailError) {
+          throw new Error('Invalid or expired verification token')
+        }
+        return pipe(
+          Option.fromNullable(options.verifyEmailResponse),
+          Option.getOrElse(() => ({
+            user: {
+              id: 'user-1',
+              name: 'Test User',
+              email: 'test@example.com',
+              username: 'testuser',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              role: 'user' as const,
+              status: 'active' as const,
+            },
+          }))
         )
       },
     },
@@ -107,7 +126,9 @@ export const createMockAuth = (
 
   const mockService: AuthService = {
     client: Effect.succeed(mockClient),
-    session: Effect.succeed(options.session ?? null),
+    session: Effect.succeed(
+      pipe(Option.fromNullable(options.session), Option.getOrNull)
+    ),
   }
 
   return Layer.succeed(Auth, mockService as unknown as typeof Auth.Service)

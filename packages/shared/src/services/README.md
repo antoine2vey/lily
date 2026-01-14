@@ -353,9 +353,9 @@ export const InMemoryEventBusLive = Layer.effect(
         }),
 
       dequeue: () =>
-        Effect.sync(() => {
-          return queue.shift() ?? null
-        })
+        Effect.sync(() =>
+          pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        ),
     }
   })
 )
@@ -438,7 +438,8 @@ export const MyServiceLive = Layer.effect(
                 message: String(error),
                 code: 'API_ERROR',
               }),
-          })
+          }),
+          { concurrency: 'unbounded' }
         ),
     }
   })
@@ -486,10 +487,15 @@ export const createMockMyService = (options: {
 } = {}): Layer.Layer<MyService> => {
   const service: IMyService = {
     performAction: (input) =>
-      Effect.succeed(options.performActionResult ?? `Mock result for ${input}`),
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(options.performActionResult),
+          Option.getOrElse(() => `Mock result for ${input}`)
+        )
+      ),
 
     batchAction: (inputs) =>
-      Effect.succeed(inputs.map((i) => `Mock result for ${i}`)),
+      Effect.succeed(Array.map(inputs, (i) => `Mock result for ${i}`)),
   }
 
   return Layer.succeed(MyService, service)

@@ -3,7 +3,7 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
-import { Effect } from 'effect'
+import { Array, Effect, Option } from 'effect'
 
 // Unlock achievement
 export const unlockAchievement = (
@@ -21,21 +21,24 @@ export const unlockAchievement = (
     if (!unlocked) {
       // Achievement already exists - fetch and return it
       const existing = yield* repo.findByUserId(userId)
-      const found = existing.find((a) => a.achievement === request.achievement)
+      const foundOption = Array.findFirst(
+        existing,
+        (a) => a.achievement === request.achievement
+      )
 
-      if (!found) {
-        return yield* Effect.fail(new DatabaseError())
-      }
-
-      return {
-        id: found.id,
-        key: found.achievement,
-        name: ACHIEVEMENTS[found.achievement].name,
-        description: ACHIEVEMENTS[found.achievement].description,
-        iconUrl: ACHIEVEMENTS[found.achievement].iconUrl,
-        unlockedAt: found.unlockedAt,
-        userId,
-      }
+      return yield* Option.match(foundOption, {
+        onNone: () => Effect.fail(new DatabaseError()),
+        onSome: (found) =>
+          Effect.succeed({
+            id: found.id,
+            key: found.achievement,
+            name: ACHIEVEMENTS[found.achievement].name,
+            description: ACHIEVEMENTS[found.achievement].description,
+            iconUrl: ACHIEVEMENTS[found.achievement].iconUrl,
+            unlockedAt: found.unlockedAt,
+            userId,
+          }),
+      })
     }
 
     return {

@@ -8,7 +8,7 @@ import type {
   NotificationsListResponse,
 } from '@lily/shared/notification'
 import { and, count, desc, eq, lte, sql } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface FindNotificationsParams {
@@ -36,13 +36,13 @@ const mapToNotification = (
   title: row.title,
   body: row.body,
   scheduledAt: row.scheduledAt,
-  sentAt: row.sentAt ?? undefined,
+  sentAt: Option.getOrUndefined(Option.fromNullable(row.sentAt)),
   isRead: row.isRead,
   status: row.status as NotificationStatus,
   retryCount: row.retryCount,
-  lastError: row.lastError ?? undefined,
+  lastError: Option.getOrUndefined(Option.fromNullable(row.lastError)),
   userId: row.userId,
-  plantId: row.plantId ?? undefined,
+  plantId: Option.getOrUndefined(Option.fromNullable(row.plantId)),
   createdAt: row.createdAt,
 })
 
@@ -102,8 +102,14 @@ export const NotificationRepositoryLive = Layer.effect(
     return {
       findByUserId: (params: FindNotificationsParams) =>
         Effect.gen(function* () {
-          const page = params.page ?? 1
-          const limit = params.limit ?? 20
+          const page = pipe(
+            Option.fromNullable(params.page),
+            Option.getOrElse(() => 1)
+          )
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 20)
+          )
           const offset = (page - 1) * limit
 
           const filterConditions =
@@ -118,7 +124,11 @@ export const NotificationRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(notifications)
             .where(filterConditions)
-          const total = countResult[0]?.value ?? 0
+          const total = pipe(
+            Array.head(countResult),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0)
+          )
 
           const rows = yield* db
             .select()
@@ -128,7 +138,12 @@ export const NotificationRepositoryLive = Layer.effect(
             .limit(limit)
             .orderBy(desc(notifications.createdAt))
 
-          return paginate(rows.map(mapToNotification), total, page, limit)
+          return paginate(
+            Array.map(rows, mapToNotification),
+            total,
+            page,
+            limit
+          )
         }),
 
       findById: (id: string) =>
@@ -160,7 +175,7 @@ export const NotificationRepositoryLive = Layer.effect(
               body: data.body,
               scheduledAt: data.scheduledAt,
               userId: data.userId,
-              plantId: data.plantId ?? null,
+              plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
             })
             .returning()
           return row ? mapToNotification(row) : null
@@ -189,7 +204,7 @@ export const NotificationRepositoryLive = Layer.effect(
             )
             .orderBy(notifications.scheduledAt)
             .limit(limit)
-          return rows.map(mapToNotification)
+          return Array.map(rows, mapToNotification)
         }),
 
       markAsQueued: (id: string) =>
@@ -272,7 +287,13 @@ export const NotificationRepositoryLive = Layer.effect(
                 sql`${notifications.sentAt} < ${tomorrow}`
               )
             )
-          return (result?.count ?? 0) > 0
+          return (
+            pipe(
+              Option.fromNullable(result),
+              Option.flatMap((r) => Option.fromNullable(r.count)),
+              Option.getOrElse(() => 0)
+            ) > 0
+          )
         }),
     }
   })

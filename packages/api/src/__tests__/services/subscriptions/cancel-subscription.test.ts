@@ -8,7 +8,7 @@ import {
 } from '@lily/api/services/subscriptions/service'
 import type { userSubscriptions } from '@lily/db'
 import { PaymentProviderError, SubscriptionNotFoundError } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('cancelSubscription', () => {
@@ -17,7 +17,10 @@ describe('cancelSubscription', () => {
     cancelCalls?: string[]
     shouldFail?: boolean
   }) => {
-    const cancelCalls = options.cancelCalls ?? []
+    const cancelCalls = pipe(
+      Option.fromNullable(options.cancelCalls),
+      Option.getOrElse(() => [] as string[])
+    )
 
     const provider: IPaymentProvider = {
       createCheckoutSession: () =>
@@ -60,18 +63,32 @@ describe('cancelSubscription', () => {
     cancelCalls?: string[]
     logEvents?: Array<{ userId: string; event: string }>
   }) => {
-    const cancelCalls = options.cancelCalls ?? []
-    const logEvents = options.logEvents ?? []
+    const cancelCalls = pipe(
+      Option.fromNullable(options.cancelCalls),
+      Option.getOrElse(() => [] as string[])
+    )
+    const logEvents = pipe(
+      Option.fromNullable(options.logEvents),
+      Option.getOrElse(() => [] as Array<{ userId: string; event: string }>)
+    )
 
     const repo: ISubscriptionRepository = {
-      findByUserId: () => Effect.succeed(options.subscription ?? null),
-      findByExternalId: () => Effect.succeed(options.subscription ?? null),
+      findByUserId: () =>
+        Effect.succeed(
+          pipe(Option.fromNullable(options.subscription), Option.getOrNull)
+        ),
+      findByExternalId: () =>
+        Effect.succeed(
+          pipe(Option.fromNullable(options.subscription), Option.getOrNull)
+        ),
       create: () => Effect.succeed(null),
       updateStatus: () => Effect.succeed(null),
       updateFromWebhook: () => Effect.succeed(null),
       cancel: (userId: string) => {
         cancelCalls.push(userId)
-        return Effect.succeed(options.subscription ?? null)
+        return Effect.succeed(
+          pipe(Option.fromNullable(options.subscription), Option.getOrNull)
+        )
       },
       getTier: () =>
         Effect.succeed({
@@ -158,7 +175,7 @@ describe('cancelSubscription', () => {
     expect(paymentMock.cancelCalls).toContain('sub_stripe_123')
     expect(repoMock.cancelCalls).toContain('user-1')
     expect(
-      repoMock.logEvents.some((e) => e.event === 'subscription_canceled')
+      Array.some(repoMock.logEvents, (e) => e.event === 'subscription_canceled')
     ).toBe(true)
   })
 
@@ -265,8 +282,12 @@ describe('cancelSubscription', () => {
       )
     )
 
-    const cancelEvent = repoMock.logEvents.find(
-      (e) => e.event === 'subscription_canceled'
+    const cancelEvent = pipe(
+      Array.findFirst(
+        repoMock.logEvents,
+        (e) => e.event === 'subscription_canceled'
+      ),
+      Option.getOrUndefined
     )
     expect(cancelEvent).toBeDefined()
     expect(cancelEvent?.userId).toBe('user-1')

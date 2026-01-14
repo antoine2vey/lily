@@ -4,7 +4,7 @@ import {
 } from '@lily/api/repositories/achievement.repository'
 import type { userAchievements } from '@lily/db'
 import type { AchievementKey } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type UserAchievement = typeof userAchievements.$inferSelect
 
@@ -26,20 +26,24 @@ export const createMockAchievementRepository = (
 
   const repo: IAchievementRepository = {
     findByUserId: (userId: string) =>
-      Effect.succeed(unlockedAchievements.filter((a) => a.userId === userId)),
+      Effect.succeed(
+        Array.filter(unlockedAchievements, (a) => a.userId === userId)
+      ),
 
     hasAchievement: (userId: string, key: AchievementKey) =>
       Effect.succeed(
-        unlockedAchievements.some(
+        Array.some(
+          unlockedAchievements,
           (a) => a.userId === userId && a.achievement === key
         )
       ),
 
     unlock: (userId: string, key: AchievementKey) => {
-      const existing = unlockedAchievements.find(
+      const existingOption = Array.findFirst(
+        unlockedAchievements,
         (a) => a.userId === userId && a.achievement === key
       )
-      if (existing) {
+      if (Option.isSome(existingOption)) {
         return Effect.succeed(null)
       }
       const newAchievement: UserAchievement = {
@@ -55,27 +59,71 @@ export const createMockAchievementRepository = (
     countCareLogsByType: (
       _userId: string,
       type: 'watering' | 'fertilization'
-    ) => Effect.succeed(data.careLogCounts?.[type] ?? 0),
+    ) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.careLogCounts),
+          Option.flatMap((counts) => Option.fromNullable(counts[type])),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
-    countPlants: (_userId: string) => Effect.succeed(data.plantCount ?? 0),
+    countPlants: (_userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.plantCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
-    countPhotos: (_userId: string) => Effect.succeed(data.photoCount ?? 0),
+    countPhotos: (_userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.photoCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
-    getCareStreak: (_userId: string) => Effect.succeed(data.careStreak ?? 0),
+    getCareStreak: (_userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.careStreak),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
-    countScans: (_userId: string) => Effect.succeed(data.scanCount ?? 0),
+    countScans: (_userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.scanCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
     countPhotosForPlant: (_userId: string, _plantId: string) =>
-      Effect.succeed(data.plantPhotoCount ?? 0),
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.plantPhotoCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
     incrementHistoryViews: (_userId: string) => {
-      const currentCount = data.historyViewCount ?? 0
+      const currentCount = pipe(
+        Option.fromNullable(data.historyViewCount),
+        Option.getOrElse(() => 0)
+      )
       data.historyViewCount = currentCount + 1
       return Effect.succeed(data.historyViewCount)
     },
 
     getHistoryViewCount: (_userId: string) =>
-      Effect.succeed(data.historyViewCount ?? 0),
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.historyViewCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
   }
 
   return Layer.succeed(AchievementRepository, repo)

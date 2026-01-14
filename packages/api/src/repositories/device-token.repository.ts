@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { deviceTokens } from '@lily/db'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { and, eq } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
 export interface CreateDeviceTokenData {
@@ -89,7 +89,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .select()
             .from(deviceTokens)
             .where(eq(deviceTokens.userId, userId))
-          return rows.map(mapToDeviceToken)
+          return Array.map(rows, mapToDeviceToken)
         }),
 
       findByTokenAndUserId: (token: string, userId: string) =>

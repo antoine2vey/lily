@@ -2,7 +2,7 @@ import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achie
 import type { AppEvent } from '@lily/api/events'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('Achievement Checker', () => {
@@ -30,9 +30,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'FIRST_PLANT_ADDED')).toBe(
-        true
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'FIRST_PLANT_ADDED')
+      ).toBe(true)
     })
 
     it('should unlock PLANT_COLLECTOR when user has 5+ plants', async () => {
@@ -58,7 +58,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'PLANT_COLLECTOR')).toBe(true)
+      expect(
+        Array.some(result, (a) => a.achievement === 'PLANT_COLLECTOR')
+      ).toBe(true)
     })
 
     it('should not unlock PLANT_COLLECTOR when user has less than 5 plants', async () => {
@@ -84,9 +86,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'PLANT_COLLECTOR')).toBe(
-        false
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'PLANT_COLLECTOR')
+      ).toBe(false)
     })
   })
 
@@ -117,7 +119,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'WATERING_NOVICE')).toBe(true)
+      expect(
+        Array.some(result, (a) => a.achievement === 'WATERING_NOVICE')
+      ).toBe(true)
     })
 
     it('should not unlock WATERING_NOVICE when user has less than 10 waterings', async () => {
@@ -146,9 +150,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'WATERING_NOVICE')).toBe(
-        false
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'WATERING_NOVICE')
+      ).toBe(false)
     })
 
     it('should unlock FERTILIZER_GURU when user has 10+ fertilizations', async () => {
@@ -177,7 +181,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'FERTILIZER_GURU')).toBe(true)
+      expect(
+        Array.some(result, (a) => a.achievement === 'FERTILIZER_GURU')
+      ).toBe(true)
     })
 
     it('should unlock DEDICATED_CARETAKER when user has 3+ day streak', async () => {
@@ -206,9 +212,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'DEDICATED_CARETAKER')).toBe(
-        true
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'DEDICATED_CARETAKER')
+      ).toBe(true)
     })
 
     it('should not unlock DEDICATED_CARETAKER when streak is less than 3 days', async () => {
@@ -237,9 +243,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'DEDICATED_CARETAKER')).toBe(
-        false
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'DEDICATED_CARETAKER')
+      ).toBe(false)
     })
   })
 
@@ -267,9 +273,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'AI_CONVERSATIONALIST')).toBe(
-        true
-      )
+      expect(
+        Array.some(result, (a) => a.achievement === 'AI_CONVERSATIONALIST')
+      ).toBe(true)
     })
   })
 
@@ -298,7 +304,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'PHOTO_PRO')).toBe(true)
+      expect(Array.some(result, (a) => a.achievement === 'PHOTO_PRO')).toBe(
+        true
+      )
     })
 
     it('should not unlock PHOTO_PRO when user has less than 10 photos', async () => {
@@ -325,7 +333,9 @@ describe('Achievement Checker', () => {
         }).pipe(Effect.provide(mockRepo))
       )
 
-      expect(result.some((a) => a.achievement === 'PHOTO_PRO')).toBe(false)
+      expect(Array.some(result, (a) => a.achievement === 'PHOTO_PRO')).toBe(
+        false
+      )
     })
   })
 
@@ -380,7 +390,8 @@ describe('Achievement Checker', () => {
       )
 
       // Should only have one AI_CONVERSATIONALIST achievement
-      const aiConversationalistCount = result.filter(
+      const aiConversationalistCount = Array.filter(
+        result,
         (a) => a.achievement === 'AI_CONVERSATIONALIST'
       ).length
       expect(aiConversationalistCount).toBe(1)

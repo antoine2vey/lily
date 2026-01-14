@@ -148,12 +148,14 @@ export const createMockPlantRepository = (
       total: plants.length,
     }),
 
-    findById: (id) => {
-      const plant = plants.find((p) => p.id === id)
-      return plant
-        ? Effect.succeed(plant)
-        : Effect.fail(new PlantNotFoundError({ id }))
-    },
+    findById: (id) =>
+      pipe(
+        Array.findFirst(plants, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.fail(new PlantNotFoundError({ id })),
+          onSome: (plant) => Effect.succeed(plant),
+        })
+      ),
 
     create: (data) =>
       Effect.succeed({
@@ -163,21 +165,23 @@ export const createMockPlantRepository = (
         updatedAt: new Date(),
       }),
 
-    update: (id, data) => {
-      const plant = plants.find((p) => p.id === id)
-      if (!plant) {
-        return Effect.fail(new PlantNotFoundError({ id }))
-      }
-      return Effect.succeed({ ...plant, ...data })
-    },
+    update: (id, data) =>
+      pipe(
+        Array.findFirst(plants, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.fail(new PlantNotFoundError({ id })),
+          onSome: (plant) => Effect.succeed({ ...plant, ...data }),
+        })
+      ),
 
-    delete: (id) => {
-      const plant = plants.find((p) => p.id === id)
-      if (!plant) {
-        return Effect.fail(new PlantNotFoundError({ id }))
-      }
-      return Effect.succeed(plant)
-    },
+    delete: (id) =>
+      pipe(
+        Array.findFirst(plants, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.fail(new PlantNotFoundError({ id })),
+          onSome: (plant) => Effect.succeed(plant),
+        })
+      ),
 
     // ... other methods
   }
@@ -530,7 +534,7 @@ it('should filter by health status', async () => {
     findPlants({ health: 'needs_attention' }).pipe(Effect.provide(testLayer))
   )
 
-  expect(result.items.every(p => p.health === 'needs_attention')).toBe(true)
+  expect(Array.every(result.items, (p) => p.health === 'needs_attention')).toBe(true)
 })
 ```
 

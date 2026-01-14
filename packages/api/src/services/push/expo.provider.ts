@@ -6,7 +6,7 @@ import {
   PushService,
   type PushTicket,
 } from '@lily/shared'
-import { Config, Effect, Layer } from 'effect'
+import { Array, Config, Effect, Layer, Option, pipe } from 'effect'
 import Expo, {
   type ExpoPushMessage,
   type ExpoPushTicket,
@@ -92,7 +92,10 @@ export const ExpoPushServiceLive = Layer.effect(
           if (ticket.status === 'error') {
             return yield* Effect.fail(
               new PushSendError({
-                message: ticket.message ?? 'Unknown push error',
+                message: pipe(
+                  Option.fromNullable(ticket.message),
+                  Option.getOrElse(() => 'Unknown push error')
+                ),
                 cause: ticket.details,
               })
             )
@@ -107,20 +110,21 @@ export const ExpoPushServiceLive = Layer.effect(
       sendBatch: (messages) =>
         Effect.gen(function* () {
           // Validate all tokens
-          const invalidTokens = messages.filter(
+          const invalidTokens = Array.filter(
+            messages,
             (m) => !Expo.isExpoPushToken(m.to)
           )
           if (invalidTokens.length > 0) {
             return yield* Effect.fail(
               new PushConfigError({
-                message: `Invalid Expo push tokens: ${invalidTokens.map((t) => t.to).join(', ')}`,
+                message: `Invalid Expo push tokens: ${Array.map(invalidTokens, (t) => t.to).join(', ')}`,
               })
             )
           }
 
           // Chunk messages (Expo recommends max 100 per batch)
           const chunks = expo.chunkPushNotifications(
-            messages.map(buildExpoMessage)
+            Array.map(messages, buildExpoMessage)
           )
 
           const tickets: PushTicket[] = []

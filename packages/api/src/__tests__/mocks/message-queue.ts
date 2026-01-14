@@ -4,7 +4,7 @@ import {
   type NotificationTopic,
   type QueueMessage,
 } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockMessageQueueOptions {
   onEnqueue?: (topic: NotificationTopic, message: QueueMessage) => void
@@ -42,7 +42,7 @@ export const createMockMessageQueue = (
           return options.onDequeue(topic)
         }
         const queue = getQueue(topic)
-        return queue.shift() ?? null
+        return pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
       }),
 
     ack: (topic, messageId) =>
@@ -82,7 +82,7 @@ export const createMockMessageQueueWithMessages = (
       Effect.sync(() => {
         const queue = queues.get(topic)
         if (!queue || queue.length === 0) return null
-        return queue.shift() ?? null
+        return pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
       }),
 
     ack: (_topic, _messageId) => Effect.void,

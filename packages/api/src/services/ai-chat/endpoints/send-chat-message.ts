@@ -9,7 +9,7 @@ import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError } from '@lily/shared'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { Array as Arr, Effect, Stream } from 'effect'
+import { Array as Arr, Effect, Option, pipe, Stream } from 'effect'
 
 const DISEASE_KEYWORDS = [
   'disease',
@@ -56,7 +56,10 @@ export const sendChatMessage = (
     // Check if user has reached their AI chat limit
     yield* limitChecker.checkAiChatLimit(userId)
 
-    const userMessage = request.message ?? ''
+    const userMessage = pipe(
+      Option.fromNullable(request.message),
+      Option.getOrElse(() => '')
+    )
 
     const savedUserMessage = yield* chatRepo.create({
       role: 'user',

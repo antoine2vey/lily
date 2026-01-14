@@ -2,7 +2,7 @@ import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-history'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getChatHistory', () => {
@@ -20,8 +20,12 @@ describe('getChatHistory', () => {
     )
 
     expect(result.items.length).toBe(3)
-    expect(result.items.every((msg) => msg.plantId === 'plant-1')).toBe(true)
-    expect(result.items.every((msg) => msg.userId === 'user-1')).toBe(true)
+    expect(Array.every(result.items, (msg) => msg.plantId === 'plant-1')).toBe(
+      true
+    )
+    expect(Array.every(result.items, (msg) => msg.userId === 'user-1')).toBe(
+      true
+    )
     expect(result.total).toBe(3)
     expect(result.page).toBe(1)
     expect(result.limit).toBe(20)
@@ -48,8 +52,12 @@ describe('getChatHistory', () => {
     )
 
     // user-2 has a message on plant-1 but should not be returned
-    expect(result.items.every((msg) => msg.userId === 'user-1')).toBe(true)
-    expect(result.items.some((msg) => msg.userId === 'user-2')).toBe(false)
+    expect(Array.every(result.items, (msg) => msg.userId === 'user-1')).toBe(
+      true
+    )
+    expect(Array.some(result.items, (msg) => msg.userId === 'user-2')).toBe(
+      false
+    )
   })
 
   it('should return messages sorted by createdAt ascending', async () => {
@@ -61,7 +69,7 @@ describe('getChatHistory', () => {
 
     // Verify we have messages and they have createdAt fields
     expect(result.items.length).toBeGreaterThan(1)
-    expect(result.items.every((msg) => msg.createdAt != null)).toBe(true)
+    expect(Array.every(result.items, (msg) => msg.createdAt != null)).toBe(true)
   })
 
   it('should return messages with correct structure', async () => {

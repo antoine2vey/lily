@@ -8,7 +8,7 @@ import {
   PushService,
   type QueueMessage,
 } from '@lily/shared'
-import { Effect, Match, Schedule } from 'effect'
+import { Array, Effect, Match, Schedule } from 'effect'
 
 const MAX_RETRIES = 3
 
@@ -26,7 +26,7 @@ export const processMessage = (message: QueueMessage) =>
 
     // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)
-    const activeTokens = tokens.filter((t) => t.isActive)
+    const activeTokens = Array.filter(tokens, (t) => t.isActive)
 
     if (activeTokens.length === 0) {
       yield* Effect.logWarning('No active device tokens for user', {
@@ -39,7 +39,7 @@ export const processMessage = (message: QueueMessage) =>
     }
 
     // Send to all active devices
-    const pushMessages = activeTokens.map((token) => ({
+    const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
       title: message.payload.title,
       body: message.payload.body,
@@ -50,7 +50,7 @@ export const processMessage = (message: QueueMessage) =>
     const results = yield* pushService.sendBatch(pushMessages)
 
     // Check if any failed
-    const failures = results.filter((r) => r.status === 'error')
+    const failures = Array.filter(results, (r) => r.status === 'error')
     if (failures.length > 0) {
       yield* Effect.logWarning('Some push notifications failed', {
         total: results.length,

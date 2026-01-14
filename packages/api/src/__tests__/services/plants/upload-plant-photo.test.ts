@@ -7,7 +7,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('uploadPlantPhoto', () => {
@@ -85,7 +85,9 @@ describe('uploadPlantPhoto', () => {
     )
 
     expect(publishedEvents.length).toBe(2)
-    expect(publishedEvents.every((e) => e._tag === 'PhotoUploaded')).toBe(true)
+    expect(
+      Array.every(publishedEvents, (e) => e._tag === 'PhotoUploaded')
+    ).toBe(true)
   })
 
   it('should handle empty files array', async () => {

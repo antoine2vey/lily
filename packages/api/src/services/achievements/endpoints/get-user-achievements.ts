@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import type { Achievement } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 
 // Get user achievements
 export const getUserAchievements = (
@@ -12,7 +12,7 @@ export const getUserAchievements = (
     const repo = yield* AchievementRepository
     const unlocked = yield* repo.findByUserId(userId)
 
-    return unlocked.map((ua) => ({
+    return Array.map(unlocked, (ua) => ({
       id: ua.id,
       key: ua.achievement,
       name: ACHIEVEMENTS[ua.achievement].name,

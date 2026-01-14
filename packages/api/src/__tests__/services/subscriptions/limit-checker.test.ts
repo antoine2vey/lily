@@ -6,7 +6,7 @@ import {
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
 import { LimitExceededError } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('LimitChecker', () => {
@@ -25,7 +25,10 @@ describe('LimitChecker', () => {
       }),
       createMockAchievementRepository({
         achievements: [],
-        plantCount: options.plantCount ?? 0,
+        plantCount: pipe(
+          Option.fromNullable(options.plantCount),
+          Option.getOrElse(() => 0)
+        ),
       })
     )
   }

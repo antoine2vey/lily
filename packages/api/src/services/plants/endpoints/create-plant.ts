@@ -6,7 +6,7 @@ import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { Effect } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
@@ -30,7 +30,10 @@ export const createPlant = (
       category: request.category || null,
       humidityRating: request.humidityRating || 0,
       lightingRating: 0, // Default value
-      petToxicityRating: request.petToxicityRating ?? 0,
+      petToxicityRating: pipe(
+        Option.fromNullable(request.petToxicityRating),
+        Option.getOrElse(() => 0)
+      ),
       wateringRating: 0, // Default value
       wateringFrequencyDays: request.wateringFrequencyDays,
       health: 'HEALTHY', // Default value

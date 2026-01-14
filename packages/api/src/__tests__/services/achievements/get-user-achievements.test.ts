@@ -1,7 +1,7 @@
 import { mockUserAchievements } from '@lily/api/__tests__/fixtures/achievements'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { getUserAchievements } from '@lily/api/services/achievements/endpoints/get-user-achievements'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getUserAchievements', () => {
@@ -60,6 +60,6 @@ describe('getUserAchievements', () => {
       getUserAchievements('user-1').pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result.every((a) => a.userId === 'user-1')).toBe(true)
+    expect(Array.every(result, (a) => a.userId === 'user-1')).toBe(true)
   })
 })
