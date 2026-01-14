@@ -3,7 +3,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getCareLogs } from '@lily/api/services/care-logs/endpoints/get-care-logs'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getCareLogs', () => {
@@ -22,7 +22,9 @@ describe('getCareLogs', () => {
     )
 
     expect(result.items.length).toBe(3)
-    expect(result.items.every((log) => log.plantId === 'plant-1')).toBe(true)
+    expect(Array.every(result.items, (log) => log.plantId === 'plant-1')).toBe(
+      true
+    )
     expect(result.total).toBe(3)
     expect(result.page).toBe(1)
     expect(result.limit).toBe(20)
@@ -48,7 +50,9 @@ describe('getCareLogs', () => {
       )
     )
 
-    expect(result.items.every((log) => log.type === 'watering')).toBe(true)
+    expect(Array.every(result.items, (log) => log.type === 'watering')).toBe(
+      true
+    )
     expect(result.items.length).toBe(2)
   })
 
@@ -59,7 +63,9 @@ describe('getCareLogs', () => {
       )
     )
 
-    expect(result.items.every((log) => log.type === 'fertilization')).toBe(true)
+    expect(
+      Array.every(result.items, (log) => log.type === 'fertilization')
+    ).toBe(true)
     expect(result.items.length).toBe(1)
   })
 

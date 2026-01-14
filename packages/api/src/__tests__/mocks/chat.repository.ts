@@ -5,7 +5,7 @@ import {
 } from '@lily/api/repositories/chat.repository'
 import { paginate } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockChatRepositoryData {
   messages: ChatMessage[]
@@ -16,22 +16,29 @@ export const createMockChatRepository = (
 ): Layer.Layer<ChatRepository> => {
   const repo: IChatRepository = {
     findByPlantId: (params: FindChatHistoryParams) => {
-      const page = params.page ?? 1
-      const limit = params.limit ?? 20
+      const page = pipe(
+        Option.fromNullable(params.page),
+        Option.getOrElse(() => 1)
+      )
+      const limit = pipe(
+        Option.fromNullable(params.limit),
+        Option.getOrElse(() => 20)
+      )
       const offset = (page - 1) * limit
 
-      const filtered = data.messages.filter(
+      const filtered = Array.filter(
+        data.messages,
         (msg) => msg.plantId === params.plantId && msg.userId === params.userId
       )
 
       // Sort by createdAt ascending (oldest first)
-      filtered.sort(
+      const sorted = [...filtered].sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       )
 
-      const total = filtered.length
-      const items = filtered.slice(offset, offset + limit)
+      const total = sorted.length
+      const items = sorted.slice(offset, offset + limit)
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
@@ -51,7 +58,8 @@ export const createMockChatRepository = (
     },
 
     deleteByPlantId: (plantId: string, userId: string) => {
-      data.messages = data.messages.filter(
+      data.messages = Array.filter(
+        data.messages,
         (msg) => !(msg.plantId === plantId && msg.userId === userId)
       )
       return Effect.void

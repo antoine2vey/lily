@@ -4,7 +4,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { fertilizePlant } from '@lily/api/services/plants/endpoints/fertilize-plant'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('fertilizePlant', () => {
@@ -39,7 +39,10 @@ describe('fertilizePlant', () => {
 
     expect(result.nextFertilizationAt).toBeDefined()
     expect(result.lastFertilizedAt).toBeDefined()
-    const lastFertilizedTime = result.lastFertilizedAt?.getTime() ?? 0
+    const lastFertilizedTime = pipe(
+      Option.fromNullable(result.lastFertilizedAt?.getTime()),
+      Option.getOrElse(() => 0)
+    )
     const expectedNextFertilization = new Date(
       lastFertilizedTime + 30 * 24 * 60 * 60 * 1000
     )

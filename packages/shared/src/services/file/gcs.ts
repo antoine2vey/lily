@@ -1,5 +1,13 @@
 import { Storage } from '@google-cloud/storage'
-import { Config, Duration, Effect, Redacted, Schema } from 'effect'
+import {
+  Config,
+  Duration,
+  Effect,
+  Option,
+  pipe,
+  Redacted,
+  Schema,
+} from 'effect'
 
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
@@ -95,8 +103,10 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
           )
 
           // Generate key if not provided
-          const key =
-            validatedRequest.key ?? `${Date.now()}-${validatedRequest.fileName}`
+          const key = pipe(
+            Option.fromNullable(validatedRequest.key),
+            Option.getOrElse(() => `${Date.now()}-${validatedRequest.fileName}`)
+          )
 
           // Upload file to GCS
           const file = buckets.plant.file(key)
@@ -143,8 +153,10 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
           )
 
           // Generate key if not provided (same as uploadFile)
-          const key =
-            validatedRequest.key ?? `${Date.now()}-${validatedRequest.fileName}`
+          const key = pipe(
+            Option.fromNullable(validatedRequest.key),
+            Option.getOrElse(() => `${Date.now()}-${validatedRequest.fileName}`)
+          )
 
           // Upload file to GCS with private access
           const file = buckets.ai.file(key)

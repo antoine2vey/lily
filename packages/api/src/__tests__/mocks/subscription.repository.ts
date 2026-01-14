@@ -2,7 +2,7 @@ import type { ISubscriptionRepository } from '@lily/api/repositories/subscriptio
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
 import type { SubscriptionTier, TierConfig } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option, pipe } from 'effect'
 
 // Default free tier config
 const freeTierConfig: TierConfig = {
@@ -35,7 +35,15 @@ interface MockSubscriptionOptions {
 export const createMockSubscriptionRepository = (
   options: MockSubscriptionOptions = {}
 ): Layer.Layer<SubscriptionRepository> => {
-  const { subscription = null, usage = null, tier = 'free' } = options
+  const subscription = pipe(
+    Option.fromNullable(options.subscription),
+    Option.getOrNull
+  )
+  const usage = pipe(Option.fromNullable(options.usage), Option.getOrNull)
+  const tier = pipe(
+    Option.fromNullable(options.tier),
+    Option.getOrElse(() => 'free' as SubscriptionTier)
+  )
 
   const tierConfig = tier === 'paid' ? paidTierConfig : freeTierConfig
 
@@ -51,31 +59,37 @@ export const createMockSubscriptionRepository = (
     getCurrentUsage: () => Effect.succeed(usage),
     getOrCreateUsage: () =>
       Effect.succeed(
-        usage ?? {
-          id: 'usage-1',
-          userId: 'user-1',
-          periodStart: new Date(),
-          periodEnd: new Date(),
-          aiChatsCount: 0,
-          cardScansCount: 0,
-          plantIdentifiesCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
+        pipe(
+          Option.fromNullable(usage),
+          Option.getOrElse(() => ({
+            id: 'usage-1',
+            userId: 'user-1',
+            periodStart: new Date(),
+            periodEnd: new Date(),
+            aiChatsCount: 0,
+            cardScansCount: 0,
+            plantIdentifiesCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        )
       ),
     incrementUsage: () =>
       Effect.succeed(
-        usage ?? {
-          id: 'usage-1',
-          userId: 'user-1',
-          periodStart: new Date(),
-          periodEnd: new Date(),
-          aiChatsCount: 1,
-          cardScansCount: 0,
-          plantIdentifiesCount: 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
+        pipe(
+          Option.fromNullable(usage),
+          Option.getOrElse(() => ({
+            id: 'usage-1',
+            userId: 'user-1',
+            periodStart: new Date(),
+            periodEnd: new Date(),
+            aiChatsCount: 1,
+            cardScansCount: 0,
+            plantIdentifiesCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }))
+        )
       ),
     logEvent: () => Effect.void,
   }

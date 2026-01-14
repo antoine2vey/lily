@@ -2,7 +2,7 @@ import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getNotifications } from '@lily/api/services/notifications/endpoints/get-notifications'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getNotifications', () => {
@@ -18,7 +18,7 @@ describe('getNotifications', () => {
     )
 
     expect(result.items.length).toBe(2)
-    expect(result.items.every((n) => n.userId === 'user-1')).toBe(true)
+    expect(Array.every(result.items, (n) => n.userId === 'user-1')).toBe(true)
     expect(result.total).toBe(2)
     expect(result.page).toBe(1)
     expect(result.limit).toBe(20)
@@ -42,7 +42,10 @@ describe('getNotifications', () => {
       getNotifications({}).pipe(Effect.provide(createTestLayer()))
     )
 
-    const notification = result.items.find((n) => n.id === 'notification-1')
+    const notification = pipe(
+      Array.findFirst(result.items, (n) => n.id === 'notification-1'),
+      Option.getOrUndefined
+    )
     expect(notification).toBeDefined()
     expect(notification?.type).toBe('watering_reminder')
     expect(notification?.title).toBe('Time to water your Monstera')
@@ -55,8 +58,8 @@ describe('getNotifications', () => {
       getNotifications({}).pipe(Effect.provide(createTestLayer()))
     )
 
-    const readNotifications = result.items.filter((n) => n.isRead)
-    const unreadNotifications = result.items.filter((n) => !n.isRead)
+    const readNotifications = Array.filter(result.items, (n) => n.isRead)
+    const unreadNotifications = Array.filter(result.items, (n) => !n.isRead)
 
     expect(readNotifications.length).toBe(1)
     expect(unreadNotifications.length).toBe(1)

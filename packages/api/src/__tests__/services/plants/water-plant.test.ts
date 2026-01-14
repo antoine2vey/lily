@@ -4,7 +4,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('waterPlant', () => {
@@ -37,7 +37,10 @@ describe('waterPlant', () => {
 
     // plant-1 has wateringFrequencyDays = 7
     expect(result.lastWateredAt).toBeDefined()
-    const lastWateredTime = result.lastWateredAt?.getTime() ?? 0
+    const lastWateredTime = pipe(
+      Option.fromNullable(result.lastWateredAt?.getTime()),
+      Option.getOrElse(() => 0)
+    )
     const expectedNextWatering = new Date(
       lastWateredTime + 7 * 24 * 60 * 60 * 1000
     )

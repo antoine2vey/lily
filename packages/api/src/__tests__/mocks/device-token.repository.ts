@@ -3,24 +3,40 @@ import {
   type IDeviceTokenRepository,
 } from '@lily/api/repositories/device-token.repository'
 import type { DeviceToken } from '@lily/shared/device-token'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export const createMockDeviceTokenRepository = (
   tokens: DeviceToken[]
 ): Layer.Layer<DeviceTokenRepository> => {
   const repo: IDeviceTokenRepository = {
     findById: (id: string) =>
-      Effect.succeed(tokens.find((t) => t.id === id) ?? null),
+      Effect.succeed(
+        pipe(
+          Array.findFirst(tokens, (t) => t.id === id),
+          Option.getOrNull
+        )
+      ),
 
     findByToken: (token: string) =>
-      Effect.succeed(tokens.find((t) => t.token === token) ?? null),
+      Effect.succeed(
+        pipe(
+          Array.findFirst(tokens, (t) => t.token === token),
+          Option.getOrNull
+        )
+      ),
 
     findByUserId: (userId: string) =>
-      Effect.succeed(tokens.filter((t) => t.userId === userId)),
+      Effect.succeed(Array.filter(tokens, (t) => t.userId === userId)),
 
     findByTokenAndUserId: (token: string, userId: string) =>
       Effect.succeed(
-        tokens.find((t) => t.token === token && t.userId === userId) ?? null
+        pipe(
+          Array.findFirst(
+            tokens,
+            (t) => t.token === token && t.userId === userId
+          ),
+          Option.getOrNull
+        )
       ),
 
     create: (data) => {
@@ -37,15 +53,21 @@ export const createMockDeviceTokenRepository = (
     },
 
     update: (id, data) => {
-      const token = tokens.find((t) => t.id === id)
-      if (!token) return Effect.succeed(null)
-      return Effect.succeed({ ...token, ...data, updatedAt: new Date() })
+      const tokenOption = Array.findFirst(tokens, (t) => t.id === id)
+      return Option.match(tokenOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (token) =>
+          Effect.succeed({ ...token, ...data, updatedAt: new Date() }),
+      })
     },
 
-    delete: (id) => {
-      const token = tokens.find((t) => t.id === id)
-      return Effect.succeed(token ?? null)
-    },
+    delete: (id) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(tokens, (t) => t.id === id),
+          Option.getOrNull
+        )
+      ),
   }
 
   return Layer.succeed(DeviceTokenRepository, repo)

@@ -1,21 +1,24 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { MessageQueue, type NotificationTopic } from '@lily/shared'
-import { Effect } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 
 const POLL_INTERVAL = '1 minute'
 const BATCH_SIZE = 100
 
-// Map notification type to queue topic
-const mapNotificationTypeToTopic = (type: string): NotificationTopic | null => {
-  switch (type) {
-    case 'watering_reminder':
-      return 'watering_reminder'
-    case 'fertilization_reminder':
-      return 'fertilization_reminder'
-    default:
-      return null
-  }
-}
+// Map notification type to queue topic using Match
+const mapNotificationTypeToTopic = (
+  type: string
+): Option.Option<NotificationTopic> =>
+  pipe(
+    Match.value(type),
+    Match.when('watering_reminder', () =>
+      Option.some('watering_reminder' as const)
+    ),
+    Match.when('fertilization_reminder', () =>
+      Option.some('fertilization_reminder' as const)
+    ),
+    Match.orElse(() => Option.none())
+  )
 
 // Poll database and enqueue pending notifications
 export const pollAndEnqueue = Effect.gen(function* () {
@@ -32,15 +35,17 @@ export const pollAndEnqueue = Effect.gen(function* () {
   })
 
   for (const notification of pendingNotifications) {
-    const topic = mapNotificationTypeToTopic(notification.type)
+    const topicOption = mapNotificationTypeToTopic(notification.type)
 
-    if (!topic) {
+    if (Option.isNone(topicOption)) {
       yield* Effect.logWarning('Unknown notification type', {
         type: notification.type,
         id: notification.id,
       })
       continue
     }
+
+    const topic = topicOption.value
 
     yield* queue.enqueue(topic, {
       id: crypto.randomUUID(),

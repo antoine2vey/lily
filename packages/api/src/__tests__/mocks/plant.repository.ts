@@ -7,7 +7,7 @@ import {
 import type { plants } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
 
@@ -23,18 +23,24 @@ export const createMockPlantRepository = (
 
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
-      const page = params.page ?? 1
-      const limit = params.limit ?? 20
+      const page = pipe(
+        Option.fromNullable(params.page),
+        Option.getOrElse(() => 1)
+      )
+      const limit = pipe(
+        Option.fromNullable(params.limit),
+        Option.getOrElse(() => 20)
+      )
       const offset = (page - 1) * limit
 
       let filtered = [...plants]
 
       if (params.userId) {
-        filtered = filtered.filter((p) => p.userId === params.userId)
+        filtered = Array.filter(filtered, (p) => p.userId === params.userId)
       }
 
       if (params.filter === 'needsAttention') {
-        filtered = filtered.filter((p) => p.health === 'NEEDS_ATTENTION')
+        filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
       }
 
       if (params.sort === 'name') {
@@ -56,7 +62,12 @@ export const createMockPlantRepository = (
     },
 
     findById: (id: string) =>
-      Effect.succeed(plants.find((p) => p.id === id) ?? null),
+      Effect.succeed(
+        pipe(
+          Array.findFirst(plants, (p) => p.id === id),
+          Option.getOrNull
+        )
+      ),
 
     create: (data) => {
       const newPlant: PlantRecord = {
@@ -85,22 +96,34 @@ export const createMockPlantRepository = (
     },
 
     update: (id, data) => {
-      const plant = plants.find((p) => p.id === id)
-      if (!plant) return Effect.succeed(null)
-      return Effect.succeed({ ...plant, ...data, updatedAt: new Date() })
+      const plantOption = Array.findFirst(plants, (p) => p.id === id)
+      return Option.match(plantOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (plant) =>
+          Effect.succeed({ ...plant, ...data, updatedAt: new Date() }),
+      })
     },
 
-    delete: (id) => {
-      const plant = plants.find((p) => p.id === id)
-      return Effect.succeed(plant ?? null)
-    },
+    delete: (id) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(plants, (p) => p.id === id),
+          Option.getOrNull
+        )
+      ),
 
     findPhotos: (params: FindPhotosParams) => {
-      const page = params.page ?? 1
-      const limit = params.limit ?? 20
+      const page = pipe(
+        Option.fromNullable(params.page),
+        Option.getOrElse(() => 1)
+      )
+      const limit = pipe(
+        Option.fromNullable(params.limit),
+        Option.getOrElse(() => 20)
+      )
       const offset = (page - 1) * limit
 
-      const filtered = photos.filter((p) => p.plantId === params.plantId)
+      const filtered = Array.filter(photos, (p) => p.plantId === params.plantId)
       const total = filtered.length
       const items = filtered.slice(offset, offset + limit)
 
@@ -119,7 +142,7 @@ export const createMockPlantRepository = (
 
     addPhotos: (photosData) =>
       Effect.succeed(
-        photosData.map((p) => ({
+        Array.map(photosData, (p) => ({
           id: `photo-${crypto.randomUUID()}`,
           url: p.url,
           takenAt: p.takenAt,
@@ -127,10 +150,13 @@ export const createMockPlantRepository = (
         }))
       ),
 
-    deletePhoto: (photoId: string) => {
-      const photo = photos.find((p) => p.id === photoId)
-      return Effect.succeed(photo ?? null)
-    },
+    deletePhoto: (photoId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(photos, (p) => p.id === photoId),
+          Option.getOrNull
+        )
+      ),
 
     deletePhotoByPlantId: () => Effect.succeed(undefined),
   }

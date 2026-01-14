@@ -2,6 +2,7 @@ import * as schema from '@lily/db/schema'
 import { LimitExceededError } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
+import { Option, pipe } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -115,14 +116,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.plants)
         .where(eq(schema.plants.userId, user.id))
 
-      const plantCount = countResult?.count ?? 0
+      const plantCount = pipe(
+        Option.fromNullable(countResult?.count),
+        Option.getOrElse(() => 0)
+      )
 
       const [tierConfig] = await db
         .select()
         .from(schema.subscriptionTiers)
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
-      const maxPlants = tierConfig?.maxPlants ?? 5
+      const maxPlants = pipe(
+        Option.fromNullable(tierConfig?.maxPlants),
+        Option.getOrElse(() => 5)
+      )
 
       expect(plantCount).toBe(3)
       expect(plantCount < maxPlants).toBe(true)
@@ -165,14 +172,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.plants)
         .where(eq(schema.plants.userId, user.id))
 
-      const plantCount = countResult?.count ?? 0
+      const plantCount = pipe(
+        Option.fromNullable(countResult?.count),
+        Option.getOrElse(() => 0)
+      )
 
       const [tierConfig] = await db
         .select()
         .from(schema.subscriptionTiers)
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
-      const maxPlants = tierConfig?.maxPlants ?? 5
+      const maxPlants = pipe(
+        Option.fromNullable(tierConfig?.maxPlants),
+        Option.getOrElse(() => 5)
+      )
 
       // Simulate limit check
       expect(plantCount).toBe(5)
@@ -295,8 +308,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.subscriptionTiers)
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
-      const maxChats = tierConfig?.maxAiChatsMonthly ?? 10
-      const currentChats = usage?.aiChatsCount ?? 0
+      const maxChats = pipe(
+        Option.fromNullable(tierConfig?.maxAiChatsMonthly),
+        Option.getOrElse(() => 10)
+      )
+      const currentChats = pipe(
+        Option.fromNullable(usage?.aiChatsCount),
+        Option.getOrElse(() => 0)
+      )
 
       expect(currentChats >= maxChats).toBe(true)
 
@@ -377,8 +396,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.subscriptionTiers)
         .where(eq(schema.subscriptionTiers.tier, effectiveTier))
 
-      const plantCount = countResult?.count ?? 0
-      const maxPlants = tierConfig?.maxPlants ?? 5
+      const plantCount = pipe(
+        Option.fromNullable(countResult?.count),
+        Option.getOrElse(() => 0)
+      )
+      const maxPlants = pipe(
+        Option.fromNullable(tierConfig?.maxPlants),
+        Option.getOrElse(() => 5)
+      )
 
       expect(plantCount >= maxPlants).toBe(true)
     })

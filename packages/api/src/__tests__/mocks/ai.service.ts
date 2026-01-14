@@ -1,6 +1,6 @@
 import { AiService } from '@lily/api/services/ai/service'
 import type { UIMessage } from 'ai'
-import { Effect, Layer, Stream } from 'effect'
+import { Effect, Layer, Option, pipe, Stream } from 'effect'
 
 export interface MockAiServiceData {
   plantChatResponse?: string
@@ -9,7 +9,10 @@ export interface MockAiServiceData {
 export const createMockAiService = (
   data: MockAiServiceData = {}
 ): Layer.Layer<AiService> => {
-  const response = data.plantChatResponse ?? 'Mock AI response'
+  const response = pipe(
+    Option.fromNullable(data.plantChatResponse),
+    Option.getOrElse(() => 'Mock AI response')
+  )
   const responseBytes = new TextEncoder().encode(response)
 
   const mockService = {

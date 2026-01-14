@@ -3,7 +3,7 @@ import {
   PaymentProvider,
 } from '@lily/api/services/subscriptions/payment-provider.interface'
 import { PaymentProviderError } from '@lily/shared'
-import { Config, Effect, Layer } from 'effect'
+import { Config, Effect, Layer, Option, pipe } from 'effect'
 import Stripe from 'stripe'
 
 const TRIAL_DAYS = 7
@@ -33,7 +33,10 @@ export const StripePaymentProviderLive = Layer.effect(
                 },
               ],
               subscription_data: {
-                trial_period_days: params.trialDays ?? TRIAL_DAYS,
+                trial_period_days: pipe(
+                  Option.fromNullable(params.trialDays),
+                  Option.getOrElse(() => TRIAL_DAYS)
+                ),
                 metadata: {
                   userId: params.userId,
                 },
@@ -120,10 +123,20 @@ export const StripePaymentProviderLive = Layer.effect(
 
             // Get period from first item (all items share the same billing period)
             const firstItem = subscription.items.data[0]
-            const periodStart =
-              firstItem?.current_period_start ?? subscription.start_date
-            const periodEnd =
-              firstItem?.current_period_end ?? subscription.start_date
+            const periodStart = pipe(
+              Option.fromNullable(firstItem),
+              Option.flatMap((item) =>
+                Option.fromNullable(item.current_period_start)
+              ),
+              Option.getOrElse(() => subscription.start_date)
+            )
+            const periodEnd = pipe(
+              Option.fromNullable(firstItem),
+              Option.flatMap((item) =>
+                Option.fromNullable(item.current_period_end)
+              ),
+              Option.getOrElse(() => subscription.start_date)
+            )
 
             const result: {
               status: string

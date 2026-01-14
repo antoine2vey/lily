@@ -6,7 +6,7 @@ import {
   type VerifyEmailRequest,
   VerifyEmailRequestZod,
 } from '@lily/shared/auth'
-import { Effect } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
 export const verifyEmail = ({
   token,
@@ -22,7 +22,11 @@ export const verifyEmail = ({
     // Validate token using Zod
     const validation = VerifyEmailRequestZod.safeParse({ token })
     if (!validation.success) {
-      const message = validation.error.issues[0]?.message ?? 'Invalid token'
+      const message = pipe(
+        Array.head(validation.error.issues),
+        Option.flatMap((issue) => Option.fromNullable(issue.message)),
+        Option.getOrElse(() => 'Invalid token')
+      )
       return yield* Effect.fail({ error: message })
     }
 

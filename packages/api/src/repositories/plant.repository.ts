@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantPhotos, plants } from '@lily/db'
 import { type PaginatedResponse, paginate } from '@lily/shared'
 import { and, asc, count, desc, eq } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface FindPlantsParams {
@@ -108,8 +108,14 @@ export const PlantRepositoryLive = Layer.effect(
     return {
       findAll: (params: FindPlantsParams) =>
         Effect.gen(function* () {
-          const page = params.page ?? 1
-          const limit = params.limit ?? 20
+          const page = pipe(
+            Option.fromNullable(params.page),
+            Option.getOrElse(() => 1)
+          )
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 20)
+          )
           const offset = (page - 1) * limit
 
           // Build filter conditions
@@ -122,7 +128,11 @@ export const PlantRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(plants)
             .where(filterConditions)
-          const total = countResult[0]?.value ?? 0
+          const total = pipe(
+            Array.head(countResult),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0)
+          )
 
           const items = yield* db
             .select()
@@ -143,13 +153,13 @@ export const PlantRepositoryLive = Layer.effect(
             .select()
             .from(plants)
             .where(eq(plants.id, id))
-          return plant ?? null
+          return Option.getOrNull(Option.fromNullable(plant))
         }),
 
       create: (data: CreatePlantData) =>
         Effect.gen(function* () {
           const [plant] = yield* db.insert(plants).values(data).returning()
-          return plant ?? null
+          return Option.getOrNull(Option.fromNullable(plant))
         }),
 
       update: (id: string, data: UpdatePlantData) =>
@@ -159,7 +169,7 @@ export const PlantRepositoryLive = Layer.effect(
             .set(data)
             .where(eq(plants.id, id))
             .returning()
-          return plant ?? null
+          return Option.getOrNull(Option.fromNullable(plant))
         }),
 
       delete: (id: string) =>
@@ -168,20 +178,30 @@ export const PlantRepositoryLive = Layer.effect(
             .delete(plants)
             .where(eq(plants.id, id))
             .returning()
-          return plant ?? null
+          return Option.getOrNull(Option.fromNullable(plant))
         }),
 
       findPhotos: (params: FindPhotosParams) =>
         Effect.gen(function* () {
-          const page = params.page ?? 1
-          const limit = params.limit ?? 20
+          const page = pipe(
+            Option.fromNullable(params.page),
+            Option.getOrElse(() => 1)
+          )
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 20)
+          )
           const offset = (page - 1) * limit
 
           const countResult = yield* db
             .select({ value: count() })
             .from(plantPhotos)
             .where(eq(plantPhotos.plantId, params.plantId))
-          const total = countResult[0]?.value ?? 0
+          const total = pipe(
+            Array.head(countResult),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0)
+          )
 
           const items = yield* db
             .select()
@@ -200,7 +220,7 @@ export const PlantRepositoryLive = Layer.effect(
             .insert(plantPhotos)
             .values({ plantId, url })
             .returning()
-          return photo ?? null
+          return Option.getOrNull(Option.fromNullable(photo))
         }),
 
       addPhotos: (
@@ -220,7 +240,7 @@ export const PlantRepositoryLive = Layer.effect(
             .delete(plantPhotos)
             .where(eq(plantPhotos.id, photoId))
             .returning()
-          return photo ?? null
+          return Option.getOrNull(Option.fromNullable(photo))
         }),
 
       deletePhotoByPlantId: (plantId: string, photoId: string) =>

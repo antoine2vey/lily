@@ -5,7 +5,7 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
@@ -16,43 +16,64 @@ export const createMockNotificationRepository = (
   notifications: Notification[]
 ): Layer.Layer<NotificationRepository> => {
   // Create a mutable copy for status updates
-  const notificationsState: MutableNotification[] = notifications.map((n) => ({
-    ...n,
-  }))
+  const notificationsState: MutableNotification[] = Array.map(
+    notifications,
+    (n) => ({
+      ...n,
+    })
+  )
 
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
-      const page = params.page ?? 1
-      const limit = params.limit ?? 20
+      const page = pipe(
+        Option.fromNullable(params.page),
+        Option.getOrElse(() => 1)
+      )
+      const limit = pipe(
+        Option.fromNullable(params.limit),
+        Option.getOrElse(() => 20)
+      )
       const offset = (page - 1) * limit
 
-      let filtered = notificationsState.filter(
+      let filtered = Array.filter(
+        notificationsState,
         (n) => n.userId === params.userId
       )
 
       if (params.status && params.status !== 'all') {
-        filtered = filtered.filter((n) => n.status === params.status)
+        filtered = Array.filter(filtered, (n) => n.status === params.status)
       }
 
       // Sort by createdAt descending
-      filtered.sort(
+      const sorted = [...filtered].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      const total = filtered.length
-      const items = filtered.slice(offset, offset + limit)
+      const total = sorted.length
+      const items = sorted.slice(offset, offset + limit)
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
 
     findById: (id: string) =>
-      Effect.succeed(notificationsState.find((n) => n.id === id) ?? null),
+      Effect.succeed(
+        pipe(
+          Array.findFirst(notificationsState, (n) => n.id === id),
+          Option.getOrNull
+        )
+      ),
 
     markAsRead: (id: string) => {
-      const notification = notificationsState.find((n) => n.id === id)
-      if (!notification) return Effect.succeed(null)
-      return Effect.succeed({ ...notification, isRead: true })
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) =>
+          Effect.succeed({ ...notification, isRead: true }),
+      })
     },
 
     create: (data) => {
@@ -77,50 +98,83 @@ export const createMockNotificationRepository = (
       const idx = notificationsState.findIndex((n) => n.id === id)
       if (idx === -1) return Effect.succeed(null)
       const [removed] = notificationsState.splice(idx, 1)
-      return Effect.succeed(removed ?? null)
+      return Effect.succeed(Option.getOrNull(Option.fromNullable(removed)))
     },
 
     // Scheduler methods
     findPendingToSchedule: (limit: number) =>
       Effect.succeed(
-        notificationsState
-          .filter((n) => n.status === 'pending' && n.scheduledAt <= new Date())
-          .slice(0, limit)
+        pipe(
+          Array.filter(
+            notificationsState,
+            (n) => n.status === 'pending' && n.scheduledAt <= new Date()
+          ),
+          (filtered) => filtered.slice(0, limit)
+        )
       ),
 
     markAsQueued: (id: string) => {
-      const notification = notificationsState.find((n) => n.id === id)
-      if (!notification) return Effect.succeed(null)
-      notification.status = 'queued'
-      return Effect.succeed(notification)
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) => {
+          notification.status = 'queued'
+          return Effect.succeed(notification)
+        },
+      })
     },
 
     markAsSent: (id: string) => {
-      const notification = notificationsState.find((n) => n.id === id)
-      if (!notification) return Effect.succeed(null)
-      notification.status = 'sent'
-      notification.sentAt = new Date()
-      return Effect.succeed(notification)
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) => {
+          notification.status = 'sent'
+          notification.sentAt = new Date()
+          return Effect.succeed(notification)
+        },
+      })
     },
 
     markAsFailed: (id: string, error: string) => {
-      const notification = notificationsState.find((n) => n.id === id)
-      if (!notification) return Effect.succeed(null)
-      notification.status = 'failed'
-      notification.lastError = error
-      return Effect.succeed(notification)
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) => {
+          notification.status = 'failed'
+          notification.lastError = error
+          return Effect.succeed(notification)
+        },
+      })
     },
 
     incrementRetryCount: (id: string) => {
-      const notification = notificationsState.find((n) => n.id === id)
-      if (!notification) return Effect.succeed(null)
-      notification.retryCount += 1
-      return Effect.succeed(notification)
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) => {
+          notification.retryCount += 1
+          return Effect.succeed(notification)
+        },
+      })
     },
 
     deletePendingByPlantAndType: (plantId: string, type: string) =>
       Effect.sync(() => {
-        const toKeep = notificationsState.filter(
+        const toKeep = Array.filter(
+          notificationsState,
           (n) =>
             !(
               n.plantId === plantId &&

@@ -64,7 +64,7 @@ export const MyRepositoryLive = Layer.effect(
           const items = yield* Effect.promise(() =>
             db.select().from(myTable).where(eq(myTable.id, id))
           )
-          return items[0] ?? null
+          return pipe(Array.head(items), Option.getOrNull)
         }),
 
       // ... other methods
@@ -257,7 +257,7 @@ export const PlantRepositoryLive = Layer.effect(
           const items = yield* Effect.promise(() =>
             db.select().from(plants).where(eq(plants.id, id))
           )
-          return items[0] ?? null
+          return pipe(Array.head(items), Option.getOrNull)
         }),
 
       create: (data) =>
@@ -341,7 +341,7 @@ findById: (id) =>
     const items = yield* Effect.promise(() =>
       db.select().from(table).where(eq(table.id, id))
     )
-    return items[0] ?? null
+    return pipe(Array.head(items), Option.getOrNull)
   })
 
 // Update
@@ -433,7 +433,7 @@ findWithUser: (id) =>
         .leftJoin(users, eq(plants.userId, users.id))
         .where(eq(plants.id, id))
     )
-    return items[0] ?? null
+    return pipe(Array.head(items), Option.getOrNull)
   })
 ```
 
@@ -455,7 +455,7 @@ export const findById = (id: string): Effect.Effect<
     const items = yield* Effect.promise(() =>
       db.select().from(plants).where(eq(plants.id, id))
     )
-    return items[0] ?? null
+    return pipe(Array.head(items), Option.getOrNull)
   })
 ```
 
@@ -531,31 +531,31 @@ export const MyRepositoryLive = Layer.effect(
           const items = yield* Effect.promise(() =>
             db.select().from(myTable).where(eq(myTable.id, id))
           )
-          return items[0] ?? null
+          return pipe(Array.head(items), Option.getOrNull)
         }),
 
       create: (data) =>
         Effect.gen(function* () {
-          const [item] = yield* Effect.promise(() =>
+          const items = yield* Effect.promise(() =>
             db.insert(myTable).values(data).returning()
           )
-          return item
+          return pipe(Array.head(items), Option.getOrUndefined)
         }),
 
       update: (id, data) =>
         Effect.gen(function* () {
-          const [item] = yield* Effect.promise(() =>
+          const items = yield* Effect.promise(() =>
             db.update(myTable).set(data).where(eq(myTable.id, id)).returning()
           )
-          return item
+          return pipe(Array.head(items), Option.getOrUndefined)
         }),
 
       delete: (id) =>
         Effect.gen(function* () {
-          const [item] = yield* Effect.promise(() =>
+          const items = yield* Effect.promise(() =>
             db.delete(myTable).where(eq(myTable.id, id)).returning()
           )
-          return item
+          return pipe(Array.head(items), Option.getOrUndefined)
         }),
     }
   })
@@ -603,10 +603,13 @@ export const createMockMyRepository = (
 ): Layer.Layer<MyRepository> => {
   const repo: IMyRepository = {
     findAll: () => Effect.succeed(data.items),
-    findById: (id) => {
-      const item = data.items.find((i) => i.id === id)
-      return Effect.succeed(item ?? null)
-    },
+    findById: (id) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(data.items, (i) => i.id === id),
+          Option.getOrNull
+        )
+      ),
     // ... other methods
   }
 

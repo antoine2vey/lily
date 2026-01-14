@@ -5,7 +5,7 @@ import {
   UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import type { subscriptionUsage } from '@lily/db'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('UsageTracker', () => {
@@ -191,7 +191,7 @@ describe('UsageTracker', () => {
       )
 
       expect(incrementCalls).toHaveLength(3)
-      expect(incrementCalls.map((c) => c.field)).toEqual([
+      expect(Array.map(incrementCalls, (c) => c.field)).toEqual([
         'aiChats',
         'cardScans',
         'plantIdentifies',

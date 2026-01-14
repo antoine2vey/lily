@@ -10,7 +10,7 @@ import {
 } from '@lily/db'
 import type { AchievementKey } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface IAchievementRepository {
   readonly findByUserId: (
@@ -82,7 +82,13 @@ export const AchievementRepositoryLive = Layer.effect(
                 eq(userAchievements.achievement, key)
               )
             )
-          return (result?.count ?? 0) > 0
+          return (
+            pipe(
+              Option.fromNullable(result),
+              Option.flatMap((r) => Option.fromNullable(r.count)),
+              Option.getOrElse(() => 0)
+            ) > 0
+          )
         }),
 
       unlock: (userId: string, key: AchievementKey) =>
@@ -92,7 +98,7 @@ export const AchievementRepositoryLive = Layer.effect(
             .values({ userId, achievement: key })
             .onConflictDoNothing()
             .returning()
-          return achievement ?? null
+          return Option.getOrNull(Option.fromNullable(achievement))
         }),
 
       countCareLogsByType: (
@@ -105,7 +111,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .from(careLogs)
             .innerJoin(plants, eq(careLogs.plantId, plants.id))
             .where(and(eq(plants.userId, userId), eq(careLogs.type, type)))
-          return result?.count ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       countPlants: (userId: string) =>
@@ -114,7 +124,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .select({ count: count() })
             .from(plants)
             .where(eq(plants.userId, userId))
-          return result?.count ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       countPhotos: (userId: string) =>
@@ -124,7 +138,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .from(plantPhotos)
             .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
             .where(eq(plants.userId, userId))
-          return result?.count ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       getCareStreak: (userId: string) =>
@@ -147,7 +165,13 @@ export const AchievementRepositoryLive = Layer.effect(
             FROM streak
             WHERE grp = (SELECT grp FROM streak LIMIT 1)
           `)
-          return Number(result[0]?.streak ?? 0)
+          return Number(
+            pipe(
+              Array.head(result),
+              Option.flatMap((r) => Option.fromNullable(r.streak)),
+              Option.getOrElse(() => 0)
+            )
+          )
         }),
 
       countScans: (userId: string) =>
@@ -156,7 +180,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .select({ count: count() })
             .from(plantScans)
             .where(eq(plantScans.userId, userId))
-          return result?.count ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       countPhotosForPlant: (userId: string, plantId: string) =>
@@ -168,7 +196,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .where(
               and(eq(plants.userId, userId), eq(plantPhotos.plantId, plantId))
             )
-          return result?.count ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       incrementHistoryViews: (userId: string) =>
@@ -180,7 +212,11 @@ export const AchievementRepositoryLive = Layer.effect(
             })
             .where(eq(users.id, userId))
             .returning({ historyViewCount: users.historyViewCount })
-          return result?.historyViewCount ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       getHistoryViewCount: (userId: string) =>
@@ -189,7 +225,11 @@ export const AchievementRepositoryLive = Layer.effect(
             .select({ historyViewCount: users.historyViewCount })
             .from(users)
             .where(eq(users.id, userId))
-          return result?.historyViewCount ?? 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+            Option.getOrElse(() => 0)
+          )
         }),
     }
   })

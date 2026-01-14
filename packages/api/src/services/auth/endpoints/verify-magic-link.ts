@@ -2,12 +2,16 @@ import { HttpServerRequest } from '@effect/platform'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { Auth } from '@lily/api/services/auth/auth'
 import type { MagicLinkVerifyRequest, UserProfile } from '@lily/shared/auth'
-import { Effect } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
-const CALLBACK_URL =
-  process.env.AUTH_CALLBACK_URL ?? 'http://localhost:3000/dashboard'
-const ERROR_CALLBACK_URL =
-  process.env.AUTH_ERROR_CALLBACK_URL ?? 'http://localhost:3000/error'
+const CALLBACK_URL = pipe(
+  Option.fromNullable(process.env.AUTH_CALLBACK_URL),
+  Option.getOrElse(() => 'http://localhost:3000/dashboard')
+)
+const ERROR_CALLBACK_URL = pipe(
+  Option.fromNullable(process.env.AUTH_ERROR_CALLBACK_URL),
+  Option.getOrElse(() => 'http://localhost:3000/error')
+)
 
 export const verifyMagicLink = ({
   token,

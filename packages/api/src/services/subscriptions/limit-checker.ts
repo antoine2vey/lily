@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { LimitExceededError } from '@lily/shared'
-import { Context, Effect, Layer } from 'effect'
+import { Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
@@ -84,7 +84,11 @@ export const LimitCheckerLive = Layer.effect(
           }
 
           const usage = yield* subRepo.getCurrentUsage(userId)
-          const currentCount = usage?.aiChatsCount ?? 0
+          const currentCount = pipe(
+            Option.fromNullable(usage),
+            Option.flatMap((u) => Option.fromNullable(u.aiChatsCount)),
+            Option.getOrElse(() => 0)
+          )
 
           if (currentCount >= tierConfig.maxAiChatsMonthly) {
             return yield* Effect.fail(
@@ -108,7 +112,11 @@ export const LimitCheckerLive = Layer.effect(
           }
 
           const usage = yield* subRepo.getCurrentUsage(userId)
-          const currentCount = usage?.cardScansCount ?? 0
+          const currentCount = pipe(
+            Option.fromNullable(usage),
+            Option.flatMap((u) => Option.fromNullable(u.cardScansCount)),
+            Option.getOrElse(() => 0)
+          )
 
           if (currentCount >= tierConfig.maxCardScansMonthly) {
             return yield* Effect.fail(
@@ -132,7 +140,11 @@ export const LimitCheckerLive = Layer.effect(
           }
 
           const usage = yield* subRepo.getCurrentUsage(userId)
-          const currentCount = usage?.plantIdentifiesCount ?? 0
+          const currentCount = pipe(
+            Option.fromNullable(usage),
+            Option.flatMap((u) => Option.fromNullable(u.plantIdentifiesCount)),
+            Option.getOrElse(() => 0)
+          )
 
           if (currentCount >= tierConfig.maxPlantIdentifiesMonthly) {
             return yield* Effect.fail(

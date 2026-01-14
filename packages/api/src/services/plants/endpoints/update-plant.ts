@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant, PlantUpdateRequest } from '@lily/shared/plant'
-import { Effect, pipe, Record } from 'effect'
+import { Effect, pipe, Record, Struct } from 'effect'
 
 export const updatePlant = (
   request: PlantUpdateRequest & { id: string }
@@ -10,10 +10,9 @@ export const updatePlant = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const data = pipe(
-      Object.entries(request),
-      Record.fromEntries,
+      Record.fromEntries(Struct.entries(request)),
       Record.remove('id'),
-      Record.filter((_, value) => value !== undefined)
+      Record.filter((value) => value !== undefined)
     )
     const plant = yield* repo.update(request.id, data)
 

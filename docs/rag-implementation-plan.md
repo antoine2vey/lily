@@ -345,19 +345,19 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
       retrieve: (params: { query: string; plantType?: string; limit?: number }) =>
         Effect.gen(function* () {
           const embedding = yield* embeddingService.embedText(params.query)
+          const limit = pipe(Option.fromNullable(params.limit), Option.getOrElse(() => 5))
           const chunks = yield* chunkRepo.search({
             embedding,
             plantType: params.plantType,
-            limit: params.limit ?? 5,
+            limit,
           })
-          return chunks.filter((c) => c.similarity > 0.7)
+          return Array.filter(chunks, (c) => c.similarity > 0.7)
         }),
 
       formatContext: (chunks) => {
-        if (chunks.length === 0) return ''
-        return `## Relevant Plant Care Knowledge\n\n${chunks
-          .map((c, i) => `### Source ${i + 1} (${c.source})\n${c.content}`)
-          .join('\n\n')}\n\nUse the above knowledge to inform your response.`
+        if (Array.isEmptyArray(chunks)) return ''
+        const formatted = Array.map(chunks, (c, i) => `### Source ${i + 1} (${c.source})\n${c.content}`)
+        return `## Relevant Plant Care Knowledge\n\n${Array.join(formatted, '\n\n')}\n\nUse the above knowledge to inform your response.`
       },
     }
   }),
@@ -372,10 +372,15 @@ export const sendChatMessage = (plantId: string, request: ChatRequest) =>
     const plant = yield* plantRepo.findById(plantId)
     const ragService = yield* RagService
 
-    const lastUserMessage = messages.findLast((m) => m.role === 'user')
+    const lastUserMessage = Array.findLast(messages, (m) => m.role === 'user')
+    const query = pipe(
+      lastUserMessage,
+      Option.flatMap((m) => Option.fromNullable(m.content)),
+      Option.getOrElse(() => '')
+    )
     const knowledgeChunks = yield* ragService.retrieve({
-      query: lastUserMessage?.content ?? '',
-      plantType: plant.category?.toLowerCase(),
+      query,
+      plantType: pipe(Option.fromNullable(plant.category), Option.map(String.toLowerCase), Option.getOrUndefined),
       limit: 5,
     })
     const knowledgeContext = ragService.formatContext(knowledgeChunks)

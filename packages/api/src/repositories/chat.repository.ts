@@ -4,7 +4,7 @@ import { chatMessages } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
 import { and, asc, count, eq } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface FindChatHistoryParams {
@@ -29,7 +29,7 @@ const mapToChatMessage = (
   id: row.id,
   role: row.role as 'user' | 'assistant',
   content: row.content,
-  imageUrl: row.imageUrl ?? undefined,
+  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageUrl)),
   plantId: row.plantId,
   userId: row.userId,
   createdAt: row.createdAt,
@@ -64,8 +64,14 @@ export const ChatRepositoryLive = Layer.effect(
     return {
       findByPlantId: (params: FindChatHistoryParams) =>
         Effect.gen(function* () {
-          const page = params.page ?? 1
-          const limit = params.limit ?? 20
+          const page = pipe(
+            Option.fromNullable(params.page),
+            Option.getOrElse(() => 1)
+          )
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 20)
+          )
           const offset = (page - 1) * limit
 
           const filterConditions = and(
@@ -77,7 +83,11 @@ export const ChatRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(chatMessages)
             .where(filterConditions)
-          const total = countResult[0]?.value ?? 0
+          const total = pipe(
+            Array.head(countResult),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0)
+          )
 
           const rows = yield* db
             .select()
@@ -87,7 +97,7 @@ export const ChatRepositoryLive = Layer.effect(
             .limit(limit)
             .orderBy(asc(chatMessages.createdAt))
 
-          return paginate(rows.map(mapToChatMessage), total, page, limit)
+          return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
         }),
 
       create: (data: CreateChatMessageData) =>
@@ -97,7 +107,7 @@ export const ChatRepositoryLive = Layer.effect(
             .values({
               role: data.role,
               content: data.content,
-              imageUrl: data.imageUrl ?? null,
+              imageUrl: Option.getOrNull(Option.fromNullable(data.imageUrl)),
               plantId: data.plantId,
               userId: data.userId,
             })

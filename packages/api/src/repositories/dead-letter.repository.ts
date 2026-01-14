@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { deadLetterMessages } from '@lily/db'
 import { desc, eq } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option } from 'effect'
 
 // Types for repository methods
 export interface CreateDeadLetterData {
@@ -84,8 +84,8 @@ export const DeadLetterRepositoryLive = Layer.effect(
               payload: data.payload,
               error: data.error,
               retryCount: data.retryCount,
-              userId: data.userId ?? null,
-              plantId: data.plantId ?? null,
+              userId: Option.getOrNull(Option.fromNullable(data.userId)),
+              plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
             })
             .returning()
           return row ? mapToDeadLetterMessage(row) : null
@@ -98,7 +98,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             .from(deadLetterMessages)
             .where(eq(deadLetterMessages.topic, topic))
             .orderBy(desc(deadLetterMessages.failedAt))
-          return rows.map(mapToDeadLetterMessage)
+          return Array.map(rows, mapToDeadLetterMessage)
         }),
 
       findAll: (limit = 100) =>
@@ -108,7 +108,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             .from(deadLetterMessages)
             .orderBy(desc(deadLetterMessages.failedAt))
             .limit(limit)
-          return rows.map(mapToDeadLetterMessage)
+          return Array.map(rows, mapToDeadLetterMessage)
         }),
 
       delete: (id: string) =>

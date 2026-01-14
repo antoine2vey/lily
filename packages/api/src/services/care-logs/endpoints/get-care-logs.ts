@@ -6,7 +6,7 @@ import {
 } from '@lily/api/repositories/care-log.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
-import { Effect } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 // Get care logs
 export const getCareLogs = (
@@ -24,7 +24,11 @@ export const getCareLogs = (
     const result = yield* repo.findByPlantId(params)
 
     // Emit CareHistoryViewed on first page to track for HISTORY_HERO achievement
-    if ((params.page ?? 1) === 1) {
+    const currentPage = pipe(
+      Option.fromNullable(params.page),
+      Option.getOrElse(() => 1)
+    )
+    if (currentPage === 1) {
       yield* publishWithRetry(
         eventBus.publish({
           _tag: 'CareHistoryViewed',

@@ -5,7 +5,7 @@ import {
   PushService,
   type PushTicket,
 } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockPushServiceOptions {
   onSend?: (message: PushMessage) => void
@@ -20,12 +20,17 @@ export const createMockPushService = (
   const service: IPushService = {
     send: (message) =>
       Effect.gen(function* () {
-        options.onSend?.(message)
+        if (options.onSend) {
+          options.onSend(message)
+        }
 
         if (options.shouldFail) {
           return yield* Effect.fail(
             new PushSendError({
-              message: options.failureMessage ?? 'Mock push failure',
+              message: pipe(
+                Option.fromNullable(options.failureMessage),
+                Option.getOrElse(() => 'Mock push failure')
+              ),
             })
           )
         }
@@ -38,17 +43,22 @@ export const createMockPushService = (
 
     sendBatch: (messages) =>
       Effect.gen(function* () {
-        options.onSendBatch?.(messages)
+        if (options.onSendBatch) {
+          options.onSendBatch(messages)
+        }
 
         if (options.shouldFail) {
           return yield* Effect.fail(
             new PushSendError({
-              message: options.failureMessage ?? 'Mock push batch failure',
+              message: pipe(
+                Option.fromNullable(options.failureMessage),
+                Option.getOrElse(() => 'Mock push batch failure')
+              ),
             })
           )
         }
 
-        return messages.map(() => ({
+        return Array.map(messages, () => ({
           id: `ticket-${crypto.randomUUID()}`,
           status: 'ok' as const,
         })) satisfies PushTicket[]

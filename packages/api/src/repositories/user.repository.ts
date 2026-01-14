@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db'
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface CreateUserData {
@@ -91,7 +91,7 @@ export const UserRepositoryLive = Layer.effect(
       findById: (id: string) =>
         Effect.gen(function* () {
           const [user] = yield* db.select().from(users).where(eq(users.id, id))
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       findByEmail: (email: string) =>
@@ -100,7 +100,7 @@ export const UserRepositoryLive = Layer.effect(
             .select()
             .from(users)
             .where(eq(users.email, email))
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       findByUsername: (username: string) =>
@@ -109,16 +109,22 @@ export const UserRepositoryLive = Layer.effect(
             .select()
             .from(users)
             .where(eq(users.name, username))
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       create: (data: CreateUserData) =>
         Effect.gen(function* () {
           const [user] = yield* db
             .insert(users)
-            .values({ ...data, emailVerified: data.emailVerified ?? false })
+            .values({
+              ...data,
+              emailVerified: pipe(
+                Option.fromNullable(data.emailVerified),
+                Option.getOrElse(() => false)
+              ),
+            })
             .returning()
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       update: (id: string, data: UpdateUserData) =>
@@ -128,7 +134,7 @@ export const UserRepositoryLive = Layer.effect(
             .set(data)
             .where(eq(users.id, id))
             .returning()
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       delete: (id: string) =>
@@ -137,7 +143,7 @@ export const UserRepositoryLive = Layer.effect(
             .delete(users)
             .where(eq(users.id, id))
             .returning()
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       findAllPaginated: (filters: FindUsersFilters) =>
@@ -197,7 +203,11 @@ export const UserRepositoryLive = Layer.effect(
             .from(users)
             .where(whereClause)
 
-          return result[0]?.count ?? 0
+          return pipe(
+            Array.head(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
         }),
 
       updateRole: (id: string, role: 'user' | 'admin') =>
@@ -207,7 +217,7 @@ export const UserRepositoryLive = Layer.effect(
             .set({ role, updatedAt: new Date() })
             .where(eq(users.id, id))
             .returning()
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
 
       updateStatus: (id: string, status: 'active' | 'suspended' | 'banned') =>
@@ -217,7 +227,7 @@ export const UserRepositoryLive = Layer.effect(
             .set({ status, updatedAt: new Date() })
             .where(eq(users.id, id))
             .returning()
-          return user ?? null
+          return Option.getOrNull(Option.fromNullable(user))
         }),
     }
   })
