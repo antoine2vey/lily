@@ -5,14 +5,9 @@
     "rootDir": "./src",
     "noEmit": false,
     "composite": true,
-    "target": "ES2022",
-    "baseUrl": ".",
-    "paths": {
-      "@lily/shared": ["./src"],
-      "@lily/shared/*": ["./src/*"]
-    }
+    "declaration": true,
+    "declarationMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"],
-  "references": [{ "path": "../db" }]
+  "exclude": ["dist", "node_modules"]
 }

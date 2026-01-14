@@ -5,7 +5,8 @@
     "rootDir": "./src",
     "noEmit": false,
     "composite": true,
-    "target": "ES2022",
+    "declaration": true,
+    "declarationMap": true,
     "baseUrl": ".",
     "paths": {
       "@lily/api": ["./src"],

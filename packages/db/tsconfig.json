@@ -2,16 +2,13 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "noEmit": false,
     "composite": true,
-    "target": "ES2022",
-    "baseUrl": ".",
-    "paths": {
-      "@lily/db": ["./src"],
-      "@lily/db/*": ["./src/*"]
-    }
+    "declaration": true,
+    "declarationMap": true
   },
-  "include": ["src/**/*", "scripts/**/*"],
-  "exclude": ["dist", "node_modules"]
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules"],
+  "references": [{ "path": "../shared" }]
 }
