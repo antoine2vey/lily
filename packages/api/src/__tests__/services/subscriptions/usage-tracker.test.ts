@@ -60,7 +60,7 @@ describe('UsageTracker', () => {
         incrementCalls.push({ userId, field })
         const result = options.incrementUsageFn
           ? options.incrementUsageFn(userId, field)
-          : createMockUsage({ [field + 'Count']: 1 })
+          : createMockUsage({ [`${field}Count`]: 1 })
         return Effect.succeed(result)
       },
       logEvent: () => Effect.void,
