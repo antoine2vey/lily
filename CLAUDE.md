@@ -75,6 +75,106 @@ The project uses Docker Compose for local development with these services:
 - Password: `lily123`
 - Database: `lily` (dev) / `lily_test` (test)
 
+## Codebase Map
+
+### Package Entry Points
+
+| Package | Entry Point | Purpose |
+|---------|-------------|---------|
+| api | `src/index.ts` | Server bootstrap, layer composition |
+| api | `src/api.ts` | API group composition |
+| db | `src/index.ts` | DrizzleLive export, schema re-exports |
+| shared | `src/index.ts` | All domain schemas and service abstractions |
+
+### API Services (`packages/api/src/services/`)
+
+| Domain | Path | Key Endpoints |
+|--------|------|---------------|
+| auth | `services/auth/` | magic-link, verify, sign-out, refresh-token |
+| plants | `services/plants/` | CRUD, water, fertilize, photos, ai-identify |
+| care-logs | `services/care-logs/` | CRUD for care history |
+| user | `services/user/` | settings management |
+| subscriptions | `services/subscriptions/` | billing, limits, usage tracking |
+| notifications | `services/notifications/` | push notifications, scheduler |
+| achievements | `services/achievements/` | gamification, event-driven unlocks |
+| ai-chat | `services/ai-chat/` | plant care chat assistant |
+| admin | `services/admin/` | user management (role-protected) |
+| device-tokens | `services/device-tokens/` | push token registration |
+
+### Repositories (`packages/api/src/repositories/`)
+
+| Repository | File | Domain |
+|------------|------|--------|
+| UserRepository | `user.repository.ts` | User CRUD |
+| PlantRepository | `plant.repository.ts` | Plants, photos |
+| CareLogRepository | `care-log.repository.ts` | Care history |
+| AchievementRepository | `achievement.repository.ts` | Achievements |
+| NotificationRepository | `notification.repository.ts` | Notifications |
+| ChatRepository | `chat.repository.ts` | AI chat history |
+| SubscriptionRepository | `subscription.repository.ts` | Subscriptions |
+| DeviceTokenRepository | `device-token.repository.ts` | Push tokens |
+
+### Domain Schemas (`packages/shared/src/domains/`)
+
+| Domain | Files | Key Exports |
+|--------|-------|-------------|
+| plant | `schema.ts`, `errors.ts`, `selectors.ts` | Plant, PlantPhoto, PlantNotFoundError |
+| user | `schema.ts`, `errors.ts` | User, UserSettings |
+| auth | `schema.ts` | LoginRequest, Session, Token |
+| care-log | `schema.ts`, `errors.ts` | CareLog, CareLogType |
+| subscriptions | `schema.ts`, `errors.ts` | Plan, Usage, LimitExceededError |
+| achievement | `schema.ts`, `definitions.ts` | Achievement, AchievementDefinition |
+| notification | `schema.ts`, `errors.ts` | Notification, NotificationPrefs |
+| common | `errors.ts`, `pagination.ts` | DatabaseError, PaginatedResponse |
+
+### Database Schema (`packages/db/src/schema/`)
+
+| File | Tables |
+|------|--------|
+| `users.ts` | users (profiles, roles) |
+| `auth.ts` | magic_links, sessions, refresh_tokens |
+| `plants.ts` | plants, plant_photos |
+| `plant-history.ts` | plant_history (care events) |
+| `care-logs.ts` | care_logs |
+| `notifications.ts` | notifications, device_tokens |
+| `achievements.ts` | achievements, user_achievements |
+| `chat.ts` | chat_messages |
+| `subscriptions.ts` | plans, subscriptions, usage |
+
+### Service Abstractions (`packages/shared/src/services/`)
+
+| Service | Path | Implementations |
+|---------|------|-----------------|
+| AI | `ai/service.ts` | OpenAI (in api) |
+| Email | `email/service.ts` | Resend (in api) |
+| EventBus | `event-bus/service.ts` | Memory, Redis (in api) |
+| FileService | `file/fileservice.ts` | GCS |
+| MessageQueue | `message-queue/service.ts` | Redis (in api) |
+| PushService | `push/service.ts` | Expo (in api) |
+
+### Test Structure (`packages/api/src/__tests__/`)
+
+```
+__tests__/
+├── fixtures/          # Mock data: users.ts, plants.ts, care-logs.ts, etc.
+├── mocks/             # Mock layers: *.repository.ts, ai.service.ts, etc.
+└── services/          # Tests by domain: auth/, plants/, subscriptions/, etc.
+```
+
+### Quick Reference Patterns
+
+| To find... | Search pattern |
+|------------|----------------|
+| Service endpoints | `services/{domain}/endpoints/*.ts` |
+| API definitions | `services/{domain}/api.ts` |
+| Business logic | `services/{domain}/service.ts` |
+| Repository interface | `repositories/{domain}.repository.ts` |
+| Domain schemas | `shared/src/domains/{domain}/schema.ts` |
+| Domain errors | `shared/src/domains/{domain}/errors.ts` |
+| DB table schema | `db/src/schema/{table}.ts` |
+| Tests for feature | `__tests__/services/{domain}/*.test.ts` |
+| Mock for testing | `__tests__/mocks/{domain}.*.ts` |
+
 ## Code Conventions
 
 ### Formatting (Biome)
