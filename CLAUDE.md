@@ -14,6 +14,7 @@ Lily is a plant care management application built as a TypeScript monorepo using
 - **Database**: PostgreSQL with Drizzle ORM
 - **Validation**: Zod + Effect Schema
 - **Mobile**: React Native with Expo
+- **Build System**: Turborepo (cached builds)
 - **Linting**: Biome
 - **Testing**: Vitest
 
@@ -30,27 +31,34 @@ packages/
 ## Common Commands
 
 ```bash
-# Docker Services
-docker-compose up -d                    # Start all services (postgres, redis, api)
-docker-compose up -d postgres redis     # Start only infrastructure services
-docker-compose down                     # Stop all services
-docker-compose down -v                  # Stop and remove volumes
-docker-compose logs -f api              # Follow API logs
-docker-compose ps                       # Show service status
+# Development Workflow (recommended)
+# 1. Start infrastructure (postgres, redis only - API runs locally)
+docker compose up -d postgres redis
 
-# Development (with Docker services running)
-bun run dev                             # Start all packages in dev mode
-bun run build                           # Build all packages
+# 2. Run API locally with hot reload
+bun run dev
+
+# 3. Type check
+bunx tsc --build
+
+# Docker Infrastructure
+docker compose up -d postgres redis     # Start only infrastructure services
+docker compose down                     # Stop all services
+docker compose down -v                  # Stop and remove volumes
+docker compose ps                       # Show service status
+
+# Build (uses Turborepo for caching)
+bun run build                           # Build all packages (cached)
 
 # Database (with Docker postgres running)
-docker-compose exec postgres psql -U lily -d lily   # Connect to database
+docker compose exec postgres psql -U lily -d lily   # Connect to database
 bun run db:generate                     # Generate Drizzle migrations
 bun run db:push                         # Push schema to database
 bun run db:migrate                      # Run pending migrations
 bun run db:studio                       # Open Drizzle Studio
 
 # Testing
-docker-compose up -d postgres-test      # Start test database
+docker compose up -d postgres-test      # Start test database
 bun run test                            # Run all tests
 bun run test:integration                # Run integration tests
 
@@ -61,14 +69,15 @@ bun run lint:fix                        # Auto-fix issues
 
 ## Docker Infrastructure
 
-The project uses Docker Compose for local development with these services:
+Docker is used for **infrastructure only** (postgres, redis). The API runs locally via `bun run dev` for faster iteration.
 
 | Service | Port | Description |
 |---------|------|-------------|
 | postgres | 5432 | Development database |
 | postgres-test | 5433 | Test database |
 | redis | 6379 | Caching/session storage |
-| api | 3000 | Application server |
+
+**Note:** The `api` service in docker-compose.yml is optional and only used for production-like testing.
 
 **Database Credentials:**
 - User: `lily`
