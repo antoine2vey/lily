@@ -1,27 +1,29 @@
-FROM oven/bun:1-alpine
-
+# Stage 1: Install dependencies
+FROM oven/bun:1-alpine AS deps
 WORKDIR /app
-
-# Copy package files for all workspaces
 COPY package.json bun.lock ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
+RUN bun install --frozen-lockfile --production
 
-# Install dependencies
-RUN bun install
+# Stage 2: Production
+FROM oven/bun:1-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy source code
-COPY . .
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
 
-# Build shared and db packages first, then api
-RUN cd packages/shared && bun run build
-RUN cd packages/db && bun run build
-RUN cd packages/api && bun run build
+# Copy source code (Bun runs TS directly)
+COPY packages/api/src ./packages/api/src
+COPY packages/api/package.json ./packages/api/
+COPY packages/db/src ./packages/db/src
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/src ./packages/shared/src
+COPY packages/shared/package.json ./packages/shared/
+COPY package.json ./
 
-# Expose port
 EXPOSE 3000
-
-# Default command (run from api package)
 WORKDIR /app/packages/api
-CMD ["bun", "run", "dev"] 
+CMD ["bun", "run", "src/index.ts"]
