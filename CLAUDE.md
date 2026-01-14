@@ -30,8 +30,20 @@ packages/
 
 ## Common Commands
 
+### Quick Reference
+
 ```bash
-# Development Workflow (recommended)
+bun run build      # Build all packages (turbo cached)
+bun run lint       # Lint all packages
+bun run lint:fix   # Auto-fix lint issues
+bun run tsc        # Type check all packages
+bun run test       # Run all tests
+bun run dev        # Start development servers
+```
+
+### Development Workflow
+
+```bash
 # 1. Start infrastructure (postgres, redis only - API runs locally)
 docker compose up -d postgres redis
 
@@ -39,7 +51,7 @@ docker compose up -d postgres redis
 bun run dev
 
 # 3. Type check
-bunx tsc --build
+bun run tsc
 
 # Docker Infrastructure
 docker compose up -d postgres redis     # Start only infrastructure services
