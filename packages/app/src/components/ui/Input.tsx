@@ -15,16 +15,20 @@ export const Input = forwardRef<TextInput, InputProps>(
     return (
       <View
         className={`
-          flex-row items-center w-full h-14 rounded-full
-          bg-white dark:bg-[#252a1f]
-          border-2
-          ${error ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-700'}
+          flex-row items-center w-full h-14 rounded-xl
+          bg-input-bg dark:bg-surface-dark
+          border
+          ${error ? 'border-error' : 'border-transparent focus:border-primary'}
           px-4
         `}
       >
         {icon && (
-          <View className="mr-2">
-            <MaterialIcons name={icon} size={24} color={colors.primary} />
+          <View className="mr-3">
+            <MaterialIcons
+              name={icon}
+              size={22}
+              color={error ? colors.error : colors.primary}
+            />
           </View>
         )}
         {prefix && (
@@ -32,15 +36,15 @@ export const Input = forwardRef<TextInput, InputProps>(
             <TextInput
               editable={false}
               value={prefix}
-              className="text-xl font-semibold text-text-secondary/60 dark:text-zinc-500"
-              style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+              className="text-lg text-text-muted"
+              style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
             />
           </View>
         )}
         <TextInput
           ref={ref}
-          className="flex-1 text-base text-zinc-900 dark:text-white"
-          placeholderTextColor="#9ca3af"
+          className="flex-1 text-base text-text-primary dark:text-white"
+          placeholderTextColor={colors.textMuted}
           style={[{ fontFamily: 'PlusJakartaSans_400Regular' }, style]}
           {...props}
         />

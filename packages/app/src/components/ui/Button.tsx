@@ -8,8 +8,9 @@ import {
   Text,
   View,
 } from 'react-native'
+import { colors } from 'src/theme'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost'
+type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
 type ButtonProps = Omit<PressableProps, 'children'> & {
   children: ReactNode
@@ -24,19 +25,28 @@ const getVariantStyles = (variant: ButtonVariant, pressed: boolean) =>
   pipe(
     Match.value(variant),
     Match.when('primary', () => ({
-      container: `bg-primary ${pressed ? 'bg-[#729a4a]' : ''} shadow-lg`,
-      text: 'text-[#141712]',
-      icon: '#141712',
+      container: pressed ? 'bg-primary-dark' : 'bg-primary',
+      text: 'text-white',
+      iconColor: colors.white,
+      loaderColor: colors.white,
     })),
     Match.when('secondary', () => ({
-      container: `bg-transparent border-2 border-zinc-200 dark:border-zinc-700 ${pressed ? 'bg-zinc-100 dark:bg-zinc-800' : ''}`,
-      text: 'text-zinc-900 dark:text-white',
-      icon: '#141712',
+      container: `border border-primary bg-transparent ${pressed ? 'bg-primary/10' : ''}`,
+      text: 'text-primary',
+      iconColor: colors.primary,
+      loaderColor: colors.primary,
+    })),
+    Match.when('destructive', () => ({
+      container: pressed ? 'bg-coral-dark' : 'bg-coral',
+      text: 'text-white',
+      iconColor: colors.white,
+      loaderColor: colors.white,
     })),
     Match.when('ghost', () => ({
       container: `bg-transparent ${pressed ? 'opacity-70' : ''}`,
-      text: 'text-text-secondary dark:text-zinc-400',
-      icon: '#738363',
+      text: 'text-primary',
+      iconColor: colors.primary,
+      loaderColor: colors.primary,
     })),
     Match.exhaustive
   )
@@ -54,11 +64,7 @@ export function Button({
   return (
     <Pressable
       disabled={disabled || loading}
-      className={`
-        h-14 rounded-full flex-row items-center justify-center gap-2 px-5
-        ${fullWidth ? 'w-full' : ''}
-        ${disabled ? 'opacity-50' : ''}
-      `}
+      className={`${fullWidth ? 'w-full' : ''} ${disabled ? 'opacity-50' : ''}`}
       style={({ pressed }) => ({
         transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
       })}
@@ -69,28 +75,34 @@ export function Button({
         return (
           <View
             className={`
-              h-14 rounded-full flex-row items-center justify-center gap-2 px-5
+              h-[52px] rounded-xl flex-row items-center justify-center gap-2 px-8
               ${fullWidth ? 'w-full' : ''}
               ${styles.container}
             `}
           >
             {loading ? (
-              <ActivityIndicator
-                color={variant === 'primary' ? '#141712' : '#738363'}
-              />
+              <ActivityIndicator color={styles.loaderColor} />
             ) : (
               <>
                 {icon && iconPosition === 'left' && (
-                  <MaterialIcons name={icon} size={20} color={styles.icon} />
+                  <MaterialIcons
+                    name={icon}
+                    size={20}
+                    color={styles.iconColor}
+                  />
                 )}
                 <Text
-                  className={`text-lg font-bold ${styles.text}`}
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+                  className={`text-base ${styles.text}`}
+                  style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
                 >
                   {children}
                 </Text>
                 {icon && iconPosition === 'right' && (
-                  <MaterialIcons name={icon} size={20} color={styles.icon} />
+                  <MaterialIcons
+                    name={icon}
+                    size={20}
+                    color={styles.iconColor}
+                  />
                 )}
               </>
             )}

@@ -7,7 +7,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: colors.backgroundLight,
+          backgroundColor: colors.background,
         },
       }}
     />

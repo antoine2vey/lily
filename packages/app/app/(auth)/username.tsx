@@ -5,12 +5,12 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, IconButton, TextLink } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { colors } from 'src/theme'
@@ -57,7 +57,6 @@ export default function UsernameSetupScreen() {
     }
 
     // For now, assume available if valid format
-    // In production, you'd check with the backend
     setValidation({ _tag: 'Available' })
   }, [])
 
@@ -99,22 +98,18 @@ export default function UsernameSetupScreen() {
         </View>
       )),
       Match.when({ _tag: 'Invalid' }, () => (
-        <View className="w-8 h-8 rounded-full bg-red-500/10 items-center justify-center">
-          <MaterialIcons name="close" size={20} color="#ef4444" />
+        <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
+          <MaterialIcons name="close" size={20} color={colors.error} />
         </View>
       )),
       Match.when({ _tag: 'Unavailable' }, () => (
-        <View className="w-8 h-8 rounded-full bg-red-500/10 items-center justify-center">
-          <MaterialIcons name="close" size={20} color="#ef4444" />
+        <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
+          <MaterialIcons name="close" size={20} color={colors.error} />
         </View>
       )),
       Match.when({ _tag: 'Checking' }, () => (
-        <View className="w-8 h-8 rounded-full bg-zinc-100 items-center justify-center">
-          <MaterialIcons
-            name="more-horiz"
-            size={20}
-            color={colors.textSecondary}
-          />
+        <View className="w-8 h-8 rounded-full bg-border items-center justify-center">
+          <MaterialIcons name="more-horiz" size={20} color={colors.textMuted} />
         </View>
       )),
       Match.orElse(() => null)
@@ -127,7 +122,7 @@ export default function UsernameSetupScreen() {
         <View className="flex-row items-center gap-1.5">
           <View className="w-1.5 h-1.5 rounded-full bg-primary" />
           <Text
-            className="text-xs text-primary uppercase"
+            className="text-xs text-primary uppercase tracking-wide"
             style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
           >
             Available
@@ -136,7 +131,7 @@ export default function UsernameSetupScreen() {
       )),
       Match.when({ _tag: 'Invalid' }, ({ reason }) => (
         <Text
-          className="text-xs text-red-500"
+          className="text-xs text-error"
           style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
         >
           {reason}
@@ -144,7 +139,7 @@ export default function UsernameSetupScreen() {
       )),
       Match.when({ _tag: 'Unavailable' }, ({ reason }) => (
         <Text
-          className="text-xs text-red-500"
+          className="text-xs text-error"
           style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
         >
           {reason}
@@ -154,10 +149,13 @@ export default function UsernameSetupScreen() {
     )
 
   return (
-    <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      className="flex-1 bg-background"
+    >
       {/* Decorative background elements */}
-      <View className="absolute top-0 right-0 -z-10 w-[80%] h-[80%] bg-primary/10 rounded-full opacity-50 translate-x-1/3 -translate-y-1/3" />
-      <View className="absolute bottom-0 left-0 -z-10 w-[60%] h-[60%] bg-yellow-100/30 dark:bg-yellow-900/10 rounded-full opacity-50 -translate-x-1/3 translate-y-1/3" />
+      <View className="absolute top-0 right-0 w-[80%] h-[60%] bg-primary/5 rounded-full -translate-y-1/4 translate-x-1/4" />
+      <View className="absolute bottom-0 left-0 w-[50%] h-[40%] bg-primary/5 rounded-full translate-y-1/4 -translate-x-1/4" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -167,16 +165,15 @@ export default function UsernameSetupScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-1 max-w-md w-full mx-auto px-6 pt-6 pb-8 justify-between">
+          <View className="flex-1 px-6 pt-4 pb-8 justify-between">
             {/* Top Navigation */}
-            <View className="flex-row items-center justify-between py-2">
+            <View className="flex-row items-center py-2">
               <IconButton
                 icon="chevron-left"
-                size={28}
-                color={colors.textMain}
+                size={24}
+                color={colors.textPrimary}
                 onPress={() => router.back()}
               />
-              <View className="w-12" />
             </View>
 
             {/* Main Content */}
@@ -184,37 +181,42 @@ export default function UsernameSetupScreen() {
               {/* Headline */}
               <View className="mb-10">
                 <Text
-                  className="text-3xl text-text-main dark:text-white mb-3"
-                  style={{ fontFamily: 'PlusJakartaSans_800ExtraBold' }}
+                  className="text-[28px] text-text-primary"
+                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
                 >
-                  What should we{'\n'}
-                  <Text className="text-primary">call you?</Text>
+                  What should we
                 </Text>
                 <Text
-                  className="text-lg text-text-secondary dark:text-zinc-400 max-w-[90%]"
-                  style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+                  className="text-[28px] text-primary"
+                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
                 >
-                  This is how you'll appear to other plant parents in the
+                  call you?
+                </Text>
+                <Text
+                  className="text-base text-text-secondary mt-3"
+                  style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
+                >
+                  This is how you'll appear to other{'\n'}plant parents in the
                   community.
                 </Text>
               </View>
 
               {/* Username Input */}
               <View className="w-full">
-                <View className="flex-row items-center w-full h-16 rounded-full border border-zinc-200 dark:border-zinc-700 bg-surface-light dark:bg-surface-dark px-6">
+                <View className="flex-row items-center w-full h-14 rounded-xl border border-border bg-surface px-5">
                   {/* Fixed Prefix */}
                   <Text
-                    className="text-xl text-text-secondary/60 dark:text-zinc-500 mr-1"
-                    style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+                    className="text-lg text-text-muted mr-1"
+                    style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
                   >
                     @
                   </Text>
                   {/* Input */}
                   <TextInput
-                    className="flex-1 text-xl text-text-main dark:text-white"
+                    className="flex-1 text-lg text-text-primary"
                     style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
                     placeholder="username"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.textMuted}
                     value={username}
                     onChangeText={setUsername}
                     autoCapitalize="none"
@@ -226,10 +228,10 @@ export default function UsernameSetupScreen() {
                 </View>
 
                 {/* Helper Text & Counter */}
-                <View className="flex-row justify-between items-center px-6 mt-3">
+                <View className="flex-row justify-between items-center px-2 mt-3">
                   {getValidationStatus()}
                   <Text
-                    className="text-sm text-text-secondary dark:text-zinc-500"
+                    className="text-sm text-text-muted"
                     style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
                   >
                     {username.length}/{MAX_USERNAME_LENGTH}
@@ -239,7 +241,7 @@ export default function UsernameSetupScreen() {
             </View>
 
             {/* Bottom Actions */}
-            <View className="gap-5 pb-4 pt-10">
+            <View className="gap-5 pt-10">
               {/* Primary Button */}
               <Button
                 icon="arrow-forward"
