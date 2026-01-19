@@ -683,3 +683,18 @@ An Effect documentation MCP server is available for reference. Use it to:
 - Look up Effect module APIs (Array, Option, Match, Record, Struct, etc.)
 - Find correct function signatures and usage patterns
 - Discover available utilities for any Effect module
+
+## Design System
+
+The Lily app follows a comprehensive design system documented in `packages/app/DESIGN_SYSTEM.md`.
+
+**Quick Reference:**
+- Primary Green: `#5B8C5A`
+- Coral (destructive): `#E8997E`
+- Background: `#F8FAF8`
+- Surface: `#FFFFFF`
+- Text Primary: `#1A1A1A`
+- Border Radius: 8/12/16/24px
+- Spacing: 4/8/16/24/32px (8pt grid)
+
+See `packages/app/DESIGN_SYSTEM.md` for complete color palette, typography, components, and usage guidelines.
