@@ -7,7 +7,7 @@ import {
   type NotificationTopic,
   PushService,
   type QueueMessage,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Array, Effect, Match, Schedule } from 'effect'
 
 const MAX_RETRIES = 3

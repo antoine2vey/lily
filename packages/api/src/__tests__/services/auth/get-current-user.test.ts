@@ -1,59 +1,43 @@
-import { mockSession } from '@lily/api/__tests__/fixtures/auth'
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import {
-  createMockAuth,
-  createMockHttpServerRequest,
+  createMockCurrentUser,
+  mockUserProfile,
 } from '@lily/api/__tests__/mocks/auth'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getCurrentUser', () => {
-  it('should return user when session exists', async () => {
-    const TestLayer = Layer.mergeAll(
-      createMockAuth(mockSession),
-      createMockHttpServerRequest(),
-      createMockUserRepository(mockUsers)
-    )
-
+  it('should return user profile when authenticated', async () => {
     const result = await Effect.runPromise(
-      getCurrentUser().pipe(Effect.provide(TestLayer))
+      getCurrentUser().pipe(
+        Effect.provide(createMockCurrentUser(mockUserProfile))
+      )
     )
 
-    expect(result.id).toBe(mockSession.user.id)
-    expect(result.email).toBe(mockSession.user.email)
+    expect(result.id).toBe(mockUserProfile.id)
+    expect(result.email).toBe(mockUserProfile.email)
+    expect(result.name).toBe(mockUserProfile.name)
+    expect(result.role).toBe(mockUserProfile.role)
+    expect(result.status).toBe(mockUserProfile.status)
   })
 
   it('should return user profile with correct fields', async () => {
-    const TestLayer = Layer.mergeAll(
-      createMockAuth(mockSession),
-      createMockHttpServerRequest(),
-      createMockUserRepository(mockUsers)
-    )
+    const customUser = {
+      ...mockUserProfile,
+      id: 'custom-user-id',
+      email: 'custom@example.com',
+      name: 'Custom User',
+      role: 'admin' as const,
+    }
 
     const result = await Effect.runPromise(
-      getCurrentUser().pipe(Effect.provide(TestLayer))
+      getCurrentUser().pipe(Effect.provide(createMockCurrentUser(customUser)))
     )
 
-    expect(result.id).toBe('user-1')
-    expect(result.email).toBe('test@example.com')
-    expect(result.name).toBe('Test User')
-    expect(result.role).toBe('user')
+    expect(result.id).toBe('custom-user-id')
+    expect(result.email).toBe('custom@example.com')
+    expect(result.name).toBe('Custom User')
+    expect(result.role).toBe('admin')
     expect(result.status).toBe('active')
-  })
-
-  it('should fail with SessionNotFoundError when no session', async () => {
-    const TestLayer = Layer.mergeAll(
-      createMockAuth(null),
-      createMockHttpServerRequest(),
-      createMockUserRepository(mockUsers)
-    )
-
-    const result = await Effect.runPromiseExit(
-      getCurrentUser().pipe(Effect.provide(TestLayer))
-    )
-
-    expect(result._tag).toBe('Failure')
   })
 })

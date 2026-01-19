@@ -5,7 +5,7 @@ import {
   QueueConnectionError,
   type QueueMessage,
   QueueOperationError,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Config, Context, Effect, Layer } from 'effect'
 import Redis from 'ioredis'
 

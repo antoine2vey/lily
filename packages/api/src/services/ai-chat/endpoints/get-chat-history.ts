@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { ChatHistoryListResponse } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
 

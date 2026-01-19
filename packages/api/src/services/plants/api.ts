@@ -4,7 +4,7 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
-import { Authentication } from '@lily/api/services/auth/middleware'
+import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'

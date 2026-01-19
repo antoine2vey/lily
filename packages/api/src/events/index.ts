@@ -20,4 +20,4 @@ export {
   type PhotoUploadedEvent,
   type PlantCreatedEvent,
   type PlantScannedEvent,
-} from '@lily/shared'
+} from '@lily/shared/server'

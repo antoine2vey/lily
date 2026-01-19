@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { AuthenticationLive } from '@lily/api/services/auth/middleware'
+import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { UserService } from '@lily/api/services/user/service'
 import { Effect, Layer } from 'effect'
 

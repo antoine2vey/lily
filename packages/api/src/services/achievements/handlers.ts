@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { AchievementsService } from '@lily/api/services/achievements/service'
-import { AuthenticationLive } from '@lily/api/services/auth/middleware'
+import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { Effect, Layer } from 'effect'
 
 // Implement the Achievements API group

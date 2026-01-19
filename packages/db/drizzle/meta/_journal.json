@@ -64,6 +64,13 @@
       "when": 1767975459593,
       "tag": "0008_zippy_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1768850948516,
+      "tag": "0009_slippery_shard",
+      "breakpoints": true
     }
   ]
 }

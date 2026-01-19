@@ -1,148 +1,93 @@
 import { HttpServerRequest } from '@effect/platform'
-import { Auth } from '@lily/api/services/auth/auth'
+import {
+  Authentication,
+  CurrentUser,
+  Unauthorized,
+} from '@lily/api/services/auth/middleware.types'
 import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Layer, Option, pipe } from 'effect'
+import { Effect, Layer } from 'effect'
 
-interface MockSession {
-  user: UserProfile
-  session: {
-    id: string
-    userId: string
-    expiresAt: Date
-  }
+/**
+ * Mock user profile for testing
+ */
+export const mockUserProfile: UserProfile = {
+  id: 'user-1',
+  name: 'Test User',
+  email: 'test@example.com',
+  username: 'testuser',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+  role: 'user',
+  status: 'active',
 }
 
-interface MockAuthClient {
-  api: {
-    signInMagicLink: (args: {
-      body: { email: string; callbackURL: string }
-      headers: unknown
-    }) => Promise<{ message: string }>
-    magicLinkVerify: (args: {
-      query: { token: string; callbackURL: string; errorCallbackURL: string }
-      headers: unknown
-    }) => Promise<{ token: string; user: UserProfile }>
-    sendVerificationEmail: (args: {
-      body: { email: string }
-      headers: unknown
-    }) => Promise<{ status: boolean }>
-    verifyEmail: (args: {
-      query: { token: string }
-      headers: unknown
-    }) => Promise<{ user: UserProfile | null }>
-  }
-}
-
-type AuthService = {
-  readonly client: Effect.Effect<MockAuthClient>
-  readonly session: Effect.Effect<MockSession | null>
+export const mockAdminProfile: UserProfile = {
+  id: 'admin-1',
+  name: 'Admin User',
+  email: 'admin@example.com',
+  username: 'adminuser',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+  role: 'admin',
+  status: 'active',
 }
 
 export interface MockAuthOptions {
-  session?: MockSession | null
-  magicLinkResponse?: { message: string }
-  verifyResponse?: { token: string; user: UserProfile }
-  sendVerificationEmailResponse?: { status: boolean }
-  verifyEmailResponse?: { user: UserProfile | null }
-  sendVerificationEmailError?: boolean
-  verifyEmailError?: boolean
+  user?: UserProfile | null
+  shouldFail?: boolean
+  failMessage?: string
 }
 
-export const createMockAuth = (
-  sessionOrOptions: MockSession | null | MockAuthOptions
-): Layer.Layer<Auth> => {
-  // Handle backwards compatibility
-  const emptyObj = {}
-  const options: MockAuthOptions =
-    sessionOrOptions === null ||
-    ('user' in
-      pipe(
-        Option.fromNullable(sessionOrOptions),
-        Option.getOrElse(() => emptyObj)
-      ) &&
-      'session' in
-        pipe(
-          Option.fromNullable(sessionOrOptions),
-          Option.getOrElse(() => emptyObj)
-        ))
-      ? { session: sessionOrOptions as MockSession | null }
-      : (sessionOrOptions as MockAuthOptions)
+/**
+ * Create a mock Authentication layer for testing
+ * Provides a user to the CurrentUser context
+ */
+export const createMockAuthentication = (
+  options: MockAuthOptions = {}
+): Layer.Layer<Authentication> => {
+  const {
+    user = mockUserProfile,
+    shouldFail = false,
+    failMessage = 'Unauthorized',
+  } = options
 
-  const mockClient: MockAuthClient = {
-    api: {
-      signInMagicLink: async () =>
-        pipe(
-          Option.fromNullable(options.magicLinkResponse),
-          Option.getOrElse(() => ({ message: 'Magic link sent' }))
-        ),
-      magicLinkVerify: async () =>
-        pipe(
-          Option.fromNullable(options.verifyResponse),
-          Option.getOrElse(() => ({
-            token: 'mock-token',
-            user: {
-              id: 'user-1',
-              name: 'Test User',
-              email: 'test@example.com',
-              username: 'testuser',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user' as const,
-              status: 'active' as const,
-            },
-          }))
-        ),
-      sendVerificationEmail: async () => {
-        if (options.sendVerificationEmailError) {
-          throw new Error('Failed to send verification email')
+  return Layer.succeed(
+    Authentication,
+    Authentication.of({
+      bearer: () => {
+        if (shouldFail || !user) {
+          return Effect.fail(new Unauthorized({ message: failMessage }))
         }
-        return pipe(
-          Option.fromNullable(options.sendVerificationEmailResponse),
-          Option.getOrElse(() => ({ status: true }))
-        )
+        return Effect.succeed(user)
       },
-      verifyEmail: async () => {
-        if (options.verifyEmailError) {
-          throw new Error('Invalid or expired verification token')
-        }
-        return pipe(
-          Option.fromNullable(options.verifyEmailResponse),
-          Option.getOrElse(() => ({
-            user: {
-              id: 'user-1',
-              name: 'Test User',
-              email: 'test@example.com',
-              username: 'testuser',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user' as const,
-              status: 'active' as const,
-            },
-          }))
-        )
-      },
+    })
+  )
+}
+
+/**
+ * Create a mock CurrentUser layer for testing
+ * Use this when you need to provide CurrentUser directly without authentication middleware
+ */
+export const createMockCurrentUser = (
+  user: UserProfile = mockUserProfile
+): Layer.Layer<CurrentUser> => {
+  return Layer.succeed(CurrentUser, user)
+}
+
+/**
+ * Create a mock HttpServerRequest layer for testing
+ */
+export const createMockHttpServerRequest = (
+  headers: Record<string, string> = {}
+): Layer.Layer<HttpServerRequest.HttpServerRequest> => {
+  const mockRequest = {
+    headers: {
+      'content-type': 'application/json',
+      ...headers,
     },
-  }
+    method: 'GET',
+    url: 'http://localhost:3000/test',
+  } as unknown as HttpServerRequest.HttpServerRequest
 
-  const mockService: AuthService = {
-    client: Effect.succeed(mockClient),
-    session: Effect.succeed(
-      pipe(Option.fromNullable(options.session), Option.getOrNull)
-    ),
-  }
-
-  return Layer.succeed(Auth, mockService as unknown as typeof Auth.Service)
+  return Layer.succeed(HttpServerRequest.HttpServerRequest, mockRequest)
 }
-
-export const createMockHttpServerRequest =
-  (): Layer.Layer<HttpServerRequest.HttpServerRequest> => {
-    const mockRequest = {
-      headers: {
-        'content-type': 'application/json',
-      },
-      method: 'GET',
-      url: 'http://localhost:3000/test',
-    } as unknown as HttpServerRequest.HttpServerRequest
-
-    return Layer.succeed(HttpServerRequest.HttpServerRequest, mockRequest)
-  }

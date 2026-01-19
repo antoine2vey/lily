@@ -1,5 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
-import { Authentication } from '@lily/api/services/auth/middleware'
+import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CheckoutSessionResponse,
   CreateCheckoutSessionRequest,

@@ -2,7 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import {
   Authentication,
   Unauthorized,
-} from '@lily/api/services/auth/middleware'
+} from '@lily/api/services/auth/middleware.types'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'

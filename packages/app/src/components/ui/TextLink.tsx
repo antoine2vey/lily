@@ -1,0 +1,70 @@
+import { MaterialIcons } from '@expo/vector-icons'
+import { Match, pipe } from 'effect'
+import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
+import { colors } from 'src/theme'
+
+type TextLinkVariant = 'primary' | 'secondary'
+
+type TextLinkProps = {
+  children: ReactNode
+  variant?: TextLinkVariant
+  icon?: keyof typeof MaterialIcons.glyphMap
+  iconPosition?: 'left' | 'right'
+  onPress?: () => void
+  disabled?: boolean
+}
+
+export function TextLink({
+  children,
+  variant = 'primary',
+  icon,
+  iconPosition = 'right',
+  onPress,
+  disabled,
+}: TextLinkProps) {
+  const getStyles = (pressed: boolean) =>
+    pipe(
+      Match.value(variant),
+      Match.when('primary', () => ({
+        text: pressed ? 'opacity-80' : '',
+        color: colors.primary,
+      })),
+      Match.when('secondary', () => ({
+        text: pressed ? 'opacity-80' : '',
+        color: '#8fa085',
+      })),
+      Match.exhaustive
+    )
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      className={disabled ? 'opacity-50' : ''}
+    >
+      {({ pressed }) => {
+        const styles = getStyles(pressed)
+        return (
+          <View className="flex-row items-center gap-1.5">
+            {icon && iconPosition === 'left' && (
+              <MaterialIcons name={icon} size={20} color={styles.color} />
+            )}
+            <Text
+              className={`text-sm font-bold ${styles.text}`}
+              style={{
+                fontFamily: 'PlusJakartaSans_700Bold',
+                color: styles.color,
+              }}
+            >
+              {children}
+            </Text>
+            {icon && iconPosition === 'right' && (
+              <MaterialIcons name={icon} size={20} color={styles.color} />
+            )}
+          </View>
+        )
+      }}
+    </Pressable>
+  )
+}

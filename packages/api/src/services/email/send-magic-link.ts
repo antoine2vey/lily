@@ -1,17 +1,33 @@
 import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
-import { EmailService } from '@lily/shared'
+import { EmailService } from '@lily/shared/server'
+import type {
+  EmailConfigError,
+  EmailSendError,
+} from '@lily/shared/services/email/types'
 import { Effect } from 'effect'
+import type { ConfigError } from 'effect/ConfigError'
 
-interface MagicLinkRequest {
+interface SendMagicLinkEmailRequest {
   email: string
   token: string
-  url: string
+  callbackUrl: string
 }
 
-// Bridge function for Better Auth's sendMagicLink callback
-export const sendMagicLinkEmail = async (
-  request: MagicLinkRequest
-): Promise<void> => {
+/**
+ * Send magic link email to user
+ * Uses the browser callback URL which will redirect to the app
+ */
+export const sendMagicLinkEmail = ({
+  email,
+  token,
+  callbackUrl,
+}: SendMagicLinkEmailRequest): Effect.Effect<
+  void,
+  EmailSendError | EmailConfigError | ConfigError
+> => {
+  // Create deep link URL for the mobile app (fallback shown in email)
+  const appDeepLink = `lily://verify?code=${token}`
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -26,7 +42,7 @@ export const sendMagicLinkEmail = async (
           <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
             Click the button below to sign in to your account. This link will expire in 10 minutes.
           </p>
-          <a href="${request.url}" style="display: inline-block; background-color: #2d5a27; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          <a href="${callbackUrl}" style="display: inline-block; background-color: #2d5a27; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
             Sign in to Lily
           </a>
           <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 24px 0 0 0;">
@@ -37,24 +53,22 @@ export const sendMagicLinkEmail = async (
             This link will expire in 10 minutes. If the button doesn't work, copy and paste this URL into your browser:
           </p>
           <p style="color: #666; font-size: 12px; word-break: break-all; margin: 8px 0 0 0;">
-            ${request.url}
+            ${appDeepLink}
           </p>
         </div>
       </body>
     </html>
   `
 
-  const text = `Sign in to Lily\n\nClick this link to sign in: ${request.url}\n\nThis link will expire in 10 minutes.\n\nIf you didn't request this email, you can safely ignore it.`
+  const text = `Sign in to Lily\n\nClick this link to sign in: ${callbackUrl}\n\nThis link will expire in 10 minutes.\n\nIf you didn't request this email, you can safely ignore it.`
 
-  const program = Effect.gen(function* () {
+  return Effect.gen(function* () {
     const emailService = yield* EmailService
     yield* emailService.send({
-      to: request.email,
+      to: email,
       subject: 'Sign in to Lily',
       html,
       text,
     })
   }).pipe(Effect.provide(ResendEmailServiceLive))
-
-  await Effect.runPromise(program)
 }

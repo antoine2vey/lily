@@ -6,7 +6,7 @@ import {
   EventBusConnectionError,
   EventBusPublishError,
   type IEventBus,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Effect, Layer, Queue, Schema } from 'effect'
 
 // Channel name for event bus pub-sub

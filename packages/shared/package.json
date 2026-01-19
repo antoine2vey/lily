@@ -8,6 +8,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    },
     "./achievement": {
       "types": "./src/domains/achievement/schema.ts",
       "default": "./src/domains/achievement/schema.ts"

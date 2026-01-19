@@ -4,7 +4,7 @@ import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.
 import {
   AuthenticationLive,
   CurrentUser,
-} from '@lily/api/services/auth/middleware'
+} from '@lily/api/services/auth/middleware.impl'
 import { StripePaymentProviderLive } from '@lily/api/services/subscriptions/providers/stripe.provider'
 import {
   SubscriptionService,

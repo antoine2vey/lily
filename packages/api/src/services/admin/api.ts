@@ -1,5 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
-import { AdminAuth } from '@lily/api/services/admin/middleware'
+import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import { PaginatedResponse } from '@lily/shared'
 import {
   AdminRoleChangeRequest,
