@@ -12,7 +12,9 @@ export const magicLinks = pgTable('magic_links', {
   token: text('token').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 /**
@@ -27,7 +29,9 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
@@ -42,5 +46,7 @@ export const rateLimits = pgTable('rate_limits', {
   id: uuid('id').primaryKey().defaultRandom(),
   key: text('key').notNull().unique(),
   count: integer('count').notNull().default(0),
-  windowStart: timestamp('window_start', { withTimezone: true }).notNull().defaultNow(),
+  windowStart: timestamp('window_start', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
