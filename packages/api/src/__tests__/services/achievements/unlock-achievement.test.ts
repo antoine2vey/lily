@@ -1,7 +1,4 @@
-import {
-  createTestUserAchievement,
-  mockUserAchievements,
-} from '@lily/api/__tests__/fixtures/achievements'
+import { createTestUserAchievement } from '@lily/api/__tests__/fixtures/achievements'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
 import { ACHIEVEMENTS } from '@lily/shared'
