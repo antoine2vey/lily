@@ -1,0 +1,137 @@
+import {
+  createTestUserAchievement,
+  mockUserAchievements,
+} from '@lily/api/__tests__/fixtures/achievements'
+import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
+import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
+import { ACHIEVEMENTS } from '@lily/shared'
+import { Effect } from 'effect'
+import { describe, expect, it } from 'vitest'
+
+describe('unlockAchievement', () => {
+  const userId = 'user-1'
+
+  it('should unlock new achievement successfully', async () => {
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'PLANT_COLLECTOR' }).pipe(
+        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      )
+    )
+
+    expect(result.key).toBe('PLANT_COLLECTOR')
+    expect(result.userId).toBe(userId)
+    expect(result.name).toBe(ACHIEVEMENTS.PLANT_COLLECTOR.name)
+    expect(result.description).toBe(ACHIEVEMENTS.PLANT_COLLECTOR.description)
+    expect(result.iconUrl).toBe(ACHIEVEMENTS.PLANT_COLLECTOR.iconUrl)
+    expect(result.unlockedAt).toBeDefined()
+  })
+
+  it('should return existing achievement if already unlocked', async () => {
+    const existingAchievement = createTestUserAchievement({
+      userId,
+      achievement: 'FIRST_PLANT_ADDED',
+    })
+
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'FIRST_PLANT_ADDED' }).pipe(
+        Effect.provide(
+          createMockAchievementRepository({
+            achievements: [existingAchievement],
+          })
+        )
+      )
+    )
+
+    expect(result.key).toBe('FIRST_PLANT_ADDED')
+    expect(result.name).toBe(ACHIEVEMENTS.FIRST_PLANT_ADDED.name)
+  })
+
+  it('should return achievement with definition details', async () => {
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'WATERING_NOVICE' }).pipe(
+        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      )
+    )
+
+    expect(result.name).toBe('Watering Novice')
+    expect(result.description).toBe('Watered your plants 10 times')
+    expect(result.iconUrl).toBe('/achievements/watering-novice.png')
+  })
+
+  it('should include all required fields in response', async () => {
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'PHOTO_PRO' }).pipe(
+        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      )
+    )
+
+    expect(result).toHaveProperty('id')
+    expect(result).toHaveProperty('key')
+    expect(result).toHaveProperty('name')
+    expect(result).toHaveProperty('description')
+    expect(result).toHaveProperty('iconUrl')
+    expect(result).toHaveProperty('unlockedAt')
+    expect(result).toHaveProperty('userId')
+  })
+
+  it('should handle multiple users unlocking same achievement', async () => {
+    const user1Achievement = createTestUserAchievement({
+      userId: 'user-1',
+      achievement: 'AI_CONVERSATIONALIST',
+    })
+
+    const result = await Effect.runPromise(
+      unlockAchievement('user-2', { achievement: 'AI_CONVERSATIONALIST' }).pipe(
+        Effect.provide(
+          createMockAchievementRepository({
+            achievements: [user1Achievement],
+          })
+        )
+      )
+    )
+
+    expect(result.userId).toBe('user-2')
+    expect(result.key).toBe('AI_CONVERSATIONALIST')
+  })
+
+  it('should unlock different achievements for same user', async () => {
+    const existingAchievement = createTestUserAchievement({
+      userId,
+      achievement: 'FIRST_PLANT_ADDED',
+    })
+
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'DEDICATED_CARETAKER' }).pipe(
+        Effect.provide(
+          createMockAchievementRepository({
+            achievements: [existingAchievement],
+          })
+        )
+      )
+    )
+
+    expect(result.key).toBe('DEDICATED_CARETAKER')
+    expect(result.name).toBe('Dedicated Caretaker')
+  })
+
+  it('should preserve original unlock time when returning existing', async () => {
+    const originalUnlockTime = new Date('2024-01-15T10:00:00Z')
+    const existingAchievement = createTestUserAchievement({
+      userId,
+      achievement: 'SCAN_CHAMP',
+      unlockedAt: originalUnlockTime,
+    })
+
+    const result = await Effect.runPromise(
+      unlockAchievement(userId, { achievement: 'SCAN_CHAMP' }).pipe(
+        Effect.provide(
+          createMockAchievementRepository({
+            achievements: [existingAchievement],
+          })
+        )
+      )
+    )
+
+    expect(result.unlockedAt).toEqual(originalUnlockTime)
+  })
+})
