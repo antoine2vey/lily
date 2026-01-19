@@ -3,7 +3,7 @@ import {
   EmailService,
   type IEmailService,
   type SendEmailRequest,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Config, Effect, Layer, Redacted } from 'effect'
 import { Resend } from 'resend'
 

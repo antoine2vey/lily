@@ -1,7 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'

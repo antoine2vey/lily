@@ -1,4 +1,4 @@
-import { type AppEvent, EventBus, type IEventBus } from '@lily/shared'
+import { type AppEvent, EventBus, type IEventBus } from '@lily/shared/server'
 import { Effect, Layer, PubSub } from 'effect'
 
 // In-memory implementation of IEventBus for testing and local development

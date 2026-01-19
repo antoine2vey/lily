@@ -17,7 +17,7 @@ import {
   handleFailedMessage,
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
-import type { PushMessage, QueueMessage } from '@lily/shared'
+import type { PushMessage, QueueMessage } from '@lily/shared/server'
 import { Effect, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 

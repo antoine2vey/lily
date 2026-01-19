@@ -1,6 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { CurrentUser, Unauthorized } from '@lily/api/services/auth/middleware'
+import {
+  CurrentUser,
+  Unauthorized,
+} from '@lily/api/services/auth/middleware.types'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect, Record } from 'effect'

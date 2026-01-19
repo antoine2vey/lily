@@ -1,34 +1,86 @@
-import { HttpServerRequest } from '@effect/platform'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { Auth } from '@lily/api/services/auth/auth'
-import type { MagicLinkRequest } from '@lily/shared/auth'
+import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import {
+  RATE_LIMITS,
+  RateLimiterService,
+} from '@lily/api/services/rate-limiter/service'
+import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import { Effect } from 'effect'
 
-// Send magic link
+// 10 minutes expiry
+const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
+
+/**
+ * Send magic link email to user
+ */
 export const sendMagicLink = ({
   email,
 }: MagicLinkRequest): Effect.Effect<
+  MagicLinkSentResponse,
   { message: string },
-  { message: string },
-  PgDrizzle.PgDrizzle | Auth | HttpServerRequest.HttpServerRequest
+  MagicLinkRepository | RateLimiterService
 > =>
   Effect.gen(function* () {
-    const auth = yield* Auth
-    const authClient = yield* auth.client
-    const _db = yield* PgDrizzle.PgDrizzle
-    const req = yield* HttpServerRequest.HttpServerRequest
+    const magicLinkRepo = yield* MagicLinkRepository
+    const rateLimiter = yield* RateLimiterService
 
-    const _magicLinkResponse = yield* Effect.tryPromise({
-      try: () =>
-        authClient.api.signInMagicLink({
-          body: {
-            email, // Use actual email from request
-            callbackURL: 'http://localhost:3000/dashboard',
-          },
-          headers: req.headers,
+    // Normalize email
+    const normalizedEmail = email.toLowerCase().trim()
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
+      return yield* Effect.fail({ message: 'Invalid email format' })
+    }
+
+    // Check rate limit
+    yield* rateLimiter.checkRateLimit(
+      `magic-link:${normalizedEmail}`,
+      RATE_LIMITS.MAGIC_LINK
+    )
+
+    // Delete any existing magic links for this email
+    yield* magicLinkRepo.deleteByEmail(normalizedEmail)
+
+    // Generate secure token
+    const token = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRY_MS)
+
+    // Store magic link in database
+    yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)
+
+    // Build callback URL for email
+    const baseUrl = process.env.API_BASE_URL || 'http://192.168.1.85:3000'
+    const callbackUrl = `${baseUrl}/api/auth/magic-link/callback?token=${token}`
+
+    // Create deep link URL for the mobile app
+    const appDeepLink = `lily://verify?code=${token}`
+    // Expo Go format for local development
+    const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
+
+    // In development, log the magic link
+    if (process.env.NODE_ENV !== 'production') {
+      yield* Effect.log('\n✨ Magic Link for', normalizedEmail)
+      yield* Effect.log('🔗 Callback URL:', callbackUrl)
+      yield* Effect.log('🔑 Token:', token)
+      yield* Effect.log('📱 Expo Go:', expoGoLink)
+      yield* Effect.log('📱 Production:', appDeepLink)
+      yield* Effect.log('')
+    } else {
+      // In production, send the email
+      yield* Effect.catchAll(
+        sendMagicLinkEmail({
+          email: normalizedEmail,
+          token,
+          callbackUrl,
         }),
-      catch: () => ({ message: 'Failed to send magic link' }),
-    })
+        (error) =>
+          Effect.logError('Failed to send magic link email:', error).pipe(
+            Effect.map(() => undefined)
+          )
+      )
+    }
 
-    return { message: `Magic link sent to ${email}` }
+    // Return generic success message (don't reveal if email exists)
+    return { message: 'If an account exists, a magic link has been sent.' }
   })

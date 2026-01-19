@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type {
   DeviceToken,
   DeviceTokenCreateRequest,

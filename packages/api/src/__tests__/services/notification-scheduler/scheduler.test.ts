@@ -2,7 +2,7 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
-import type { NotificationTopic, QueueMessage } from '@lily/shared'
+import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
 import { Effect, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
 

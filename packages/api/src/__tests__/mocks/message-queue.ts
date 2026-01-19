@@ -3,7 +3,7 @@ import {
   MessageQueue,
   type NotificationTopic,
   type QueueMessage,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockMessageQueueOptions {

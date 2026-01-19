@@ -10,7 +10,7 @@ export type UserStatus = typeof UserStatus.Type
 export const User = Schema.Struct({
   id: Schema.String,
   email: Schema.String,
-  name: Schema.String,
+  name: Schema.NullOr(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
   emailVerified: Schema.Boolean,
@@ -36,7 +36,7 @@ export const UserUpdateRequest = Schema.Struct({
 
 // User settings schemas - simplified to use existing user fields plus default notification settings
 export const UserSettings = Schema.Struct({
-  name: Schema.String,
+  name: Schema.NullOr(Schema.String),
   email: Schema.String,
   image: Schema.optional(Schema.String),
   bio: Schema.optional(Schema.String), // Will default to empty string for now

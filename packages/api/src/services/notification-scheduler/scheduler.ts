@@ -1,5 +1,5 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { MessageQueue, type NotificationTopic } from '@lily/shared'
+import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
 import { Effect, Match, Option, pipe } from 'effect'
 
 const POLL_INTERVAL = '1 minute'

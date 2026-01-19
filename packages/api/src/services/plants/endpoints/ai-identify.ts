@@ -8,7 +8,7 @@ import {
   type AiGenericError,
   AiService,
 } from '@lily/api/services/ai/service'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError } from '@lily/shared'

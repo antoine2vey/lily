@@ -11,27 +11,104 @@ import {
   useQuery,
 } from '@tanstack/react-query'
 import { Effect, Layer } from 'effect'
+import * as SecureStore from 'expo-secure-store'
 
-const getClient = HttpApiClient.make(Api, {
-  baseUrl: 'http://localhost:3000',
-})
+const ACCESS_TOKEN_KEY = 'lily_access_token'
+const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-type Client = Effect.Effect.Success<typeof getClient>
+const API_BASE_URL = 'http://192.168.1.85:3000'
 
-const CustomFetchLive = FetchHttpClient.layer.pipe(
-  Layer.provide(
-    Layer.succeed(FetchHttpClient.RequestInit, {
-      credentials: 'include',
-    })
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false
+let refreshPromise: Promise<string | null> | null = null
+
+/**
+ * Attempt to refresh the access token using the stored refresh token
+ */
+const refreshAccessToken = async (): Promise<string | null> => {
+  // If already refreshing, wait for the existing promise
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise
+  }
+
+  isRefreshing = true
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
+      if (!refreshToken) {
+        return null
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!response.ok) {
+        // Refresh failed, clear tokens
+        await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
+        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+        return null
+      }
+
+      const data = await response.json()
+      const newAccessToken = data.accessToken
+
+      // Store the new access token
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
+
+      return newAccessToken
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return null
+    } finally {
+      isRefreshing = false
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
+// Create a custom fetch layer that injects the auth token
+const createAuthFetchLayer = () =>
+  FetchHttpClient.layer.pipe(
+    Layer.provide(
+      Layer.effect(
+        FetchHttpClient.RequestInit,
+        Effect.gen(function* () {
+          const token = yield* Effect.tryPromise({
+            try: () => SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+            catch: () => null,
+          })
+
+          const headers: Record<string, string> = {}
+          if (token) {
+            headers.Authorization = `Bearer ${token}`
+          }
+
+          return {
+            credentials: 'include' as RequestCredentials,
+            headers,
+          }
+        })
+      )
+    )
   )
-)
+
+type Client = Effect.Effect.Success<
+  ReturnType<typeof HttpApiClient.make<typeof Api>>
+>
 
 class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
-  dependencies: [CustomFetchLive],
+  dependencies: [createAuthFetchLayer()],
   effect: Effect.gen(function* () {
     return {
       client: yield* HttpApiClient.make(Api, {
-        baseUrl: 'http://localhost:3000',
+        baseUrl: API_BASE_URL,
       }),
     }
   }),
@@ -86,12 +163,42 @@ type PromiseSuccess<
   Y extends keyof Client[X],
 > = Promise<GetCleanSuccessType<X, Y>>
 
-export function apiEffectRunner<
+/**
+ * Run an API effect with automatic token refresh on 401 errors
+ */
+export async function apiEffectRunner<
   X extends keyof Client,
   Y extends keyof Client[X],
->(section: X, method: Y, params: GetRequestParams<X, Y>): PromiseSuccess<X, Y> {
+>(
+  section: X,
+  method: Y,
+  params: GetRequestParams<X, Y>,
+  retryCount = 0
+): PromiseSuccess<X, Y> {
   const program = apiEffect(section, method, params)
-  return Effect.runPromise(program.pipe(Effect.provide(ApiClient.Default)))
+
+  try {
+    return await Effect.runPromise(
+      program.pipe(Effect.provide(ApiClient.Default))
+    )
+  } catch (error) {
+    // Check if it's a 401 error and we haven't retried yet
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const is401 =
+      errorMessage.includes('401') || errorMessage.includes('Unauthorized')
+
+    if (is401 && retryCount === 0) {
+      // Try to refresh the token
+      const newToken = await refreshAccessToken()
+      if (newToken) {
+        // Retry the request with the new token
+        return apiEffectRunner(section, method, params, retryCount + 1)
+      }
+    }
+
+    // Re-throw the error if refresh failed or it's not a 401
+    throw error
+  }
 }
 
 export function useEffectQuery<

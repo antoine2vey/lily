@@ -1,0 +1,132 @@
+import type { SqlError } from '@effect/sql/SqlError'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { magicLinks } from '@lily/db/schema/auth'
+import { and, eq, isNull, lt } from 'drizzle-orm'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+
+/**
+ * Magic link record type
+ */
+export type MagicLink = typeof magicLinks.$inferSelect
+
+/**
+ * Magic link repository interface
+ */
+export interface IMagicLinkRepository {
+  readonly create: (
+    email: string,
+    token: string,
+    expiresAt: Date
+  ) => Effect.Effect<MagicLink | null, SqlError>
+  readonly findByToken: (
+    token: string
+  ) => Effect.Effect<MagicLink | null, SqlError>
+  readonly findValidByToken: (
+    token: string
+  ) => Effect.Effect<MagicLink | null, SqlError>
+  readonly markUsed: (id: string) => Effect.Effect<MagicLink | null, SqlError>
+  readonly deleteExpired: () => Effect.Effect<number, SqlError>
+  readonly deleteByEmail: (email: string) => Effect.Effect<number, SqlError>
+}
+
+/**
+ * Magic link repository context tag
+ */
+export class MagicLinkRepository extends Context.Tag('MagicLinkRepository')<
+  MagicLinkRepository,
+  IMagicLinkRepository
+>() {}
+
+/**
+ * Live implementation of Magic Link Repository
+ */
+export const MagicLinkRepositoryLive = Layer.effect(
+  MagicLinkRepository,
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+
+    return {
+      create: (email: string, token: string, expiresAt: Date) =>
+        Effect.gen(function* () {
+          const results = yield* db
+            .insert(magicLinks)
+            .values({
+              email: email.toLowerCase().trim(),
+              token,
+              expiresAt,
+            })
+            .returning()
+
+          return pipe(results, Array.head, Option.getOrNull)
+        }),
+
+      findByToken: (token: string) =>
+        Effect.gen(function* () {
+          const results = yield* db
+            .select()
+            .from(magicLinks)
+            .where(eq(magicLinks.token, token))
+
+          return pipe(results, Array.head, Option.getOrNull)
+        }),
+
+      findValidByToken: (token: string) =>
+        Effect.gen(function* () {
+          const now = new Date()
+          const results = yield* db
+            .select()
+            .from(magicLinks)
+            .where(
+              and(
+                eq(magicLinks.token, token),
+                isNull(magicLinks.usedAt)
+                // expiresAt > now (not expired)
+              )
+            )
+
+          const record = pipe(results, Array.head, Option.getOrNull)
+
+          // Check expiration manually since drizzle gt() can be tricky with dates
+          if (record && record.expiresAt > now) {
+            return record
+          }
+          return null
+        }),
+
+      markUsed: (id: string) =>
+        Effect.gen(function* () {
+          const results = yield* db
+            .update(magicLinks)
+            .set({
+              usedAt: new Date(),
+            })
+            .where(eq(magicLinks.id, id))
+            .returning()
+
+          return pipe(results, Array.head, Option.getOrNull)
+        }),
+
+      deleteExpired: () =>
+        Effect.gen(function* () {
+          // Delete tokens older than 1 hour (expired + buffer for cleanup)
+          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+          const result = yield* db
+            .delete(magicLinks)
+            .where(lt(magicLinks.expiresAt, oneHourAgo))
+            .returning()
+
+          return result.length
+        }),
+
+      deleteByEmail: (email: string) =>
+        Effect.gen(function* () {
+          const result = yield* db
+            .delete(magicLinks)
+            .where(eq(magicLinks.email, email.toLowerCase().trim()))
+            .returning()
+
+          return result.length
+        }),
+    }
+  })
+)

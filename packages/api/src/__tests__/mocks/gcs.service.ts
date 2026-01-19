@@ -1,5 +1,5 @@
-import type { GCSUploadRequest, GCSUploadResponse } from '@lily/shared'
-import { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSUploadRequest, GCSUploadResponse } from '@lily/shared/server'
+import { GCSService } from '@lily/shared/server'
 import { Effect, Layer } from 'effect'
 
 export const createMockGCSService = (): Layer.Layer<GCSService> => {

@@ -4,7 +4,7 @@ import {
   PushSendError,
   PushService,
   type PushTicket,
-} from '@lily/shared'
+} from '@lily/shared/server'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockPushServiceOptions {

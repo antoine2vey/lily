@@ -10,7 +10,7 @@ const mockAdminContext: UserProfile = {
   id: mockAdminUser.id,
   email: mockAdminUser.email,
   name: mockAdminUser.name,
-  username: mockAdminUser.name,
+  username: mockAdminUser.name ?? undefined,
   createdAt: mockAdminUser.createdAt,
   updatedAt: mockAdminUser.updatedAt,
   role: mockAdminUser.role,

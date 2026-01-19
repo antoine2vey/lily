@@ -9,19 +9,19 @@ import {
   type AiGenericError,
   AiService,
 } from '@lily/api/services/ai/service'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import type { LimitExceededError } from '@lily/shared'
+import type { ScanCardResponse } from '@lily/shared/plant'
 import {
   FileService,
   type GCSConfigError,
   GCSService,
   type GCSUploadError,
-  type LimitExceededError,
   type MultipleFilesError,
   type NoFilesError,
-} from '@lily/shared'
-import type { ScanCardResponse } from '@lily/shared/plant'
+} from '@lily/shared/server'
 import { Effect } from 'effect'
 
 export const scanCard = (

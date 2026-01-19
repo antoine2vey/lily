@@ -1,4 +1,4 @@
-// Domain exports
+// Domain exports (client-safe - no Node.js dependencies)
 export * from './domains/achievement/definitions'
 export * from './domains/achievement/schema'
 export * from './domains/ai-chat/schema'
@@ -21,13 +21,6 @@ export * from './domains/user/errors'
 export * from './domains/user/schema'
 export * from './domains/username/schema'
 
-// Services (cross-cutting concerns)
-export * from './services/email/service'
-export * from './services/email/types'
-export * from './services/event-bus'
-export * from './services/file/fileservice'
-export * from './services/file/gcs'
-export * from './services/message-queue/service'
-export * from './services/message-queue/types'
-export * from './services/push/service'
-export * from './services/push/types'
+// Note: Server-only services (GCS, Email, Push, MessageQueue, EventBus)
+// are exported from '@lily/shared/server' to avoid bundling Node.js
+// dependencies in React Native apps.

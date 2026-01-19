@@ -1,5 +1,5 @@
 import { userAchievements } from '@lily/db/schema/achievements'
-import { accounts, sessions } from '@lily/db/schema/auth'
+import { refreshTokens } from '@lily/db/schema/auth'
 import { userRoleEnum, userStatusEnum } from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
@@ -21,7 +21,7 @@ import {
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
-  name: text('name').notNull().unique(),
+  name: text('name').unique(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   emailVerified: boolean('email_verified').notNull(),
@@ -39,8 +39,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   plants: many(plants),
   notifications: many(notifications),
   deviceTokens: many(deviceTokens),
-  sessions: many(sessions),
-  accounts: many(accounts),
+  refreshTokens: many(refreshTokens),
   achievements: many(userAchievements),
   subscription: one(userSubscriptions),
   subscriptionUsage: many(subscriptionUsage),

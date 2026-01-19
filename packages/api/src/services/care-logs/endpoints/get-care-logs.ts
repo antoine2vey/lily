@@ -4,7 +4,7 @@ import {
   CareLogRepository,
   type FindCareLogsParams,
 } from '@lily/api/repositories/care-log.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import { Effect, Option, pipe } from 'effect'
 
