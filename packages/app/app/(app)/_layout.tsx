@@ -7,14 +7,14 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: colors.backgroundLight,
+          backgroundColor: colors.background,
         },
-        headerTintColor: colors.textMain,
+        headerTintColor: colors.textPrimary,
         headerTitleStyle: {
           fontFamily: 'PlusJakartaSans_700Bold',
         },
         contentStyle: {
-          backgroundColor: colors.backgroundLight,
+          backgroundColor: colors.background,
         },
       }}
     />

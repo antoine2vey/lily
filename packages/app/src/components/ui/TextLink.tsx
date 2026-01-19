@@ -27,12 +27,12 @@ export function TextLink({
     pipe(
       Match.value(variant),
       Match.when('primary', () => ({
-        text: pressed ? 'opacity-80' : '',
+        text: pressed ? 'opacity-70' : '',
         color: colors.primary,
       })),
       Match.when('secondary', () => ({
-        text: pressed ? 'opacity-80' : '',
-        color: '#8fa085',
+        text: pressed ? 'opacity-70' : '',
+        color: colors.textMuted,
       })),
       Match.exhaustive
     )
@@ -48,19 +48,19 @@ export function TextLink({
         return (
           <View className="flex-row items-center gap-1.5">
             {icon && iconPosition === 'left' && (
-              <MaterialIcons name={icon} size={20} color={styles.color} />
+              <MaterialIcons name={icon} size={18} color={styles.color} />
             )}
             <Text
-              className={`text-sm font-bold ${styles.text}`}
+              className={`text-sm ${styles.text}`}
               style={{
-                fontFamily: 'PlusJakartaSans_700Bold',
+                fontFamily: 'PlusJakartaSans_600SemiBold',
                 color: styles.color,
               }}
             >
               {children}
             </Text>
             {icon && iconPosition === 'right' && (
-              <MaterialIcons name={icon} size={20} color={styles.color} />
+              <MaterialIcons name={icon} size={18} color={styles.color} />
             )}
           </View>
         )

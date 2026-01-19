@@ -10,7 +10,7 @@ export default function Index() {
   return pipe(
     Match.value(state),
     Match.when({ _tag: 'Loading' }, () => (
-      <View className="flex-1 bg-background-light dark:bg-background-dark items-center justify-center">
+      <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )),

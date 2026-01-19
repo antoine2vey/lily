@@ -4,16 +4,33 @@ import { Stack } from 'expo-router'
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   Text,
   View,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { images } from 'src/assets/images'
 import { IconButton } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { colors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
+
+const getGreeting = () => {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good Morning'
+  if (hour < 18) return 'Good Afternoon'
+  return 'Good Evening'
+}
+
+const formatDate = () => {
+  return new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    weekday: 'long',
+  })
+}
 
 export default function HomeScreen() {
   const { state, logout } = useAuth()
@@ -30,49 +47,62 @@ export default function HomeScreen() {
     Match.value(state),
     Match.when(
       { _tag: 'Authenticated' },
-      ({ user }) => user.username ?? user.name
+      ({ user }) => user.username ?? user.name ?? 'Gardener'
     ),
-    Match.orElse(() => 'Plant Parent')
+    Match.orElse(() => 'Gardener')
   )
+
+  const hasPlants = (plants?.items.length ?? 0) > 0
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: 'My Plants',
-          headerRight: () => (
-            <IconButton
-              icon="logout"
-              color={colors.textSecondary}
-              onPress={logout}
-            />
-          ),
+          headerShown: false,
         }}
       />
-      <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        className="flex-1 bg-background"
+      >
         <View className="flex-1 px-4">
-          {/* Welcome Header */}
-          <View className="py-4">
-            <Text
-              className="text-2xl text-text-main dark:text-white"
-              style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-            >
-              Hello, {userName}!
-            </Text>
-            <Text
-              className="text-base text-text-secondary dark:text-zinc-400 mt-1"
-              style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-            >
-              {plants?.items.length ?? 0} plants in your garden
-            </Text>
+          {/* Header */}
+          <View className="flex-row items-center justify-between py-4">
+            <View>
+              <Text
+                className="text-sm text-text-secondary"
+                style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
+              >
+                {formatDate()}
+              </Text>
+              <Text
+                className="text-2xl text-text-primary"
+                style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+              >
+                {getGreeting()}, {userName}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <IconButton
+                icon="notifications-none"
+                color={colors.textSecondary}
+                onPress={() => {}}
+              />
+              <Pressable
+                className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center"
+                onPress={logout}
+              >
+                <MaterialIcons name="person" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
           </View>
 
-          {/* Plants List */}
+          {/* Content */}
           {isLoading ? (
             <View className="flex-1 items-center justify-center">
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
-          ) : (
+          ) : hasPlants ? (
             <FlatList
               data={plants?.items ?? []}
               keyExtractor={(item) => item.id}
@@ -85,52 +115,103 @@ export default function HomeScreen() {
               }
               contentContainerStyle={{
                 paddingBottom: 24,
-                flexGrow: 1,
               }}
-              ListEmptyComponent={
-                <View className="flex-1 items-center justify-center py-12">
-                  <View className="w-24 h-24 rounded-full bg-primary/10 items-center justify-center mb-4">
-                    <MaterialIcons
-                      name="local-florist"
-                      size={48}
-                      color={colors.primary}
-                    />
+              ListHeaderComponent={
+                <View className="mb-4">
+                  {/* Stats Cards */}
+                  <View className="flex-row gap-3 mb-6">
+                    <View className="flex-1 bg-surface rounded-lg p-4 items-center">
+                      <Text
+                        className="text-2xl text-text-primary"
+                        style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+                      >
+                        {plants?.items.length ?? 0}
+                      </Text>
+                      <Text
+                        className="text-xs text-text-muted uppercase tracking-wide mt-1"
+                        style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+                      >
+                        Total
+                      </Text>
+                    </View>
+                    <View className="flex-1 bg-surface rounded-lg p-4 items-center">
+                      <Text
+                        className="text-2xl text-primary"
+                        style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+                      >
+                        {plants?.items.length ?? 0}
+                      </Text>
+                      <Text
+                        className="text-xs text-text-muted uppercase tracking-wide mt-1"
+                        style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+                      >
+                        Healthy
+                      </Text>
+                    </View>
+                    <View className="flex-1 bg-surface rounded-lg p-4 items-center">
+                      <Text
+                        className="text-2xl text-warning"
+                        style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+                      >
+                        0
+                      </Text>
+                      <Text
+                        className="text-xs text-text-muted uppercase tracking-wide mt-1"
+                        style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+                      >
+                        Attention
+                      </Text>
+                    </View>
                   </View>
-                  <Text
-                    className="text-xl text-text-main dark:text-white mb-2"
-                    style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                  >
-                    No plants yet
-                  </Text>
-                  <Text
-                    className="text-base text-text-secondary dark:text-zinc-400 text-center"
-                    style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                  >
-                    Add your first plant to start{'\n'}your green journey!
-                  </Text>
+
+                  {/* Section Header */}
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text
+                      className="text-lg text-text-primary"
+                      style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+                    >
+                      My Plants
+                    </Text>
+                    <Pressable>
+                      <Text
+                        className="text-sm text-primary"
+                        style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+                      >
+                        See All
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               }
               renderItem={({ item }) => (
-                <Pressable className="bg-white dark:bg-surface-dark rounded-2xl p-4 mb-3 flex-row items-center active:opacity-80">
-                  {/* Plant Icon */}
-                  <View className="w-16 h-16 rounded-full bg-primary/10 items-center justify-center mr-4">
-                    <MaterialIcons
-                      name="eco"
-                      size={32}
-                      color={colors.primary}
-                    />
+                <Pressable className="bg-surface rounded-lg p-4 mb-3 flex-row items-center active:opacity-80">
+                  {/* Plant Avatar */}
+                  <View className="w-14 h-14 rounded-lg bg-primary-tint items-center justify-center mr-4 overflow-hidden">
+                    {item.photoUrl ? (
+                      <Image
+                        source={{ uri: item.photoUrl }}
+                        className="w-full h-full"
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <MaterialIcons
+                        name="eco"
+                        size={28}
+                        color={colors.primary}
+                      />
+                    )}
                   </View>
                   {/* Plant Info */}
                   <View className="flex-1">
                     <Text
-                      className="text-lg text-text-main dark:text-white"
+                      className="text-base text-text-primary"
                       style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
                     >
                       {item.name}
                     </Text>
                     {item.species && (
                       <Text
-                        className="text-sm text-text-secondary dark:text-zinc-400 mt-0.5"
+                        className="text-sm text-text-secondary mt-0.5"
                         style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
                       >
                         {item.species}
@@ -140,11 +221,11 @@ export default function HomeScreen() {
                       <View className="flex-row items-center mt-1">
                         <MaterialIcons
                           name="location-on"
-                          size={14}
-                          color={colors.textSecondary}
+                          size={12}
+                          color={colors.textMuted}
                         />
                         <Text
-                          className="text-xs text-text-secondary dark:text-zinc-500 ml-1"
+                          className="text-xs text-text-muted ml-1"
                           style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
                         >
                           {item.location}
@@ -156,11 +237,51 @@ export default function HomeScreen() {
                   <MaterialIcons
                     name="chevron-right"
                     size={24}
-                    color={colors.textSecondary}
+                    color={colors.textMuted}
                   />
                 </Pressable>
               )}
             />
+          ) : (
+            /* Empty State */
+            <View className="flex-1 items-center justify-center px-6">
+              {/* Seedling Pot Image */}
+              <View className="w-64 h-64 rounded-lg overflow-hidden mb-8">
+                <Image
+                  source={images.seedlingPot}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              </View>
+
+              {/* Empty State Text */}
+              <Text
+                className="text-2xl text-text-primary text-center mb-2"
+                style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
+              >
+                Your garden awaits
+              </Text>
+              <Text
+                className="text-base text-text-secondary text-center mb-8"
+                style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
+              >
+                Add your first plant to start your care{'\n'}journey
+              </Text>
+
+              {/* Add Plant Button */}
+              <Pressable
+                className="bg-primary rounded-xl px-8 py-4 flex-row items-center gap-2 active:bg-primary-dark"
+                onPress={() => {}}
+              >
+                <MaterialIcons name="add" size={20} color={colors.white} />
+                <Text
+                  className="text-base text-white"
+                  style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+                >
+                  Add Your First Plant
+                </Text>
+              </Pressable>
+            </View>
           )}
         </View>
       </SafeAreaView>
