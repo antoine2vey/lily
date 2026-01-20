@@ -21,15 +21,16 @@ describe('BottomTabBar', () => {
       type: 'tab',
       stale: false,
       history: [],
-    }) as MockState
+      preloadedRouteKeys: [],
+    }) as unknown as MockState
 
   const createMockDescriptors = (): MockDescriptors =>
     ({
-      home: { options: { tabBarLabel: 'Home' } },
-      plants: { options: { tabBarLabel: 'Plants' } },
-      care: { options: { tabBarLabel: 'Care' } },
-      profile: { options: { tabBarLabel: 'Profile' } },
-    }) as MockDescriptors
+      home: { options: { tabBarLabel: 'Home' }, render: jest.fn() },
+      plants: { options: { tabBarLabel: 'Plants' }, render: jest.fn() },
+      care: { options: { tabBarLabel: 'Care' }, render: jest.fn() },
+      profile: { options: { tabBarLabel: 'Profile' }, render: jest.fn() },
+    }) as unknown as MockDescriptors
 
   const createMockNavigation = (): MockNavigation =>
     ({

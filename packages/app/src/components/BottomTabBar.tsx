@@ -5,7 +5,8 @@ import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, fonts } from 'src/theme'
 
-interface CustomBottomTabBarProps extends BottomTabBarProps {
+interface CustomBottomTabBarProps
+  extends Pick<BottomTabBarProps, 'state' | 'descriptors' | 'navigation'> {
   onFabPress: () => void
 }
 
