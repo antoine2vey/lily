@@ -1,5 +1,8 @@
 import '@testing-library/jest-native/extend-expect'
 
+// Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
+// to avoid act() warnings from async font loading
+
 // Mock safe area context
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 0, right: 0, bottom: 0, left: 0 }

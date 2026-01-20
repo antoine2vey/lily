@@ -285,6 +285,13 @@ export function PlantsScreen() {
               color="#141712"
             />
           </Pressable>
+          <Pressable
+            onPress={() => setShowSortSheet(true)}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-soft"
+            testID="sort-button"
+          >
+            <MaterialIcons name="sort" size={24} color="#141712" />
+          </Pressable>
           <ViewToggle view={viewMode} onToggle={handleToggleView} />
         </View>
       </View>
