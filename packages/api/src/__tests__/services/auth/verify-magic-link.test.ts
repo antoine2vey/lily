@@ -44,9 +44,11 @@ describe('verifyMagicLink', () => {
       createMockRefreshTokenRepository({ tokens: [] }),
       createMockUserRepository(options.users ?? mockUsers),
       createMockJWTService(options.jwtOptions ?? {}),
-      createMockRateLimiterService({
-        shouldExceedLimit: options.shouldExceedRateLimit,
-      }),
+      createMockRateLimiterService(
+        options.shouldExceedRateLimit !== undefined
+          ? { shouldExceedLimit: options.shouldExceedRateLimit }
+          : {}
+      ),
       createMockPgDrizzle()
     )
 

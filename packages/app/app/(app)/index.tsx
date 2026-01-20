@@ -187,9 +187,9 @@ export default function HomeScreen() {
                 <Pressable className="bg-surface rounded-lg p-4 mb-3 flex-row items-center active:opacity-80">
                   {/* Plant Avatar */}
                   <View className="w-14 h-14 rounded-lg bg-primary-tint items-center justify-center mr-4 overflow-hidden">
-                    {item.photoUrl ? (
+                    {item.imageUrl ? (
                       <Image
-                        source={{ uri: item.photoUrl }}
+                        source={{ uri: item.imageUrl }}
                         className="w-full h-full"
                         resizeMode="cover"
                       />
@@ -209,28 +209,13 @@ export default function HomeScreen() {
                     >
                       {item.name}
                     </Text>
-                    {item.species && (
+                    {item.category && (
                       <Text
                         className="text-sm text-text-secondary mt-0.5"
                         style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
                       >
-                        {item.species}
+                        {item.category}
                       </Text>
-                    )}
-                    {item.location && (
-                      <View className="flex-row items-center mt-1">
-                        <MaterialIcons
-                          name="location-on"
-                          size={12}
-                          color={colors.textMuted}
-                        />
-                        <Text
-                          className="text-xs text-text-muted ml-1"
-                          style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                        >
-                          {item.location}
-                        </Text>
-                      </View>
                     )}
                   </View>
                   {/* Chevron */}

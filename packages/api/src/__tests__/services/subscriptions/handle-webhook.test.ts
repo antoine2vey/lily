@@ -28,9 +28,15 @@ describe('handleWebhookEvent', () => {
         Layer.mergeAll(
           createMockSubscriptionRepository(),
           createMockPaymentProvider({
-            webhookEvent: options.webhookEvent,
-            shouldFailWebhook: options.shouldFailWebhook,
-            subscriptionDetails: options.subscriptionDetails,
+            ...(options.webhookEvent !== undefined && {
+              webhookEvent: options.webhookEvent,
+            }),
+            ...(options.shouldFailWebhook !== undefined && {
+              shouldFailWebhook: options.shouldFailWebhook,
+            }),
+            ...(options.subscriptionDetails !== undefined && {
+              subscriptionDetails: options.subscriptionDetails,
+            }),
           })
         )
       )

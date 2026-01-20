@@ -3,10 +3,19 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
-import type { PushMessage } from '@lily/shared/server'
 import { PushService } from '@lily/shared/server'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// Local type definition to avoid Effect Schema type resolution issues
+interface TestPushMessage {
+  readonly to: string
+  readonly title: string
+  readonly body: string
+  readonly data?: { readonly [x: string]: unknown } | undefined
+  readonly sound?: 'default' | undefined
+  readonly badge?: number | undefined
+}
 
 describe('PushService (mock)', () => {
   describe('send', () => {
@@ -57,7 +66,7 @@ describe('PushService (mock)', () => {
     })
 
     it('should call onSend callback with message', async () => {
-      let capturedMessage: PushMessage | null = null
+      let capturedMessage: TestPushMessage | null = null
 
       await Effect.runPromise(
         Effect.gen(function* () {
@@ -79,12 +88,12 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage?.title).toBe('Captured Title')
-      expect(capturedMessage?.body).toBe('Captured Body')
+      expect(capturedMessage!.title).toBe('Captured Title')
+      expect(capturedMessage!.body).toBe('Captured Body')
     })
 
     it('should include optional data in message', async () => {
-      let capturedMessage: PushMessage | null = null
+      let capturedMessage: TestPushMessage | null = null
 
       await Effect.runPromise(
         Effect.gen(function* () {
@@ -106,14 +115,15 @@ describe('PushService (mock)', () => {
         )
       )
 
-      expect(capturedMessage?.data).toEqual({
+      expect(capturedMessage).not.toBeNull()
+      expect(capturedMessage!.data).toEqual({
         plantId: 'plant-1',
         action: 'water',
       })
     })
 
     it('should include sound option when provided', async () => {
-      let capturedMessage: PushMessage | null = null
+      let capturedMessage: TestPushMessage | null = null
 
       await Effect.runPromise(
         Effect.gen(function* () {
@@ -135,11 +145,12 @@ describe('PushService (mock)', () => {
         )
       )
 
-      expect(capturedMessage?.sound).toBe('default')
+      expect(capturedMessage).not.toBeNull()
+      expect(capturedMessage!.sound).toBe('default')
     })
 
     it('should include badge count when provided', async () => {
-      let capturedMessage: PushMessage | null = null
+      let capturedMessage: TestPushMessage | null = null
 
       await Effect.runPromise(
         Effect.gen(function* () {
@@ -161,7 +172,8 @@ describe('PushService (mock)', () => {
         )
       )
 
-      expect(capturedMessage?.badge).toBe(5)
+      expect(capturedMessage).not.toBeNull()
+      expect(capturedMessage!.badge).toBe(5)
     })
   })
 
@@ -210,7 +222,7 @@ describe('PushService (mock)', () => {
     })
 
     it('should call onSendBatch callback with all messages', async () => {
-      let capturedMessages: PushMessage[] = []
+      let capturedMessages: TestPushMessage[] = []
 
       await Effect.runPromise(
         Effect.gen(function* () {

@@ -16,9 +16,11 @@ describe('sendMagicLink', () => {
   const createTestLayer = (options: { shouldExceedRateLimit?: boolean } = {}) =>
     Layer.mergeAll(
       createMockMagicLinkRepository({ magicLinks: [] }),
-      createMockRateLimiterService({
-        shouldExceedLimit: options.shouldExceedRateLimit,
-      })
+      createMockRateLimiterService(
+        options.shouldExceedRateLimit !== undefined
+          ? { shouldExceedLimit: options.shouldExceedRateLimit }
+          : {}
+      )
     )
 
   it('should send magic link email successfully', async () => {
