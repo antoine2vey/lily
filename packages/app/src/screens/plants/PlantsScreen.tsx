@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Match, Option, Order, pipe } from 'effect'
+import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -74,6 +75,7 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
 )
 
 export function PlantsScreen() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all')
   const [sortOption, setSortOption] = useState<SortOption>('name')
@@ -156,9 +158,12 @@ export function PlantsScreen() {
     [plants]
   )
 
-  const handlePlantPress = useCallback((plantId: string) => {
-    console.log('Navigate to plant:', plantId)
-  }, [])
+  const handlePlantPress = useCallback(
+    (plantId: string) => {
+      router.push(`/plant/${plantId}`)
+    },
+    [router]
+  )
 
   const handleToggleView = useCallback(() => {
     setViewMode((current) => (current === 'grid' ? 'list' : 'grid'))
