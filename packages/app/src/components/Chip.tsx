@@ -56,8 +56,9 @@ export function Chip({
 
   const content = (
     <View
-      className="flex-row items-center"
       style={{
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor,
         borderWidth: selected ? 0 : 1,
         borderColor,
@@ -75,6 +76,7 @@ export function Chip({
           fontSize: 14,
           fontFamily: fonts.medium,
         }}
+        numberOfLines={1}
       >
         {label}
       </Text>
