@@ -117,7 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       Match.value(state),
       Match.when({ _tag: 'Authenticated' }, () => {
         if (inAuthGroup) {
-          router.replace('/(app)')
+          router.replace('/(app)/(tabs)')
         }
       }),
       Match.when({ _tag: 'NeedsUsername' }, () => {

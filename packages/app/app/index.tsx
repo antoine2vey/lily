@@ -14,7 +14,9 @@ export default function Index() {
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )),
-    Match.when({ _tag: 'Authenticated' }, () => <Redirect href="/(app)" />),
+    Match.when({ _tag: 'Authenticated' }, () => (
+      <Redirect href="/(app)/(tabs)" />
+    )),
     Match.when({ _tag: 'NeedsUsername' }, () => (
       <Redirect href="/(auth)/username" />
     )),
