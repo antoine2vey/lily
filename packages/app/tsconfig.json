@@ -17,8 +17,5 @@
     "expo-env.d.ts",
     "nativewind-env.d.ts"
   ],
-  "references": [
-    { "path": "../api" },
-    { "path": "../shared" }
-  ]
+  "references": [{ "path": "../api" }, { "path": "../shared" }]
 }
