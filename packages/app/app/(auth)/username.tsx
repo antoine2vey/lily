@@ -75,7 +75,7 @@ export default function UsernameSetupScreen() {
     setLoading(false)
 
     if (result.success) {
-      router.replace('/(app)')
+      router.replace('/(app)/(tabs)')
     } else {
       setValidation({
         _tag: 'Unavailable',
@@ -86,7 +86,7 @@ export default function UsernameSetupScreen() {
 
   const handleSkip = () => {
     refreshUser()
-    router.replace('/(app)')
+    router.replace('/(app)/(tabs)')
   }
 
   const getValidationIcon = () =>

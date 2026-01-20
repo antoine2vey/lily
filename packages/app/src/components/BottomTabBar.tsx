@@ -16,6 +16,12 @@ const getTabIcon = (routeName: string, focused: boolean): TabIconName => {
     string,
     { active: TabIconName; inactive: TabIconName }
   > = {
+    // Expo Router uses file names as route names
+    index: { active: 'home', inactive: 'home' },
+    plants: { active: 'local-florist', inactive: 'local-florist' },
+    care: { active: 'water-drop', inactive: 'water-drop' },
+    profile: { active: 'person', inactive: 'person-outline' },
+    // Legacy route names for compatibility
     Home: { active: 'home', inactive: 'home' },
     Plants: { active: 'local-florist', inactive: 'local-florist' },
     Care: { active: 'water-drop', inactive: 'water-drop' },
@@ -36,87 +42,81 @@ export function BottomTabBar({
   onFabPress,
 }: CustomBottomTabBarProps) {
   const insets = useSafeAreaInsets()
-  const middleIndex = Math.floor(state.routes.length / 2)
 
   return (
     <View
-      className="flex-row bg-white border-t border-border items-end"
+      className="bg-white border-t border-border"
       style={{
         paddingBottom: insets.bottom,
         height: 64 + insets.bottom,
       }}
     >
-      {Array.map(state.routes, (route, index) => {
-        const { options } = descriptors[route.key]
-        const label =
-          options.tabBarLabel !== undefined
-            ? String(options.tabBarLabel)
-            : options.title !== undefined
-              ? options.title
-              : route.name
+      {/* FAB - positioned absolutely in center, floating above */}
+      <Pressable
+        onPress={onFabPress}
+        className="absolute self-center -top-7 w-14 h-14 rounded-full items-center justify-center z-10"
+        style={{
+          backgroundColor: colors.primary,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 10,
+          elevation: 8,
+        }}
+      >
+        <MaterialIcons name="add" size={28} color={colors.white} />
+      </Pressable>
 
-        const isFocused = state.index === index
-        const iconName = getTabIcon(route.name, isFocused)
+      {/* Tab bar row */}
+      <View className="flex-row flex-1 items-end">
+        {Array.map(state.routes, (route, index) => {
+          const { options } = descriptors[route.key]
+          const label =
+            options.tabBarLabel !== undefined
+              ? String(options.tabBarLabel)
+              : options.title !== undefined
+                ? options.title
+                : route.name
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          })
+          const isFocused = state.index === index
+          const iconName = getTabIcon(route.name, isFocused)
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name)
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            })
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name)
+            }
           }
-        }
 
-        if (index === middleIndex) {
           return (
-            <View
-              key="fab-spacer"
+            <Pressable
+              key={route.key}
+              onPress={onPress}
               className="flex-1 items-center justify-end pb-2"
             >
-              <Pressable
-                onPress={onFabPress}
-                className="absolute -top-5 w-14 h-14 rounded-full items-center justify-center"
+              <MaterialIcons
+                name={iconName}
+                size={24}
+                color={isFocused ? colors.primary : colors.textMuted}
+              />
+              <Text
+                className="text-[10px] mt-1"
                 style={{
-                  backgroundColor: colors.primary,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 10,
-                  elevation: 8,
+                  fontFamily: fonts.medium,
+                  color: isFocused ? colors.primary : colors.textMuted,
                 }}
               >
-                <MaterialIcons name="add" size={28} color={colors.white} />
-              </Pressable>
-            </View>
+                {label}
+              </Text>
+            </Pressable>
           )
-        }
-
-        return (
-          <Pressable
-            key={route.key}
-            onPress={onPress}
-            className="flex-1 items-center justify-end pb-2"
-          >
-            <MaterialIcons
-              name={iconName}
-              size={24}
-              color={isFocused ? colors.primary : colors.textMuted}
-            />
-            <Text
-              className="text-[10px] mt-1"
-              style={{
-                fontFamily: fonts.medium,
-                color: isFocused ? colors.primary : colors.textMuted,
-              }}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        )
-      })}
+        })}
+      </View>
     </View>
   )
 }
