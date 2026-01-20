@@ -1,7 +1,8 @@
 const React = require('react')
 const { View } = require('react-native')
 
-const createIconMock = (props) => React.createElement(View, { testID: props?.testID })
+const createIconMock = (props) =>
+  React.createElement(View, { testID: props?.testID })
 
 module.exports = {
   Ionicons: createIconMock,

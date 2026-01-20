@@ -1,83 +1,81 @@
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { render } from '@testing-library/react-native'
 import { BottomTabBar } from '../BottomTabBar'
 
+type MockState = BottomTabBarProps['state']
+type MockDescriptors = BottomTabBarProps['descriptors']
+type MockNavigation = BottomTabBarProps['navigation']
+
 describe('BottomTabBar', () => {
-  const createMockState = (index = 0) => ({
-    key: 'tab-nav',
-    index,
-    routes: [
-      { key: 'home', name: 'Home' },
-      { key: 'plants', name: 'Plants' },
-      { key: 'care', name: 'Care' },
-      { key: 'profile', name: 'Profile' },
-    ],
-    routeNames: ['Home', 'Plants', 'Care', 'Profile'],
-    type: 'tab' as const,
-    stale: false,
-    history: [],
-  })
+  const createMockState = (index = 0): MockState =>
+    ({
+      key: 'tab-nav',
+      index,
+      routes: [
+        { key: 'home', name: 'Home' },
+        { key: 'plants', name: 'Plants' },
+        { key: 'care', name: 'Care' },
+        { key: 'profile', name: 'Profile' },
+      ],
+      routeNames: ['Home', 'Plants', 'Care', 'Profile'],
+      type: 'tab',
+      stale: false,
+      history: [],
+    }) as MockState
 
-  const createMockDescriptors = () => ({
-    home: { options: { tabBarLabel: 'Home' } },
-    plants: { options: { tabBarLabel: 'Plants' } },
-    care: { options: { tabBarLabel: 'Care' } },
-    profile: { options: { tabBarLabel: 'Profile' } },
-  })
+  const createMockDescriptors = (): MockDescriptors =>
+    ({
+      home: { options: { tabBarLabel: 'Home' } },
+      plants: { options: { tabBarLabel: 'Plants' } },
+      care: { options: { tabBarLabel: 'Care' } },
+      profile: { options: { tabBarLabel: 'Profile' } },
+    }) as MockDescriptors
 
-  const createMockNavigation = () => ({
-    emit: jest.fn(() => ({ defaultPrevented: false })),
-    navigate: jest.fn(),
-  })
+  const createMockNavigation = (): MockNavigation =>
+    ({
+      emit: jest.fn(() => ({ defaultPrevented: false })),
+      navigate: jest.fn(),
+    }) as unknown as MockNavigation
 
-  const createMockInsets = () => ({
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  })
-
-  const defaultProps = {
+  const createDefaultProps = () => ({
     state: createMockState(),
     descriptors: createMockDescriptors(),
     navigation: createMockNavigation(),
-    insets: createMockInsets(),
     onFabPress: jest.fn(),
-  }
+  })
 
   it('renders all 4 tab icons', () => {
-    const { toJSON } = render(<BottomTabBar {...(defaultProps as any)} />)
+    const { toJSON } = render(<BottomTabBar {...createDefaultProps()} />)
     expect(toJSON()).toBeTruthy()
   })
 
   it('highlights active tab', () => {
+    const props = createDefaultProps()
     const { rerender, toJSON } = render(
-      <BottomTabBar {...(defaultProps as any)} state={createMockState(0)} />
+      <BottomTabBar {...props} state={createMockState(0)} />
     )
     expect(toJSON()).toBeTruthy()
 
-    rerender(
-      <BottomTabBar {...(defaultProps as any)} state={createMockState(2)} />
-    )
+    rerender(<BottomTabBar {...props} state={createMockState(2)} />)
     expect(toJSON()).toBeTruthy()
   })
 
   it('renders center FAB button', () => {
-    const { toJSON } = render(<BottomTabBar {...(defaultProps as any)} />)
+    const { toJSON } = render(<BottomTabBar {...createDefaultProps()} />)
     expect(toJSON()).toBeTruthy()
   })
 
   it('calls navigation on tab press', () => {
     const navigation = createMockNavigation()
-    render(
-      <BottomTabBar {...(defaultProps as any)} navigation={navigation as any} />
-    )
+    const props = createDefaultProps()
+    render(<BottomTabBar {...props} navigation={navigation} />)
     expect(navigation.navigate).not.toHaveBeenCalled()
   })
 
   it('calls onFabPress when FAB pressed', () => {
     const onFabPress = jest.fn()
     const { toJSON } = render(
-      <BottomTabBar {...(defaultProps as any)} onFabPress={onFabPress} />
+      <BottomTabBar {...createDefaultProps()} onFabPress={onFabPress} />
     )
     expect(toJSON()).toBeTruthy()
   })

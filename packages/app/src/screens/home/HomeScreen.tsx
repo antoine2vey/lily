@@ -33,7 +33,7 @@ function getGreeting(): string {
 
 export function HomeScreen() {
   const { state, logout } = useAuth()
-  const router = useRouter()
+  const _router = useRouter()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
   const {
@@ -126,11 +126,11 @@ export function HomeScreen() {
     // TODO: Implement water all functionality
   }
 
-  const handlePlantPress = (plantId: string) => {
+  const handlePlantPress = (_plantId: string) => {
     // TODO: Navigate to plant detail
   }
 
-  const handleActivityPress = (activityId: string) => {
+  const handleActivityPress = (_activityId: string) => {
     // TODO: Navigate to activity detail
   }
 
