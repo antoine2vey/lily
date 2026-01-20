@@ -1,26 +1,11 @@
-import { Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { Stack } from 'expo-router'
+import { PlantsScreen } from 'src/screens/plants'
 
-export default function PlantsScreen() {
+export default function PlantsTab() {
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
-    >
-      <View className="flex-1 items-center justify-center px-4">
-        <Text
-          className="text-xl text-text-primary"
-          style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
-        >
-          My Plants
-        </Text>
-        <Text
-          className="text-sm text-text-secondary mt-2 text-center"
-          style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-        >
-          Your plant collection will appear here
-        </Text>
-      </View>
-    </SafeAreaView>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <PlantsScreen />
+    </>
   )
 }
