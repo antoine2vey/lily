@@ -16,7 +16,14 @@ describe('logout', () => {
   const createTestLayer = (
     options: {
       userId?: string
-      tokens?: { userId: string; revokedAt: Date | null }[]
+      tokens?: {
+        id: string
+        userId: string
+        tokenHash: string
+        expiresAt: Date
+        revokedAt: Date | null
+        createdAt: Date
+      }[]
     } = {}
   ) => {
     const userId = options.userId ?? mockUserProfile.id

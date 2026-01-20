@@ -19,8 +19,12 @@ describe('createCheckoutSession', () => {
         Layer.mergeAll(
           createMockSubscriptionRepository(),
           createMockPaymentProvider({
-            checkoutSession: options.checkoutSession,
-            shouldFailCheckout: options.shouldFailCheckout,
+            ...(options.checkoutSession !== undefined && {
+              checkoutSession: options.checkoutSession,
+            }),
+            ...(options.shouldFailCheckout !== undefined && {
+              shouldFailCheckout: options.shouldFailCheckout,
+            }),
           })
         )
       )

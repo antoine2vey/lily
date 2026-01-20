@@ -1,7 +1,10 @@
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
+import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
 import { AiService } from '@lily/api/services/ai/service'
-import { Effect, Stream } from 'effect'
+import { Effect, Layer, Stream } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const testLayer = Layer.merge(createMockAiService(), createMockPgDrizzle())
 
 describe('AiService (mock)', () => {
   describe('plantRecognition', () => {
@@ -15,7 +18,7 @@ describe('AiService (mock)', () => {
           // Collect stream to array
           const chunks = yield* Stream.runCollect(stream)
           return chunks
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result.length).toBeGreaterThan(0)
@@ -29,7 +32,7 @@ describe('AiService (mock)', () => {
             'https://storage.example.com/images/monstera.png'
           )
           return stream
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result).toBeDefined()
@@ -45,12 +48,12 @@ describe('AiService (mock)', () => {
             {
               id: '1',
               role: 'user',
-              content: 'How often should I water this?',
+              parts: [{ type: 'text', text: 'How often should I water this?' }],
             },
           ])
           const chunks = yield* Stream.runCollect(stream)
           return chunks
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result.length).toBeGreaterThan(0)
@@ -63,7 +66,11 @@ describe('AiService (mock)', () => {
         Effect.gen(function* () {
           const aiService = yield* AiService
           const stream = yield* aiService.plantChat('plant-1', [
-            { id: '1', role: 'user', content: 'How often should I water?' },
+            {
+              id: '1',
+              role: 'user',
+              parts: [{ type: 'text', text: 'How often should I water?' }],
+            },
           ])
           const chunks = yield* Stream.runCollect(stream)
           // Decode the chunks
@@ -75,7 +82,10 @@ describe('AiService (mock)', () => {
           return fullResponse
         }).pipe(
           Effect.provide(
-            createMockAiService({ plantChatResponse: customResponse })
+            Layer.merge(
+              createMockAiService({ plantChatResponse: customResponse }),
+              createMockPgDrizzle()
+            )
           )
         )
       )
@@ -88,16 +98,24 @@ describe('AiService (mock)', () => {
         Effect.gen(function* () {
           const aiService = yield* AiService
           const stream = yield* aiService.plantChat('plant-1', [
-            { id: '1', role: 'user', content: 'What plant is this?' },
+            {
+              id: '1',
+              role: 'user',
+              parts: [{ type: 'text', text: 'What plant is this?' }],
+            },
             {
               id: '2',
               role: 'assistant',
-              content: 'This appears to be a Monstera.',
+              parts: [{ type: 'text', text: 'This appears to be a Monstera.' }],
             },
-            { id: '3', role: 'user', content: 'How do I care for it?' },
+            {
+              id: '3',
+              role: 'user',
+              parts: [{ type: 'text', text: 'How do I care for it?' }],
+            },
           ])
           return stream
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result).toBeDefined()
@@ -108,7 +126,11 @@ describe('AiService (mock)', () => {
         Effect.gen(function* () {
           const aiService = yield* AiService
           const stream = yield* aiService.plantChat('plant-1', [
-            { id: '1', role: 'user', content: 'Hello' },
+            {
+              id: '1',
+              role: 'user',
+              parts: [{ type: 'text', text: 'Hello' }],
+            },
           ])
           const chunks = yield* Stream.runCollect(stream)
           const decoder = new TextDecoder()
@@ -117,7 +139,7 @@ describe('AiService (mock)', () => {
             fullResponse += decoder.decode(chunk)
           }
           return fullResponse
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result).toBe('Mock AI response')
@@ -132,7 +154,7 @@ describe('AiService (mock)', () => {
           return yield* aiService.plantCardScan(
             'https://example.com/plant-card.jpg'
           )
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result).toBeDefined()
@@ -147,7 +169,7 @@ describe('AiService (mock)', () => {
           return yield* aiService.plantCardScan(
             'https://example.com/plant-card.jpg'
           )
-        }).pipe(Effect.provide(createMockAiService()))
+        }).pipe(Effect.provide(testLayer))
       )
 
       expect(result.humidityRating).toBeNull()
@@ -171,7 +193,7 @@ describe('AiService (mock)', () => {
           Effect.gen(function* () {
             const aiService = yield* AiService
             return yield* aiService.plantCardScan(url)
-          }).pipe(Effect.provide(createMockAiService()))
+          }).pipe(Effect.provide(testLayer))
         )
 
         expect(result.name).toBeDefined()

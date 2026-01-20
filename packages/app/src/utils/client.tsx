@@ -1,5 +1,6 @@
 import {
   FetchHttpClient,
+  type HttpApi,
   HttpApiClient,
   type HttpClientResponse,
 } from '@effect/platform'
@@ -12,6 +13,24 @@ import {
 } from '@tanstack/react-query'
 import { Effect, Layer } from 'effect'
 import * as SecureStore from 'expo-secure-store'
+
+// Type helpers to extract HttpApi type parameters
+type ExtractGroups<T> = T extends HttpApi.HttpApi<
+  infer _Id,
+  infer G,
+  infer _E,
+  infer _R
+>
+  ? G
+  : never
+type ExtractError<T> = T extends HttpApi.HttpApi<
+  infer _Id,
+  infer _G,
+  infer E,
+  infer _R
+>
+  ? E
+  : never
 
 const ACCESS_TOKEN_KEY = 'lily_access_token'
 const REFRESH_TOKEN_KEY = 'lily_refresh_token'
@@ -99,8 +118,10 @@ const createAuthFetchLayer = () =>
     )
   )
 
-type Client = Effect.Effect.Success<
-  ReturnType<typeof HttpApiClient.make<typeof Api>>
+type Client = HttpApiClient.Client<
+  ExtractGroups<typeof Api>,
+  ExtractError<typeof Api>,
+  never
 >
 
 class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
