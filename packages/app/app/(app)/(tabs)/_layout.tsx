@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { BottomTabBar } from 'src/components/BottomTabBar'
-import { colors } from 'src/theme'
 
 export default function TabsLayout() {
   const [showAddPlant, setShowAddPlant] = useState(false)
