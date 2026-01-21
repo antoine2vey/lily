@@ -13,9 +13,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { Slot, SplashScreen } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
+import { AnimatedSplashScreen } from 'src/screens/splash'
 import 'src/global.css'
 
 // Prevent the splash screen from auto-hiding before fonts are loaded
@@ -25,6 +26,7 @@ const queryClient = new QueryClient()
 
 function RootLayoutNav() {
   const { state } = useAuth()
+  const [isReady, setIsReady] = useState(false)
 
   // Show loading state while checking auth
   const isLoading = pipe(
@@ -33,15 +35,25 @@ function RootLayoutNav() {
     Match.orElse(() => false)
   )
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 bg-background-light dark:bg-background-dark items-center justify-center">
-        {/* Loading indicator could go here */}
-      </View>
-    )
-  }
+  useEffect(() => {
+    if (!isLoading) {
+      // Small delay to ensure smooth transition
+      const timeout = setTimeout(() => setIsReady(true), 100)
+      return () => clearTimeout(timeout)
+    }
+  }, [isLoading])
 
-  return <Slot />
+  return (
+    <AnimatedSplashScreen isReady={isReady}>
+      {isLoading ? (
+        <View className="flex-1 bg-background-light dark:bg-background-dark items-center justify-center">
+          {/* Loading indicator could go here */}
+        </View>
+      ) : (
+        <Slot />
+      )}
+    </AnimatedSplashScreen>
+  )
 }
 
 export default function RootLayout() {
@@ -55,7 +67,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync()
+      // Don't hide splash screen here - AnimatedSplashScreen handles it
     }
   }, [fontsLoaded, fontError])
 

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from 'src/assets/images'
 import { Button, IconButton, Input } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('')
@@ -59,7 +59,7 @@ export default function LoginScreen() {
             <IconButton
               icon="chevron-left"
               size={24}
-              color={colors.textPrimary}
+              color={iconColors.textPrimary}
               onPress={() => router.back()}
             />
           </View>
@@ -68,16 +68,10 @@ export default function LoginScreen() {
           <View className="flex-1 px-6">
             {/* Header Section */}
             <View className="mt-4 mb-8">
-              <Text
-                className="text-[28px] text-text-primary mb-2"
-                style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-              >
+              <Text className="text-[28px] font-bold text-text-primary mb-2">
                 Let's grow together
               </Text>
-              <Text
-                className="text-base text-text-secondary"
-                style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-              >
+              <Text className="text-base font-regular text-text-secondary">
                 Enter your email to get started.{'\n'}We'll send you a magic
                 link.
               </Text>
@@ -102,10 +96,7 @@ export default function LoginScreen() {
                   error={!!error}
                 />
                 {error && (
-                  <Text
-                    className="text-error text-sm mt-2 px-4"
-                    style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
-                  >
+                  <Text className="text-error text-sm font-medium mt-2 px-4">
                     {error}
                   </Text>
                 )}

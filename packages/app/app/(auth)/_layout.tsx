@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 export default function AuthLayout() {
   return (
@@ -7,7 +7,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: iconColors.background,
         },
       }}
     />
