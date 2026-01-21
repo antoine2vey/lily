@@ -6,11 +6,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Primary
-        primary: '#5B8C5A',
-        'primary-dark': '#4A7A49',
-        'primary-light': '#6B9C6A',
-        'primary-tint': '#E8F5E8',
+        // Primary (updated to align with reference screens)
+        primary: '#80ac53',
+        'primary-dark': '#6a9145',
+        'primary-light': '#9bc76d',
+        'primary-tint': '#dceccb',
 
         // Secondary (Coral)
         coral: '#E8997E',
@@ -35,7 +35,7 @@ module.exports = {
         'text-main': '#1A1A1A',
 
         // Status
-        success: '#5B8C5A',
+        success: '#80ac53',
         warning: '#F59E0B',
         error: '#EF4444',
         info: '#3B82F6',
@@ -46,6 +46,68 @@ module.exports = {
 
         // Utility
         border: '#E5E7EB',
+
+        // Slate scale (from reference screens)
+        slate: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+        },
+
+        // Forest/sage greens (from profile reference)
+        'forest-green': '#2D5A3D',
+        'sage-green': '#78A55A',
+
+        // Card colors for dark mode
+        'card-light': '#ffffff',
+        'card-dark': '#23291d',
+
+        // Amber scale (achievements/warnings)
+        amber: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          400: '#fbbf24',
+          700: '#b45309',
+        },
+
+        // Blue scale (water indicators)
+        blue: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          900: '#1e3a8a',
+        },
+
+        // Orange scale (attention states)
+        orange: {
+          100: '#ffedd5',
+          400: '#fb923c',
+          900: '#7c2d12',
+        },
+
+        // Teal scale (humidity/mist)
+        teal: {
+          50: '#f0fdfa',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          900: '#134e4a',
+        },
+
+        // Purple scale (spa/wellness)
+        purple: {
+          50: '#faf5ff',
+          500: '#a855f7',
+          900: '#581c87',
+        },
       },
       fontFamily: {
         regular: ['PlusJakartaSans_400Regular'],
@@ -60,13 +122,16 @@ module.exports = {
         lg: '16px',
         xl: '24px',
         '2xl': '32px',
+        '3xl': '40px',
         full: '9999px',
       },
       boxShadow: {
         sm: '0 1px 2px rgba(0,0,0,0.05)',
         md: '0 4px 6px rgba(0,0,0,0.07)',
         lg: '0 10px 25px rgba(0,0,0,0.1)',
-        soft: '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        soft: '0 10px 40px -10px rgba(0,0,0,0.06)',
+        nav: '0 -4px 20px rgba(0,0,0,0.04)',
+        sheet: '0 -10px 40px rgba(0,0,0,0.1)',
       },
     },
   },
