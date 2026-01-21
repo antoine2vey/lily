@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface StatsRowProps {
   total: number
@@ -21,22 +21,22 @@ function StatBox({
   variant = 'default',
   showWarningIcon = false,
 }: StatBoxProps) {
-  const valueColor =
+  const valueColorClass =
     variant === 'healthy'
-      ? colors.primary
+      ? 'text-primary'
       : variant === 'warning' && value > 0
-        ? colors.warning
-        : colors.textPrimary
+        ? 'text-warning'
+        : 'text-text-primary'
 
-  const borderColor =
-    variant === 'warning' && value > 0 ? 'rgba(245, 158, 11, 0.2)' : '#F3F4F6'
+  const borderColorClass =
+    variant === 'warning' && value > 0
+      ? 'border-warning/20'
+      : 'border-slate-100'
 
   return (
     <View
-      className="flex-1 bg-white rounded-[20px] py-4 px-2 items-center justify-center"
+      className={`flex-1 bg-white rounded-[20px] py-4 px-2 items-center justify-center border ${borderColorClass}`}
       style={{
-        borderWidth: 1,
-        borderColor,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.03,
@@ -45,32 +45,17 @@ function StatBox({
       }}
     >
       <View className="flex-row items-center gap-1 mb-1">
-        <Text
-          className="text-2xl"
-          style={{
-            fontFamily: fonts.bold,
-            color: valueColor,
-          }}
-        >
-          {value}
-        </Text>
+        <Text className={`text-2xl font-bold ${valueColorClass}`}>{value}</Text>
         {showWarningIcon && value > 0 && (
           <MaterialIcons
             name="warning"
             size={16}
-            color={colors.warning}
+            color={iconColors.warning}
             testID="attention-warning-icon"
           />
         )}
       </View>
-      <Text
-        className="text-[10px] uppercase tracking-wider"
-        style={{
-          fontFamily: fonts.bold,
-          color: '#9CA3AF',
-          letterSpacing: 0.5,
-        }}
-      >
+      <Text className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
         {label}
       </Text>
     </View>

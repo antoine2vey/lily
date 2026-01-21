@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { Image, Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface Plant {
   id: string
@@ -51,11 +51,8 @@ function PlantCircle({
               resizeMode="cover"
             />
           ) : (
-            <View
-              className="w-full h-full items-center justify-center"
-              style={{ backgroundColor: colors.primaryTint }}
-            >
-              <MaterialIcons name="eco" size={32} color={colors.primary} />
+            <View className="w-full h-full items-center justify-center bg-primary-tint">
+              <MaterialIcons name="eco" size={32} color={iconColors.primary} />
             </View>
           )}
         </View>
@@ -73,8 +70,7 @@ function PlantCircle({
       </View>
       {/* Plant name */}
       <Text
-        className="text-xs text-text-secondary"
-        style={{ fontFamily: fonts.semiBold }}
+        className="text-xs text-text-secondary font-semibold"
         numberOfLines={1}
       >
         {plant.name}
@@ -105,26 +101,21 @@ export function HydrationCard({
       {/* Header */}
       <View className="flex-row items-start justify-between mb-6">
         <View>
-          <Text
-            className="text-xl text-text-primary mb-1"
-            style={{ fontFamily: fonts.bold }}
-          >
+          <Text className="text-xl text-text-primary mb-1 font-bold">
             Hydration Time
           </Text>
-          <Text
-            className="text-sm text-text-secondary"
-            style={{ fontFamily: fonts.medium }}
-          >
+          <Text className="text-sm text-text-secondary font-medium">
             {plants.length} plant{plants.length !== 1 ? 's' : ''}{' '}
             {plants.length === 1 ? 'needs' : 'need'} water today
           </Text>
         </View>
         {/* Water drop icon */}
-        <View
-          className="p-2 rounded-full"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)' }}
-        >
-          <MaterialIcons name="water-drop" size={24} color={colors.primary} />
+        <View className="p-2 rounded-full bg-white/60">
+          <MaterialIcons
+            name="water-drop"
+            size={24}
+            color={iconColors.primary}
+          />
         </View>
       </View>
 
@@ -139,14 +130,8 @@ export function HydrationCard({
         ))}
         {remainingCount > 0 && (
           <View className="items-center gap-2">
-            <View
-              className="w-[72px] h-[72px] rounded-full items-center justify-center"
-              style={{ backgroundColor: colors.primaryTint }}
-            >
-              <Text
-                className="text-base"
-                style={{ fontFamily: fonts.bold, color: colors.primary }}
-              >
+            <View className="w-[72px] h-[72px] rounded-full items-center justify-center bg-primary-tint">
+              <Text className="text-base font-bold text-primary">
                 +{remainingCount}
               </Text>
             </View>
@@ -157,10 +142,9 @@ export function HydrationCard({
       {/* Water All Button */}
       <Pressable
         onPress={onWaterAll}
-        className="h-12 rounded-full flex-row items-center justify-center gap-2"
+        className="h-12 rounded-full flex-row items-center justify-center gap-2 bg-primary"
         style={{
-          backgroundColor: colors.primary,
-          shadowColor: colors.primary,
+          shadowColor: iconColors.primary,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.25,
           shadowRadius: 8,
@@ -169,13 +153,8 @@ export function HydrationCard({
         accessibilityLabel="Water all plants"
         accessibilityRole="button"
       >
-        <MaterialIcons name="check-circle" size={20} color={colors.white} />
-        <Text
-          className="text-[15px] text-white"
-          style={{ fontFamily: fonts.bold }}
-        >
-          Water All
-        </Text>
+        <MaterialIcons name="check-circle" size={20} color={iconColors.white} />
+        <Text className="text-[15px] text-white font-bold">Water All</Text>
       </Pressable>
     </View>
   )

@@ -18,7 +18,7 @@ import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
 import { NotificationBell } from 'src/components/NotificationBell'
 import { useAuth } from 'src/contexts/AuthContext'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
 import { RecentActivity } from './components/RecentActivity'
@@ -149,7 +149,7 @@ export function HomeScreen() {
         className="flex-1 bg-background"
       >
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
       </SafeAreaView>
     )
@@ -166,8 +166,8 @@ export function HomeScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={iconColors.primary}
+            colors={[iconColors.primary]}
           />
         }
       >
@@ -175,10 +175,7 @@ export function HomeScreen() {
           {/* Header */}
           <View className="flex-row items-center justify-between pt-6 pb-4">
             <View className="flex-1">
-              <Text
-                className="text-2xl text-text-primary tracking-tight leading-tight"
-                style={{ fontFamily: fonts.bold }}
-              >
+              <Text className="text-2xl text-text-primary tracking-tight leading-tight font-bold">
                 {getGreeting()},{'\n'}
                 {userName} ☀️
               </Text>
@@ -264,27 +261,21 @@ export function HomeScreen() {
               <MaterialIcons
                 name="camera-alt"
                 size={20}
-                color={colors.primary}
+                color={iconColors.primary}
               />
             </View>
             <View className="flex-1">
-              <Text
-                className="text-base text-text-primary"
-                style={{ fontFamily: fonts.semiBold }}
-              >
+              <Text className="text-base text-text-primary font-semibold">
                 Scan with AI
               </Text>
-              <Text
-                className="text-sm text-text-secondary"
-                style={{ fontFamily: fonts.regular }}
-              >
+              <Text className="text-sm text-text-secondary font-regular">
                 Identify your plant instantly
               </Text>
             </View>
             <MaterialIcons
               name="chevron-right"
               size={24}
-              color={colors.textMuted}
+              color={iconColors.muted}
             />
           </Pressable>
 
@@ -296,26 +287,20 @@ export function HomeScreen() {
             }}
           >
             <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
+              <MaterialIcons name="edit" size={20} color={iconColors.primary} />
             </View>
             <View className="flex-1">
-              <Text
-                className="text-base text-text-primary"
-                style={{ fontFamily: fonts.semiBold }}
-              >
+              <Text className="text-base text-text-primary font-semibold">
                 Add manually
               </Text>
-              <Text
-                className="text-sm text-text-secondary"
-                style={{ fontFamily: fonts.regular }}
-              >
+              <Text className="text-sm text-text-secondary font-regular">
                 Enter plant details yourself
               </Text>
             </View>
             <MaterialIcons
               name="chevron-right"
               size={24}
-              color={colors.textMuted}
+              color={iconColors.muted}
             />
           </Pressable>
         </View>

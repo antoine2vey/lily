@@ -3,7 +3,7 @@ import { Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'
@@ -36,16 +36,10 @@ function EnvironmentRow({ icon, label, value }: EnvironmentRowProps) {
       className="flex-row items-center py-3"
       testID={`environment-row-${label.toLowerCase()}`}
     >
-      <View
-        className="w-8 h-8 rounded-full items-center justify-center"
-        style={{ backgroundColor: colors.surfaceTinted }}
-      >
-        <MaterialIcons name={icon} size={18} color={colors.textMuted} />
+      <View className="w-8 h-8 rounded-full items-center justify-center bg-surface-tinted">
+        <MaterialIcons name={icon} size={18} color={iconColors.muted} />
       </View>
-      <Text
-        className="flex-1 text-base ml-3"
-        style={{ fontFamily: fonts.regular, color: colors.textPrimary }}
-      >
+      <Text className="flex-1 text-base ml-3 font-regular text-text-primary">
         {label}
       </Text>
       <Badge label={value} variant="info" size="sm" />

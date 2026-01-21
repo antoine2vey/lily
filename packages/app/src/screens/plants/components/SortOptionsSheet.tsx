@@ -3,7 +3,7 @@ import { Array } from 'effect'
 import { View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type SortOption = 'name' | 'dateAdded' | 'nextWater' | 'health'
 
@@ -46,7 +46,11 @@ export function SortOptionsSheet({
             title={label}
             rightElement={
               selectedOption === key ? (
-                <MaterialIcons name="check" size={20} color={colors.primary} />
+                <MaterialIcons
+                  name="check"
+                  size={20}
+                  color={iconColors.primary}
+                />
               ) : undefined
             }
             onPress={() => handleSelect(key)}

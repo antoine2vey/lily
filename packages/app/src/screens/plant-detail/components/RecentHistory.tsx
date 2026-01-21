@@ -1,7 +1,7 @@
 import { Array, Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type EventType = 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
 
@@ -26,19 +26,19 @@ const getEventConfig = (type: EventType): EventConfig =>
   pipe(
     Match.value(type),
     Match.when('watered', () => ({
-      color: colors.waterBlue,
+      color: iconColors.waterBlue,
       label: 'Watered',
     })),
     Match.when('fertilized', () => ({
-      color: colors.fertilizerOrange,
+      color: iconColors.fertilizerOrange,
       label: 'Fertilized',
     })),
     Match.when('misted', () => ({
-      color: colors.mistTeal,
+      color: iconColors.mistTeal,
       label: 'Misted',
     })),
     Match.when('pruned', () => ({
-      color: colors.pruneRed,
+      color: iconColors.pruneRed,
       label: 'Pruned',
     })),
     Match.when('repotted', () => ({
@@ -75,8 +75,7 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
       <View className="mt-4">
         {Array.length(recentEvents) === 0 ? (
           <Text
-            className="text-sm py-4 text-center"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
+            className="text-sm py-4 text-center font-regular text-text-muted"
             testID="no-history"
           >
             No care history yet
@@ -95,32 +94,19 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
                   style={{ backgroundColor: config.color }}
                 />
                 <View className="flex-1">
-                  <Text
-                    className="text-base"
-                    style={{
-                      fontFamily: fonts.medium,
-                      color: colors.textPrimary,
-                    }}
-                  >
+                  <Text className="text-base font-medium text-text-primary">
                     {config.label}
                   </Text>
                   {event.notes && (
                     <Text
-                      className="text-xs mt-0.5"
-                      style={{
-                        fontFamily: fonts.regular,
-                        color: colors.textMuted,
-                      }}
+                      className="text-xs mt-0.5 font-regular text-text-muted"
                       numberOfLines={1}
                     >
                       {event.notes}
                     </Text>
                   )}
                 </View>
-                <Text
-                  className="text-sm"
-                  style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-                >
+                <Text className="text-sm font-regular text-text-muted">
                   {formatDate(event.date)}
                 </Text>
               </View>

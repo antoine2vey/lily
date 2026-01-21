@@ -1,7 +1,6 @@
 import { Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
-import { colors, fonts } from 'src/theme'
 
 type HealthStatus = 'healthy' | 'attention' | 'critical'
 
@@ -46,8 +45,7 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
     <View testID="plant-header">
       <View className="flex-row items-center justify-between">
         <Text
-          className="text-[28px] flex-1 mr-3"
-          style={{ fontFamily: fonts.bold, color: colors.textPrimary }}
+          className="text-[28px] flex-1 mr-3 font-bold text-text-primary"
           numberOfLines={2}
           testID="plant-name"
         >
@@ -61,8 +59,7 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
       </View>
       {speciesLine && (
         <Text
-          className="text-sm mt-1"
-          style={{ fontFamily: fonts.regular, color: colors.primary }}
+          className="text-sm mt-1 font-regular text-primary"
           testID="plant-species"
         >
           {speciesLine}
