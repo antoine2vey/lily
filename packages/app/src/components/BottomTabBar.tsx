@@ -3,7 +3,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Array } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface CustomBottomTabBarProps
   extends Pick<BottomTabBarProps, 'state' | 'descriptors' | 'navigation'> {
@@ -55,9 +55,8 @@ export function BottomTabBar({
       {/* FAB - positioned absolutely in center, floating above */}
       <Pressable
         onPress={onFabPress}
-        className="absolute self-center -top-7 w-14 h-14 rounded-full items-center justify-center z-10"
+        className="absolute self-center -top-7 w-14 h-14 rounded-full items-center justify-center z-10 bg-primary"
         style={{
-          backgroundColor: colors.primary,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.25,
@@ -65,7 +64,7 @@ export function BottomTabBar({
           elevation: 8,
         }}
       >
-        <MaterialIcons name="add" size={28} color={colors.white} />
+        <MaterialIcons name="add" size={28} color={iconColors.white} />
       </Pressable>
 
       {/* Tab bar row */}
@@ -81,6 +80,7 @@ export function BottomTabBar({
 
           const isFocused = state.index === index
           const iconName = getTabIcon(route.name, isFocused)
+          const colorClass = isFocused ? 'text-primary' : 'text-text-muted'
 
           const onPress = () => {
             const event = navigation.emit({
@@ -103,15 +103,9 @@ export function BottomTabBar({
               <MaterialIcons
                 name={iconName}
                 size={24}
-                color={isFocused ? colors.primary : colors.textMuted}
+                color={isFocused ? iconColors.primary : iconColors.muted}
               />
-              <Text
-                className="text-[10px] mt-1"
-                style={{
-                  fontFamily: fonts.medium,
-                  color: isFocused ? colors.primary : colors.textMuted,
-                }}
-              >
+              <Text className={`text-[10px] mt-1 font-medium ${colorClass}`}>
                 {label}
               </Text>
             </Pressable>

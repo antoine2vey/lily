@@ -1,7 +1,6 @@
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
 
 type ChipVariant = 'filter' | 'input' | 'suggestion'
 
@@ -14,30 +13,12 @@ interface ChipProps {
   disabled?: boolean
 }
 
-interface VariantStyles {
-  paddingHorizontal: number
-  paddingVertical: number
-  borderRadius: number
-}
-
-const getVariantStyles = (variant: ChipVariant): VariantStyles =>
+const getVariantClasses = (variant: ChipVariant): string =>
   pipe(
     Match.value(variant),
-    Match.when('filter', () => ({
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-    })),
-    Match.when('input', () => ({
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
-    })),
-    Match.when('suggestion', () => ({
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 20,
-    })),
+    Match.when('filter', () => 'px-4 py-2 rounded-full'),
+    Match.when('input', () => 'px-3 py-1.5 rounded-lg'),
+    Match.when('suggestion', () => 'px-3.5 py-2.5 rounded-full'),
     Match.exhaustive
   )
 
@@ -49,35 +30,17 @@ export function Chip({
   variant = 'filter',
   disabled = false,
 }: ChipProps) {
-  const variantStyles = getVariantStyles(variant)
-  const backgroundColor = selected ? colors.primary : colors.white
-  const textColor = selected ? colors.white : colors.textPrimary
-  const borderColor = selected ? colors.primary : '#E0E0E0'
+  const variantClasses = getVariantClasses(variant)
+  const bgClass = selected ? 'bg-primary' : 'bg-white border border-slate-200'
+  const textClass = selected ? 'text-white' : 'text-text-primary'
+  const opacityClass = disabled ? 'opacity-50' : ''
 
   const content = (
     <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor,
-        borderWidth: selected ? 0 : 1,
-        borderColor,
-        opacity: disabled ? 0.5 : 1,
-        gap: 6,
-        paddingHorizontal: variantStyles.paddingHorizontal,
-        paddingVertical: variantStyles.paddingVertical,
-        borderRadius: variantStyles.borderRadius,
-      }}
+      className={`flex-row items-center gap-1.5 ${variantClasses} ${bgClass} ${opacityClass}`}
     >
       {icon}
-      <Text
-        style={{
-          color: textColor,
-          fontSize: 14,
-          fontFamily: fonts.medium,
-        }}
-        numberOfLines={1}
-      >
+      <Text className={`text-sm font-medium ${textClass}`} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -88,9 +51,7 @@ export function Chip({
       <Pressable
         onPress={onPress}
         disabled={disabled}
-        style={({ pressed }) => ({
-          opacity: pressed && !disabled ? 0.8 : 1,
-        })}
+        className={`${disabled ? '' : 'active:opacity-80'}`}
       >
         {content}
       </Pressable>

@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface ListRowProps {
   title: string
@@ -22,31 +22,21 @@ export function ListRow({
   showChevron = false,
   destructive = false,
 }: ListRowProps) {
+  const titleColorClass = destructive ? 'text-coral' : 'text-text-primary'
+
   const content = (
     <View className="flex-row items-center min-h-[56px] py-2">
       {leftIcon && (
-        <View
-          className="w-10 h-10 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: colors.primaryTint }}
-        >
+        <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint">
           {leftIcon}
         </View>
       )}
       <View className="flex-1">
-        <Text
-          className="text-base"
-          style={{
-            fontFamily: fonts.medium,
-            color: destructive ? colors.coral : colors.textPrimary,
-          }}
-        >
+        <Text className={`text-base font-medium ${titleColorClass}`}>
           {title}
         </Text>
         {subtitle && (
-          <Text
-            className="text-sm mt-0.5"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-          >
+          <Text className="text-sm mt-0.5 text-text-muted font-regular">
             {subtitle}
           </Text>
         )}
@@ -56,7 +46,7 @@ export function ListRow({
         <MaterialIcons
           name="chevron-right"
           size={20}
-          color={colors.textMuted}
+          color={iconColors.muted}
         />
       )}
     </View>
@@ -66,10 +56,7 @@ export function ListRow({
     return (
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => ({
-          opacity: pressed ? 0.7 : 1,
-          backgroundColor: pressed ? 'rgba(0,0,0,0.02)' : 'transparent',
-        })}
+        className="active:opacity-70 active:bg-black/5"
       >
         {content}
       </Pressable>

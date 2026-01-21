@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface NotificationBellProps {
   unreadCount?: number
@@ -30,17 +30,11 @@ export function NotificationBell({
       <MaterialIcons
         name="notifications-none"
         size={24}
-        color={colors.textPrimary}
+        color={iconColors.slate900}
       />
       {unreadCount > 0 && (
-        <View
-          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full items-center justify-center px-1"
-          style={{ backgroundColor: colors.coral }}
-        >
-          <Text
-            className="text-[10px] text-white"
-            style={{ fontFamily: fonts.bold }}
-          >
+        <View className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full items-center justify-center px-1 bg-coral">
+          <Text className="text-[10px] text-white font-bold">
             {displayCount}
           </Text>
         </View>

@@ -1,6 +1,6 @@
 import { Number as EffectNumber } from 'effect'
 import { Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface ProgressBarProps {
   progress: number
@@ -13,7 +13,7 @@ interface ProgressBarProps {
 export function ProgressBar({
   progress,
   label,
-  color = colors.primary,
+  color = iconColors.primary,
   height = 8,
   showPercentage = false,
 }: ProgressBarProps) {
@@ -28,29 +28,20 @@ export function ProgressBar({
       {(label || showPercentage) && (
         <View className="flex-row justify-between mb-2">
           {label && (
-            <Text
-              className="text-sm"
-              style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-            >
+            <Text className="text-sm text-text-muted font-regular">
               {label}
             </Text>
           )}
           {showPercentage && (
-            <Text
-              className="text-sm"
-              style={{ fontFamily: fonts.medium, color: colors.textMuted }}
-            >
+            <Text className="text-sm text-text-muted font-medium">
               {percentage}%
             </Text>
           )}
         </View>
       )}
       <View
-        className="w-full rounded-full overflow-hidden"
-        style={{
-          height,
-          backgroundColor: '#E0E0E0',
-        }}
+        className="w-full rounded-full overflow-hidden bg-slate-200"
+        style={{ height }}
       >
         <View
           className="h-full rounded-full"

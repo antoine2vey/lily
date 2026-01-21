@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
@@ -27,26 +27,26 @@ const getVariantStyles = (variant: ButtonVariant, pressed: boolean) =>
     Match.when('primary', () => ({
       container: pressed ? 'bg-primary-dark' : 'bg-primary',
       text: 'text-white',
-      iconColor: colors.white,
-      loaderColor: colors.white,
+      iconColor: iconColors.white,
+      loaderColor: iconColors.white,
     })),
     Match.when('secondary', () => ({
       container: `border border-primary bg-transparent ${pressed ? 'bg-primary/10' : ''}`,
       text: 'text-primary',
-      iconColor: colors.primary,
-      loaderColor: colors.primary,
+      iconColor: iconColors.primary,
+      loaderColor: iconColors.primary,
     })),
     Match.when('destructive', () => ({
       container: pressed ? 'bg-coral-dark' : 'bg-coral',
       text: 'text-white',
-      iconColor: colors.white,
-      loaderColor: colors.white,
+      iconColor: iconColors.white,
+      loaderColor: iconColors.white,
     })),
     Match.when('ghost', () => ({
       container: `bg-transparent ${pressed ? 'opacity-70' : ''}`,
       text: 'text-primary',
-      iconColor: colors.primary,
-      loaderColor: colors.primary,
+      iconColor: iconColors.primary,
+      loaderColor: iconColors.primary,
     })),
     Match.exhaustive
   )
@@ -91,10 +91,7 @@ export function Button({
                     color={styles.iconColor}
                   />
                 )}
-                <Text
-                  className={`text-base ${styles.text}`}
-                  style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
-                >
+                <Text className={`text-base font-semibold ${styles.text}`}>
                   {children}
                 </Text>
                 {icon && iconPosition === 'right' && (

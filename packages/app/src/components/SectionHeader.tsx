@@ -1,5 +1,4 @@
 import { Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
 
 interface SectionHeaderProps {
   title: string
@@ -12,21 +11,13 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, action }: SectionHeaderProps) {
   return (
     <View className="flex-row items-center justify-between">
-      <Text
-        className="text-lg text-text-primary"
-        style={{ fontFamily: fonts.semiBold }}
-      >
-        {title}
-      </Text>
+      <Text className="text-lg text-text-primary font-semibold">{title}</Text>
       {action && (
         <Pressable
           onPress={action.onPress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text
-            className="text-sm"
-            style={{ fontFamily: fonts.regular, color: colors.primary }}
-          >
+          <Text className="text-sm text-primary font-regular">
             {action.label}
           </Text>
         </Pressable>

@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface SliderProps {
   value: number
@@ -86,19 +86,13 @@ export function Slider({
           <View className="flex-row items-center gap-2">
             {icon}
             {label && (
-              <Text
-                className="text-base"
-                style={{ fontFamily: fonts.medium, color: colors.textPrimary }}
-              >
+              <Text className="text-base font-medium text-text-primary">
                 {label}
               </Text>
             )}
           </View>
           {valueLabel && (
-            <Text
-              className="text-xs"
-              style={{ fontFamily: fonts.medium, color: colors.primary }}
-            >
+            <Text className="text-xs font-medium text-primary">
               {valueLabel}
             </Text>
           )}
@@ -110,46 +104,29 @@ export function Slider({
         className="h-6 justify-center"
         {...panResponder.panHandlers}
       >
-        <View
-          className="w-full h-1.5 rounded-full"
-          style={{ backgroundColor: '#E0E0E0' }}
-        >
+        <View className="w-full h-1.5 rounded-full bg-border">
           <View
-            className="h-full rounded-full"
+            className="h-full rounded-full bg-primary"
             style={{
               width: `${percentage}%`,
-              backgroundColor: colors.primary,
             }}
           />
         </View>
         <View
-          className="absolute w-6 h-6 rounded-full items-center justify-center"
+          className="absolute w-6 h-6 rounded-full items-center justify-center bg-primary border-2 border-white shadow-md"
           style={{
             left: `${percentage}%`,
             marginLeft: -12,
-            backgroundColor: colors.primary,
-            borderWidth: 2,
-            borderColor: colors.white,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
             elevation: 3,
           }}
         />
       </View>
       {(minLabel || maxLabel) && (
         <View className="flex-row justify-between mt-1">
-          <Text
-            className="text-xs"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-          >
+          <Text className="text-xs font-regular text-text-muted">
             {minLabel}
           </Text>
-          <Text
-            className="text-xs"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-          >
+          <Text className="text-xs font-regular text-text-muted">
             {maxLabel}
           </Text>
         </View>
