@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface GallerySectionProps {
   photos: ReadonlyArray<{
@@ -41,15 +41,10 @@ export function GallerySection({
         {/* Add Photo Button */}
         <Pressable
           onPress={onAddPhoto}
-          className="w-20 h-20 rounded-lg items-center justify-center"
-          style={{
-            borderWidth: 2,
-            borderStyle: 'dashed',
-            borderColor: colors.border,
-          }}
+          className="w-20 h-20 rounded-lg items-center justify-center border-2 border-dashed border-border"
           testID="add-photo-button"
         >
-          <MaterialIcons name="add" size={24} color={colors.primary} />
+          <MaterialIcons name="add" size={24} color={iconColors.primary} />
         </Pressable>
 
         {/* Photo Thumbnails */}

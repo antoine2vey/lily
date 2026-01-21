@@ -2,7 +2,6 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { colors, fonts } from 'src/theme'
 
 type ActivityType =
   | 'watered'
@@ -105,17 +104,10 @@ function ActivityItem({
 
       {/* Content */}
       <View className="flex-1 min-w-0">
-        <Text
-          className="text-sm text-text-primary"
-          style={{ fontFamily: fonts.bold }}
-          numberOfLines={1}
-        >
+        <Text className="text-sm text-text-primary font-bold" numberOfLines={1}>
           {title}
         </Text>
-        <Text
-          className="text-xs text-text-muted mt-0.5"
-          style={{ fontFamily: fonts.medium }}
-        >
+        <Text className="text-xs text-text-muted mt-0.5 font-medium">
           {formatRelativeTime(activity.timestamp)}
         </Text>
       </View>
@@ -133,10 +125,7 @@ export function RecentActivity({
       <View>
         <SectionHeader title="Recent Activity" />
         <View className="bg-white rounded-[20px] p-6 items-center">
-          <Text
-            className="text-sm text-text-muted text-center"
-            style={{ fontFamily: fonts.regular }}
-          >
+          <Text className="text-sm text-text-muted text-center font-regular">
             No recent activity yet.{'\n'}Start caring for your plants!
           </Text>
         </View>
@@ -147,19 +136,11 @@ export function RecentActivity({
   return (
     <View>
       <View className="flex-row items-center justify-between mb-4 px-1">
-        <Text
-          className="text-lg text-text-primary tracking-tight"
-          style={{ fontFamily: fonts.bold }}
-        >
+        <Text className="text-lg text-text-primary tracking-tight font-bold">
           Recent Activity
         </Text>
         <Pressable onPress={onSeeAll} hitSlop={8}>
-          <Text
-            className="text-sm"
-            style={{ fontFamily: fonts.semiBold, color: colors.primary }}
-          >
-            See All
-          </Text>
+          <Text className="text-sm font-semibold text-primary">See All</Text>
         </Pressable>
       </View>
       {pipe(

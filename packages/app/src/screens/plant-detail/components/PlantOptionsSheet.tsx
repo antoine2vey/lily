@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface PlantOptionsSheetProps {
   visible: boolean
@@ -35,15 +35,11 @@ export function PlantOptionsSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View className="pb-2">
-        <Text
-          className="text-lg text-center"
-          style={{ fontFamily: fonts.semiBold, color: colors.textPrimary }}
-        >
+        <Text className="text-lg text-center font-semibold text-text-primary">
           Plant Options
         </Text>
         <Text
-          className="text-sm text-center mt-1"
-          style={{ fontFamily: fonts.regular, color: colors.textMuted }}
+          className="text-sm text-center mt-1 font-regular text-text-muted"
           testID="plant-options-name"
         >
           {plantName}
@@ -53,7 +49,7 @@ export function PlantOptionsSheet({
       <View className="mt-4">
         <ListRow
           leftIcon={
-            <MaterialIcons name="edit" size={20} color={colors.primary} />
+            <MaterialIcons name="edit" size={20} color={iconColors.primary} />
           }
           title="Edit Plant Details"
           showChevron
@@ -64,7 +60,7 @@ export function PlantOptionsSheet({
             <MaterialIcons
               name={isFavorite ? 'favorite' : 'favorite-border'}
               size={20}
-              color={isFavorite ? colors.coral : colors.primary}
+              color={isFavorite ? iconColors.coral : iconColors.primary}
             />
           }
           title={isFavorite ? 'Remove from Favorites' : 'Set as Favorite'}
@@ -75,7 +71,7 @@ export function PlantOptionsSheet({
             <MaterialIcons
               name="file-download"
               size={20}
-              color={colors.primary}
+              color={iconColors.primary}
             />
           }
           title="Export Care History"
@@ -83,14 +79,14 @@ export function PlantOptionsSheet({
         />
         <ListRow
           leftIcon={
-            <MaterialIcons name="share" size={20} color={colors.primary} />
+            <MaterialIcons name="share" size={20} color={iconColors.primary} />
           }
           title="Share Plant Profile"
           onPress={handleAction(onShare)}
         />
         <ListRow
           leftIcon={
-            <MaterialIcons name="delete" size={20} color={colors.coral} />
+            <MaterialIcons name="delete" size={20} color={iconColors.coral} />
           }
           title="Delete Plant"
           destructive

@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
 import { Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 interface QuickActionsProps {
   onWater: () => void
@@ -47,16 +47,10 @@ export function QuickActions({
           className="items-center"
           testID={`quick-action-${key}`}
         >
-          <View
-            className="w-12 h-12 rounded-full items-center justify-center"
-            style={{ backgroundColor: colors.primaryTint }}
-          >
-            <MaterialIcons name={icon} size={24} color={colors.primary} />
+          <View className="w-12 h-12 rounded-full items-center justify-center bg-primary-tint">
+            <MaterialIcons name={icon} size={24} color={iconColors.primary} />
           </View>
-          <Text
-            className="text-xs mt-2"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-          >
+          <Text className="text-xs mt-2 font-regular text-text-muted">
             {label}
           </Text>
         </Pressable>

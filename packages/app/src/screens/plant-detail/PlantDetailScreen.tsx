@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { CareSchedule } from './components/CareSchedule'
 import { GallerySection } from './components/GallerySection'
@@ -63,7 +63,7 @@ function PlantDetailSkeleton() {
     <View className="flex-1 bg-background" testID="plant-detail-skeleton">
       <View className="h-[300px] bg-gray-200" />
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={iconColors.primary} />
       </View>
     </View>
   )
@@ -79,27 +79,18 @@ function ErrorState({ onRetry }: ErrorStateProps) {
       className="flex-1 bg-background items-center justify-center p-6"
       testID="plant-detail-error"
     >
-      <MaterialIcons name="error-outline" size={48} color={colors.coral} />
-      <Text
-        className="text-lg text-center mt-4"
-        style={{ fontFamily: fonts.semiBold, color: colors.textPrimary }}
-      >
+      <MaterialIcons name="error-outline" size={48} color={iconColors.coral} />
+      <Text className="text-lg text-center mt-4 font-semibold text-text-primary">
         Failed to load plant
       </Text>
-      <Text
-        className="text-sm text-center mt-2"
-        style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-      >
+      <Text className="text-sm text-center mt-2 font-regular text-text-muted">
         Something went wrong while loading plant details.
       </Text>
       <Pressable
         onPress={onRetry}
-        className="mt-6 px-6 py-3 rounded-full"
-        style={{ backgroundColor: colors.primary }}
+        className="mt-6 px-6 py-3 rounded-full bg-primary"
       >
-        <Text style={{ fontFamily: fonts.semiBold, color: colors.white }}>
-          Try Again
-        </Text>
+        <Text className="font-semibold text-white">Try Again</Text>
       </Pressable>
     </View>
   )
@@ -113,11 +104,14 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
   if (!imageUrl) {
     return (
       <View
-        className="h-[300px] items-center justify-center"
-        style={{ backgroundColor: colors.primaryTint }}
+        className="h-[300px] items-center justify-center bg-primary-tint"
         testID="plant-hero-placeholder"
       >
-        <MaterialIcons name="local-florist" size={64} color={colors.primary} />
+        <MaterialIcons
+          name="local-florist"
+          size={64}
+          color={iconColors.primary}
+        />
       </View>
     )
   }
@@ -390,26 +384,24 @@ export function PlantDetailScreen() {
       >
         <Pressable
           onPress={handleBack}
-          className="w-10 h-10 rounded-full items-center justify-center"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+          className="w-10 h-10 rounded-full items-center justify-center bg-white/90"
           testID="back-button"
         >
           <MaterialIcons
             name="arrow-back"
             size={24}
-            color={colors.textPrimary}
+            color={iconColors.textPrimary}
           />
         </Pressable>
         <Pressable
           onPress={handleMoreOptions}
-          className="w-10 h-10 rounded-full items-center justify-center"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+          className="w-10 h-10 rounded-full items-center justify-center bg-white/90"
           testID="more-options-button"
         >
           <MaterialIcons
             name="more-horiz"
             size={24}
-            color={colors.textPrimary}
+            color={iconColors.textPrimary}
           />
         </Pressable>
       </View>
@@ -435,7 +427,9 @@ export function PlantDetailScreen() {
         confirmLabel="Delete Plant"
         cancelLabel="Keep Plant"
         destructive
-        icon={<MaterialIcons name="delete" size={32} color={colors.coral} />}
+        icon={
+          <MaterialIcons name="delete" size={32} color={iconColors.coral} />
+        }
         onConfirm={handleConfirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
