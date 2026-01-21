@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, IconButton, TextLink } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 const MAX_USERNAME_LENGTH = 20
 const MIN_USERNAME_LENGTH = 3
@@ -94,22 +94,26 @@ export default function UsernameSetupScreen() {
       Match.value(validation),
       Match.when({ _tag: 'Available' }, () => (
         <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
-          <MaterialIcons name="check" size={20} color={colors.primary} />
+          <MaterialIcons name="check" size={20} color={iconColors.primary} />
         </View>
       )),
       Match.when({ _tag: 'Invalid' }, () => (
         <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
-          <MaterialIcons name="close" size={20} color={colors.error} />
+          <MaterialIcons name="close" size={20} color={iconColors.error} />
         </View>
       )),
       Match.when({ _tag: 'Unavailable' }, () => (
         <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
-          <MaterialIcons name="close" size={20} color={colors.error} />
+          <MaterialIcons name="close" size={20} color={iconColors.error} />
         </View>
       )),
       Match.when({ _tag: 'Checking' }, () => (
         <View className="w-8 h-8 rounded-full bg-border items-center justify-center">
-          <MaterialIcons name="more-horiz" size={20} color={colors.textMuted} />
+          <MaterialIcons
+            name="more-horiz"
+            size={20}
+            color={iconColors.textMuted}
+          />
         </View>
       )),
       Match.orElse(() => null)
@@ -121,29 +125,16 @@ export default function UsernameSetupScreen() {
       Match.when({ _tag: 'Available' }, () => (
         <View className="flex-row items-center gap-1.5">
           <View className="w-1.5 h-1.5 rounded-full bg-primary" />
-          <Text
-            className="text-xs text-primary uppercase tracking-wide"
-            style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-          >
+          <Text className="text-xs font-bold text-primary uppercase tracking-wide">
             Available
           </Text>
         </View>
       )),
       Match.when({ _tag: 'Invalid' }, ({ reason }) => (
-        <Text
-          className="text-xs text-error"
-          style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
-        >
-          {reason}
-        </Text>
+        <Text className="text-xs font-medium text-error">{reason}</Text>
       )),
       Match.when({ _tag: 'Unavailable' }, ({ reason }) => (
-        <Text
-          className="text-xs text-error"
-          style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
-        >
-          {reason}
-        </Text>
+        <Text className="text-xs font-medium text-error">{reason}</Text>
       )),
       Match.orElse(() => null)
     )
@@ -171,7 +162,7 @@ export default function UsernameSetupScreen() {
               <IconButton
                 icon="chevron-left"
                 size={24}
-                color={colors.textPrimary}
+                color={iconColors.textPrimary}
                 onPress={() => router.back()}
               />
             </View>
@@ -180,22 +171,13 @@ export default function UsernameSetupScreen() {
             <View className="flex-1 pt-8">
               {/* Headline */}
               <View className="mb-10">
-                <Text
-                  className="text-[28px] text-text-primary"
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                >
+                <Text className="text-[28px] font-bold text-text-primary">
                   What should we
                 </Text>
-                <Text
-                  className="text-[28px] text-primary"
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                >
+                <Text className="text-[28px] font-bold text-primary">
                   call you?
                 </Text>
-                <Text
-                  className="text-base text-text-secondary mt-3"
-                  style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                >
+                <Text className="text-base font-regular text-text-secondary mt-3">
                   This is how you'll appear to other{'\n'}plant parents in the
                   community.
                 </Text>
@@ -205,18 +187,14 @@ export default function UsernameSetupScreen() {
               <View className="w-full">
                 <View className="flex-row items-center w-full h-14 rounded-xl border border-border bg-surface px-5">
                   {/* Fixed Prefix */}
-                  <Text
-                    className="text-lg text-text-muted mr-1"
-                    style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
-                  >
+                  <Text className="text-lg font-medium text-text-muted mr-1">
                     @
                   </Text>
                   {/* Input */}
                   <TextInput
-                    className="flex-1 text-lg text-text-primary"
-                    style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+                    className="flex-1 text-lg font-semibold text-text-primary"
                     placeholder="username"
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={iconColors.textMuted}
                     value={username}
                     onChangeText={setUsername}
                     autoCapitalize="none"
@@ -230,10 +208,7 @@ export default function UsernameSetupScreen() {
                 {/* Helper Text & Counter */}
                 <View className="flex-row justify-between items-center px-2 mt-3">
                   {getValidationStatus()}
-                  <Text
-                    className="text-sm text-text-muted"
-                    style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
-                  >
+                  <Text className="text-sm font-medium text-text-muted">
                     {username.length}/{MAX_USERNAME_LENGTH}
                   </Text>
                 </View>

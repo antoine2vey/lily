@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 export default function AppLayout() {
   return (
@@ -7,7 +7,7 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: iconColors.background,
         },
       }}
     >
@@ -15,6 +15,41 @@ export default function AppLayout() {
         name="(tabs)"
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="profile/edit"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="subscription/index"
+        options={{
+          headerShown: false,
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="subscription/upgrade"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="achievements"
+        options={{
+          headerShown: false,
+          presentation: 'card',
         }}
       />
     </Stack>

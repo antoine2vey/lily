@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native'
 import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type VerifyState =
   | { _tag: 'Verifying' }
@@ -63,19 +63,13 @@ export default function VerifyScreen() {
           Match.when({ _tag: 'Verifying' }, () => (
             <View className="items-center gap-6">
               <View className="w-24 h-24 rounded-full bg-primary/10 items-center justify-center">
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="large" color={iconColors.primary} />
               </View>
               <View className="items-center gap-2">
-                <Text
-                  className="text-2xl text-text-main dark:text-white"
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                >
+                <Text className="text-2xl font-bold text-text-main dark:text-white">
                   Verifying...
                 </Text>
-                <Text
-                  className="text-base text-text-secondary dark:text-zinc-400 text-center"
-                  style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                >
+                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
                   Please wait while we verify your magic link
                 </Text>
               </View>
@@ -87,20 +81,14 @@ export default function VerifyScreen() {
                 <MaterialIcons
                   name="check-circle"
                   size={48}
-                  color={colors.primary}
+                  color={iconColors.primary}
                 />
               </View>
               <View className="items-center gap-2">
-                <Text
-                  className="text-2xl text-text-main dark:text-white"
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                >
+                <Text className="text-2xl font-bold text-text-main dark:text-white">
                   Welcome!
                 </Text>
-                <Text
-                  className="text-base text-text-secondary dark:text-zinc-400 text-center"
-                  style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                >
+                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
                   You've been successfully signed in
                 </Text>
               </View>
@@ -109,19 +97,17 @@ export default function VerifyScreen() {
           Match.when({ _tag: 'Error' }, ({ message }) => (
             <View className="items-center gap-6 w-full max-w-sm">
               <View className="w-24 h-24 rounded-full bg-red-500/10 items-center justify-center">
-                <MaterialIcons name="error-outline" size={48} color="#ef4444" />
+                <MaterialIcons
+                  name="error-outline"
+                  size={48}
+                  color={iconColors.error}
+                />
               </View>
               <View className="items-center gap-2">
-                <Text
-                  className="text-2xl text-text-main dark:text-white"
-                  style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-                >
+                <Text className="text-2xl font-bold text-text-main dark:text-white">
                   Verification Failed
                 </Text>
-                <Text
-                  className="text-base text-text-secondary dark:text-zinc-400 text-center"
-                  style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-                >
+                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
                   {message}
                 </Text>
               </View>

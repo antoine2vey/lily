@@ -1,8 +1,7 @@
-import { Tabs } from 'expo-router'
+import { router, Tabs } from 'expo-router'
 import { useState } from 'react'
-import { View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
 import { BottomTabBar } from 'src/components/BottomTabBar'
+import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
 
 export default function TabsLayout() {
   const [showAddPlant, setShowAddPlant] = useState(false)
@@ -44,13 +43,13 @@ export default function TabsLayout() {
         />
       </Tabs>
 
-      <BottomSheet
+      <AddPlantOptionsSheet
         visible={showAddPlant}
         onClose={() => setShowAddPlant(false)}
-        title="Add Plant"
-      >
-        <View />
-      </BottomSheet>
+        onSelectAI={() => router.push('/add-plant/ai-scanner')}
+        onSelectScan={() => router.push('/add-plant/nursery-scanner')}
+        onSelectManual={() => router.push('/add-plant/manual-basic')}
+      />
     </>
   )
 }
