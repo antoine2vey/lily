@@ -1,0 +1,1 @@
+export { AnimatedSplashScreen } from './AnimatedSplashScreen'
