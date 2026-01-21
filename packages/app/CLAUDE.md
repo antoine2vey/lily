@@ -1,0 +1,401 @@
+# Agent Instructions for Lily App Package
+
+This document provides instructions specific to the React Native mobile app (`packages/app`).
+
+> **Inherits from:** Root `CLAUDE.md` - All Effect.js patterns, array methods, and code conventions apply here.
+
+---
+
+## Critical Styling Rules
+
+### NativeWind is the Primary Styling Method
+
+**ALWAYS use `className` with Tailwind classes for styling.** This app uses NativeWind, which brings Tailwind CSS to React Native.
+
+```tsx
+// ✅ CORRECT - Use className with Tailwind
+<View className="flex-1 bg-background p-4">
+  <Text className="text-xl font-semibold text-text-primary">Hello</Text>
+</View>
+```
+
+### NEVER Use StyleSheet.create() for Static Styles
+
+StyleSheet.create() should **NEVER** be used for styles that can be expressed with Tailwind classes.
+
+```tsx
+// ❌ FORBIDDEN - Raw StyleSheet for static styles
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAF8',
+    padding: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+})
+
+// ✅ CORRECT - Tailwind classes
+<View className="flex-1 bg-background p-4">
+  <Text className="text-xl font-semibold text-text-primary">Title</Text>
+</View>
+```
+
+### When Inline Styles ARE Acceptable
+
+Use inline `style` prop **ONLY** for:
+
+1. **Dynamic values** that cannot be expressed in Tailwind:
+   ```tsx
+   <View style={{ transform: [{ translateX: animatedValue }] }} />
+   <View style={{ height: dynamicHeight }} />
+   ```
+
+2. **Font families** (NativeWind limitation):
+   ```tsx
+   <Text className="text-base text-text-primary" style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+     Text with custom font
+   </Text>
+   ```
+
+3. **Platform-specific overrides** when absolutely necessary:
+   ```tsx
+   <View style={Platform.select({ ios: { shadowOffset: { width: 0, height: 2 } } })} />
+   ```
+
+4. **Animated styles** from Reanimated:
+   ```tsx
+   <Animated.View style={animatedStyle} className="bg-primary rounded-xl" />
+   ```
+
+---
+
+## Theme Token Reference
+
+### Colors
+
+| Design Token | Tailwind Class | Hex Value |
+|-------------|----------------|-----------|
+| Primary Green | `bg-primary`, `text-primary`, `border-primary` | `#5B8C5A` |
+| Primary Dark | `bg-primary-dark` | `#4A7A49` |
+| Primary Light | `bg-primary-light` | `#6B9C6A` |
+| Primary Tint | `bg-primary-tint` | `#E8F5E8` |
+| Coral | `bg-coral`, `text-coral` | `#E8997E` |
+| Coral Dark | `bg-coral-dark` | `#D88A6F` |
+| Background | `bg-background` | `#F8FAF8` |
+| Surface | `bg-surface` | `#FFFFFF` |
+| Surface Tinted | `bg-surface-tinted` | `#F0F5F0` |
+| Input Background | `bg-input-bg` | `#E8F0E8` |
+| Text Primary | `text-text-primary` | `#1A1A1A` |
+| Text Secondary | `text-text-secondary` | `#4A5568` |
+| Text Muted | `text-text-muted` | `#9CA3AF` |
+| Success | `bg-success`, `text-success` | `#5B8C5A` |
+| Warning | `bg-warning`, `text-warning` | `#F59E0B` |
+| Error | `bg-error`, `text-error` | `#EF4444` |
+| Info | `bg-info`, `text-info` | `#3B82F6` |
+| Water Blue | `bg-water-blue`, `text-water-blue` | `#60A5FA` |
+| Achievement Gold | `bg-achievement-gold` | `#FCD34D` |
+| Border | `border-border` | `#E5E7EB` |
+
+### Spacing
+
+Use Tailwind spacing classes (based on 4px increments):
+
+| Spacing | Class | Value |
+|---------|-------|-------|
+| 1 | `p-1`, `m-1`, `gap-1` | 4px |
+| 2 | `p-2`, `m-2`, `gap-2` | 8px |
+| 3 | `p-3`, `m-3`, `gap-3` | 12px |
+| 4 | `p-4`, `m-4`, `gap-4` | 16px |
+| 5 | `p-5`, `m-5`, `gap-5` | 20px |
+| 6 | `p-6`, `m-6`, `gap-6` | 24px |
+| 8 | `p-8`, `m-8`, `gap-8` | 32px |
+
+### Border Radius
+
+| Token | Class | Value |
+|-------|-------|-------|
+| Small | `rounded-sm` | 8px |
+| Medium | `rounded-md` | 12px |
+| Large | `rounded-lg` | 16px |
+| Extra Large | `rounded-xl` | 24px |
+| 2XL | `rounded-2xl` | 32px |
+| Full | `rounded-full` | 9999px |
+
+### Typography
+
+| Style | Classes |
+|-------|---------|
+| Display | `text-3xl font-bold` (32px) |
+| H1 | `text-2xl font-bold` (28px) |
+| H2 | `text-xl font-semibold` (24px) |
+| H3 | `text-lg font-semibold` (20px) |
+| H4 | `text-base font-semibold` (18px) |
+| Body Large | `text-base font-regular` (16px) |
+| Body | `text-sm font-regular` (14px) |
+| Body Small | `text-xs font-regular` (12px) |
+| Caption | `text-[11px] font-medium uppercase tracking-wide` |
+
+**Font families** (use with style prop):
+- `PlusJakartaSans_400Regular` - Regular text
+- `PlusJakartaSans_500Medium` - Medium weight
+- `PlusJakartaSans_600SemiBold` - Semibold (buttons, headings)
+- `PlusJakartaSans_700Bold` - Bold (titles)
+- `PlusJakartaSans_800ExtraBold` - Extra bold
+
+---
+
+## Component Variant Pattern
+
+When creating components with variants, use Effect's `Match` module for exhaustive variant handling. Return className strings, not style objects.
+
+```tsx
+import { Match, pipe } from 'effect'
+
+type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
+
+const getButtonClasses = (variant: ButtonVariant): string =>
+  pipe(
+    Match.value(variant),
+    Match.when('primary', () => 'bg-primary active:bg-primary-dark'),
+    Match.when('secondary', () => 'bg-transparent border border-primary'),
+    Match.when('destructive', () => 'bg-coral active:bg-coral-dark'),
+    Match.when('ghost', () => 'bg-transparent'),
+    Match.exhaustive
+  )
+
+const getTextClasses = (variant: ButtonVariant): string =>
+  pipe(
+    Match.value(variant),
+    Match.when('primary', () => 'text-white'),
+    Match.when('secondary', () => 'text-primary'),
+    Match.when('destructive', () => 'text-white'),
+    Match.when('ghost', () => 'text-primary'),
+    Match.exhaustive
+  )
+
+// Usage
+export function Button({ variant = 'primary', children }: ButtonProps) {
+  return (
+    <Pressable className={`rounded-xl py-4 px-8 ${getButtonClasses(variant)}`}>
+      <Text
+        className={`text-base font-semibold text-center ${getTextClasses(variant)}`}
+        style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+      >
+        {children}
+      </Text>
+    </Pressable>
+  )
+}
+```
+
+---
+
+## Code Conventions (Inherited)
+
+These rules are inherited from the root `CLAUDE.md` and apply to all code in this package:
+
+### Effect Array Module - MANDATORY
+
+**NEVER use native array methods.** Always use Effect's Array module:
+
+```tsx
+import { Array, pipe } from 'effect'
+
+// ❌ FORBIDDEN
+const names = plants.map(p => p.name)
+const healthy = plants.filter(p => p.health === 'good')
+const first = plants[0]
+
+// ✅ REQUIRED
+const names = Array.map(plants, (p) => p.name)
+const healthy = Array.filter(plants, (p) => p.health === 'good')
+const first = Array.head(plants) // Returns Option<Plant>
+```
+
+### Pattern Matching - MANDATORY
+
+**NEVER use switch statements.** Always use Effect's Match module:
+
+```tsx
+import { Match, pipe } from 'effect'
+
+// ❌ FORBIDDEN
+switch (status) {
+  case 'healthy': return 'bg-success'
+  case 'warning': return 'bg-warning'
+  default: return 'bg-error'
+}
+
+// ✅ REQUIRED
+pipe(
+  Match.value(status),
+  Match.when('healthy', () => 'bg-success'),
+  Match.when('warning', () => 'bg-warning'),
+  Match.orElse(() => 'bg-error')
+)
+```
+
+### Option Handling - MANDATORY
+
+**NEVER use null/undefined checks directly.** Use Effect's Option module:
+
+```tsx
+import { Option, pipe } from 'effect'
+
+// ❌ FORBIDDEN
+const name = plant?.name ?? 'Unknown'
+
+// ✅ REQUIRED
+const name = pipe(
+  plantOption,
+  Option.map((p) => p.name),
+  Option.getOrElse(() => 'Unknown')
+)
+```
+
+---
+
+## Common Mistakes to Avoid
+
+### 1. Using StyleSheet.create() for Static Styles
+
+```tsx
+// ❌ WRONG
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+  },
+})
+<View style={styles.card}>...</View>
+
+// ✅ CORRECT
+<View className="bg-surface rounded-lg p-4">...</View>
+```
+
+### 2. Hardcoding Color Hex Values
+
+```tsx
+// ❌ WRONG
+<View style={{ backgroundColor: '#5B8C5A' }}>
+<Text style={{ color: '#1A1A1A' }}>
+
+// ✅ CORRECT
+<View className="bg-primary">
+<Text className="text-text-primary">
+```
+
+### 3. Using Native Array Methods
+
+```tsx
+// ❌ WRONG
+{plants.map((plant) => <PlantCard key={plant.id} plant={plant} />)}
+
+// ✅ CORRECT
+{Array.map(plants, (plant) => <PlantCard key={plant.id} plant={plant} />)}
+```
+
+### 4. Using Switch for Variants
+
+```tsx
+// ❌ WRONG
+const getStatusColor = (status: Status) => {
+  switch (status) {
+    case 'healthy': return 'text-success'
+    case 'needs-water': return 'text-warning'
+    case 'critical': return 'text-error'
+  }
+}
+
+// ✅ CORRECT
+const getStatusColor = (status: Status): string =>
+  pipe(
+    Match.value(status),
+    Match.when('healthy', () => 'text-success'),
+    Match.when('needs-water', () => 'text-warning'),
+    Match.when('critical', () => 'text-error'),
+    Match.exhaustive
+  )
+```
+
+### 5. Mixing Styles Unnecessarily
+
+```tsx
+// ❌ WRONG - Mixing className and style for things Tailwind can handle
+<View className="flex-1" style={{ padding: 16, backgroundColor: '#F8FAF8' }}>
+
+// ✅ CORRECT - Only use style for what Tailwind cannot handle
+<View className="flex-1 p-4 bg-background">
+```
+
+### 6. Using Ternary for Conditional Styles
+
+```tsx
+// ❌ WRONG
+<View className={isActive ? 'bg-primary' : 'bg-surface'}>
+
+// ✅ BETTER - Use template literals for simple cases
+<View className={`${isActive ? 'bg-primary' : 'bg-surface'} rounded-lg p-4`}>
+
+// ✅ BEST - Use Match for complex variant logic
+const bgClass = pipe(
+  Match.value({ isActive, isDisabled }),
+  Match.when({ isActive: true }, () => 'bg-primary'),
+  Match.when({ isDisabled: true }, () => 'bg-text-muted'),
+  Match.orElse(() => 'bg-surface')
+)
+```
+
+---
+
+## Quick Reference
+
+### Common Component Patterns
+
+**Card:**
+```tsx
+<View className="bg-surface rounded-lg p-4 shadow-md">
+```
+
+**Primary Button:**
+```tsx
+<Pressable className="bg-primary active:bg-primary-dark rounded-xl py-4 px-8">
+  <Text className="text-white text-base text-center" style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+    Button
+  </Text>
+</Pressable>
+```
+
+**Input Field:**
+```tsx
+<TextInput
+  className="bg-input-bg rounded-md px-4 py-3.5 text-base text-text-primary"
+  placeholderTextColor="#9CA3AF"
+/>
+```
+
+**Section Header:**
+```tsx
+<Text
+  className="text-[11px] text-text-muted uppercase tracking-wide mb-2"
+  style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+>
+  SECTION TITLE
+</Text>
+```
+
+**List Item:**
+```tsx
+<Pressable className="flex-row items-center p-4 bg-surface border-b border-border">
+  <View className="w-10 h-10 rounded-full bg-surface-tinted items-center justify-center mr-3">
+    <Icon name="settings" size={20} className="text-primary" />
+  </View>
+  <Text className="flex-1 text-base text-text-primary">Item Label</Text>
+  <Icon name="chevron-right" size={16} className="text-text-muted" />
+</Pressable>
+```
