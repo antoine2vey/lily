@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors, fonts } from 'src/theme'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -135,20 +134,11 @@ export function BottomSheet({
             {...panResponder.panHandlers}
             className="items-center pt-2 pb-4"
           >
-            <View
-              className="w-9 h-1 rounded-full"
-              style={{ backgroundColor: '#D1D5DB' }}
-            />
+            <View className="w-9 h-1 rounded-full bg-slate-300" />
           </View>
           {title && (
             <View className="px-6 pb-4 border-b border-border">
-              <Text
-                className="text-lg text-center"
-                style={{
-                  fontFamily: fonts.semiBold,
-                  color: colors.textPrimary,
-                }}
-              >
+              <Text className="text-lg text-center text-text-primary font-semibold">
                 {title}
               </Text>
             </View>

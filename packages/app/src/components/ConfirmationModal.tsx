@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Modal, Pressable, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
 import { Button } from './ui/Button'
 
 interface ConfirmationModalProps {
@@ -26,6 +25,8 @@ export function ConfirmationModal({
   destructive = false,
   icon,
 }: ConfirmationModalProps) {
+  const iconBgClass = destructive ? 'bg-orange-100' : 'bg-primary-tint'
+
   return (
     <Modal
       visible={visible}
@@ -34,8 +35,7 @@ export function ConfirmationModal({
       onRequestClose={onCancel}
     >
       <Pressable
-        className="flex-1 items-center justify-center"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        className="flex-1 items-center justify-center bg-black/50"
         onPress={onCancel}
       >
         <Pressable
@@ -51,24 +51,15 @@ export function ConfirmationModal({
         >
           {icon && (
             <View
-              className="w-14 h-14 rounded-full items-center justify-center mb-4"
-              style={{
-                backgroundColor: destructive ? '#FDECEC' : colors.primaryTint,
-              }}
+              className={`w-14 h-14 rounded-full items-center justify-center mb-4 ${iconBgClass}`}
             >
               {icon}
             </View>
           )}
-          <Text
-            className="text-xl text-center mb-2"
-            style={{ fontFamily: fonts.semiBold, color: colors.textPrimary }}
-          >
+          <Text className="text-xl text-center mb-2 text-text-primary font-semibold">
             {title}
           </Text>
-          <Text
-            className="text-sm text-center mb-6"
-            style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-          >
+          <Text className="text-sm text-center mb-6 text-text-muted font-regular">
             {message}
           </Text>
           <View className="w-full gap-3">
@@ -82,13 +73,7 @@ export function ConfirmationModal({
               onPress={onCancel}
               className="h-12 items-center justify-center"
             >
-              <Text
-                style={{
-                  fontFamily: fonts.medium,
-                  color: colors.textMuted,
-                  fontSize: 16,
-                }}
-              >
+              <Text className="text-base text-text-muted font-medium">
                 {cancelLabel}
               </Text>
             </Pressable>

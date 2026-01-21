@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type TextLinkVariant = 'primary' | 'secondary'
 
@@ -27,12 +27,12 @@ export function TextLink({
     pipe(
       Match.value(variant),
       Match.when('primary', () => ({
-        text: pressed ? 'opacity-70' : '',
-        color: colors.primary,
+        textClass: `text-primary ${pressed ? 'opacity-70' : ''}`,
+        color: iconColors.primary,
       })),
       Match.when('secondary', () => ({
-        text: pressed ? 'opacity-70' : '',
-        color: colors.textMuted,
+        textClass: `text-text-muted ${pressed ? 'opacity-70' : ''}`,
+        color: iconColors.muted,
       })),
       Match.exhaustive
     )
@@ -50,13 +50,7 @@ export function TextLink({
             {icon && iconPosition === 'left' && (
               <MaterialIcons name={icon} size={18} color={styles.color} />
             )}
-            <Text
-              className={`text-sm ${styles.text}`}
-              style={{
-                fontFamily: 'PlusJakartaSans_600SemiBold',
-                color: styles.color,
-              }}
-            >
+            <Text className={`text-sm font-semibold ${styles.textClass}`}>
               {children}
             </Text>
             {icon && iconPosition === 'right' && (

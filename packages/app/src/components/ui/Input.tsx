@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { forwardRef } from 'react'
 import { TextInput, type TextInputProps, View } from 'react-native'
-import { colors } from 'src/theme'
+import { iconColors } from 'src/theme'
 
 type InputProps = TextInputProps & {
   icon?: keyof typeof MaterialIcons.glyphMap
@@ -27,7 +27,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             <MaterialIcons
               name={icon}
               size={22}
-              color={error ? colors.error : colors.primary}
+              color={error ? iconColors.error : iconColors.primary}
             />
           </View>
         )}
@@ -36,16 +36,15 @@ export const Input = forwardRef<TextInput, InputProps>(
             <TextInput
               editable={false}
               value={prefix}
-              className="text-lg text-text-muted"
-              style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+              className="text-lg text-text-muted font-medium"
             />
           </View>
         )}
         <TextInput
           ref={ref}
-          className="flex-1 text-base text-text-primary dark:text-white"
-          placeholderTextColor={colors.textMuted}
-          style={[{ fontFamily: 'PlusJakartaSans_400Regular' }, style]}
+          className="flex-1 text-base text-text-primary dark:text-white font-regular"
+          placeholderTextColor={iconColors.muted}
+          style={style}
           {...props}
         />
         {suffix && <View className="ml-2">{suffix}</View>}

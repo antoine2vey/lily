@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
+import { iconColors } from 'src/theme'
 import { Button } from './ui/Button'
 
 type IllustrationType = 'plant' | 'notification' | 'achievement' | 'search'
@@ -38,23 +38,14 @@ export function EmptyState({
 
   return (
     <View className="flex-1 items-center justify-center px-6 py-8">
-      <View
-        className="w-32 h-32 rounded-full items-center justify-center mb-6"
-        style={{ backgroundColor: colors.primaryTint }}
-      >
-        <MaterialIcons name={iconName} size={64} color={colors.primary} />
+      <View className="w-32 h-32 rounded-full items-center justify-center mb-6 bg-primary-tint">
+        <MaterialIcons name={iconName} size={64} color={iconColors.primary} />
       </View>
-      <Text
-        className="text-2xl text-center mb-2"
-        style={{ fontFamily: fonts.semiBold, color: colors.textPrimary }}
-      >
+      <Text className="text-2xl text-center mb-2 text-text-primary font-semibold">
         {title}
       </Text>
       {description && (
-        <Text
-          className="text-base text-center mb-6"
-          style={{ fontFamily: fonts.regular, color: colors.textMuted }}
-        >
+        <Text className="text-base text-center mb-6 text-text-muted font-regular">
           {description}
         </Text>
       )}

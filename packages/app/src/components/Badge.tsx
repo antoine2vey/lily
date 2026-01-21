@@ -1,7 +1,6 @@
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
-import { Text, View, type ViewStyle } from 'react-native'
-import { fonts } from 'src/theme'
+import { Text, View } from 'react-native'
 
 type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral'
 type BadgeSize = 'sm' | 'md'
@@ -13,68 +12,62 @@ interface BadgeProps {
   icon?: ReactNode
 }
 
-interface VariantColors {
-  background: string
+interface VariantClasses {
+  container: string
   text: string
 }
 
-const getVariantColors = (variant: BadgeVariant): VariantColors =>
+const getVariantClasses = (variant: BadgeVariant): VariantClasses =>
   pipe(
     Match.value(variant),
-    Match.when('success', () => ({ background: '#E8F5E8', text: '#5B8C5A' })),
-    Match.when('warning', () => ({ background: '#FFF3E0', text: '#F57C00' })),
-    Match.when('error', () => ({ background: '#FDECEC', text: '#E8997E' })),
-    Match.when('info', () => ({ background: '#E3F2FD', text: '#1976D2' })),
-    Match.when('neutral', () => ({ background: '#F5F5F5', text: '#757575' })),
+    Match.when('success', () => ({
+      container: 'bg-primary-tint',
+      text: 'text-primary',
+    })),
+    Match.when('warning', () => ({
+      container: 'bg-amber-100',
+      text: 'text-amber-700',
+    })),
+    Match.when('error', () => ({
+      container: 'bg-orange-100',
+      text: 'text-coral',
+    })),
+    Match.when('info', () => ({
+      container: 'bg-blue-100',
+      text: 'text-blue-500',
+    })),
+    Match.when('neutral', () => ({
+      container: 'bg-slate-100',
+      text: 'text-slate-500',
+    })),
     Match.exhaustive
   )
 
-interface SizeStyles {
-  paddingHorizontal: number
-  paddingVertical: number
-  fontSize: number
-}
-
-const getSizeStyles = (size: BadgeSize): SizeStyles =>
+const getSizeClasses = (size: BadgeSize): { container: string; text: string } =>
   pipe(
     Match.value(size),
     Match.when('sm', () => ({
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      fontSize: 10,
+      container: 'px-2 py-1',
+      text: 'text-[10px]',
     })),
     Match.when('md', () => ({
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      fontSize: 12,
+      container: 'px-3 py-1.5',
+      text: 'text-xs',
     })),
     Match.exhaustive
   )
 
 export function Badge({ label, variant, size = 'md', icon }: BadgeProps) {
-  const variantColors = getVariantColors(variant)
-  const sizeStyles = getSizeStyles(size)
-
-  const containerStyle: ViewStyle = {
-    backgroundColor: variantColors.background,
-    borderRadius: 12,
-    paddingHorizontal: sizeStyles.paddingHorizontal,
-    paddingVertical: sizeStyles.paddingVertical,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-  }
+  const variantClasses = getVariantClasses(variant)
+  const sizeClasses = getSizeClasses(size)
 
   return (
-    <View style={containerStyle}>
+    <View
+      className={`flex-row items-center self-start gap-1 rounded-md ${sizeClasses.container} ${variantClasses.container}`}
+    >
       {icon}
       <Text
-        style={{
-          color: variantColors.text,
-          fontSize: sizeStyles.fontSize,
-          fontFamily: fonts.semiBold,
-        }}
+        className={`font-semibold ${sizeClasses.text} ${variantClasses.text}`}
       >
         {label}
       </Text>

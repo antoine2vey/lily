@@ -1,7 +1,6 @@
 import { Array, Match, Option, pipe, String } from 'effect'
 import { useState } from 'react'
 import { Image, Text, View } from 'react-native'
-import { colors, fonts } from 'src/theme'
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
@@ -13,16 +12,16 @@ interface AvatarProps {
 
 interface SizeStyles {
   dimension: number
-  fontSize: number
+  textClass: string
 }
 
 const getSizeStyles = (size: AvatarSize): SizeStyles =>
   pipe(
     Match.value(size),
-    Match.when('sm', () => ({ dimension: 32, fontSize: 12 })),
-    Match.when('md', () => ({ dimension: 40, fontSize: 14 })),
-    Match.when('lg', () => ({ dimension: 56, fontSize: 20 })),
-    Match.when('xl', () => ({ dimension: 80, fontSize: 28 })),
+    Match.when('sm', () => ({ dimension: 32, textClass: 'text-xs' })),
+    Match.when('md', () => ({ dimension: 40, textClass: 'text-sm' })),
+    Match.when('lg', () => ({ dimension: 56, textClass: 'text-xl' })),
+    Match.when('xl', () => ({ dimension: 80, textClass: 'text-3xl' })),
     Match.exhaustive
   )
 
@@ -56,23 +55,18 @@ export function Avatar({ source, name, size = 'md' }: AvatarProps) {
     Option.getOrElse(() => '?')
   )
 
+  const bgClass = showFallback ? 'bg-primary' : 'bg-surface'
+
   return (
     <View
-      className="rounded-full overflow-hidden items-center justify-center"
+      className={`rounded-full overflow-hidden items-center justify-center ${bgClass}`}
       style={{
         width: sizeStyles.dimension,
         height: sizeStyles.dimension,
-        backgroundColor: showFallback ? colors.primary : colors.surface,
       }}
     >
       {showFallback ? (
-        <Text
-          style={{
-            color: colors.white,
-            fontSize: sizeStyles.fontSize,
-            fontFamily: fonts.semiBold,
-          }}
-        >
+        <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
           {initials}
         </Text>
       ) : (
