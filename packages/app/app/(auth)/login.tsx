@@ -15,7 +15,7 @@ import { useAuth } from 'src/contexts/AuthContext'
 import { iconColors } from 'src/theme'
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('antoine@lily.app')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { login } = useAuth()
