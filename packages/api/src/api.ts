@@ -4,6 +4,7 @@ import { AdminApi } from '@lily/api/services/admin/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
+import { CareTasksApi } from '@lily/api/services/care-tasks/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
 import { NotificationsApi } from '@lily/api/services/notifications/api'
 import { PlantsApi } from '@lily/api/services/plants/api'
@@ -22,6 +23,7 @@ export const Api = HttpApi.make('Api')
   .add(AdminApi)
   .add(PlantsApi)
   .add(CareLogsApi)
+  .add(CareTasksApi)
   .add(NotificationsApi)
   .add(DeviceTokensApi)
   .add(AIChatApi)
