@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "@lily/api": ["../api/src"],
       "@lily/api/*": ["../api/src/*"]
     }
