@@ -1,11 +1,32 @@
+import type { CareTaskType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Match, pipe } from 'effect'
+import { apiEffectRunner } from '@/utils/client'
 
-async function completeTaskApi(taskId: string): Promise<void> {
-  // TODO: Implement actual API call when backend is ready
-  // await api.careTasks.complete(taskId)
+interface CompleteTaskParams {
+  taskId: string
+  plantId: string
+  type: CareTaskType
+}
 
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
+async function completeTaskApi(params: CompleteTaskParams): Promise<void> {
+  const { plantId, type } = params
+
+  await pipe(
+    Match.value(type),
+    Match.when('water', async () => {
+      await apiEffectRunner('plants', 'waterPlant', {
+        path: { id: plantId },
+        payload: {},
+      })
+    }),
+    Match.when('fertilize', async () => {
+      await apiEffectRunner('plants', 'fertilizePlant', {
+        path: { id: plantId },
+      })
+    }),
+    Match.exhaustive
+  )
 }
 
 export function useCompleteTask() {
@@ -14,8 +35,9 @@ export function useCompleteTask() {
   return useMutation({
     mutationFn: completeTaskApi,
     onSuccess: () => {
-      // Invalidate care tasks to refetch
-      queryClient.invalidateQueries({ queryKey: ['care-tasks'] })
+      // Invalidate care tasks and plants to refetch
+      queryClient.invalidateQueries({ queryKey: ['careTasks'] })
+      queryClient.invalidateQueries({ queryKey: ['plants'] })
     },
   })
 }

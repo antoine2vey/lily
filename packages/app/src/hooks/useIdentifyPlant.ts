@@ -1,59 +1,60 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
-interface PlantIdentificationResult {
-  name: string
-  commonName: string
-  species: string
-  category: string
-  environment: string
+interface PlantAlternative {
+  name: string | null
   confidence: number
-  waterNeeds: number
-  lightNeeds: number
-  humidityNeeds: number
-  waterNeedsLabel: string
-  lightNeedsLabel: string
-  humidityNeedsLabel: string
-  suggestedWateringDays: number
-  suggestedFertilizingDays: number
 }
 
-async function identifyPlantApi(
-  photoUri: string
-): Promise<PlantIdentificationResult> {
-  // TODO: Implement actual API call when backend is ready
-  // const formData = new FormData()
-  // formData.append('photo', { uri: photoUri, type: 'image/jpeg', name: 'photo.jpg' })
-  // const response = await api.plants.identify(formData)
-  // return response
+interface PlantIdentificationResult {
+  name: string | null
+  family: string | null
+  confidence: number
+  alternatives: PlantAlternative[]
+}
 
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  // Mock response for demo
-  return {
-    name: 'Monstera Deliciosa',
-    commonName: 'Swiss Cheese Plant',
-    species: 'Monstera deliciosa',
-    category: 'tropical',
-    environment: 'Indoor',
-    confidence: 94,
-    waterNeeds: 60,
-    lightNeeds: 50,
-    humidityNeeds: 70,
-    waterNeedsLabel: 'Moderate',
-    lightNeedsLabel: 'Indirect light',
-    humidityNeedsLabel: 'High',
-    suggestedWateringDays: 7,
-    suggestedFertilizingDays: 30,
+/**
+ * Parse the streamed JSON text response from AI identify endpoint
+ */
+function parseStreamedResponse(text: string): PlantIdentificationResult {
+  try {
+    return JSON.parse(text) as PlantIdentificationResult
+  } catch {
+    // Default response if parsing fails
+    return {
+      name: null,
+      family: null,
+      confidence: 0,
+      alternatives: [],
+    }
   }
 }
 
-export function useIdentifyPlant(photoUri: string) {
-  return useQuery({
-    queryKey: ['identify-plant', photoUri],
-    queryFn: () => identifyPlantApi(photoUri),
-    enabled: !!photoUri,
+/**
+ * Hook to identify a plant from a photo using AI
+ */
+export function useIdentifyPlant() {
+  return useMutation({
+    mutationFn: async (
+      photoUri: string
+    ): Promise<PlantIdentificationResult> => {
+      const file = createFileFromUri(photoUri, {
+        name: `identify-${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      })
+
+      // Upload and get streamed response as text
+      const responseText = await uploadMultipart<string>(
+        '/plants/ai-identify',
+        [file],
+        'images' // The backend expects 'images' as the field name
+      )
+
+      return parseStreamedResponse(responseText)
+    },
     retry: 1,
-    staleTime: Number.POSITIVE_INFINITY,
   })
 }
+
+// Export types for consumers
+export type { PlantIdentificationResult, PlantAlternative }
