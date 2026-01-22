@@ -19,9 +19,8 @@ import {
 import { iconColors } from 'src/theme'
 import { NotificationItem } from './components/NotificationItem'
 
-type NotificationType = 'care_reminder' | 'achievement' | 'tip' | 'system'
-
 type TabFilter = 'all' | 'unread'
+type NotificationType = 'care_reminder' | 'achievement' | 'tip' | 'system'
 
 interface Notification {
   id: string
@@ -31,6 +30,18 @@ interface Notification {
   read: boolean
   plantId?: string
   createdAt: string
+}
+
+const toNotificationType = (type: string): NotificationType => {
+  if (
+    type === 'care_reminder' ||
+    type === 'achievement' ||
+    type === 'tip' ||
+    type === 'system'
+  ) {
+    return type
+  }
+  return 'system'
 }
 
 function groupByDate(
@@ -74,7 +85,7 @@ export function NotificationsScreen() {
   const handleNotificationPress = (notification: Notification) => {
     // Mark as read
     if (!notification.read) {
-      markAsRead(notification.id)
+      markAsRead({ path: { notificationId: notification.id } })
     }
 
     // Navigate based on notification type
@@ -89,16 +100,34 @@ export function NotificationsScreen() {
     router.back()
   }
 
+  // Map API response to local Notification interface (isRead -> read)
+  const notifications: Notification[] = pipe(
+    data?.items ?? [],
+    Array.map((n) => ({
+      id: n.id,
+      type: toNotificationType(n.type),
+      title: n.title,
+      body: n.body,
+      read: n.isRead,
+      plantId: n.plantId,
+      createdAt: n.createdAt.toISOString(),
+    }))
+  )
+
   const filteredNotifications =
     activeTab === 'unread'
       ? pipe(
-          data?.notifications ?? [],
+          notifications,
           Array.filter((n) => !n.read)
         )
-      : (data?.notifications ?? [])
+      : notifications
 
   const groupedNotifications = groupByDate(filteredNotifications)
-  const unreadCount = data?.unreadCount ?? 0
+  const unreadCount = pipe(
+    notifications,
+    Array.filter((n) => !n.read),
+    Array.length
+  )
 
   if (isLoading) {
     return (

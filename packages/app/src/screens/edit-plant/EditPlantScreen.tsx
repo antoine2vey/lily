@@ -52,14 +52,14 @@ export function EditPlantScreen() {
   // Initialize form with plant data
   useEffect(() => {
     if (plant) {
-      setPhoto(plant.imageUrl)
+      setPhoto(plant.imageUrl ?? undefined)
       setName(plant.name)
       setCategory(plant.category ?? '')
       setDescription(plant.description ?? '')
-      setWatering(plant.waterNeeds ?? 50)
-      setLight(plant.lightNeeds ?? 50)
-      setHumidity(plant.humidityNeeds ?? 50)
-      setPetSafe(plant.petSafe ?? false)
+      setWatering(plant.wateringRating ?? 50)
+      setLight(plant.lightingRating ?? 50)
+      setHumidity(plant.humidityRating ?? 50)
+      setPetSafe(plant.petToxicityRating === 0)
     }
   }, [plant])
 
@@ -81,15 +81,18 @@ export function EditPlantScreen() {
 
     updatePlant(
       {
-        name,
-        category,
-        description,
-        waterNeeds: watering,
-        lightNeeds: light,
-        humidityNeeds: humidity,
-        petSafe,
-        newImageUri: photo !== plant.imageUrl ? photo : undefined,
-        imageUrl: photo === plant.imageUrl ? plant.imageUrl : undefined,
+        path: { id: plantId },
+        payload: {
+          name,
+          category,
+          description,
+          wateringRating: watering,
+          lightingRating: light,
+          humidityRating: humidity,
+          petToxicityRating: petSafe ? 0 : 100,
+          imageUrl:
+            photo !== plant.imageUrl ? photo : (plant.imageUrl ?? undefined),
+        },
       },
       {
         onSuccess: () => {
@@ -100,12 +103,15 @@ export function EditPlantScreen() {
   }
 
   const handleDelete = () => {
-    deletePlant(plantId, {
-      onSuccess: () => {
-        setShowDeleteConfirm(false)
-        router.replace('/(app)/(tabs)/plants')
-      },
-    })
+    deletePlant(
+      { path: { id: plantId } },
+      {
+        onSuccess: () => {
+          setShowDeleteConfirm(false)
+          router.replace('/(app)/(tabs)/plants')
+        },
+      }
+    )
   }
 
   if (isLoading || !plant) {
@@ -116,11 +122,11 @@ export function EditPlantScreen() {
     name !== plant.name ||
     category !== (plant.category ?? '') ||
     description !== (plant.description ?? '') ||
-    watering !== (plant.waterNeeds ?? 50) ||
-    light !== (plant.lightNeeds ?? 50) ||
-    humidity !== (plant.humidityNeeds ?? 50) ||
-    petSafe !== (plant.petSafe ?? false) ||
-    photo !== plant.imageUrl
+    watering !== (plant.wateringRating ?? 50) ||
+    light !== (plant.lightingRating ?? 50) ||
+    humidity !== (plant.humidityRating ?? 50) ||
+    petSafe !== (plant.petToxicityRating === 0) ||
+    photo !== (plant.imageUrl ?? undefined)
 
   return (
     <SafeAreaView className="flex-1 bg-background">

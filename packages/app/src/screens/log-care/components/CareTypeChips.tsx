@@ -4,7 +4,7 @@ import { Text, View } from 'react-native'
 import { Chip } from 'src/components/Chip'
 import { iconColors } from 'src/theme'
 
-type CareType = 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist' | 'repot'
+type CareType = 'water' | 'fertilize'
 
 interface CareTypeChipsProps {
   value: CareType
@@ -19,10 +19,6 @@ const CARE_TYPES: Array<{
 }> = [
   { type: 'water', label: 'Water', icon: 'water-drop' },
   { type: 'fertilize', label: 'Fertilize', icon: 'eco' },
-  { type: 'prune', label: 'Prune', icon: 'content-cut' },
-  { type: 'mist', label: 'Mist', icon: 'cloud' },
-  { type: 'rotate', label: 'Rotate', icon: 'rotate-right' },
-  { type: 'repot', label: 'Repot', icon: 'yard' },
 ]
 
 export function CareTypeChips({
@@ -64,3 +60,6 @@ export function CareTypeChips({
     </View>
   )
 }
+
+// Export the CareType for use elsewhere
+export type { CareType }

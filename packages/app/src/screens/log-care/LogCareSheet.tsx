@@ -16,10 +16,8 @@ import { Button } from 'src/components/ui/Button'
 import { Input } from 'src/components/ui/Input'
 import { useSaveCareLog } from 'src/hooks/useSaveCareLog'
 import { iconColors } from 'src/theme'
-import { CareTypeChips } from './components/CareTypeChips'
+import { type CareType, CareTypeChips } from './components/CareTypeChips'
 import { PlantSelector } from './components/PlantSelector'
-
-type CareType = 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist' | 'repot'
 
 interface LogCareSheetProps {
   visible: boolean
@@ -75,7 +73,7 @@ export function LogCareSheet({
         date,
         time,
         notes: notes.trim() || undefined,
-        photoUri: photo ?? undefined,
+        photoUrl: photo ?? undefined,
       },
       {
         onSuccess: () => {

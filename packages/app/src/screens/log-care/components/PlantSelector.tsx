@@ -18,10 +18,11 @@ export function PlantSelector({
   label = 'Select Plants',
 }: PlantSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { data: plants } = usePlants()
+  const { data: plantsData } = usePlants()
+  const plants = plantsData?.items ?? []
 
   const selectedPlants = pipe(
-    plants ?? [],
+    plants,
     Array.filter((plant) => selectedIds.includes(plant.id))
   )
 
@@ -66,7 +67,7 @@ export function PlantSelector({
                   Array.map((plant, index) => (
                     <Image
                       key={plant.id}
-                      source={{ uri: plant.imageUrl }}
+                      source={{ uri: plant.imageUrl ?? undefined }}
                       className="w-8 h-8 rounded-full border-2 border-surface"
                       style={{
                         marginLeft: index > 0 ? -12 : 0,
@@ -99,7 +100,7 @@ export function PlantSelector({
       >
         <ScrollView showsVerticalScrollIndicator={false}>
           {pipe(
-            plants ?? [],
+            plants,
             Array.map((plant) => {
               const isSelected = selectedIds.includes(plant.id)
               return (
@@ -109,7 +110,7 @@ export function PlantSelector({
                   className="flex-row items-center py-3 border-b border-border"
                 >
                   <Image
-                    source={{ uri: plant.imageUrl }}
+                    source={{ uri: plant.imageUrl ?? undefined }}
                     className="w-12 h-12 rounded-full mr-3 bg-border"
                   />
                   <Text
