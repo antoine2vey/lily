@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { PlantsListResponse } from '@lily/shared/plant'
 import { Effect } from 'effect'
 
@@ -9,8 +10,13 @@ export const findPlants = (params: {
   limit?: number
   filter?: 'needsAttention' | 'all'
   sort?: 'added' | 'name'
-}): Effect.Effect<PlantsListResponse, SqlError, PlantRepository> =>
+}): Effect.Effect<
+  PlantsListResponse,
+  SqlError,
+  PlantRepository | CurrentUser
+> =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    return yield* repo.findAll(params)
+    const { id: userId } = yield* CurrentUser
+    return yield* repo.findAll({ ...params, userId })
   })

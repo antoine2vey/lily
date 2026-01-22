@@ -19,7 +19,7 @@ interface MockPlantRepositoryData {
 export const createMockPlantRepository = (
   data: MockPlantRepositoryData
 ): Layer.Layer<PlantRepository> => {
-  const { plants, photos = [] } = data
+  const { plants: plantsData, photos = [] } = data
 
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
@@ -33,7 +33,7 @@ export const createMockPlantRepository = (
       )
       const offset = (page - 1) * limit
 
-      let filtered = [...plants]
+      let filtered = [...plantsData]
 
       if (params.userId) {
         filtered = Array.filter(filtered, (p) => p.userId === params.userId)
@@ -64,50 +64,72 @@ export const createMockPlantRepository = (
     findById: (id: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(plants, (p) => p.id === id),
+          Array.findFirst(plantsData, (p) => p.id === id),
           Option.getOrNull
         )
       ),
 
-    create: (data) => {
+    findPlantsWithPendingCare: (userId: string, endOfWeek: Date) => {
+      const filtered = Array.filter(plantsData, (p) => {
+        if (p.userId !== userId) return false
+
+        const wateringDue = pipe(
+          Option.fromNullable(p.nextWateringAt),
+          Option.map((d) => d.getTime() <= endOfWeek.getTime()),
+          Option.getOrElse(() => false)
+        )
+
+        const fertilizationDue = pipe(
+          Option.fromNullable(p.nextFertilizationAt),
+          Option.map((d) => d.getTime() <= endOfWeek.getTime()),
+          Option.getOrElse(() => false)
+        )
+
+        return wateringDue || fertilizationDue
+      })
+
+      return Effect.succeed(filtered)
+    },
+
+    create: (createData) => {
       const newPlant: PlantRecord = {
         id: `plant-${crypto.randomUUID()}`,
-        name: data.name,
-        description: data.description,
+        name: createData.name,
+        description: createData.description,
         imageUrl: null,
-        category: data.category,
+        category: createData.category,
         dateAdded: new Date(),
         updatedAt: new Date(),
-        humidityRating: data.humidityRating,
-        lightingRating: data.lightingRating,
-        petToxicityRating: data.petToxicityRating,
-        wateringRating: data.wateringRating,
-        health: data.health,
-        wateringFrequencyDays: data.wateringFrequencyDays,
+        humidityRating: createData.humidityRating,
+        lightingRating: createData.lightingRating,
+        petToxicityRating: createData.petToxicityRating,
+        wateringRating: createData.wateringRating,
+        health: createData.health,
+        wateringFrequencyDays: createData.wateringFrequencyDays,
         lastWateredAt: null,
         nextWateringAt: null,
         remindersEnabled: true,
         fertilizationFrequencyDays: null,
         lastFertilizedAt: null,
         nextFertilizationAt: null,
-        userId: data.userId,
+        userId: createData.userId,
       }
       return Effect.succeed(newPlant)
     },
 
-    update: (id, data) => {
-      const plantOption = Array.findFirst(plants, (p) => p.id === id)
+    update: (id, updateData) => {
+      const plantOption = Array.findFirst(plantsData, (p) => p.id === id)
       return Option.match(plantOption, {
         onNone: () => Effect.succeed(null),
         onSome: (plant) =>
-          Effect.succeed({ ...plant, ...data, updatedAt: new Date() }),
+          Effect.succeed({ ...plant, ...updateData, updatedAt: new Date() }),
       })
     },
 
     delete: (id) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(plants, (p) => p.id === id),
+          Array.findFirst(plantsData, (p) => p.id === id),
           Option.getOrNull
         )
       ),

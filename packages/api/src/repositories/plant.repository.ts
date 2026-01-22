@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantPhotos, plants } from '@lily/db'
 import { type PaginatedResponse, paginate } from '@lily/shared'
-import { and, asc, count, desc, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq, lte, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -11,7 +11,7 @@ export interface FindPlantsParams {
   limit?: number
   filter?: 'needsAttention' | 'all'
   sort?: 'added' | 'name'
-  userId?: string
+  userId: string
 }
 
 export type FindPlantsResult = PaginatedResponse<typeof plants.$inferSelect>
@@ -64,6 +64,10 @@ export interface IPlantRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  readonly findPlantsWithPendingCare: (
+    userId: string,
+    endOfWeek: Date
+  ) => Effect.Effect<Array<typeof plants.$inferSelect>, SqlError>
   readonly create: (
     data: CreatePlantData
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
@@ -119,10 +123,15 @@ export const PlantRepositoryLive = Layer.effect(
           const offset = (page - 1) * limit
 
           // Build filter conditions
-          const filterConditions =
+          const userCondition = eq(plants.userId, params.userId)
+          const healthCondition =
             params.filter === 'needsAttention'
               ? eq(plants.health, 'NEEDS_ATTENTION')
               : undefined
+
+          const filterConditions = healthCondition
+            ? and(userCondition, healthCondition)
+            : userCondition
 
           const countResult = yield* db
             .select({ value: count() })
@@ -154,6 +163,23 @@ export const PlantRepositoryLive = Layer.effect(
             .from(plants)
             .where(eq(plants.id, id))
           return Option.getOrNull(Option.fromNullable(plant))
+        }),
+
+      findPlantsWithPendingCare: (userId: string, endOfWeek: Date) =>
+        Effect.gen(function* () {
+          const items = yield* db
+            .select()
+            .from(plants)
+            .where(
+              and(
+                eq(plants.userId, userId),
+                or(
+                  lte(plants.nextWateringAt, endOfWeek),
+                  lte(plants.nextFertilizationAt, endOfWeek)
+                )
+              )
+            )
+          return items
         }),
 
       create: (data: CreatePlantData) =>
