@@ -48,6 +48,15 @@ services:
       timeout: 5s
       retries: 5
 
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: lily-jaeger
+    ports:
+      - '16686:16686'  # UI
+      - '4318:4318'    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+
   api:
     build:
       context: .
@@ -59,11 +68,15 @@ services:
       DATABASE_URL: postgresql://lily:lily123@postgres:5432/lily
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
+      OTEL_ENABLED: true
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     volumes:
       - ./packages/api:/app/packages/api
       - /app/packages/api/node_modules
