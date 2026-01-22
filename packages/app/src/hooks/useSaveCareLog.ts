@@ -1,48 +1,65 @@
+import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Array, pipe } from 'effect'
+import { apiEffectRunner } from '@/utils/client'
 
-type CareType = 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist' | 'repot'
+type AppCareType = 'water' | 'fertilize'
+type BackendCareType = 'watering' | 'fertilization'
 
 interface SaveCareLogInput {
   plantIds: string[]
-  type: CareType
+  type: AppCareType
   date: Date
   time: Date
   notes?: string
-  photoUri?: string
+  photoUrl?: string
 }
 
-interface CareLog {
-  id: string
-  plantId: string
-  type: CareType
-  notes?: string
-  photoUrl?: string
-  createdAt: string
+/**
+ * Map app care type to backend care type
+ */
+function mapAppTypeToBackend(type: AppCareType): BackendCareType {
+  return type === 'water' ? 'watering' : 'fertilization'
+}
+
+/**
+ * Combine date and time into a single Date object
+ */
+function combineDateAndTime(date: Date, time: Date): Date {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    time.getHours(),
+    time.getMinutes(),
+    0,
+    0
+  )
 }
 
 async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {
-  // TODO: Implement actual API call when backend is ready
-  // const logs = await api.careLogs.create(input)
-  // return logs
+  const combinedDate = combineDateAndTime(input.date, input.time)
+  const backendType = mapAppTypeToBackend(input.type)
 
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  // Create care logs for each plant in parallel
+  const results = await Promise.all(
+    pipe(
+      input.plantIds,
+      Array.map((plantId) =>
+        apiEffectRunner('careLogs', 'createCareLog', {
+          path: { plantId },
+          payload: {
+            type: backendType,
+            notes: input.notes,
+            date: combinedDate,
+            photoUrl: input.photoUrl,
+          },
+        })
+      )
+    )
+  )
 
-  // Mock response - create a log for each plant
-  return input.plantIds.map((plantId) => ({
-    id: `log-${Date.now()}-${plantId}`,
-    plantId,
-    type: input.type,
-    notes: input.notes,
-    photoUrl: input.photoUri,
-    createdAt: new Date(
-      input.date.getFullYear(),
-      input.date.getMonth(),
-      input.date.getDate(),
-      input.time.getHours(),
-      input.time.getMinutes()
-    ).toISOString(),
-  }))
+  return results
 }
 
 export function useSaveCareLog() {
@@ -51,12 +68,22 @@ export function useSaveCareLog() {
   return useMutation({
     mutationFn: saveCareLogApi,
     onSuccess: (_, variables) => {
-      // Invalidate care history for each plant
-      variables.plantIds.forEach((plantId) => {
-        queryClient.invalidateQueries({ queryKey: ['care-history', plantId] })
-      })
+      // Invalidate care logs for each plant
+      pipe(
+        variables.plantIds,
+        Array.forEach((plantId) => {
+          queryClient.invalidateQueries({
+            queryKey: ['careLogs', 'getCareLogs'],
+          })
+        })
+      )
       // Invalidate care tasks
       queryClient.invalidateQueries({ queryKey: ['care-tasks'] })
+      // Invalidate plants list (may update last watered/fertilized dates)
+      queryClient.invalidateQueries({ queryKey: ['plants'] })
     },
   })
 }
+
+// Export types for consumers
+export type { SaveCareLogInput, AppCareType }

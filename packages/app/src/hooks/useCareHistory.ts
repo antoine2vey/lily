@@ -1,17 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import type { CareLog } from '@lily/shared/care-log'
+import { Array, pipe } from 'effect'
+import { useEffectQuery } from '@/utils/client'
 
-type CareEventType =
-  | 'water'
-  | 'fertilize'
-  | 'prune'
-  | 'rotate'
-  | 'mist'
-  | 'repot'
+type BackendCareType = 'watering' | 'fertilization'
+type AppCareType = 'water' | 'fertilize'
 
 interface CareEvent {
   id: string
   plantId: string
-  type: CareEventType
+  type: AppCareType
   notes?: string
   photoUrl?: string
   createdAt: string
@@ -22,87 +19,40 @@ interface CareHistoryGroup {
   events: CareEvent[]
 }
 
-async function fetchCareHistory(plantId: string): Promise<CareHistoryGroup[]> {
-  // TODO: Implement actual API call when backend is ready
-  // const history = await api.careLogs.listByPlant(plantId)
-  // return groupByDate(history)
+/**
+ * Map backend care type to app care type
+ */
+function mapBackendType(type: BackendCareType): AppCareType {
+  return type === 'watering' ? 'water' : 'fertilize'
+}
 
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
+/**
+ * Format a date as a label (Today, Yesterday, or weekday + date)
+ */
+function formatDateLabel(date: Date): string {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
-  const threeDaysAgo = new Date(today)
-  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-  const lastWeek = new Date(today)
-  lastWeek.setDate(lastWeek.getDate() - 7)
 
-  // Mock response grouped by date
-  return [
-    {
-      date: 'Today',
-      events: [
-        {
-          id: 'event-1',
-          plantId,
-          type: 'water',
-          notes: 'Soil was very dry',
-          createdAt: today.toISOString(),
-        },
-      ],
-    },
-    {
-      date: 'Yesterday',
-      events: [
-        {
-          id: 'event-2',
-          plantId,
-          type: 'mist',
-          createdAt: yesterday.toISOString(),
-        },
-      ],
-    },
-    {
-      date: formatDateLabel(threeDaysAgo),
-      events: [
-        {
-          id: 'event-3',
-          plantId,
-          type: 'fertilize',
-          notes: 'Used liquid fertilizer at half strength',
-          createdAt: threeDaysAgo.toISOString(),
-        },
-        {
-          id: 'event-4',
-          plantId,
-          type: 'rotate',
-          createdAt: threeDaysAgo.toISOString(),
-        },
-      ],
-    },
-    {
-      date: formatDateLabel(lastWeek),
-      events: [
-        {
-          id: 'event-5',
-          plantId,
-          type: 'water',
-          createdAt: lastWeek.toISOString(),
-        },
-        {
-          id: 'event-6',
-          plantId,
-          type: 'prune',
-          notes: 'Removed yellow leaves',
-          createdAt: lastWeek.toISOString(),
-        },
-      ],
-    },
-  ]
-}
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const todayOnly = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  )
+  const yesterdayOnly = new Date(
+    yesterday.getFullYear(),
+    yesterday.getMonth(),
+    yesterday.getDate()
+  )
 
-function formatDateLabel(date: Date): string {
+  if (dateOnly.getTime() === todayOnly.getTime()) {
+    return 'Today'
+  }
+  if (dateOnly.getTime() === yesterdayOnly.getTime()) {
+    return 'Yesterday'
+  }
+
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
@@ -110,10 +60,105 @@ function formatDateLabel(date: Date): string {
   })
 }
 
-export function useCareHistory(plantId: string) {
-  return useQuery({
-    queryKey: ['care-history', plantId],
-    queryFn: () => fetchCareHistory(plantId),
-    enabled: !!plantId,
-  })
+/**
+ * Get date key for grouping (YYYY-MM-DD format)
+ */
+function getDateKey(date: Date): string {
+  return date.toISOString().split('T')[0]
 }
+
+/**
+ * Group care logs by date for display
+ */
+function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
+  // Group logs by date key
+  const grouped = pipe(
+    logs,
+    Array.reduce({} as Record<string, CareEvent[]>, (acc, log) => {
+      const dateKey = getDateKey(new Date(log.date))
+      const event: CareEvent = {
+        id: log.id,
+        plantId: log.plantId,
+        type: mapBackendType(log.type),
+        notes: log.notes,
+        photoUrl: log.photoUrl,
+        createdAt: new Date(log.createdAt).toISOString(),
+      }
+
+      if (!acc[dateKey]) {
+        acc[dateKey] = []
+      }
+      acc[dateKey].push(event)
+      return acc
+    })
+  )
+
+  // Convert to array and sort by date descending
+  const entries = Object.entries(grouped)
+  const mapped = pipe(
+    entries,
+    Array.map(([dateKey, events]) => {
+      // Sort events by createdAt descending
+      const sortedEvents = [...events].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      return {
+        date: formatDateLabel(new Date(dateKey)),
+        dateKey,
+        events: sortedEvents,
+      }
+    })
+  )
+
+  // Sort by dateKey descending
+  const sorted = [...mapped].sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+
+  return pipe(
+    sorted,
+    Array.map(({ date, events }) => ({ date, events }))
+  )
+}
+
+interface UseCareHistoryParams {
+  plantId: string
+  type?: 'all' | 'watering' | 'fertilization'
+  page?: number
+  limit?: number
+}
+
+export function useCareHistory({
+  plantId,
+  type = 'all',
+  page = 1,
+  limit = 50,
+}: UseCareHistoryParams) {
+  const query = useEffectQuery(
+    'careLogs',
+    'getCareLogs',
+    {
+      path: { plantId },
+      urlParams: {
+        page: String(page),
+        limit: String(limit),
+        type,
+      },
+    },
+    {
+      enabled: !!plantId,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    }
+  )
+
+  // Transform data to grouped format
+  const groupedData = query.data ? groupByDate(query.data.items) : undefined
+
+  return {
+    ...query,
+    data: groupedData,
+    rawData: query.data,
+  }
+}
+
+// Export types for consumers
+export type { CareEvent, CareHistoryGroup }

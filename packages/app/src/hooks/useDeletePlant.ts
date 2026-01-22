@@ -1,21 +1,12 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-
-async function deletePlantApi(plantId: string): Promise<void> {
-  // TODO: Implement actual API call when backend is ready
-  // await api.plants.delete(plantId)
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-}
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffectMutation } from '@/utils/client'
 
 export function useDeletePlant() {
   const queryClient = useQueryClient()
 
-  return useMutation({
-    mutationFn: deletePlantApi,
+  return useEffectMutation('plants', 'deletePlant', {
     onSuccess: () => {
-      // Invalidate plants list to refetch
-      queryClient.invalidateQueries({ queryKey: ['plants'] })
+      queryClient.invalidateQueries({ queryKey: ['plants', 'getPlants'] })
     },
   })
 }
