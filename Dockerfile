@@ -5,7 +5,7 @@ COPY package.json bun.lock ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
-RUN bun install --frozen-lockfile --production
+RUN bun install --no-frozen-lockfile
 
 # Stage 2: Production
 FROM oven/bun:1-alpine AS runner
