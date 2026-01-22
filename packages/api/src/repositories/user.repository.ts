@@ -22,6 +22,8 @@ export interface UpdateUserData {
   emailVerified?: boolean
   role?: 'user' | 'admin'
   status?: 'active' | 'suspended' | 'banned'
+  timezone?: string | null
+  preferredNotificationTime?: string | null
 }
 
 export interface FindUsersFilters {

@@ -22,6 +22,8 @@ export const User = Schema.Struct({
   historyViewCount: Schema.Number,
   role: UserRole,
   status: UserStatus,
+  timezone: Schema.NullOr(Schema.String),
+  preferredNotificationTime: Schema.NullOr(Schema.String),
 })
 
 export const UserCreateRequest = Schema.Struct({
@@ -45,6 +47,8 @@ export const UserSettings = Schema.Struct({
     wateringReminders: Schema.Boolean,
     ads: Schema.Boolean,
   }),
+  timezone: Schema.NullOr(Schema.String),
+  preferredNotificationTime: Schema.NullOr(Schema.String),
 })
 
 export const UserSettingsUpdateRequest = Schema.Struct({
@@ -58,6 +62,8 @@ export const UserSettingsUpdateRequest = Schema.Struct({
       ads: Schema.optional(Schema.Boolean),
     })
   ),
+  timezone: Schema.optional(Schema.String),
+  preferredNotificationTime: Schema.optional(Schema.String),
 })
 
 // Type exports

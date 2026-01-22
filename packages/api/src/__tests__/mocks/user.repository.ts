@@ -55,6 +55,8 @@ export const createMockUserRepository = (
         status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
       }
       return Effect.succeed(newUser)
     },
