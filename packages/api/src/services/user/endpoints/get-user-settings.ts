@@ -43,5 +43,7 @@ export const getUserSettings = (
         wateringReminders: user.wateringReminders,
         ads: user.ads,
       },
+      timezone: user.timezone,
+      preferredNotificationTime: user.preferredNotificationTime,
     }
   })

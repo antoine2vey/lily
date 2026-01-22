@@ -188,6 +188,28 @@ export const createMockNotificationRepository = (
 
     hasNotificationToday: (_userId: string, _plantId: string) =>
       Effect.succeed(false),
+
+    findPendingByUserId: (userId: string) =>
+      Effect.succeed(
+        Array.filter(
+          notificationsState,
+          (n) => n.userId === userId && n.status === 'pending'
+        )
+      ),
+
+    updateScheduledAt: (id: string, scheduledAt: Date) => {
+      const notificationOption = Array.findFirst(
+        notificationsState,
+        (n) => n.id === id
+      )
+      return Option.match(notificationOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (notification) => {
+          notification.scheduledAt = scheduledAt
+          return Effect.succeed(notification)
+        },
+      })
+    },
   }
 
   return Layer.succeed(NotificationRepository, repo)

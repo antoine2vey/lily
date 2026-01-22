@@ -86,6 +86,13 @@ export interface INotificationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
+  readonly findPendingByUserId: (
+    userId: string
+  ) => Effect.Effect<Notification[], SqlError>
+  readonly updateScheduledAt: (
+    id: string,
+    scheduledAt: Date
+  ) => Effect.Effect<Notification | null, SqlError>
 }
 
 // Tag for dependency injection
@@ -294,6 +301,31 @@ export const NotificationRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             ) > 0
           )
+        }),
+
+      findPendingByUserId: (userId: string) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.status, 'pending')
+              )
+            )
+            .orderBy(notifications.scheduledAt)
+          return Array.map(rows, mapToNotification)
+        }),
+
+      updateScheduledAt: (id: string, scheduledAt: Date) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .update(notifications)
+            .set({ scheduledAt })
+            .where(eq(notifications.id, id))
+            .returning()
+          return row ? mapToNotification(row) : null
         }),
     }
   })

@@ -1,5 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { UserService } from '@lily/api/services/user/service'
@@ -22,5 +24,7 @@ export const UsersApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(UserService.Default),
     Layer.provide(UserRepositoryLive),
+    Layer.provide(NotificationRepositoryLive),
+    Layer.provide(PlantRepositoryLive),
     Layer.provide(AuthenticationLive)
   )

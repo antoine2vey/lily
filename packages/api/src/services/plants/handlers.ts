@@ -7,6 +7,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
@@ -76,6 +77,7 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(PlantRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
+    Layer.provide(UserRepositoryLive),
     Layer.provide(ScanRepositoryLive),
     Layer.provide(AiService.Default),
     Layer.provide(GCSService.Default),

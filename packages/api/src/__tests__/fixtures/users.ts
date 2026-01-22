@@ -16,6 +16,8 @@ export const mockUsers: User[] = [
     historyViewCount: 0,
     role: 'user',
     status: 'active',
+    timezone: 'UTC',
+    preferredNotificationTime: '09:00',
   },
   {
     id: 'user-2',
@@ -32,6 +34,8 @@ export const mockUsers: User[] = [
     historyViewCount: 0,
     role: 'user',
     status: 'active',
+    timezone: 'America/New_York',
+    preferredNotificationTime: '08:00',
   },
 ]
 
@@ -50,6 +54,8 @@ export const mockAdminUser: User = {
   historyViewCount: 0,
   role: 'admin',
   status: 'active',
+  timezone: 'UTC',
+  preferredNotificationTime: '09:00',
 }
 
 export const mockSuspendedUser: User = {
@@ -67,6 +73,8 @@ export const mockSuspendedUser: User = {
   historyViewCount: 0,
   role: 'user',
   status: 'suspended',
+  timezone: 'UTC',
+  preferredNotificationTime: '09:00',
 }
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
@@ -84,5 +92,7 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   historyViewCount: 0,
   role: 'user',
   status: 'active',
+  timezone: 'UTC',
+  preferredNotificationTime: '09:00',
   ...overrides,
 })

@@ -71,6 +71,13 @@
       "when": 1768850948516,
       "tag": "0009_slippery_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1769122944749,
+      "tag": "0010_massive_marauders",
+      "breakpoints": true
     }
   ]
 }
