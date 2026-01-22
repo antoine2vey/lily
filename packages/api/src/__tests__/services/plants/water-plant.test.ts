@@ -1,8 +1,10 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
 import { Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -12,7 +14,8 @@ describe('waterPlant', () => {
     Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository(mockCareLogs),
-      createMockNotificationRepository([])
+      createMockNotificationRepository([]),
+      createMockUserRepository(mockUsers)
     )
 
   it('should update lastWateredAt and nextWateringAt', async () => {

@@ -1,4 +1,7 @@
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
@@ -9,7 +12,9 @@ describe('updateUserSettings', () => {
   const createTestLayer = (userId: string) =>
     Layer.mergeAll(
       createMockUserRepository([...mockUsers]),
-      createMockCurrentUser({ id: userId })
+      createMockCurrentUser({ id: userId }),
+      createMockNotificationRepository([]),
+      createMockPlantRepository({ plants: mockPlants })
     )
 
   it('should update user name', async () => {
