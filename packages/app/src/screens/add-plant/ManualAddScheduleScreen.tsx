@@ -63,19 +63,22 @@ export function ManualAddScheduleScreen() {
   const { mutate: createPlant, isPending } = useCreatePlant()
 
   const handleFinish = () => {
+    // Convert light slider value (0-100) to sunlight preference string
+    const sunlightPreference =
+      careNeeds.light < 33 ? 'low' : careNeeds.light < 66 ? 'medium' : 'high'
+
     createPlant(
       {
-        name: basicInfo.name,
-        category: basicInfo.category,
-        imageUri: basicInfo.photo ?? undefined,
-        wateringFrequency: wateringDays,
-        fertilizingFrequency: fertilizingDays,
-        lightNeeds: careNeeds.light,
-        waterNeeds: careNeeds.watering,
-        humidityNeeds: careNeeds.humidity,
-        petSafe: careNeeds.petSafe,
-        notificationsEnabled: careReminders,
-        notes,
+        payload: {
+          name: basicInfo.name,
+          category: basicInfo.category,
+          description: notes || undefined,
+          wateringFrequencyDays: wateringDays,
+          sunlightPreference,
+          humidityRating: careNeeds.humidity,
+          petToxicityRating: careNeeds.petSafe ? 0 : 100,
+          remindersEnabled: careReminders,
+        },
       },
       {
         onSuccess: (plant) => {

@@ -18,21 +18,12 @@ import { usePlant } from 'src/hooks/usePlant'
 import { iconColors } from 'src/theme'
 import { Timeline } from './components/Timeline'
 
-type CareEventType =
-  | 'water'
-  | 'fertilize'
-  | 'prune'
-  | 'rotate'
-  | 'mist'
-  | 'repot'
+type CareEventType = 'water' | 'fertilize'
 
 const FILTER_OPTIONS: Array<{ type: CareEventType | 'all'; label: string }> = [
   { type: 'all', label: 'All' },
   { type: 'water', label: 'Water' },
   { type: 'fertilize', label: 'Fertilize' },
-  { type: 'prune', label: 'Prune' },
-  { type: 'mist', label: 'Mist' },
-  { type: 'rotate', label: 'Rotate' },
 ]
 
 export function CareHistoryScreen() {
@@ -40,7 +31,7 @@ export function CareHistoryScreen() {
   const plantId = params.plantId ?? ''
 
   const { data: plant } = usePlant(plantId)
-  const { data: history, isLoading } = useCareHistory(plantId)
+  const { data: history, isLoading } = useCareHistory({ plantId })
 
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<CareEventType | 'all'>(

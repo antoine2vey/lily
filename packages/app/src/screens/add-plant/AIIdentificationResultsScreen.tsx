@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useEffect } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -10,31 +11,10 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Chip } from 'src/components/Chip'
-import { SectionHeader } from 'src/components/SectionHeader'
 import { Button } from 'src/components/ui/Button'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
 import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
 import { iconColors } from 'src/theme'
-
-interface CareInfoRowProps {
-  icon: 'water-drop' | 'wb-sunny' | 'cloud'
-  label: string
-  value: string
-}
-
-function CareInfoRow({ icon, label, value }: CareInfoRowProps) {
-  return (
-    <View className="flex-row items-center py-3 border-b border-border">
-      <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint">
-        <MaterialIcons name={icon} size={20} color={iconColors.primary} />
-      </View>
-      <Text className="flex-1 text-base font-regular text-text-primary">
-        {label}
-      </Text>
-      <Text className="text-base font-medium text-text-secondary">{value}</Text>
-    </View>
-  )
-}
 
 function IdentificationLoading() {
   return (
@@ -70,23 +50,36 @@ export function AIIdentificationResultsScreen() {
   const params = useLocalSearchParams<{ photoUri?: string }>()
   const photoUri = params.photoUri ? decodeURIComponent(params.photoUri) : ''
 
-  const { data: result, isLoading, error, refetch } = useIdentifyPlant(photoUri)
+  const {
+    mutate: identify,
+    data: result,
+    isPending: isLoading,
+    error,
+    reset,
+  } = useIdentifyPlant()
   const { mutate: createPlant, isPending: isCreating } = useCreatePlant()
 
+  // Trigger identification when component mounts with photoUri
+  useEffect(() => {
+    if (photoUri) {
+      identify(photoUri)
+    }
+  }, [photoUri, identify])
+
   const handleAddToCollection = () => {
-    if (!result) return
+    if (!result?.name) return
 
     createPlant(
       {
-        name: result.name,
-        species: result.species,
-        category: result.category,
-        imageUri: photoUri,
-        wateringFrequency: result.suggestedWateringDays,
-        fertilizingFrequency: result.suggestedFertilizingDays,
-        lightNeeds: result.lightNeeds,
-        waterNeeds: result.waterNeeds,
-        humidityNeeds: result.humidityNeeds,
+        payload: {
+          name: result.name,
+          description: result.family ?? undefined,
+          wateringFrequencyDays: 7, // Default value
+          sunlightPreference: 'medium',
+          humidityRating: 50,
+          petToxicityRating: 50,
+          remindersEnabled: true,
+        },
       },
       {
         onSuccess: (plant) => {
@@ -97,13 +90,14 @@ export function AIIdentificationResultsScreen() {
   }
 
   const handleEdit = () => {
-    if (!result) return
+    if (!result?.name) return
     router.push(
-      `/add-plant/manual-basic?prefillName=${encodeURIComponent(result.name)}&prefillCategory=${encodeURIComponent(result.category)}`
+      `/add-plant/manual-basic?prefillName=${encodeURIComponent(result.name)}`
     )
   }
 
   const handleRetry = () => {
+    reset()
     router.push('/add-plant/ai-scanner')
   }
 
@@ -115,13 +109,15 @@ export function AIIdentificationResultsScreen() {
     )
   }
 
-  if (error || !result) {
+  if (error || !result || !result.name) {
     return (
       <SafeAreaView className="flex-1 bg-background">
-        <IdentificationError onRetry={() => refetch()} />
+        <IdentificationError onRetry={handleRetry} />
       </SafeAreaView>
     )
   }
+
+  const confidencePercent = Math.round(result.confidence * 100)
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -142,7 +138,7 @@ export function AIIdentificationResultsScreen() {
           </Pressable>
           <View className="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-primary">
             <Text className="text-sm font-semibold text-white">
-              {result.confidence}% Match
+              {confidencePercent}% Match
             </Text>
           </View>
         </View>
@@ -151,32 +147,41 @@ export function AIIdentificationResultsScreen() {
           <Text className="text-2xl font-bold text-text-primary">
             {result.name}
           </Text>
-          <Text className="text-base mt-1 font-regular text-text-secondary">
-            {result.commonName}
-          </Text>
+          {result.family && (
+            <Text className="text-base mt-1 font-regular text-text-secondary">
+              {result.family}
+            </Text>
+          )}
 
-          <View className="flex-row flex-wrap gap-2 mt-4">
-            <Chip label={result.category} />
-            <Chip label={result.environment} />
-          </View>
+          {result.alternatives.length > 0 && (
+            <View className="mt-6">
+              <Text className="text-sm font-medium text-text-muted mb-3">
+                Other possibilities
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {result.alternatives
+                  .filter((alt) => alt.name)
+                  .map((alt, index) => (
+                    <Chip
+                      key={`${alt.name}-${index}`}
+                      label={`${alt.name} (${Math.round(alt.confidence * 100)}%)`}
+                    />
+                  ))}
+              </View>
+            </View>
+          )}
 
-          <View className="mt-6">
-            <SectionHeader title="Suggested Care" />
-            <CareInfoRow
-              icon="water-drop"
-              label="Water"
-              value={result.waterNeedsLabel}
-            />
-            <CareInfoRow
-              icon="wb-sunny"
-              label="Light"
-              value={result.lightNeedsLabel}
-            />
-            <CareInfoRow
-              icon="cloud"
-              label="Humidity"
-              value={result.humidityNeedsLabel}
-            />
+          <View className="mt-6 p-4 bg-surface-tinted rounded-lg">
+            <View className="flex-row items-center">
+              <MaterialIcons
+                name="info-outline"
+                size={20}
+                color={iconColors.primary}
+              />
+              <Text className="text-sm ml-2 font-regular text-text-secondary">
+                You can customize care settings after adding to your collection.
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>

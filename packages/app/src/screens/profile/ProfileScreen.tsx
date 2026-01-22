@@ -50,7 +50,7 @@ export function ProfileScreen() {
     )
   }
 
-  const plantsCount = plants?.length ?? 0
+  const plantsCount = plants?.total ?? 0
   // Mock care logs count - in production this would come from an API
   const careLogsCount = 156
   const achievementsProgress = achievements
