@@ -11,12 +11,15 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
-import { Slot, SplashScreen } from 'expo-router'
+import { Slot, SplashScreen, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
+import { Toast } from 'src/components/Toast'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
+import { ToastProvider } from 'src/contexts/ToastContext'
 import { AnimatedSplashScreen } from 'src/screens/splash'
+import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
 
 // Prevent the splash screen from auto-hiding before fonts are loaded
@@ -26,6 +29,7 @@ const queryClient = new QueryClient()
 
 function RootLayoutNav() {
   const { state } = useAuth()
+  const router = useRouter()
   const [isReady, setIsReady] = useState(false)
 
   // Show loading state while checking auth
@@ -34,6 +38,20 @@ function RootLayoutNav() {
     Match.when({ _tag: 'Loading' }, () => true),
     Match.orElse(() => false)
   )
+
+  // Set up notification listeners when authenticated
+  useEffect(() => {
+    const isAuthenticated = pipe(
+      Match.value(state),
+      Match.when({ _tag: 'Authenticated' }, () => true),
+      Match.orElse(() => false)
+    )
+
+    if (isAuthenticated) {
+      const cleanup = setupNotificationListeners(router)
+      return cleanup
+    }
+  }, [state, router])
 
   useEffect(() => {
     if (!isLoading) {
@@ -78,8 +96,11 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <StatusBar style="auto" />
-        <RootLayoutNav />
+        <ToastProvider>
+          <StatusBar style="auto" />
+          <RootLayoutNav />
+          <Toast />
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
   )
