@@ -10,12 +10,14 @@ describe('CareTaskCard', () => {
     plantImageUrl: 'https://example.com/plant.jpg',
     type: 'water' as const,
     completed: false,
+    dueDate: new Date('2025-01-22'),
   }
 
   const defaultProps = {
     task: mockTask,
-    onPress: vi.fn(),
-    onComplete: vi.fn(),
+    onCardPress: vi.fn(),
+    onPlantPhotoPress: vi.fn(),
+    onUndo: vi.fn(),
   }
 
   beforeEach(() => {
@@ -45,34 +47,22 @@ describe('CareTaskCard', () => {
     expect(screen.getByText('Monstera')).toBeTruthy()
   })
 
-  it('calls onPress when card pressed', () => {
+  it('shows pending completion state', () => {
+    render(<CareTaskCard {...defaultProps} isPendingCompletion />)
+    // Should show check circle icon when pending
+    expect(screen.getByText('Monstera')).toBeTruthy()
+  })
+
+  it('calls onCardPress when card pressed', () => {
     render(<CareTaskCard {...defaultProps} />)
     const card = screen.getByText('Monstera')
     fireEvent.press(card)
-    expect(defaultProps.onPress).toHaveBeenCalled()
+    expect(defaultProps.onCardPress).toHaveBeenCalled()
   })
 
-  it('renders different task types', () => {
+  it('renders fertilize task type', () => {
     const fertilizeTask = { ...mockTask, type: 'fertilize' as const }
     render(<CareTaskCard {...defaultProps} task={fertilizeTask} />)
     expect(screen.getByText('FERTILIZE')).toBeTruthy()
-  })
-
-  it('renders prune task type', () => {
-    const pruneTask = { ...mockTask, type: 'prune' as const }
-    render(<CareTaskCard {...defaultProps} task={pruneTask} />)
-    expect(screen.getByText('PRUNE')).toBeTruthy()
-  })
-
-  it('renders mist task type', () => {
-    const mistTask = { ...mockTask, type: 'mist' as const }
-    render(<CareTaskCard {...defaultProps} task={mistTask} />)
-    expect(screen.getByText('MIST')).toBeTruthy()
-  })
-
-  it('renders rotate task type', () => {
-    const rotateTask = { ...mockTask, type: 'rotate' as const }
-    render(<CareTaskCard {...defaultProps} task={rotateTask} />)
-    expect(screen.getByText('ROTATE')).toBeTruthy()
   })
 })

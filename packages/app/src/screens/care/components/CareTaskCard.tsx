@@ -1,24 +1,27 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe } from 'effect'
+import type { CareTaskType } from '@lily/shared'
+import { Match, Option, pipe } from 'effect'
 import { Image, Pressable, Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
 import { iconColors } from 'src/theme'
-
-type CareTaskType = 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist'
+import { UndoButton } from './UndoButton'
 
 interface CareTaskCardProps {
   task: {
     id: string
     plantId: string
     plantName: string
-    plantImageUrl?: string
+    plantImageUrl: string | null
     type: CareTaskType
     completed: boolean
+    dueDate: Date
   }
-  onPress: () => void
-  onComplete: () => void
+  onCardPress: () => void
+  onPlantPhotoPress: () => void
+  onUndo?: () => void
   overdue?: boolean
   compact?: boolean
+  isPendingCompletion?: boolean
 }
 
 interface TaskConfig {
@@ -40,43 +43,62 @@ const getTaskConfig = (type: CareTaskType): TaskConfig =>
       color: iconColors.fertilizerOrange,
       label: 'FERTILIZE',
     })),
-    Match.when('prune', () => ({
-      icon: 'content-cut' as const,
-      color: iconColors.pruneRed,
-      label: 'PRUNE',
-    })),
-    Match.when('rotate', () => ({
-      icon: 'rotate-right' as const,
-      color: '#9C27B0',
-      label: 'ROTATE',
-    })),
-    Match.when('mist', () => ({
-      icon: 'cloud' as const,
-      color: iconColors.mistTeal,
-      label: 'MIST',
-    })),
     Match.exhaustive
   )
 
 export function CareTaskCard({
   task,
-  onPress,
-  onComplete,
+  onCardPress,
+  onPlantPhotoPress,
+  onUndo,
   overdue = false,
   compact = false,
+  isPendingCompletion = false,
 }: CareTaskCardProps) {
   const config = getTaskConfig(task.type)
 
-  const containerClass = overdue
-    ? 'flex-row items-center p-3 rounded-xl mb-2 bg-surface border border-coral active:opacity-90'
-    : 'flex-row items-center p-3 rounded-xl mb-2 bg-surface active:opacity-90'
+  const containerClass = pipe(
+    Match.value({ overdue, isPendingCompletion }),
+    Match.when(
+      { isPendingCompletion: true },
+      () => 'flex-row items-center p-3 rounded-xl mb-2 border border-primary'
+    ),
+    Match.when(
+      { overdue: true },
+      () =>
+        'flex-row items-center p-3 rounded-xl mb-2 bg-surface border border-coral active:opacity-90'
+    ),
+    Match.orElse(
+      () =>
+        'flex-row items-center p-3 rounded-xl mb-2 bg-surface active:opacity-90'
+    )
+  )
+
+  const imageUri = pipe(
+    Option.fromNullable(task.plantImageUrl),
+    Option.getOrUndefined
+  )
+
+  const isCompleted = task.completed || isPendingCompletion
 
   return (
-    <Pressable onPress={onPress} className={containerClass}>
-      <Image
-        source={{ uri: task.plantImageUrl }}
-        className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-border`}
-      />
+    <Pressable
+      onPress={isPendingCompletion ? undefined : onCardPress}
+      className={containerClass}
+      disabled={isPendingCompletion}
+    >
+      <Pressable
+        onPress={(e) => {
+          e.stopPropagation()
+          onPlantPhotoPress()
+        }}
+        hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+      >
+        <Image
+          source={{ uri: imageUri }}
+          className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-border`}
+        />
+      </Pressable>
       <View className="flex-1 ml-3">
         <Text
           className={`${compact ? 'text-sm' : 'text-base'} font-medium text-text-primary`}
@@ -99,20 +121,17 @@ export function CareTaskCard({
           />
         </View>
       </View>
-      <Pressable
-        onPress={(e) => {
-          e.stopPropagation()
-          onComplete()
-        }}
-        className="w-10 h-10 items-center justify-center"
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <MaterialIcons
-          name={task.completed ? 'check-circle' : 'radio-button-unchecked'}
-          size={28}
-          color={task.completed ? iconColors.primary : iconColors.border}
-        />
-      </Pressable>
+      {isPendingCompletion && onUndo ? (
+        <UndoButton onUndo={onUndo} />
+      ) : (
+        <View className="w-10 h-10 items-center justify-center">
+          <MaterialIcons
+            name={isCompleted ? 'check-circle' : 'radio-button-unchecked'}
+            size={28}
+            color={isCompleted ? iconColors.primary : iconColors.border}
+          />
+        </View>
+      )}
     </Pressable>
   )
 }

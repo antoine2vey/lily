@@ -1,6 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import {
+  CARE_TASK_UNDO_TIMEOUT_MS,
+  type CareTask,
+  type CareTaskType,
+} from '@lily/shared'
+import { Array, DateTime, Duration, Match, pipe } from 'effect'
 import { router } from 'expo-router'
+import { useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -9,13 +15,23 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { iconColors } from 'src/theme'
 import { CareTaskCard } from './components/CareTaskCard'
 
-function formatDate(date: Date): string {
+type TaskSection = 'overdue' | 'today' | 'thisWeek'
+
+interface FutureTaskModalState {
+  visible: boolean
+  task: CareTask | null
+  daysUntilDue: number
+}
+
+function formatDate(dateTime: DateTime.DateTime): string {
+  const date = DateTime.toDateUtc(dateTime)
   const options: Intl.DateTimeFormatOptions = {
     weekday: 'long',
     month: 'short',
@@ -24,22 +40,105 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', options).toUpperCase()
 }
 
-function formatWeekday(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { weekday: 'long' })
+function formatWeekday(date: Date): string {
+  const dateTime = DateTime.unsafeMake(date)
+  const jsDate = DateTime.toDateUtc(dateTime)
+  return jsDate.toLocaleDateString('en-US', { weekday: 'long' })
+}
+
+function calculateDaysUntilDue(dueDate: Date): number {
+  const now = DateTime.unsafeNow()
+  const due = DateTime.unsafeMake(dueDate)
+  const distanceMs = DateTime.distance(now, due)
+  return Math.ceil(Duration.toDays(Duration.millis(distanceMs)))
 }
 
 export function CareScreen() {
   const { data: tasks, isLoading } = useCareTasks()
   const { mutate: completeTask } = useCompleteTask()
-  const today = new Date()
+  const today = DateTime.unsafeNow()
 
-  const handleTaskPress = (plantId: string) => {
+  const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set())
+  const pendingTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  )
+  const [futureTaskModal, setFutureTaskModal] = useState<FutureTaskModalState>({
+    visible: false,
+    task: null,
+    daysUntilDue: 0,
+  })
+
+  const handlePlantPhotoPress = (plantId: string) => {
     router.push(`/plant/${plantId}`)
   }
 
-  const handleCompleteTask = (taskId: string) => {
-    completeTask(taskId)
+  const handleCompleteTaskApi = (
+    taskId: string,
+    plantId: string,
+    type: CareTaskType
+  ) => {
+    completeTask({ taskId, plantId, type })
+  }
+
+  const handleUndo = (taskId: string) => {
+    const timeout = pendingTimeouts.current.get(taskId)
+    if (timeout) {
+      clearTimeout(timeout)
+      pendingTimeouts.current.delete(taskId)
+    }
+    setPendingTaskIds((prev) => {
+      const next = new Set(prev)
+      next.delete(taskId)
+      return next
+    })
+  }
+
+  const handleImmediateComplete = (task: CareTask) => {
+    // Add to pending (shows undo button on card)
+    setPendingTaskIds((prev) => new Set(prev).add(task.id))
+
+    // Set timeout to actually call API after the undo timeout
+    const timeoutId = setTimeout(() => {
+      handleCompleteTaskApi(task.id, task.plantId, task.type)
+      pendingTimeouts.current.delete(task.id)
+      setPendingTaskIds((prev) => {
+        const next = new Set(prev)
+        next.delete(task.id)
+        return next
+      })
+    }, CARE_TASK_UNDO_TIMEOUT_MS)
+    pendingTimeouts.current.set(task.id, timeoutId)
+  }
+
+  const handleCardPress = (task: CareTask, section: TaskSection) => {
+    pipe(
+      Match.value(section),
+      Match.when('thisWeek', () => {
+        setFutureTaskModal({
+          visible: true,
+          task,
+          daysUntilDue: calculateDaysUntilDue(task.dueDate),
+        })
+      }),
+      Match.when('overdue', () => handleImmediateComplete(task)),
+      Match.when('today', () => handleImmediateComplete(task)),
+      Match.exhaustive
+    )
+  }
+
+  const handleConfirmFutureTask = () => {
+    if (futureTaskModal.task) {
+      handleCompleteTaskApi(
+        futureTaskModal.task.id,
+        futureTaskModal.task.plantId,
+        futureTaskModal.task.type
+      )
+    }
+    setFutureTaskModal({ visible: false, task: null, daysUntilDue: 0 })
+  }
+
+  const handleCancelFutureTask = () => {
+    setFutureTaskModal({ visible: false, task: null, daysUntilDue: 0 })
   }
 
   if (isLoading) {
@@ -114,9 +213,11 @@ export function CareScreen() {
                 <CareTaskCard
                   key={task.id}
                   task={task}
-                  onPress={() => handleTaskPress(task.plantId)}
-                  onComplete={() => handleCompleteTask(task.id)}
+                  onCardPress={() => handleCardPress(task, 'overdue')}
+                  onPlantPhotoPress={() => handlePlantPhotoPress(task.plantId)}
+                  onUndo={() => handleUndo(task.id)}
                   overdue
+                  isPendingCompletion={pendingTaskIds.has(task.id)}
                 />
               ))
             )}
@@ -134,8 +235,12 @@ export function CareScreen() {
                   <CareTaskCard
                     key={task.id}
                     task={task}
-                    onPress={() => handleTaskPress(task.plantId)}
-                    onComplete={() => handleCompleteTask(task.id)}
+                    onCardPress={() => handleCardPress(task, 'today')}
+                    onPlantPhotoPress={() =>
+                      handlePlantPhotoPress(task.plantId)
+                    }
+                    onUndo={() => handleUndo(task.id)}
+                    isPendingCompletion={pendingTaskIds.has(task.id)}
                   />
                 ))
               )}
@@ -157,8 +262,12 @@ export function CareScreen() {
                     </Text>
                     <CareTaskCard
                       task={task}
-                      onPress={() => handleTaskPress(task.plantId)}
-                      onComplete={() => handleCompleteTask(task.id)}
+                      onCardPress={() => handleCardPress(task, 'thisWeek')}
+                      onPlantPhotoPress={() =>
+                        handlePlantPhotoPress(task.plantId)
+                      }
+                      onUndo={() => handleUndo(task.id)}
+                      isPendingCompletion={pendingTaskIds.has(task.id)}
                     />
                   </View>
                 ))
@@ -170,6 +279,20 @@ export function CareScreen() {
         {/* Bottom spacer */}
         <View className="h-20" />
       </ScrollView>
+
+      {/* Future Task Confirmation Modal */}
+      <ConfirmationModal
+        visible={futureTaskModal.visible}
+        title="Complete Early?"
+        message={`This task is scheduled in ${futureTaskModal.daysUntilDue} day${futureTaskModal.daysUntilDue > 1 ? 's' : ''}. Complete it anyway?`}
+        confirmLabel="Complete Now"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmFutureTask}
+        onCancel={handleCancelFutureTask}
+        icon={
+          <MaterialIcons name="schedule" size={28} color={iconColors.warning} />
+        }
+      />
     </SafeAreaView>
   )
 }
