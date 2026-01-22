@@ -1,6 +1,7 @@
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Match, Option, pipe } from 'effect'
 import { useRouter, useSegments } from 'expo-router'
+import * as SecureStore from 'expo-secure-store'
 import {
   createContext,
   type ReactNode,
@@ -10,6 +11,7 @@ import {
   useState,
 } from 'react'
 import { apiEffectRunner } from 'src/utils/client'
+import { getExpoPushToken, getPlatform } from 'src/utils/notifications'
 import {
   clearAuthStorage,
   getStoredAccessToken,
@@ -19,6 +21,57 @@ import {
   storeRefreshToken,
   storeUserEmail,
 } from 'src/utils/storage'
+
+const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
+
+/**
+ * Register device for push notifications
+ * Returns the token ID if successful
+ */
+async function registerDeviceForPush(): Promise<string | null> {
+  try {
+    const pushToken = await getExpoPushToken()
+    if (!pushToken) {
+      return null
+    }
+
+    const result = await apiEffectRunner(
+      'deviceTokens',
+      'registerDeviceToken',
+      {
+        payload: {
+          token: pushToken,
+          platform: getPlatform(),
+        },
+      }
+    )
+
+    // Store the token ID for later unregistration
+    await SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, result.id)
+    return result.id
+  } catch (error) {
+    console.error('Failed to register device token:', error)
+    return null
+  }
+}
+
+/**
+ * Unregister device from push notifications
+ */
+async function unregisterDeviceFromPush(): Promise<void> {
+  try {
+    const tokenId = await SecureStore.getItemAsync(DEVICE_TOKEN_ID_KEY)
+    if (tokenId) {
+      await apiEffectRunner('deviceTokens', 'unregisterDeviceToken', {
+        path: { tokenId },
+      })
+      await SecureStore.deleteItemAsync(DEVICE_TOKEN_ID_KEY)
+    }
+  } catch (error) {
+    // Ignore errors during unregistration
+    console.error('Failed to unregister device token:', error)
+  }
+}
 
 // Auth state discriminated union
 type AuthState =
@@ -59,7 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({ _tag: 'Loading' })
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const router = useRouter()
-  const segments = useSegments()
+  const segments = useSegments() as string[]
 
   // Check for stored token on mount
   useEffect(() => {
@@ -179,6 +232,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             user: response.user,
             accessToken: response.accessToken,
           })
+          // Register device for push notifications after successful auth
+          registerDeviceForPush()
         }
         return { success: true }
       } catch (error) {
@@ -206,6 +261,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             user,
             accessToken: state.accessToken,
           })
+          // Register device for push notifications after completing username setup
+          if (state._tag === 'NeedsUsername') {
+            registerDeviceForPush()
+          }
         }
         return { success: true }
       } catch (error) {
@@ -220,6 +279,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   )
 
   const logout = useCallback(async () => {
+    // Unregister device from push notifications before logout
+    await unregisterDeviceFromPush()
+
     try {
       await apiEffectRunner('auth', 'logout', {})
     } catch {
