@@ -677,10 +677,96 @@ When adding a new domain/service:
 11. **No semicolons** - Biome enforces this automatically
 12. **Single quotes** - Use single quotes for strings
 
+### Date Handling (MANDATORY)
+
+**NEVER use native JavaScript Date methods directly.** Always use Effect's DateTime module or the shared date utilities in `@lily/shared`.
+
+#### Prohibited Patterns
+
+The following native Date patterns are **FORBIDDEN**:
+
+- `new Date()` - Use `DateTime.unsafeNow()` or shared `now()`
+- `Date.now()` - Use `DateTime.unsafeNow()` then `DateTime.toEpochMillis()`
+- `new Date(isoString)` - Use `DateTime.make()` or shared `parseApiDate()`
+- `date.getTime() - other.getTime()` - Use `DateTime.distance()`
+- `date.getDay()` / `date.getMonth()` etc. - Use `DateTime.toParts()`
+- Manual day calculations like `ms / (1000*60*60*24)` - Use `Duration` module
+
+#### Required Effect Replacements
+
+| Native JS | Effect Replacement |
+|-----------|-------------------|
+| `new Date()` | `DateTime.unsafeNow()` |
+| `new Date(isoString)` | `DateTime.make(isoString)` → returns `Option<DateTime>` |
+| `date.getTime() - other.getTime()` | `DateTime.distance(dt1, dt2)` → returns milliseconds |
+| `Math.ceil(ms / (1000*60*60*24))` | `Duration.toDays(Duration.millis(ms))` |
+| `date.getDay()` | `DateTime.toParts(dt).weekDay` |
+| `date.getMonth()` | `DateTime.toParts(dt).month` |
+
+#### Shared Date Utilities (`@lily/shared`)
+
+For common date operations, prefer the shared utilities:
+
+```typescript
+import {
+  parseApiDate,           // Parse ISO string → Option<DateTime>
+  now,                    // Get current time as DateTime.Utc
+  daysUntil,              // Days until a DateTime (positive=future, negative=past)
+  daysUntilApiDate,       // Parse + calculate days (convenience)
+  formatDayOfWeek,        // "Monday"
+  formatDayOfWeekShort,   // "Mon"
+  formatNextDate,         // "Next: Monday"
+  formatApiDateAsNextDate,// Parse + format (convenience)
+  formatRelativeTime,     // "2h ago", "Yesterday"
+  formatTime,             // "2:30 PM"
+  formatShortDate,        // "Mon, Jan 15"
+  isToday,                // Check if DateTime is today
+  isOverdue,              // Check if DateTime is in the past
+  isFuture,               // Check if DateTime is in the future
+} from '@lily/shared'
+```
+
+#### Timezone Handling
+
+1. **API dates are UTC** - Parse with `DateTime.make()` or `parseApiDate()`
+2. **Display in user timezone** - Use `DateTime.setZone()` with user's IANA timezone
+3. **Store as UTC** - Always store dates in UTC format in database
+4. **User timezone stored** - Access from user settings, default to 'UTC'
+
+#### Examples
+
+```typescript
+// ❌ FORBIDDEN - Native Date
+const daysUntil = Math.ceil(
+  (new Date(apiDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+)
+
+// ✅ REQUIRED - Shared utility (preferred)
+const daysUntil = daysUntilApiDate(apiDate)
+
+// ✅ REQUIRED - Effect DateTime (when more control needed)
+const daysUntil = pipe(
+  DateTime.make(apiDate),
+  Option.map((dt) => DateTime.distance(DateTime.unsafeNow(), dt)),
+  Option.map((ms) => Math.ceil(Duration.toDays(Duration.millis(ms)))),
+  Option.getOrElse(() => 0)
+)
+
+// ❌ FORBIDDEN - Native Date for day name
+const dayName = ['Sun', 'Mon', ...][new Date(apiDate).getDay()]
+
+// ✅ REQUIRED - Shared utility
+const dayName = pipe(
+  parseApiDate(apiDate),
+  Option.map(formatDayOfWeekShort),
+  Option.getOrElse(() => 'Unknown')
+)
+```
+
 ## Effect Documentation
 
 An Effect documentation MCP server is available for reference. Use it to:
-- Look up Effect module APIs (Array, Option, Match, Record, Struct, etc.)
+- Look up Effect module APIs (Array, Option, Match, Record, Struct, DateTime, Duration, etc.)
 - Find correct function signatures and usage patterns
 - Discover available utilities for any Effect module
 

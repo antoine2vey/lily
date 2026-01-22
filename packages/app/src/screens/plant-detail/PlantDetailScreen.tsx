@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, Option, pipe } from 'effect'
+import { daysUntilApiDate, formatApiDateAsNextDate } from '@lily/shared'
+import { Match, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import {
@@ -238,51 +239,9 @@ export function PlantDetailScreen() {
 
   const healthStatus = mapApiHealthToCardHealth(plant.health)
 
-  // Calculate days until watering/fertilizing
-  const daysUntilWater = Option.match(
-    plant.nextWateringAt
-      ? Option.some(
-          Math.ceil(
-            (new Date(plant.nextWateringAt).getTime() - Date.now()) /
-              (1000 * 60 * 60 * 24)
-          )
-        )
-      : Option.none(),
-    {
-      onNone: () => 0,
-      onSome: (days) => days,
-    }
-  )
-
-  const daysUntilFertilize = Option.match(
-    plant.nextFertilizationAt
-      ? Option.some(
-          Math.ceil(
-            (new Date(plant.nextFertilizationAt).getTime() - Date.now()) /
-              (1000 * 60 * 60 * 24)
-          )
-        )
-      : Option.none(),
-    {
-      onNone: () => 0,
-      onSome: (days) => days,
-    }
-  )
-
-  const formatNextDate = (date: Date | string | null | undefined): string => {
-    if (!date) return 'Not set'
-    const d = new Date(date)
-    const days = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ]
-    return `Next: ${days[d.getDay()]}`
-  }
+  // Calculate days until watering/fertilizing using shared utilities
+  const daysUntilWater = daysUntilApiDate(plant.nextWateringAt)
+  const daysUntilFertilize = daysUntilApiDate(plant.nextFertilizationAt)
 
   // Mock photos for now - would come from plant.photos
   const photos: Array<{ id: string; url: string; createdAt: Date }> = []
@@ -340,9 +299,11 @@ export function PlantDetailScreen() {
           <View className="mt-8">
             <CareSchedule
               wateringDays={daysUntilWater}
-              wateringDate={formatNextDate(plant.nextWateringAt)}
+              wateringDate={formatApiDateAsNextDate(plant.nextWateringAt)}
               fertilizingDays={daysUntilFertilize}
-              fertilizingDate={formatNextDate(plant.nextFertilizationAt)}
+              fertilizingDate={formatApiDateAsNextDate(
+                plant.nextFertilizationAt
+              )}
               onEdit={handleEditSchedule}
             />
           </View>
