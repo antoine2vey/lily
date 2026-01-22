@@ -2,6 +2,7 @@ import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
+import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
@@ -12,6 +13,7 @@ import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
+import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import {
   RedisClientLive,
@@ -28,6 +30,7 @@ import {
 } from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
+import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
@@ -82,6 +85,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AIChatApiLive(Api)),
   Layer.provide(AuthApiLive(Api)),
   Layer.provide(CareLogsApiLive(Api)),
+  Layer.provide(CareTasksApiLive(Api)),
   Layer.provide(DeviceTokensApiLive(Api)),
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
@@ -92,7 +96,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 )
 
 // Set up the server using BunHttpServer on port 3000
-const ServerLive = HttpApiBuilder.serve().pipe(
+const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiBuilder.middlewareCors()),
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
@@ -101,6 +105,7 @@ const ServerLive = HttpApiBuilder.serve().pipe(
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),
+  Layer.provide(TelemetryLive),
   HttpServer.withLogAddress,
   Layer.provide(BunHttpServer.layer({ port: 3000 }))
 )
