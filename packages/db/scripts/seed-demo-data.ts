@@ -31,6 +31,9 @@ const DEMO_PLANTS = [
     wateringFrequencyDays: 14,
     lastWateredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
     nextWateringAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
+    fertilizationFrequencyDays: 30,
+    lastFertilizedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), // 25 days ago
+    nextFertilizationAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // In 5 days (this week)
   },
   {
     name: 'Pothos',
@@ -76,6 +79,9 @@ const DEMO_PLANTS = [
     wateringFrequencyDays: 7,
     lastWateredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
     nextWateringAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // In 4 days
+    fertilizationFrequencyDays: 14,
+    lastFertilizedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 days ago
+    nextFertilizationAt: new Date(), // Today
   },
   {
     name: 'Cactus',
@@ -122,6 +128,9 @@ const DEMO_PLANTS = [
     wateringFrequencyDays: 7,
     lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     nextWateringAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    fertilizationFrequencyDays: 21,
+    lastFertilizedAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000), // 22 days ago
+    nextFertilizationAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
   },
   {
     name: 'Peace Lily',
@@ -137,6 +146,9 @@ const DEMO_PLANTS = [
     wateringFrequencyDays: 5,
     lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     nextWateringAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    fertilizationFrequencyDays: 30,
+    lastFertilizedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), // 28 days ago
+    nextFertilizationAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // In 2 days (this week)
   },
   {
     name: 'Spider Plant',
@@ -211,7 +223,7 @@ const seedDemoData = Effect.gen(function* () {
   const [demoUser] = yield* db
     .insert(users)
     .values({
-      email: 'alex@demo.lily.app',
+      email: 'antoine@lily.app',
       name: 'Alex',
       emailVerified: true,
       role: 'user',
@@ -307,11 +319,17 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log(`  Plants: ${createdPlants.length} total`)
   yield* Console.log('    - 10 healthy')
   yield* Console.log('    - 2 need attention')
-  yield* Console.log('    - 3 need water today')
+  yield* Console.log('  Care tasks:')
+  yield* Console.log('    - 3 overdue watering (Snake Plant, Pothos, Fern)')
+  yield* Console.log('    - 1 overdue fertilization (Monstera)')
+  yield* Console.log('    - 1 fertilization today (Fiddle Leaf Fig)')
+  yield* Console.log(
+    '    - 2 fertilization this week (Snake Plant, Peace Lily)'
+  )
   yield* Console.log('  Care logs: 4 activities')
   yield* Console.log('')
   yield* Console.log(
-    'To log in as Alex, use the magic link flow with: alex@demo.lily.app'
+    'To log in as Alex, use the magic link flow with: antoine@lily.app'
   )
 })
 
