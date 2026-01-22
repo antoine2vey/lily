@@ -115,11 +115,9 @@ export function NotificationSettingsScreen() {
       if (state._tag !== 'Authenticated') return
 
       try {
-        const userSettings = await apiEffectRunner(
-          'users',
-          'getUserSettings',
-          { path: { id: state.user.id } }
-        )
+        const userSettings = await apiEffectRunner('users', 'getUserSettings', {
+          path: { id: state.user.id },
+        })
         setTimezone(userSettings.timezone || getDeviceTimezone())
         setPreferredNotificationTime(
           userSettings.preferredNotificationTime || '09:00'
@@ -466,9 +464,7 @@ export function NotificationSettingsScreen() {
           value={pipe(
             Match.value(showTimePicker),
             Match.when('reminder', () => parseTime(settings.reminderTime)),
-            Match.when('dndStart', () =>
-              parseTime(settings.doNotDisturbStart)
-            ),
+            Match.when('dndStart', () => parseTime(settings.doNotDisturbStart)),
             Match.when('dndEnd', () => parseTime(settings.doNotDisturbEnd)),
             Match.when('notificationTime', () =>
               parseTime(preferredNotificationTime)

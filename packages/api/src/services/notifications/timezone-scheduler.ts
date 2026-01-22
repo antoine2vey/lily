@@ -52,7 +52,10 @@ export const calculateScheduledAt = (
         const parts = DEFAULT_NOTIFICATION_TIME.split(':')
         const h = parts[0] ?? '9'
         const m = parts[1] ?? '0'
-        return Effect.succeed({ hours: parseInt(h, 10), minutes: parseInt(m, 10) })
+        return Effect.succeed({
+          hours: parseInt(h, 10),
+          minutes: parseInt(m, 10),
+        })
       })
     )
 

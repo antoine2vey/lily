@@ -152,7 +152,11 @@ describe('recalculateNotificationSchedules', () => {
     ]
 
     const result = await Effect.runPromise(
-      recalculateNotificationSchedules(notifications, 'America/New_York', '08:00')
+      recalculateNotificationSchedules(
+        notifications,
+        'America/New_York',
+        '08:00'
+      )
     )
 
     expect(result).toHaveLength(1)

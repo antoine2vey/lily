@@ -34,7 +34,9 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull().default('user'),
   status: userStatusEnum('status').notNull().default('active'),
   timezone: text('timezone').default('UTC'),
-  preferredNotificationTime: text('preferred_notification_time').default('09:00'),
+  preferredNotificationTime: text('preferred_notification_time').default(
+    '09:00'
+  ),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({
