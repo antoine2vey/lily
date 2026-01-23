@@ -1,3 +1,4 @@
+import { Command, type CommandExecutor } from '@effect/platform'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
@@ -18,7 +19,7 @@ export const sendMagicLink = ({
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
   { message: string },
-  MagicLinkRepository | RateLimiterService
+  MagicLinkRepository | RateLimiterService | CommandExecutor.CommandExecutor
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
@@ -53,19 +54,19 @@ export const sendMagicLink = ({
     const baseUrl = process.env.API_BASE_URL || 'http://192.168.1.85:3000'
     const callbackUrl = `${baseUrl}/api/auth/magic-link/callback?token=${token}`
 
-    // Create deep link URL for the mobile app
-    const appDeepLink = `lily://verify?code=${token}`
-    // Expo Go format for local development
-    const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
-
-    // In development, log the magic link
     if (process.env.NODE_ENV !== 'production') {
-      yield* Effect.log('\n✨ Magic Link for', normalizedEmail)
-      yield* Effect.log('🔗 Callback URL:', callbackUrl)
-      yield* Effect.log('🔑 Token:', token)
-      yield* Effect.log('📱 Expo Go:', expoGoLink)
-      yield* Effect.log('📱 Production:', appDeepLink)
-      yield* Effect.log('')
+      // In development, open the magic link in the iOS simulator
+      const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
+      const openSimulatorCommand = Command.make(
+        'xcrun',
+        'simctl',
+        'openurl',
+        'booted',
+        expoGoLink
+      )
+      yield* Effect.catchAll(Command.exitCode(openSimulatorCommand), (error) =>
+        Effect.logWarning('Failed to open magic link in simulator:', error)
+      )
     } else {
       // In production, send the email
       yield* Effect.catchAll(

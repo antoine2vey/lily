@@ -1,3 +1,4 @@
+import { createMockCommandExecutor } from '@lily/api/__tests__/mocks/command-executor'
 import {
   clearMagicLinkStore,
   createMockMagicLinkRepository,
@@ -20,7 +21,8 @@ describe('sendMagicLink', () => {
         options.shouldExceedRateLimit !== undefined
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
-      )
+      ),
+      createMockCommandExecutor()
     )
 
   it('should send magic link email successfully', async () => {
@@ -92,7 +94,8 @@ describe('sendMagicLink', () => {
         Effect.provide(
           Layer.mergeAll(
             createMockMagicLinkRepository({ magicLinks: getMagicLinkStore() }),
-            createMockRateLimiterService()
+            createMockRateLimiterService(),
+            createMockCommandExecutor()
           )
         )
       )

@@ -1,4 +1,5 @@
 import { HttpApiBuilder, HttpServerResponse } from '@effect/platform'
+import { BunContext } from '@effect/platform-bun'
 import type { Api } from '@lily/api/api'
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
@@ -47,5 +48,6 @@ export const AuthApiLive = (api: Api) =>
     Layer.provide(RefreshTokenRepositoryLive),
     Layer.provide(UserRepositoryLive),
     Layer.provide(JWTServiceLive),
-    Layer.provide(RateLimiterServiceLive)
+    Layer.provide(RateLimiterServiceLive),
+    Layer.provide(BunContext.layer)
   )
