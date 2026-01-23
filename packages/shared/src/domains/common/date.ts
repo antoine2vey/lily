@@ -41,7 +41,10 @@ export const now = (): DateTime.Utc => DateTime.unsafeNow()
 export const daysUntil = (target: DateTime.DateTime): number => {
   const current = DateTime.unsafeNow()
   const distanceMs = DateTime.distance(current, target)
-  return Math.ceil(Duration.toDays(Duration.millis(distanceMs)))
+  // Handle sign manually since Duration.millis doesn't preserve negative values
+  const sign = distanceMs >= 0 ? 1 : -1
+  const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
+  return sign * Math.ceil(days)
 }
 
 /**
@@ -49,14 +52,14 @@ export const daysUntil = (target: DateTime.DateTime): number => {
  *
  * @param from - Start DateTime
  * @param to - End DateTime
- * @returns Number of days between the two dates
+ * @returns Number of days between the two dates (always positive)
  */
 export const daysBetween = (
   from: DateTime.DateTime,
   to: DateTime.DateTime
 ): number => {
   const distanceMs = DateTime.distance(from, to)
-  return Math.abs(Math.ceil(Duration.toDays(Duration.millis(distanceMs))))
+  return Math.ceil(Duration.toDays(Duration.millis(Math.abs(distanceMs))))
 }
 
 /**
