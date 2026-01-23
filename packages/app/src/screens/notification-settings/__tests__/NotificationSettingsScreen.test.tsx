@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native'
+import { render, waitFor } from '@testing-library/react-native'
 
 // Mock dependencies
 jest.mock('@/hooks/useNotificationSettings', () => ({
@@ -11,7 +11,14 @@ jest.mock('@/contexts/AuthContext', () => ({
 }))
 
 jest.mock('@/utils/client', () => ({
-  apiEffectRunner: jest.fn(),
+  apiEffectRunner: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
+}))
+
+// Mock notifications utilities
+jest.mock('@/utils/notifications', () => ({
+  getDeviceTimezone: jest.fn(() => 'UTC'),
+  getExpoPushToken: jest.fn().mockResolvedValue('mock-push-token'),
+  getPlatform: jest.fn().mockReturnValue('ios'),
 }))
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -57,23 +64,29 @@ describe('NotificationSettingsScreen', () => {
     } as any)
   })
 
-  it('renders loading state', () => {
+  it('renders loading state', async () => {
     mockedUseNotificationSettings.mockReturnValue({
       data: undefined,
       isLoading: true,
     } as any)
 
     const { toJSON } = render(<NotificationSettingsScreen />)
-    expect(toJSON()).toBeTruthy()
+
+    await waitFor(() => {
+      expect(toJSON()).toBeTruthy()
+    })
   })
 
-  it('renders with settings data', () => {
+  it('renders with settings data', async () => {
     mockedUseNotificationSettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
     } as any)
 
     const { toJSON } = render(<NotificationSettingsScreen />)
-    expect(toJSON()).toBeTruthy()
+
+    await waitFor(() => {
+      expect(toJSON()).toBeTruthy()
+    })
   })
 })
