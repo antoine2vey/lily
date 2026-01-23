@@ -1,0 +1,151 @@
+import { fireEvent, render, screen } from '@testing-library/react-native'
+import {
+  mockRouter,
+  resetNavigationMocks,
+  setMockSearchParams,
+} from 'src/__tests__/mocks/navigation'
+import { PhotoViewerScreen } from '../PhotoViewerScreen'
+
+// Mock the hooks
+const mockUseEffectQuery = jest.fn()
+const mockDeletePhotoMutate = jest.fn()
+const mockUseDeletePhoto = jest.fn()
+
+jest.mock('src/utils/client', () => ({
+  useEffectQuery: (...args: unknown[]) => mockUseEffectQuery(...args),
+}))
+
+jest.mock('src/hooks/useDeletePhoto', () => ({
+  useDeletePhoto: () => mockUseDeletePhoto(),
+}))
+
+describe('PhotoViewerScreen', () => {
+  const mockPlantWithPhotos = {
+    id: 'plant-1',
+    name: 'Test Plant',
+    photos: [
+      {
+        id: 'photo-1',
+        url: 'https://example.com/photo1.jpg',
+        takenAt: new Date(),
+        plantId: 'plant-1',
+      },
+      {
+        id: 'photo-2',
+        url: 'https://example.com/photo2.jpg',
+        takenAt: new Date(),
+        plantId: 'plant-1',
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    resetNavigationMocks()
+    setMockSearchParams({ plantId: 'plant-1', photoId: 'photo-1' })
+    mockUseDeletePhoto.mockReturnValue({ mutate: mockDeletePhotoMutate })
+  })
+
+  it('renders loading state', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-loading')).toBeTruthy()
+  })
+
+  it('renders error state when photo not found', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: { ...mockPlantWithPhotos, photos: [] },
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-error')).toBeTruthy()
+    expect(screen.getByText('Photo not found')).toBeTruthy()
+  })
+
+  it('displays photo at full size', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-image')).toBeTruthy()
+  })
+
+  it('renders back button', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-back-button')).toBeTruthy()
+  })
+
+  it('navigates back when back button pressed', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    fireEvent.press(screen.getByTestId('photo-viewer-back-button'))
+    expect(mockRouter.back).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders delete button', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-delete-button')).toBeTruthy()
+  })
+
+  it('shows confirmation modal when delete button pressed', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    fireEvent.press(screen.getByTestId('photo-viewer-delete-button'))
+    expect(screen.getByText('Delete Photo?')).toBeTruthy()
+  })
+
+  it('calls delete mutation when confirmed', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    fireEvent.press(screen.getByTestId('photo-viewer-delete-button'))
+    fireEvent.press(screen.getByText('Delete Photo'))
+
+    expect(mockDeletePhotoMutate).toHaveBeenCalledWith(
+      { path: { id: 'plant-1', photoId: 'photo-1' } },
+      expect.any(Object)
+    )
+  })
+
+  it('closes modal when cancel pressed', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    fireEvent.press(screen.getByTestId('photo-viewer-delete-button'))
+    expect(screen.getByText('Delete Photo?')).toBeTruthy()
+
+    fireEvent.press(screen.getByText('Keep Photo'))
+    expect(screen.queryByText('Delete Photo?')).toBeNull()
+  })
+})

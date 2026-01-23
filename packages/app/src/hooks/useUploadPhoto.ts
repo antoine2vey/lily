@@ -19,7 +19,7 @@ export function useUploadPhoto() {
         type: 'image/jpeg',
       })
 
-      await uploadMultipart<void>(`/plants/${plantId}/photos`, [file])
+      await uploadMultipart<void>(`/api/plants/${plantId}/photos`, [file])
     },
     onSuccess: (_, { plantId }) => {
       // Invalidate plant photos

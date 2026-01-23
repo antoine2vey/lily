@@ -2,13 +2,13 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { PlantByIdRequest } from '@lily/api/services/plants/utils'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { Plant } from '@lily/shared/plant'
+import type { PlantDetail } from '@lily/shared/plant'
 import { Effect } from 'effect'
 
 export const findPlantById = ({
   id,
 }: PlantByIdRequest): Effect.Effect<
-  Plant,
+  PlantDetail,
   SqlError | PlantNotFoundError,
   PlantRepository
 > =>
@@ -20,5 +20,15 @@ export const findPlantById = ({
       return yield* Effect.fail(new PlantNotFoundError())
     }
 
-    return plant
+    // Fetch recent photos (limit 10 for the detail view)
+    const photosResult = yield* repo.findPhotos({
+      plantId: id,
+      page: 1,
+      limit: 10,
+    })
+
+    return {
+      ...plant,
+      photos: photosResult.items,
+    }
   })

@@ -14,6 +14,13 @@ jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
+jest.mock('@/hooks/useUploadPhoto', () => ({
+  useUploadPhoto: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
 import { useEffectQuery } from '@/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 
