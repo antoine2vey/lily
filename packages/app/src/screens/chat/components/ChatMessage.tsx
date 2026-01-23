@@ -1,3 +1,4 @@
+import { formatApiTime } from '@lily/shared'
 import { Image, Text, View } from 'react-native'
 import { Avatar } from 'src/components/Avatar'
 
@@ -13,15 +14,6 @@ interface ChatMessageData {
 
 interface ChatMessageProps {
   message: ChatMessageData
-}
-
-function formatTime(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
@@ -58,7 +50,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </Text>
         </View>
         <Text className="text-xs mt-1 font-regular text-text-muted">
-          {formatTime(message.createdAt)}
+          {formatApiTime(message.createdAt)}
         </Text>
       </View>
     </View>

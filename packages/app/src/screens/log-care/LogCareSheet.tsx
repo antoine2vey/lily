@@ -1,5 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { formatShortDate, formatTime, parseApiDate } from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
+import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useEffect, useState } from 'react'
 import {
@@ -91,21 +93,19 @@ export function LogCareSheet({
     )
   }
 
-  const formatDate = (d: Date) => {
-    return d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+  const formatDateDisplay = (d: Date) =>
+    pipe(
+      parseApiDate(d),
+      Option.map(formatShortDate),
+      Option.getOrElse(() => 'Unknown')
+    )
 
-  const formatTime = (t: Date) => {
-    return t.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-  }
+  const formatTimeDisplay = (t: Date) =>
+    pipe(
+      parseApiDate(t),
+      Option.map(formatTime),
+      Option.getOrElse(() => 'Unknown')
+    )
 
   const canSave = plantIds.length > 0
 
@@ -149,7 +149,7 @@ export function LogCareSheet({
                   color={iconColors.textMuted}
                 />
                 <Text className="text-base ml-2 font-regular text-text-primary">
-                  {formatDate(date)}
+                  {formatDateDisplay(date)}
                 </Text>
               </Pressable>
             </View>
@@ -167,7 +167,7 @@ export function LogCareSheet({
                   color={iconColors.textMuted}
                 />
                 <Text className="text-base ml-2 font-regular text-text-primary">
-                  {formatTime(time)}
+                  {formatTimeDisplay(time)}
                 </Text>
               </Pressable>
             </View>

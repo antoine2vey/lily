@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe } from 'effect'
+import { formatLongDate, parseApiDate } from '@lily/shared'
+import { Match, Option, pipe } from 'effect'
 import { Modal, Pressable, Text, View } from 'react-native'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { iconColors } from 'src/theme'
@@ -60,14 +61,12 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
   return iconMap[icon] ?? 'star'
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
+const formatDate = (dateString: string): string =>
+  pipe(
+    parseApiDate(dateString),
+    Option.map(formatLongDate),
+    Option.getOrElse(() => 'Unknown')
+  )
 
 export function AchievementDetailModal({
   visible,

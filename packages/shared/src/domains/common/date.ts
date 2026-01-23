@@ -1,32 +1,11 @@
-import { Array, DateTime, Duration, Option, pipe } from 'effect'
+import { DateTime, Duration, Option, pipe } from 'effect'
 
-// Day names for formatting
-const DAY_NAMES = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-]
-
-const DAY_NAMES_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-const MONTH_NAMES_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-]
+/**
+ * Convert Effect DateTime to native JavaScript Date for locale formatting.
+ * Uses toDateUtc() to get a standard Date object.
+ */
+const toNativeDate = (dateTime: DateTime.DateTime): Date =>
+  DateTime.toDateUtc(dateTime)
 
 /**
  * Valid date input types from API or database.
@@ -82,31 +61,23 @@ export const daysBetween = (
 
 /**
  * Format date as day of week (e.g., "Monday").
+ * Uses user's locale for localized day names.
  *
  * @param dateTime - DateTime to format
- * @returns Full day name
+ * @returns Full day name in user's locale
  */
-export const formatDayOfWeek = (dateTime: DateTime.DateTime): string => {
-  const parts = DateTime.toParts(dateTime)
-  return pipe(
-    Array.get(DAY_NAMES, parts.weekDay),
-    Option.getOrElse(() => 'Unknown')
-  )
-}
+export const formatDayOfWeek = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, { weekday: 'long' })
 
 /**
  * Format date as short day of week (e.g., "Mon").
+ * Uses user's locale for localized day names.
  *
  * @param dateTime - DateTime to format
- * @returns Short day name
+ * @returns Short day name in user's locale
  */
-export const formatDayOfWeekShort = (dateTime: DateTime.DateTime): string => {
-  const parts = DateTime.toParts(dateTime)
-  return pipe(
-    Array.get(DAY_NAMES_SHORT, parts.weekDay),
-    Option.getOrElse(() => 'Unknown')
-  )
-}
+export const formatDayOfWeekShort = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, { weekday: 'short' })
 
 /**
  * Format for "Next: Monday" style display.
@@ -119,6 +90,7 @@ export const formatNextDate = (dateTime: DateTime.DateTime): string =>
 
 /**
  * Format relative time (e.g., "Just now", "2h ago", "Yesterday").
+ * Falls back to locale-formatted date for older dates.
  *
  * @param dateTime - DateTime to format relative to now
  * @returns Human-readable relative time string
@@ -138,49 +110,39 @@ export const formatRelativeTime = (dateTime: DateTime.DateTime): string => {
   if (days === 1) return 'Yesterday'
   if (days < 7) return `${String(days)} days ago`
 
-  // For older dates, show the date
-  const parts = DateTime.toParts(dateTime)
-  return pipe(
-    Array.get(MONTH_NAMES_SHORT, parts.month - 1),
-    Option.map((month) => `${month} ${String(parts.day)}`),
-    Option.getOrElse(() => 'Unknown')
-  )
+  // For older dates, show the date in user's locale
+  return toNativeDate(dateTime).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 /**
- * Format locale time (e.g., "2:30 PM").
+ * Format locale time (e.g., "2:30 PM" or "14:30" depending on locale).
+ * Uses user's locale for localized time format.
  *
  * @param dateTime - DateTime to format
- * @returns Formatted time string
+ * @returns Formatted time string in user's locale
  */
-export const formatTime = (dateTime: DateTime.DateTime): string => {
-  const parts = DateTime.toParts(dateTime)
-  const hours = parts.hours
-  const minutes = parts.minutes
-  const ampm = hours >= 12 ? 'PM' : 'AM'
-  const displayHours = hours % 12 || 12
-  const paddedMinutes = String(minutes).padStart(2, '0')
-  return `${String(displayHours)}:${paddedMinutes} ${ampm}`
-}
+export const formatTime = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 
 /**
  * Format short date (e.g., "Mon, Jan 15").
+ * Uses user's locale for localized date format.
  *
  * @param dateTime - DateTime to format
- * @returns Formatted short date string
+ * @returns Formatted short date string in user's locale
  */
-export const formatShortDate = (dateTime: DateTime.DateTime): string => {
-  const parts = DateTime.toParts(dateTime)
-  const dayName = pipe(
-    Array.get(DAY_NAMES_SHORT, parts.weekDay),
-    Option.getOrElse(() => 'Unknown')
-  )
-  const monthName = pipe(
-    Array.get(MONTH_NAMES_SHORT, parts.month - 1),
-    Option.getOrElse(() => 'Unknown')
-  )
-  return `${dayName}, ${monthName} ${String(parts.day)}`
-}
+export const formatShortDate = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
 
 /**
  * Check if DateTime is today.
@@ -256,3 +218,157 @@ export const formatApiDateAsNextDate = (
     Option.map(formatNextDate),
     Option.getOrElse(() => defaultValue)
   )
+
+/**
+ * Get the current hour of day (0-23).
+ *
+ * @returns Current hour (0-23)
+ */
+export const getCurrentHour = (): number => {
+  const current = DateTime.unsafeNow()
+  return DateTime.toParts(current).hours
+}
+
+/**
+ * Get time-based greeting based on current hour.
+ *
+ * @returns "Good morning", "Good afternoon", or "Good evening"
+ */
+export const getTimeBasedGreeting = (): string => {
+  const hour = getCurrentHour()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+/**
+ * Check if a DateTime is yesterday.
+ *
+ * @param dateTime - DateTime to check
+ * @returns true if the DateTime is yesterday
+ */
+export const isYesterday = (dateTime: DateTime.DateTime): boolean => {
+  const current = DateTime.unsafeNow()
+  const yesterday = DateTime.subtract(current, { days: 1 })
+  const targetParts = DateTime.toParts(dateTime)
+  const yesterdayParts = DateTime.toParts(yesterday)
+  return (
+    targetParts.year === yesterdayParts.year &&
+    targetParts.month === yesterdayParts.month &&
+    targetParts.day === yesterdayParts.day
+  )
+}
+
+/**
+ * Format long date (e.g., "January 15, 2024").
+ * Uses user's locale for localized date format.
+ *
+ * @param dateTime - DateTime to format
+ * @returns Formatted long date string in user's locale
+ */
+export const formatLongDate = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+/**
+ * Format date with weekday (e.g., "Monday, Jan 15").
+ * Uses user's locale for localized date format.
+ *
+ * @param dateTime - DateTime to format
+ * @returns Formatted date with weekday in user's locale
+ */
+export const formatDateWithWeekday = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
+
+/**
+ * Format member since date (e.g., "Jan 2024").
+ * Uses user's locale for localized date format.
+ *
+ * @param dateTime - DateTime to format
+ * @returns Formatted member since string in user's locale
+ */
+export const formatMemberSince = (dateTime: DateTime.DateTime): string =>
+  toNativeDate(dateTime).toLocaleDateString(undefined, {
+    month: 'short',
+    year: 'numeric',
+  })
+
+/**
+ * Format relative time with fallback to date (e.g., "2h ago" or "Jan 15").
+ * Used for notifications and activity feeds.
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: "Unknown")
+ * @returns Relative time or formatted date
+ */
+export const formatApiRelativeTime = (
+  dateInput: DateInput,
+  defaultValue = 'Unknown'
+): string =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map(formatRelativeTime),
+    Option.getOrElse(() => defaultValue)
+  )
+
+/**
+ * Format time from API date (e.g., "2:30 PM").
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: "")
+ * @returns Formatted time string
+ */
+export const formatApiTime = (
+  dateInput: DateInput,
+  defaultValue = ''
+): string =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map(formatTime),
+    Option.getOrElse(() => defaultValue)
+  )
+
+/**
+ * Get date group label for grouping items (e.g., "Today", "Yesterday", "Monday, Jan 15").
+ *
+ * @param dateTime - DateTime to get group label for
+ * @returns Group label string
+ */
+export const getDateGroupLabel = (dateTime: DateTime.DateTime): string => {
+  if (isToday(dateTime)) return 'Today'
+  if (isYesterday(dateTime)) return 'Yesterday'
+  return formatDateWithWeekday(dateTime)
+}
+
+/**
+ * Get date group label from API date.
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: "Unknown")
+ * @returns Group label string
+ */
+export const getApiDateGroupLabel = (
+  dateInput: DateInput,
+  defaultValue = 'Unknown'
+): string =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map(getDateGroupLabel),
+    Option.getOrElse(() => defaultValue)
+  )
+
+/**
+ * Format date for header display (e.g., "MONDAY, JAN 15" in uppercase).
+ *
+ * @param dateTime - DateTime to format
+ * @returns Formatted uppercase date string
+ */
+export const formatDateHeader = (dateTime: DateTime.DateTime): string =>
+  formatDateWithWeekday(dateTime).toUpperCase()

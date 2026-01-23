@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, Order, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
@@ -43,15 +44,11 @@ const mapApiHealthToCardHealth = (health: string): HealthStatus =>
     Match.orElse(() => 'healthy' as const)
   )
 
-const getDaysUntilWater = (
-  nextWateringAt: Date | null | undefined
-): Option.Option<number> => {
-  if (!nextWateringAt) return Option.none()
-  const now = new Date()
-  const diffMs = nextWateringAt.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-  return Option.some(Math.max(0, diffDays))
-}
+const getDaysUntilWater = (nextWateringAt: DateInput): Option.Option<number> =>
+  pipe(
+    parseApiDate(nextWateringAt),
+    Option.map((dt) => Math.max(0, daysUntil(dt)))
+  )
 
 const plantNameOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.string,

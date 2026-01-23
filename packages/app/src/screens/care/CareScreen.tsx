@@ -3,8 +3,12 @@ import {
   CARE_TASK_UNDO_TIMEOUT_MS,
   type CareTask,
   type CareTaskType,
+  daysUntil,
+  formatDateHeader,
+  formatDayOfWeek,
+  parseApiDate,
 } from '@lily/shared'
-import { Array, DateTime, Duration, Match, pipe } from 'effect'
+import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
 import {
@@ -30,28 +34,22 @@ interface FutureTaskModalState {
   daysUntilDue: number
 }
 
-function formatDate(dateTime: DateTime.DateTime): string {
-  const date = DateTime.toDateUtc(dateTime)
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  }
-  return date.toLocaleDateString('en-US', options).toUpperCase()
-}
+const formatDate = (dateTime: DateTime.DateTime): string =>
+  formatDateHeader(dateTime)
 
-function formatWeekday(date: Date): string {
-  const dateTime = DateTime.unsafeMake(date)
-  const jsDate = DateTime.toDateUtc(dateTime)
-  return jsDate.toLocaleDateString('en-US', { weekday: 'long' })
-}
+const formatWeekday = (date: Date): string =>
+  pipe(
+    parseApiDate(date),
+    Option.map(formatDayOfWeek),
+    Option.getOrElse(() => 'Unknown')
+  )
 
-function calculateDaysUntilDue(dueDate: Date): number {
-  const now = DateTime.unsafeNow()
-  const due = DateTime.unsafeMake(dueDate)
-  const distanceMs = DateTime.distance(now, due)
-  return Math.ceil(Duration.toDays(Duration.millis(distanceMs)))
-}
+const calculateDaysUntilDue = (dueDate: Date): number =>
+  pipe(
+    parseApiDate(dueDate),
+    Option.map(daysUntil),
+    Option.getOrElse(() => 0)
+  )
 
 export function CareScreen() {
   const { data: tasks, isLoading } = useCareTasks()

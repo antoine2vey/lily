@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { formatTime, parseApiDate } from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Array, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
@@ -61,13 +62,12 @@ function parseTime(timeString: string): Date {
   return date
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
+const formatTimeDisplay = (date: Date): string =>
+  pipe(
+    parseApiDate(date),
+    Option.map(formatTime),
+    Option.getOrElse(() => 'Unknown')
+  )
 
 function formatTimeString(date: Date): string {
   const hours = date.getHours().toString().padStart(2, '0')
@@ -265,7 +265,7 @@ export function NotificationSettingsScreen() {
                   Daily Reminder Time
                 </Text>
                 <Text className="text-base font-medium text-primary">
-                  {formatTime(parseTime(settings.reminderTime))}
+                  {formatTimeDisplay(parseTime(settings.reminderTime))}
                 </Text>
               </Pressable>
             )}
@@ -362,7 +362,7 @@ export function NotificationSettingsScreen() {
                     Start Time
                   </Text>
                   <Text className="text-base font-medium text-primary">
-                    {formatTime(parseTime(settings.doNotDisturbStart))}
+                    {formatTimeDisplay(parseTime(settings.doNotDisturbStart))}
                   </Text>
                 </Pressable>
 
@@ -374,7 +374,7 @@ export function NotificationSettingsScreen() {
                     End Time
                   </Text>
                   <Text className="text-base font-medium text-primary">
-                    {formatTime(parseTime(settings.doNotDisturbEnd))}
+                    {formatTimeDisplay(parseTime(settings.doNotDisturbEnd))}
                   </Text>
                 </Pressable>
               </View>
@@ -407,7 +407,7 @@ export function NotificationSettingsScreen() {
                 </Text>
               </View>
               <Text className="text-base font-medium text-primary">
-                {formatTime(parseTime(preferredNotificationTime))}
+                {formatTimeDisplay(parseTime(preferredNotificationTime))}
               </Text>
             </Pressable>
 

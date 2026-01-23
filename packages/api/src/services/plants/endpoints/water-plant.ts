@@ -6,7 +6,7 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant, PlantWaterRequest } from '@lily/shared/plant'
-import { Duration, Effect, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 export const waterPlant = (
   request: PlantWaterRequest & { id: string }
@@ -28,11 +28,13 @@ export const waterPlant = (
       return yield* Effect.fail(new PlantNotFoundError())
     }
 
-    const now = new Date()
-    const nextWateringAt = new Date(
-      now.getTime() +
-        Duration.toMillis(Duration.days(plant.wateringFrequencyDays))
+    const nowDt = DateTime.unsafeNow()
+    const now = DateTime.toDateUtc(nowDt)
+    const nextWateringDt = DateTime.addDuration(
+      nowDt,
+      Duration.days(plant.wateringFrequencyDays)
     )
+    const nextWateringAt = DateTime.toDateUtc(nextWateringDt)
 
     // Update the plant with watering info
     const updatedPlant = yield* repo.update(request.id, {

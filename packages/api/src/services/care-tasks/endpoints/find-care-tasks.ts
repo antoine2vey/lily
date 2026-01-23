@@ -2,47 +2,95 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { CareTask, CareTasksResponse } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
 
-// Helper to get start of day
-const startOfDay = (date: Date): Date => {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
+/**
+ * Get start of day (00:00:00.000) for a DateTime
+ */
+const startOfDay = (dt: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dt)
+  return DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    millis: 0,
+  })
 }
 
-// Helper to get end of day
-const endOfDay = (date: Date): Date => {
-  const d = new Date(date)
-  d.setHours(23, 59, 59, 999)
-  return d
+/**
+ * Get end of day (23:59:59.999) for a DateTime
+ */
+const endOfDay = (dt: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dt)
+  return DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hours: 23,
+    minutes: 59,
+    seconds: 59,
+    millis: 999,
+  })
 }
 
-// Helper to get end of week (Sunday)
-const getEndOfWeek = (date: Date): Date => {
-  const d = new Date(date)
-  const dayOfWeek = d.getDay()
+/**
+ * Get end of week (Sunday 23:59:59.999) for a DateTime
+ */
+const getEndOfWeek = (dt: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dt)
+  const dayOfWeek = parts.weekDay // 0 = Sunday, 1 = Monday, etc.
   const daysUntilSunday = 7 - dayOfWeek
-  d.setDate(d.getDate() + daysUntilSunday)
-  d.setHours(23, 59, 59, 999)
-  return d
+
+  // Add days to get to Sunday
+  const sundayDate = DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day + daysUntilSunday,
+    hours: 23,
+    minutes: 59,
+    seconds: 59,
+    millis: 999,
+  })
+
+  return sundayDate
 }
 
-// Check if date is before start of today
-const isOverdue = (date: Date, today: Date): boolean =>
-  date.getTime() < startOfDay(today).getTime()
+/**
+ * Check if date is before start of today (overdue)
+ */
+const isOverdue = (
+  date: DateTime.DateTime,
+  today: DateTime.DateTime
+): boolean => DateTime.lessThan(date, startOfDay(today))
 
-// Check if date is today
-const isToday = (date: Date, today: Date): boolean => {
+/**
+ * Check if date is today
+ */
+const isToday = (
+  date: DateTime.DateTime,
+  today: DateTime.DateTime
+): boolean => {
   const start = startOfDay(today)
   const end = endOfDay(today)
-  return date.getTime() >= start.getTime() && date.getTime() <= end.getTime()
+  return (
+    DateTime.greaterThanOrEqualTo(date, start) &&
+    DateTime.lessThanOrEqualTo(date, end)
+  )
 }
 
-// Check if date is this week (after today, before end of week)
-const isThisWeek = (date: Date, today: Date, endOfWeek: Date): boolean => {
-  const afterToday = date.getTime() > endOfDay(today).getTime()
-  const beforeEndOfWeek = date.getTime() <= endOfWeek.getTime()
+/**
+ * Check if date is this week (after today, before end of week)
+ */
+const isThisWeek = (
+  date: DateTime.DateTime,
+  today: DateTime.DateTime,
+  endOfWeek: DateTime.DateTime
+): boolean => {
+  const afterToday = DateTime.greaterThan(date, endOfDay(today))
+  const beforeEndOfWeek = DateTime.lessThanOrEqualTo(date, endOfWeek)
   return afterToday && beforeEndOfWeek
 }
 
@@ -54,7 +102,9 @@ interface PlantWithSchedule {
   nextFertilizationAt: Date | null
 }
 
-// Create task from plant and date
+/**
+ * Create task from plant and date
+ */
 const createTask = (
   plant: PlantWithSchedule,
   type: 'water' | 'fertilize',
@@ -69,7 +119,17 @@ const createTask = (
   completed: false,
 })
 
-// Get care tasks grouped by overdue, today, thisWeek
+/**
+ * Order for sorting tasks by due date (earliest first)
+ */
+const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
+  Order.number,
+  (task: CareTask) => DateTime.toEpochMillis(DateTime.unsafeMake(task.dueDate))
+)
+
+/**
+ * Get care tasks grouped by overdue, today, thisWeek
+ */
 export const findCareTasks = (): Effect.Effect<
   CareTasksResponse,
   SqlError,
@@ -79,11 +139,12 @@ export const findCareTasks = (): Effect.Effect<
     const repo = yield* PlantRepository
     const { id: userId } = yield* CurrentUser
 
-    const now = new Date()
-    const endOfWeek = getEndOfWeek(now)
+    const now = DateTime.unsafeNow()
+    const endOfWeekDt = getEndOfWeek(now)
+    const endOfWeekDate = DateTime.toDateUtc(endOfWeekDt)
 
     // Get plants with pending care
-    const plants = yield* repo.findPlantsWithPendingCare(userId, endOfWeek)
+    const plants = yield* repo.findPlantsWithPendingCare(userId, endOfWeekDate)
 
     // Generate tasks from plants
     const tasks: CareTask[] = []
@@ -93,7 +154,8 @@ export const findCareTasks = (): Effect.Effect<
       pipe(
         Option.fromNullable(plant.nextWateringAt),
         Option.map((date) => {
-          if (date.getTime() <= endOfWeek.getTime()) {
+          const dateDt = DateTime.unsafeMake(date)
+          if (DateTime.lessThanOrEqualTo(dateDt, endOfWeekDt)) {
             tasks.push(createTask(plant, 'water', date))
           }
         })
@@ -103,7 +165,8 @@ export const findCareTasks = (): Effect.Effect<
       pipe(
         Option.fromNullable(plant.nextFertilizationAt),
         Option.map((date) => {
-          if (date.getTime() <= endOfWeek.getTime()) {
+          const dateDt = DateTime.unsafeMake(date)
+          if (DateTime.lessThanOrEqualTo(dateDt, endOfWeekDt)) {
             tasks.push(createTask(plant, 'fertilize', date))
           }
         })
@@ -111,19 +174,20 @@ export const findCareTasks = (): Effect.Effect<
     })
 
     // Group tasks by date category
-    const overdue = Array.filter(tasks, (task) => isOverdue(task.dueDate, now))
-    const today = Array.filter(tasks, (task) => isToday(task.dueDate, now))
+    const overdue = Array.filter(tasks, (task) =>
+      isOverdue(DateTime.unsafeMake(task.dueDate), now)
+    )
+    const today = Array.filter(tasks, (task) =>
+      isToday(DateTime.unsafeMake(task.dueDate), now)
+    )
     const thisWeek = Array.filter(tasks, (task) =>
-      isThisWeek(task.dueDate, now, endOfWeek)
+      isThisWeek(DateTime.unsafeMake(task.dueDate), now, endOfWeekDt)
     )
 
     // Sort each group by due date (earliest first)
-    const sortByDueDate = (a: CareTask, b: CareTask) =>
-      a.dueDate.getTime() - b.dueDate.getTime()
-
     return {
-      overdue: [...overdue].sort(sortByDueDate),
-      today: [...today].sort(sortByDueDate),
-      thisWeek: [...thisWeek].sort(sortByDueDate),
+      overdue: Array.sort(overdue, taskDueDateOrder),
+      today: Array.sort(today, taskDueDateOrder),
+      thisWeek: Array.sort(thisWeek, taskDueDateOrder),
     }
   })
