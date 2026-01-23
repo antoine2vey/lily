@@ -68,62 +68,104 @@ describe('AuthContext', () => {
       }).toThrow('useAuth must be used within an AuthProvider')
     })
 
-    it('provides auth state', () => {
+    it('provides auth state', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(result.current.state).toBeDefined()
       expect(result.current.state._tag).toBeDefined()
     })
 
-    it('provides login function', () => {
+    it('provides login function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.login).toBe('function')
     })
 
-    it('provides verifyMagicLink function', () => {
+    it('provides verifyMagicLink function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.verifyMagicLink).toBe('function')
     })
 
-    it('provides setUsername function', () => {
+    it('provides setUsername function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.setUsername).toBe('function')
     })
 
-    it('provides logout function', () => {
+    it('provides logout function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.logout).toBe('function')
     })
 
-    it('provides refreshUser function', () => {
+    it('provides refreshUser function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.refreshUser).toBe('function')
     })
 
-    it('provides pendingEmail state', () => {
+    it('provides pendingEmail state', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(result.current.pendingEmail).toBeDefined()
     })
   })
 
   describe('AuthProvider', () => {
-    it('renders children', () => {
+    it('renders children', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(result.current).toBeTruthy()
     })
 
-    it('initializes with Loading state', () => {
+    it('transitions from Loading to Unauthenticated', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
-      // Initially may be Loading then transitions
-      expect(
-        ['Loading', 'Unauthenticated', 'Authenticated'].includes(
-          result.current.state._tag
-        )
-      ).toBe(true)
+
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Unauthenticated')
+      })
     })
 
-    it('initializes pendingEmail as null', () => {
+    it('initializes pendingEmail as null', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
-      // pendingEmail starts as null unless restored from storage
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(
         result.current.pendingEmail === null ||
           typeof result.current.pendingEmail === 'string'
@@ -138,14 +180,23 @@ describe('AuthContext', () => {
 
       const { result } = renderHook(() => useAuth(), { wrapper })
 
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       // Login returns a promise
       expect(result.current.login('test@example.com')).toBeInstanceOf(Promise)
     })
   })
 
   describe('logout function', () => {
-    it('provides logout function', () => {
+    it('provides logout function', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).not.toBe('Loading')
+      })
+
       expect(typeof result.current.logout).toBe('function')
     })
   })
