@@ -2,6 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { GallerySection } from '../GallerySection'
 
 describe('GallerySection', () => {
+  const mockOnPhotoPress = jest.fn()
+  const mockOnAddPhoto = jest.fn()
+  const mockOnSeeAll = jest.fn()
+
   const mockPhotos = [
     {
       id: 'photo-1',
@@ -15,53 +19,117 @@ describe('GallerySection', () => {
     },
   ]
 
-  const defaultProps = {
-    photos: mockPhotos,
-    onPhotoPress: jest.fn(),
-    onAddPhoto: jest.fn(),
-    onSeeAll: jest.fn(),
-  }
-
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders section header', () => {
-    render(<GallerySection {...defaultProps} />)
+  it('renders gallery section', () => {
+    render(
+      <GallerySection
+        photos={mockPhotos}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
+    expect(screen.getByTestId('gallery-section')).toBeTruthy()
+  })
+
+  it('displays section header', () => {
+    render(
+      <GallerySection
+        photos={mockPhotos}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
     expect(screen.getByText('Gallery')).toBeTruthy()
   })
 
-  it('renders add photo button first', () => {
-    render(<GallerySection {...defaultProps} />)
+  it('shows see all link when photos exist', () => {
+    render(
+      <GallerySection
+        photos={mockPhotos}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
+    expect(screen.getByText('See All')).toBeTruthy()
+  })
+
+  it('hides see all when no photos', () => {
+    render(
+      <GallerySection
+        photos={[]}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
+    expect(screen.queryByText('See All')).toBeNull()
+  })
+
+  it('renders add photo button', () => {
+    render(
+      <GallerySection
+        photos={[]}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
     expect(screen.getByTestId('add-photo-button')).toBeTruthy()
   })
 
-  it('renders photo thumbnails', () => {
-    render(<GallerySection {...defaultProps} />)
-    expect(screen.getByTestId('photo-photo-1')).toBeTruthy()
-    expect(screen.getByTestId('photo-photo-2')).toBeTruthy()
-  })
-
-  it('calls onPhotoPress when photo tapped', () => {
-    render(<GallerySection {...defaultProps} />)
-    fireEvent.press(screen.getByTestId('photo-photo-1'))
-    expect(defaultProps.onPhotoPress).toHaveBeenCalledWith('photo-1')
-  })
-
   it('calls onAddPhoto when add button pressed', () => {
-    render(<GallerySection {...defaultProps} />)
+    render(
+      <GallerySection
+        photos={[]}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
     fireEvent.press(screen.getByTestId('add-photo-button'))
-    expect(defaultProps.onAddPhoto).toHaveBeenCalledTimes(1)
+
+    expect(mockOnAddPhoto).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onSeeAll when header action pressed', () => {
-    render(<GallerySection {...defaultProps} />)
+  it('calls onPhotoPress when photo is pressed', () => {
+    render(
+      <GallerySection
+        photos={mockPhotos}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
+    fireEvent.press(screen.getByTestId('photo-photo-1'))
+
+    expect(mockOnPhotoPress).toHaveBeenCalledWith('photo-1')
+  })
+
+  it('calls onSeeAll when see all is pressed', () => {
+    render(
+      <GallerySection
+        photos={mockPhotos}
+        onPhotoPress={mockOnPhotoPress}
+        onAddPhoto={mockOnAddPhoto}
+        onSeeAll={mockOnSeeAll}
+      />
+    )
+
     fireEvent.press(screen.getByText('See All'))
-    expect(defaultProps.onSeeAll).toHaveBeenCalledTimes(1)
-  })
 
-  it('does not show See All when no photos', () => {
-    render(<GallerySection {...defaultProps} photos={[]} />)
-    expect(screen.queryByText('See All')).toBeNull()
+    expect(mockOnSeeAll).toHaveBeenCalledTimes(1)
   })
 })

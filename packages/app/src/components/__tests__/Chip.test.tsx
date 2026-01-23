@@ -3,52 +3,65 @@ import { Text } from 'react-native'
 import { Chip } from '../Chip'
 
 describe('Chip', () => {
-  it('renders label', () => {
-    render(<Chip label="All" />)
-    expect(screen.getByText('All')).toBeTruthy()
+  it('renders label text', () => {
+    render(<Chip label="Filter" />)
+    expect(screen.getByText('Filter')).toBeTruthy()
   })
 
-  it('renders unselected state with border', () => {
-    const { toJSON } = render(<Chip label="Healthy" selected={false} />)
+  it('renders with filter variant by default', () => {
+    const { toJSON } = render(<Chip label="Filter" />)
     expect(toJSON()).toBeTruthy()
   })
 
-  it('renders selected state with fill', () => {
-    const { toJSON } = render(<Chip label="All" selected />)
+  it('renders with input variant', () => {
+    const { toJSON } = render(<Chip label="Input" variant="input" />)
     expect(toJSON()).toBeTruthy()
   })
 
-  it('renders icon when provided', () => {
-    render(
-      <Chip label="Watering" icon={<Text testID="chip-icon">Icon</Text>} />
-    )
-    expect(screen.getByTestId('chip-icon')).toBeTruthy()
+  it('renders with suggestion variant', () => {
+    const { toJSON } = render(<Chip label="Suggestion" variant="suggestion" />)
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders unselected state by default', () => {
+    const { toJSON } = render(<Chip label="Chip" />)
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders selected state', () => {
+    const { toJSON } = render(<Chip label="Chip" selected />)
+    expect(toJSON()).toBeTruthy()
   })
 
   it('calls onPress when pressed', () => {
     const onPress = jest.fn()
-    render(<Chip label="Filter" onPress={onPress} />)
-    fireEvent.press(screen.getByText('Filter'))
+    render(<Chip label="Pressable" onPress={onPress} />)
+
+    fireEvent.press(screen.getByText('Pressable'))
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
   it('does not call onPress when disabled', () => {
     const onPress = jest.fn()
-    render(<Chip label="Filter" onPress={onPress} disabled />)
-    fireEvent.press(screen.getByText('Filter'))
+    render(<Chip label="Disabled" onPress={onPress} disabled />)
+
+    fireEvent.press(screen.getByText('Disabled'))
     expect(onPress).not.toHaveBeenCalled()
   })
 
-  it('renders different variants', () => {
-    const { rerender, toJSON } = render(
-      <Chip label="Filter" variant="filter" />
-    )
-    expect(toJSON()).toBeTruthy()
+  it('renders with icon', () => {
+    const icon = <Text testID="chip-icon">Icon</Text>
+    render(<Chip label="With Icon" icon={icon} />)
+    expect(screen.getByTestId('chip-icon')).toBeTruthy()
+  })
 
-    rerender(<Chip label="Input" variant="input" />)
+  it('applies disabled opacity', () => {
+    const { toJSON } = render(<Chip label="Disabled" disabled />)
     expect(toJSON()).toBeTruthy()
+  })
 
-    rerender(<Chip label="Suggestion" variant="suggestion" />)
+  it('does not wrap in Pressable when no onPress provided', () => {
+    const { toJSON } = render(<Chip label="Static" />)
     expect(toJSON()).toBeTruthy()
   })
 })

@@ -56,6 +56,7 @@ export function SubscriptionPayScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3">
         <Pressable
+          testID="close-button"
           onPress={() => router.back()}
           className="w-10 h-10 items-center justify-center"
         >

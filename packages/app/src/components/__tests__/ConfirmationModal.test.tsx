@@ -5,56 +5,50 @@ import { ConfirmationModal } from '../ConfirmationModal'
 describe('ConfirmationModal', () => {
   const defaultProps = {
     visible: true,
-    title: 'Delete Plant',
-    message: 'Are you sure you want to delete this plant?',
+    title: 'Confirm Action',
+    message: 'Are you sure you want to proceed?',
     onConfirm: jest.fn(),
     onCancel: jest.fn(),
   }
 
-  it('renders when visible', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('renders title', () => {
     render(<ConfirmationModal {...defaultProps} />)
-    expect(screen.getByText('Delete Plant')).toBeTruthy()
-    expect(
-      screen.getByText('Are you sure you want to delete this plant?')
-    ).toBeTruthy()
+    expect(screen.getByText('Confirm Action')).toBeTruthy()
   })
 
-  it('does not render when not visible', () => {
-    render(<ConfirmationModal {...defaultProps} visible={false} />)
-    expect(screen.queryByText('Delete Plant')).toBeNull()
-  })
-
-  it('renders icon when provided', () => {
-    render(
-      <ConfirmationModal
-        {...defaultProps}
-        icon={<Text testID="modal-icon">Icon</Text>}
-      />
-    )
-    expect(screen.getByTestId('modal-icon')).toBeTruthy()
-  })
-
-  it('renders title and message', () => {
+  it('renders message', () => {
     render(<ConfirmationModal {...defaultProps} />)
-    expect(screen.getByText('Delete Plant')).toBeTruthy()
-    expect(
-      screen.getByText('Are you sure you want to delete this plant?')
-    ).toBeTruthy()
+    expect(screen.getByText('Are you sure you want to proceed?')).toBeTruthy()
   })
 
-  it('renders confirm button', () => {
+  it('renders default confirm label', () => {
     render(<ConfirmationModal {...defaultProps} />)
     expect(screen.getByText('Confirm')).toBeTruthy()
   })
 
-  it('renders cancel button', () => {
+  it('renders default cancel label', () => {
     render(<ConfirmationModal {...defaultProps} />)
     expect(screen.getByText('Cancel')).toBeTruthy()
+  })
+
+  it('renders custom confirm label', () => {
+    render(<ConfirmationModal {...defaultProps} confirmLabel="Delete" />)
+    expect(screen.getByText('Delete')).toBeTruthy()
+  })
+
+  it('renders custom cancel label', () => {
+    render(<ConfirmationModal {...defaultProps} cancelLabel="Go Back" />)
+    expect(screen.getByText('Go Back')).toBeTruthy()
   })
 
   it('calls onConfirm when confirm pressed', () => {
     const onConfirm = jest.fn()
     render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} />)
+
     fireEvent.press(screen.getByText('Confirm'))
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
@@ -62,26 +56,42 @@ describe('ConfirmationModal', () => {
   it('calls onCancel when cancel pressed', () => {
     const onCancel = jest.fn()
     render(<ConfirmationModal {...defaultProps} onCancel={onCancel} />)
+
     fireEvent.press(screen.getByText('Cancel'))
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
-  it('shows destructive confirm button style when destructive=true', () => {
+  it('renders with destructive variant', () => {
     const { toJSON } = render(
       <ConfirmationModal {...defaultProps} destructive />
     )
     expect(toJSON()).toBeTruthy()
   })
 
-  it('renders custom button labels', () => {
-    render(
+  it('renders icon when provided', () => {
+    const icon = <Text testID="modal-icon">Icon</Text>
+    render(<ConfirmationModal {...defaultProps} icon={icon} />)
+    expect(screen.getByTestId('modal-icon')).toBeTruthy()
+  })
+
+  it('does not render content when not visible', () => {
+    const { queryByText } = render(
+      <ConfirmationModal {...defaultProps} visible={false} />
+    )
+    // Content should not be rendered when modal is not visible
+    expect(queryByText('Confirm Action')).toBeNull()
+  })
+
+  it('renders with all props', () => {
+    const { toJSON } = render(
       <ConfirmationModal
         {...defaultProps}
-        confirmLabel="Delete"
-        cancelLabel="Keep"
+        confirmLabel="Yes, Delete"
+        cancelLabel="No, Keep"
+        destructive
+        icon={<Text>Icon</Text>}
       />
     )
-    expect(screen.getByText('Delete')).toBeTruthy()
-    expect(screen.getByText('Keep')).toBeTruthy()
+    expect(toJSON()).toBeTruthy()
   })
 })

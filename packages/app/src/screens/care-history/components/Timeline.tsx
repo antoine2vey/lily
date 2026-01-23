@@ -26,6 +26,7 @@ interface TimelineGroup {
 interface TimelineProps {
   groups: TimelineGroup[]
   onEventPress: (event: CareEvent) => void
+  testID?: string
 }
 
 const getEventColor = (type: CareEventType): string => {
@@ -40,11 +41,11 @@ const getEventColor = (type: CareEventType): string => {
   return colorMap[type]
 }
 
-export function Timeline({ groups, onEventPress }: TimelineProps) {
+export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
   const totalGroups = groups.length
 
   return (
-    <View>
+    <View testID={testID}>
       {pipe(
         groups,
         Array.map((group, groupIndex) => (

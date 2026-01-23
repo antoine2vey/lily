@@ -1,5 +1,9 @@
 import '@testing-library/jest-native/extend-expect'
 
+// Import all module mocks
+import './mocks/expo-modules'
+import './mocks/navigation'
+
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
 

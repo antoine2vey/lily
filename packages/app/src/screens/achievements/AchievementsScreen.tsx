@@ -48,7 +48,11 @@ export function AchievementsScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
+          <ActivityIndicator
+            testID="activity-indicator"
+            size="large"
+            color={iconColors.primary}
+          />
         </View>
       </SafeAreaView>
     )
@@ -107,6 +111,7 @@ export function AchievementsScreen() {
           </Text>
           <View className="w-full mt-4 px-8">
             <ProgressBar
+              testID="progress-bar"
               progress={progress}
               height={8}
               color={iconColors.achievementGold}

@@ -3,70 +3,102 @@ import { Text } from 'react-native'
 import { Card } from '../Card'
 
 describe('Card', () => {
-  it('renders children', () => {
+  it('renders children content', () => {
     render(
       <Card>
-        <Text>Card content</Text>
+        <Text>Card Content</Text>
       </Card>
     )
-    expect(screen.getByText('Card content')).toBeTruthy()
+    expect(screen.getByText('Card Content')).toBeTruthy()
   })
 
-  it('applies elevated shadow by default', () => {
+  it('renders with elevated variant by default', () => {
     const { toJSON } = render(
       <Card>
         <Text>Content</Text>
       </Card>
     )
-    const tree = toJSON()
-    expect(tree).toBeTruthy()
+    expect(toJSON()).toBeTruthy()
   })
 
-  it('renders outlined variant with border', () => {
+  it('renders with outlined variant', () => {
     const { toJSON } = render(
       <Card variant="outlined">
         <Text>Content</Text>
       </Card>
     )
-    const tree = toJSON()
-    expect(tree).toBeTruthy()
+    expect(toJSON()).toBeTruthy()
   })
 
-  it('handles press when onPress provided', () => {
+  it('renders with filled variant', () => {
+    const { toJSON } = render(
+      <Card variant="filled">
+        <Text>Content</Text>
+      </Card>
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders with no padding', () => {
+    const { toJSON } = render(
+      <Card padding="none">
+        <Text>Content</Text>
+      </Card>
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders with sm padding', () => {
+    const { toJSON } = render(
+      <Card padding="sm">
+        <Text>Content</Text>
+      </Card>
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders with md padding (default)', () => {
+    const { toJSON } = render(
+      <Card padding="md">
+        <Text>Content</Text>
+      </Card>
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders with lg padding', () => {
+    const { toJSON } = render(
+      <Card padding="lg">
+        <Text>Content</Text>
+      </Card>
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('calls onPress when pressed', () => {
     const onPress = jest.fn()
     render(
       <Card onPress={onPress}>
         <Text>Pressable Card</Text>
       </Card>
     )
+
     fireEvent.press(screen.getByText('Pressable Card'))
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
-  it('applies correct padding for each size', () => {
-    const { rerender, toJSON } = render(
-      <Card padding="sm">
-        <Text>Content</Text>
+  it('does not wrap in Pressable when no onPress provided', () => {
+    const { toJSON } = render(
+      <Card>
+        <Text>Non-pressable Card</Text>
       </Card>
     )
     expect(toJSON()).toBeTruthy()
+  })
 
-    rerender(
-      <Card padding="md">
-        <Text>Content</Text>
-      </Card>
-    )
-    expect(toJSON()).toBeTruthy()
-
-    rerender(
-      <Card padding="lg">
-        <Text>Content</Text>
-      </Card>
-    )
-    expect(toJSON()).toBeTruthy()
-
-    rerender(
-      <Card padding="none">
+  it('applies custom style', () => {
+    const { toJSON } = render(
+      <Card style={{ marginTop: 10 }}>
         <Text>Content</Text>
       </Card>
     )

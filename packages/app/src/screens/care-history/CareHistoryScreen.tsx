@@ -66,7 +66,11 @@ export function CareHistoryScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
+          <ActivityIndicator
+            testID="activity-indicator"
+            size="large"
+            color={iconColors.primary}
+          />
         </View>
       </SafeAreaView>
     )
@@ -97,6 +101,7 @@ export function CareHistoryScreen() {
           )}
         </View>
         <Pressable
+          testID="filter-button"
           onPress={() => setShowFilterSheet(true)}
           className="w-10 h-10 items-center justify-center"
         >
@@ -124,7 +129,11 @@ export function CareHistoryScreen() {
             description="Start logging care activities to see them here"
           />
         ) : (
-          <Timeline groups={filteredHistory} onEventPress={handleEventPress} />
+          <Timeline
+            testID="timeline"
+            groups={filteredHistory}
+            onEventPress={handleEventPress}
+          />
         )}
         {/* Bottom spacer for FAB */}
         <View className="h-24" />
@@ -132,6 +141,7 @@ export function CareHistoryScreen() {
 
       {/* FAB */}
       <Pressable
+        testID="add-log-fab"
         onPress={handleAddLog}
         className="absolute bottom-6 right-6 w-14 h-14 rounded-full items-center justify-center bg-primary shadow-lg"
         style={({ pressed }) => ({

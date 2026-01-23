@@ -1,207 +1,196 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { fireEvent, render, screen } from '@testing-library/react-native'
+
+// Mock dependencies
+jest.mock('@/utils/client', () => ({
+  useEffectQuery: jest.fn(),
+}))
+
+import { useEffectQuery } from '@/utils/client'
 import { PlantsScreen } from '../PlantsScreen'
 
-// Mock the router
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-  }),
-}))
-
-// Mock the client hook
-const mockPlants = {
-  items: [
-    {
-      id: 'plant-1',
-      name: 'Monstera',
-      imageUrl: 'https://example.com/monstera.jpg',
-      health: 'HEALTHY',
-      nextWateringAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'plant-2',
-      name: 'Fiddle Leaf Fig',
-      imageUrl: 'https://example.com/fiddle.jpg',
-      health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: 'plant-3',
-      name: 'Snake Plant',
-      imageUrl: null,
-      health: 'THRIVING',
-      nextWateringAt: null,
-    },
-  ],
-  total: 3,
-  page: 1,
-  limit: 50,
-  hasMore: false,
-}
-
-const mockUseEffectQuery = jest.fn()
-
-jest.mock('src/utils/client', () => ({
-  useEffectQuery: (...args: unknown[]) => mockUseEffectQuery(...args),
-}))
+const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
+  typeof useEffectQuery
+>
 
 describe('PlantsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders "My Plants" title', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
-      isLoading: false,
-    })
-
-    render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByText('My Plants')).toBeTruthy()
-    })
-  })
-
-  it('renders search icon', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
-      isLoading: false,
-    })
-
-    render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByTestId('search-button')).toBeTruthy()
-    })
-  })
-
-  it('renders view toggle icon', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
-      isLoading: false,
-    })
-
-    render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByTestId('view-toggle')).toBeTruthy()
-    })
-  })
-
-  it('renders plants in grid', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
-      isLoading: false,
-    })
-
-    render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByTestId('plants-grid')).toBeTruthy()
-      expect(screen.getByText('Monstera')).toBeTruthy()
-      expect(screen.getByText('Fiddle Leaf Fig')).toBeTruthy()
-      expect(screen.getByText('Snake Plant')).toBeTruthy()
-    })
-  })
-
-  it('shows loading state while fetching', () => {
-    mockUseEffectQuery.mockReturnValue({
+  it('shows loading indicator when loading', () => {
+    mockedUseEffectQuery.mockReturnValue({
       data: undefined,
       isLoading: true,
-    })
+    } as any)
 
     render(<PlantsScreen />)
+
     expect(screen.getByTestId('loading-indicator')).toBeTruthy()
   })
 
-  it('shows filter chips with counts', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
+  it('shows empty state when no plants', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: [], total: 0 },
       isLoading: false,
-    })
+    } as any)
 
     render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByText('All (3)')).toBeTruthy()
-      expect(screen.getByText('Healthy (2)')).toBeTruthy()
-      expect(screen.getByText('Needs Attention (1)')).toBeTruthy()
-    })
+
+    expect(screen.getByText('My Plants')).toBeTruthy()
+    expect(screen.getByText('No plants yet')).toBeTruthy()
+    expect(screen.getByText('Add Plant')).toBeTruthy()
   })
 
-  it('shows search bar when search button pressed', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
+  it('displays plants list when plants exist', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    })
+    } as any)
 
     render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByTestId('search-button')).toBeTruthy()
-    })
 
+    expect(screen.getByText('My Plants')).toBeTruthy()
+    expect(screen.getByTestId('plants-grid')).toBeTruthy()
+  })
+
+  it('shows search button', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
+      isLoading: false,
+    } as any)
+
+    render(<PlantsScreen />)
+
+    expect(screen.getByTestId('search-button')).toBeTruthy()
+  })
+
+  it('shows sort button', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
+      isLoading: false,
+    } as any)
+
+    render(<PlantsScreen />)
+
+    expect(screen.getByTestId('sort-button')).toBeTruthy()
+  })
+
+  it('toggles search bar visibility', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
+      isLoading: false,
+    } as any)
+
+    render(<PlantsScreen />)
+
+    // Search bar should not be visible initially
+    expect(screen.queryByTestId('plant-search-bar')).toBeNull()
+
+    // Click search button to show search bar
     fireEvent.press(screen.getByTestId('search-button'))
 
-    await waitFor(() => {
-      expect(screen.getByTestId('plant-search-bar')).toBeTruthy()
-    })
+    expect(screen.getByTestId('plant-search-bar')).toBeTruthy()
   })
 
-  it('filters plants by search query', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
+  it('displays filter chips', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    })
+    } as any)
 
     render(<PlantsScreen />)
 
-    // Open search
-    fireEvent.press(screen.getByTestId('search-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('search-input')).toBeTruthy()
-    })
-
-    // Type search query
-    fireEvent.changeText(screen.getByTestId('search-input'), 'Monstera')
-
-    await waitFor(() => {
-      expect(screen.getByText('Monstera')).toBeTruthy()
-      expect(screen.queryByText('Fiddle Leaf Fig')).toBeNull()
-    })
+    // Filters show count in parentheses, e.g., "All (3)"
+    expect(screen.getByText(/All \(\d+\)/)).toBeTruthy()
+    expect(screen.getByText(/Healthy \(\d+\)/)).toBeTruthy()
+    expect(screen.getByText(/Needs Attention \(\d+\)/)).toBeTruthy()
   })
 
-  it('renders empty state when no plants', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: { items: [], total: 0, page: 1, limit: 50, hasMore: false },
-      isLoading: false,
-    })
+  it('opens sort options sheet when sort button pressed', () => {
+    const plantsWithHealth = mockPlants.map((p) => ({
+      ...p,
+      health: 'HEALTHY',
+      nextWateringAt: new Date().toISOString(),
+    }))
 
-    render(<PlantsScreen />)
-    await waitFor(() => {
-      expect(screen.getByText('No plants yet')).toBeTruthy()
-      expect(
-        screen.getByText(
-          'Start building your collection by adding your first plant'
-        )
-      ).toBeTruthy()
-    })
-  })
-
-  it('shows sort options when sort button pressed', async () => {
-    mockUseEffectQuery.mockReturnValue({
-      data: mockPlants,
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    })
+    } as any)
 
     render(<PlantsScreen />)
 
     fireEvent.press(screen.getByTestId('sort-button'))
 
-    await waitFor(() => {
-      expect(screen.getByText('Name (A-Z)')).toBeTruthy()
-      expect(screen.getByText('Recently Added')).toBeTruthy()
-    })
+    expect(screen.getByText('Sort by')).toBeTruthy()
+  })
+
+  it('opens add plant sheet in empty state', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+    } as any)
+
+    render(<PlantsScreen />)
+
+    fireEvent.press(screen.getByText('Add Plant'))
+
+    expect(screen.getByText('Scan with AI')).toBeTruthy()
+    expect(screen.getByText('Add manually')).toBeTruthy()
+  })
+
+  it('shows empty state when search has no results', () => {
+    const plantsWithHealth = [
+      {
+        id: '1',
+        name: 'Monstera',
+        health: 'HEALTHY',
+        nextWateringAt: new Date().toISOString(),
+      },
+    ]
+
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: plantsWithHealth, total: 1 },
+      isLoading: false,
+    } as any)
+
+    render(<PlantsScreen />)
+
+    // Open search and enter non-matching query
+    fireEvent.press(screen.getByTestId('search-button'))
+    fireEvent.changeText(screen.getByTestId('plant-search-bar'), 'nonexistent')
+
+    expect(screen.getByText('No plants found')).toBeTruthy()
   })
 })

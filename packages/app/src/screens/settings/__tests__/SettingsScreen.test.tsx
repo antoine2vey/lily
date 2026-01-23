@@ -1,141 +1,261 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    navigate: vi.fn(),
-  }),
+// Mock dependencies
+jest.mock('@/hooks/useUser', () => ({
+  useUser: jest.fn(),
 }))
 
-// Mock AsyncStorage
-vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: vi.fn().mockResolvedValue(null),
-    setItem: vi.fn().mockResolvedValue(undefined),
-  },
+jest.mock('@/hooks/useSubscription', () => ({
+  useSubscription: jest.fn(),
 }))
 
-// Mock Linking
-vi.mock('react-native/Libraries/Linking/Linking', () => ({
-  openURL: vi.fn(),
+jest.mock('@/hooks/useTheme', () => ({
+  useTheme: jest.fn(),
 }))
 
+jest.mock('@/hooks/useDeleteAccount', () => ({
+  useDeleteAccount: jest.fn(),
+}))
+
+import { useDeleteAccount } from '@/hooks/useDeleteAccount'
+import { useSubscription } from '@/hooks/useSubscription'
+import { useTheme } from '@/hooks/useTheme'
+import { useUser } from '@/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUseUser = useUser as jest.MockedFunction<typeof useUser>
+const mockedUseSubscription = useSubscription as jest.MockedFunction<
+  typeof useSubscription
+>
+const mockedUseTheme = useTheme as jest.MockedFunction<typeof useTheme>
+const mockedUseDeleteAccount = useDeleteAccount as jest.MockedFunction<
+  typeof useDeleteAccount
+>
 
 describe('SettingsScreen', () => {
-  it('renders header with title', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Settings')).toBeTruthy()
+  const mockSetTheme = jest.fn()
+  const mockDeleteAccount = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedUseTheme.mockReturnValue({
+      theme: 'system' as const,
+      setTheme: mockSetTheme,
     })
+    mockedUseDeleteAccount.mockReturnValue({
+      mutate: mockDeleteAccount,
+      isPending: false,
+    } as any)
   })
 
-  it('renders Account section', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Account')).toBeTruthy()
-    })
+  it('shows loading state when data is loading', () => {
+    mockedUseUser.mockReturnValue({ data: undefined, isLoading: true } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
   })
 
-  it('renders Email row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Email')).toBeTruthy()
-    })
+  it('displays settings title', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Settings')).toBeTruthy()
   })
 
-  it('renders Password row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Password')).toBeTruthy()
-    })
+  it('displays account section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Account')).toBeTruthy()
+    expect(screen.getByText('Email')).toBeTruthy()
+    expect(screen.getByText('Password')).toBeTruthy()
+    expect(screen.getByText('Subscription')).toBeTruthy()
   })
 
-  it('renders Subscription row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Subscription')).toBeTruthy()
-    })
+  it('displays appearance section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Appearance')).toBeTruthy()
+    expect(screen.getByText('Theme')).toBeTruthy()
+    expect(screen.getByText('System')).toBeTruthy()
   })
 
-  it('renders Appearance section', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Appearance')).toBeTruthy()
-    })
+  it('displays notifications section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Notifications')).toBeTruthy()
+    expect(screen.getByText('Notification Settings')).toBeTruthy()
   })
 
-  it('renders Theme row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Theme')).toBeTruthy()
-    })
+  it('displays privacy section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Privacy')).toBeTruthy()
+    expect(screen.getByText('Privacy Settings')).toBeTruthy()
   })
 
-  it('renders Notifications section', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Notifications')).toBeTruthy()
-    })
+  it('displays support section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Support')).toBeTruthy()
+    expect(screen.getByText('Help Center')).toBeTruthy()
+    expect(screen.getByText('Contact Us')).toBeTruthy()
+    expect(screen.getByText('About Lily')).toBeTruthy()
   })
 
-  it('renders Privacy section', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Privacy')).toBeTruthy()
-    })
+  it('displays account actions section', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Account Actions')).toBeTruthy()
+    expect(screen.getByText('Sign Out')).toBeTruthy()
+    expect(screen.getByText('Delete Account')).toBeTruthy()
   })
 
-  it('renders Support section', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Support')).toBeTruthy()
-    })
+  it('shows delete confirmation modal when delete account is pressed', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    fireEvent.press(screen.getByText('Delete Account'))
+
+    expect(screen.getByText('Delete Account?')).toBeTruthy()
+    expect(screen.getByText(/This will permanently delete/)).toBeTruthy()
   })
 
-  it('renders Help Center row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Help Center')).toBeTruthy()
-    })
+  it('displays premium badge for premium users', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'premium', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Premium')).toBeTruthy()
   })
 
-  it('renders Contact Us row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Contact Us')).toBeTruthy()
-    })
+  it('displays trial badge for trialing users', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'premium', status: 'trialing' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Trial')).toBeTruthy()
   })
 
-  it('renders About Lily row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('About Lily')).toBeTruthy()
-    })
+  it('displays version number', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
+
+    render(<SettingsScreen />)
+
+    expect(screen.getByText('Version 1.0.0')).toBeTruthy()
   })
 
-  it('renders Delete Account row', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Delete Account')).toBeTruthy()
-    })
-  })
+  it('opens theme modal when theme is pressed', () => {
+    mockedUseUser.mockReturnValue({
+      data: mockUsers[0],
+      isLoading: false,
+    } as any)
+    mockedUseSubscription.mockReturnValue({
+      data: { plan: 'free', status: 'active' },
+      isLoading: false,
+    } as any)
 
-  it('renders version number', async () => {
-    render(<SettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Version 1.0.0')).toBeTruthy()
-    })
+    render(<SettingsScreen />)
+
+    fireEvent.press(screen.getByText('Theme'))
+
+    expect(screen.getByText('Light')).toBeTruthy()
+    expect(screen.getByText('Dark')).toBeTruthy()
   })
 })

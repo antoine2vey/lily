@@ -1,0 +1,58 @@
+import { mockPlantPhotos } from '@lily/api/__tests__/fixtures/plants'
+import { renderHook } from '@testing-library/react-native'
+import {
+  createQueryWrapper,
+  mockQueryLoading,
+  mockQuerySuccess,
+} from 'src/__tests__/utils/query-helpers'
+
+// Mock the client
+jest.mock('@/utils/client', () => ({
+  useEffectQuery: jest.fn(),
+}))
+
+import { useEffectQuery } from '@/utils/client'
+import { usePhotos } from '../usePhotos'
+
+const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
+  typeof useEffectQuery
+>
+
+describe('usePhotos', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('calls useEffectQuery with correct parameters', () => {
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+
+    renderHook(() => usePhotos('plant-1'), {
+      wrapper: createQueryWrapper(),
+    })
+
+    expect(mockedUseEffectQuery).toHaveBeenCalled()
+  })
+
+  it('returns photos data when successful', () => {
+    mockedUseEffectQuery.mockReturnValue(
+      mockQuerySuccess(mockPlantPhotos) as any
+    )
+
+    const { result } = renderHook(() => usePhotos('plant-1'), {
+      wrapper: createQueryWrapper(),
+    })
+
+    expect(result.current.data).toEqual(mockPlantPhotos)
+    expect(result.current.isSuccess).toBe(true)
+  })
+
+  it('returns loading state', () => {
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+
+    const { result } = renderHook(() => usePhotos('plant-1'), {
+      wrapper: createQueryWrapper(),
+    })
+
+    expect(result.current.isLoading).toBe(true)
+  })
+})

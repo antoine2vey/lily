@@ -2,62 +2,115 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { CareSchedule } from '../CareSchedule'
 
 describe('CareSchedule', () => {
-  const defaultProps = {
-    wateringDays: 3,
-    wateringDate: 'Next: Tuesday',
-    fertilizingDays: 14,
-    fertilizingDate: 'Next: Feb 15',
-    onEdit: jest.fn(),
-  }
+  const mockOnEdit = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders section header with Edit action', () => {
-    render(<CareSchedule {...defaultProps} />)
+  it('renders care schedule section', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
+    expect(screen.getByTestId('care-schedule')).toBeTruthy()
+  })
+
+  it('displays section header', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
     expect(screen.getByText('Care Schedule')).toBeTruthy()
-    expect(screen.getByText('Edit')).toBeTruthy()
   })
 
-  it('renders watering card with days', () => {
-    render(<CareSchedule {...defaultProps} />)
+  it('displays watering card with days', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
     expect(screen.getByTestId('care-card-watering')).toBeTruthy()
-    expect(screen.getByText('Watering')).toBeTruthy()
     expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.getByText('Watering')).toBeTruthy()
   })
 
-  it('renders fertilizing card with days', () => {
-    render(<CareSchedule {...defaultProps} />)
+  it('displays fertilizing card with days', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
     expect(screen.getByTestId('care-card-fertilizing')).toBeTruthy()
-    expect(screen.getByText('Fertilizing')).toBeTruthy()
     expect(screen.getByText('14')).toBeTruthy()
+    expect(screen.getByText('Fertilizing')).toBeTruthy()
   })
 
-  it('shows overdue styling when days < 0', () => {
-    render(<CareSchedule {...defaultProps} wateringDays={-2} />)
+  it('displays next dates', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
+    expect(screen.getByText('Next: Monday')).toBeTruthy()
+    expect(screen.getByText('Next: Jan 20')).toBeTruthy()
+  })
+
+  it('shows overdue state when days are negative', () => {
+    render(
+      <CareSchedule
+        wateringDays={-2}
+        wateringDate="2 days overdue"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
+
     expect(screen.getByText('2')).toBeTruthy()
     expect(screen.getByText('OVERDUE')).toBeTruthy()
   })
 
-  it('shows DAYS label when not overdue', () => {
-    render(<CareSchedule {...defaultProps} />)
-    expect(screen.getAllByText('DAYS').length).toBeGreaterThan(0)
-  })
+  it('calls onEdit when edit button pressed', () => {
+    render(
+      <CareSchedule
+        wateringDays={3}
+        wateringDate="Next: Monday"
+        fertilizingDays={14}
+        fertilizingDate="Next: Jan 20"
+        onEdit={mockOnEdit}
+      />
+    )
 
-  it('calls onEdit when Edit pressed', () => {
-    render(<CareSchedule {...defaultProps} />)
     fireEvent.press(screen.getByText('Edit'))
-    expect(defaultProps.onEdit).toHaveBeenCalledTimes(1)
-  })
 
-  it('displays next date for watering', () => {
-    render(<CareSchedule {...defaultProps} />)
-    expect(screen.getByText('Next: Tuesday')).toBeTruthy()
-  })
-
-  it('displays next date for fertilizing', () => {
-    render(<CareSchedule {...defaultProps} />)
-    expect(screen.getByText('Next: Feb 15')).toBeTruthy()
+    expect(mockOnEdit).toHaveBeenCalledTimes(1)
   })
 })

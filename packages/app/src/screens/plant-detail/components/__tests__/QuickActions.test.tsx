@@ -2,54 +2,101 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { QuickActions } from '../QuickActions'
 
 describe('QuickActions', () => {
-  const defaultProps = {
-    onWater: jest.fn(),
-    onFertilize: jest.fn(),
-    onPhoto: jest.fn(),
-    onChat: jest.fn(),
-  }
+  const mockOnWater = jest.fn()
+  const mockOnFertilize = jest.fn()
+  const mockOnPhoto = jest.fn()
+  const mockOnChat = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('renders all 4 action buttons', () => {
-    render(<QuickActions {...defaultProps} />)
-    expect(screen.getByTestId('quick-action-water')).toBeTruthy()
-    expect(screen.getByTestId('quick-action-fertilize')).toBeTruthy()
-    expect(screen.getByTestId('quick-action-photo')).toBeTruthy()
-    expect(screen.getByTestId('quick-action-chat')).toBeTruthy()
+  it('renders quick actions container', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
+    expect(screen.getByTestId('quick-actions')).toBeTruthy()
   })
 
-  it('renders labels for all actions', () => {
-    render(<QuickActions {...defaultProps} />)
+  it('renders all action buttons', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
     expect(screen.getByText('Water')).toBeTruthy()
     expect(screen.getByText('Fertilize')).toBeTruthy()
     expect(screen.getByText('Photo')).toBeTruthy()
     expect(screen.getByText('Chat')).toBeTruthy()
   })
 
-  it('calls onWater when water pressed', () => {
-    render(<QuickActions {...defaultProps} />)
+  it('calls onWater when water button is pressed', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
     fireEvent.press(screen.getByTestId('quick-action-water'))
-    expect(defaultProps.onWater).toHaveBeenCalledTimes(1)
+
+    expect(mockOnWater).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onFertilize when fertilize pressed', () => {
-    render(<QuickActions {...defaultProps} />)
+  it('calls onFertilize when fertilize button is pressed', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
     fireEvent.press(screen.getByTestId('quick-action-fertilize'))
-    expect(defaultProps.onFertilize).toHaveBeenCalledTimes(1)
+
+    expect(mockOnFertilize).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onPhoto when photo pressed', () => {
-    render(<QuickActions {...defaultProps} />)
+  it('calls onPhoto when photo button is pressed', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
     fireEvent.press(screen.getByTestId('quick-action-photo'))
-    expect(defaultProps.onPhoto).toHaveBeenCalledTimes(1)
+
+    expect(mockOnPhoto).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onChat when chat pressed', () => {
-    render(<QuickActions {...defaultProps} />)
+  it('calls onChat when chat button is pressed', () => {
+    render(
+      <QuickActions
+        onWater={mockOnWater}
+        onFertilize={mockOnFertilize}
+        onPhoto={mockOnPhoto}
+        onChat={mockOnChat}
+      />
+    )
+
     fireEvent.press(screen.getByTestId('quick-action-chat'))
-    expect(defaultProps.onChat).toHaveBeenCalledTimes(1)
+
+    expect(mockOnChat).toHaveBeenCalledTimes(1)
   })
 })
