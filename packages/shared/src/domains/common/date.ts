@@ -151,10 +151,14 @@ export const formatShortDate = (dateTime: DateTime.DateTime): string =>
  * Check if DateTime is today.
  *
  * @param dateTime - DateTime to check
+ * @param referenceDate - Reference DateTime (defaults to now)
  * @returns true if the DateTime is today
  */
-export const isToday = (dateTime: DateTime.DateTime): boolean => {
-  const current = DateTime.unsafeNow()
+export const isToday = (
+  dateTime: DateTime.DateTime,
+  referenceDate?: DateTime.DateTime
+): boolean => {
+  const current = referenceDate ?? DateTime.unsafeNow()
   const targetParts = DateTime.toParts(dateTime)
   const currentParts = DateTime.toParts(current)
   return (
@@ -184,6 +188,101 @@ export const isOverdue = (dateTime: DateTime.DateTime): boolean => {
 export const isFuture = (dateTime: DateTime.DateTime): boolean => {
   const current = DateTime.unsafeNow()
   return DateTime.greaterThan(dateTime, current)
+}
+
+/**
+ * Get start of day (00:00:00.000) for a DateTime.
+ *
+ * @param dateTime - DateTime to get start of day for
+ * @returns DateTime at 00:00:00.000 of the same day
+ */
+export const startOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dateTime)
+  return DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    millis: 0,
+  })
+}
+
+/**
+ * Get end of day (23:59:59.999) for a DateTime.
+ *
+ * @param dateTime - DateTime to get end of day for
+ * @returns DateTime at 23:59:59.999 of the same day
+ */
+export const endOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dateTime)
+  return DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hours: 23,
+    minutes: 59,
+    seconds: 59,
+    millis: 999,
+  })
+}
+
+/**
+ * Get end of week (Sunday 23:59:59.999) for a DateTime.
+ * Week ends on Sunday.
+ *
+ * @param dateTime - DateTime to get end of week for
+ * @returns DateTime at Sunday 23:59:59.999 of the same week
+ */
+export const endOfWeek = (dateTime: DateTime.DateTime): DateTime.DateTime => {
+  const parts = DateTime.toParts(dateTime)
+  const dayOfWeek = parts.weekDay // 0 = Sunday, 1 = Monday, etc.
+  const daysUntilSunday = 7 - dayOfWeek
+
+  return DateTime.unsafeMake({
+    year: parts.year,
+    month: parts.month,
+    day: parts.day + daysUntilSunday,
+    hours: 23,
+    minutes: 59,
+    seconds: 59,
+    millis: 999,
+  })
+}
+
+/**
+ * Check if a date is before the start of today (overdue by day).
+ * Unlike isOverdue which checks against current time, this checks against start of today.
+ *
+ * @param dateTime - DateTime to check
+ * @param referenceDate - Reference DateTime (defaults to now)
+ * @returns true if the DateTime is before the start of today
+ */
+export const isOverdueByDay = (
+  dateTime: DateTime.DateTime,
+  referenceDate?: DateTime.DateTime
+): boolean => {
+  const reference = referenceDate ?? DateTime.unsafeNow()
+  return DateTime.lessThan(dateTime, startOfDay(reference))
+}
+
+/**
+ * Check if a DateTime is this week (after today, before end of week).
+ *
+ * @param dateTime - DateTime to check
+ * @param referenceDate - Reference DateTime (defaults to now)
+ * @returns true if the DateTime is this week but after today
+ */
+export const isThisWeek = (
+  dateTime: DateTime.DateTime,
+  referenceDate?: DateTime.DateTime
+): boolean => {
+  const reference = referenceDate ?? DateTime.unsafeNow()
+  const weekEnd = endOfWeek(reference)
+  const afterToday = DateTime.greaterThan(dateTime, endOfDay(reference))
+  const beforeEndOfWeek = DateTime.lessThanOrEqualTo(dateTime, weekEnd)
+  return afterToday && beforeEndOfWeek
 }
 
 /**

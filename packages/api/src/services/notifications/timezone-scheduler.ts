@@ -81,7 +81,7 @@ export const calculateScheduledAt = (
     const utcDateTime = DateTime.toDate(adjustedDateTime)
 
     // If the calculated time is in the past, add 1 day
-    const now = new Date()
+    const now = DateTime.toDateUtc(DateTime.unsafeNow())
     if (utcDateTime < now) {
       const nextDayDateTime = pipe(
         adjustedDateTime,

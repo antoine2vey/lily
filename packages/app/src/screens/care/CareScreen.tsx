@@ -8,7 +8,7 @@ import {
   formatDayOfWeek,
   parseApiDate,
 } from '@lily/shared'
-import { Array, DateTime, Match, Option, pipe } from 'effect'
+import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
 import {
@@ -253,20 +253,25 @@ export function CareScreen() {
             <View className="mt-3">
               {pipe(
                 tasks?.thisWeek ?? [],
-                Array.map((task) => (
-                  <View key={task.id}>
+                Array.groupBy((task) => formatWeekday(task.dueDate)),
+                Record.toEntries,
+                Array.map(([dayName, dayTasks]) => (
+                  <View key={dayName} className="mb-4">
                     <Text className="text-xs uppercase mb-2 font-medium text-text-muted">
-                      {formatWeekday(task.dueDate)}
+                      {dayName}
                     </Text>
-                    <CareTaskCard
-                      task={task}
-                      onCardPress={() => handleCardPress(task, 'thisWeek')}
-                      onPlantPhotoPress={() =>
-                        handlePlantPhotoPress(task.plantId)
-                      }
-                      onUndo={() => handleUndo(task.id)}
-                      isPendingCompletion={pendingTaskIds.has(task.id)}
-                    />
+                    {Array.map(dayTasks, (task) => (
+                      <CareTaskCard
+                        key={task.id}
+                        task={task}
+                        onCardPress={() => handleCardPress(task, 'thisWeek')}
+                        onPlantPhotoPress={() =>
+                          handlePlantPhotoPress(task.plantId)
+                        }
+                        onUndo={() => handleUndo(task.id)}
+                        isPendingCompletion={pendingTaskIds.has(task.id)}
+                      />
+                    ))}
                   </View>
                 ))
               )}

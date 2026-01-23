@@ -1,6 +1,6 @@
 import { getApiDateGroupLabel } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
-import { Array, DateTime, Order, pipe } from 'effect'
+import { Array, DateTime, Order, pipe, Record } from 'effect'
 import { useEffectQuery } from '@/utils/client'
 
 type BackendCareType = 'watering' | 'fertilization'
@@ -70,7 +70,7 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
   )
 
   // Convert to array and sort by date descending
-  const entries = Object.entries(grouped)
+  const entries = Record.toEntries(grouped)
   const mapped = pipe(
     entries,
     Array.map(([dateKey, events]) => {

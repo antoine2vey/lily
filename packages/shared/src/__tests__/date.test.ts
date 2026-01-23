@@ -4,6 +4,8 @@ import {
   daysBetween,
   daysUntil,
   daysUntilApiDate,
+  endOfDay,
+  endOfWeek,
   formatApiDateAsNextDate,
   formatApiRelativeTime,
   formatApiTime,
@@ -23,10 +25,13 @@ import {
   getTimeBasedGreeting,
   isFuture,
   isOverdue,
+  isOverdueByDay,
+  isThisWeek,
   isToday,
   isYesterday,
   now,
   parseApiDate,
+  startOfDay,
 } from '../domains/common/date'
 
 // Helper to create a fixed DateTime for testing
@@ -488,6 +493,208 @@ describe('Date Utilities', () => {
     it('should return false for earlier today', () => {
       const earlierToday = createFixedDateTime(2024, 6, 15, 10, 0)
       expect(isFuture(earlierToday)).toBe(false)
+    })
+  })
+
+  describe('startOfDay', () => {
+    it('should return 00:00:00.000 of the same day', () => {
+      const dateTime = createFixedDateTime(2024, 6, 15, 14, 30, 45)
+      const result = startOfDay(dateTime)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.year).toBe(2024)
+      expect(parts.month).toBe(6)
+      expect(parts.day).toBe(15)
+      expect(parts.hours).toBe(0)
+      expect(parts.minutes).toBe(0)
+      expect(parts.seconds).toBe(0)
+      expect(parts.millis).toBe(0)
+    })
+
+    it('should handle already at midnight', () => {
+      const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
+      const result = startOfDay(midnight)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.hours).toBe(0)
+      expect(parts.minutes).toBe(0)
+      expect(parts.seconds).toBe(0)
+    })
+
+    it('should handle end of day', () => {
+      const endOfDayTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
+      const result = startOfDay(endOfDayTime)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.day).toBe(15)
+      expect(parts.hours).toBe(0)
+    })
+  })
+
+  describe('endOfDay', () => {
+    it('should return 23:59:59.999 of the same day', () => {
+      const dateTime = createFixedDateTime(2024, 6, 15, 8, 0, 0)
+      const result = endOfDay(dateTime)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.year).toBe(2024)
+      expect(parts.month).toBe(6)
+      expect(parts.day).toBe(15)
+      expect(parts.hours).toBe(23)
+      expect(parts.minutes).toBe(59)
+      expect(parts.seconds).toBe(59)
+      expect(parts.millis).toBe(999)
+    })
+
+    it('should handle midnight input', () => {
+      const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
+      const result = endOfDay(midnight)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.day).toBe(15)
+      expect(parts.hours).toBe(23)
+      expect(parts.minutes).toBe(59)
+    })
+
+    it('should handle already at end of day', () => {
+      const endTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
+      const result = endOfDay(endTime)
+      const parts = DateTime.toParts(result)
+
+      expect(parts.hours).toBe(23)
+      expect(parts.minutes).toBe(59)
+      expect(parts.seconds).toBe(59)
+    })
+  })
+
+  describe('endOfWeek', () => {
+    it('should return Sunday 23:59:59.999 for a Monday', () => {
+      // June 17, 2024 is Monday
+      const monday = createFixedDateTime(2024, 6, 17, 12, 0)
+      const result = endOfWeek(monday)
+      const parts = DateTime.toParts(result)
+
+      // Should be Sunday June 23, 2024
+      expect(parts.day).toBe(23)
+      expect(parts.month).toBe(6)
+      expect(parts.hours).toBe(23)
+      expect(parts.minutes).toBe(59)
+      expect(parts.seconds).toBe(59)
+    })
+
+    it('should return same Sunday for a Sunday', () => {
+      // June 16, 2024 is Sunday
+      const sunday = createFixedDateTime(2024, 6, 16, 10, 0)
+      const result = endOfWeek(sunday)
+      const parts = DateTime.toParts(result)
+
+      // Should be end of same Sunday
+      expect(parts.day).toBe(23) // Next Sunday since weekDay 0 means 7 days until next Sunday
+      expect(parts.hours).toBe(23)
+    })
+
+    it('should return Sunday 23:59:59.999 for a Saturday', () => {
+      // June 15, 2024 is Saturday
+      const saturday = createFixedDateTime(2024, 6, 15, 12, 0)
+      const result = endOfWeek(saturday)
+      const parts = DateTime.toParts(result)
+
+      // Should be Sunday June 16, 2024
+      expect(parts.day).toBe(16)
+      expect(parts.month).toBe(6)
+      expect(parts.hours).toBe(23)
+    })
+
+    it('should handle month boundary', () => {
+      // June 26, 2024 is Wednesday
+      const wednesday = createFixedDateTime(2024, 6, 26, 12, 0)
+      const result = endOfWeek(wednesday)
+      const parts = DateTime.toParts(result)
+
+      // Should be Sunday June 30, 2024
+      expect(parts.day).toBe(30)
+      expect(parts.month).toBe(6)
+    })
+  })
+
+  describe('isOverdueByDay', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return true for dates before today', () => {
+      const yesterday = createFixedDateTime(2024, 6, 14, 23, 59)
+      expect(isOverdueByDay(yesterday)).toBe(true)
+    })
+
+    it('should return false for today (even early morning)', () => {
+      const todayMorning = createFixedDateTime(2024, 6, 15, 0, 0)
+      expect(isOverdueByDay(todayMorning)).toBe(false)
+    })
+
+    it('should return false for future dates', () => {
+      const tomorrow = createFixedDateTime(2024, 6, 16, 8, 0)
+      expect(isOverdueByDay(tomorrow)).toBe(false)
+    })
+
+    it('should use reference date when provided', () => {
+      const date = createFixedDateTime(2024, 6, 14, 12, 0)
+      const reference = createFixedDateTime(2024, 6, 13, 12, 0)
+      // June 14 is not overdue relative to June 13
+      expect(isOverdueByDay(date, reference)).toBe(false)
+    })
+
+    it('should differ from isOverdue for times within same day', () => {
+      // isOverdueByDay checks against start of day, not current time
+      const earlierToday = createFixedDateTime(2024, 6, 15, 8, 0)
+      expect(isOverdueByDay(earlierToday)).toBe(false) // Not overdue by day
+      expect(isOverdue(earlierToday)).toBe(true) // But overdue by time
+    })
+  })
+
+  describe('isThisWeek', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // June 15, 2024 is Saturday
+      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return true for tomorrow (within this week)', () => {
+      // June 16, 2024 is Sunday (end of week)
+      const sunday = createFixedDateTime(2024, 6, 16, 12, 0)
+      expect(isThisWeek(sunday)).toBe(true)
+    })
+
+    it('should return false for today', () => {
+      const today = createFixedDateTime(2024, 6, 15, 18, 0)
+      expect(isThisWeek(today)).toBe(false)
+    })
+
+    it('should return false for past dates', () => {
+      const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
+      expect(isThisWeek(yesterday)).toBe(false)
+    })
+
+    it('should return false for next week', () => {
+      // June 17, 2024 is Monday of next week
+      const nextMonday = createFixedDateTime(2024, 6, 17, 12, 0)
+      expect(isThisWeek(nextMonday)).toBe(false)
+    })
+
+    it('should use reference date when provided', () => {
+      // If reference is Monday June 17, then June 20 (Thursday) is this week
+      const reference = createFixedDateTime(2024, 6, 17, 12, 0) // Monday
+      const thursday = createFixedDateTime(2024, 6, 20, 12, 0)
+      expect(isThisWeek(thursday, reference)).toBe(true)
     })
   })
 
