@@ -7,10 +7,18 @@ describe('useOnboardingComplete', () => {
     jest.clearAllMocks()
   })
 
-  it('returns loading state initially', () => {
+  it('returns loading state initially then resolves', async () => {
+    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue(null)
+
     const { result } = renderHook(() => useOnboardingComplete())
 
+    // Initially loading
     expect(result.current.isLoading).toBe(true)
+
+    // Wait for async to complete
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
   })
 
   it('returns isComplete as false when not completed', async () => {

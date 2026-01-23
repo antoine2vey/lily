@@ -72,11 +72,16 @@ describe('useTheme', () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('app-theme', 'light')
   })
 
-  it('provides loading state', () => {
+  it('provides loading state initially then resolves', async () => {
     const { result } = renderHook(() => useTheme())
 
     // Initially loading
     expect(result.current.isLoading).toBe(true)
+
+    // Wait for async to complete
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
   })
 
   it('ignores invalid stored theme values', async () => {
