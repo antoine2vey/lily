@@ -4,11 +4,16 @@ import { View } from 'react-native'
 interface PaginationDotsProps {
   total: number
   current: number
+  testID?: string
 }
 
-export function PaginationDots({ total, current }: PaginationDotsProps) {
+export function PaginationDots({
+  total,
+  current,
+  testID,
+}: PaginationDotsProps) {
   return (
-    <View className="flex-row items-center justify-center">
+    <View testID={testID} className="flex-row items-center justify-center">
       {pipe(
         Array.range(0, total - 1),
         Array.map((index) => {

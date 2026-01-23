@@ -1,74 +1,242 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    navigate: vi.fn(),
-    goBack: vi.fn(),
-  }),
+// Mock dependencies
+jest.mock('@/hooks/useNotifications', () => ({
+  useNotifications: jest.fn(),
+  useMarkAsRead: jest.fn(),
+  useMarkAllAsRead: jest.fn(),
 }))
 
+import {
+  useMarkAllAsRead,
+  useMarkAsRead,
+  useNotifications,
+} from '@/hooks/useNotifications'
 import { NotificationsScreen } from '../NotificationsScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUseNotifications = useNotifications as jest.MockedFunction<
+  typeof useNotifications
+>
+const mockedUseMarkAsRead = useMarkAsRead as jest.MockedFunction<
+  typeof useMarkAsRead
+>
+const mockedUseMarkAllAsRead = useMarkAllAsRead as jest.MockedFunction<
+  typeof useMarkAllAsRead
+>
 
 describe('NotificationsScreen', () => {
-  it('renders header with title', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Notifications')).toBeTruthy()
-    })
+  const mockMarkAsRead = jest.fn()
+  const mockMarkAllAsRead = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedUseMarkAsRead.mockReturnValue({ mutate: mockMarkAsRead } as any)
+    mockedUseMarkAllAsRead.mockReturnValue({ mutate: mockMarkAllAsRead } as any)
   })
 
-  it('renders All and Unread tabs', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('All')).toBeTruthy()
-      expect(screen.getByText('Unread')).toBeTruthy()
-    })
+  it('shows loading state initially', () => {
+    mockedUseNotifications.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    const { toJSON } = render(<NotificationsScreen />)
+
+    // When loading, component should render something
+    expect(toJSON()).toBeTruthy()
   })
 
-  it('renders mark all read button when unread exists', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Mark all read')).toBeTruthy()
-    })
+  it('displays notifications title', () => {
+    mockedUseNotifications.mockReturnValue({
+      data: { items: mockNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('Notifications')).toBeTruthy()
   })
 
-  it('renders notification items', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Time to water!')).toBeTruthy()
-    })
+  it('displays tab filters', () => {
+    mockedUseNotifications.mockReturnValue({
+      data: { items: mockNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('All')).toBeTruthy()
+    expect(screen.getByText('Unread')).toBeTruthy()
   })
 
-  it('renders date group headers', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Today')).toBeTruthy()
-    })
+  it('shows empty state when no notifications', () => {
+    mockedUseNotifications.mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('No notifications')).toBeTruthy()
+    expect(screen.getByText('Notifications will appear here')).toBeTruthy()
   })
 
-  it('filters to unread when tab pressed', async () => {
-    render(<NotificationsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      const unreadTab = screen.getByText('Unread')
-      fireEvent.press(unreadTab)
-    })
-    // Should only show unread notifications
+  it('shows empty state for unread tab when all read', () => {
+    const allReadNotifications = mockNotifications.map((n) => ({
+      ...n,
+      isRead: true,
+    }))
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: allReadNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    fireEvent.press(screen.getByText('Unread'))
+
+    expect(screen.getByText('No unread notifications')).toBeTruthy()
+    expect(screen.getByText("You're all caught up!")).toBeTruthy()
+  })
+
+  it('displays notification items', () => {
+    const testNotifications = [
+      {
+        id: '1',
+        type: 'care_reminder',
+        title: 'Water your Monstera',
+        body: 'It has been 7 days since you watered this plant',
+        isRead: false,
+        createdAt: new Date(),
+      },
+    ]
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: testNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('Water your Monstera')).toBeTruthy()
+  })
+
+  it('shows mark all read button when unread notifications exist', () => {
+    const unreadNotifications = [
+      {
+        id: '1',
+        type: 'care_reminder',
+        title: 'Test Notification',
+        body: 'Test body',
+        isRead: false,
+        createdAt: new Date(),
+      },
+    ]
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: unreadNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('Mark all read')).toBeTruthy()
+  })
+
+  it('calls markAllAsRead when mark all read is pressed', () => {
+    const unreadNotifications = [
+      {
+        id: '1',
+        type: 'care_reminder',
+        title: 'Test Notification',
+        body: 'Test body',
+        isRead: false,
+        createdAt: new Date(),
+      },
+    ]
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: unreadNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    fireEvent.press(screen.getByText('Mark all read'))
+
+    expect(mockMarkAllAsRead).toHaveBeenCalled()
+  })
+
+  it('displays unread count badge', () => {
+    const mixedNotifications = [
+      {
+        id: '1',
+        type: 'care_reminder',
+        title: 'Unread 1',
+        body: 'Test',
+        isRead: false,
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        type: 'achievement',
+        title: 'Unread 2',
+        body: 'Test',
+        isRead: false,
+        createdAt: new Date(),
+      },
+      {
+        id: '3',
+        type: 'tip',
+        title: 'Read',
+        body: 'Test',
+        isRead: true,
+        createdAt: new Date(),
+      },
+    ]
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: mixedNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    expect(screen.getByText('2')).toBeTruthy() // Unread count badge
+  })
+
+  it('filters to show only unread when unread tab is selected', () => {
+    const mixedNotifications = [
+      {
+        id: '1',
+        type: 'care_reminder',
+        title: 'Unread Notification',
+        body: 'Test',
+        isRead: false,
+        createdAt: new Date(),
+      },
+      {
+        id: '2',
+        type: 'achievement',
+        title: 'Read Notification',
+        body: 'Test',
+        isRead: true,
+        createdAt: new Date(),
+      },
+    ]
+
+    mockedUseNotifications.mockReturnValue({
+      data: { items: mixedNotifications },
+      isLoading: false,
+    } as any)
+
+    render(<NotificationsScreen />)
+
+    fireEvent.press(screen.getByText('Unread'))
+
+    expect(screen.getByText('Unread Notification')).toBeTruthy()
+    expect(screen.queryByText('Read Notification')).toBeNull()
   })
 })

@@ -8,6 +8,7 @@ interface ProgressBarProps {
   color?: string
   height?: number
   showPercentage?: boolean
+  testID?: string
 }
 
 export function ProgressBar({
@@ -16,6 +17,7 @@ export function ProgressBar({
   color = iconColors.primary,
   height = 8,
   showPercentage = false,
+  testID,
 }: ProgressBarProps) {
   const clampedProgress = EffectNumber.clamp(progress, {
     minimum: 0,
@@ -24,7 +26,7 @@ export function ProgressBar({
   const percentage = Math.round(clampedProgress * 100)
 
   return (
-    <View className="w-full">
+    <View testID={testID} className="w-full">
       {(label || showPercentage) && (
         <View className="flex-row justify-between mb-2">
           {label && (

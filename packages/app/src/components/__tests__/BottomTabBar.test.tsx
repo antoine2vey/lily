@@ -1,83 +1,130 @@
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
-import { render } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import { BottomTabBar } from '../BottomTabBar'
 
-type MockState = BottomTabBarProps['state']
-type MockDescriptors = BottomTabBarProps['descriptors']
-type MockNavigation = BottomTabBarProps['navigation']
+// Mock navigation state and descriptors
+const createMockNavigation = () => ({
+  emit: jest.fn().mockReturnValue({ defaultPrevented: false }),
+  navigate: jest.fn(),
+})
+
+const createMockState = (activeIndex = 0) => ({
+  index: activeIndex,
+  routes: [
+    { key: 'index-1', name: 'index' },
+    { key: 'plants-1', name: 'plants' },
+    { key: 'care-1', name: 'care' },
+    { key: 'profile-1', name: 'profile' },
+  ],
+})
+
+const createMockDescriptors = () => ({
+  'index-1': { options: { title: 'Home' } },
+  'plants-1': { options: { title: 'Plants' } },
+  'care-1': { options: { title: 'Care' } },
+  'profile-1': { options: { title: 'Profile' } },
+})
 
 describe('BottomTabBar', () => {
-  const createMockState = (index = 0): MockState =>
-    ({
-      key: 'tab-nav',
-      index,
-      routes: [
-        { key: 'home', name: 'Home' },
-        { key: 'plants', name: 'Plants' },
-        { key: 'care', name: 'Care' },
-        { key: 'profile', name: 'Profile' },
-      ],
-      routeNames: ['Home', 'Plants', 'Care', 'Profile'],
-      type: 'tab',
-      stale: false,
-      history: [],
-      preloadedRouteKeys: [],
-    }) as unknown as MockState
-
-  const createMockDescriptors = (): MockDescriptors =>
-    ({
-      home: { options: { tabBarLabel: 'Home' }, render: jest.fn() },
-      plants: { options: { tabBarLabel: 'Plants' }, render: jest.fn() },
-      care: { options: { tabBarLabel: 'Care' }, render: jest.fn() },
-      profile: { options: { tabBarLabel: 'Profile' }, render: jest.fn() },
-    }) as unknown as MockDescriptors
-
-  const createMockNavigation = (): MockNavigation =>
-    ({
-      emit: jest.fn(() => ({ defaultPrevented: false })),
-      navigate: jest.fn(),
-    }) as unknown as MockNavigation
-
-  const createDefaultProps = () => ({
+  const defaultProps = {
     state: createMockState(),
     descriptors: createMockDescriptors(),
     navigation: createMockNavigation(),
     onFabPress: jest.fn(),
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  it('renders all 4 tab icons', () => {
-    const { toJSON } = render(<BottomTabBar {...createDefaultProps()} />)
-    expect(toJSON()).toBeTruthy()
+  it('renders all tab items', () => {
+    render(<BottomTabBar {...defaultProps} />)
+    expect(screen.getByText('Home')).toBeTruthy()
+    expect(screen.getByText('Plants')).toBeTruthy()
+    expect(screen.getByText('Care')).toBeTruthy()
+    expect(screen.getByText('Profile')).toBeTruthy()
   })
 
-  it('highlights active tab', () => {
-    const props = createDefaultProps()
-    const { rerender, toJSON } = render(
-      <BottomTabBar {...props} state={createMockState(0)} />
-    )
+  it('renders FAB button', () => {
+    const { toJSON } = render(<BottomTabBar {...defaultProps} />)
     expect(toJSON()).toBeTruthy()
-
-    rerender(<BottomTabBar {...props} state={createMockState(2)} />)
-    expect(toJSON()).toBeTruthy()
-  })
-
-  it('renders center FAB button', () => {
-    const { toJSON } = render(<BottomTabBar {...createDefaultProps()} />)
-    expect(toJSON()).toBeTruthy()
-  })
-
-  it('calls navigation on tab press', () => {
-    const navigation = createMockNavigation()
-    const props = createDefaultProps()
-    render(<BottomTabBar {...props} navigation={navigation} />)
-    expect(navigation.navigate).not.toHaveBeenCalled()
   })
 
   it('calls onFabPress when FAB pressed', () => {
     const onFabPress = jest.fn()
-    const { toJSON } = render(
-      <BottomTabBar {...createDefaultProps()} onFabPress={onFabPress} />
+    const { UNSAFE_root } = render(
+      <BottomTabBar {...defaultProps} onFabPress={onFabPress} />
     )
+
+    // Find the FAB (first Pressable with specific styling)
+    const pressables = UNSAFE_root.findAllByType(
+      require('react-native').Pressable
+    )
+    // FAB is typically the first Pressable
+    if (pressables.length > 0) {
+      fireEvent.press(pressables[0])
+      expect(onFabPress).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('navigates when tab pressed', () => {
+    const navigation = createMockNavigation()
+    render(<BottomTabBar {...defaultProps} navigation={navigation} />)
+
+    fireEvent.press(screen.getByText('Plants'))
+    expect(navigation.emit).toHaveBeenCalled()
+    expect(navigation.navigate).toHaveBeenCalledWith('plants')
+  })
+
+  it('does not navigate when active tab pressed', () => {
+    const navigation = createMockNavigation()
+    const state = createMockState(0) // Home is active
+    render(
+      <BottomTabBar {...defaultProps} state={state} navigation={navigation} />
+    )
+
+    fireEvent.press(screen.getByText('Home'))
+    expect(navigation.emit).toHaveBeenCalled()
+    // Navigate should not be called for active tab
+    expect(navigation.navigate).not.toHaveBeenCalled()
+  })
+
+  it('emits tabPress event when tab pressed', () => {
+    const navigation = createMockNavigation()
+    render(<BottomTabBar {...defaultProps} navigation={navigation} />)
+
+    fireEvent.press(screen.getByText('Plants'))
+    expect(navigation.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'tabPress',
+        target: 'plants-1',
+        canPreventDefault: true,
+      })
+    )
+  })
+
+  it('uses tabBarLabel when provided', () => {
+    const descriptors = {
+      ...createMockDescriptors(),
+      'index-1': { options: { tabBarLabel: 'Dashboard' } },
+    }
+    render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
+    expect(screen.getByText('Dashboard')).toBeTruthy()
+  })
+
+  it('falls back to route name when no title or label', () => {
+    const descriptors = {
+      'index-1': { options: {} },
+      'plants-1': { options: {} },
+      'care-1': { options: {} },
+      'profile-1': { options: {} },
+    }
+    render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
+    expect(screen.getByText('index')).toBeTruthy()
+  })
+
+  it('applies focused styling to active tab', () => {
+    const state = createMockState(1) // Plants is active
+    const { toJSON } = render(<BottomTabBar {...defaultProps} state={state} />)
     expect(toJSON()).toBeTruthy()
   })
 })

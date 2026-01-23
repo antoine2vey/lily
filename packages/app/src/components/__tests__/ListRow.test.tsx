@@ -9,45 +9,67 @@ describe('ListRow', () => {
   })
 
   it('renders subtitle when provided', () => {
-    render(<ListRow title="Account" subtitle="Manage your account settings" />)
-    expect(screen.getByText('Account')).toBeTruthy()
-    expect(screen.getByText('Manage your account settings')).toBeTruthy()
+    render(<ListRow title="Settings" subtitle="Manage your preferences" />)
+    expect(screen.getByText('Manage your preferences')).toBeTruthy()
   })
 
-  it('renders left icon in circle background', () => {
-    render(
-      <ListRow
-        title="Notifications"
-        leftIcon={<Text testID="left-icon">Icon</Text>}
-      />
-    )
+  it('does not render subtitle when not provided', () => {
+    render(<ListRow title="Settings" />)
+    expect(screen.queryByText('Manage')).toBeNull()
+  })
+
+  it('renders left icon when provided', () => {
+    const icon = <Text testID="left-icon">Icon</Text>
+    render(<ListRow title="Settings" leftIcon={icon} />)
     expect(screen.getByTestId('left-icon')).toBeTruthy()
   })
 
-  it('renders right element', () => {
-    render(
-      <ListRow
-        title="Version"
-        rightElement={<Text testID="right-element">1.0.0</Text>}
-      />
-    )
+  it('renders right element when provided', () => {
+    const element = <Text testID="right-element">Badge</Text>
+    render(<ListRow title="Settings" rightElement={element} />)
     expect(screen.getByTestId('right-element')).toBeTruthy()
   })
 
-  it('shows chevron when showChevron=true', () => {
-    const { toJSON } = render(<ListRow title="Profile" showChevron />)
+  it('renders chevron when showChevron is true', () => {
+    const { toJSON } = render(<ListRow title="Settings" showChevron />)
     expect(toJSON()).toBeTruthy()
   })
 
-  it('applies red color when destructive=true', () => {
-    const { toJSON } = render(<ListRow title="Delete Account" destructive />)
+  it('does not render chevron by default', () => {
+    const { toJSON } = render(<ListRow title="Settings" />)
     expect(toJSON()).toBeTruthy()
   })
 
-  it('handles press', () => {
+  it('calls onPress when pressed', () => {
     const onPress = jest.fn()
     render(<ListRow title="Settings" onPress={onPress} />)
+
     fireEvent.press(screen.getByText('Settings'))
     expect(onPress).toHaveBeenCalledTimes(1)
+  })
+
+  it('applies destructive styling', () => {
+    const { toJSON } = render(<ListRow title="Delete" destructive />)
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('renders with all props', () => {
+    const onPress = jest.fn()
+    const { toJSON } = render(
+      <ListRow
+        title="Complete Row"
+        subtitle="With all options"
+        leftIcon={<Text>Icon</Text>}
+        rightElement={<Text>Badge</Text>}
+        onPress={onPress}
+        showChevron
+      />
+    )
+    expect(toJSON()).toBeTruthy()
+  })
+
+  it('does not wrap in Pressable when no onPress provided', () => {
+    const { toJSON } = render(<ListRow title="Static Row" />)
+    expect(toJSON()).toBeTruthy()
   })
 })

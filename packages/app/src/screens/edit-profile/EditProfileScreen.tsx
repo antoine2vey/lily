@@ -84,7 +84,11 @@ export function EditProfileScreen() {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
+          <ActivityIndicator
+            testID="activity-indicator"
+            size="large"
+            color={iconColors.primary}
+          />
         </View>
       </SafeAreaView>
     )

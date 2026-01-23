@@ -1,80 +1,99 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    goBack: vi.fn(),
-  }),
-  useRoute: () => ({
-    params: {},
-  }),
+// Mock dependencies
+jest.mock('@react-navigation/native', () => ({
+  useRoute: jest.fn(() => ({ params: {} })),
 }))
 
-// Mock expo-image-picker
-vi.mock('expo-image-picker', () => ({
-  launchImageLibraryAsync: vi.fn().mockResolvedValue({ canceled: true }),
-  launchCameraAsync: vi.fn().mockResolvedValue({ canceled: true }),
-  requestCameraPermissionsAsync: vi
-    .fn()
-    .mockResolvedValue({ status: 'granted' }),
+jest.mock('@/hooks/useChatHistory', () => ({
+  useChatHistory: jest.fn(),
 }))
 
+jest.mock('@/hooks/useSendMessage', () => ({
+  useSendMessage: jest.fn(),
+}))
+
+import { useChatHistory } from '@/hooks/useChatHistory'
+import { useSendMessage } from '@/hooks/useSendMessage'
 import { ChatScreen } from '../ChatScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUseChatHistory = useChatHistory as jest.MockedFunction<
+  typeof useChatHistory
+>
+const mockedUseSendMessage = useSendMessage as jest.MockedFunction<
+  typeof useSendMessage
+>
 
 describe('ChatScreen', () => {
-  it('renders chat header', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Lily Assistant')).toBeTruthy()
-    })
+  const mockSendMessage = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedUseSendMessage.mockReturnValue({
+      mutate: mockSendMessage,
+      isPending: false,
+    } as any)
   })
 
-  it('renders online status', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Online')).toBeTruthy()
-    })
+  it('renders loading state', () => {
+    mockedUseChatHistory.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    const { toJSON } = render(<ChatScreen />)
+    expect(toJSON()).toBeTruthy()
   })
 
-  it('fetches message history', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      // Should show messages from history
-      expect(screen.getByText(/I'm Lily/)).toBeTruthy()
-    })
+  it('displays chat input', () => {
+    mockedUseChatHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<ChatScreen />)
+
+    expect(screen.getByPlaceholderText('Ask about plant care...')).toBeTruthy()
   })
 
-  it('renders input at bottom', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText('Ask about plant care...')
-      ).toBeTruthy()
-    })
+  it('displays messages when available', () => {
+    mockedUseChatHistory.mockReturnValue({
+      data: [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'Hello',
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 'msg-2',
+          role: 'assistant',
+          content: 'Hi! How can I help with your plants?',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      isLoading: false,
+    } as any)
+
+    render(<ChatScreen />)
+
+    expect(screen.getByText('Hello')).toBeTruthy()
+    expect(
+      screen.getByText('Hi! How can I help with your plants?')
+    ).toBeTruthy()
   })
 
-  it('renders user messages', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText(/Monstera leaves turning brown/)).toBeTruthy()
-    })
-  })
+  it('shows typing indicator when sending', () => {
+    mockedUseChatHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+    mockedUseSendMessage.mockReturnValue({
+      mutate: mockSendMessage,
+      isPending: true,
+    } as any)
 
-  it('renders assistant messages', async () => {
-    render(<ChatScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText(/brown tips/)).toBeTruthy()
-    })
+    const { toJSON } = render(<ChatScreen />)
+    expect(toJSON()).toBeTruthy()
   })
 })

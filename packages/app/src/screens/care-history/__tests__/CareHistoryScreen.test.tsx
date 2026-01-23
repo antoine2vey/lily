@@ -1,73 +1,147 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    navigate: vi.fn(),
-    goBack: vi.fn(),
-  }),
-  useRoute: () => ({
-    params: {
-      plantId: 'plant-123',
-    },
-  }),
+// Mock dependencies
+jest.mock('expo-router', () => ({
+  router: {
+    back: jest.fn(),
+    push: jest.fn(),
+  },
+  useLocalSearchParams: jest.fn(() => ({ plantId: 'plant-1' })),
 }))
 
+jest.mock('@/hooks/usePlant', () => ({
+  usePlant: jest.fn(),
+}))
+
+jest.mock('@/hooks/useCareHistory', () => ({
+  useCareHistory: jest.fn(),
+}))
+
+import { useCareHistory } from '@/hooks/useCareHistory'
+import { usePlant } from '@/hooks/usePlant'
 import { CareHistoryScreen } from '../CareHistoryScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUsePlant = usePlant as jest.MockedFunction<typeof usePlant>
+const mockedUseCareHistory = useCareHistory as jest.MockedFunction<
+  typeof useCareHistory
+>
 
 describe('CareHistoryScreen', () => {
-  it('renders header with "Care History"', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Care History')).toBeTruthy()
-    })
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedUsePlant.mockReturnValue({
+      data: mockPlants[0],
+    } as any)
   })
 
-  it('renders plant name in header', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Monstera Deliciosa')).toBeTruthy()
-    })
+  it('shows loading state initially', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
   })
 
-  it('renders filter button', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      // Filter icon should be rendered
-      expect(screen.getByRole('button')).toBeTruthy()
-    })
+  it('displays care history title', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByText('Care History')).toBeTruthy()
   })
 
-  it('renders FAB for adding logs', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    // FAB should be visible
-    await waitFor(() => {
-      expect(screen.getAllByRole('button').length).toBeGreaterThan(0)
-    })
+  it('displays plant name subtitle', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByText(mockPlants[0].name)).toBeTruthy()
   })
 
-  it('renders timeline with date groups', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Today')).toBeTruthy()
-    })
+  it('shows empty state when no history', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByText('No care history')).toBeTruthy()
+    expect(
+      screen.getByText('Start logging care activities to see them here')
+    ).toBeTruthy()
   })
 
-  it('renders care events', async () => {
-    render(<CareHistoryScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Watered')).toBeTruthy()
-    })
+  it('displays filter button', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByTestId('filter-button')).toBeTruthy()
+  })
+
+  it('displays add log FAB', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByTestId('add-log-fab')).toBeTruthy()
+  })
+
+  it('opens filter sheet when filter button pressed', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    fireEvent.press(screen.getByTestId('filter-button'))
+
+    expect(screen.getByText('Filter by Type')).toBeTruthy()
+    expect(screen.getByText('All')).toBeTruthy()
+    expect(screen.getByText('Water')).toBeTruthy()
+    expect(screen.getByText('Fertilize')).toBeTruthy()
+  })
+
+  it('displays timeline when history exists', () => {
+    const historyData = [
+      {
+        date: '2024-01-15',
+        events: [
+          {
+            id: '1',
+            type: 'water',
+            timestamp: new Date('2024-01-15T10:00:00'),
+          },
+        ],
+      },
+    ]
+
+    mockedUseCareHistory.mockReturnValue({
+      data: historyData,
+      isLoading: false,
+    } as any)
+
+    render(<CareHistoryScreen />)
+
+    expect(screen.getByTestId('timeline')).toBeTruthy()
   })
 })

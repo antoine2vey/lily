@@ -167,6 +167,30 @@ export function ProfileScreen() {
             title="Help & Support"
             onPress={() => Linking.openURL('https://lily.app/help')}
           />
+
+          <ProfileMenuItem
+            icon={
+              <MaterialIcons
+                name="settings"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+            title="Settings"
+            onPress={() => router.push('/settings')}
+          />
+
+          <ProfileMenuItem
+            icon={
+              <MaterialIcons
+                name="info-outline"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+            title="About"
+            onPress={() => router.push('/about')}
+          />
         </View>
 
         {/* Sign Out Button */}

@@ -1,72 +1,163 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    goBack: vi.fn(),
-  }),
+// Mock dependencies
+jest.mock('@/hooks/useAchievements', () => ({
+  useAchievements: jest.fn(),
 }))
 
+import { useAchievements } from '@/hooks/useAchievements'
 import { AchievementsScreen } from '../AchievementsScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUseAchievements = useAchievements as jest.MockedFunction<
+  typeof useAchievements
+>
+
+// Create mock achievements data
+const mockAchievements = [
+  {
+    id: '1',
+    name: 'First Plant',
+    description: 'Add your first plant',
+    category: 'plants' as const,
+    icon: 'seedling',
+    unlocked: true,
+    rarity: 'common' as const,
+    unlockedAt: '2024-01-15T12:00:00Z',
+  },
+  {
+    id: '2',
+    name: 'Green Thumb',
+    description: 'Successfully care for 10 plants',
+    category: 'care' as const,
+    icon: 'heart',
+    unlocked: true,
+    rarity: 'rare' as const,
+    unlockedAt: '2024-02-20T15:30:00Z',
+  },
+  {
+    id: '3',
+    name: 'Week Warrior',
+    description: 'Maintain a 7-day care streak',
+    category: 'streaks' as const,
+    icon: 'fire',
+    unlocked: false,
+    rarity: 'epic' as const,
+    progress: 3,
+    maxProgress: 7,
+  },
+]
 
 describe('AchievementsScreen', () => {
-  it('renders header with title', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Achievements')).toBeTruthy()
-    })
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  it('renders level header', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText(/Level/)).toBeTruthy()
-    })
+  it('shows loading state initially', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
   })
 
-  it('renders achievement count', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText(/of.*achievements/)).toBeTruthy()
-    })
+  it('displays achievements title', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 3,
+        unlockedCount: 5,
+        totalCount: 20,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByText('Achievements')).toBeTruthy()
   })
 
-  it('renders Plant Collection category', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Plant Collection')).toBeTruthy()
-    })
+  it('displays user level', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 5,
+        unlockedCount: 10,
+        totalCount: 20,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByText('Level 5')).toBeTruthy()
   })
 
-  it('renders Plant Care category', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Plant Care')).toBeTruthy()
-    })
+  it('displays achievement progress', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 3,
+        unlockedCount: 8,
+        totalCount: 20,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByText('8 of 20 achievements')).toBeTruthy()
   })
 
-  it('renders Streaks category', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Streaks')).toBeTruthy()
-    })
+  it('displays achievement categories', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 1,
+        unlockedCount: 2,
+        totalCount: 10,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByText('Plant Collection')).toBeTruthy()
+    expect(screen.getByText('Plant Care')).toBeTruthy()
+    expect(screen.getByText('Streaks')).toBeTruthy()
   })
 
-  it('renders achievement cards', async () => {
-    render(<AchievementsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Plant Parent')).toBeTruthy()
-    })
+  it('displays achievement cards', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 1,
+        unlockedCount: 1,
+        totalCount: 10,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByText('First Plant')).toBeTruthy()
+  })
+
+  it('displays progress bar', () => {
+    mockedUseAchievements.mockReturnValue({
+      data: {
+        achievements: mockAchievements,
+        level: 3,
+        unlockedCount: 10,
+        totalCount: 20,
+      },
+      isLoading: false,
+    } as any)
+
+    render(<AchievementsScreen />)
+
+    expect(screen.getByTestId('progress-bar')).toBeTruthy()
   })
 })

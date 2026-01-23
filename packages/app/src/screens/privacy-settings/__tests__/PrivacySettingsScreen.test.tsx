@@ -1,121 +1,157 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
-// Mock navigation
-vi.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    goBack: vi.fn(),
-  }),
+// Mock dependencies
+jest.mock('@/hooks/usePrivacySettings', () => ({
+  usePrivacySettings: jest.fn(),
+  useUpdatePrivacySettings: jest.fn(),
 }))
 
-// Mock Linking
-vi.mock('react-native/Libraries/Linking/Linking', () => ({
-  openURL: vi.fn(),
+jest.mock('@/hooks/useExportData', () => ({
+  useExportData: jest.fn(),
 }))
 
-// Mock Alert
-vi.mock('react-native/Libraries/Alert/Alert', () => ({
-  alert: vi.fn(),
-}))
-
+import { useExportData } from '@/hooks/useExportData'
+import {
+  usePrivacySettings,
+  useUpdatePrivacySettings,
+} from '@/hooks/usePrivacySettings'
 import { PrivacySettingsScreen } from '../PrivacySettingsScreen'
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  )
-}
+const mockedUsePrivacySettings = usePrivacySettings as jest.MockedFunction<
+  typeof usePrivacySettings
+>
+const mockedUseUpdatePrivacySettings =
+  useUpdatePrivacySettings as jest.MockedFunction<
+    typeof useUpdatePrivacySettings
+  >
+const mockedUseExportData = useExportData as jest.MockedFunction<
+  typeof useExportData
+>
 
 describe('PrivacySettingsScreen', () => {
-  it('renders header with title', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Privacy & Data')).toBeTruthy()
-    })
+  const mockUpdateSettings = jest.fn()
+  const mockExportData = jest.fn()
+
+  const defaultSettings = {
+    publicProfile: true,
+    shareGrowthData: false,
+    personalizedTips: true,
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockedUseUpdatePrivacySettings.mockReturnValue({
+      mutate: mockUpdateSettings,
+    } as any)
+    mockedUseExportData.mockReturnValue({
+      mutate: mockExportData,
+      isPending: false,
+    } as any)
   })
 
-  it('renders description text', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(
-        screen.getByText(
-          'Manage how your data is used to improve your plant care journey.'
-        )
-      ).toBeTruthy()
-    })
+  it('shows loading state when data is loading', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
   })
 
-  it('renders Visibility & Personalization section', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Visibility & Personalization')).toBeTruthy()
-    })
+  it('displays privacy & data title', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    expect(screen.getByText('Privacy & Data')).toBeTruthy()
   })
 
-  it('renders Public Profile toggle', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Public Profile')).toBeTruthy()
-    })
+  it('displays visibility section', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    expect(screen.getByText('Visibility & Personalization')).toBeTruthy()
+    expect(screen.getByText('Public Profile')).toBeTruthy()
+    expect(screen.getByText('Share Growth Data')).toBeTruthy()
+    expect(screen.getByText('Personalized Tips')).toBeTruthy()
   })
 
-  it('renders Share Growth Data toggle', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Share Growth Data')).toBeTruthy()
-    })
+  it('displays legal section', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    expect(screen.getByText('Legal & Info')).toBeTruthy()
+    expect(screen.getByText('Privacy Policy')).toBeTruthy()
+    expect(screen.getByText('Terms of Service')).toBeTruthy()
   })
 
-  it('renders Personalized Tips toggle', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Personalized Tips')).toBeTruthy()
-    })
+  it('displays data actions section', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    expect(screen.getByText('Your Data')).toBeTruthy()
+    expect(screen.getByText('Export My Data')).toBeTruthy()
+    expect(screen.getByText('Request Data Deletion')).toBeTruthy()
   })
 
-  it('renders Legal & Info section', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Legal & Info')).toBeTruthy()
-    })
+  it('calls updateSettings when toggle is changed', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    // Find and toggle a switch
+    const publicProfileToggle = screen.getByTestId('toggle-public-profile')
+    fireEvent(publicProfileToggle, 'valueChange', false)
+
+    expect(mockUpdateSettings).toHaveBeenCalledWith({ publicProfile: false })
   })
 
-  it('renders Privacy Policy link', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Privacy Policy')).toBeTruthy()
-    })
+  it('calls exportData when export button is pressed', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
+
+    render(<PrivacySettingsScreen />)
+
+    fireEvent.press(screen.getByText('Export My Data'))
+
+    expect(mockExportData).toHaveBeenCalled()
   })
 
-  it('renders Terms of Service link', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Terms of Service')).toBeTruthy()
-    })
-  })
+  it('shows requesting text when exporting', () => {
+    mockedUsePrivacySettings.mockReturnValue({
+      data: defaultSettings,
+      isLoading: false,
+    } as any)
 
-  it('renders Your Data section', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Your Data')).toBeTruthy()
-    })
-  })
+    mockedUseExportData.mockReturnValue({
+      mutate: mockExportData,
+      isPending: true,
+    } as any)
 
-  it('renders Export My Data button', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Export My Data')).toBeTruthy()
-    })
-  })
+    render(<PrivacySettingsScreen />)
 
-  it('renders Request Data Deletion link', async () => {
-    render(<PrivacySettingsScreen />, { wrapper: createWrapper() })
-    await waitFor(() => {
-      expect(screen.getByText('Request Data Deletion')).toBeTruthy()
-    })
+    expect(screen.getByText('Requesting...')).toBeTruthy()
   })
 })

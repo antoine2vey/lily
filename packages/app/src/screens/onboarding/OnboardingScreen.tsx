@@ -122,7 +122,11 @@ export function OnboardingScreen() {
       <View className="px-6 pb-8">
         {/* Pagination Dots */}
         <View className="mb-8">
-          <PaginationDots total={SLIDES.length} current={currentIndex} />
+          <PaginationDots
+            testID="pagination-dots"
+            total={SLIDES.length}
+            current={currentIndex}
+          />
         </View>
 
         {/* Next / Get Started Button */}

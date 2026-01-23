@@ -9,6 +9,7 @@ interface ToggleRowProps {
   onValueChange: (value: boolean) => void
   icon?: ReactNode
   disabled?: boolean
+  testID?: string
 }
 
 export function ToggleRow({
@@ -18,6 +19,7 @@ export function ToggleRow({
   onValueChange,
   icon,
   disabled = false,
+  testID,
 }: ToggleRowProps) {
   const opacityClass = disabled ? 'opacity-50' : ''
 
@@ -37,6 +39,7 @@ export function ToggleRow({
         )}
       </View>
       <Switch
+        testID={testID}
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}

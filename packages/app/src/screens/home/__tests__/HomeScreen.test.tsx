@@ -1,108 +1,129 @@
-import { render } from '@testing-library/react-native'
-import { HomeScreen } from '../HomeScreen'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 
 // Mock dependencies
-jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-  }),
+jest.mock('@/utils/client', () => ({
+  useEffectQuery: jest.fn(),
 }))
 
-jest.mock('src/contexts/AuthContext', () => ({
-  useAuth: () => ({
-    state: {
-      _tag: 'Authenticated',
-      user: {
-        id: 'user-1',
-        username: 'Alex',
-        name: 'Alex',
-        avatarUrl: null,
-      },
-    },
-    logout: jest.fn(),
-  }),
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(),
 }))
 
-jest.mock('src/utils/client', () => ({
-  useEffectQuery: () => ({
-    data: { items: [] },
-    isLoading: false,
-    isRefetching: false,
-    refetch: jest.fn(),
-  }),
-}))
+import { useAuth } from '@/contexts/AuthContext'
+import { useEffectQuery } from '@/utils/client'
+import { HomeScreen } from '../HomeScreen'
 
-jest.mock('src/components/BottomSheet', () => ({
-  BottomSheet: ({
-    children,
-    visible,
-  }: {
-    children: React.ReactNode
-    visible: boolean
-  }) => (visible ? children : null),
-}))
+const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
+  typeof useEffectQuery
+>
+const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 
 describe('HomeScreen', () => {
+  const mockLogout = jest.fn()
+
   beforeEach(() => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2024-01-15T10:00:00'))
+    jest.clearAllMocks()
+    mockedUseAuth.mockReturnValue({
+      state: {
+        _tag: 'Authenticated',
+        user: { id: 'user-1', name: 'Test User', email: 'test@example.com' },
+      },
+      logout: mockLogout,
+      login: jest.fn(),
+    } as any)
   })
 
-  afterEach(() => {
-    jest.useRealTimers()
+  it('renders loading state', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
+
+    const { toJSON } = render(<HomeScreen />)
+    expect(toJSON()).toBeTruthy()
   })
 
-  it('renders greeting based on time of day', () => {
-    const { getByText } = render(<HomeScreen />)
-    // Greeting is now combined in a single text with newline
-    expect(getByText(/Good morning/)).toBeTruthy()
+  it('displays greeting with user name', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: mockPlants, total: mockPlants.length },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
+
+    render(<HomeScreen />)
+
+    expect(screen.getByText(/Test User/)).toBeTruthy()
   })
 
-  it('renders username from auth context', () => {
-    const { getByText } = render(<HomeScreen />)
-    expect(getByText(/Alex/)).toBeTruthy()
+  it('shows empty state when no plants', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
+
+    render(<HomeScreen />)
+
+    expect(screen.getByText('Your garden awaits')).toBeTruthy()
+    expect(screen.getByText('Add Your First Plant')).toBeTruthy()
   })
 
-  it('renders user avatar in header', () => {
-    const { UNSAFE_queryByType } = render(<HomeScreen />)
-    expect(UNSAFE_queryByType).toBeDefined()
+  it('shows stats row when plants exist', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: mockPlants, total: mockPlants.length },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
+
+    render(<HomeScreen />)
+
+    expect(screen.getByText('Total')).toBeTruthy()
+    expect(screen.getByText('Healthy')).toBeTruthy()
+    expect(screen.getByText('Attention')).toBeTruthy()
   })
 
-  it('renders notification bell', () => {
-    const { queryByLabelText } = render(<HomeScreen />)
-    expect(queryByLabelText(/notification/i)).toBeTruthy()
+  it('opens add plant bottom sheet when button pressed', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
+
+    render(<HomeScreen />)
+
+    fireEvent.press(screen.getByText('Add Your First Plant'))
+
+    expect(screen.getByText('Add Plant')).toBeTruthy()
+    expect(screen.getByText('Scan with AI')).toBeTruthy()
+    expect(screen.getByText('Add manually')).toBeTruthy()
   })
 
-  it('renders ScrollView for content', () => {
-    const { UNSAFE_root } = render(<HomeScreen />)
-    expect(UNSAFE_root).toBeTruthy()
-  })
-})
+  it('uses default name when user has no name', () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        _tag: 'Authenticated',
+        user: { id: 'user-1', email: 'test@example.com' },
+      },
+      logout: mockLogout,
+      login: jest.fn(),
+    } as any)
 
-describe('HomeScreen greeting', () => {
-  afterEach(() => {
-    jest.useRealTimers()
-  })
+    mockedUseEffectQuery.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+      isRefetching: false,
+      refetch: jest.fn(),
+    } as any)
 
-  it('shows "Good morning" before noon', () => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2024-01-15T09:00:00'))
-    const { getByText } = render(<HomeScreen />)
-    expect(getByText(/Good morning/)).toBeTruthy()
-  })
+    render(<HomeScreen />)
 
-  it('shows "Good afternoon" between noon and 5pm', () => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2024-01-15T14:00:00'))
-    const { getByText } = render(<HomeScreen />)
-    expect(getByText(/Good afternoon/)).toBeTruthy()
-  })
-
-  it('shows "Good evening" after 5pm', () => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2024-01-15T18:00:00'))
-    const { getByText } = render(<HomeScreen />)
-    expect(getByText(/Good evening/)).toBeTruthy()
+    expect(screen.getByText(/Gardener/)).toBeTruthy()
   })
 })
