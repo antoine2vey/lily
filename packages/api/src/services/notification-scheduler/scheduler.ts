@@ -1,6 +1,6 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { Effect, Match, Option, pipe } from 'effect'
+import { DateTime, Effect, Match, Option, pipe } from 'effect'
 
 const POLL_INTERVAL = '1 minute'
 const BATCH_SIZE = 100
@@ -58,7 +58,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         body: notification.body,
       },
       retryCount: 0,
-      createdAt: new Date(),
+      createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
       scheduledAt: notification.scheduledAt,
     })
 
