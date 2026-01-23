@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { getApiDateGroupLabel } from '@lily/shared'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
@@ -49,25 +50,8 @@ function groupByDate(
 ): Map<string, Notification[]> {
   const groups = new Map<string, Notification[]>()
 
-  notifications.forEach((notification) => {
-    const date = new Date(notification.createdAt)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    let dateKey: string
-    if (date.toDateString() === today.toDateString()) {
-      dateKey = 'Today'
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      dateKey = 'Yesterday'
-    } else {
-      dateKey = date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-      })
-    }
-
+  Array.forEach(notifications, (notification) => {
+    const dateKey = getApiDateGroupLabel(notification.createdAt)
     const existing = groups.get(dateKey) ?? []
     groups.set(dateKey, [...existing, notification])
   })

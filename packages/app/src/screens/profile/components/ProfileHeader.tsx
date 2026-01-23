@@ -1,3 +1,4 @@
+import { type DateInput, formatMemberSince, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { Image, Text, View } from 'react-native'
 
@@ -5,7 +6,7 @@ interface ProfileHeaderProps {
   avatarUrl: Option.Option<string>
   name: string
   username?: string
-  memberSince: Date
+  memberSince: DateInput
 }
 
 export function ProfileHeader({
@@ -14,10 +15,11 @@ export function ProfileHeader({
   username,
   memberSince,
 }: ProfileHeaderProps) {
-  const memberSinceFormatted = memberSince.toLocaleDateString('en-US', {
-    month: 'short',
-    year: 'numeric',
-  })
+  const memberSinceFormatted = pipe(
+    parseApiDate(memberSince),
+    Option.map(formatMemberSince),
+    Option.getOrElse(() => 'Unknown')
+  )
 
   return (
     <View className="items-center py-6">

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { type DateInput, formatRelativeTime, parseApiDate } from '@lily/shared'
+import { Array, Match, Option, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 
@@ -15,7 +16,7 @@ interface Activity {
   id: string
   type: ActivityType
   plantName: string
-  timestamp: Date
+  timestamp: DateInput
   plantImageUrl?: string
 }
 
@@ -39,37 +40,24 @@ const ACTIVITY_CONFIG: Record<
   pruned: { icon: 'content-cut', color: '#E91E63', bgColor: '#FCE4EC' },
 }
 
-function formatActivityTitle(type: ActivityType, plantName: string): string {
-  switch (type) {
-    case 'added':
-      return `New plant added: ${plantName}`
-    case 'moved':
-      return `Moved ${plantName} to light`
-    case 'misted':
-      return `${plantName} misted`
-    case 'watered':
-      return `${plantName} watered`
-    case 'fertilized':
-      return `${plantName} fertilized`
-    case 'pruned':
-      return `${plantName} pruned`
-  }
-}
+const formatActivityTitle = (type: ActivityType, plantName: string): string =>
+  pipe(
+    Match.value(type),
+    Match.when('added', () => `New plant added: ${plantName}`),
+    Match.when('moved', () => `Moved ${plantName} to light`),
+    Match.when('misted', () => `${plantName} misted`),
+    Match.when('watered', () => `${plantName} watered`),
+    Match.when('fertilized', () => `${plantName} fertilized`),
+    Match.when('pruned', () => `${plantName} pruned`),
+    Match.exhaustive
+  )
 
-function formatRelativeTime(date: Date): string {
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString()
-}
+const formatActivityTime = (timestamp: DateInput): string =>
+  pipe(
+    parseApiDate(timestamp),
+    Option.map(formatRelativeTime),
+    Option.getOrElse(() => 'Unknown')
+  )
 
 function ActivityItem({
   activity,
@@ -92,7 +80,7 @@ function ActivityItem({
         shadowRadius: 2,
         elevation: 1,
       }}
-      accessibilityLabel={`${title}, ${formatRelativeTime(activity.timestamp)}`}
+      accessibilityLabel={`${title}, ${formatActivityTime(activity.timestamp)}`}
     >
       {/* Activity Icon */}
       <View
@@ -108,7 +96,7 @@ function ActivityItem({
           {title}
         </Text>
         <Text className="text-xs text-text-muted mt-0.5 font-medium">
-          {formatRelativeTime(activity.timestamp)}
+          {formatActivityTime(activity.timestamp)}
         </Text>
       </View>
     </Pressable>

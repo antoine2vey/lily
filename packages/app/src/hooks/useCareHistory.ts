@@ -1,5 +1,6 @@
+import { getApiDateGroupLabel } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
-import { Array, pipe } from 'effect'
+import { Array, DateTime, Order, pipe } from 'effect'
 import { useEffectQuery } from '@/utils/client'
 
 type BackendCareType = 'watering' | 'fertilization'
@@ -22,50 +23,25 @@ interface CareHistoryGroup {
 /**
  * Map backend care type to app care type
  */
-function mapBackendType(type: BackendCareType): AppCareType {
-  return type === 'watering' ? 'water' : 'fertilize'
-}
-
-/**
- * Format a date as a label (Today, Yesterday, or weekday + date)
- */
-function formatDateLabel(date: Date): string {
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-
-  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const todayOnly = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  )
-  const yesterdayOnly = new Date(
-    yesterday.getFullYear(),
-    yesterday.getMonth(),
-    yesterday.getDate()
-  )
-
-  if (dateOnly.getTime() === todayOnly.getTime()) {
-    return 'Today'
-  }
-  if (dateOnly.getTime() === yesterdayOnly.getTime()) {
-    return 'Yesterday'
-  }
-
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-  })
-}
+const mapBackendType = (type: BackendCareType): AppCareType =>
+  type === 'watering' ? 'water' : 'fertilize'
 
 /**
  * Get date key for grouping (YYYY-MM-DD format)
  */
-function getDateKey(date: Date): string {
-  return date.toISOString().split('T')[0]
+const getDateKey = (date: Date): string => {
+  const dt = DateTime.unsafeMake(date)
+  const parts = DateTime.toParts(dt)
+  const month = String(parts.month).padStart(2, '0')
+  const day = String(parts.day).padStart(2, '0')
+  return `${String(parts.year)}-${month}-${day}`
 }
+
+// Order for sorting events by createdAt descending
+const eventCreatedAtOrder: Order.Order<CareEvent> = Order.mapInput(
+  Order.reverse(Order.string),
+  (event) => event.createdAt
+)
 
 /**
  * Group care logs by date for display
@@ -75,14 +51,14 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
   const grouped = pipe(
     logs,
     Array.reduce({} as Record<string, CareEvent[]>, (acc, log) => {
-      const dateKey = getDateKey(new Date(log.date))
+      const dateKey = getDateKey(log.date)
       const event: CareEvent = {
         id: log.id,
         plantId: log.plantId,
         type: mapBackendType(log.type),
         notes: log.notes,
         photoUrl: log.photoUrl,
-        createdAt: new Date(log.createdAt).toISOString(),
+        createdAt: log.createdAt.toISOString(),
       }
 
       if (!acc[dateKey]) {
@@ -99,12 +75,9 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
     entries,
     Array.map(([dateKey, events]) => {
       // Sort events by createdAt descending
-      const sortedEvents = [...events].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      const sortedEvents = Array.sort(events, eventCreatedAtOrder)
       return {
-        date: formatDateLabel(new Date(dateKey)),
+        date: getApiDateGroupLabel(dateKey),
         dateKey,
         events: sortedEvents,
       }
@@ -112,7 +85,14 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
   )
 
   // Sort by dateKey descending
-  const sorted = [...mapped].sort((a, b) => b.dateKey.localeCompare(a.dateKey))
+  const sorted = Array.sort(
+    mapped,
+    Order.mapInput(
+      Order.reverse(Order.string),
+      (item: { date: string; dateKey: string; events: CareEvent[] }) =>
+        item.dateKey
+    )
+  )
 
   return pipe(
     sorted,

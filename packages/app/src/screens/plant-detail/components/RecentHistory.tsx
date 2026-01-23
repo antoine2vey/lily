@@ -1,4 +1,5 @@
-import { Array, Match, pipe } from 'effect'
+import { type DateInput, formatRelativeTime, parseApiDate } from '@lily/shared'
+import { Array, Match, Option, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { iconColors } from 'src/theme'
@@ -8,7 +9,7 @@ type EventType = 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
 interface HistoryEvent {
   id: string
   type: EventType
-  date: Date
+  date: DateInput
   notes?: string
 }
 
@@ -48,20 +49,12 @@ const getEventConfig = (type: EventType): EventConfig =>
     Match.exhaustive
   )
 
-const formatDate = (date: Date): string => {
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
+const formatDate = (date: DateInput): string =>
+  pipe(
+    parseApiDate(date),
+    Option.map(formatRelativeTime),
+    Option.getOrElse(() => 'Unknown')
+  )
 
 export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
   const recentEvents = Array.take(events, 3)

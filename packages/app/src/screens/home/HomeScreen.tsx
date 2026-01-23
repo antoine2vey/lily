@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, Match, pipe } from 'effect'
+import { getTimeBasedGreeting, isOverdue, parseApiDate } from '@lily/shared'
+import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
@@ -23,13 +24,6 @@ import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
 import { RecentActivity } from './components/RecentActivity'
 import { StatsRow } from './components/StatsRow'
-
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
-}
 
 export function HomeScreen() {
   const { state, logout } = useAuth()
@@ -73,13 +67,15 @@ export function HomeScreen() {
   )
 
   // Filter plants that need water (nextWateringAt is in the past or today)
-  const now = new Date()
   const plantsNeedingWater = pipe(
     plantList,
-    Array.filter((plant) => {
-      if (!plant.nextWateringAt) return false
-      return new Date(plant.nextWateringAt) <= now
-    }),
+    Array.filter((plant) =>
+      pipe(
+        parseApiDate(plant.nextWateringAt),
+        Option.map(isOverdue),
+        Option.getOrElse(() => false)
+      )
+    ),
     Array.take(3),
     Array.map((plant) => ({
       id: plant.id,
@@ -176,7 +172,7 @@ export function HomeScreen() {
           <View className="flex-row items-center justify-between pt-6 pb-4">
             <View className="flex-1">
               <Text className="text-2xl text-text-primary tracking-tight leading-tight font-bold">
-                {getGreeting()},{'\n'}
+                {getTimeBasedGreeting()},{'\n'}
                 {userName} ☀️
               </Text>
             </View>

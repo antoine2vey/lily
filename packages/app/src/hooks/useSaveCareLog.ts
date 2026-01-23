@@ -1,6 +1,6 @@
 import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, pipe } from 'effect'
+import { Array, DateTime, pipe } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
 
 type AppCareType = 'water' | 'fertilize'
@@ -18,23 +18,25 @@ interface SaveCareLogInput {
 /**
  * Map app care type to backend care type
  */
-function mapAppTypeToBackend(type: AppCareType): BackendCareType {
-  return type === 'water' ? 'watering' : 'fertilization'
-}
+const mapAppTypeToBackend = (type: AppCareType): BackendCareType =>
+  type === 'water' ? 'watering' : 'fertilization'
 
 /**
  * Combine date and time into a single Date object
  */
-function combineDateAndTime(date: Date, time: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    time.getHours(),
-    time.getMinutes(),
-    0,
-    0
-  )
+const combineDateAndTime = (date: Date, time: Date): Date => {
+  const dateParts = DateTime.toParts(DateTime.unsafeMake(date))
+  const timeParts = DateTime.toParts(DateTime.unsafeMake(time))
+  const combined = DateTime.unsafeMake({
+    year: dateParts.year,
+    month: dateParts.month,
+    day: dateParts.day,
+    hours: timeParts.hours,
+    minutes: timeParts.minutes,
+    seconds: 0,
+    millis: 0,
+  })
+  return DateTime.toDateUtc(combined)
 }
 
 async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {

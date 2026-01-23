@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { formatApiRelativeTime } from '@lily/shared'
 import { Match, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { iconColors } from 'src/theme'
@@ -44,21 +45,6 @@ const getTypeConfig = (type: NotificationType): TypeConfig =>
     Match.exhaustive
   )
 
-function formatTime(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 export function NotificationItem({
   notification,
   onPress,
@@ -88,7 +74,7 @@ export function NotificationItem({
             {notification.title}
           </Text>
           <Text className="text-xs font-regular text-text-muted">
-            {formatTime(notification.createdAt)}
+            {formatApiRelativeTime(notification.createdAt)}
           </Text>
         </View>
         <Text

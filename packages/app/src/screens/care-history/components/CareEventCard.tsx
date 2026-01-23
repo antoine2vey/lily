@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { formatApiTime } from '@lily/shared'
 import { Match, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { iconColors } from 'src/theme'
@@ -65,15 +66,6 @@ const getEventConfig = (type: CareEventType): EventConfig =>
     Match.exhaustive
   )
 
-function formatTime(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
-
 export function CareEventCard({ event, onPress }: CareEventCardProps) {
   const config = getEventConfig(event.type)
 
@@ -97,7 +89,7 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
             {config.label}
           </Text>
           <Text className="text-xs font-regular text-text-muted">
-            {formatTime(event.createdAt)}
+            {formatApiTime(event.createdAt)}
           </Text>
         </View>
       </View>
