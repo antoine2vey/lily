@@ -45,7 +45,7 @@ describe('RecentHistory', () => {
 
   it('formats date correctly', () => {
     render(<RecentHistory {...defaultProps} />)
-    expect(screen.getByText('Today')).toBeTruthy()
+    expect(screen.getByText('Just now')).toBeTruthy()
     expect(screen.getByText('Yesterday')).toBeTruthy()
     expect(screen.getByText('3 days ago')).toBeTruthy()
   })
