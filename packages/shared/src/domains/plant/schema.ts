@@ -111,6 +111,12 @@ export const PlantsListResponse = PaginatedResponse(Plant)
 // Plant photos list response - uses standard pagination format
 export const PlantPhotosListResponse = PaginatedResponse(PlantPhoto)
 
+// Plant detail with photos (for single plant endpoint)
+export const PlantDetail = Schema.Struct({
+  ...Plant.fields,
+  photos: Schema.Array(PlantPhoto),
+})
+
 // Type exports
 export type Plant = typeof Plant.Type
 export type PlantCreateRequest = typeof PlantCreateRequest.Type
@@ -122,3 +128,4 @@ export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type
 export type PlantsListResponse = typeof PlantsListResponse.Type
 export type PlantPhotosListResponse = typeof PlantPhotosListResponse.Type
+export type PlantDetail = typeof PlantDetail.Type

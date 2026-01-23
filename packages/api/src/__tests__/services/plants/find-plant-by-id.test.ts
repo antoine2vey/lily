@@ -12,7 +12,11 @@ describe('findPlantById', () => {
       )
     )
 
-    expect(result).toEqual(mockPlants[0])
+    // Result includes plant data plus photos array
+    expect(result).toEqual({
+      ...mockPlants[0],
+      photos: [],
+    })
   })
 
   it('should fail with PlantNotFoundError when plant not found', async () => {

@@ -11,6 +11,7 @@ import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   EnhancedPlantCreateRequest,
   Plant,
+  PlantDetail,
   PlantPhotosListResponse,
   PlantsListResponse,
   PlantUpdateRequest,
@@ -91,9 +92,9 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // GET /plants/:id - Get plant by ID
+    // GET /plants/:id - Get plant by ID (includes recent photos)
     HttpApiEndpoint.get('getPlant')`/${plantIdParam}`
-      .addSuccess(Plant)
+      .addSuccess(PlantDetail)
       .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { daysUntilApiDate, formatApiDateAsNextDate } from '@lily/shared'
-import { Match, pipe } from 'effect'
+import { Array, Match, pipe } from 'effect'
+import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import {
@@ -13,6 +14,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
+import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { CareSchedule } from './components/CareSchedule'
@@ -144,6 +146,8 @@ export function PlantDetailScreen() {
     path: { id: plantId ?? '' },
   })
 
+  const uploadPhoto = useUploadPhoto()
+
   const handleBack = useCallback(() => {
     router.back()
   }, [router])
@@ -177,20 +181,32 @@ export function PlantDetailScreen() {
     console.log('Edit schedule for plant:', plantId)
   }, [plantId])
 
-  const handlePhotoPress = useCallback((photoId: string) => {
-    // TODO: Navigate to photo viewer
-    console.log('View photo:', photoId)
-  }, [])
+  const handlePhotoPress = useCallback(
+    (photoId: string) => {
+      router.push(`/plant/${plantId}/photo/${photoId}`)
+    },
+    [router, plantId]
+  )
 
-  const handleAddPhoto = useCallback(() => {
-    // TODO: Navigate to add photo
-    console.log('Add photo for plant:', plantId)
-  }, [plantId])
+  const handleAddPhoto = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+
+    if (!result.canceled && result.assets[0] && plantId) {
+      uploadPhoto.mutate({
+        plantId,
+        photoUri: result.assets[0].uri,
+      })
+    }
+  }, [plantId, uploadPhoto])
 
   const handleSeeAllPhotos = useCallback(() => {
-    // TODO: Navigate to gallery
-    console.log('See all photos for plant:', plantId)
-  }, [plantId])
+    router.push(`/plant/${plantId}/gallery`)
+  }, [router, plantId])
 
   const handleViewAllHistory = useCallback(() => {
     // TODO: Navigate to full history
@@ -243,8 +259,12 @@ export function PlantDetailScreen() {
   const daysUntilWater = daysUntilApiDate(plant.nextWateringAt)
   const daysUntilFertilize = daysUntilApiDate(plant.nextFertilizationAt)
 
-  // Mock photos for now - would come from plant.photos
-  const photos: Array<{ id: string; url: string; createdAt: Date }> = []
+  // Map photos from plant data
+  const photos = Array.map(plant.photos ?? [], (photo) => ({
+    id: photo.id,
+    url: photo.url,
+    createdAt: photo.takenAt,
+  }))
 
   // Mock history events - would come from API
   const historyEvents: Array<{
