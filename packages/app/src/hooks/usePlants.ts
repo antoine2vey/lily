@@ -1,3 +1,4 @@
+import { StaleTime } from '@lily/shared'
 import { useEffectQuery } from '@/utils/client'
 
 interface PlantsParams {
@@ -20,7 +21,7 @@ export function usePlants(params?: PlantsParams) {
       },
     },
     {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: StaleTime.default,
     }
   )
 }

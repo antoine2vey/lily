@@ -1,3 +1,4 @@
+import { StaleTime } from '@lily/shared'
 import { useEffectQuery } from '@/utils/client'
 
 interface UsePhotosParams {
@@ -22,7 +23,7 @@ export function usePhotos({ plantId, page = 1, limit = 20 }: UsePhotosParams) {
     },
     {
       enabled: !!plantId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: StaleTime.default,
     }
   )
 }

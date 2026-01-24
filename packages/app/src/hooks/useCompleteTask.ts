@@ -35,9 +35,10 @@ export function useCompleteTask() {
   return useMutation({
     mutationFn: completeTaskApi,
     onSuccess: () => {
-      // Invalidate care tasks and plants to refetch
+      // Invalidate care tasks, plants, and care logs (for homepage recent activities)
       queryClient.invalidateQueries({ queryKey: ['careTasks'] })
       queryClient.invalidateQueries({ queryKey: ['plants'] })
+      queryClient.invalidateQueries({ queryKey: ['careLogs'] })
     },
   })
 }

@@ -1,3 +1,4 @@
+import { StaleTime } from '@lily/shared'
 import { useEffectQuery } from '@/utils/client'
 
 export function usePlant(plantId: string) {
@@ -9,7 +10,7 @@ export function usePlant(plantId: string) {
     },
     {
       enabled: !!plantId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: StaleTime.default,
     }
   )
 }
