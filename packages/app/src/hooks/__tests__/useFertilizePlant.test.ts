@@ -57,7 +57,6 @@ describe('useFertilizePlant', () => {
     const mockMutation = {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
-      isLoading: false,
       isPending: false,
       isError: false,
       isSuccess: false,
@@ -68,7 +67,6 @@ describe('useFertilizePlant', () => {
       wrapper: createQueryWrapper(),
     })
 
-    expect(result.current.isLoading).toBeDefined()
     expect(result.current.isPending).toBeDefined()
     expect(result.current.isError).toBeDefined()
   })

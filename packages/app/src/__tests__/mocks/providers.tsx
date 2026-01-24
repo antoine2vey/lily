@@ -1,5 +1,4 @@
 import type { UserProfile } from '@lily/shared/auth'
-import { Option } from 'effect'
 import type { ReactNode } from 'react'
 import React, { createContext, useContext } from 'react'
 
@@ -43,7 +42,11 @@ export const defaultMockUser: UserProfile = {
   id: 'user-1',
   email: 'test@example.com',
   username: 'testuser',
-  emailVerified: true,
+  name: 'Test User',
+  role: 'user',
+  status: 'active',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 
 interface MockAuthProviderProps {
@@ -87,72 +90,6 @@ export function useMockAuth(): AuthContextValue {
 }
 
 // ============================================================================
-// Mock Toast Context
-// ============================================================================
-
-type ToastAction = {
-  label: string
-  onPress: () => void
-}
-
-type ToastState = {
-  visible: boolean
-  message: string
-  action: Option.Option<ToastAction>
-  id: string
-}
-
-interface ToastContextValue {
-  state: ToastState
-  showToast: (options: {
-    message: string
-    action?: ToastAction
-    duration?: number
-  }) => string
-  hideToast: (id: string) => void
-}
-
-export const mockShowToast = jest.fn().mockReturnValue('toast-1')
-export const mockHideToast = jest.fn()
-
-const MockToastContext = createContext<ToastContextValue | null>(null)
-
-interface MockToastProviderProps {
-  children: ReactNode
-  state?: ToastState
-}
-
-export function MockToastProvider({
-  children,
-  state = {
-    visible: false,
-    message: '',
-    action: Option.none(),
-    id: '',
-  },
-}: MockToastProviderProps) {
-  const value: ToastContextValue = {
-    state,
-    showToast: mockShowToast,
-    hideToast: mockHideToast,
-  }
-
-  return (
-    <MockToastContext.Provider value={value}>
-      {children}
-    </MockToastContext.Provider>
-  )
-}
-
-export function useMockToast(): ToastContextValue {
-  const context = useContext(MockToastContext)
-  if (!context) {
-    throw new Error('useMockToast must be used within a MockToastProvider')
-  }
-  return context
-}
-
-// ============================================================================
 // Reset Mocks
 // ============================================================================
 
@@ -162,6 +99,4 @@ export function resetProviderMocks() {
   mockAuthSetUsername.mockClear()
   mockAuthLogout.mockClear()
   mockAuthRefreshUser.mockClear()
-  mockShowToast.mockClear()
-  mockHideToast.mockClear()
 }

@@ -1,22 +1,27 @@
 import { render, screen } from '@testing-library/react-native'
+import { Text } from 'react-native'
 import { AnimatedSplashScreen } from '../AnimatedSplashScreen'
 
 describe('AnimatedSplashScreen', () => {
-  const mockOnAnimationEnd = jest.fn()
-
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   it('renders splash screen', () => {
     const { toJSON } = render(
-      <AnimatedSplashScreen onAnimationEnd={mockOnAnimationEnd} />
+      <AnimatedSplashScreen isReady={false}>
+        <Text>Content</Text>
+      </AnimatedSplashScreen>
     )
     expect(toJSON()).toBeTruthy()
   })
 
   it('displays app name', () => {
-    render(<AnimatedSplashScreen onAnimationEnd={mockOnAnimationEnd} />)
+    render(
+      <AnimatedSplashScreen isReady={false}>
+        <Text>Content</Text>
+      </AnimatedSplashScreen>
+    )
 
     expect(screen.getByText('Lily')).toBeTruthy()
   })

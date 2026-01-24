@@ -1,4 +1,4 @@
-import { mockAchievements } from '@lily/api/__tests__/fixtures/achievements'
+import { mockUserAchievements } from '@lily/api/__tests__/fixtures/achievements'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { fireEvent, render, screen } from '@testing-library/react-native'
@@ -81,7 +81,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
     } as any)
     mockedUseAchievements.mockReturnValue({
-      data: { items: mockAchievements, unlockedCount: 2, totalCount: 10 },
+      data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
     } as any)
 
@@ -104,13 +104,13 @@ describe('ProfileScreen', () => {
       isLoading: false,
     } as any)
     mockedUseAchievements.mockReturnValue({
-      data: { items: mockAchievements, unlockedCount: 2, totalCount: 10 },
+      data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
     } as any)
 
     render(<ProfileScreen />)
 
-    expect(screen.getByText(mockUsers[0].name)).toBeTruthy()
+    expect(screen.getByText(mockUsers[0].name ?? 'User')).toBeTruthy()
   })
 
   it('shows menu items', () => {
@@ -127,7 +127,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
     } as any)
     mockedUseAchievements.mockReturnValue({
-      data: { items: mockAchievements, unlockedCount: 2, totalCount: 10 },
+      data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
     } as any)
 

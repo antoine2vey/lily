@@ -17,7 +17,10 @@ describe('OnboardingScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockedUseOnboardingComplete.mockReturnValue({
+      isComplete: false,
+      isLoading: false,
       completeOnboarding: mockCompleteOnboarding,
+      resetOnboarding: jest.fn(),
     })
   })
 

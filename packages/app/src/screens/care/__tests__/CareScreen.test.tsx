@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 
 // Mock dependencies
+jest.mock('sonner-native', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}))
+
 jest.mock('@/hooks/useCareTasks', () => ({
   useCareTasks: jest.fn(),
 }))

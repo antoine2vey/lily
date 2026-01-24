@@ -2,6 +2,14 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 
 // Mock dependencies
+jest.mock('sonner-native', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}))
+
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({ plantId: 'plant-1' })),
   useRouter: jest.fn(() => ({
@@ -16,6 +24,34 @@ jest.mock('@/utils/client', () => ({
 
 jest.mock('@/hooks/useUploadPhoto', () => ({
   useUploadPhoto: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/hooks/useWaterPlant', () => ({
+  useWaterPlant: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/hooks/useFertilizePlant', () => ({
+  useFertilizePlant: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/hooks/useDeletePlant', () => ({
+  useDeletePlant: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/hooks/useDeletePhoto', () => ({
+  useDeletePhoto: () => ({
     mutate: jest.fn(),
     isPending: false,
   }),

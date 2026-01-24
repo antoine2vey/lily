@@ -29,13 +29,6 @@ jest.mock('@/hooks/useSaveCareLog', () => ({
   })),
 }))
 
-// Mock ToastContext
-jest.mock('@/contexts/ToastContext', () => ({
-  useToast: jest.fn(() => ({
-    showToast: jest.fn(),
-  })),
-}))
-
 import { LogCareSheet } from '../LogCareSheet'
 
 describe('LogCareSheet', () => {
