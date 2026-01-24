@@ -42,6 +42,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
     fertilizationFrequencyDays: 30,
     lastFertilizedAt: new Date('2024-01-01'),
     nextFertilizationAt: tomorrow, // This week
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -64,6 +65,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
     fertilizationFrequencyDays: null,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -86,6 +88,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
     fertilizationFrequencyDays: 14,
     lastFertilizedAt: null,
     nextFertilizationAt: inThreeDays, // This week
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -108,6 +111,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
     fertilizationFrequencyDays: null,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -130,6 +134,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
     fertilizationFrequencyDays: null,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-2',
   },
 ]
@@ -156,6 +161,7 @@ export const mockPlantsNoCare: PlantRecord[] = [
     fertilizationFrequencyDays: null,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-1',
   },
 ]

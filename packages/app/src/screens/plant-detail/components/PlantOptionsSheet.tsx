@@ -11,7 +11,6 @@ interface PlantOptionsSheetProps {
   isFavorite: boolean
   onEdit: () => void
   onToggleFavorite: () => void
-  onExportHistory: () => void
   onShare: () => void
   onDelete: () => void
 }
@@ -23,7 +22,6 @@ export function PlantOptionsSheet({
   isFavorite,
   onEdit,
   onToggleFavorite,
-  onExportHistory,
   onShare,
   onDelete,
 }: PlantOptionsSheetProps) {
@@ -65,17 +63,6 @@ export function PlantOptionsSheet({
           }
           title={isFavorite ? 'Remove from Favorites' : 'Set as Favorite'}
           onPress={handleAction(onToggleFavorite)}
-        />
-        <ListRow
-          leftIcon={
-            <MaterialIcons
-              name="file-download"
-              size={20}
-              color={iconColors.primary}
-            />
-          }
-          title="Export Care History"
-          onPress={handleAction(onExportHistory)}
         />
         <ListRow
           leftIcon={

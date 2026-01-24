@@ -24,6 +24,7 @@ export const mockPlants: PlantRecord[] = [
     fertilizationFrequencyDays: 30,
     lastFertilizedAt: new Date('2024-01-01'),
     nextFertilizationAt: new Date('2024-01-31'),
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -46,6 +47,7 @@ export const mockPlants: PlantRecord[] = [
     fertilizationFrequencyDays: null,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-1',
   },
   {
@@ -68,6 +70,7 @@ export const mockPlants: PlantRecord[] = [
     fertilizationFrequencyDays: 14,
     lastFertilizedAt: null,
     nextFertilizationAt: null,
+    isFavorite: false,
     userId: 'user-2',
   },
 ]
@@ -109,6 +112,7 @@ export const createTestPlant = (
   fertilizationFrequencyDays: null,
   lastFertilizedAt: null,
   nextFertilizationAt: null,
+  isFavorite: false,
   userId: 'user-1',
   ...overrides,
 })
