@@ -31,8 +31,8 @@ describe('ChatInput', () => {
     expect(screen.getByDisplayValue('Hello')).toBeTruthy()
   })
 
-  it('shows loading state when isPending', () => {
-    const { toJSON } = render(<ChatInput onSend={mockOnSend} isPending />)
+  it('shows disabled state when disabled', () => {
+    const { toJSON } = render(<ChatInput onSend={mockOnSend} disabled />)
     expect(toJSON()).toBeTruthy()
   })
 })

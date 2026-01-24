@@ -1,12 +1,23 @@
 import { openai } from '@ai-sdk/openai'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plants } from '@lily/db'
-import { convertToModelMessages, streamObject, type UIMessage } from 'ai'
+import {
+  convertToModelMessages,
+  type StreamTextResult,
+  streamText,
+  type UIMessage,
+} from 'ai'
 import { eq } from 'drizzle-orm'
 import { Effect } from 'effect'
-import { z } from 'zod'
 
-export const plantChat = (plantId: string, messages: UIMessage[]) => {
+export const plantChat = (
+  plantId: string,
+  messages: UIMessage[]
+): Effect.Effect<
+  StreamTextResult<never, never>,
+  Error,
+  PgDrizzle.PgDrizzle
+> => {
   return Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
@@ -43,18 +54,14 @@ export const plantChat = (plantId: string, messages: UIMessage[]) => {
       Plant was last fertilized on ${plant.lastFertilizedAt}
     `
 
-    return streamObject({
+    const modelMessages = yield* Effect.promise(() =>
+      convertToModelMessages(messages)
+    )
+
+    return streamText({
       model: openai('gpt-4o-mini'),
       system: systemPrompt,
-      messages: convertToModelMessages(messages),
-      schema: z.object({
-        messages: z.array(
-          z.object({
-            role: z.enum(['user', 'assistant', 'system']),
-            content: z.string(),
-          })
-        ),
-      }),
+      messages: modelMessages,
     })
   })
 }

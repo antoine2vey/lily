@@ -5,6 +5,7 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { AiService } from '@lily/api/services/ai/service'
+import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import { AIChatService } from '@lily/api/services/ai-chat/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
@@ -21,6 +22,9 @@ export const AIChatApiLive = (api: Api) =>
       return handlers
         .handle('sendChatMessage', ({ path: { plantId }, payload }) =>
           aiChatService.sendChatMessage(plantId, payload)
+        )
+        .handle('streamChatMessage', ({ path: { plantId }, payload }) =>
+          streamChatMessage(plantId, { message: payload.message })
         )
         .handle('getChatHistory', ({ path: { plantId }, urlParams }) =>
           aiChatService.getChatHistory({

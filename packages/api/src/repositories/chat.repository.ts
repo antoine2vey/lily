@@ -3,6 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { chatMessages } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
+import type { UIMessage } from 'ai'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -35,14 +36,26 @@ const mapToChatMessage = (
   createdAt: row.createdAt,
 })
 
+// Parameters for saving chat from streaming endpoint
+export interface SaveChatParams {
+  plantId: string
+  userId: string
+  messages: UIMessage[]
+}
+
 // Repository service interface
 export interface IChatRepository {
   readonly findByPlantId: (
     params: FindChatHistoryParams
   ) => Effect.Effect<ChatHistoryListResponse, SqlError>
+  readonly getMessagesAsUIMessages: (
+    plantId: string,
+    userId: string
+  ) => Effect.Effect<UIMessage[], SqlError>
   readonly create: (
     data: CreateChatMessageData
   ) => Effect.Effect<ChatMessage | null, SqlError>
+  readonly saveChat: (params: SaveChatParams) => Effect.Effect<void, SqlError>
   readonly deleteByPlantId: (
     plantId: string,
     userId: string
@@ -113,6 +126,83 @@ export const ChatRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToChatMessage(row) : null
+        }),
+
+      getMessagesAsUIMessages: (plantId: string, userId: string) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(chatMessages)
+            .where(
+              and(
+                eq(chatMessages.plantId, plantId),
+                eq(chatMessages.userId, userId)
+              )
+            )
+            .orderBy(asc(chatMessages.createdAt))
+
+          return Array.map(rows, (row): UIMessage => {
+            // If parts are stored, use them; otherwise construct from content
+            const parts = pipe(
+              Option.fromNullable(row.parts as unknown),
+              Option.filter((p): p is Array<{ type: string; text?: string }> =>
+                globalThis.Array.isArray(p)
+              ),
+              Option.getOrElse(() => [
+                { type: 'text' as const, text: row.content },
+              ])
+            )
+
+            return {
+              id: row.messageId ?? row.id,
+              role: row.role as 'user' | 'assistant',
+              parts: parts as UIMessage['parts'],
+            }
+          })
+        }),
+
+      saveChat: (params: SaveChatParams) =>
+        Effect.gen(function* () {
+          // Process each message, upserting by messageId
+          yield* Effect.forEach(
+            params.messages,
+            (msg) =>
+              Effect.gen(function* () {
+                // Extract text content from parts for backwards compatibility
+                const textContent = pipe(
+                  msg.parts,
+                  Array.filter((p) => p.type === 'text'),
+                  Array.map((p) => ('text' in p ? p.text : '')),
+                  Array.join('')
+                )
+
+                // Check if message exists by messageId
+                const existing = yield* db
+                  .select({ id: chatMessages.id })
+                  .from(chatMessages)
+                  .where(
+                    and(
+                      eq(chatMessages.messageId, msg.id),
+                      eq(chatMessages.plantId, params.plantId),
+                      eq(chatMessages.userId, params.userId)
+                    )
+                  )
+
+                if (Array.isEmptyArray(existing)) {
+                  // Insert new message
+                  yield* db.insert(chatMessages).values({
+                    messageId: msg.id,
+                    role: msg.role,
+                    content: textContent,
+                    parts: msg.parts as unknown as Record<string, unknown>,
+                    plantId: params.plantId,
+                    userId: params.userId,
+                  })
+                }
+                // If exists, skip (messages are immutable once created)
+              }),
+            { concurrency: 1 }
+          )
         }),
 
       deleteByPlantId: (plantId: string, userId: string) =>

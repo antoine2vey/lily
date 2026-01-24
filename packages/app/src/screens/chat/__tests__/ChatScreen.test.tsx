@@ -1,47 +1,67 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react-native'
+import type { ReactNode } from 'react'
+import React from 'react'
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn(() => ({ params: {} })),
 }))
 
-jest.mock('@/hooks/useChatHistory', () => ({
+jest.mock('src/hooks/useChatHistory', () => ({
   useChatHistory: jest.fn(),
 }))
 
-jest.mock('@/hooks/useSendMessage', () => ({
-  useSendMessage: jest.fn(),
+jest.mock('src/hooks/usePlantChat', () => ({
+  usePlantChat: jest.fn(),
 }))
 
-import { useChatHistory } from '@/hooks/useChatHistory'
-import { useSendMessage } from '@/hooks/useSendMessage'
+import { useChatHistory } from 'src/hooks/useChatHistory'
+import { usePlantChat } from 'src/hooks/usePlantChat'
 import { ChatScreen } from '../ChatScreen'
 
 const mockedUseChatHistory = useChatHistory as jest.MockedFunction<
   typeof useChatHistory
 >
-const mockedUseSendMessage = useSendMessage as jest.MockedFunction<
-  typeof useSendMessage
+const mockedUsePlantChat = usePlantChat as jest.MockedFunction<
+  typeof usePlantChat
 >
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
+const renderWithProviders = (ui: ReactNode) => {
+  const queryClient = createTestQueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
+}
+
 describe('ChatScreen', () => {
-  const mockSendMessage = jest.fn()
+  const mockAppend = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedUseSendMessage.mockReturnValue({
-      mutate: mockSendMessage,
-      isPending: false,
+    mockedUsePlantChat.mockReturnValue({
+      messages: [],
+      append: mockAppend,
+      status: 'ready',
     } as any)
   })
 
   it('renders loading state', () => {
     mockedUseChatHistory.mockReturnValue({
-      data: undefined,
+      data: [],
       isLoading: true,
+      initialMessages: [],
     } as any)
 
-    const { toJSON } = render(<ChatScreen />)
+    const { toJSON } = renderWithProviders(<ChatScreen />)
     expect(toJSON()).toBeTruthy()
   })
 
@@ -49,33 +69,41 @@ describe('ChatScreen', () => {
     mockedUseChatHistory.mockReturnValue({
       data: [],
       isLoading: false,
+      initialMessages: [],
     } as any)
 
-    render(<ChatScreen />)
+    renderWithProviders(<ChatScreen />)
 
     expect(screen.getByPlaceholderText('Ask about plant care...')).toBeTruthy()
   })
 
   it('displays messages when available', () => {
     mockedUseChatHistory.mockReturnValue({
-      data: [
+      data: [],
+      isLoading: false,
+      initialMessages: [],
+    } as any)
+
+    mockedUsePlantChat.mockReturnValue({
+      messages: [
         {
           id: 'msg-1',
           role: 'user',
           content: 'Hello',
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
         },
         {
           id: 'msg-2',
           role: 'assistant',
           content: 'Hi! How can I help with your plants?',
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
         },
       ],
-      isLoading: false,
+      append: mockAppend,
+      status: 'ready',
     } as any)
 
-    render(<ChatScreen />)
+    renderWithProviders(<ChatScreen />)
 
     expect(screen.getByText('Hello')).toBeTruthy()
     expect(
@@ -83,17 +111,33 @@ describe('ChatScreen', () => {
     ).toBeTruthy()
   })
 
-  it('shows typing indicator when sending', () => {
+  it('shows typing indicator when streaming with empty content', () => {
     mockedUseChatHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
-    mockedUseSendMessage.mockReturnValue({
-      mutate: mockSendMessage,
-      isPending: true,
+      initialMessages: [],
     } as any)
 
-    const { toJSON } = render(<ChatScreen />)
+    mockedUsePlantChat.mockReturnValue({
+      messages: [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'Hello',
+          createdAt: new Date(),
+        },
+        {
+          id: 'msg-2',
+          role: 'assistant',
+          content: '',
+          createdAt: new Date(),
+        },
+      ],
+      append: mockAppend,
+      status: 'streaming',
+    } as any)
+
+    const { toJSON } = renderWithProviders(<ChatScreen />)
     expect(toJSON()).toBeTruthy()
   })
 })

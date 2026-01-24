@@ -1,51 +1,80 @@
-import { useQuery } from '@tanstack/react-query'
+import type { Message } from '@ai-sdk/react'
+import { StaleTime } from '@lily/shared'
+import { Array, Option, pipe } from 'effect'
+import { useEffectQuery } from 'src/utils/client'
 
-type MessageRole = 'user' | 'assistant'
-
-interface ChatMessage {
+// Extended message type with imageUrl for display
+export interface ChatMessageDisplay {
   id: string
-  role: MessageRole
+  role: 'user' | 'assistant'
   content: string
   imageUrl?: string
-  createdAt: string
+  createdAt: Date
 }
 
-async function fetchChatHistory(plantId?: string): Promise<ChatMessage[]> {
-  // TODO: Implement actual API call when backend is ready
-  // const messages = await api.chat.history(plantId)
-  // return messages
+// Transform API message to Message format for AI SDK
+const toMessage = (msg: {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: Date | string
+}): Message => ({
+  id: msg.id,
+  role: msg.role,
+  content: msg.content,
+  createdAt:
+    msg.createdAt instanceof Date
+      ? msg.createdAt
+      : new Date(String(msg.createdAt)),
+})
 
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  // Mock response - recent messages first (for inverted list)
-  return [
-    {
-      id: 'msg-1',
-      role: 'assistant',
-      content:
-        'The brown tips on your Monstera leaves could be caused by:\n\n1. **Low humidity** - These tropical plants prefer 60%+ humidity\n2. **Inconsistent watering** - Let the top inch of soil dry between waterings\n3. **Too much direct sunlight** - They prefer bright, indirect light\n\nTry misting the leaves daily and moving it away from direct sun. Would you like me to set up a care reminder?',
-      createdAt: new Date(Date.now() - 60000).toISOString(),
-    },
-    {
-      id: 'msg-2',
-      role: 'user',
-      content: 'Why are the tips of my Monstera leaves turning brown?',
-      createdAt: new Date(Date.now() - 120000).toISOString(),
-    },
-    {
-      id: 'msg-3',
-      role: 'assistant',
-      content:
-        "Hello! I'm Lily, your plant care assistant. 🌿 I'm here to help you keep your plants healthy and thriving!\n\nFeel free to ask me anything about plant care, watering schedules, or troubleshooting plant problems.",
-      createdAt: new Date(Date.now() - 180000).toISOString(),
-    },
-  ]
-}
+// Transform API message to display format for ChatMessage component
+const toDisplayMessage = (msg: {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  imageUrl?: string
+  createdAt: Date | string
+}): ChatMessageDisplay => ({
+  id: msg.id,
+  role: msg.role,
+  content: msg.content,
+  imageUrl: msg.imageUrl,
+  createdAt:
+    msg.createdAt instanceof Date
+      ? msg.createdAt
+      : new Date(String(msg.createdAt)),
+})
 
 export function useChatHistory(plantId?: string) {
-  return useQuery({
-    queryKey: ['chat-history', plantId],
-    queryFn: () => fetchChatHistory(plantId),
-  })
+  const query = useEffectQuery(
+    'aiChat',
+    'getChatHistory',
+    {
+      path: { plantId: plantId ?? '' },
+      urlParams: { page: '1', limit: '50' },
+    },
+    { enabled: !!plantId, staleTime: StaleTime.default }
+  )
+
+  // Transform to Message format for AI SDK initialMessages (chronological order)
+  const initialMessages: Message[] = pipe(
+    Option.fromNullable(query.data?.items),
+    Option.map(Array.map(toMessage)),
+    Option.getOrElse(() => [] as Message[])
+  )
+
+  // Transform and reverse for inverted FlatList display
+  const displayMessages: ChatMessageDisplay[] = pipe(
+    Option.fromNullable(query.data?.items),
+    Option.map(Array.map(toDisplayMessage)),
+    Option.map(Array.reverse),
+    Option.getOrElse(() => [] as ChatMessageDisplay[])
+  )
+
+  return {
+    ...query,
+    data: displayMessages,
+    initialMessages,
+  }
 }
