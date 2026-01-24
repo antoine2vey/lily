@@ -1,4 +1,3 @@
-import { Command, type CommandExecutor } from '@effect/platform'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
@@ -6,6 +5,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
+import { spawn } from 'node:child_process'
 import { Effect } from 'effect'
 
 // 10 minutes expiry
@@ -19,7 +19,7 @@ export const sendMagicLink = ({
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
   { message: string },
-  MagicLinkRepository | RateLimiterService | CommandExecutor.CommandExecutor
+  MagicLinkRepository | RateLimiterService
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
@@ -56,18 +56,14 @@ export const sendMagicLink = ({
 
     if (process.env.NODE_ENV !== 'production') {
       // In development, open the magic link in the iOS simulator
-      // Use shell sleep to delay redirect so response is sent first
+      // Use detached spawn with sleep so response is sent before redirect
       const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
-      const openSimulatorCommand = Command.make(
+      const child = spawn(
         'sh',
-        '-c',
-        `sleep 0.5 && xcrun simctl openurl booted '${expoGoLink}'`
+        ['-c', `sleep 1 && xcrun simctl openurl booted '${expoGoLink}'`],
+        { detached: true, stdio: 'ignore' }
       )
-      yield* Effect.fork(
-        Effect.catchAll(Command.exitCode(openSimulatorCommand), (error) =>
-          Effect.logWarning('Failed to open magic link in simulator:', error)
-        )
-      )
+      child.unref()
     } else {
       // In production, send the email
       yield* Effect.catchAll(
