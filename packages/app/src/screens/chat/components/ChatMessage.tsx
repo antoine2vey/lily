@@ -1,6 +1,7 @@
 import { formatApiTime } from '@lily/shared'
 import { Image, Text, View } from 'react-native'
 import { Avatar } from 'src/components/Avatar'
+import { MarkdownText } from 'src/components/MarkdownText'
 
 type MessageRole = 'user' | 'assistant'
 
@@ -43,11 +44,25 @@ export function ChatMessage({ message }: ChatMessageProps) {
               resizeMode="cover"
             />
           )}
-          <Text
-            className={`text-base font-regular ${isUser ? 'text-white' : 'text-text-primary'}`}
-          >
-            {message.content}
-          </Text>
+          {isUser ? (
+            <Text
+              className="text-base text-white"
+              style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
+            >
+              {message.content}
+            </Text>
+          ) : (
+            <MarkdownText
+              style={{
+                fontFamily: 'PlusJakartaSans_400Regular',
+                fontSize: 16,
+                lineHeight: 24,
+                color: '#1A1A1A',
+              }}
+            >
+              {message.content}
+            </MarkdownText>
+          )}
         </View>
         <Text className="text-xs mt-1 font-regular text-text-muted">
           {formatApiTime(message.createdAt)}
