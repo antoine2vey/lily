@@ -19,7 +19,7 @@ describe('PlantSelector', () => {
     mockedUsePlants.mockReturnValue({
       data: { items: mockPlants, total: mockPlants.length },
       isLoading: false,
-    } as any)
+    })
   })
 
   it('renders select plants label', () => {

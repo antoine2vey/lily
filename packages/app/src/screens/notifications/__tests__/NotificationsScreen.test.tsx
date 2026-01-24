@@ -31,15 +31,15 @@ describe('NotificationsScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedUseMarkAsRead.mockReturnValue({ mutate: mockMarkAsRead } as any)
-    mockedUseMarkAllAsRead.mockReturnValue({ mutate: mockMarkAllAsRead } as any)
+    mockedUseMarkAsRead.mockReturnValue({ mutate: mockMarkAsRead })
+    mockedUseMarkAllAsRead.mockReturnValue({ mutate: mockMarkAllAsRead })
   })
 
   it('shows loading state initially', () => {
     mockedUseNotifications.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     const { toJSON } = render(<NotificationsScreen />)
 
@@ -51,7 +51,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: mockNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -62,7 +62,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: mockNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -74,7 +74,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: [] },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -91,7 +91,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: allReadNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -116,7 +116,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: testNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -138,7 +138,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: unreadNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -160,7 +160,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: unreadNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -200,7 +200,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: mixedNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 
@@ -230,7 +230,7 @@ describe('NotificationsScreen', () => {
     mockedUseNotifications.mockReturnValue({
       data: { items: mixedNotifications },
       isLoading: false,
-    } as any)
+    })
 
     render(<NotificationsScreen />)
 

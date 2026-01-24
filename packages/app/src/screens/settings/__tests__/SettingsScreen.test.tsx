@@ -47,15 +47,15 @@ describe('SettingsScreen', () => {
     mockedUseDeleteAccount.mockReturnValue({
       mutate: mockDeleteAccount,
       isPending: false,
-    } as any)
+    })
   })
 
   it('shows loading state when data is loading', () => {
-    mockedUseUser.mockReturnValue({ data: undefined, isLoading: true } as any)
+    mockedUseUser.mockReturnValue({ data: undefined, isLoading: true })
     mockedUseSubscription.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -66,11 +66,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -81,11 +81,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -99,11 +99,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -116,11 +116,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -132,11 +132,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -148,11 +148,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -166,11 +166,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -183,11 +183,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -201,11 +201,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'premium', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -216,11 +216,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'premium', status: 'trialing' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -231,11 +231,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 
@@ -246,11 +246,11 @@ describe('SettingsScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free', status: 'active' },
       isLoading: false,
-    } as any)
+    })
 
     render(<SettingsScreen />)
 

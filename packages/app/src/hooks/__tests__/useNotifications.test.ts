@@ -24,7 +24,7 @@ describe('useNotifications', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => useNotifications(), {
       wrapper: createQueryWrapper(),
@@ -34,9 +34,7 @@ describe('useNotifications', () => {
   })
 
   it('returns notifications data when successful', () => {
-    mockedUseEffectQuery.mockReturnValue(
-      mockQuerySuccess(mockNotifications) as any
-    )
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockNotifications))
 
     const { result } = renderHook(() => useNotifications(), {
       wrapper: createQueryWrapper(),
@@ -47,7 +45,7 @@ describe('useNotifications', () => {
   })
 
   it('returns loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(() => useNotifications(), {
       wrapper: createQueryWrapper(),

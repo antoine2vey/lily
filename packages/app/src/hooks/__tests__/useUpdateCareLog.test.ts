@@ -22,7 +22,7 @@ describe('useUpdateCareLog', () => {
   })
 
   it('calls useEffectMutation', () => {
-    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess() as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess())
 
     renderHook(() => useUpdateCareLog(), {
       wrapper: createQueryWrapper(),
@@ -37,7 +37,7 @@ describe('useUpdateCareLog', () => {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useUpdateCareLog(), {
       wrapper: createQueryWrapper(),

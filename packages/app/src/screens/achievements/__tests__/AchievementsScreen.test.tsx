@@ -56,7 +56,7 @@ describe('AchievementsScreen', () => {
     mockedUseAchievements.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -72,7 +72,7 @@ describe('AchievementsScreen', () => {
         totalCount: 20,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -88,7 +88,7 @@ describe('AchievementsScreen', () => {
         totalCount: 20,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -104,7 +104,7 @@ describe('AchievementsScreen', () => {
         totalCount: 20,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -120,7 +120,7 @@ describe('AchievementsScreen', () => {
         totalCount: 10,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -138,7 +138,7 @@ describe('AchievementsScreen', () => {
         totalCount: 10,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 
@@ -154,7 +154,7 @@ describe('AchievementsScreen', () => {
         totalCount: 20,
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<AchievementsScreen />)
 

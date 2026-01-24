@@ -50,7 +50,7 @@ describe('ChatScreen', () => {
       messages: [],
       append: mockAppend,
       status: 'ready',
-    } as any)
+    })
   })
 
   it('renders loading state', () => {
@@ -58,7 +58,7 @@ describe('ChatScreen', () => {
       data: [],
       isLoading: true,
       initialMessages: [],
-    } as any)
+    })
 
     const { toJSON } = renderWithProviders(<ChatScreen />)
     expect(toJSON()).toBeTruthy()
@@ -69,7 +69,7 @@ describe('ChatScreen', () => {
       data: [],
       isLoading: false,
       initialMessages: [],
-    } as any)
+    })
 
     renderWithProviders(<ChatScreen />)
 
@@ -81,7 +81,7 @@ describe('ChatScreen', () => {
       data: [],
       isLoading: false,
       initialMessages: [],
-    } as any)
+    })
 
     mockedUsePlantChat.mockReturnValue({
       messages: [
@@ -100,7 +100,7 @@ describe('ChatScreen', () => {
       ],
       append: mockAppend,
       status: 'ready',
-    } as any)
+    })
 
     renderWithProviders(<ChatScreen />)
 
@@ -115,7 +115,7 @@ describe('ChatScreen', () => {
       data: [],
       isLoading: false,
       initialMessages: [],
-    } as any)
+    })
 
     mockedUsePlantChat.mockReturnValue({
       messages: [
@@ -134,7 +134,7 @@ describe('ChatScreen', () => {
       ],
       append: mockAppend,
       status: 'streaming',
-    } as any)
+    })
 
     const { toJSON } = renderWithProviders(<ChatScreen />)
     expect(toJSON()).toBeTruthy()

@@ -42,18 +42,18 @@ describe('PrivacySettingsScreen', () => {
     jest.clearAllMocks()
     mockedUseUpdatePrivacySettings.mockReturnValue({
       mutate: mockUpdateSettings,
-    } as any)
+    })
     mockedUseExportData.mockReturnValue({
       mutate: mockExportData,
       isPending: false,
-    } as any)
+    })
   })
 
   it('shows loading state when data is loading', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -64,7 +64,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -75,7 +75,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -89,7 +89,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -102,7 +102,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -115,7 +115,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -130,7 +130,7 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 
@@ -143,12 +143,12 @@ describe('PrivacySettingsScreen', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     mockedUseExportData.mockReturnValue({
       mutate: mockExportData,
       isPending: true,
-    } as any)
+    })
 
     render(<PrivacySettingsScreen />)
 

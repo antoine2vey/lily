@@ -27,14 +27,14 @@ describe('EditProfileScreen', () => {
     mockedUseUpdateProfile.mockReturnValue({
       mutate: mockUpdateProfile,
       isPending: false,
-    } as any)
+    })
   })
 
   it('shows loading state when user data is loading', () => {
     mockedUseUser.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -45,7 +45,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -56,7 +56,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -68,7 +68,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -80,7 +80,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -92,7 +92,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -104,7 +104,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: { ...mockUsers[0], name: '' },
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -118,7 +118,7 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 
@@ -131,12 +131,12 @@ describe('EditProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
 
     mockedUseUpdateProfile.mockReturnValue({
       mutate: mockUpdateProfile,
       isPending: true,
-    } as any)
+    })
 
     render(<EditProfileScreen />)
 

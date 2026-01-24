@@ -24,7 +24,7 @@ describe('useCareTasks', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => useCareTasks(), {
       wrapper: createQueryWrapper(),
@@ -43,7 +43,7 @@ describe('useCareTasks', () => {
       today: [mockPlantsForCareTasks[1]],
       thisWeek: [mockPlantsForCareTasks[2], mockPlantsForCareTasks[3]],
     }
-    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockTasks) as any)
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockTasks))
 
     const { result } = renderHook(() => useCareTasks(), {
       wrapper: createQueryWrapper(),
@@ -54,7 +54,7 @@ describe('useCareTasks', () => {
   })
 
   it('returns loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(() => useCareTasks(), {
       wrapper: createQueryWrapper(),

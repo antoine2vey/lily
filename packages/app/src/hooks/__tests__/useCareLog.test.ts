@@ -24,7 +24,7 @@ describe('useCareLog', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => useCareLog({ plantId: 'plant-1', logId: 'log-1' }), {
       wrapper: createQueryWrapper(),
@@ -35,7 +35,7 @@ describe('useCareLog', () => {
 
   it('returns care log data when successful', () => {
     const mockLog = mockCareLogs[0]
-    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockLog) as any)
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockLog))
 
     const { result } = renderHook(
       () => useCareLog({ plantId: 'plant-1', logId: 'log-1' }),
@@ -49,7 +49,7 @@ describe('useCareLog', () => {
   })
 
   it('returns loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(
       () => useCareLog({ plantId: 'plant-1', logId: 'log-1' }),
