@@ -81,7 +81,7 @@ jest.mock('expo-camera', () => ({
 
 // expo-device
 jest.mock('expo-device', () => ({
-  isDevice: true,
+  isDevice: false, // Tests should not attempt push registration
   brand: 'Apple',
   modelName: 'iPhone 15',
   osName: 'iOS',

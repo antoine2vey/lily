@@ -1,13 +1,31 @@
-echo "🔍 Running pre-push lint check..."
+echo "🔍 Running pre-push checks..."
 
-# Run linting on all packages
-bun run lint:fix
-
-# Check if linting passed
+# Run linting
+echo "📝 Running lint..."
+bun run lint
 if [ $? -ne 0 ]; then
     echo "❌ Linting failed! Please fix the issues before pushing."
-    echo "💡 You can run 'bun run lint:fix' to automatically fix some issues."
+    echo "💡 Run 'bun run lint:fix' to automatically fix some issues."
     exit 1
 fi
+echo "✅ Lint passed!"
 
-echo "✅ Linting passed! Proceeding with push..." 
+# Run type checking
+echo "🔷 Running type check..."
+bun run tsc
+if [ $? -ne 0 ]; then
+    echo "❌ Type checking failed! Please fix the type errors before pushing."
+    exit 1
+fi
+echo "✅ Type check passed!"
+
+# Run tests
+echo "🧪 Running tests..."
+bun run test
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed! Please fix failing tests before pushing."
+    exit 1
+fi
+echo "✅ Tests passed!"
+
+echo "✅ All pre-push checks passed! Proceeding with push..." 

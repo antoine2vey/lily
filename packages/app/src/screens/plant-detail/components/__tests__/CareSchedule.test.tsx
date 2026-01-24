@@ -48,7 +48,7 @@ describe('CareSchedule', () => {
     )
 
     expect(screen.getByTestId('care-card-watering')).toBeTruthy()
-    expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.getByText('In 3 days')).toBeTruthy()
     expect(screen.getByText('Watering')).toBeTruthy()
   })
 
@@ -64,7 +64,7 @@ describe('CareSchedule', () => {
     )
 
     expect(screen.getByTestId('care-card-fertilizing')).toBeTruthy()
-    expect(screen.getByText('14')).toBeTruthy()
+    expect(screen.getByText('In 14 days')).toBeTruthy()
     expect(screen.getByText('Fertilizing')).toBeTruthy()
   })
 
@@ -87,15 +87,15 @@ describe('CareSchedule', () => {
     render(
       <CareSchedule
         wateringDays={-2}
-        wateringDate="2 days overdue"
+        wateringDate="Was due Jan 4"
         fertilizingDays={14}
         fertilizingDate="Next: Jan 20"
         onEdit={mockOnEdit}
       />
     )
 
-    expect(screen.getByText('2')).toBeTruthy()
-    expect(screen.getByText('OVERDUE')).toBeTruthy()
+    expect(screen.getByText('2 days overdue')).toBeTruthy()
+    expect(screen.getByText('Was due Jan 4')).toBeTruthy()
   })
 
   it('calls onEdit when edit button pressed', () => {

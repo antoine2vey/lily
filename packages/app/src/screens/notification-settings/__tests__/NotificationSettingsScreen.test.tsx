@@ -28,13 +28,10 @@ import {
 } from '@/hooks/useNotificationSettings'
 import { NotificationSettingsScreen } from '../NotificationSettingsScreen'
 
-const mockedUseNotificationSettings =
-  useNotificationSettings as jest.MockedFunction<typeof useNotificationSettings>
+const mockedUseNotificationSettings = useNotificationSettings as jest.Mock
 const mockedUseUpdateNotificationSettings =
-  useUpdateNotificationSettings as jest.MockedFunction<
-    typeof useUpdateNotificationSettings
-  >
-const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
+  useUpdateNotificationSettings as jest.Mock
+const mockedUseAuth = useAuth as jest.Mock
 
 describe('NotificationSettingsScreen', () => {
   const mockUpdateSettings = jest.fn()

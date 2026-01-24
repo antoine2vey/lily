@@ -8,14 +8,12 @@ jest.mock('@/hooks/useSubscriptionUsage', () => ({
 import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
 import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 
-const mockedUseSubscriptionUsage = useSubscriptionUsage as jest.MockedFunction<
-  typeof useSubscriptionUsage
->
+const mockedUseSubscriptionUsage = useSubscriptionUsage as jest.Mock
 
 // Helper to create properly structured mock data
 const createMockUsageData = (overrides = {}) => ({
   planName: 'Free',
-  status: 'active',
+  status: 'active' as const,
   isPremium: false,
   usage: [
     { type: 'ai_chats' as const, current: 5, max: 10 },

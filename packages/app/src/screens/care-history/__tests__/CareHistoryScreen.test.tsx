@@ -22,10 +22,8 @@ import { useCareHistory } from '@/hooks/useCareHistory'
 import { usePlant } from '@/hooks/usePlant'
 import { CareHistoryScreen } from '../CareHistoryScreen'
 
-const mockedUsePlant = usePlant as jest.MockedFunction<typeof usePlant>
-const mockedUseCareHistory = useCareHistory as jest.MockedFunction<
-  typeof useCareHistory
->
+const mockedUsePlant = usePlant as jest.Mock
+const mockedUseCareHistory = useCareHistory as jest.Mock
 
 describe('CareHistoryScreen', () => {
   beforeEach(() => {

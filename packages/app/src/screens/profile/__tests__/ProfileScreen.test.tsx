@@ -31,15 +31,11 @@ import { useSubscription } from '@/hooks/useSubscription'
 import { useUser } from '@/hooks/useUser'
 import { ProfileScreen } from '../ProfileScreen'
 
-const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
-const mockedUseUser = useUser as jest.MockedFunction<typeof useUser>
-const mockedUsePlants = usePlants as jest.MockedFunction<typeof usePlants>
-const mockedUseSubscription = useSubscription as jest.MockedFunction<
-  typeof useSubscription
->
-const mockedUseAchievements = useAchievements as jest.MockedFunction<
-  typeof useAchievements
->
+const mockedUseAuth = useAuth as jest.Mock
+const mockedUseUser = useUser as jest.Mock
+const mockedUsePlants = usePlants as jest.Mock
+const mockedUseSubscription = useSubscription as jest.Mock
+const mockedUseAchievements = useAchievements as jest.Mock
 
 describe('ProfileScreen', () => {
   const mockLogout = jest.fn()

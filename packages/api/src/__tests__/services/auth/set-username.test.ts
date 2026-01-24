@@ -78,7 +78,7 @@ describe('setUsername', () => {
 
   it('should fail when username already taken', async () => {
     const result = await Effect.runPromiseExit(
-      setUsername({ username: mockUser2.name }).pipe(
+      setUsername({ username: mockUser2.name ?? 'taken-username' }).pipe(
         Effect.provide(createTestLayer())
       )
     )

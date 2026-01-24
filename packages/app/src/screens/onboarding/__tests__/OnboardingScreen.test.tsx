@@ -8,8 +8,7 @@ jest.mock('@/hooks/useOnboardingComplete', () => ({
 import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
 import { OnboardingScreen } from '../OnboardingScreen'
 
-const mockedUseOnboardingComplete =
-  useOnboardingComplete as jest.MockedFunction<typeof useOnboardingComplete>
+const mockedUseOnboardingComplete = useOnboardingComplete as jest.Mock
 
 describe('OnboardingScreen', () => {
   const mockCompleteOnboarding = jest.fn()
