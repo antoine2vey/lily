@@ -32,6 +32,7 @@ interface PlantCardData {
   health: HealthStatus
   daysUntilWater?: number
   needsWater?: boolean
+  isFavorite?: boolean
 }
 
 const mapApiHealthToCardHealth = (health: string): HealthStatus =>
@@ -102,6 +103,7 @@ export function PlantsScreen() {
         health: mapApiHealthToCardHealth(plant.health),
         daysUntilWater: days,
         needsWater,
+        isFavorite: plant.isFavorite,
       }
     })
   }, [plantsData])
