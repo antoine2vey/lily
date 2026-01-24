@@ -1,4 +1,3 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'

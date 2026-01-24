@@ -1,4 +1,4 @@
-import { Array, pipe } from 'effect'
+import { Array } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, type TextStyle, View } from 'react-native'
 
@@ -68,18 +68,21 @@ const renderLine = (
 
   return (
     <Text key={lineIndex}>
-      {Array.map(segments, (segment, i) => (
-        <Text
-          key={`${lineIndex}-${i}`}
-          style={[
-            baseStyle,
-            segment.bold && { fontFamily: 'PlusJakartaSans_700Bold' },
-            segment.italic && { fontStyle: 'italic' },
-          ]}
-        >
-          {segment.text}
-        </Text>
-      ))}
+      {Array.map(segments, (segment, i) => {
+        const segmentKey = `${lineIndex}-seg-${segment.text.slice(0, 10)}-${i}`
+        return (
+          <Text
+            key={segmentKey}
+            style={[
+              baseStyle,
+              segment.bold && { fontFamily: 'PlusJakartaSans_700Bold' },
+              segment.italic && { fontStyle: 'italic' },
+            ]}
+          >
+            {segment.text}
+          </Text>
+        )
+      })}
     </Text>
   )
 }
@@ -121,6 +124,7 @@ export function MarkdownText({
 
         // Skip completely empty lines but add spacing
         if (trimmedLine === '') {
+          // biome-ignore lint/suspicious/noArrayIndexKey: markdown lines maintain stable order
           return <View key={`empty-${index}`} className="h-2" />
         }
 

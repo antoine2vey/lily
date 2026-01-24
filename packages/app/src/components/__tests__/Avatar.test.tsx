@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react-native'
 import { Avatar } from '../Avatar'
 
 describe('Avatar', () => {
@@ -51,7 +51,7 @@ describe('Avatar', () => {
   })
 
   it('handles image load error with fallback', () => {
-    const { toJSON, getByTestId } = render(
+    const { toJSON } = render(
       <Avatar
         source={{ uri: 'https://example.com/invalid.jpg' }}
         name="John Doe"

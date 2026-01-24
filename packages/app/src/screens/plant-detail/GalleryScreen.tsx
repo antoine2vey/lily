@@ -158,7 +158,7 @@ export function GalleryScreen() {
   }, [isFetching])
 
   const photos = data?.items ?? []
-  const allItems = Array.prepend(photos, {
+  const _allItems = Array.prepend(photos, {
     id: 'add-photo-header',
     url: '',
     takenAt: new Date(),

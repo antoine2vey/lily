@@ -1,4 +1,3 @@
-import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 

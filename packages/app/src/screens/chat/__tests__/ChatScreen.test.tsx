@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import React from 'react'
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({

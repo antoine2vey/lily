@@ -73,7 +73,7 @@ export function useSaveCareLog() {
       // Invalidate care logs for each plant
       pipe(
         variables.plantIds,
-        Array.forEach((plantId) => {
+        Array.forEach((_plantId) => {
           queryClient.invalidateQueries({
             queryKey: ['careLogs', 'getCareLogs'],
           })

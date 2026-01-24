@@ -38,7 +38,7 @@ export function CareHistoryScreen() {
     'all'
   )
 
-  const handleEventPress = (event: { id: string }) => {
+  const handleEventPress = (_event: { id: string }) => {
     // Could navigate to event details in the future
   }
 

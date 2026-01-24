@@ -80,7 +80,7 @@ export function NurseryCardScannerScreen() {
 
   // Note: Text recognition would require a native module like react-native-text-recognition
   // For now, this is a simplified version that navigates to manual add
-  const handleScanResult = (text: string) => {
+  const _handleScanResult = (text: string) => {
     if (!isScanning) return
 
     const plantInfo = parseNurseryCardText(text)

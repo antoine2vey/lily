@@ -4,7 +4,6 @@ import {
   renderHook,
 } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import React from 'react'
 
 /**
  * Create a test query client with sensible defaults

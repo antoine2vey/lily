@@ -37,7 +37,7 @@ export function useMarkAsRead() {
 
 // Note: useMarkAllAsRead is kept as a placeholder - backend endpoint not yet implemented
 export function useMarkAllAsRead() {
-  const queryClient = useQueryClient()
+  const _queryClient = useQueryClient()
 
   return {
     mutate: () => {

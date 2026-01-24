@@ -1,6 +1,6 @@
 import type { UserProfile } from '@lily/shared/auth'
 import type { ReactNode } from 'react'
-import React, { createContext, useContext } from 'react'
+import { createContext, useContext } from 'react'
 
 // ============================================================================
 // Mock Auth Context
