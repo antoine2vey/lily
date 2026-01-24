@@ -116,17 +116,19 @@ export function MarkdownText({
     <View className={className}>
       {Array.map(lines, (line, index) => {
         const trimmedLine = line.trim()
+        // Create stable key from content hash and index for static markdown
+        const lineKey = `line-${index}-${trimmedLine.slice(0, 20)}`
 
         // Skip completely empty lines but add spacing
         if (trimmedLine === '') {
-          return <View key={index} className="h-2" />
+          return <View key={`empty-${index}`} className="h-2" />
         }
 
         const { isItem, marker, content } = isListItem(trimmedLine)
 
         if (isItem) {
           return (
-            <View key={index} className="flex-row mb-1">
+            <View key={lineKey} className="flex-row mb-1">
               <Text
                 style={[
                   style,
@@ -143,7 +145,7 @@ export function MarkdownText({
         }
 
         return (
-          <View key={index} className="mb-1">
+          <View key={lineKey} className="mb-1">
             {renderLine(trimmedLine, index, style)}
           </View>
         )

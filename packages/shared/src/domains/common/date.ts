@@ -17,13 +17,25 @@ export type DateInput = DateTime.DateTime.Input | null | undefined
  * Parse a date input from API to DateTime.
  * Accepts Date objects, ISO strings, epoch milliseconds, or partial date parts.
  *
+ * IMPORTANT: For Date objects, we use getTime() to extract UTC milliseconds
+ * directly. This is necessary because DateTime.make(Date) interprets the
+ * Date's local time representation, causing timezone offset issues.
+ *
  * @param dateInput - Date input (Date, string, number, or null/undefined)
  * @returns Option containing the parsed DateTime
  */
 export const parseApiDate = (
   dateInput: DateInput
 ): Option.Option<DateTime.DateTime> =>
-  pipe(Option.fromNullable(dateInput), Option.flatMap(DateTime.make))
+  pipe(
+    Option.fromNullable(dateInput),
+    Option.flatMap((input) =>
+      // For Date objects, use epoch milliseconds to avoid local timezone interpretation
+      input instanceof Date
+        ? DateTime.make(input.getTime())
+        : DateTime.make(input)
+    )
+  )
 
 /**
  * Get current time as DateTime.Utc (synchronous, uses Date.now()).

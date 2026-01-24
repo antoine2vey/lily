@@ -32,10 +32,10 @@ type ExtractError<T> = T extends HttpApi.HttpApi<
   ? E
   : never
 
-const ACCESS_TOKEN_KEY = 'lily_access_token'
-const REFRESH_TOKEN_KEY = 'lily_refresh_token'
+export const ACCESS_TOKEN_KEY = 'lily_access_token'
+export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-const API_BASE_URL = 'http://192.168.1.85:3000'
+export const API_BASE_URL = 'http://192.168.1.85:3000'
 
 // Flag to prevent multiple simultaneous refresh attempts
 let isRefreshing = false
@@ -235,7 +235,7 @@ export function useEffectQuery<
   >
 ) {
   return useQuery({
-    queryKey: [section, method],
+    queryKey: [section, method, params],
     queryFn: () => apiEffectRunner(section, method, params),
     ...useQueryParams,
   })

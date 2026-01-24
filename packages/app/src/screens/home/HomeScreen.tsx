@@ -19,6 +19,7 @@ import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
 import { NotificationBell } from 'src/components/NotificationBell'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
@@ -38,6 +39,9 @@ export function HomeScreen() {
   } = useEffectQuery('plants', 'getPlants', {
     urlParams: { page: '1', limit: '20', filter: 'all', sort: 'added' },
   })
+
+  const { data: recentActivities, refetch: refetchActivities } =
+    useRecentActivities(5)
 
   const userName = pipe(
     Match.value(state),
@@ -84,38 +88,8 @@ export function HomeScreen() {
     }))
   )
 
-  // Mock activities matching design - in real app from care history API
-  const recentActivities: Array<{
-    id: string
-    type: 'watered' | 'fertilized' | 'added' | 'moved' | 'misted' | 'pruned'
-    plantName: string
-    timestamp: Date
-    plantImageUrl?: string
-  }> = hasPlants
-    ? [
-        {
-          id: '1',
-          type: 'misted',
-          plantName: 'Fiddle Leaf Fig',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago
-        },
-        {
-          id: '2',
-          type: 'added',
-          plantName: 'Cactus',
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
-        },
-        {
-          id: '3',
-          type: 'moved',
-          plantName: 'Aloe Vera',
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-        },
-      ]
-    : []
-
   const onRefresh = async () => {
-    await refetchPlants()
+    await Promise.all([refetchPlants(), refetchActivities()])
   }
 
   const handleWaterAll = () => {

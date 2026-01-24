@@ -13,8 +13,11 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
+import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
+import { useWaterPlant } from 'src/hooks/useWaterPlant'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { CareSchedule } from './components/CareSchedule'
@@ -147,6 +150,8 @@ export function PlantDetailScreen() {
   })
 
   const uploadPhoto = useUploadPhoto()
+  const waterPlant = useWaterPlant()
+  const fertilizePlant = useFertilizePlant()
 
   const handleBack = useCallback(() => {
     router.back()
@@ -157,14 +162,26 @@ export function PlantDetailScreen() {
   }, [])
 
   const handleWater = useCallback(() => {
-    // TODO: Implement water action (T4.12)
-    console.log('Water plant:', plantId)
-  }, [plantId])
+    if (!plantId) return
+    waterPlant.mutate(
+      { path: { id: plantId }, payload: {} },
+      {
+        onSuccess: () => toast.success(`${plant?.name} watered!`),
+        onError: () => toast.error('Failed to water plant'),
+      }
+    )
+  }, [plantId, plant?.name, waterPlant])
 
   const handleFertilize = useCallback(() => {
-    // TODO: Implement fertilize action (T4.13)
-    console.log('Fertilize plant:', plantId)
-  }, [plantId])
+    if (!plantId) return
+    fertilizePlant.mutate(
+      { path: { id: plantId } },
+      {
+        onSuccess: () => toast.success(`${plant?.name} fertilized!`),
+        onError: () => toast.error('Failed to fertilize plant'),
+      }
+    )
+  }, [plantId, plant?.name, fertilizePlant])
 
   const handlePhoto = useCallback(() => {
     // TODO: Navigate to add photo
@@ -172,9 +189,8 @@ export function PlantDetailScreen() {
   }, [plantId])
 
   const handleChat = useCallback(() => {
-    // TODO: Navigate to AI chat about this plant
-    console.log('Chat about plant:', plantId)
-  }, [plantId])
+    router.push(`/plant/${plantId}/chat`)
+  }, [plantId, router])
 
   const handleEditSchedule = useCallback(() => {
     // TODO: Navigate to edit care schedule
