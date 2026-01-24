@@ -24,7 +24,7 @@ describe('usePlants', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlants(), {
       wrapper: createQueryWrapper(),
@@ -46,7 +46,7 @@ describe('usePlants', () => {
   })
 
   it('accepts custom pagination params', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlants({ page: '2', limit: '10' }), {
       wrapper: createQueryWrapper(),
@@ -66,7 +66,7 @@ describe('usePlants', () => {
   })
 
   it('accepts custom filter param', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlants({ filter: 'needsWater' }), {
       wrapper: createQueryWrapper(),
@@ -85,7 +85,7 @@ describe('usePlants', () => {
   })
 
   it('accepts custom sort param', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlants({ sort: 'name' }), {
       wrapper: createQueryWrapper(),
@@ -105,7 +105,7 @@ describe('usePlants', () => {
 
   it('returns query result', () => {
     const mockData = { items: mockPlants, total: mockPlants.length }
-    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockData) as any)
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockData))
 
     const { result } = renderHook(() => usePlants(), {
       wrapper: createQueryWrapper(),
@@ -117,7 +117,7 @@ describe('usePlants', () => {
   })
 
   it('handles loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(() => usePlants(), {
       wrapper: createQueryWrapper(),

@@ -22,7 +22,7 @@ describe('useWaterPlant', () => {
   })
 
   it('calls useEffectMutation with correct parameters', () => {
-    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess() as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess())
 
     renderHook(() => useWaterPlant(), {
       wrapper: createQueryWrapper(),
@@ -43,7 +43,7 @@ describe('useWaterPlant', () => {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useWaterPlant(), {
       wrapper: createQueryWrapper(),
@@ -61,7 +61,7 @@ describe('useWaterPlant', () => {
       isError: false,
       isSuccess: false,
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useWaterPlant(), {
       wrapper: createQueryWrapper(),

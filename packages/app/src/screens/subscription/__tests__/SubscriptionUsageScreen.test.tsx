@@ -34,7 +34,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -45,7 +45,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData(),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -56,7 +56,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData(),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -67,7 +67,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData(),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -78,7 +78,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData(),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -89,7 +89,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData({ isPremium: false }),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -100,7 +100,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData({ isPremium: true, planName: 'Premium' }),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 
@@ -111,7 +111,7 @@ describe('SubscriptionUsageScreen', () => {
     mockedUseSubscriptionUsage.mockReturnValue({
       data: createMockUsageData(),
       isLoading: false,
-    } as any)
+    })
 
     render(<SubscriptionUsageScreen />)
 

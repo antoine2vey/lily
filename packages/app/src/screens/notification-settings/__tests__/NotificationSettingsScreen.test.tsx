@@ -55,20 +55,20 @@ describe('NotificationSettingsScreen', () => {
     jest.clearAllMocks()
     mockedUseUpdateNotificationSettings.mockReturnValue({
       mutate: mockUpdateSettings,
-    } as any)
+    })
     mockedUseAuth.mockReturnValue({
       state: {
         _tag: 'Authenticated',
         user: { id: 'user-1', email: 'test@example.com' },
       },
-    } as any)
+    })
   })
 
   it('renders loading state', async () => {
     mockedUseNotificationSettings.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     const { toJSON } = render(<NotificationSettingsScreen />)
 
@@ -81,7 +81,7 @@ describe('NotificationSettingsScreen', () => {
     mockedUseNotificationSettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
-    } as any)
+    })
 
     const { toJSON } = render(<NotificationSettingsScreen />)
 

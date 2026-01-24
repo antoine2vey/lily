@@ -89,7 +89,7 @@ describe('PlantDetailScreen', () => {
       isLoading: true,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -102,7 +102,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: new Error('Failed to load'),
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -117,7 +117,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -135,7 +135,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -153,7 +153,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -166,7 +166,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -183,7 +183,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -196,7 +196,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -209,7 +209,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -222,7 +222,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -235,7 +235,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -251,7 +251,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 
@@ -268,7 +268,7 @@ describe('PlantDetailScreen', () => {
       isLoading: false,
       error: new Error('Failed'),
       refetch: mockRefetch,
-    } as any)
+    })
 
     render(<PlantDetailScreen />)
 

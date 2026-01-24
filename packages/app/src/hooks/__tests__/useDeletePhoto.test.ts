@@ -22,7 +22,7 @@ describe('useDeletePhoto', () => {
   })
 
   it('calls useEffectMutation', () => {
-    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess() as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess())
 
     renderHook(() => useDeletePhoto(), {
       wrapper: createQueryWrapper(),
@@ -37,7 +37,7 @@ describe('useDeletePhoto', () => {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useDeletePhoto(), {
       wrapper: createQueryWrapper(),

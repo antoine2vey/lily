@@ -32,14 +32,14 @@ describe('CareHistoryScreen', () => {
     jest.clearAllMocks()
     mockedUsePlant.mockReturnValue({
       data: mockPlants[0],
-    } as any)
+    })
   })
 
   it('shows loading state initially', () => {
     mockedUseCareHistory.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -50,7 +50,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -61,7 +61,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -72,7 +72,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -86,7 +86,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -97,7 +97,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -108,7 +108,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: [],
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 
@@ -137,7 +137,7 @@ describe('CareHistoryScreen', () => {
     mockedUseCareHistory.mockReturnValue({
       data: historyData,
       isLoading: false,
-    } as any)
+    })
 
     render(<CareHistoryScreen />)
 

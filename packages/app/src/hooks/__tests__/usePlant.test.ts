@@ -24,7 +24,7 @@ describe('usePlant', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlant('plant-1'), {
       wrapper: createQueryWrapper(),
@@ -42,7 +42,7 @@ describe('usePlant', () => {
   })
 
   it('disables query when plantId is empty', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlant(''), {
       wrapper: createQueryWrapper(),
@@ -60,7 +60,7 @@ describe('usePlant', () => {
 
   it('returns plant data when successful', () => {
     const mockPlant = mockPlants[0]
-    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockPlant) as any)
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockPlant))
 
     const { result } = renderHook(() => usePlant('plant-1'), {
       wrapper: createQueryWrapper(),
@@ -71,7 +71,7 @@ describe('usePlant', () => {
   })
 
   it('returns loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(() => usePlant('plant-1'), {
       wrapper: createQueryWrapper(),
@@ -82,7 +82,7 @@ describe('usePlant', () => {
   })
 
   it('passes plant ID to path parameter', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePlant('plant-123'), {
       wrapper: createQueryWrapper(),

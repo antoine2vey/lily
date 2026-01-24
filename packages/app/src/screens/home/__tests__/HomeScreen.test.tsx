@@ -38,7 +38,7 @@ describe('HomeScreen', () => {
       },
       logout: mockLogout,
       login: jest.fn(),
-    } as any)
+    })
   })
 
   it('renders loading state', () => {
@@ -47,7 +47,7 @@ describe('HomeScreen', () => {
       isLoading: true,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     const { toJSON } = render(<HomeScreen />)
     expect(toJSON()).toBeTruthy()
@@ -59,7 +59,7 @@ describe('HomeScreen', () => {
       isLoading: false,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<HomeScreen />)
 
@@ -72,7 +72,7 @@ describe('HomeScreen', () => {
       isLoading: false,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<HomeScreen />)
 
@@ -86,7 +86,7 @@ describe('HomeScreen', () => {
       isLoading: false,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<HomeScreen />)
 
@@ -101,7 +101,7 @@ describe('HomeScreen', () => {
       isLoading: false,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<HomeScreen />)
 
@@ -120,14 +120,14 @@ describe('HomeScreen', () => {
       },
       logout: mockLogout,
       login: jest.fn(),
-    } as any)
+    })
 
     mockedUseEffectQuery.mockReturnValue({
       data: { items: [], total: 0 },
       isLoading: false,
       isRefetching: false,
       refetch: jest.fn(),
-    } as any)
+    })
 
     render(<HomeScreen />)
 

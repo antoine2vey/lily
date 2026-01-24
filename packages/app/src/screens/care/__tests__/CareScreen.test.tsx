@@ -35,14 +35,14 @@ describe('CareScreen', () => {
     jest.clearAllMocks()
     mockedUseCompleteTask.mockReturnValue({
       mutate: mockCompleteTask,
-    } as any)
+    })
   })
 
   it('shows loading state initially', () => {
     mockedUseCareTasks.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     const { toJSON } = render(<CareScreen />)
 
@@ -59,7 +59,7 @@ describe('CareScreen', () => {
         thisWeek: [],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -75,7 +75,7 @@ describe('CareScreen', () => {
         thisWeek: [],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -100,7 +100,7 @@ describe('CareScreen', () => {
         thisWeek: [],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -127,7 +127,7 @@ describe('CareScreen', () => {
         thisWeek: [],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -156,7 +156,7 @@ describe('CareScreen', () => {
         ],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -185,7 +185,7 @@ describe('CareScreen', () => {
         ],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 
@@ -238,7 +238,7 @@ describe('CareScreen', () => {
         ],
       },
       isLoading: false,
-    } as any)
+    })
 
     render(<CareScreen />)
 

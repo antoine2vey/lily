@@ -24,7 +24,7 @@ describe('usePhotos', () => {
   })
 
   it('calls useEffectQuery with correct parameters', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     renderHook(() => usePhotos({ plantId: 'plant-1' }), {
       wrapper: createQueryWrapper(),
@@ -34,9 +34,7 @@ describe('usePhotos', () => {
   })
 
   it('returns photos data when successful', () => {
-    mockedUseEffectQuery.mockReturnValue(
-      mockQuerySuccess(mockPlantPhotos) as any
-    )
+    mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockPlantPhotos))
 
     const { result } = renderHook(() => usePhotos({ plantId: 'plant-1' }), {
       wrapper: createQueryWrapper(),
@@ -47,7 +45,7 @@ describe('usePhotos', () => {
   })
 
   it('returns loading state', () => {
-    mockedUseEffectQuery.mockReturnValue(mockQueryLoading() as any)
+    mockedUseEffectQuery.mockReturnValue(mockQueryLoading())
 
     const { result } = renderHook(() => usePhotos({ plantId: 'plant-1' }), {
       wrapper: createQueryWrapper(),

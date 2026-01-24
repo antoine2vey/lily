@@ -48,20 +48,20 @@ describe('ProfileScreen', () => {
     jest.clearAllMocks()
     mockedUseAuth.mockReturnValue({
       logout: mockLogout,
-    } as any)
+    })
   })
 
   it('renders loading state', () => {
-    mockedUseUser.mockReturnValue({ data: undefined, isLoading: true } as any)
-    mockedUsePlants.mockReturnValue({ data: undefined, isLoading: true } as any)
+    mockedUseUser.mockReturnValue({ data: undefined, isLoading: true })
+    mockedUsePlants.mockReturnValue({ data: undefined, isLoading: true })
     mockedUseSubscription.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
     mockedUseAchievements.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     const { toJSON } = render(<ProfileScreen />)
     expect(toJSON()).toBeTruthy()
@@ -71,19 +71,19 @@ describe('ProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUsePlants.mockReturnValue({
       data: { items: mockPlants, total: mockPlants.length },
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free' },
       isLoading: false,
-    } as any)
+    })
     mockedUseAchievements.mockReturnValue({
       data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
-    } as any)
+    })
 
     render(<ProfileScreen />)
 
@@ -94,19 +94,19 @@ describe('ProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUsePlants.mockReturnValue({
       data: { items: mockPlants, total: mockPlants.length },
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free' },
       isLoading: false,
-    } as any)
+    })
     mockedUseAchievements.mockReturnValue({
       data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
-    } as any)
+    })
 
     render(<ProfileScreen />)
 
@@ -117,19 +117,19 @@ describe('ProfileScreen', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
-    } as any)
+    })
     mockedUsePlants.mockReturnValue({
       data: { items: mockPlants, total: mockPlants.length },
       isLoading: false,
-    } as any)
+    })
     mockedUseSubscription.mockReturnValue({
       data: { plan: 'free' },
       isLoading: false,
-    } as any)
+    })
     mockedUseAchievements.mockReturnValue({
       data: { items: mockUserAchievements, unlockedCount: 2, totalCount: 10 },
       isLoading: false,
-    } as any)
+    })
 
     render(<ProfileScreen />)
 

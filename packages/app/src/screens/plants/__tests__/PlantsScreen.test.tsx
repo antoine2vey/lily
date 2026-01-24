@@ -22,7 +22,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: undefined,
       isLoading: true,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -33,7 +33,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: [], total: 0 },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -52,7 +52,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -70,7 +70,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -87,7 +87,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -104,7 +104,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -127,7 +127,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -147,7 +147,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: plantsWithHealth.length },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -160,7 +160,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: [], total: 0 },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 
@@ -183,7 +183,7 @@ describe('PlantsScreen', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: plantsWithHealth, total: 1 },
       isLoading: false,
-    } as any)
+    })
 
     render(<PlantsScreen />)
 

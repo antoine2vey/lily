@@ -1,4 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClient,
+  QueryClientProvider,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import {
   type RenderHookOptions,
   renderHook,
@@ -53,99 +58,209 @@ export function renderQueryHook<TResult, TProps>(
 }
 
 /**
- * Mock a successful query response
+ * Mock a successful query response - returns UseQueryResult compatible type
+ * Type assertion is centralized here so tests don't need `as any`
  */
-export function mockQuerySuccess<T>(data: T) {
+export function mockQuerySuccess<T>(data: T): UseQueryResult<T, Error> {
   return {
     data,
-    isLoading: false,
-    isError: false,
+    dataUpdatedAt: Date.now(),
     error: null,
+    errorUpdatedAt: 0,
+    errorUpdateCount: 0,
+    failureCount: 0,
+    failureReason: null,
+    fetchStatus: 'idle',
+    isError: false,
+    isFetched: true,
+    isFetchedAfterMount: true,
     isFetching: false,
-    isSuccess: true,
+    isInitialLoading: false,
+    isLoading: false,
+    isLoadingError: false,
+    isPaused: false,
     isPending: false,
-    refetch: jest.fn().mockResolvedValue({ data }),
-  }
+    isPlaceholderData: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isStale: false,
+    isSuccess: true,
+    refetch: jest.fn().mockResolvedValue({ data, status: 'success' }),
+    status: 'success',
+  } as unknown as UseQueryResult<T, Error>
 }
 
 /**
- * Mock a loading query state
+ * Mock a loading query state - returns UseQueryResult compatible type
  */
-export function mockQueryLoading() {
+export function mockQueryLoading<T = unknown>(): UseQueryResult<T, Error> {
   return {
     data: undefined,
-    isLoading: true,
-    isError: false,
+    dataUpdatedAt: 0,
     error: null,
+    errorUpdatedAt: 0,
+    errorUpdateCount: 0,
+    failureCount: 0,
+    failureReason: null,
+    fetchStatus: 'fetching',
+    isError: false,
+    isFetched: false,
+    isFetchedAfterMount: false,
     isFetching: true,
-    isSuccess: false,
+    isInitialLoading: true,
+    isLoading: true,
+    isLoadingError: false,
+    isPaused: false,
     isPending: true,
+    isPlaceholderData: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isStale: false,
+    isSuccess: false,
     refetch: jest.fn(),
-  }
+    status: 'pending',
+  } as unknown as UseQueryResult<T, Error>
 }
 
 /**
- * Mock an error query state
+ * Mock an error query state - returns UseQueryResult compatible type
  */
-export function mockQueryError(error: Error = new Error('Query failed')) {
+export function mockQueryError<T = unknown>(
+  error: Error = new Error('Query failed')
+): UseQueryResult<T, Error> {
   return {
     data: undefined,
-    isLoading: false,
-    isError: true,
+    dataUpdatedAt: 0,
     error,
+    errorUpdatedAt: Date.now(),
+    errorUpdateCount: 1,
+    failureCount: 1,
+    failureReason: error,
+    fetchStatus: 'idle',
+    isError: true,
+    isFetched: true,
+    isFetchedAfterMount: true,
     isFetching: false,
-    isSuccess: false,
-    isPending: false,
-    refetch: jest.fn(),
-  }
-}
-
-/**
- * Mock a successful mutation
- */
-export function mockMutationSuccess<T>() {
-  return {
-    mutate: jest.fn(),
-    mutateAsync: jest.fn().mockResolvedValue({} as T),
+    isInitialLoading: false,
     isLoading: false,
+    isLoadingError: true,
+    isPaused: false,
     isPending: false,
-    isError: false,
-    error: null,
-    isSuccess: true,
-    reset: jest.fn(),
-  }
+    isPlaceholderData: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isStale: false,
+    isSuccess: false,
+    refetch: jest.fn(),
+    status: 'error',
+  } as unknown as UseQueryResult<T, Error>
 }
 
 /**
- * Mock a loading mutation state
+ * Mock a successful mutation - returns UseMutationResult compatible type
  */
-export function mockMutationLoading() {
+export function mockMutationSuccess<
+  TData = unknown,
+  TVariables = unknown,
+>(): UseMutationResult<TData, Error, TVariables> {
   return {
+    context: undefined,
+    data: undefined,
+    error: null,
+    failureCount: 0,
+    failureReason: null,
+    isError: false,
+    isIdle: false,
+    isPaused: false,
+    isPending: false,
+    isSuccess: true,
+    mutate: jest.fn(),
+    mutateAsync: jest.fn().mockResolvedValue({} as TData),
+    reset: jest.fn(),
+    status: 'success',
+    submittedAt: Date.now(),
+    variables: undefined,
+  } as unknown as UseMutationResult<TData, Error, TVariables>
+}
+
+/**
+ * Mock a loading mutation state - returns UseMutationResult compatible type
+ */
+export function mockMutationLoading<
+  TData = unknown,
+  TVariables = unknown,
+>(): UseMutationResult<TData, Error, TVariables> {
+  return {
+    context: undefined,
+    data: undefined,
+    error: null,
+    failureCount: 0,
+    failureReason: null,
+    isError: false,
+    isIdle: false,
+    isPaused: false,
+    isPending: true,
+    isSuccess: false,
     mutate: jest.fn(),
     mutateAsync: jest.fn(),
-    isLoading: true,
-    isPending: true,
-    isError: false,
-    error: null,
-    isSuccess: false,
     reset: jest.fn(),
-  }
+    status: 'pending',
+    submittedAt: Date.now(),
+    variables: undefined,
+  } as unknown as UseMutationResult<TData, Error, TVariables>
 }
 
 /**
- * Mock an error mutation state
+ * Mock an error mutation state - returns UseMutationResult compatible type
  */
-export function mockMutationError(error: Error = new Error('Mutation failed')) {
+export function mockMutationError<TData = unknown, TVariables = unknown>(
+  error: Error = new Error('Mutation failed')
+): UseMutationResult<TData, Error, TVariables> {
   return {
+    context: undefined,
+    data: undefined,
+    error,
+    failureCount: 1,
+    failureReason: error,
+    isError: true,
+    isIdle: false,
+    isPaused: false,
+    isPending: false,
+    isSuccess: false,
     mutate: jest.fn(),
     mutateAsync: jest.fn().mockRejectedValue(error),
-    isLoading: false,
-    isPending: false,
-    isError: true,
-    error,
-    isSuccess: false,
     reset: jest.fn(),
-  }
+    status: 'error',
+    submittedAt: Date.now(),
+    variables: undefined,
+  } as unknown as UseMutationResult<TData, Error, TVariables>
+}
+
+/**
+ * Mock an idle mutation state - returns UseMutationResult compatible type
+ */
+export function mockMutationIdle<
+  TData = unknown,
+  TVariables = unknown,
+>(): UseMutationResult<TData, Error, TVariables> {
+  return {
+    context: undefined,
+    data: undefined,
+    error: null,
+    failureCount: 0,
+    failureReason: null,
+    isError: false,
+    isIdle: true,
+    isPaused: false,
+    isPending: false,
+    isSuccess: false,
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    reset: jest.fn(),
+    status: 'idle',
+    submittedAt: 0,
+    variables: undefined,
+  } as unknown as UseMutationResult<TData, Error, TVariables>
 }
 
 /**

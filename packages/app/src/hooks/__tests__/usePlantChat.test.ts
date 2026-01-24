@@ -46,7 +46,7 @@ describe('usePlantChat', () => {
       reload: jest.fn(),
       stop: jest.fn(),
       setMessages: jest.fn(),
-    } as any)
+    })
   })
 
   it('calls useChat with correct plantId-based chat ID', () => {
@@ -114,7 +114,7 @@ describe('usePlantChat', () => {
       reload: jest.fn(),
       stop: jest.fn(),
       setMessages: jest.fn(),
-    } as any)
+    })
 
     const { result } = renderHook(() =>
       usePlantChat({ plantId: 'plant-123', initialMessages: [] })

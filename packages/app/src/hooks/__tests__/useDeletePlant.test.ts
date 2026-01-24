@@ -22,7 +22,7 @@ describe('useDeletePlant', () => {
   })
 
   it('calls useEffectMutation with correct parameters', () => {
-    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess() as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess())
 
     renderHook(() => useDeletePlant(), {
       wrapper: createQueryWrapper(),
@@ -41,7 +41,7 @@ describe('useDeletePlant', () => {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useDeletePlant(), {
       wrapper: createQueryWrapper(),
@@ -60,7 +60,7 @@ describe('useDeletePlant', () => {
       isError: false,
       isSuccess: false,
     }
-    mockedUseEffectMutation.mockReturnValue(mockMutation as any)
+    mockedUseEffectMutation.mockReturnValue(mockMutation)
 
     const { result } = renderHook(() => useDeletePlant(), {
       wrapper: createQueryWrapper(),
