@@ -2,10 +2,12 @@ import {
   ChatRepository,
   type FindChatHistoryParams,
   type IChatRepository,
+  type SaveChatParams,
 } from '@lily/api/repositories/chat.repository'
 import { paginate } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import type { UIMessage } from 'ai'
+import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
 export interface MockChatRepositoryData {
   messages: ChatMessage[]
@@ -32,15 +34,38 @@ export const createMockChatRepository = (
       )
 
       // Sort by createdAt ascending (oldest first)
-      const sorted = [...filtered].sort(
-        (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      const byCreatedAtAsc = Order.mapInput(
+        Order.Date,
+        (msg: ChatMessage) => new Date(msg.createdAt)
       )
+      const sorted = Array.sort(filtered, byCreatedAtAsc)
 
-      const total = sorted.length
-      const items = sorted.slice(offset, offset + limit)
+      const total = Array.length(sorted)
+      const items = pipe(sorted, Array.drop(offset), Array.take(limit))
 
       return Effect.succeed(paginate(items, total, page, limit))
+    },
+
+    getMessagesAsUIMessages: (plantId: string, userId: string) => {
+      const filtered = Array.filter(
+        data.messages,
+        (msg) => msg.plantId === plantId && msg.userId === userId
+      )
+
+      // Sort by createdAt ascending (oldest first)
+      const byCreatedAtAsc = Order.mapInput(
+        Order.Date,
+        (msg: ChatMessage) => new Date(msg.createdAt)
+      )
+      const sorted = Array.sort(filtered, byCreatedAtAsc)
+
+      const uiMessages: UIMessage[] = Array.map(sorted, (msg) => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant',
+        parts: [{ type: 'text' as const, text: msg.content }],
+      }))
+
+      return Effect.succeed(uiMessages)
     },
 
     create: (createData) => {
@@ -55,6 +80,41 @@ export const createMockChatRepository = (
       }
       data.messages.push(newMessage)
       return Effect.succeed(newMessage)
+    },
+
+    saveChat: (params: SaveChatParams) => {
+      // Extract text content from parts and save as ChatMessage
+      Array.forEach(params.messages, (msg) => {
+        const textContent = pipe(
+          msg.parts,
+          Array.filter((p) => p.type === 'text'),
+          Array.map((p) => ('text' in p ? p.text : '')),
+          Array.join('')
+        )
+
+        // Check if message already exists
+        const exists = Array.some(
+          data.messages,
+          (m) =>
+            m.id === msg.id &&
+            m.plantId === params.plantId &&
+            m.userId === params.userId
+        )
+
+        if (!exists) {
+          const newMessage: ChatMessage = {
+            id: msg.id,
+            role: msg.role as 'user' | 'assistant',
+            content: textContent,
+            plantId: params.plantId,
+            userId: params.userId,
+            createdAt: new Date(),
+          }
+          data.messages.push(newMessage)
+        }
+      })
+
+      return Effect.void
     },
 
     deleteByPlantId: (plantId: string, userId: string) => {

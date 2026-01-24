@@ -1,11 +1,12 @@
 import {
   CareLogRepository,
   type FindCareLogsParams,
+  type FindRecentParams,
   type ICareLogRepository,
 } from '@lily/api/repositories/care-log.repository'
 import { paginate } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
 export const createMockCareLogRepository = (
   careLogs: CareLog[]
@@ -32,12 +33,13 @@ export const createMockCareLogRepository = (
       }
 
       // Sort by date descending
-      const sorted = [...filtered].sort(
-        (a, b) => b.date.getTime() - a.date.getTime()
+      const byDateDesc = Order.reverse(
+        Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
+      const sorted = Array.sort(filtered, byDateDesc)
 
-      const total = sorted.length
-      const items = sorted.slice(offset, offset + limit)
+      const total = Array.length(sorted)
+      const items = pipe(sorted, Array.drop(offset), Array.take(limit))
 
       return Effect.succeed(paginate(items, total, page, limit))
     },
@@ -52,6 +54,33 @@ export const createMockCareLogRepository = (
           Option.getOrNull
         )
       ),
+
+    findRecentByUserId: (params: FindRecentParams) => {
+      const limit = pipe(
+        Option.fromNullable(params.limit),
+        Option.getOrElse(() => 10)
+      )
+
+      // Sort by date descending and take limit
+      const byDateDesc = Order.reverse(
+        Order.mapInput(Order.Date, (log: CareLog) => log.date)
+      )
+      const sorted = Array.sort(careLogs, byDateDesc)
+      const items = Array.take(sorted, limit)
+
+      // Map to RecentActivity format (mock plant names)
+      const recentActivities = Array.map(items, (log) => ({
+        id: log.id,
+        type: log.type,
+        plantId: log.plantId,
+        plantName: `Plant ${log.plantId.slice(-4)}`,
+        plantImageUrl: undefined,
+        date: log.date,
+        notes: log.notes,
+      }))
+
+      return Effect.succeed({ items: recentActivities })
+    },
 
     create: (data) => {
       const newLog: CareLog = {
