@@ -1,3 +1,4 @@
+import { StaleTime } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffectMutation, useEffectQuery } from '@/utils/client'
 
@@ -19,7 +20,7 @@ export function useNotifications(params?: NotificationsParams) {
       },
     },
     {
-      staleTime: 1000 * 60 * 2, // 2 minutes
+      staleTime: StaleTime.short,
     }
   )
 }

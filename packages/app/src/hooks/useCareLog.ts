@@ -1,3 +1,4 @@
+import { StaleTime } from '@lily/shared'
 import { useEffectQuery } from '@/utils/client'
 
 interface UseCareLogParams {
@@ -17,7 +18,7 @@ export function useCareLog({ plantId, logId }: UseCareLogParams) {
     },
     {
       enabled: !!plantId && !!logId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: StaleTime.default,
     }
   )
 }

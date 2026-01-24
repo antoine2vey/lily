@@ -1,4 +1,4 @@
-import { getApiDateGroupLabel } from '@lily/shared'
+import { getApiDateGroupLabel, StaleTime } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { Array, DateTime, Order, pipe, Record } from 'effect'
 import { useEffectQuery } from '@/utils/client'
@@ -126,7 +126,7 @@ export function useCareHistory({
     },
     {
       enabled: !!plantId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: StaleTime.default,
     }
   )
 
