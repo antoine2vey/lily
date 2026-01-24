@@ -19,6 +19,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useCareTasks } from 'src/hooks/useCareTasks'
@@ -49,6 +50,14 @@ const calculateDaysUntilDue = (dueDate: Date): number =>
     parseApiDate(dueDate),
     Option.map(daysUntil),
     Option.getOrElse(() => 0)
+  )
+
+const getTaskActionLabel = (type: CareTaskType): string =>
+  pipe(
+    Match.value(type),
+    Match.when('water', () => 'watered'),
+    Match.when('fertilize', () => 'fertilized'),
+    Match.exhaustive
   )
 
 export function CareScreen() {
@@ -98,6 +107,7 @@ export function CareScreen() {
     // Set timeout to actually call API after the undo timeout
     const timeoutId = setTimeout(() => {
       handleCompleteTaskApi(task.id, task.plantId, task.type)
+      toast.success(`${task.plantName} ${getTaskActionLabel(task.type)}!`)
       pendingTimeouts.current.delete(task.id)
       setPendingTaskIds((prev) => {
         const next = new Set(prev)

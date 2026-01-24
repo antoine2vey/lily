@@ -15,9 +15,9 @@ import { Slot, SplashScreen, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { View } from 'react-native'
-import { Toast } from 'src/components/Toast'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { Toaster } from 'sonner-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
-import { ToastProvider } from 'src/contexts/ToastContext'
 import { AnimatedSplashScreen } from 'src/screens/splash'
 import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
@@ -27,17 +27,23 @@ SplashScreen.preventAutoHideAsync()
 
 const queryClient = new QueryClient()
 
-function RootLayoutNav() {
+interface RootLayoutNavProps {
+  fontsLoaded: boolean
+}
+
+function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   const { state } = useAuth()
   const router = useRouter()
   const [isReady, setIsReady] = useState(false)
 
-  // Show loading state while checking auth
+  // Show loading state while checking auth or fonts
   const isLoading = pipe(
     Match.value(state),
     Match.when({ _tag: 'Loading' }, () => true),
     Match.orElse(() => false)
   )
+
+  const showContent = fontsLoaded && !isLoading
 
   // Set up notification listeners when authenticated
   useEffect(() => {
@@ -54,21 +60,21 @@ function RootLayoutNav() {
   }, [state, router])
 
   useEffect(() => {
-    if (!isLoading) {
+    if (showContent) {
       // Small delay to ensure smooth transition
       const timeout = setTimeout(() => setIsReady(true), 100)
       return () => clearTimeout(timeout)
     }
-  }, [isLoading])
+  }, [showContent])
 
   return (
     <AnimatedSplashScreen isReady={isReady}>
-      {isLoading ? (
+      {showContent ? (
+        <Slot />
+      ) : (
         <View className="flex-1 bg-background-light dark:bg-background-dark items-center justify-center">
           {/* Loading indicator could go here */}
         </View>
-      ) : (
-        <Slot />
       )}
     </AnimatedSplashScreen>
   )
@@ -89,19 +95,15 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError])
 
-  if (!fontsLoaded && !fontError) {
-    return null
-  }
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ToastProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
           <StatusBar style="auto" />
-          <RootLayoutNav />
-          <Toast />
-        </ToastProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+          <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
+          <Toaster />
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   )
 }
