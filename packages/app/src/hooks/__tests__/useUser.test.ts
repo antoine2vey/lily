@@ -52,7 +52,7 @@ describe('useUser', () => {
   })
 
   it('uses correct query key', async () => {
-    const queryClient = require('@tanstack/react-query').QueryClient
+    const _queryClient = require('@tanstack/react-query').QueryClient
     const { result, queryClient: client } =
       require('src/__tests__/utils/query-helpers').renderQueryHook(() =>
         useUser()

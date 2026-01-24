@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
 import { SectionHeader } from 'src/components/SectionHeader'

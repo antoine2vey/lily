@@ -122,7 +122,7 @@ export function NotificationSettingsScreen() {
         setPreferredNotificationTime(
           userSettings.preferredNotificationTime || '09:00'
         )
-      } catch (error) {
+      } catch (_error) {
         // Fall back to device timezone on error
         setTimezone(getDeviceTimezone())
       } finally {

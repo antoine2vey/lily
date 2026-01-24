@@ -4,7 +4,6 @@ import {
   render as rtlRender,
 } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
-import React from 'react'
 import { defaultMockUser, MockAuthProvider } from '../mocks/providers'
 import { createTestQueryClient } from './query-helpers'
 

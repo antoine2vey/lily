@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react-native'
 import { AchievementDetailModal } from '../AchievementDetailModal'
 
 describe('AchievementDetailModal', () => {

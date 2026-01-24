@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Animated, View } from 'react-native'
 import { Avatar } from 'src/components/Avatar'
-import { iconColors } from 'src/theme'
 
 export function TypingIndicator() {
   const dot1 = useRef(new Animated.Value(0)).current

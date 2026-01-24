@@ -8,7 +8,7 @@ interface UpdateProfileData {
   isPrivate?: boolean
 }
 
-async function updateProfileApi(data: UpdateProfileData): Promise<void> {
+async function updateProfileApi(_data: UpdateProfileData): Promise<void> {
   // TODO: Implement actual API call when backend is ready
   // await api.user.update(data)
 

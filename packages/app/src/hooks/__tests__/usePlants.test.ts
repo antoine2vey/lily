@@ -1,5 +1,5 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { renderHook } from '@testing-library/react-native'
 import {
   createQueryWrapper,
   mockQueryLoading,

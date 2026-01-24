@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from 'react-native'
-import { iconColors } from 'src/theme'
 
 interface SliderProps {
   value: number

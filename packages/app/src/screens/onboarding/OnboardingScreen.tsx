@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import type { ComponentProps } from 'react'
 import { useRef, useState } from 'react'
