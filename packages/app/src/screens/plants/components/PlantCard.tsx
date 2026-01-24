@@ -12,6 +12,7 @@ interface PlantCardProps {
     health: HealthStatus
     daysUntilWater?: number
     needsWater?: boolean
+    isFavorite?: boolean
   }
   onPress: (plantId: string) => void
 }
@@ -64,6 +65,15 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
     >
       {/* Image Container */}
       <View className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100">
+        {/* Favorite indicator */}
+        {plant.isFavorite && (
+          <View
+            testID="favorite-indicator"
+            className="absolute top-2 left-2 z-10"
+          >
+            <MaterialIcons name="favorite" size={18} color="#E8997E" />
+          </View>
+        )}
         {/* Health indicator dot */}
         <View
           testID="health-dot"
