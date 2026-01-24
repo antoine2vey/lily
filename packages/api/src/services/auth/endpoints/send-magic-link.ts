@@ -6,7 +6,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { Duration, Effect } from 'effect'
+import { Effect } from 'effect'
 
 // 10 minutes expiry
 const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
@@ -56,24 +56,17 @@ export const sendMagicLink = ({
 
     if (process.env.NODE_ENV !== 'production') {
       // In development, open the magic link in the iOS simulator
-      // Fork with delay so response is sent before redirect happens
+      // Use shell sleep to delay redirect so response is sent first
       const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
       const openSimulatorCommand = Command.make(
-        'xcrun',
-        'simctl',
-        'openurl',
-        'booted',
-        expoGoLink
+        'sh',
+        '-c',
+        `sleep 0.5 && xcrun simctl openurl booted '${expoGoLink}'`
       )
       yield* Effect.fork(
-        Effect.gen(function* () {
-          yield* Effect.sleep(Duration.millis(500))
-          yield* Effect.catchAll(
-            Command.exitCode(openSimulatorCommand),
-            (error) =>
-              Effect.logWarning('Failed to open magic link in simulator:', error)
-          )
-        })
+        Effect.catchAll(Command.exitCode(openSimulatorCommand), (error) =>
+          Effect.logWarning('Failed to open magic link in simulator:', error)
+        )
       )
     } else {
       // In production, send the email
