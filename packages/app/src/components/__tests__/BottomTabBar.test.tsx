@@ -1,31 +1,35 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import type { CustomBottomTabBarProps } from '../BottomTabBar'
 import { BottomTabBar } from '../BottomTabBar'
 
 // Mock navigation state and descriptors
-const createMockNavigation = () => ({
-  emit: jest.fn().mockReturnValue({ defaultPrevented: false }),
-  navigate: jest.fn(),
-})
+const createMockNavigation = () =>
+  ({
+    emit: jest.fn().mockReturnValue({ defaultPrevented: false }),
+    navigate: jest.fn(),
+  }) as unknown as CustomBottomTabBarProps['navigation']
 
-const createMockState = (activeIndex = 0) => ({
-  index: activeIndex,
-  routes: [
-    { key: 'index-1', name: 'index' },
-    { key: 'plants-1', name: 'plants' },
-    { key: 'care-1', name: 'care' },
-    { key: 'profile-1', name: 'profile' },
-  ],
-})
+const createMockState = (activeIndex = 0) =>
+  ({
+    index: activeIndex,
+    routes: [
+      { key: 'index-1', name: 'index' },
+      { key: 'plants-1', name: 'plants' },
+      { key: 'care-1', name: 'care' },
+      { key: 'profile-1', name: 'profile' },
+    ],
+  }) as unknown as CustomBottomTabBarProps['state']
 
-const createMockDescriptors = () => ({
-  'index-1': { options: { title: 'Home' } },
-  'plants-1': { options: { title: 'Plants' } },
-  'care-1': { options: { title: 'Care' } },
-  'profile-1': { options: { title: 'Profile' } },
-})
+const createMockDescriptors = () =>
+  ({
+    'index-1': { options: { title: 'Home' } },
+    'plants-1': { options: { title: 'Plants' } },
+    'care-1': { options: { title: 'Care' } },
+    'profile-1': { options: { title: 'Profile' } },
+  }) as unknown as CustomBottomTabBarProps['descriptors']
 
 describe('BottomTabBar', () => {
-  const defaultProps = {
+  const defaultProps: CustomBottomTabBarProps = {
     state: createMockState(),
     descriptors: createMockDescriptors(),
     navigation: createMockNavigation(),
@@ -106,7 +110,7 @@ describe('BottomTabBar', () => {
     const descriptors = {
       ...createMockDescriptors(),
       'index-1': { options: { tabBarLabel: 'Dashboard' } },
-    }
+    } as unknown as CustomBottomTabBarProps['descriptors']
     render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
     expect(screen.getByText('Dashboard')).toBeTruthy()
   })
@@ -117,7 +121,7 @@ describe('BottomTabBar', () => {
       'plants-1': { options: {} },
       'care-1': { options: {} },
       'profile-1': { options: {} },
-    }
+    } as unknown as CustomBottomTabBarProps['descriptors']
     render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
     expect(screen.getByText('index')).toBeTruthy()
   })

@@ -42,6 +42,7 @@ describe('SettingsScreen', () => {
     mockedUseTheme.mockReturnValue({
       theme: 'system' as const,
       setTheme: mockSetTheme,
+      isLoading: false,
     })
     mockedUseDeleteAccount.mockReturnValue({
       mutate: mockDeleteAccount,

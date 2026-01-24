@@ -68,7 +68,7 @@ describe('TextLink', () => {
     const { toJSON } = render(
       <TextLink
         variant="primary"
-        icon="external-link"
+        icon="open-in-new"
         iconPosition="right"
         onPress={onPress}
       >

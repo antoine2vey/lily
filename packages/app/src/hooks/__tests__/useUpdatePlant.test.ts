@@ -24,7 +24,7 @@ describe('useUpdatePlant', () => {
   it('calls useEffectMutation with correct parameters', () => {
     mockedUseEffectMutation.mockReturnValue(mockMutationSuccess() as any)
 
-    renderHook(() => useUpdatePlant(), {
+    renderHook(() => useUpdatePlant('plant-1'), {
       wrapper: createQueryWrapper(),
     })
 
@@ -43,7 +43,7 @@ describe('useUpdatePlant', () => {
     }
     mockedUseEffectMutation.mockReturnValue(mockMutation as any)
 
-    const { result } = renderHook(() => useUpdatePlant(), {
+    const { result } = renderHook(() => useUpdatePlant('plant-1'), {
       wrapper: createQueryWrapper(),
     })
 

@@ -57,7 +57,6 @@ describe('useWaterPlant', () => {
     const mockMutation = {
       mutate: jest.fn(),
       mutateAsync: jest.fn(),
-      isLoading: false,
       isPending: false,
       isError: false,
       isSuccess: false,
@@ -68,7 +67,6 @@ describe('useWaterPlant', () => {
       wrapper: createQueryWrapper(),
     })
 
-    expect(result.current.isLoading).toBe(false)
     expect(result.current.isPending).toBe(false)
   })
 })

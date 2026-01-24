@@ -5,11 +5,7 @@ import {
 } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
 import React from 'react'
-import {
-  defaultMockUser,
-  MockAuthProvider,
-  MockToastProvider,
-} from '../mocks/providers'
+import { defaultMockUser, MockAuthProvider } from '../mocks/providers'
 import { createTestQueryClient } from './query-helpers'
 
 // Re-export everything from testing-library
@@ -19,17 +15,18 @@ interface WrapperProps {
   children: ReactNode
 }
 
+type AuthState =
+  | { _tag: 'Loading' }
+  | { _tag: 'Authenticated'; user: typeof defaultMockUser; accessToken: string }
+  | { _tag: 'Unauthenticated' }
+  | { _tag: 'NeedsUsername'; user: typeof defaultMockUser; accessToken: string }
+
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient
-  authState?: {
-    _tag: 'Loading' | 'Authenticated' | 'Unauthenticated' | 'NeedsUsername'
-    user?: typeof defaultMockUser
-    accessToken?: string
-  }
+  authState?: AuthState
   pendingEmail?: string | null
   withQueryClient?: boolean
   withAuth?: boolean
-  withToast?: boolean
 }
 
 /**
@@ -43,7 +40,6 @@ export function render(
     pendingEmail,
     withQueryClient = true,
     withAuth = true,
-    withToast = true,
     ...options
   }: CustomRenderOptions = {}
 ) {
@@ -57,11 +53,6 @@ export function render(
 
   function Wrapper({ children }: WrapperProps) {
     let wrapped = children
-
-    // Wrap with Toast provider if needed
-    if (withToast) {
-      wrapped = <MockToastProvider>{wrapped}</MockToastProvider>
-    }
 
     // Wrap with Auth provider if needed
     if (withAuth) {
@@ -101,9 +92,9 @@ export function renderBare(ui: ReactElement, options?: RenderOptions) {
  */
 export function renderWithQuery(
   ui: ReactElement,
-  options?: Omit<CustomRenderOptions, 'withAuth' | 'withToast'>
+  options?: Omit<CustomRenderOptions, 'withAuth'>
 ) {
-  return render(ui, { ...options, withAuth: false, withToast: false })
+  return render(ui, { ...options, withAuth: false })
 }
 
 /**

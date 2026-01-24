@@ -10,6 +10,13 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
+jest.mock('@/hooks/useRecentActivities', () => ({
+  useRecentActivities: jest.fn(() => ({
+    data: [],
+    isLoading: false,
+  })),
+}))
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffectQuery } from '@/utils/client'
 import { HomeScreen } from '../HomeScreen'
