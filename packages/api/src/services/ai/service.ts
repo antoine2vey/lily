@@ -1,15 +1,12 @@
 import { plantCardScan } from '@lily/shared/services/ai/plant-card-scan'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
-import { AISDKError, type AsyncIterableStream, type UIMessage } from 'ai'
-import { Effect, Schema, Stream } from 'effect'
+import { streamSdk } from '@lily/shared/services/ai/stream'
+import { AISDKError, type UIMessage } from 'ai'
+import { Effect, Schema } from 'effect'
 
 import { plantChat } from '../ai-chat/plant-chat'
 
-const streamSdk = (textStream: AsyncIterableStream<string>) =>
-  Stream.fromAsyncIterable(
-    textStream,
-    () => new Error('AI text stream closed unexpectedly')
-  ).pipe(Stream.map((text) => new TextEncoder().encode(text)))
+export { streamSdk }
 
 export class AiApiCallError extends Schema.Class<AiApiCallError>(
   'AiApiCallError'
@@ -30,6 +27,10 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
 
           return streamSdk(stream.textStream)
         }),
+      // Returns raw AI SDK StreamTextResult for streaming endpoint
+      plantChatStream: (plantId: string, messages: UIMessage[]) =>
+        plantChat(plantId, messages),
+      // Returns Effect Stream for non-streaming endpoint (backwards compatibility)
       plantChat: (plantId: string, messages: UIMessage[]) =>
         Effect.gen(function* () {
           const stream = yield* plantChat(plantId, messages)
