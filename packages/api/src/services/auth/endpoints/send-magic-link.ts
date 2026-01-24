@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
@@ -5,7 +6,6 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { spawn } from 'node:child_process'
 import { Effect } from 'effect'
 
 // 10 minutes expiry
