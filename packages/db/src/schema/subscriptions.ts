@@ -43,8 +43,12 @@ export const subscriptionTiers = pgTable('subscription_tiers', {
   maxAiChatsMonthly: integer('max_ai_chats_monthly'),
   maxCardScansMonthly: integer('max_card_scans_monthly'),
   maxPlantIdentifiesMonthly: integer('max_plant_identifies_monthly'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 // User's subscription state
@@ -58,21 +62,29 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   status: subscriptionStatusEnum('status').notNull().default('active'),
 
   // Trial tracking
-  trialStartsAt: timestamp('trial_starts_at'),
-  trialEndsAt: timestamp('trial_ends_at'),
+  trialStartsAt: timestamp('trial_starts_at', { withTimezone: true }),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
 
   // Subscription lifecycle
-  currentPeriodStart: timestamp('current_period_start').notNull(),
-  currentPeriodEnd: timestamp('current_period_end').notNull(),
-  canceledAt: timestamp('canceled_at'),
+  currentPeriodStart: timestamp('current_period_start', {
+    withTimezone: true,
+  }).notNull(),
+  currentPeriodEnd: timestamp('current_period_end', {
+    withTimezone: true,
+  }).notNull(),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
 
   // Provider sync (provider-agnostic)
   externalSubscriptionId: text('external_subscription_id'),
   externalCustomerId: text('external_customer_id'),
   provider: text('provider').notNull().default('stripe'),
 
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 // Monthly usage tracking
@@ -82,15 +94,19 @@ export const subscriptionUsage = pgTable('subscription_usage', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 
-  periodStart: timestamp('period_start').notNull(),
-  periodEnd: timestamp('period_end').notNull(),
+  periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+  periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
 
   aiChatsCount: integer('ai_chats_count').notNull().default(0),
   cardScansCount: integer('card_scans_count').notNull().default(0),
   plantIdentifiesCount: integer('plant_identifies_count').notNull().default(0),
 
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 // Subscription events (audit log)
@@ -101,7 +117,9 @@ export const subscriptionEvents = pgTable('subscription_events', {
     .references(() => users.id, { onDelete: 'cascade' }),
   eventType: subscriptionEventTypeEnum('event_type').notNull(),
   metadata: text('metadata'), // JSON string
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 // Relations

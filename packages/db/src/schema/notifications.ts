@@ -16,8 +16,12 @@ export const deviceTokens = pgTable('device_tokens', {
   token: text('token').notNull().unique(),
   platform: text('platform').notNull(),
   isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -32,13 +36,15 @@ export const notifications = pgTable('notifications', {
   type: text('type').notNull(),
   title: text('title').notNull(),
   body: text('body').notNull(),
-  scheduledAt: timestamp('scheduled_at').notNull(),
-  sentAt: timestamp('sent_at'),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
   isRead: boolean('is_read').notNull().default(false),
   status: notificationStatusEnum('status').notNull().default('pending'),
   retryCount: integer('retry_count').notNull().default(0),
   lastError: text('last_error'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
