@@ -4,7 +4,6 @@ import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
@@ -18,6 +17,7 @@ import { Avatar } from 'src/components/Avatar'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
 import { NotificationBell } from 'src/components/NotificationBell'
+import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { iconColors } from 'src/theme'
@@ -113,16 +113,7 @@ export function HomeScreen() {
   }
 
   if (isLoading) {
-    return (
-      <SafeAreaView
-        edges={['top', 'left', 'right']}
-        className="flex-1 bg-background"
-      >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
-        </View>
-      </SafeAreaView>
-    )
+    return <HomeScreenSkeleton />
   }
 
   return (

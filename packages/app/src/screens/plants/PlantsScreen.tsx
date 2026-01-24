@@ -3,16 +3,11 @@ import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, Order, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-} from 'react-native'
+import { FlatList, Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
+import { PlantsScreenSkeleton } from 'src/components/skeletons'
 import { useEffectQuery } from 'src/utils/client'
 import { PlantCard } from './components/PlantCard'
 import { type FilterOption, PlantFilters } from './components/PlantFilters'
@@ -180,20 +175,7 @@ export function PlantsScreen() {
   }, [showSearch])
 
   if (isLoading) {
-    return (
-      <SafeAreaView
-        edges={['top', 'left', 'right']}
-        className="flex-1 bg-[#f7f7f6]"
-      >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            size="large"
-            color="#5B8C5A"
-            testID="loading-indicator"
-          />
-        </View>
-      </SafeAreaView>
-    )
+    return <PlantsScreenSkeleton />
   }
 
   if (plants.length === 0) {

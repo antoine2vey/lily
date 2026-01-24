@@ -16,7 +16,7 @@ describe('PlantsScreen', () => {
     jest.clearAllMocks()
   })
 
-  it('shows loading indicator when loading', () => {
+  it('shows skeleton when loading', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -24,7 +24,7 @@ describe('PlantsScreen', () => {
 
     render(<PlantsScreen />)
 
-    expect(screen.getByTestId('loading-indicator')).toBeTruthy()
+    expect(screen.getByTestId('plants-screen-skeleton')).toBeTruthy()
   })
 
   it('shows empty state when no plants', () => {
