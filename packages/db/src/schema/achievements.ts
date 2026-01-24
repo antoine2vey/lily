@@ -11,7 +11,9 @@ export const userAchievements = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     achievement: achievementKeyEnum('achievement').notNull(),
-    unlockedAt: timestamp('unlocked_at').notNull().defaultNow(),
+    unlockedAt: timestamp('unlocked_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [unique().on(table.userId, table.achievement)]
 )

@@ -7,7 +7,7 @@ import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 export const plantPhotos = pgTable('plant_photos', {
   id: uuid('id').primaryKey().defaultRandom(),
   url: text('url').notNull(),
-  takenAt: timestamp('taken_at').notNull().defaultNow(),
+  takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
   plantId: uuid('plant_id')
     .notNull()
     .references(() => plants.id, { onDelete: 'cascade' }),
@@ -25,13 +25,17 @@ export const careLogs = pgTable('care_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: careLogTypeEnum('type').notNull(),
   notes: text('notes'),
-  date: timestamp('date').notNull().defaultNow(),
+  date: timestamp('date', { withTimezone: true }).notNull().defaultNow(),
   photoUrl: text('photo_url'),
   plantId: uuid('plant_id')
     .notNull()
     .references(() => plants.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 })
 
 export const careLogsRelations = relations(careLogs, ({ one }) => ({
@@ -45,7 +49,9 @@ export const careLogsRelations = relations(careLogs, ({ one }) => ({
 export const plantScans = pgTable('plant_scans', {
   id: uuid('id').primaryKey().defaultRandom(),
   scanType: text('scan_type').notNull(), // 'card' | 'identify'
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),

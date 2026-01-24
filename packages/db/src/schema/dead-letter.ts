@@ -17,8 +17,12 @@ export const deadLetterMessages = pgTable('dead_letter_messages', {
   payload: jsonb('payload').notNull(),
   error: text('error').notNull(),
   retryCount: integer('retry_count').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  failedAt: timestamp('failed_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  failedAt: timestamp('failed_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   plantId: uuid('plant_id').references(() => plants.id, {
     onDelete: 'set null',
