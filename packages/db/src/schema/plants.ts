@@ -38,6 +38,7 @@ export const plants = pgTable('plants', {
     withTimezone: true,
   }),
   remindersEnabled: boolean('reminders_enabled').notNull().default(true),
+  isFavorite: boolean('is_favorite').notNull().default(false),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),

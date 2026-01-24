@@ -112,6 +112,7 @@ export const createMockPlantRepository = (
         fertilizationFrequencyDays: null,
         lastFertilizedAt: null,
         nextFertilizationAt: null,
+        isFavorite: false,
         userId: createData.userId,
       }
       return Effect.succeed(newPlant)

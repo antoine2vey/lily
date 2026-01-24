@@ -6,7 +6,8 @@ export function useWaterPlant() {
 
   return useEffectMutation('plants', 'waterPlant', {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['plants'] })
+      queryClient.invalidateQueries({ queryKey: ['plants', 'getPlant'] })
+      queryClient.invalidateQueries({ queryKey: ['plants', 'getPlants'] })
     },
   })
 }

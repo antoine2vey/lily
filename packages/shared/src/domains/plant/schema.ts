@@ -27,6 +27,7 @@ export const Plant = Schema.Struct({
   lastFertilizedAt: Schema.NullOr(Schema.Date),
   nextFertilizationAt: Schema.NullOr(Schema.Date),
   remindersEnabled: Schema.Boolean,
+  isFavorite: Schema.Boolean,
   userId: Schema.String,
 })
 
@@ -52,6 +53,7 @@ export const PlantUpdateRequest = Schema.Struct({
   lightingRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
+  isFavorite: Schema.optional(Schema.Boolean),
 })
 
 export const PlantWaterRequest = Schema.Struct({

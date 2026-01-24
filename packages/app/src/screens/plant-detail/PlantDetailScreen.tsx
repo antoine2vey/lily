@@ -16,16 +16,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
+import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { CareSchedule } from './components/CareSchedule'
+import { ChatCTA } from './components/ChatCTA'
 import { GallerySection } from './components/GallerySection'
 import { IdealEnvironment } from './components/IdealEnvironment'
 import { PlantHeader } from './components/PlantHeader'
 import { PlantOptionsSheet } from './components/PlantOptionsSheet'
-import { QuickActions } from './components/QuickActions'
 import { RecentHistory } from './components/RecentHistory'
 
 type HealthStatus = 'healthy' | 'attention' | 'critical'
@@ -152,6 +153,7 @@ export function PlantDetailScreen() {
   const uploadPhoto = useUploadPhoto()
   const waterPlant = useWaterPlant()
   const fertilizePlant = useFertilizePlant()
+  const updatePlant = useUpdatePlant(plantId ?? '')
 
   const handleBack = useCallback(() => {
     router.back()
@@ -161,7 +163,11 @@ export function PlantDetailScreen() {
     setShowOptionsSheet(true)
   }, [])
 
-  const handleWater = useCallback(() => {
+  const handleChat = useCallback(() => {
+    router.push(`/plant/${plantId}/chat`)
+  }, [plantId, router])
+
+  const handleWaterNow = useCallback(() => {
     if (!plantId) return
     waterPlant.mutate(
       { path: { id: plantId }, payload: {} },
@@ -172,7 +178,7 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant?.name, waterPlant])
 
-  const handleFertilize = useCallback(() => {
+  const handleFertilizeNow = useCallback(() => {
     if (!plantId) return
     fertilizePlant.mutate(
       { path: { id: plantId } },
@@ -182,15 +188,6 @@ export function PlantDetailScreen() {
       }
     )
   }, [plantId, plant?.name, fertilizePlant])
-
-  const handlePhoto = useCallback(() => {
-    // TODO: Navigate to add photo
-    console.log('Add photo for plant:', plantId)
-  }, [plantId])
-
-  const handleChat = useCallback(() => {
-    router.push(`/plant/${plantId}/chat`)
-  }, [plantId, router])
 
   const handleEditSchedule = useCallback(() => {
     // TODO: Navigate to edit care schedule
@@ -225,9 +222,8 @@ export function PlantDetailScreen() {
   }, [router, plantId])
 
   const handleViewAllHistory = useCallback(() => {
-    // TODO: Navigate to full history
-    console.log('View all history for plant:', plantId)
-  }, [plantId])
+    router.push(`/plant/${plantId}/care-history`)
+  }, [plantId, router])
 
   const handleEdit = useCallback(() => {
     // TODO: Navigate to edit plant (T4.09)
@@ -235,14 +231,21 @@ export function PlantDetailScreen() {
   }, [plantId])
 
   const handleToggleFavorite = useCallback(() => {
-    // TODO: Implement favorite toggle (T4.10)
-    console.log('Toggle favorite for plant:', plantId)
-  }, [plantId])
-
-  const handleExportHistory = useCallback(() => {
-    // TODO: Export care history
-    console.log('Export history for plant:', plantId)
-  }, [plantId])
+    if (!plantId || !plant) return
+    updatePlant.mutate(
+      { path: { id: plantId }, payload: { isFavorite: !plant.isFavorite } },
+      {
+        onSuccess: () => {
+          toast.success(
+            plant.isFavorite
+              ? `${plant.name} removed from favorites`
+              : `${plant.name} added to favorites!`
+          )
+        },
+        onError: () => toast.error('Failed to update favorite'),
+      }
+    )
+  }, [plantId, plant, updatePlant])
 
   const handleShare = useCallback(() => {
     // TODO: Share plant profile
@@ -273,7 +276,10 @@ export function PlantDetailScreen() {
 
   // Calculate days until watering/fertilizing using shared utilities
   const daysUntilWater = daysUntilApiDate(plant.nextWateringAt)
-  const daysUntilFertilize = daysUntilApiDate(plant.nextFertilizationAt)
+  // Only show fertilizing days if there's a schedule set
+  const daysUntilFertilize = plant.fertilizationFrequencyDays
+    ? daysUntilApiDate(plant.nextFertilizationAt)
+    : null
 
   // Map photos from plant data
   const photos = Array.map(plant.photos ?? [], (photo) => ({
@@ -321,14 +327,9 @@ export function PlantDetailScreen() {
             />
           </View>
 
-          {/* Quick Actions */}
+          {/* Chat CTA */}
           <View className="mt-6">
-            <QuickActions
-              onWater={handleWater}
-              onFertilize={handleFertilize}
-              onPhoto={handlePhoto}
-              onChat={handleChat}
-            />
+            <ChatCTA plantName={plant.name} onPress={handleChat} />
           </View>
 
           {/* Care Schedule */}
@@ -341,6 +342,8 @@ export function PlantDetailScreen() {
                 plant.nextFertilizationAt
               )}
               onEdit={handleEditSchedule}
+              onWaterNow={handleWaterNow}
+              onFertilizeNow={handleFertilizeNow}
             />
           </View>
 
@@ -408,10 +411,9 @@ export function PlantDetailScreen() {
         visible={showOptionsSheet}
         onClose={() => setShowOptionsSheet(false)}
         plantName={plant.name}
-        isFavorite={false}
+        isFavorite={plant.isFavorite}
         onEdit={handleEdit}
         onToggleFavorite={handleToggleFavorite}
-        onExportHistory={handleExportHistory}
         onShare={handleShare}
         onDelete={handleDelete}
       />
