@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/refresh-tokens'
 import {
   mockSuspendedUser,
+  mockUser1,
   mockUsers,
 } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
@@ -140,7 +141,7 @@ describe('refreshToken', () => {
 
   it('should fail for banned user', async () => {
     const bannedUser = {
-      ...mockUsers[0]!,
+      ...mockUser1,
       id: 'user-banned',
       status: 'banned' as const,
     }

@@ -1,4 +1,8 @@
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import {
+  mockUser1,
+  mockUser2,
+  mockUsers,
+} from '@lily/api/__tests__/fixtures/users'
 import { mockUserProfile } from '@lily/api/__tests__/mocks/auth'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
@@ -73,9 +77,8 @@ describe('setUsername', () => {
   })
 
   it('should fail when username already taken', async () => {
-    const existingUser = mockUsers[1]!
     const result = await Effect.runPromiseExit(
-      setUsername({ username: existingUser.name! }).pipe(
+      setUsername({ username: mockUser2.name }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -88,9 +91,7 @@ describe('setUsername', () => {
       ...mockUserProfile,
       name: 'existingname',
     }
-    const users = [
-      { ...mockUsers[0]!, id: currentUser.id, name: 'existingname' },
-    ]
+    const users = [{ ...mockUser1, id: currentUser.id, name: 'existingname' }]
 
     const result = await Effect.runPromise(
       setUsername({ username: 'existingname' }).pipe(

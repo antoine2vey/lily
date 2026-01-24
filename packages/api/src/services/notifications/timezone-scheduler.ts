@@ -1,7 +1,6 @@
 import {
   DEFAULT_NOTIFICATION_TIME,
   DEFAULT_TIMEZONE,
-  InvalidTimezoneError,
   parseTime,
   validateTimezone,
 } from '@lily/shared'

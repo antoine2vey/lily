@@ -88,8 +88,8 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage!.title).toBe('Captured Title')
-      expect(capturedMessage!.body).toBe('Captured Body')
+      expect(capturedMessage?.title).toBe('Captured Title')
+      expect(capturedMessage?.body).toBe('Captured Body')
     })
 
     it('should include optional data in message', async () => {
@@ -116,7 +116,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage!.data).toEqual({
+      expect(capturedMessage?.data).toEqual({
         plantId: 'plant-1',
         action: 'water',
       })
@@ -146,7 +146,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage!.sound).toBe('default')
+      expect(capturedMessage?.sound).toBe('default')
     })
 
     it('should include badge count when provided', async () => {
@@ -173,7 +173,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage!.badge).toBe(5)
+      expect(capturedMessage?.badge).toBe(5)
     })
   })
 

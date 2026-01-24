@@ -8,8 +8,8 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError } from '@lily/shared'
-import type { AsyncIterableStream, UIMessage } from 'ai'
-import { Array, Effect, Option, pipe, Stream } from 'effect'
+import type { UIMessage } from 'ai'
+import { Array, Effect } from 'effect'
 
 export interface StreamChatRequest {
   message: string

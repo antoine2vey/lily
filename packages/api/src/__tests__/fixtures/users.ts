@@ -1,43 +1,45 @@
 import type { User } from '@lily/shared'
 
-export const mockUsers: User[] = [
-  {
-    id: 'user-1',
-    name: 'Test User',
-    email: 'test@example.com',
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-    emailVerified: true,
-    image: null,
-    bio: null,
-    soilAlerts: true,
-    wateringReminders: true,
-    ads: false,
-    historyViewCount: 0,
-    role: 'user',
-    status: 'active',
-    timezone: 'UTC',
-    preferredNotificationTime: '09:00',
-  },
-  {
-    id: 'user-2',
-    name: 'Another User',
-    email: 'another@example.com',
-    createdAt: new Date('2024-01-02'),
-    updatedAt: new Date('2024-01-02'),
-    emailVerified: false,
-    image: 'https://example.com/avatar.png',
-    bio: 'Plant enthusiast',
-    soilAlerts: false,
-    wateringReminders: true,
-    ads: true,
-    historyViewCount: 0,
-    role: 'user',
-    status: 'active',
-    timezone: 'America/New_York',
-    preferredNotificationTime: '08:00',
-  },
-]
+// Named user fixtures for direct access without array indexing
+export const mockUser1: User = {
+  id: 'user-1',
+  name: 'Test User',
+  email: 'test@example.com',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+  emailVerified: true,
+  image: null,
+  bio: null,
+  soilAlerts: true,
+  wateringReminders: true,
+  ads: false,
+  historyViewCount: 0,
+  role: 'user',
+  status: 'active',
+  timezone: 'UTC',
+  preferredNotificationTime: '09:00',
+}
+
+export const mockUser2: User = {
+  id: 'user-2',
+  name: 'Another User',
+  email: 'another@example.com',
+  createdAt: new Date('2024-01-02'),
+  updatedAt: new Date('2024-01-02'),
+  emailVerified: false,
+  image: 'https://example.com/avatar.png',
+  bio: 'Plant enthusiast',
+  soilAlerts: false,
+  wateringReminders: true,
+  ads: true,
+  historyViewCount: 0,
+  role: 'user',
+  status: 'active',
+  timezone: 'America/New_York',
+  preferredNotificationTime: '08:00',
+}
+
+export const mockUsers: User[] = [mockUser1, mockUser2]
 
 export const mockAdminUser: User = {
   id: 'admin-1',
