@@ -15,15 +15,9 @@ import {
 } from '@/hooks/useNotifications'
 import { NotificationsScreen } from '../NotificationsScreen'
 
-const mockedUseNotifications = useNotifications as jest.MockedFunction<
-  typeof useNotifications
->
-const mockedUseMarkAsRead = useMarkAsRead as jest.MockedFunction<
-  typeof useMarkAsRead
->
-const mockedUseMarkAllAsRead = useMarkAllAsRead as jest.MockedFunction<
-  typeof useMarkAllAsRead
->
+const mockedUseNotifications = useNotifications as jest.Mock
+const mockedUseMarkAsRead = useMarkAsRead as jest.Mock
+const mockedUseMarkAllAsRead = useMarkAllAsRead as jest.Mock
 
 describe('NotificationsScreen', () => {
   const mockMarkAsRead = jest.fn()

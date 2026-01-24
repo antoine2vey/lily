@@ -5,7 +5,6 @@ describe('PlantOptionsSheet', () => {
   const mockOnClose = jest.fn()
   const mockOnEdit = jest.fn()
   const mockOnToggleFavorite = jest.fn()
-  const mockOnExportHistory = jest.fn()
   const mockOnShare = jest.fn()
   const mockOnDelete = jest.fn()
 
@@ -20,7 +19,6 @@ describe('PlantOptionsSheet', () => {
     isFavorite: false,
     onEdit: mockOnEdit,
     onToggleFavorite: mockOnToggleFavorite,
-    onExportHistory: mockOnExportHistory,
     onShare: mockOnShare,
     onDelete: mockOnDelete,
   }
@@ -49,12 +47,6 @@ describe('PlantOptionsSheet', () => {
     render(<PlantOptionsSheet {...defaultProps} isFavorite={true} />)
 
     expect(screen.getByText('Remove from Favorites')).toBeTruthy()
-  })
-
-  it('displays export history option', () => {
-    render(<PlantOptionsSheet {...defaultProps} />)
-
-    expect(screen.getByText('Export Care History')).toBeTruthy()
   })
 
   it('displays share option', () => {

@@ -21,12 +21,8 @@ import { useCareTasks } from '@/hooks/useCareTasks'
 import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { CareScreen } from '../CareScreen'
 
-const mockedUseCareTasks = useCareTasks as jest.MockedFunction<
-  typeof useCareTasks
->
-const mockedUseCompleteTask = useCompleteTask as jest.MockedFunction<
-  typeof useCompleteTask
->
+const mockedUseCareTasks = useCareTasks as jest.Mock
+const mockedUseCompleteTask = useCompleteTask as jest.Mock
 
 describe('CareScreen', () => {
   const mockCompleteTask = jest.fn()

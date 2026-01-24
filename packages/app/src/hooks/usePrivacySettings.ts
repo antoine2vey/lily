@@ -51,10 +51,15 @@ export function useUpdatePrivacySettings() {
       const previousSettings = queryClient.getQueryData<PrivacySettings>([
         'privacySettings',
       ])
-      queryClient.setQueryData<PrivacySettings>(['privacySettings'], (old) => ({
-        ...(old ?? {}),
-        ...newSettings,
-      }))
+      queryClient.setQueryData<PrivacySettings>(
+        ['privacySettings'],
+        (old): PrivacySettings => ({
+          publicProfile: old?.publicProfile ?? false,
+          shareGrowthData: old?.shareGrowthData ?? true,
+          personalizedTips: old?.personalizedTips ?? true,
+          ...newSettings,
+        })
+      )
       return { previousSettings }
     },
     onError: (_err, _newSettings, context) => {

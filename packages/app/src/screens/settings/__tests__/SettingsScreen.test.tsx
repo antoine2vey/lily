@@ -24,14 +24,10 @@ import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
-const mockedUseUser = useUser as jest.MockedFunction<typeof useUser>
-const mockedUseSubscription = useSubscription as jest.MockedFunction<
-  typeof useSubscription
->
-const mockedUseTheme = useTheme as jest.MockedFunction<typeof useTheme>
-const mockedUseDeleteAccount = useDeleteAccount as jest.MockedFunction<
-  typeof useDeleteAccount
->
+const mockedUseUser = useUser as jest.Mock
+const mockedUseSubscription = useSubscription as jest.Mock
+const mockedUseTheme = useTheme as jest.Mock
+const mockedUseDeleteAccount = useDeleteAccount as jest.Mock
 
 describe('SettingsScreen', () => {
   const mockSetTheme = jest.fn()

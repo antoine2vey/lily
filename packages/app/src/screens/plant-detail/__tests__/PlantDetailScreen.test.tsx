@@ -57,12 +57,17 @@ jest.mock('@/hooks/useDeletePhoto', () => ({
   }),
 }))
 
+jest.mock('@/hooks/useUpdatePlant', () => ({
+  useUpdatePlant: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
 import { useEffectQuery } from '@/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 
-const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
-  typeof useEffectQuery
->
+const mockedUseEffectQuery = useEffectQuery as jest.Mock
 
 describe('PlantDetailScreen', () => {
   const mockPlant = {
@@ -160,7 +165,7 @@ describe('PlantDetailScreen', () => {
     expect(screen.getByTestId('plant-hero-placeholder')).toBeTruthy()
   })
 
-  it('displays quick actions', () => {
+  it('displays chat CTA', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: mockPlant,
       isLoading: false,
@@ -170,11 +175,8 @@ describe('PlantDetailScreen', () => {
 
     render(<PlantDetailScreen />)
 
-    // "Water" and "Fertilize" appear in multiple places (quick actions + care schedule)
-    expect(screen.getAllByText('Water').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Fertilize').length).toBeGreaterThan(0)
-    expect(screen.getByText('Photo')).toBeTruthy()
-    expect(screen.getByText('Chat')).toBeTruthy()
+    expect(screen.getByTestId('chat-cta')).toBeTruthy()
+    expect(screen.getByText('Get personalized care tips')).toBeTruthy()
   })
 
   it('displays care schedule section', () => {

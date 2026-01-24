@@ -17,16 +17,9 @@ import {
 } from '@/hooks/usePrivacySettings'
 import { PrivacySettingsScreen } from '../PrivacySettingsScreen'
 
-const mockedUsePrivacySettings = usePrivacySettings as jest.MockedFunction<
-  typeof usePrivacySettings
->
-const mockedUseUpdatePrivacySettings =
-  useUpdatePrivacySettings as jest.MockedFunction<
-    typeof useUpdatePrivacySettings
-  >
-const mockedUseExportData = useExportData as jest.MockedFunction<
-  typeof useExportData
->
+const mockedUsePrivacySettings = usePrivacySettings as jest.Mock
+const mockedUseUpdatePrivacySettings = useUpdatePrivacySettings as jest.Mock
+const mockedUseExportData = useExportData as jest.Mock
 
 describe('PrivacySettingsScreen', () => {
   const mockUpdateSettings = jest.fn()

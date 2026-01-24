@@ -14,10 +14,8 @@ import { useUpdateProfile } from '@/hooks/useUpdateProfile'
 import { useUser } from '@/hooks/useUser'
 import { EditProfileScreen } from '../EditProfileScreen'
 
-const mockedUseUser = useUser as jest.MockedFunction<typeof useUser>
-const mockedUseUpdateProfile = useUpdateProfile as jest.MockedFunction<
-  typeof useUpdateProfile
->
+const mockedUseUser = useUser as jest.Mock
+const mockedUseUpdateProfile = useUpdateProfile as jest.Mock
 
 describe('EditProfileScreen', () => {
   const mockUpdateProfile = jest.fn()

@@ -32,21 +32,33 @@ import { usePlantChat } from '../usePlantChat'
 
 const mockedUseChat = useChat as jest.MockedFunction<typeof useChat>
 
+// Helper to create a mock useChat return value with all required properties
+const createMockUseChatReturn = (overrides = {}) =>
+  ({
+    messages: [],
+    input: '',
+    handleInputChange: jest.fn(),
+    handleSubmit: jest.fn(),
+    isLoading: false,
+    setInput: jest.fn(),
+    append: jest.fn(),
+    reload: jest.fn(),
+    stop: jest.fn(),
+    setMessages: jest.fn(),
+    error: undefined,
+    status: 'ready',
+    id: 'test-chat-id',
+    setData: jest.fn(),
+    data: undefined,
+    addToolResult: jest.fn(),
+    experimental_resume: jest.fn(),
+    ...overrides,
+  }) as unknown as ReturnType<typeof useChat>
+
 describe('usePlantChat', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedUseChat.mockReturnValue({
-      messages: [],
-      input: '',
-      handleInputChange: jest.fn(),
-      handleSubmit: jest.fn(),
-      isLoading: false,
-      setInput: jest.fn(),
-      append: jest.fn(),
-      reload: jest.fn(),
-      stop: jest.fn(),
-      setMessages: jest.fn(),
-    })
+    mockedUseChat.mockReturnValue(createMockUseChatReturn())
   })
 
   it('calls useChat with correct plantId-based chat ID', () => {
@@ -96,25 +108,23 @@ describe('usePlantChat', () => {
     const mockHandleSubmit = jest.fn()
     const mockSetInput = jest.fn()
 
-    mockedUseChat.mockReturnValue({
-      messages: [
-        {
-          id: 'msg-1',
-          role: 'assistant',
-          content: 'Hello!',
-          createdAt: new Date(),
-        },
-      ],
-      input: 'test',
-      handleInputChange: jest.fn(),
-      handleSubmit: mockHandleSubmit,
-      isLoading: true,
-      setInput: mockSetInput,
-      append: jest.fn(),
-      reload: jest.fn(),
-      stop: jest.fn(),
-      setMessages: jest.fn(),
-    })
+    mockedUseChat.mockReturnValue(
+      createMockUseChatReturn({
+        messages: [
+          {
+            id: 'msg-1',
+            role: 'assistant',
+            content: 'Hello!',
+            createdAt: new Date(),
+            parts: [{ type: 'text', text: 'Hello!' }],
+          },
+        ],
+        input: 'test',
+        handleSubmit: mockHandleSubmit,
+        isLoading: true,
+        setInput: mockSetInput,
+      })
+    )
 
     const { result } = renderHook(() =>
       usePlantChat({ plantId: 'plant-123', initialMessages: [] })

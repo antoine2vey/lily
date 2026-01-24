@@ -98,7 +98,7 @@ export const createMockUserRepository = (
               filtered,
               (u) =>
                 u.email.toLowerCase().includes(search) ||
-                u.name?.toLowerCase().includes(search)
+                (u.name?.toLowerCase().includes(search) ?? false)
             )
           }
 
@@ -127,7 +127,7 @@ export const createMockUserRepository = (
               filtered,
               (u) =>
                 u.email.toLowerCase().includes(search) ||
-                u.name?.toLowerCase().includes(search)
+                (u.name?.toLowerCase().includes(search) ?? false)
             )
           }
 

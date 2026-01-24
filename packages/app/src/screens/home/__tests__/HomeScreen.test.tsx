@@ -21,10 +21,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useEffectQuery } from '@/utils/client'
 import { HomeScreen } from '../HomeScreen'
 
-const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
-  typeof useEffectQuery
->
-const mockedUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
+const mockedUseEffectQuery = useEffectQuery as jest.Mock
+const mockedUseAuth = useAuth as jest.Mock
 
 describe('HomeScreen', () => {
   const mockLogout = jest.fn()

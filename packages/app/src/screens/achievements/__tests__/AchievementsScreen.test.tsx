@@ -8,9 +8,7 @@ jest.mock('@/hooks/useAchievements', () => ({
 import { useAchievements } from '@/hooks/useAchievements'
 import { AchievementsScreen } from '../AchievementsScreen'
 
-const mockedUseAchievements = useAchievements as jest.MockedFunction<
-  typeof useAchievements
->
+const mockedUseAchievements = useAchievements as jest.Mock
 
 // Create mock achievements data
 const mockAchievements = [

@@ -1,8 +1,8 @@
 const React = require('react')
-const { View } = require('react-native')
 
+// Simple mock component that doesn't depend on react-native
 const createIconMock = (props) =>
-  React.createElement(View, { testID: props?.testID })
+  React.createElement('View', { testID: props?.testID, name: props?.name })
 
 module.exports = {
   Ionicons: createIconMock,

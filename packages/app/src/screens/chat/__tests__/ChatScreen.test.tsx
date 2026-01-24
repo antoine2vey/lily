@@ -19,12 +19,8 @@ import { useChatHistory } from 'src/hooks/useChatHistory'
 import { usePlantChat } from 'src/hooks/usePlantChat'
 import { ChatScreen } from '../ChatScreen'
 
-const mockedUseChatHistory = useChatHistory as jest.MockedFunction<
-  typeof useChatHistory
->
-const mockedUsePlantChat = usePlantChat as jest.MockedFunction<
-  typeof usePlantChat
->
+const mockedUseChatHistory = useChatHistory as jest.Mock
+const mockedUsePlantChat = usePlantChat as jest.Mock
 
 const createTestQueryClient = () =>
   new QueryClient({

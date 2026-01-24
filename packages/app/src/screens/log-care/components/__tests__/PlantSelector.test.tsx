@@ -9,7 +9,7 @@ jest.mock('src/hooks/usePlants', () => ({
 import { usePlants } from 'src/hooks/usePlants'
 import { PlantSelector } from '../PlantSelector'
 
-const mockedUsePlants = usePlants as jest.MockedFunction<typeof usePlants>
+const mockedUsePlants = usePlants as jest.Mock
 
 describe('PlantSelector', () => {
   const mockOnSelectionChange = jest.fn()

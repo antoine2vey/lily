@@ -7,14 +7,14 @@ import { PushService } from '@lily/shared/server'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-// Local type definition to avoid Effect Schema type resolution issues
+// Local interface for test type assertions
 interface TestPushMessage {
-  readonly to: string
-  readonly title: string
-  readonly body: string
-  readonly data?: { readonly [x: string]: unknown } | undefined
-  readonly sound?: 'default' | undefined
-  readonly badge?: number | undefined
+  to: string
+  title: string
+  body: string
+  data?: Record<string, unknown> | undefined
+  sound?: 'default' | undefined
+  badge?: number | undefined
 }
 
 describe('PushService (mock)', () => {
@@ -80,7 +80,7 @@ describe('PushService (mock)', () => {
           Effect.provide(
             createMockPushService({
               onSend: (msg) => {
-                capturedMessage = msg
+                capturedMessage = msg as TestPushMessage
               },
             })
           )
@@ -88,8 +88,8 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage?.title).toBe('Captured Title')
-      expect(capturedMessage?.body).toBe('Captured Body')
+      expect(capturedMessage!.title).toBe('Captured Title')
+      expect(capturedMessage!.body).toBe('Captured Body')
     })
 
     it('should include optional data in message', async () => {
@@ -108,7 +108,7 @@ describe('PushService (mock)', () => {
           Effect.provide(
             createMockPushService({
               onSend: (msg) => {
-                capturedMessage = msg
+                capturedMessage = msg as TestPushMessage
               },
             })
           )
@@ -116,7 +116,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage?.data).toEqual({
+      expect(capturedMessage!.data).toEqual({
         plantId: 'plant-1',
         action: 'water',
       })
@@ -138,7 +138,7 @@ describe('PushService (mock)', () => {
           Effect.provide(
             createMockPushService({
               onSend: (msg) => {
-                capturedMessage = msg
+                capturedMessage = msg as TestPushMessage
               },
             })
           )
@@ -146,7 +146,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage?.sound).toBe('default')
+      expect(capturedMessage!.sound).toBe('default')
     })
 
     it('should include badge count when provided', async () => {
@@ -165,7 +165,7 @@ describe('PushService (mock)', () => {
           Effect.provide(
             createMockPushService({
               onSend: (msg) => {
-                capturedMessage = msg
+                capturedMessage = msg as TestPushMessage
               },
             })
           )
@@ -173,7 +173,7 @@ describe('PushService (mock)', () => {
       )
 
       expect(capturedMessage).not.toBeNull()
-      expect(capturedMessage?.badge).toBe(5)
+      expect(capturedMessage!.badge).toBe(5)
     })
   })
 
@@ -235,7 +235,7 @@ describe('PushService (mock)', () => {
           Effect.provide(
             createMockPushService({
               onSendBatch: (msgs) => {
-                capturedMessages = msgs
+                capturedMessages = msgs as TestPushMessage[]
               },
             })
           )

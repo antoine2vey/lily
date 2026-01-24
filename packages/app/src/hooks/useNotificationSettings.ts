@@ -79,8 +79,16 @@ export function useUpdateNotificationSettings() {
 
       queryClient.setQueryData<NotificationSettings>(
         ['notification-settings'],
-        (old) => ({
-          ...(old ?? {}),
+        (old): NotificationSettings => ({
+          careReminders: old?.careReminders ?? true,
+          reminderTime: old?.reminderTime ?? '09:00',
+          weeklyDigest: old?.weeklyDigest ?? true,
+          achievements: old?.achievements ?? true,
+          tips: old?.tips ?? true,
+          productUpdates: old?.productUpdates ?? false,
+          doNotDisturb: old?.doNotDisturb ?? false,
+          doNotDisturbStart: old?.doNotDisturbStart ?? '22:00',
+          doNotDisturbEnd: old?.doNotDisturbEnd ?? '07:00',
           ...newSettings,
         })
       )
