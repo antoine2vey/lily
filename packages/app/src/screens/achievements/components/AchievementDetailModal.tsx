@@ -80,7 +80,7 @@ export function AchievementDetailModal({
   const hasProgress =
     achievement.progress !== undefined && achievement.maxProgress !== undefined
   const progressValue = hasProgress
-    ? achievement.progress! / achievement.maxProgress!
+    ? (achievement.progress ?? 0) / (achievement.maxProgress ?? 1)
     : 0
 
   return (
@@ -164,7 +164,7 @@ export function AchievementDetailModal({
                   color={iconColors.primary}
                 />
                 <Text className="text-sm ml-2 font-medium text-primary">
-                  Unlocked {formatDate(achievement.unlockedAt!)}
+                  Unlocked {formatDate(achievement.unlockedAt ?? '')}
                 </Text>
               </View>
             ) : hasProgress ? (

@@ -1,7 +1,7 @@
 import { Match, pipe } from 'effect'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
-import type { Router } from 'expo-router'
+import type { Href, Router } from 'expo-router'
 import { Platform } from 'react-native'
 
 // Configure how notifications appear when app is foregrounded
@@ -77,12 +77,10 @@ export function setupNotificationListeners(router: Router): () => void {
 
       // Navigate based on notification data
       if (data?.plantId && typeof data.plantId === 'string') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push(`/(app)/plants/${data.plantId}` as any)
+        router.push(`/(app)/plants/${data.plantId}` as Href)
       } else if (data?.screen && typeof data.screen === 'string') {
         // Generic screen navigation - cast needed for dynamic paths
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push(data.screen as any)
+        router.push(data.screen as Href)
       }
     })
 

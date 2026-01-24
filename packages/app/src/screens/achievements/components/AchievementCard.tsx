@@ -55,7 +55,7 @@ export function AchievementCard({
   const hasProgress =
     achievement.progress !== undefined && achievement.maxProgress !== undefined
   const progressValue = hasProgress
-    ? achievement.progress! / achievement.maxProgress!
+    ? (achievement.progress ?? 0) / (achievement.maxProgress ?? 1)
     : 0
 
   return (

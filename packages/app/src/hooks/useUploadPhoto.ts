@@ -21,7 +21,7 @@ export function useUploadPhoto() {
 
       await uploadMultipart<void>(`/api/plants/${plantId}/photos`, [file])
     },
-    onSuccess: (_, { plantId }) => {
+    onSuccess: () => {
       // Invalidate plant photos
       queryClient.invalidateQueries({
         queryKey: ['plants', 'getPlantPhotos'],

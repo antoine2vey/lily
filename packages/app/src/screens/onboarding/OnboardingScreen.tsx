@@ -2,21 +2,12 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import type { ComponentProps } from 'react'
 import { useRef, useState } from 'react'
-import {
-  Dimensions,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-  type ViewToken,
-} from 'react-native'
+import { FlatList, Pressable, Text, View, type ViewToken } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
 import { iconColors } from 'src/theme'
 import { OnboardingSlide } from './components/OnboardingSlide'
 import { PaginationDots } from './components/PaginationDots'
-
-const { width } = Dimensions.get('window')
 
 interface SlideData {
   id: string
