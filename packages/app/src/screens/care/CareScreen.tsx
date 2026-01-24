@@ -11,17 +11,12 @@ import {
 import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SectionHeader } from 'src/components/SectionHeader'
+import { CareScreenSkeleton } from 'src/components/skeletons'
 import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { iconColors } from 'src/theme'
@@ -150,13 +145,7 @@ export function CareScreen() {
   }
 
   if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
-        </View>
-      </SafeAreaView>
-    )
+    return <CareScreenSkeleton />
   }
 
   const overdueCount = tasks?.overdue.length ?? 0
