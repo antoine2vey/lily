@@ -9,7 +9,7 @@ import {
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Array, Effect, Match, Option, pipe, Record } from 'effect'
+import { Effect, Match, Option, pipe, Record } from 'effect'
 
 // Remove undefined values from an object
 const compact = <T extends Record<string, unknown>>(obj: T) =>

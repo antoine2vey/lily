@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/magic-links'
 import {
   mockSuspendedUser,
+  mockUser1,
   mockUsers,
 } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
@@ -127,7 +128,7 @@ describe('verifyMagicLink', () => {
     // Create a magic link for existing user
     const existingUserMagicLink = {
       ...mockMagicLink,
-      email: mockUsers[0]!.email,
+      email: mockUser1.email,
     }
 
     const result = await Effect.runPromise(
@@ -136,7 +137,7 @@ describe('verifyMagicLink', () => {
       )
     )
 
-    expect(result.user.email).toBe(mockUsers[0]!.email)
+    expect(result.user.email).toBe(mockUser1.email)
   })
 
   it('should fail for suspended user', async () => {
@@ -161,7 +162,7 @@ describe('verifyMagicLink', () => {
 
   it('should fail for banned user', async () => {
     const bannedUser = {
-      ...mockUsers[0]!,
+      ...mockUser1,
       id: 'user-banned',
       email: 'banned@example.com',
       status: 'banned' as const,
@@ -188,7 +189,7 @@ describe('verifyMagicLink', () => {
   it('should include user profile in response', async () => {
     const existingUserMagicLink = {
       ...mockMagicLink,
-      email: mockUsers[0]!.email,
+      email: mockUser1.email,
     }
 
     const result = await Effect.runPromise(
@@ -198,7 +199,7 @@ describe('verifyMagicLink', () => {
     )
 
     expect(result.user.id).toBeDefined()
-    expect(result.user.email).toBe(mockUsers[0]!.email)
+    expect(result.user.email).toBe(mockUser1.email)
     expect(result.user.role).toBeDefined()
     expect(result.user.status).toBeDefined()
   })
