@@ -80,7 +80,7 @@ export function useUpdateNotificationSettings() {
       queryClient.setQueryData<NotificationSettings>(
         ['notification-settings'],
         (old) => ({
-          ...old!,
+          ...(old ?? {}),
           ...newSettings,
         })
       )

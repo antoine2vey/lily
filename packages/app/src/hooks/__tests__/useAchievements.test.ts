@@ -82,8 +82,9 @@ describe('useAchievements', () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    const data = result.current.data!
-    const actualUnlocked = data.achievements.filter((a) => a.unlocked).length
-    expect(data.unlockedCount).toBe(actualUnlocked)
+    const data = result.current.data
+    expect(data).toBeDefined()
+    const actualUnlocked = data?.achievements.filter((a) => a.unlocked).length
+    expect(data?.unlockedCount).toBe(actualUnlocked)
   })
 })

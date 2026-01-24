@@ -52,7 +52,7 @@ export function useUpdatePrivacySettings() {
         'privacySettings',
       ])
       queryClient.setQueryData<PrivacySettings>(['privacySettings'], (old) => ({
-        ...old!,
+        ...(old ?? {}),
         ...newSettings,
       }))
       return { previousSettings }
