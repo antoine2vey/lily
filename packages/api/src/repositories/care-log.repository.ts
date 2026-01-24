@@ -1,8 +1,13 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { careLogs } from '@lily/db'
+import { careLogs, plants } from '@lily/db'
 import { paginate } from '@lily/shared'
-import type { CareLog, CareLogsListResponse } from '@lily/shared/care-log'
+import type {
+  CareLog,
+  CareLogsListResponse,
+  RecentActivitiesListResponse,
+  RecentActivity,
+} from '@lily/shared/care-log'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -40,6 +45,11 @@ const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   updatedAt: row.updatedAt,
 })
 
+export interface FindRecentParams {
+  userId: string
+  limit?: number
+}
+
 // Repository service interface
 export interface ICareLogRepository {
   readonly findByPlantId: (
@@ -49,6 +59,9 @@ export interface ICareLogRepository {
     id: string,
     plantId: string
   ) => Effect.Effect<CareLog | null, SqlError>
+  readonly findRecentByUserId: (
+    params: FindRecentParams
+  ) => Effect.Effect<RecentActivitiesListResponse, SqlError>
   readonly create: (
     data: CreateCareLogData
   ) => Effect.Effect<CareLog | null, SqlError>
@@ -120,6 +133,44 @@ export const CareLogRepositoryLive = Layer.effect(
             .from(careLogs)
             .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
           return row ? mapToCareLog(row) : null
+        }),
+
+      findRecentByUserId: (params: FindRecentParams) =>
+        Effect.gen(function* () {
+          const limit = pipe(
+            Option.fromNullable(params.limit),
+            Option.getOrElse(() => 10)
+          )
+
+          const rows = yield* db
+            .select({
+              id: careLogs.id,
+              type: careLogs.type,
+              date: careLogs.date,
+              notes: careLogs.notes,
+              plantId: careLogs.plantId,
+              plantName: plants.name,
+              plantImageUrl: plants.imageUrl,
+            })
+            .from(careLogs)
+            .innerJoin(plants, eq(careLogs.plantId, plants.id))
+            .where(eq(plants.userId, params.userId))
+            .orderBy(desc(careLogs.date))
+            .limit(limit)
+
+          const items: RecentActivity[] = Array.map(rows, (row) => ({
+            id: row.id,
+            type: row.type,
+            plantId: row.plantId,
+            plantName: row.plantName,
+            plantImageUrl: Option.getOrUndefined(
+              Option.fromNullable(row.plantImageUrl)
+            ),
+            date: row.date,
+            notes: Option.getOrUndefined(Option.fromNullable(row.notes)),
+          }))
+
+          return { items }
         }),
 
       create: (data: CreateCareLogData) =>

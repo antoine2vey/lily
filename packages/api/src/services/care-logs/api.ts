@@ -6,6 +6,7 @@ import {
   CareLogCreateRequest,
   CareLogsListResponse,
   CareLogUpdateRequest,
+  RecentActivitiesListResponse,
 } from '@lily/shared/care-log'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
@@ -21,8 +22,21 @@ export const CareLogsQueryParams = Schema.Struct({
   type: Schema.optionalWith(Schema.String, { default: () => 'all' }),
 })
 
+// Query params for recent activities
+export const RecentActivitiesQueryParams = Schema.Struct({
+  limit: Schema.optionalWith(Schema.String, { default: () => '10' }),
+})
+
 // Define the Care Logs API group - nested under plants
 export const CareLogsApi = HttpApiGroup.make('careLogs')
+  .add(
+    // GET /care-logs/recent - Get recent activities across all plants
+    HttpApiEndpoint.get('getRecentActivities')`/care-logs/recent`
+      .setUrlParams(RecentActivitiesQueryParams)
+      .addSuccess(RecentActivitiesListResponse)
+      .addError(DatabaseError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
   .add(
     // GET /plants/:plantId/logs - List care logs (filter by type)
     HttpApiEndpoint.get('getCareLogs')`/plants/${plantIdParam}/logs`

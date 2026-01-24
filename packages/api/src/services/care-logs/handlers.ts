@@ -16,6 +16,11 @@ export const CareLogsApiLive = (api: Api) =>
       const careLogsService = yield* CareLogsService
 
       return handlers
+        .handle('getRecentActivities', ({ urlParams }) =>
+          careLogsService.getRecentActivities({
+            limit: parseInt(urlParams.limit, 10) || 10,
+          })
+        )
         .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
           careLogsService.getCareLogs({
             plantId,
