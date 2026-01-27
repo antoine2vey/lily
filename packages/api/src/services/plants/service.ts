@@ -9,6 +9,7 @@ import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-ph
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
+import { waterMultiplePlants } from '@lily/api/services/plants/endpoints/water-multiple-plants'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
 import { Effect } from 'effect'
 
@@ -23,6 +24,7 @@ export class PlantsService extends Effect.Service<PlantsService>()(
       updatePlant,
       deletePlant,
       waterPlant,
+      waterMultiplePlants,
       scanCard,
       aiIdentify,
       getPlantPhotos,

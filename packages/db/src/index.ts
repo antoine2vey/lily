@@ -9,11 +9,11 @@ export class DatabaseError extends Data.TaggedError('DatabaseError')<{
 }> {}
 
 // PostgreSQL client configuration
-const PgLive = PgClient.layerConfig({
+export const PgLive = PgClient.layerConfig({
   url: Config.redacted('DATABASE_URL'),
 })
 
-// Drizzle layer with schema
+// Drizzle layer with schema (includes PgDrizzle only)
 export const DrizzleLive = PgDrizzle.layer.pipe(Layer.provide(PgLive))
 
 // Re-export Drizzle for use in endpoints

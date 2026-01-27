@@ -20,6 +20,7 @@ import { NotificationBell } from 'src/components/NotificationBell'
 import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
+import { useWaterAll } from 'src/hooks/useWaterAll'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
@@ -42,6 +43,8 @@ export function HomeScreen() {
 
   const { data: recentActivities, refetch: refetchActivities } =
     useRecentActivities(5)
+
+  const { mutate: waterAll, isPending: isWateringAll } = useWaterAll()
 
   const userName = pipe(
     Match.value(state),
@@ -71,7 +74,7 @@ export function HomeScreen() {
   )
 
   // Filter plants that need water (nextWateringAt is in the past or today)
-  const plantsNeedingWater = pipe(
+  const allOverduePlants = pipe(
     plantList,
     Array.filter((plant) =>
       pipe(
@@ -79,7 +82,13 @@ export function HomeScreen() {
         Option.map(isOverdue),
         Option.getOrElse(() => false)
       )
-    ),
+    )
+  )
+
+  const allOverduePlantIds = Array.map(allOverduePlants, (p) => p.id)
+
+  const plantsNeedingWater = pipe(
+    allOverduePlants,
     Array.take(3),
     Array.map((plant) => ({
       id: plant.id,
@@ -93,7 +102,9 @@ export function HomeScreen() {
   }
 
   const handleWaterAll = () => {
-    // TODO: Implement water all functionality
+    if (allOverduePlantIds.length > 0) {
+      waterAll({ payload: { plantIds: allOverduePlantIds } })
+    }
   }
 
   const handlePlantPress = (_plantId: string) => {
@@ -164,6 +175,7 @@ export function HomeScreen() {
                   plants={plantsNeedingWater}
                   onWaterAll={handleWaterAll}
                   onPlantPress={handlePlantPress}
+                  isLoading={isWateringAll}
                 />
               )}
 

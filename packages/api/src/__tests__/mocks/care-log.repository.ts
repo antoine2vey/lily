@@ -82,6 +82,23 @@ export const createMockCareLogRepository = (
       return Effect.succeed({ items: recentActivities })
     },
 
+    createMany: (data) =>
+      Effect.succeed(
+        Array.map(data, (d) => ({
+          id: `log-${crypto.randomUUID()}`,
+          type: d.type,
+          notes: d.notes,
+          date: pipe(
+            Option.fromNullable(d.date),
+            Option.getOrElse(() => new Date())
+          ),
+          photoUrl: d.photoUrl,
+          plantId: d.plantId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }))
+      ),
+
     create: (data) => {
       const newLog: CareLog = {
         id: `log-${crypto.randomUUID()}`,

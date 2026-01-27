@@ -62,6 +62,9 @@ export interface ICareLogRepository {
   readonly findRecentByUserId: (
     params: FindRecentParams
   ) => Effect.Effect<RecentActivitiesListResponse, SqlError>
+  readonly createMany: (
+    data: readonly CreateCareLogData[]
+  ) => Effect.Effect<CareLog[], SqlError>
   readonly create: (
     data: CreateCareLogData
   ) => Effect.Effect<CareLog | null, SqlError>
@@ -171,6 +174,23 @@ export const CareLogRepositoryLive = Layer.effect(
           }))
 
           return { items }
+        }),
+
+      createMany: (data: readonly CreateCareLogData[]) =>
+        Effect.gen(function* () {
+          if (data.length === 0) return []
+          const values = Array.map(data, (d) => ({
+            type: d.type,
+            notes: Option.getOrNull(Option.fromNullable(d.notes)),
+            date: pipe(
+              Option.fromNullable(d.date),
+              Option.getOrElse(() => new Date())
+            ),
+            photoUrl: Option.getOrNull(Option.fromNullable(d.photoUrl)),
+            plantId: d.plantId,
+          }))
+          const rows = yield* db.insert(careLogs).values(values).returning()
+          return Array.map(rows, mapToCareLog)
         }),
 
       create: (data: CreateCareLogData) =>

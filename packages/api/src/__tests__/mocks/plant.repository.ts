@@ -61,6 +61,11 @@ export const createMockPlantRepository = (
       })
     },
 
+    findByIds: (ids: readonly string[]) =>
+      Effect.succeed(
+        Array.filter(plantsData, (p) => Array.contains(ids, p.id))
+      ),
+
     findById: (id: string) =>
       Effect.succeed(
         pipe(
