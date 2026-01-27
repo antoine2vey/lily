@@ -46,6 +46,20 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant description',
       }),
+    plantCardScanMultiple: (_urls: string[]) =>
+      Effect.succeed({
+        name: 'Mock Plant',
+        family: 'Mockaceae',
+        confidence: 0.92,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        sunlightPreference: 'medium' as const,
+        humidityRating: 50,
+        petToxicityRating: 20,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A mock plant identified from multiple images',
+      }),
   }
 
   return Layer.succeed(

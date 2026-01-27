@@ -7,6 +7,7 @@ import { findPlantById } from '@lily/api/services/plants/endpoints/find-plant-by
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
+import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { waterMultiplePlants } from '@lily/api/services/plants/endpoints/water-multiple-plants'
@@ -26,6 +27,7 @@ export class PlantsService extends Effect.Service<PlantsService>()(
       waterPlant,
       waterMultiplePlants,
       scanCard,
+      scanCardMultiple,
       aiIdentify,
       getPlantPhotos,
       uploadPlantPhoto,

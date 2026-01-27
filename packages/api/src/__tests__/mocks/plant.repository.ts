@@ -114,7 +114,8 @@ export const createMockPlantRepository = (
         lastWateredAt: null,
         nextWateringAt: null,
         remindersEnabled: true,
-        fertilizationFrequencyDays: createData.fertilizationFrequencyDays ?? null,
+        fertilizationFrequencyDays:
+          createData.fertilizationFrequencyDays ?? null,
         lastFertilizedAt: null,
         nextFertilizationAt: null,
         isFavorite: false,

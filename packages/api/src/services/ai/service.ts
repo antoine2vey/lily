@@ -1,4 +1,7 @@
-import { plantCardScan } from '@lily/shared/services/ai/plant-card-scan'
+import {
+  plantCardScan,
+  plantCardScanMultiple,
+} from '@lily/shared/services/ai/plant-card-scan'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { streamSdk } from '@lily/shared/services/ai/stream'
 import { AISDKError, type UIMessage } from 'ai'
@@ -46,6 +49,19 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
         }),
       plantCardScan: (url: string) =>
         plantCardScan(url).pipe(
+          Effect.mapError((error) => {
+            if (AISDKError.isInstance(error)) {
+              if (error.name === 'AI_APICallError') {
+                return new AiApiCallError({
+                  message: 'OpenAI API call error',
+                })
+              }
+            }
+            return new AiGenericError({ message: 'Unknown error' })
+          })
+        ),
+      plantCardScanMultiple: (urls: readonly string[]) =>
+        plantCardScanMultiple(urls as string[]).pipe(
           Effect.mapError((error) => {
             if (AISDKError.isInstance(error)) {
               if (error.name === 'AI_APICallError') {
