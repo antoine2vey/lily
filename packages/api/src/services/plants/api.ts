@@ -71,6 +71,22 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // POST /plants/scan-card-multiple - Scan multiple nursery cards at once
+    HttpApiEndpoint.post('scanCardMultiple')`/scan-card-multiple`
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            images: Multipart.FilesSchema,
+          })
+        )
+      )
+      .addSuccess(AIIdentifyResponse)
+      .addError(DatabaseError, { status: 500 })
+      .addError(LimitExceededError, { status: 403 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     // POST /plants/ai-identify - AI-identify species & care ratings
     HttpApiEndpoint.post('aiIdentify')`/ai-identify`
       .setPayload(
