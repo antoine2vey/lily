@@ -30,23 +30,14 @@ describe('aiIdentify', () => {
       MockUsageTrackerLive
     )
 
-  it('should identify plant species from image', async () => {
-    const result = await Effect.runPromise(
-      aiIdentify([mockFile]).pipe(Effect.provide(createTestLayer()))
-    )
-
-    // The endpoint returns an HttpServerResponse with a stream
-    expect(result).toBeDefined()
-    expect(result.status).toBe(200)
-  })
-
-  it('should return streaming response', async () => {
+  it('should return a typed object with plant identification', async () => {
     const result = await Effect.runPromise(
       aiIdentify([mockFile]).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toBeDefined()
-    // Response should be a stream response
-    expect(result.headers).toBeDefined()
+    expect(result.name).toBe('Mock Plant')
+    expect(result.confidence).toBe(0.95)
+    expect(result.imageUrl).toBeDefined()
   })
 })

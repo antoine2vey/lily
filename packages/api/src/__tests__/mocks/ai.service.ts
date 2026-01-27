@@ -17,7 +17,19 @@ export const createMockAiService = (
 
   const mockService = {
     plantRecognition: (_url: string) =>
-      Effect.succeed(Stream.make(new TextEncoder().encode('Mock recognition'))),
+      Effect.succeed({
+        name: 'Mock Plant',
+        family: 'Mockaceae',
+        confidence: 0.95,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        sunlightPreference: 'medium' as const,
+        humidityRating: 50,
+        petToxicityRating: 20,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A mock plant for testing',
+      }),
     plantChat: (_plantId: string, _messages: UIMessage[]) =>
       Effect.succeed(Stream.make(responseBytes)),
     plantCardScan: (_url: string) =>

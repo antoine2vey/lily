@@ -65,6 +65,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   name: Schema.String,
   description: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
+  imageUrl: Schema.optional(Schema.String),
   plantingDate: Schema.optional(Schema.Date),
   wateringFrequencyDays: Schema.Number,
   fertilizationFrequencyDays: Schema.optional(Schema.Number),
@@ -89,15 +90,23 @@ export const ScanCardResponse = Schema.Struct({
 
 // AI identify response
 export const AIIdentifyResponse = Schema.Struct({
-  species: Schema.optional(Schema.String),
-  commonName: Schema.optional(Schema.String),
-  category: Schema.optional(Schema.String),
-  wateringFrequencyDays: Schema.optional(Schema.Number),
-  sunlightPreference: Schema.optional(Schema.String),
-  humidityRating: Schema.optional(Schema.Number),
-  lightingRating: Schema.optional(Schema.Number),
-  petToxicityRating: Schema.optional(Schema.Number),
+  name: Schema.NullOr(Schema.String),
+  family: Schema.NullOr(Schema.String),
   confidence: Schema.Number,
+  alternatives: Schema.Array(
+    Schema.Struct({
+      name: Schema.NullOr(Schema.String),
+      confidence: Schema.Number,
+    })
+  ),
+  wateringFrequencyDays: Schema.NullOr(Schema.Number),
+  sunlightPreference: Schema.NullOr(Schema.String),
+  humidityRating: Schema.NullOr(Schema.Number),
+  petToxicityRating: Schema.NullOr(Schema.Number),
+  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
+  category: Schema.NullOr(Schema.String),
+  description: Schema.NullOr(Schema.String),
+  imageUrl: Schema.String,
 })
 
 // Plant photo schema

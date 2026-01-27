@@ -22,11 +22,18 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
   effect: Effect.gen(function* () {
     return {
       plantRecognition: (url: string) =>
-        Effect.gen(function* () {
-          const stream = yield* plantRecognition(url)
-
-          return streamSdk(stream.textStream)
-        }),
+        plantRecognition(url).pipe(
+          Effect.mapError((error) => {
+            if (AISDKError.isInstance(error)) {
+              if (error.name === 'AI_APICallError') {
+                return new AiApiCallError({
+                  message: 'OpenAI API call error',
+                })
+              }
+            }
+            return new AiGenericError({ message: 'Unknown error' })
+          })
+        ),
       // Returns raw AI SDK StreamTextResult for streaming endpoint
       plantChatStream: (plantId: string, messages: UIMessage[]) =>
         plantChat(plantId, messages),
