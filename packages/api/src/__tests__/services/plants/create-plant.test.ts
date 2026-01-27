@@ -76,6 +76,44 @@ describe('createPlant', () => {
     expect(result.wateringFrequencyDays).toBe(7)
   })
 
+  it('should set imageUrl when provided', async () => {
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        imageUrl: 'https://example.com/plant.jpg',
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.imageUrl).toBe('https://example.com/plant.jpg')
+  })
+
+  it('should set fertilizationFrequencyDays when provided', async () => {
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        fertilizationFrequencyDays: 14,
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.fertilizationFrequencyDays).toBe(14)
+  })
+
+  it('should default imageUrl to null when not provided', async () => {
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.imageUrl).toBeNull()
+  })
+
+  it('should default fertilizationFrequencyDays to null when not provided', async () => {
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.fertilizationFrequencyDays).toBeNull()
+  })
+
   it('should publish PlantCreated event', async () => {
     const publishedEvents: AppEvent[] = []
     const eventBusMock = createMockEventBus({ publishedEvents })
