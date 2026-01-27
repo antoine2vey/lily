@@ -12,7 +12,7 @@ export function HomeScreenSkeleton() {
         {/* Header */}
         <View className="flex-row items-center justify-between pt-1">
           <View className="gap-0.5">
-            <SkeletonBox width={160} height={23} rounded="sm"  />
+            <SkeletonBox width={160} height={23} rounded="sm" />
             <SkeletonBox width={100} height={23} rounded="sm" />
           </View>
           <View className="flex-row items-center gap-3">
@@ -32,11 +32,20 @@ export function HomeScreenSkeleton() {
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-6 mt-5">
               {[1, 2, 3].map((i) => (
-                <SkeletonCircle key={i} size={70} className='w-[72px] h-[72px]' />
+                <SkeletonCircle
+                  key={i}
+                  size={70}
+                  className="w-[72px] h-[72px]"
+                />
               ))}
             </View>
           </View>
-          <SkeletonBox width="100%" height={45} rounded="full" className='mt-12' />
+          <SkeletonBox
+            width="100%"
+            height={45}
+            rounded="full"
+            className="mt-12"
+          />
         </View>
 
         {/* Stats Row */}
