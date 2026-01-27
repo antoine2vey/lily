@@ -2,10 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import {
-  CurrentUser,
-  Unauthorized,
-} from '@lily/api/services/auth/middleware.types'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
@@ -17,23 +14,14 @@ const compact = <T extends Record<string, unknown>>(obj: T) =>
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
-  id: string,
   data: UserSettingsUpdateRequest
 ): Effect.Effect<
   UserSettings,
-  SqlError | UserNotFoundError | Unauthorized,
+  SqlError | UserNotFoundError,
   UserRepository | CurrentUser | NotificationRepository | PlantRepository
 > =>
   Effect.gen(function* () {
-    const currentUser = yield* CurrentUser
-
-    // Users can only update their own settings
-    if (currentUser.id !== id) {
-      return yield* Effect.fail(
-        new Unauthorized({ message: 'Cannot modify other user settings' })
-      )
-    }
-
+    const { id } = yield* CurrentUser
     const repo = yield* UserRepository
     const notificationRepo = yield* NotificationRepository
     const plantRepo = yield* PlantRepository

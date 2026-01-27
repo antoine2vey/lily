@@ -1,32 +1,40 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from 'src/contexts/AuthContext'
+import { apiEffectRunner } from 'src/utils/client'
+import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
 interface UpdateProfileData {
   name?: string
-  username?: string
   bio?: string
-  avatarUrl?: string
-  isPrivate?: boolean
-}
-
-async function updateProfileApi(_data: UpdateProfileData): Promise<void> {
-  // TODO: Implement actual API call when backend is ready
-  // await api.user.update(data)
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 500))
-
-  // Simulate successful update
-  return
+  avatarUri?: string
 }
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: updateProfileApi,
+    mutationFn: async (data: UpdateProfileData) => {
+      // Upload avatar if a local URI was provided
+      if (data.avatarUri) {
+        const file = createFileFromUri(data.avatarUri, {
+          name: `avatar-${Date.now()}.jpg`,
+          type: 'image/jpeg',
+        })
+        await uploadMultipart<{ url: string }>('/api/users/avatar', [file])
+      }
+
+      // Update name/bio via settings endpoint
+      await apiEffectRunner('users', 'updateUserSettings', {
+        payload: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.bio !== undefined ? { bio: data.bio } : {}),
+        },
+      })
+    },
     onSuccess: () => {
-      // Invalidate user query to refetch updated data
-      queryClient.invalidateQueries({ queryKey: ['user'] })
+      queryClient.invalidateQueries({
+        queryKey: ['users', 'getUserSettings'],
+      })
     },
   })
 }

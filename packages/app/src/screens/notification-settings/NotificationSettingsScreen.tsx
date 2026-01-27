@@ -115,9 +115,11 @@ export function NotificationSettingsScreen() {
       if (state._tag !== 'Authenticated') return
 
       try {
-        const userSettings = await apiEffectRunner('users', 'getUserSettings', {
-          path: { id: state.user.id },
-        })
+        const userSettings = await apiEffectRunner(
+          'users',
+          'getUserSettings',
+          {}
+        )
         setTimezone(userSettings.timezone || getDeviceTimezone())
         setPreferredNotificationTime(
           userSettings.preferredNotificationTime || '09:00'
@@ -142,7 +144,6 @@ export function NotificationSettingsScreen() {
 
       try {
         await apiEffectRunner('users', 'updateUserSettings', {
-          path: { id: state.user.id },
           payload: { timezone: newTimezone },
         })
       } catch (error) {
@@ -165,7 +166,6 @@ export function NotificationSettingsScreen() {
 
       try {
         await apiEffectRunner('users', 'updateUserSettings', {
-          path: { id: state.user.id },
           payload: { preferredNotificationTime: timeString },
         })
       } catch (error) {
