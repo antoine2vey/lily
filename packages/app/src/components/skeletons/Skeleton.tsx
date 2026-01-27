@@ -32,10 +32,10 @@ export function Skeleton({
   rounded = 'md',
   children,
 }: SkeletonProps) {
-  const opacity = useSharedValue(0.3)
+  const opacity = useSharedValue(0.6)
 
   useEffect(() => {
-    opacity.value = withRepeat(withTiming(0.7, { duration: 800 }), -1, true)
+    opacity.value = withRepeat(withTiming(1, { duration: 800 }), -1, true)
   }, [opacity])
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -49,7 +49,7 @@ export function Skeleton({
   return (
     <Animated.View
       style={[animatedStyle, style]}
-      className={`bg-gray-200 ${roundedMap[rounded]} ${className}`}
+      className={`bg-gray-300 ${roundedMap[rounded]} ${className}`}
     >
       {children}
     </Animated.View>
