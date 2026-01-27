@@ -171,13 +171,12 @@ describe('AiService (mock)', () => {
         }).pipe(Effect.provide(testLayer))
       )
 
-      expect(result.humidityRating).toBeNull()
-      expect(result.lightingRating).toBeNull()
-      expect(result.petToxicityRating).toBeNull()
-      expect(result.wateringRating).toBeNull()
-      expect(result.wateringFrequencyDays).toBeNull()
-      expect(result.fertilizationFrequencyDays).toBeNull()
-      expect(result.category).toBeNull()
+      expect(result.humidityRating).toBe(50)
+      expect(result.petToxicityRating).toBe(20)
+      expect(result.sunlightPreference).toBe('medium')
+      expect(result.wateringFrequencyDays).toBe(7)
+      expect(result.fertilizationFrequencyDays).toBe(30)
+      expect(result.category).toBe('Tropical')
     })
 
     it('should process different image URLs', async () => {

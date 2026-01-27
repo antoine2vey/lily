@@ -45,27 +45,18 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
           return streamSdk(stream.textStream)
         }),
       plantCardScan: (url: string) =>
-        Effect.gen(function* () {
-          const scanCard = yield* plantCardScan(url)
-          const { object } = yield* Effect.tryPromise({
-            try: () => scanCard,
-            catch: (error: unknown) => {
-              if (AISDKError.isInstance(error)) {
-                if (error.name === 'AI_APICallError') {
-                  return new AiApiCallError({
-                    message: 'OpenAI API call error',
-                  })
-                }
+        plantCardScan(url).pipe(
+          Effect.mapError((error) => {
+            if (AISDKError.isInstance(error)) {
+              if (error.name === 'AI_APICallError') {
+                return new AiApiCallError({
+                  message: 'OpenAI API call error',
+                })
               }
-
-              return new AiGenericError({
-                message: 'Unknown error',
-              })
-            },
+            }
+            return new AiGenericError({ message: 'Unknown error' })
           })
-
-          return object
-        }),
+        ),
     }
   }),
 }) {}

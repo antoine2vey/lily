@@ -13,7 +13,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError } from '@lily/shared'
-import type { ScanCardResponse } from '@lily/shared/plant'
+import type { AIIdentifyResponse } from '@lily/shared/plant'
 import {
   FileService,
   type GCSConfigError,
@@ -27,7 +27,7 @@ import { Effect } from 'effect'
 export const scanCard = (
   images: readonly PersistedFile[]
 ): Effect.Effect<
-  ScanCardResponse,
+  AIIdentifyResponse,
   | GCSUploadError
   | GCSConfigError
   | MultipleFilesError
@@ -85,5 +85,5 @@ export const scanCard = (
     // Track usage after successful scan
     yield* usageTracker.trackCardScan(userId)
 
-    return result
+    return { ...result, imageUrl: url }
   })

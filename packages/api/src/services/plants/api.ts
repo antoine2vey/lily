@@ -1,4 +1,9 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, Multipart } from '@effect/platform'
+import {
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpApiSchema,
+  Multipart,
+} from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
@@ -12,7 +17,6 @@ import {
   PlantsListResponse,
   PlantUpdateRequest,
   PlantWaterRequest,
-  ScanCardResponse,
   WaterMultiplePlantsRequest,
   WaterMultiplePlantsResponse,
 } from '@lily/shared/plant'
@@ -60,7 +64,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
           })
         )
       )
-      .addSuccess(ScanCardResponse)
+      .addSuccess(AIIdentifyResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
