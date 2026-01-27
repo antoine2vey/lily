@@ -20,6 +20,7 @@ import { NotificationBell } from 'src/components/NotificationBell'
 import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
+import { useUser } from 'src/hooks/useUser'
 import { useWaterAll } from 'src/hooks/useWaterAll'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
@@ -55,8 +56,8 @@ export function HomeScreen() {
     Match.orElse(() => 'Gardener')
   )
 
-  // UserProfile doesn't have an avatar field, so we default to undefined
-  const userAvatar: string | undefined = undefined
+  const { data: userSettings } = useUser()
+  const userAvatar = userSettings?.image
 
   const plantList = plants?.items ?? []
   const hasPlants = plantList.length > 0

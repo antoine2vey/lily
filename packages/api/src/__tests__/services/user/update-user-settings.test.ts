@@ -19,7 +19,7 @@ describe('updateUserSettings', () => {
 
   it('should update user name', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-1', { name: 'Updated Name' }).pipe(
+      updateUserSettings({ name: 'Updated Name' }).pipe(
         Effect.provide(createTestLayer('user-1'))
       )
     )
@@ -29,7 +29,7 @@ describe('updateUserSettings', () => {
 
   it('should update user bio', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-1', { bio: 'New bio text' }).pipe(
+      updateUserSettings({ bio: 'New bio text' }).pipe(
         Effect.provide(createTestLayer('user-1'))
       )
     )
@@ -39,7 +39,7 @@ describe('updateUserSettings', () => {
 
   it('should update notification preferences', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-1', {
+      updateUserSettings({
         notifications: {
           soilAlerts: false,
           wateringReminders: false,
@@ -55,7 +55,7 @@ describe('updateUserSettings', () => {
 
   it('should update partial notification preferences', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-1', {
+      updateUserSettings({
         notifications: {
           soilAlerts: false,
         },
@@ -70,7 +70,7 @@ describe('updateUserSettings', () => {
 
   it('should update multiple fields at once', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-1', {
+      updateUserSettings({
         name: 'New Name',
         bio: 'New bio',
         image: 'https://new-image.com/avatar.png',
@@ -88,7 +88,7 @@ describe('updateUserSettings', () => {
 
   it('should fail with UserNotFoundError when user does not exist', async () => {
     const result = await Effect.runPromiseExit(
-      updateUserSettings('non-existent', { name: 'Test' }).pipe(
+      updateUserSettings({ name: 'Test' }).pipe(
         Effect.provide(createTestLayer('non-existent'))
       )
     )
@@ -98,7 +98,7 @@ describe('updateUserSettings', () => {
 
   it('should preserve unchanged fields', async () => {
     const result = await Effect.runPromise(
-      updateUserSettings('user-2', { name: 'Changed Name' }).pipe(
+      updateUserSettings({ name: 'Changed Name' }).pipe(
         Effect.provide(createTestLayer('user-2'))
       )
     )
@@ -107,19 +107,5 @@ describe('updateUserSettings', () => {
     expect(result.email).toBe('another@example.com')
     expect(result.bio).toBe('Plant enthusiast')
     expect(result.notifications.soilAlerts).toBe(false)
-  })
-
-  it('should fail with Unauthorized when updating other user settings', async () => {
-    const result = await Effect.runPromiseExit(
-      updateUserSettings('user-2', { name: 'Hacked' }).pipe(
-        Effect.provide(createTestLayer('user-1'))
-      )
-    )
-
-    expect(result._tag).toBe('Failure')
-    if (result._tag === 'Failure' && result.cause._tag === 'Fail') {
-      const error = result.cause.error as { message?: string }
-      expect(error.message).toBe('Cannot modify other user settings')
-    }
   })
 })

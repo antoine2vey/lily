@@ -110,12 +110,12 @@ export function ProfileScreen() {
         {/* Profile Header */}
         <ProfileHeader
           avatarUrl={pipe(
-            Option.fromNullable(user?.avatarUrl),
+            Option.fromNullable(user?.image),
             Option.flatMap(Option.fromNullable)
           )}
           name={user?.name ?? 'Plant Lover'}
           username={user?.email?.split('@')[0]}
-          memberSince={new Date(user?.createdAt ?? Date.now())}
+          memberSince={new Date()}
         />
 
         {/* Stats Card */}

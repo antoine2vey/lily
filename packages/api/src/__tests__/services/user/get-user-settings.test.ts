@@ -14,7 +14,7 @@ describe('getUserSettings', () => {
 
   it('should return user settings when user exists', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-1').pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.name).toBe('Test User')
@@ -23,7 +23,7 @@ describe('getUserSettings', () => {
 
   it('should return notification preferences from database', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-2').pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.notifications.soilAlerts).toBe(false)
@@ -33,7 +33,7 @@ describe('getUserSettings', () => {
 
   it('should return bio when present', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-2').pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.bio).toBe('Plant enthusiast')
@@ -41,7 +41,7 @@ describe('getUserSettings', () => {
 
   it('should return undefined bio when not set', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-1').pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.bio).toBeUndefined()
@@ -49,7 +49,7 @@ describe('getUserSettings', () => {
 
   it('should fail with UserNotFoundError when user does not exist', async () => {
     const result = await Effect.runPromiseExit(
-      getUserSettings('non-existent').pipe(
+      getUserSettings().pipe(
         Effect.provide(createTestLayer('non-existent'))
       )
     )
@@ -59,7 +59,7 @@ describe('getUserSettings', () => {
 
   it('should return image when present', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-2').pipe(Effect.provide(createTestLayer('user-2')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
     )
 
     expect(result.image).toBe('https://example.com/avatar.png')
@@ -67,21 +67,9 @@ describe('getUserSettings', () => {
 
   it('should return undefined image when not set', async () => {
     const result = await Effect.runPromise(
-      getUserSettings('user-1').pipe(Effect.provide(createTestLayer('user-1')))
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
     )
 
     expect(result.image).toBeUndefined()
-  })
-
-  it('should fail with Unauthorized when accessing other user settings', async () => {
-    const result = await Effect.runPromiseExit(
-      getUserSettings('user-2').pipe(Effect.provide(createTestLayer('user-1')))
-    )
-
-    expect(result._tag).toBe('Failure')
-    if (result._tag === 'Failure' && result.cause._tag === 'Fail') {
-      const error = result.cause.error as { message?: string }
-      expect(error.message).toBe('Cannot access other user settings')
-    }
   })
 })

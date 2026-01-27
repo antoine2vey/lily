@@ -1,13 +1,12 @@
 import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   View,
@@ -23,26 +22,30 @@ export function EditProfileScreen() {
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile()
 
-  const [name, setName] = useState(user?.name ?? '')
-  const [username, setUsername] = useState(user?.email?.split('@')[0] ?? '')
+  const [name, setName] = useState('')
   const [bio, setBio] = useState('')
-  const [isPrivate, setIsPrivate] = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
-    user?.avatarUrl
-  )
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name ?? '')
+      setBio(user.bio ?? '')
+      setAvatarUri(user.image)
+    }
+  }, [user])
 
   const handleCancel = () => {
     router.back()
   }
 
   const handleSave = () => {
+    const isLocalUri = avatarUri !== user?.image
+
     updateProfile(
       {
         name,
-        username,
         bio,
-        avatarUrl,
-        isPrivate,
+        ...(isLocalUri && avatarUri ? { avatarUri } : {}),
       },
       {
         onSuccess: () => {
@@ -75,7 +78,7 @@ export function EditProfileScreen() {
     })
 
     if (!result.canceled && result.assets[0]) {
-      setAvatarUrl(result.assets[0].uri)
+      setAvatarUri(result.assets[0].uri)
     }
   }
 
@@ -120,7 +123,7 @@ export function EditProfileScreen() {
         {/* Avatar Picker */}
         <AvatarPicker
           avatarUrl={pipe(
-            Option.fromNullable(avatarUrl),
+            Option.fromNullable(avatarUri),
             Option.flatMap(Option.fromNullable)
           )}
           name={name || 'User'}
@@ -141,50 +144,8 @@ export function EditProfileScreen() {
           />
         </View>
 
-        {/* Username Input */}
-        <View className="mb-4">
-          <Text className="text-sm mb-2 font-medium text-text-primary">
-            Username
-          </Text>
-          <View className="flex-row items-center rounded-xl px-4 bg-input-bg">
-            <Text className="text-base font-regular text-text-muted">@</Text>
-            <TextInput
-              value={username}
-              onChangeText={setUsername}
-              placeholder="username"
-              placeholderTextColor={iconColors.textMuted}
-              autoCapitalize="none"
-              className="flex-1 py-3.5 text-base text-text-primary font-regular"
-            />
-          </View>
-        </View>
-
         {/* Bio Input */}
         <BioInput value={bio} onChangeText={setBio} maxLength={150} />
-
-        {/* Divider */}
-        <View className="h-px my-4 bg-border" />
-
-        {/* Private Profile Toggle */}
-        <View className="flex-row items-center justify-between py-2">
-          <View className="flex-1 mr-4">
-            <Text className="text-base mb-1 font-semibold text-text-primary">
-              Private Profile
-            </Text>
-            <Text className="text-sm font-regular text-text-muted">
-              Only people you approve can see your garden collection.
-            </Text>
-          </View>
-          <Switch
-            value={isPrivate}
-            onValueChange={setIsPrivate}
-            trackColor={{
-              false: iconColors.border,
-              true: iconColors.primary,
-            }}
-            thumbColor={iconColors.white}
-          />
-        </View>
 
         {/* Bottom spacer */}
         <View className="h-12" />
