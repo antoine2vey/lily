@@ -8,13 +8,13 @@ type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
 interface AchievementCardProps {
   achievement: {
-    id: string
+    key: string
     name: string
     description: string
     icon: string
     unlocked: boolean
-    progress?: number
-    maxProgress?: number
+    progress?: number | null
+    maxProgress?: number | null
     rarity: Rarity
   }
   onPress: () => void
@@ -53,7 +53,7 @@ export function AchievementCard({
   const rarityColor = getRarityColor(achievement.rarity)
   const iconName = getIconName(achievement.icon)
   const hasProgress =
-    achievement.progress !== undefined && achievement.maxProgress !== undefined
+    achievement.progress != null && achievement.maxProgress != null
   const progressValue = hasProgress
     ? (achievement.progress ?? 0) / (achievement.maxProgress ?? 1)
     : 0

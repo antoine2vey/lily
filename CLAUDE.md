@@ -664,7 +664,8 @@ When adding a new domain/service:
 
 ## Important Notes
 
-1. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
+1. **Never use userId path parameters** — Always use `CurrentUser` from the auth middleware to identify the authenticated user. Do not accept userId in URL paths.
+2. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
 2. **NEVER use native array methods** - Always use Effect's Array module (`.map()`, `.filter()`, `.reduce()` are FORBIDDEN)
 3. **NEVER use switch statements** - Always use Match module with `Match.exhaustive`
 4. **NEVER use null/undefined directly** - Wrap in Option and use Option utilities

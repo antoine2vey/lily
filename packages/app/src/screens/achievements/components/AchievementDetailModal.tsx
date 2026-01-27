@@ -8,14 +8,14 @@ import { iconColors } from 'src/theme'
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
 interface Achievement {
-  id: string
+  key: string
   name: string
   description: string
   icon: string
   unlocked: boolean
-  unlockedAt?: string
-  progress?: number
-  maxProgress?: number
+  unlockedAt?: Date | null
+  progress?: number | null
+  maxProgress?: number | null
   rarity: Rarity
 }
 
@@ -61,9 +61,11 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
   return iconMap[icon] ?? 'star'
 }
 
-const formatDate = (dateString: string): string =>
+const formatDate = (date: Date | null | undefined): string =>
   pipe(
-    parseApiDate(dateString),
+    Option.fromNullable(date),
+    Option.map((d) => d.toISOString()),
+    Option.flatMap(parseApiDate),
     Option.map(formatLongDate),
     Option.getOrElse(() => 'Unknown')
   )
@@ -78,7 +80,7 @@ export function AchievementDetailModal({
   const rarityColor = getRarityColor(achievement.rarity)
   const iconName = getIconName(achievement.icon)
   const hasProgress =
-    achievement.progress !== undefined && achievement.maxProgress !== undefined
+    achievement.progress != null && achievement.maxProgress != null
   const progressValue = hasProgress
     ? (achievement.progress ?? 0) / (achievement.maxProgress ?? 1)
     : 0
@@ -164,7 +166,7 @@ export function AchievementDetailModal({
                   color={iconColors.primary}
                 />
                 <Text className="text-sm ml-2 font-medium text-primary">
-                  Unlocked {formatDate(achievement.unlockedAt ?? '')}
+                  Unlocked {formatDate(achievement.unlockedAt)}
                 </Text>
               </View>
             ) : hasProgress ? (

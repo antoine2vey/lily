@@ -5,7 +5,7 @@ describe('AchievementCard', () => {
   const mockOnPress = jest.fn()
 
   const unlockedAchievement = {
-    id: 'ach-1',
+    key: 'FIRST_PLANT_ADDED',
     name: 'Green Thumb',
     description: 'Add your first plant',
     icon: 'seedling',
@@ -14,7 +14,7 @@ describe('AchievementCard', () => {
   }
 
   const lockedAchievement = {
-    id: 'ach-2',
+    key: 'PLANT_COLLECTOR',
     name: 'Master Gardener',
     description: 'Have 50 plants',
     icon: 'garden',

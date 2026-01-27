@@ -1,17 +1,40 @@
 import { createTestUserAchievement } from '@lily/api/__tests__/fixtures/achievements'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const createCurrentUserLayer = (userId: string) =>
+  Layer.succeed(CurrentUser, {
+    id: userId,
+    email: 'test@test.com',
+    name: 'Test User',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    role: 'user' as const,
+    status: 'active' as const,
+  })
 
 describe('unlockAchievement', () => {
   const userId = 'user-1'
 
+  const createTestLayer = (
+    achievements: Parameters<
+      typeof createMockAchievementRepository
+    >[0]['achievements'],
+    uid = userId
+  ) =>
+    Layer.merge(
+      createMockAchievementRepository({ achievements }),
+      createCurrentUserLayer(uid)
+    )
+
   it('should unlock new achievement successfully', async () => {
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'PLANT_COLLECTOR' }).pipe(
-        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      unlockAchievement({ achievement: 'PLANT_COLLECTOR' }).pipe(
+        Effect.provide(createTestLayer([]))
       )
     )
 
@@ -30,12 +53,8 @@ describe('unlockAchievement', () => {
     })
 
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'FIRST_PLANT_ADDED' }).pipe(
-        Effect.provide(
-          createMockAchievementRepository({
-            achievements: [existingAchievement],
-          })
-        )
+      unlockAchievement({ achievement: 'FIRST_PLANT_ADDED' }).pipe(
+        Effect.provide(createTestLayer([existingAchievement]))
       )
     )
 
@@ -45,8 +64,8 @@ describe('unlockAchievement', () => {
 
   it('should return achievement with definition details', async () => {
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'WATERING_NOVICE' }).pipe(
-        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      unlockAchievement({ achievement: 'WATERING_NOVICE' }).pipe(
+        Effect.provide(createTestLayer([]))
       )
     )
 
@@ -57,8 +76,8 @@ describe('unlockAchievement', () => {
 
   it('should include all required fields in response', async () => {
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'PHOTO_PRO' }).pipe(
-        Effect.provide(createMockAchievementRepository({ achievements: [] }))
+      unlockAchievement({ achievement: 'PHOTO_PRO' }).pipe(
+        Effect.provide(createTestLayer([]))
       )
     )
 
@@ -78,12 +97,8 @@ describe('unlockAchievement', () => {
     })
 
     const result = await Effect.runPromise(
-      unlockAchievement('user-2', { achievement: 'AI_CONVERSATIONALIST' }).pipe(
-        Effect.provide(
-          createMockAchievementRepository({
-            achievements: [user1Achievement],
-          })
-        )
+      unlockAchievement({ achievement: 'AI_CONVERSATIONALIST' }).pipe(
+        Effect.provide(createTestLayer([user1Achievement], 'user-2'))
       )
     )
 
@@ -98,12 +113,8 @@ describe('unlockAchievement', () => {
     })
 
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'DEDICATED_CARETAKER' }).pipe(
-        Effect.provide(
-          createMockAchievementRepository({
-            achievements: [existingAchievement],
-          })
-        )
+      unlockAchievement({ achievement: 'DEDICATED_CARETAKER' }).pipe(
+        Effect.provide(createTestLayer([existingAchievement]))
       )
     )
 
@@ -120,12 +131,8 @@ describe('unlockAchievement', () => {
     })
 
     const result = await Effect.runPromise(
-      unlockAchievement(userId, { achievement: 'SCAN_CHAMP' }).pipe(
-        Effect.provide(
-          createMockAchievementRepository({
-            achievements: [existingAchievement],
-          })
-        )
+      unlockAchievement({ achievement: 'SCAN_CHAMP' }).pipe(
+        Effect.provide(createTestLayer([existingAchievement]))
       )
     )
 
