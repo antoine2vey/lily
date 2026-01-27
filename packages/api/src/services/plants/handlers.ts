@@ -68,6 +68,9 @@ export const PlantsApiLive = (api: Api) =>
         .handle('waterPlant', ({ path: { id }, payload }) =>
           plantsService.waterPlant({ ...payload, id })
         )
+        .handle('waterMultiplePlants', ({ payload }) =>
+          plantsService.waterMultiplePlants(payload)
+        )
         .handle('fertilizePlant', ({ path: { id } }) =>
           plantsService.fertilizePlant({ id })
         )

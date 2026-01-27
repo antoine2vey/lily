@@ -119,7 +119,26 @@ export const PlantDetail = Schema.Struct({
   photos: Schema.Array(PlantPhoto),
 })
 
+// Water multiple plants request/response
+export const WaterMultiplePlantsRequest = Schema.Struct({
+  plantIds: Schema.Array(Schema.String),
+})
+
+export const WaterMultiplePlantsResult = Schema.Struct({
+  plantId: Schema.String,
+  success: Schema.Boolean,
+  plant: Schema.optional(Plant),
+})
+
+export const WaterMultiplePlantsResponse = Schema.Array(
+  WaterMultiplePlantsResult
+)
+
 // Type exports
+export type WaterMultiplePlantsRequest = typeof WaterMultiplePlantsRequest.Type
+export type WaterMultiplePlantsResult = typeof WaterMultiplePlantsResult.Type
+export type WaterMultiplePlantsResponse =
+  typeof WaterMultiplePlantsResponse.Type
 export type Plant = typeof Plant.Type
 export type PlantCreateRequest = typeof PlantCreateRequest.Type
 export type PlantUpdateRequest = typeof PlantUpdateRequest.Type

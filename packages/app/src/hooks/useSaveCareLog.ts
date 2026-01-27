@@ -80,7 +80,7 @@ export function useSaveCareLog() {
         })
       )
       // Invalidate care tasks
-      queryClient.invalidateQueries({ queryKey: ['care-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['careTasks'] })
       // Invalidate plants list (may update last watered/fertilized dates)
       queryClient.invalidateQueries({ queryKey: ['plants'] })
     },

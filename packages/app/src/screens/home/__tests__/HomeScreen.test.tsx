@@ -17,6 +17,13 @@ jest.mock('@/hooks/useRecentActivities', () => ({
   })),
 }))
 
+jest.mock('@/hooks/useWaterAll', () => ({
+  useWaterAll: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+  })),
+}))
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffectQuery } from '@/utils/client'
 import { HomeScreen } from '../HomeScreen'

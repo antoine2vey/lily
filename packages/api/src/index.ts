@@ -31,11 +31,11 @@ import {
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
 import { TelemetryLive } from '@lily/api/telemetry/otel'
-import { DrizzleLive } from '@lily/db'
+import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
 // Shared infrastructure layers
-const SharedLive = Layer.mergeAll(DrizzleLive)
+const SharedLive = Layer.mergeAll(DrizzleLive, PgLive)
 
 // Redis event bus layer with its dependency
 const RedisEventBusFullLive = RedisEventBusLive.pipe(

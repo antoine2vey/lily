@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantPhotos, plants } from '@lily/db'
 import { type PaginatedResponse, paginate } from '@lily/shared'
-import { and, asc, count, desc, eq, lte, or } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, lte, or } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -61,6 +61,9 @@ export interface IPlantRepository {
   readonly findAll: (
     params: FindPlantsParams
   ) => Effect.Effect<FindPlantsResult, SqlError>
+  readonly findByIds: (
+    ids: readonly string[]
+  ) => Effect.Effect<Array<typeof plants.$inferSelect>, SqlError>
   readonly findById: (
     id: string
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
@@ -154,6 +157,16 @@ export const PlantRepositoryLive = Layer.effect(
             )
 
           return paginate(items, total, page, limit)
+        }),
+
+      findByIds: (ids: readonly string[]) =>
+        Effect.gen(function* () {
+          if (ids.length === 0) return []
+          const items = yield* db
+            .select()
+            .from(plants)
+            .where(inArray(plants.id, ids as string[]))
+          return items
         }),
 
       findById: (id: string) =>

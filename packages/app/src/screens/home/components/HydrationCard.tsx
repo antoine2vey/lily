@@ -13,6 +13,7 @@ interface HydrationCardProps {
   plants: Plant[]
   onWaterAll: () => void
   onPlantPress: (plantId: string) => void
+  isLoading?: boolean
 }
 
 const MAX_VISIBLE_PLANTS = 3
@@ -83,6 +84,7 @@ export function HydrationCard({
   plants,
   onWaterAll,
   onPlantPress,
+  isLoading = false,
 }: HydrationCardProps) {
   if (plants.length === 0) {
     return null
@@ -142,7 +144,8 @@ export function HydrationCard({
       {/* Water All Button */}
       <Pressable
         onPress={onWaterAll}
-        className="h-12 rounded-full flex-row items-center justify-center gap-2 bg-primary"
+        disabled={isLoading}
+        className={`h-12 rounded-full flex-row items-center justify-center gap-2 ${isLoading ? 'bg-primary/60' : 'bg-primary'}`}
         style={{
           shadowColor: iconColors.primary,
           shadowOffset: { width: 0, height: 4 },
@@ -154,7 +157,9 @@ export function HydrationCard({
         accessibilityRole="button"
       >
         <MaterialIcons name="check-circle" size={20} color={iconColors.white} />
-        <Text className="text-[15px] text-white font-bold">Water All</Text>
+        <Text className="text-[15px] text-white font-bold">
+          {isLoading ? 'Watering...' : 'Water All'}
+        </Text>
       </Pressable>
     </View>
   )

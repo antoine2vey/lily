@@ -17,6 +17,8 @@ import {
   PlantUpdateRequest,
   PlantWaterRequest,
   ScanCardResponse,
+  WaterMultiplePlantsRequest,
+  WaterMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import { Schema } from 'effect'
 
@@ -89,6 +91,14 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // POST /plants/water-multiple - Water multiple plants at once
+    HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
+      .setPayload(WaterMultiplePlantsRequest)
+      .addSuccess(WaterMultiplePlantsResponse)
+      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

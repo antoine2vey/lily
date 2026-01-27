@@ -14,7 +14,7 @@ export function useDeleteCareLog() {
       // Invalidate plants list (may update dates)
       queryClient.invalidateQueries({ queryKey: ['plants'] })
       // Invalidate care tasks
-      queryClient.invalidateQueries({ queryKey: ['care-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['careTasks'] })
     },
   })
 }
