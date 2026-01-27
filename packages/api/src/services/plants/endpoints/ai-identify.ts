@@ -1,4 +1,3 @@
-import { HttpServerResponse } from '@effect/platform'
 import type { PlatformError } from '@effect/platform/Error'
 import type { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
@@ -11,7 +10,7 @@ import {
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import type { LimitExceededError } from '@lily/shared'
+import type { AIIdentifyResponse, LimitExceededError } from '@lily/shared'
 import {
   FileService,
   type MultipleFilesError,
@@ -27,7 +26,7 @@ import { Effect } from 'effect'
 export const aiIdentify = (
   images: readonly PersistedFile[]
 ): Effect.Effect<
-  HttpServerResponse.HttpServerResponse,
+  AIIdentifyResponse,
   | GCSUploadError
   | GCSConfigError
   | MultipleFilesError
@@ -53,21 +52,24 @@ export const aiIdentify = (
     const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
 
-    // Check if user has reached their plant identify limit
     yield* limitChecker.checkPlantIdentifyLimit(userId)
 
     const file = yield* fileService.getFirstUploadedFile(images)
 
-    const { url } = yield* gcs.uploadPrivateFile({
+    const { url } = yield* gcs.uploadFile({
       fileBuffer: Buffer.from(file.buffer),
       fileName: file.name,
       contentType: file.contentType,
     })
 
-    const stream = yield* ai.plantRecognition(url)
+    const aiResult = yield* ai.plantRecognition(url)
 
-    // Track usage after successful identify
     yield* usageTracker.trackPlantIdentify(userId)
 
-    return HttpServerResponse.stream(stream)
-  })
+    return { ...aiResult, imageUrl: url }
+  }).pipe(
+    Effect.tapErrorCause((cause) => {
+      console.error('[ai-identify] FAILED:', cause)
+      return Effect.void
+    })
+  )

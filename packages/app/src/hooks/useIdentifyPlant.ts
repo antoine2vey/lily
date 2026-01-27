@@ -11,23 +11,14 @@ interface PlantIdentificationResult {
   family: string | null
   confidence: number
   alternatives: PlantAlternative[]
-}
-
-/**
- * Parse the streamed JSON text response from AI identify endpoint
- */
-function parseStreamedResponse(text: string): PlantIdentificationResult {
-  try {
-    return JSON.parse(text) as PlantIdentificationResult
-  } catch {
-    // Default response if parsing fails
-    return {
-      name: null,
-      family: null,
-      confidence: 0,
-      alternatives: [],
-    }
-  }
+  wateringFrequencyDays: number | null
+  sunlightPreference: string | null
+  humidityRating: number | null
+  petToxicityRating: number | null
+  fertilizationFrequencyDays: number | null
+  category: string | null
+  description: string | null
+  imageUrl: string
 }
 
 /**
@@ -43,14 +34,11 @@ export function useIdentifyPlant() {
         type: 'image/jpeg',
       })
 
-      // Upload and get streamed response as text
-      const responseText = await uploadMultipart<string>(
-        '/plants/ai-identify',
+      return uploadMultipart<PlantIdentificationResult>(
+        '/api/plants/ai-identify',
         [file],
-        'images' // The backend expects 'images' as the field name
+        'images'
       )
-
-      return parseStreamedResponse(responseText)
     },
     retry: 1,
   })

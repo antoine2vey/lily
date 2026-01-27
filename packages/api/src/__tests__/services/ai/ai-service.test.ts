@@ -8,34 +8,33 @@ const testLayer = Layer.merge(createMockAiService(), createMockPgDrizzle())
 
 describe('AiService (mock)', () => {
   describe('plantRecognition', () => {
-    it('should return stream for plant recognition', async () => {
+    it('should return plant data object', async () => {
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const aiService = yield* AiService
-          const stream = yield* aiService.plantRecognition(
+          return yield* aiService.plantRecognition(
             'https://example.com/plant.jpg'
           )
-          // Collect stream to array
-          const chunks = yield* Stream.runCollect(stream)
-          return chunks
         }).pipe(Effect.provide(testLayer))
       )
 
-      expect(result.length).toBeGreaterThan(0)
+      expect(result.name).toBe('Mock Plant')
+      expect(result.confidence).toBe(0.95)
     })
 
-    it('should process image URL correctly', async () => {
+    it('should include care data in response', async () => {
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const aiService = yield* AiService
-          const stream = yield* aiService.plantRecognition(
+          return yield* aiService.plantRecognition(
             'https://storage.example.com/images/monstera.png'
           )
-          return stream
         }).pipe(Effect.provide(testLayer))
       )
 
-      expect(result).toBeDefined()
+      expect(result.wateringFrequencyDays).toBe(7)
+      expect(result.sunlightPreference).toBe('medium')
+      expect(result.category).toBe('Tropical')
     })
   })
 

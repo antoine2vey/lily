@@ -1,14 +1,10 @@
-import {
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-  Multipart,
-} from '@effect/platform'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, Multipart } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
+  AIIdentifyResponse,
   EnhancedPlantCreateRequest,
   Plant,
   PlantDetail,
@@ -80,14 +76,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
           })
         )
       )
-      .addSuccess(
-        Schema.String.pipe(
-          HttpApiSchema.withEncoding({
-            kind: 'Text',
-            contentType: 'application/octet-stream',
-          })
-        )
-      )
+      .addSuccess(AIIdentifyResponse)
       .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
