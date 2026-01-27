@@ -17,11 +17,6 @@ interface TestPushMessage {
   badge?: number | undefined
 }
 
-// Helper to assert non-null and satisfy TypeScript
-function assertNotNull<T>(value: T | null): asserts value is T {
-  expect(value).not.toBeNull()
-}
-
 describe('PushService (mock)', () => {
   describe('send', () => {
     it('should send push notification successfully', async () => {
@@ -92,9 +87,9 @@ describe('PushService (mock)', () => {
         )
       )
 
-      assertNotNull(capturedMessage)
-      expect(capturedMessage.title).toBe('Captured Title')
-      expect(capturedMessage.body).toBe('Captured Body')
+      const msg = capturedMessage as unknown as TestPushMessage
+      expect(msg.title).toBe('Captured Title')
+      expect(msg.body).toBe('Captured Body')
     })
 
     it('should include optional data in message', async () => {
@@ -120,8 +115,8 @@ describe('PushService (mock)', () => {
         )
       )
 
-      assertNotNull(capturedMessage)
-      expect(capturedMessage.data).toEqual({
+      const msg = capturedMessage as unknown as TestPushMessage
+      expect(msg.data).toEqual({
         plantId: 'plant-1',
         action: 'water',
       })
@@ -150,8 +145,8 @@ describe('PushService (mock)', () => {
         )
       )
 
-      assertNotNull(capturedMessage)
-      expect(capturedMessage.sound).toBe('default')
+      const msg = capturedMessage as unknown as TestPushMessage
+      expect(msg.sound).toBe('default')
     })
 
     it('should include badge count when provided', async () => {
@@ -177,8 +172,8 @@ describe('PushService (mock)', () => {
         )
       )
 
-      assertNotNull(capturedMessage)
-      expect(capturedMessage.badge).toBe(5)
+      const msg = capturedMessage as unknown as TestPushMessage
+      expect(msg.badge).toBe(5)
     })
   })
 
