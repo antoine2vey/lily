@@ -11,7 +11,7 @@ import {
   useMutation,
   useQuery,
 } from '@tanstack/react-query'
-import { Effect, Layer } from 'effect'
+import { Cause, Effect, Layer, Runtime } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 
 // Type helpers to extract HttpApi type parameters
@@ -184,6 +184,33 @@ type PromiseSuccess<
   Y extends keyof Client[X],
 > = Promise<GetCleanSuccessType<X, Y>>
 
+export class ApiError extends Error {
+  readonly _tag: string
+
+  constructor(tag: string, message: string) {
+    super(message)
+    this._tag = tag
+    this.name = 'ApiError'
+  }
+}
+
+function toApiError(error: unknown): ApiError | unknown {
+  if (!Runtime.isFiberFailure(error)) return error
+
+  const cause = error[Runtime.FiberFailureCauseId] as Cause.Cause<{
+    readonly _tag: string
+    readonly message?: string
+  }>
+  const failure = Cause.failureOption(cause)
+
+  if (failure._tag === 'None') return error
+
+  return new ApiError(
+    failure.value._tag,
+    failure.value.message ?? error.message
+  )
+}
+
 /**
  * Run an API effect with automatic token refresh on 401 errors
  */
@@ -217,8 +244,8 @@ export async function apiEffectRunner<
       }
     }
 
-    // Re-throw the error if refresh failed or it's not a 401
-    throw error
+    // Re-throw with _tag preserved from Effect typed errors
+    throw toApiError(error)
   }
 }
 

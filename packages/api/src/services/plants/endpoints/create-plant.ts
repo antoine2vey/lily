@@ -36,6 +36,7 @@ export const createPlant = (
       ),
       wateringRating: 0, // Default value
       wateringFrequencyDays: request.wateringFrequencyDays,
+      fertilizationFrequencyDays: request.fertilizationFrequencyDays ?? null,
       health: 'HEALTHY', // Default value
       userId,
     })

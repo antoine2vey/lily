@@ -25,6 +25,7 @@ export interface CreatePlantData {
   petToxicityRating: number
   wateringRating: number
   wateringFrequencyDays: number
+  fertilizationFrequencyDays?: number | null
   health: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
   userId: string
 }
