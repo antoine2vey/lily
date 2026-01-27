@@ -19,6 +19,20 @@ export const AchievementKey = Schema.Union(
   Schema.Literal('SHARE_SPROUT')
 )
 
+export const AchievementCategory = Schema.Union(
+  Schema.Literal('plants'),
+  Schema.Literal('care'),
+  Schema.Literal('streaks'),
+  Schema.Literal('special')
+)
+
+export const AchievementRarity = Schema.Union(
+  Schema.Literal('common'),
+  Schema.Literal('rare'),
+  Schema.Literal('epic'),
+  Schema.Literal('legendary')
+)
+
 export const Achievement = Schema.Struct({
   id: Schema.String,
   key: AchievementKey,
@@ -29,11 +43,35 @@ export const Achievement = Schema.Struct({
   userId: Schema.String,
 })
 
+export const AchievementWithProgress = Schema.Struct({
+  key: AchievementKey,
+  name: Schema.String,
+  description: Schema.String,
+  icon: Schema.String,
+  category: AchievementCategory,
+  rarity: AchievementRarity,
+  unlocked: Schema.Boolean,
+  unlockedAt: Schema.NullOr(Schema.Date),
+  progress: Schema.NullOr(Schema.Number),
+  maxProgress: Schema.NullOr(Schema.Number),
+})
+
+export const AchievementsResponse = Schema.Struct({
+  achievements: Schema.Array(AchievementWithProgress),
+  level: Schema.Number,
+  unlockedCount: Schema.Number,
+  totalCount: Schema.Number,
+})
+
 export const UnlockAchievementRequest = Schema.Struct({
   achievement: AchievementKey,
 })
 
 // Type exports
 export type AchievementKey = typeof AchievementKey.Type
+export type AchievementCategory = typeof AchievementCategory.Type
+export type AchievementRarity = typeof AchievementRarity.Type
 export type Achievement = typeof Achievement.Type
+export type AchievementWithProgress = typeof AchievementWithProgress.Type
+export type AchievementsResponse = typeof AchievementsResponse.Type
 export type UnlockAchievementRequest = typeof UnlockAchievementRequest.Type

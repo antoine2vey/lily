@@ -5,17 +5,17 @@ describe('AchievementDetailModal', () => {
   const mockOnClose = jest.fn()
 
   const unlockedAchievement = {
-    id: 'ach-1',
+    key: 'FIRST_PLANT_ADDED' as const,
     name: 'Green Thumb',
     description: 'Add your first plant to your collection',
     icon: 'seedling',
     unlocked: true,
-    unlockedAt: '2024-06-15T10:30:00Z',
+    unlockedAt: new Date('2024-06-15T10:30:00Z'),
     rarity: 'common' as const,
   }
 
   const lockedAchievement = {
-    id: 'ach-2',
+    key: 'PLANT_COLLECTOR' as const,
     name: 'Master Gardener',
     description: 'Have 50 plants in your collection',
     icon: 'garden',
@@ -106,8 +106,8 @@ describe('AchievementDetailModal', () => {
   it('shows locked message for locked achievements without progress', () => {
     const lockedNoProgress = {
       ...lockedAchievement,
-      progress: undefined,
-      maxProgress: undefined,
+      progress: null,
+      maxProgress: null,
     }
 
     render(

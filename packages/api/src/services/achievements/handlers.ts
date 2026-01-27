@@ -12,11 +12,11 @@ export const AchievementsApiLive = (api: Api) =>
       const achievementsService = yield* AchievementsService
 
       return handlers
-        .handle('getUserAchievements', ({ path: { userId } }) =>
-          achievementsService.getUserAchievements(userId)
+        .handle('getUserAchievements', () =>
+          achievementsService.getUserAchievements()
         )
-        .handle('unlockAchievement', ({ path: { userId }, payload }) =>
-          achievementsService.unlockAchievement(userId, payload)
+        .handle('unlockAchievement', ({ payload }) =>
+          achievementsService.unlockAchievement(payload)
         )
     })
   ).pipe(

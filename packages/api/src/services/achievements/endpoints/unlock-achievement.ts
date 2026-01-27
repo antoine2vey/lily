@@ -1,20 +1,21 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { DatabaseError } from '@lily/shared/errors/database'
 import { Array, Effect, Option } from 'effect'
 
-// Unlock achievement
+// Unlock achievement for the current user
 export const unlockAchievement = (
-  userId: string,
   request: UnlockAchievementRequest
 ): Effect.Effect<
   Achievement,
   SqlError | DatabaseError,
-  AchievementRepository
+  AchievementRepository | CurrentUser
 > =>
   Effect.gen(function* () {
+    const { id: userId } = yield* CurrentUser
     const repo = yield* AchievementRepository
     const unlocked = yield* repo.unlock(userId, request.achievement)
 

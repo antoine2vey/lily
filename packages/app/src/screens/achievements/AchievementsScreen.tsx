@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { AchievementCategory, AchievementWithProgress } from '@lily/shared'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
@@ -17,21 +18,6 @@ import { iconColors } from 'src/theme'
 import { AchievementCard } from './components/AchievementCard'
 import { AchievementDetailModal } from './components/AchievementDetailModal'
 
-type AchievementCategory = 'plants' | 'care' | 'streaks' | 'special'
-
-interface Achievement {
-  id: string
-  name: string
-  description: string
-  category: AchievementCategory
-  icon: string
-  unlocked: boolean
-  unlockedAt?: string
-  progress?: number
-  maxProgress?: number
-  rarity: 'common' | 'rare' | 'epic' | 'legendary'
-}
-
 const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   plants: 'Plant Collection',
   care: 'Plant Care',
@@ -42,7 +28,7 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
 export function AchievementsScreen() {
   const { data, isLoading } = useAchievements()
   const [selectedAchievement, setSelectedAchievement] =
-    useState<Achievement | null>(null)
+    useState<AchievementWithProgress | null>(null)
 
   if (isLoading || !data) {
     return (
@@ -130,7 +116,7 @@ export function AchievementsScreen() {
                 {pipe(
                   group.achievements,
                   Array.map((achievement) => (
-                    <View key={achievement.id} className="w-1/2">
+                    <View key={achievement.key} className="w-1/2">
                       <AchievementCard
                         achievement={achievement}
                         onPress={() => setSelectedAchievement(achievement)}
