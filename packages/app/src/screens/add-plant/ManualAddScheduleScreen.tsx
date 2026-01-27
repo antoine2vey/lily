@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,6 +14,7 @@ import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
 import { Input } from 'src/components/ui/Input'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
+import { ApiError } from 'src/utils/client'
 import { iconColors } from 'src/theme'
 import { FrequencyPicker } from './components/FrequencyPicker'
 import { WizardHeader } from './components/WizardHeader'
@@ -71,9 +73,10 @@ export function ManualAddScheduleScreen() {
       {
         payload: {
           name: basicInfo.name,
-          category: basicInfo.category,
+          category: basicInfo.category || undefined,
           description: notes || undefined,
           wateringFrequencyDays: wateringDays,
+          fertilizationFrequencyDays: fertilizingDays,
           sunlightPreference,
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
@@ -82,7 +85,22 @@ export function ManualAddScheduleScreen() {
       },
       {
         onSuccess: (plant) => {
-          router.replace(`/plant/${plant.id}`)
+          router.dismissAll()
+          router.push(`/plant/${plant.id}`)
+        },
+        onError: (error) => {
+          if (
+            error instanceof ApiError &&
+            error._tag === 'LimitExceededError'
+          ) {
+            Alert.alert(
+              'Plant Limit Reached',
+              'You\'ve reached your limit of plants on the free plan. Upgrade to Premium for unlimited plants!'
+            )
+            return
+          }
+
+          Alert.alert('Error', 'Failed to create plant. Please try again.')
         },
       }
     )
