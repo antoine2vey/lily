@@ -96,7 +96,7 @@ export function AIScannerScreen() {
       } catch {
         Alert.alert(
           'Identification Failed',
-          'We couldn\'t identify this plant. Try another photo or add manually.'
+          "We couldn't identify this plant. Try another photo or add manually."
         )
       } finally {
         setIsCapturing(false)
@@ -116,7 +116,7 @@ export function AIScannerScreen() {
       } catch {
         Alert.alert(
           'Identification Failed',
-          'We couldn\'t identify this plant. Try another photo or add manually.'
+          "We couldn't identify this plant. Try another photo or add manually."
         )
       } finally {
         setIsCapturing(false)
@@ -138,11 +138,7 @@ export function AIScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView
-        ref={cameraRef}
-        style={{ flex: 1 }}
-        facing="back"
-      >
+      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
         {/* Top bar with back button */}
         <View
           className="absolute top-0 left-0 right-0 z-10 flex-row items-center px-4"

@@ -28,6 +28,7 @@ export const createPlant = (
       name: request.name,
       description: request.description || null,
       category: request.category || null,
+      imageUrl: request.imageUrl || null,
       humidityRating: request.humidityRating || 0,
       lightingRating: 0, // Default value
       petToxicityRating: pipe(
