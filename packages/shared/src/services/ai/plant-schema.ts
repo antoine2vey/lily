@@ -1,0 +1,54 @@
+import z from 'zod'
+
+/**
+ * Shared zod schema for plant AI results.
+ * Used by both plant recognition (photo identify) and nursery card scan.
+ */
+export const plantSchema = z.object({
+  name: z.string().describe('The name of the plant').nullable(),
+  family: z.string().describe('The family of the plant').nullable(),
+  confidence: z.number().describe('The confidence of the plant').min(0).max(1),
+  alternatives: z
+    .array(
+      z.object({
+        name: z.string().describe('The name of the alternative').nullable(),
+        confidence: z
+          .number()
+          .min(0)
+          .max(1)
+          .describe('The confidence of the alternative'),
+      })
+    )
+    .describe('The alternatives of the plant'),
+  wateringFrequencyDays: z
+    .number()
+    .describe('How often to water in days')
+    .nullable(),
+  sunlightPreference: z
+    .enum(['low', 'medium', 'high'])
+    .describe('Sunlight preference')
+    .nullable(),
+  humidityRating: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe('Humidity preference 0-100')
+    .nullable(),
+  petToxicityRating: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe('Pet toxicity 0-100')
+    .nullable(),
+  fertilizationFrequencyDays: z
+    .number()
+    .describe('How often to fertilize in days')
+    .nullable(),
+  category: z
+    .string()
+    .describe('Plant category like Tropical, Succulent, etc.')
+    .nullable(),
+  description: z.string().describe('Brief 1-2 sentence description').nullable(),
+})
+
+export type PlantAIResult = z.infer<typeof plantSchema>

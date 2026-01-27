@@ -35,14 +35,16 @@ export const createMockAiService = (
     plantCardScan: (_url: string) =>
       Effect.succeed({
         name: 'Mock Plant',
+        family: 'Mockaceae',
+        confidence: 0.85,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        sunlightPreference: 'medium' as const,
+        humidityRating: 50,
+        petToxicityRating: 20,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
         description: 'A mock plant description',
-        humidityRating: null,
-        lightingRating: null,
-        petToxicityRating: null,
-        wateringRating: null,
-        wateringFrequencyDays: null,
-        fertilizationFrequencyDays: null,
-        category: null,
       }),
   }
 

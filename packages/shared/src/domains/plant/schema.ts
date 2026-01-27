@@ -75,20 +75,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   remindersEnabled: Schema.optional(Schema.Boolean),
 })
 
-// Scan card response
-export const ScanCardResponse = Schema.Struct({
-  name: Schema.NullOr(Schema.String),
-  humidityRating: Schema.NullOr(Schema.Number),
-  lightingRating: Schema.NullOr(Schema.Number),
-  petToxicityRating: Schema.NullOr(Schema.Number),
-  wateringRating: Schema.NullOr(Schema.Number),
-  wateringFrequencyDays: Schema.NullOr(Schema.Number),
-  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
-  category: Schema.NullOr(Schema.String),
-  description: Schema.NullOr(Schema.String),
-})
-
-// AI identify response
+// AI identify response (shared by both AI identify and nursery card scan)
 export const AIIdentifyResponse = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   family: Schema.NullOr(Schema.String),
@@ -154,7 +141,6 @@ export type PlantCreateRequest = typeof PlantCreateRequest.Type
 export type PlantUpdateRequest = typeof PlantUpdateRequest.Type
 export type PlantWaterRequest = typeof PlantWaterRequest.Type
 export type EnhancedPlantCreateRequest = typeof EnhancedPlantCreateRequest.Type
-export type ScanCardResponse = typeof ScanCardResponse.Type
 export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type
 export type PlantsListResponse = typeof PlantsListResponse.Type

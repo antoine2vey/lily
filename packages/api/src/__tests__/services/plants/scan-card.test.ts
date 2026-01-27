@@ -81,10 +81,10 @@ describe('scanCard', () => {
       scanCard([mockFile]).pipe(Effect.provide(createTestLayer()))
     )
 
-    // The mock AI service returns null for ratings
-    expect(result.humidityRating).toBeNull()
-    expect(result.lightingRating).toBeNull()
-    expect(result.petToxicityRating).toBeNull()
-    expect(result.wateringRating).toBeNull()
+    expect(result.humidityRating).toBe(50)
+    expect(result.petToxicityRating).toBe(20)
+    expect(result.sunlightPreference).toBe('medium')
+    expect(result.confidence).toBe(0.85)
+    expect(result.imageUrl).toBeDefined()
   })
 })

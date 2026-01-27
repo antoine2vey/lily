@@ -1,38 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
-import { useState } from 'react'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { useRef, useState } from 'react'
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useScanCard } from 'src/hooks/useScanCard'
 import { iconColors } from 'src/theme'
-
-interface PlantInfo {
-  name?: string
-  category?: string
-}
-
-function parseNurseryCardText(text: string): PlantInfo | null {
-  // Simple parsing logic - in production, this would use more sophisticated OCR
-  const lines = text.split('\n').filter((line) => line.trim().length > 0)
-
-  if (lines.length === 0) {
-    return null
-  }
-
-  // Try to find plant name (usually the longest capitalized line)
-  const plantName = lines
-    .filter((line) => /^[A-Z]/.test(line.trim()))
-    .sort((a, b) => b.length - a.length)[0]
-
-  if (!plantName) {
-    return null
-  }
-
-  return {
-    name: plantName.trim(),
-    category: undefined,
-  }
-}
 
 function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
   return (
@@ -63,32 +38,65 @@ function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
 
 export function NurseryCardScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions()
-  const [isScanning] = useState(true)
+  const [isCapturing, setIsCapturing] = useState(false)
+  const cameraRef = useRef<CameraView>(null)
+  const insets = useSafeAreaInsets()
+  const { mutateAsync: scanCard } = useScanCard()
+
+  const navigateWithResult = (
+    photoUri: string,
+    result: Awaited<ReturnType<typeof scanCard>>
+  ) => {
+    router.push(
+      `/add-plant/ai-results?photoUri=${encodeURIComponent(photoUri)}&result=${encodeURIComponent(JSON.stringify(result))}`
+    )
+  }
 
   const handlePickFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
     })
 
-    if (!result.canceled && result.assets[0]) {
-      // In production, send image to OCR service
-      // For now, navigate to manual add
-      router.push('/add-plant/manual-basic')
+    if (!pickerResult.canceled && pickerResult.assets[0]) {
+      setIsCapturing(true)
+      try {
+        const image = ImageManipulator.manipulate(pickerResult.assets[0].uri)
+        const rendered = await image.renderAsync()
+        const jpeg = await rendered.saveAsync({
+          compress: 0.8,
+          format: SaveFormat.JPEG,
+        })
+        const result = await scanCard(jpeg.uri)
+        navigateWithResult(jpeg.uri, result)
+      } catch {
+        Alert.alert(
+          'Scan Failed',
+          "We couldn't read the nursery card. Try another photo or add manually."
+        )
+      } finally {
+        setIsCapturing(false)
+      }
     }
   }
 
-  // Note: Text recognition would require a native module like react-native-text-recognition
-  // For now, this is a simplified version that navigates to manual add
-  const _handleScanResult = (text: string) => {
-    if (!isScanning) return
-
-    const plantInfo = parseNurseryCardText(text)
-    if (plantInfo) {
-      const params = new URLSearchParams()
-      if (plantInfo.name) params.set('prefillName', plantInfo.name)
-      if (plantInfo.category) params.set('prefillCategory', plantInfo.category)
-      router.push(`/add-plant/manual-basic?${params.toString()}`)
+  const handleCapture = async () => {
+    if (cameraRef.current && !isCapturing) {
+      setIsCapturing(true)
+      try {
+        const photo = await cameraRef.current.takePictureAsync()
+        if (photo?.uri) {
+          const result = await scanCard(photo.uri)
+          navigateWithResult(photo.uri, result)
+        }
+      } catch {
+        Alert.alert(
+          'Scan Failed',
+          "We couldn't read the nursery card. Try another photo or add manually."
+        )
+      } finally {
+        setIsCapturing(false)
+      }
     }
   }
 
@@ -106,9 +114,23 @@ export function NurseryCardScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView className="flex-1" facing="back">
-        <View className="flex-1 items-center justify-center">
-          {/* Scan area overlay */}
+      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
+        {/* Top bar with back button */}
+        <View
+          className="absolute top-0 left-0 right-0 z-10 flex-row items-center px-4"
+          style={{ paddingTop: insets.top + 8 }}
+        >
+          <Pressable
+            onPress={() => router.back()}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          >
+            <MaterialIcons name="close" size={24} color={iconColors.white} />
+          </Pressable>
+        </View>
+
+        {/* Scan area overlay */}
+        <View style={{ flex: 1 }} className="items-center justify-center">
           <View
             className="w-72 h-48 rounded-xl items-center justify-center border-2 border-primary"
             style={{ backgroundColor: 'transparent' }}
@@ -124,18 +146,11 @@ export function NurseryCardScannerScreen() {
           </View>
         </View>
 
-        {/* Controls */}
-        <View className="absolute top-12 left-4">
-          <Pressable
-            onPress={() => router.back()}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          >
-            <MaterialIcons name="close" size={24} color={iconColors.white} />
-          </Pressable>
-        </View>
-
-        <View className="absolute bottom-12 right-6">
+        {/* Bottom controls */}
+        <View
+          className="flex-row items-center justify-between px-12"
+          style={{ paddingBottom: insets.bottom + 24 }}
+        >
           <Pressable
             onPress={handlePickFromGallery}
             className="w-12 h-12 rounded-full items-center justify-center"
@@ -147,13 +162,22 @@ export function NurseryCardScannerScreen() {
               color={iconColors.white}
             />
           </Pressable>
-        </View>
 
-        {/* Instructions */}
-        <View className="absolute bottom-12 left-0 right-0 items-center">
-          <Text className="text-sm font-regular text-white">
-            Scan the plant tag or select from gallery
-          </Text>
+          <Pressable
+            onPress={handleCapture}
+            disabled={isCapturing}
+            className="w-[72px] h-[72px] rounded-full items-center justify-center border-4 border-white"
+            style={{ opacity: isCapturing ? 0.7 : 1 }}
+          >
+            {isCapturing ? (
+              <ActivityIndicator size="small" color={iconColors.white} />
+            ) : (
+              <View className="w-[56px] h-[56px] rounded-full bg-white" />
+            )}
+          </Pressable>
+
+          {/* Spacer to keep capture button centered */}
+          <View className="w-12 h-12" />
         </View>
       </CameraView>
     </View>
