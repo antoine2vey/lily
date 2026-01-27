@@ -20,6 +20,7 @@ export interface CreatePlantData {
   name: string
   description: string | null
   category: string | null
+  imageUrl?: string | null
   humidityRating: number
   lightingRating: number
   petToxicityRating: number

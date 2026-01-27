@@ -14,8 +14,8 @@ import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
 import { Input } from 'src/components/ui/Input'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
-import { ApiError } from 'src/utils/client'
 import { iconColors } from 'src/theme'
+import { ApiError } from 'src/utils/client'
 import { FrequencyPicker } from './components/FrequencyPicker'
 import { WizardHeader } from './components/WizardHeader'
 
@@ -95,7 +95,7 @@ export function ManualAddScheduleScreen() {
           ) {
             Alert.alert(
               'Plant Limit Reached',
-              'You\'ve reached your limit of plants on the free plan. Upgrade to Premium for unlimited plants!'
+              "You've reached your limit of plants on the free plan. Upgrade to Premium for unlimited plants!"
             )
             return
           }

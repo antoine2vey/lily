@@ -6,7 +6,14 @@ export const LoggingMiddleware = HttpMiddleware.make((app) =>
     const request = yield* HttpServerRequest.HttpServerRequest
     const start = Date.now()
 
-    const response = yield* app
+    const response = yield* Effect.tapErrorCause(app, (cause) => {
+      const duration = Date.now() - start
+      console.error(
+        `${request.method} ${request.url} ERROR ${duration}ms`,
+        cause
+      )
+      return Effect.void
+    })
 
     const duration = Date.now() - start
     console.log(

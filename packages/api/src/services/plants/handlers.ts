@@ -40,9 +40,12 @@ export const PlantsApiLive = (api: Api) =>
         .handle('scanCard', ({ payload: { images } }) =>
           plantsService.scanCard(images)
         )
-        .handle('aiIdentify', ({ payload: { images } }) =>
-          plantsService.aiIdentify(images)
-        )
+        .handle('aiIdentify', ({ payload: { images } }) => {
+          console.log('[ai-identify handler] Received request', {
+            imageCount: images.length,
+          })
+          return plantsService.aiIdentify(images)
+        })
         .handle('getPlant', ({ path: { id } }) =>
           plantsService.findPlantById({ id })
         )
