@@ -250,7 +250,6 @@ export function NotificationSettingsScreen() {
               value={settings.careReminders}
               onValueChange={(value) => handleToggle('careReminders', value)}
             />
-
           </View>
         </View>
 

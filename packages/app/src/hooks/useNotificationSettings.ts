@@ -1,7 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UserSettings } from '@lily/shared'
-import { useEffectQuery } from 'src/utils/client'
-import { apiEffectRunner } from 'src/utils/client'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiEffectRunner, useEffectQuery } from 'src/utils/client'
 
 interface NotificationSettings {
   careReminders: boolean
