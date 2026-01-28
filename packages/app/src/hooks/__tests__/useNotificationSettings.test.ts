@@ -1,4 +1,3 @@
-import { waitFor } from '@testing-library/react-native'
 import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
 import { useNotificationSettings } from '../useNotificationSettings'
 
