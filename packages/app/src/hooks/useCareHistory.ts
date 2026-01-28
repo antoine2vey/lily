@@ -77,7 +77,10 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
       // Sort events by createdAt descending
       const sortedEvents = Array.sort(events, eventCreatedAtOrder)
       return {
-        date: getApiDateGroupLabel(dateKey),
+        date: getApiDateGroupLabel(
+          dateKey,
+          Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
+        ),
         dateKey,
         events: sortedEvents,
       }

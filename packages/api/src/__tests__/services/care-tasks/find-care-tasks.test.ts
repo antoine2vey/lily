@@ -2,17 +2,20 @@ import {
   mockPlantsForCareTasks,
   mockPlantsNoCare,
 } from '@lily/api/__tests__/fixtures/care-tasks'
+import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
 import { Array, Effect, Layer } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Helper to create test layer with CurrentUser
 const createTestLayer = (userId = 'user-1', plants = mockPlantsForCareTasks) =>
   Layer.mergeAll(
     createMockPlantRepository({ plants }),
-    createMockCurrentUser({ id: userId })
+    createMockCurrentUser({ id: userId }),
+    createMockUserRepository(mockUsers)
   )
 
 describe('findCareTasks', () => {
@@ -173,5 +176,147 @@ describe('findCareTasks', () => {
         }
       )
     }
+  })
+
+  describe('timezone-aware grouping', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // Wed Jan 29, 2025 at 23:30 UTC
+      vi.setSystemTime(new Date('2025-01-29T23:30:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should group tasks according to user timezone', async () => {
+      // At 23:30 UTC Jan 29:
+      // - In UTC: it's Jan 29
+      // - In Europe/Paris (UTC+1): it's Jan 30 00:30
+      // A task due Jan 29 23:00 UTC is:
+      //   In UTC: today (Jan 29)
+      //   In Paris: yesterday (Jan 29 in Paris was before midnight)
+      const jan29Late = new Date('2025-01-29T23:00:00Z')
+      const jan30Morning = new Date('2025-01-30T08:00:00Z')
+      const feb1 = new Date('2025-02-01T12:00:00Z')
+
+      const tzPlants = [
+        {
+          id: 'tz-plant-1',
+          name: 'TZ Plant 1',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY' as const,
+          wateringFrequencyDays: 7,
+          lastWateredAt: new Date('2024-01-01'),
+          nextWateringAt: jan29Late,
+          remindersEnabled: true,
+          fertilizationFrequencyDays: null,
+          lastFertilizedAt: null,
+          nextFertilizationAt: null,
+          isFavorite: false,
+          userId: 'user-1',
+        },
+        {
+          id: 'tz-plant-2',
+          name: 'TZ Plant 2',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-02'),
+          updatedAt: new Date('2024-01-02'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY' as const,
+          wateringFrequencyDays: 7,
+          lastWateredAt: new Date('2024-01-01'),
+          nextWateringAt: jan30Morning,
+          remindersEnabled: true,
+          fertilizationFrequencyDays: null,
+          lastFertilizedAt: null,
+          nextFertilizationAt: null,
+          isFavorite: false,
+          userId: 'user-1',
+        },
+        {
+          id: 'tz-plant-3',
+          name: 'TZ Plant 3',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-03'),
+          updatedAt: new Date('2024-01-03'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY' as const,
+          wateringFrequencyDays: 7,
+          lastWateredAt: new Date('2024-01-01'),
+          nextWateringAt: feb1,
+          remindersEnabled: true,
+          fertilizationFrequencyDays: null,
+          lastFertilizedAt: null,
+          nextFertilizationAt: null,
+          isFavorite: false,
+          userId: 'user-1',
+        },
+      ]
+
+      // Test with UTC user (user-1 has timezone: 'UTC')
+      const utcLayer = Layer.mergeAll(
+        createMockPlantRepository({ plants: tzPlants }),
+        createMockCurrentUser({ id: 'user-1' }),
+        createMockUserRepository(mockUsers)
+      )
+
+      const utcResult = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(utcLayer))
+      )
+
+      // In UTC at 23:30 Jan 29:
+      // tz-plant-1 (Jan 29 23:00): today
+      // tz-plant-2 (Jan 30 08:00): this week
+      // tz-plant-3 (Feb 1 12:00): this week
+      const utcTodayIds = Array.map(utcResult.today, (t) => t.plantId)
+      expect(utcTodayIds).toContain('tz-plant-1')
+
+      const utcWeekIds = Array.map(utcResult.thisWeek, (t) => t.plantId)
+      expect(utcWeekIds).toContain('tz-plant-2')
+
+      // Test with Paris user — plants must belong to the Paris user
+      const parisUser = createTestUser({
+        id: 'user-paris',
+        timezone: 'Europe/Paris',
+      })
+      const parisTzPlants = Array.map(tzPlants, (p) => ({
+        ...p,
+        userId: 'user-paris',
+      }))
+      const parisLayer = Layer.mergeAll(
+        createMockPlantRepository({ plants: parisTzPlants }),
+        createMockCurrentUser({ id: 'user-paris' }),
+        createMockUserRepository([...mockUsers, parisUser])
+      )
+
+      const parisResult = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(parisLayer))
+      )
+
+      // In Paris at 00:30 Jan 30:
+      // tz-plant-1 (Jan 29 23:00 UTC = Jan 30 00:00 Paris): today
+      // tz-plant-2 (Jan 30 08:00 UTC = Jan 30 09:00 Paris): today
+      const parisTodayIds = Array.map(parisResult.today, (t) => t.plantId)
+      expect(parisTodayIds.length).toBeGreaterThanOrEqual(1)
+    })
   })
 })

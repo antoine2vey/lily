@@ -1,6 +1,22 @@
 import { DateTime, Duration, Option, pipe } from 'effect'
 
 /**
+ * Apply a named timezone to a DateTime, returning a Zoned DateTime.
+ * If no timezone is provided, returns the original DateTime unchanged.
+ *
+ * @param dateTime - DateTime to apply timezone to
+ * @param timezone - IANA timezone string (e.g., 'Europe/Paris')
+ * @returns Zoned DateTime if timezone provided, otherwise original DateTime
+ */
+export const withTimeZone = (
+  dateTime: DateTime.DateTime,
+  timezone?: string
+): DateTime.DateTime =>
+  timezone
+    ? DateTime.setZone(dateTime, DateTime.zoneUnsafeMakeNamed(timezone))
+    : dateTime
+
+/**
  * Convert Effect DateTime to native JavaScript Date for locale formatting.
  * Uses toDateUtc() to get a standard Date object.
  */
@@ -168,10 +184,12 @@ export const formatShortDate = (dateTime: DateTime.DateTime): string =>
  */
 export const isToday = (
   dateTime: DateTime.DateTime,
-  referenceDate?: DateTime.DateTime
+  referenceDate: DateTime.DateTime,
+  timezone: string
 ): boolean => {
-  const current = referenceDate ?? DateTime.unsafeNow()
-  const targetParts = DateTime.toParts(dateTime)
+  const current = withTimeZone(referenceDate, timezone)
+  const target = withTimeZone(dateTime, timezone)
+  const targetParts = DateTime.toParts(target)
   const currentParts = DateTime.toParts(current)
   return (
     targetParts.year === currentParts.year &&
@@ -208,17 +226,24 @@ export const isFuture = (dateTime: DateTime.DateTime): boolean => {
  * @param dateTime - DateTime to get start of day for
  * @returns DateTime at 00:00:00.000 of the same day
  */
-export const startOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
-  const parts = DateTime.toParts(dateTime)
-  return DateTime.unsafeMake({
-    year: parts.year,
-    month: parts.month,
-    day: parts.day,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    millis: 0,
-  })
+export const startOfDay = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): DateTime.DateTime => {
+  const zoned = withTimeZone(dateTime, timezone)
+  const parts = DateTime.toParts(zoned)
+  return DateTime.unsafeMakeZoned(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      millis: 0,
+    },
+    { timeZone: timezone, adjustForTimeZone: true }
+  )
 }
 
 /**
@@ -227,17 +252,24 @@ export const startOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
  * @param dateTime - DateTime to get end of day for
  * @returns DateTime at 23:59:59.999 of the same day
  */
-export const endOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
-  const parts = DateTime.toParts(dateTime)
-  return DateTime.unsafeMake({
-    year: parts.year,
-    month: parts.month,
-    day: parts.day,
-    hours: 23,
-    minutes: 59,
-    seconds: 59,
-    millis: 999,
-  })
+export const endOfDay = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): DateTime.DateTime => {
+  const zoned = withTimeZone(dateTime, timezone)
+  const parts = DateTime.toParts(zoned)
+  return DateTime.unsafeMakeZoned(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day,
+      hours: 23,
+      minutes: 59,
+      seconds: 59,
+      millis: 999,
+    },
+    { timeZone: timezone, adjustForTimeZone: true }
+  )
 }
 
 /**
@@ -247,20 +279,27 @@ export const endOfDay = (dateTime: DateTime.DateTime): DateTime.DateTime => {
  * @param dateTime - DateTime to get end of week for
  * @returns DateTime at Sunday 23:59:59.999 of the same week
  */
-export const endOfWeek = (dateTime: DateTime.DateTime): DateTime.DateTime => {
-  const parts = DateTime.toParts(dateTime)
+export const endOfWeek = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): DateTime.DateTime => {
+  const zoned = withTimeZone(dateTime, timezone)
+  const parts = DateTime.toParts(zoned)
   const dayOfWeek = parts.weekDay // 0 = Sunday, 1 = Monday, etc.
   const daysUntilSunday = 7 - dayOfWeek
 
-  return DateTime.unsafeMake({
-    year: parts.year,
-    month: parts.month,
-    day: parts.day + daysUntilSunday,
-    hours: 23,
-    minutes: 59,
-    seconds: 59,
-    millis: 999,
-  })
+  return DateTime.unsafeMakeZoned(
+    {
+      year: parts.year,
+      month: parts.month,
+      day: parts.day + daysUntilSunday,
+      hours: 23,
+      minutes: 59,
+      seconds: 59,
+      millis: 999,
+    },
+    { timeZone: timezone, adjustForTimeZone: true }
+  )
 }
 
 /**
@@ -273,10 +312,10 @@ export const endOfWeek = (dateTime: DateTime.DateTime): DateTime.DateTime => {
  */
 export const isOverdueByDay = (
   dateTime: DateTime.DateTime,
-  referenceDate?: DateTime.DateTime
+  referenceDate: DateTime.DateTime,
+  timezone: string
 ): boolean => {
-  const reference = referenceDate ?? DateTime.unsafeNow()
-  return DateTime.lessThan(dateTime, startOfDay(reference))
+  return DateTime.lessThan(dateTime, startOfDay(referenceDate, timezone))
 }
 
 /**
@@ -288,11 +327,14 @@ export const isOverdueByDay = (
  */
 export const isThisWeek = (
   dateTime: DateTime.DateTime,
-  referenceDate?: DateTime.DateTime
+  referenceDate: DateTime.DateTime,
+  timezone: string
 ): boolean => {
-  const reference = referenceDate ?? DateTime.unsafeNow()
-  const weekEnd = endOfWeek(reference)
-  const afterToday = DateTime.greaterThan(dateTime, endOfDay(reference))
+  const weekEnd = endOfWeek(referenceDate, timezone)
+  const afterToday = DateTime.greaterThan(
+    dateTime,
+    endOfDay(referenceDate, timezone)
+  )
   const beforeEndOfWeek = DateTime.lessThanOrEqualTo(dateTime, weekEnd)
   return afterToday && beforeEndOfWeek
 }
@@ -361,10 +403,14 @@ export const getTimeBasedGreeting = (): string => {
  * @param dateTime - DateTime to check
  * @returns true if the DateTime is yesterday
  */
-export const isYesterday = (dateTime: DateTime.DateTime): boolean => {
-  const current = DateTime.unsafeNow()
+export const isYesterday = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): boolean => {
+  const current = withTimeZone(DateTime.unsafeNow(), timezone)
   const yesterday = DateTime.subtract(current, { days: 1 })
-  const targetParts = DateTime.toParts(dateTime)
+  const target = withTimeZone(dateTime, timezone)
+  const targetParts = DateTime.toParts(target)
   const yesterdayParts = DateTime.toParts(yesterday)
   return (
     targetParts.year === yesterdayParts.year &&
@@ -455,9 +501,12 @@ export const formatApiTime = (
  * @param dateTime - DateTime to get group label for
  * @returns Group label string
  */
-export const getDateGroupLabel = (dateTime: DateTime.DateTime): string => {
-  if (isToday(dateTime)) return 'Today'
-  if (isYesterday(dateTime)) return 'Yesterday'
+export const getDateGroupLabel = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): string => {
+  if (isToday(dateTime, DateTime.unsafeNow(), timezone)) return 'Today'
+  if (isYesterday(dateTime, timezone)) return 'Yesterday'
   return formatDateWithWeekday(dateTime)
 }
 
@@ -470,11 +519,12 @@ export const getDateGroupLabel = (dateTime: DateTime.DateTime): string => {
  */
 export const getApiDateGroupLabel = (
   dateInput: DateInput,
+  timezone: string,
   defaultValue = 'Unknown'
 ): string =>
   pipe(
     parseApiDate(dateInput),
-    Option.map(getDateGroupLabel),
+    Option.map((dt) => getDateGroupLabel(dt, timezone)),
     Option.getOrElse(() => defaultValue)
   )
 

@@ -1,15 +1,21 @@
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  mockOverduePlants,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
+import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
-import { Array, Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helper to create test layer with CurrentUser
 const createTestLayer = (userId = 'user-1') =>
   Layer.mergeAll(
     createMockPlantRepository({ plants: mockPlants }),
-    createMockCurrentUser({ id: userId })
+    createMockCurrentUser({ id: userId }),
+    createMockUserRepository(mockUsers)
   )
 
 describe('findPlants', () => {
@@ -99,5 +105,66 @@ describe('findPlants', () => {
     const names = Array.map(result.items, (p) => p.name)
     const sortedNames = [...names].sort()
     expect(names).toEqual(sortedNames)
+  })
+
+  describe('overdue filter', () => {
+    const createOverdueTestLayer = (userId = 'user-1') =>
+      Layer.mergeAll(
+        createMockPlantRepository({ plants: mockOverduePlants }),
+        createMockCurrentUser({ id: userId }),
+        createMockUserRepository(mockUsers)
+      )
+
+    it('should return only plants with nextWateringAt <= end of today', async () => {
+      const result = await Effect.runPromise(
+        findPlants({ filter: 'overdue' }).pipe(
+          Effect.provide(createOverdueTestLayer())
+        )
+      )
+
+      // plant-overdue-1 (past) and plant-today-1 (today) should be included
+      // plant-tomorrow-1 (future) and plant-null-water (null) should be excluded
+      expect(result.items.length).toBe(2)
+      const ids = Array.map(result.items, (p) => p.id)
+      expect(ids).toContain('plant-overdue-1')
+      expect(ids).toContain('plant-today-1')
+    })
+
+    it('should exclude plants with null nextWateringAt', async () => {
+      const result = await Effect.runPromise(
+        findPlants({ filter: 'overdue' }).pipe(
+          Effect.provide(createOverdueTestLayer())
+        )
+      )
+
+      const ids = Array.map(result.items, (p) => p.id)
+      expect(ids).not.toContain('plant-null-water')
+    })
+
+    it('should respect pagination with overdue filter', async () => {
+      const result = await Effect.runPromise(
+        findPlants({ filter: 'overdue', limit: 1 }).pipe(
+          Effect.provide(createOverdueTestLayer())
+        )
+      )
+
+      expect(result.items.length).toBe(1)
+      expect(result.hasMore).toBe(true)
+      expect(result.total).toBe(2)
+    })
+
+    it('should isolate overdue plants by user', async () => {
+      const result = await Effect.runPromise(
+        findPlants({ filter: 'overdue' }).pipe(
+          Effect.provide(createOverdueTestLayer('user-2'))
+        )
+      )
+
+      // user-2 has one overdue plant
+      expect(result.items.length).toBe(1)
+      expect(Array.head(result.items)).toEqual(
+        Option.some(expect.objectContaining({ id: 'plant-overdue-user2' }))
+      )
+    })
   })
 })

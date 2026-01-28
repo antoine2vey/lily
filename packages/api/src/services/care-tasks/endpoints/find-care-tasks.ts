@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type CareTask,
@@ -50,14 +51,22 @@ const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
 export const findCareTasks = (): Effect.Effect<
   CareTasksResponse,
   SqlError,
-  PlantRepository | CurrentUser
+  PlantRepository | UserRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
+    const userRepo = yield* UserRepository
     const { id: userId } = yield* CurrentUser
 
+    const user = yield* userRepo.findById(userId)
+    const timezone = pipe(
+      Option.fromNullable(user),
+      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.getOrElse(() => 'UTC')
+    )
+
     const now = DateTime.unsafeNow()
-    const endOfWeekDt = endOfWeek(now)
+    const endOfWeekDt = endOfWeek(now, timezone)
     const endOfWeekDate = DateTime.toDateUtc(endOfWeekDt)
 
     // Get plants with pending care
@@ -90,15 +99,15 @@ export const findCareTasks = (): Effect.Effect<
       )
     })
 
-    // Group tasks by date category
+    // Group tasks by date category using user's timezone
     const overdue = Array.filter(tasks, (task) =>
-      isOverdueByDay(DateTime.unsafeMake(task.dueDate), now)
+      isOverdueByDay(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
     const today = Array.filter(tasks, (task) =>
-      isToday(DateTime.unsafeMake(task.dueDate), now)
+      isToday(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
     const thisWeek = Array.filter(tasks, (task) =>
-      isThisWeek(DateTime.unsafeMake(task.dueDate), now)
+      isThisWeek(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
 
     // Sort each group by due date (earliest first)

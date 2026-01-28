@@ -1,17 +1,37 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantPhotos, plants } from '@lily/db'
-import { type PaginatedResponse, paginate } from '@lily/shared'
-import { and, asc, count, desc, eq, inArray, lte, or } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { endOfDay, type PaginatedResponse, paginate } from '@lily/shared'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  lte,
+  or,
+} from 'drizzle-orm'
+import {
+  Array,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  pipe,
+} from 'effect'
 
 // Types for repository methods
 export interface FindPlantsParams {
   page?: number
   limit?: number
-  filter?: 'needsAttention' | 'all'
+  filter?: 'needsAttention' | 'overdue' | 'all'
   sort?: 'added' | 'name'
   userId: string
+  timezone: string
 }
 
 export type FindPlantsResult = PaginatedResponse<typeof plants.$inferSelect>
@@ -129,13 +149,25 @@ export const PlantRepositoryLive = Layer.effect(
 
           // Build filter conditions
           const userCondition = eq(plants.userId, params.userId)
-          const healthCondition =
-            params.filter === 'needsAttention'
-              ? eq(plants.health, 'NEEDS_ATTENTION')
-              : undefined
+          const extraCondition = pipe(
+            Match.value(params.filter),
+            Match.when('needsAttention', () =>
+              eq(plants.health, 'NEEDS_ATTENTION')
+            ),
+            Match.when('overdue', () => {
+              const endOfTodayDate = DateTime.toDateUtc(
+                endOfDay(DateTime.unsafeNow(), params.timezone)
+              )
+              return and(
+                isNotNull(plants.nextWateringAt),
+                lte(plants.nextWateringAt, endOfTodayDate)
+              )
+            }),
+            Match.orElse(() => undefined)
+          )
 
-          const filterConditions = healthCondition
-            ? and(userCondition, healthCondition)
+          const filterConditions = extraCondition
+            ? and(userCondition, extraCondition)
             : userCondition
 
           const countResult = yield* db
