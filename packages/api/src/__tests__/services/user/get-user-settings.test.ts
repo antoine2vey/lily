@@ -76,4 +76,24 @@ describe('getUserSettings', () => {
 
     expect(result.image).toBeUndefined()
   })
+
+  it('should return privacy preferences from database', async () => {
+    const result = await Effect.runPromise(
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-1')))
+    )
+
+    expect(result.privacy.publicProfile).toBe(true)
+    expect(result.privacy.shareGrowthData).toBe(true)
+    expect(result.privacy.personalizedTips).toBe(true)
+  })
+
+  it('should return privacy preferences for user with custom values', async () => {
+    const result = await Effect.runPromise(
+      getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
+    )
+
+    expect(result.privacy.publicProfile).toBe(false)
+    expect(result.privacy.shareGrowthData).toBe(true)
+    expect(result.privacy.personalizedTips).toBe(false)
+  })
 })

@@ -63,6 +63,9 @@ export const createMockUserRepository = (
         updatedAt: new Date(),
         timezone: 'UTC',
         preferredNotificationTime: '09:00',
+        publicProfile: true,
+        shareGrowthData: true,
+        personalizedTips: true,
       }
       return Effect.succeed(newUser)
     },

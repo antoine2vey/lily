@@ -36,6 +36,11 @@ export const getUserSettings = (): Effect.Effect<
         doNotDisturbStart: user.doNotDisturbStart || '22:00',
         doNotDisturbEnd: user.doNotDisturbEnd || '07:00',
       },
+      privacy: {
+        publicProfile: user.publicProfile,
+        shareGrowthData: user.shareGrowthData,
+        personalizedTips: user.personalizedTips,
+      },
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
     }

@@ -24,6 +24,9 @@ export const mockUser1: User = {
   status: 'active',
   timezone: 'UTC',
   preferredNotificationTime: '09:00',
+  publicProfile: true,
+  shareGrowthData: true,
+  personalizedTips: true,
 }
 
 export const mockUser2: User = {
@@ -49,6 +52,9 @@ export const mockUser2: User = {
   status: 'active',
   timezone: 'America/New_York',
   preferredNotificationTime: '08:00',
+  publicProfile: false,
+  shareGrowthData: true,
+  personalizedTips: false,
 }
 
 export const mockUsers: User[] = [mockUser1, mockUser2]
@@ -76,6 +82,9 @@ export const mockAdminUser: User = {
   status: 'active',
   timezone: 'UTC',
   preferredNotificationTime: '09:00',
+  publicProfile: true,
+  shareGrowthData: true,
+  personalizedTips: true,
 }
 
 export const mockSuspendedUser: User = {
@@ -101,6 +110,9 @@ export const mockSuspendedUser: User = {
   status: 'suspended',
   timezone: 'UTC',
   preferredNotificationTime: '09:00',
+  publicProfile: true,
+  shareGrowthData: true,
+  personalizedTips: true,
 }
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
@@ -126,5 +138,8 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   status: 'active',
   timezone: 'UTC',
   preferredNotificationTime: '09:00',
+  publicProfile: true,
+  shareGrowthData: true,
+  personalizedTips: true,
   ...overrides,
 })

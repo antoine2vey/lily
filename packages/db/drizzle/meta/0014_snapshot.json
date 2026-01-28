@@ -1,6 +1,6 @@
 {
-  "id": "243306f9-333e-4f90-900f-b3b193f543a9",
-  "prevId": "5661564c-b0a7-4f8b-b33c-745b21b97d7a",
+  "id": "a2f9f494-cd5d-4aaa-b0e7-fbfcd1729a96",
+  "prevId": "243306f9-333e-4f90-900f-b3b193f543a9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1418,6 +1418,27 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'09:00'"
+        },
+        "public_profile": {
+          "name": "public_profile",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "share_growth_data": {
+          "name": "share_growth_data",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "personalized_tips": {
+          "name": "personalized_tips",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
         }
       },
       "indexes": {},

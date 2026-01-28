@@ -5,6 +5,7 @@ import { useState } from 'react'
 import {
   ActivityIndicator,
   Linking,
+  Pressable,
   ScrollView,
   Text,
   View,
@@ -64,8 +65,20 @@ export function SettingsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       {/* Header */}
-      <View className="px-6 py-4">
-        <Text className="text-2xl font-bold text-text-primary">Settings</Text>
+      <View className="flex-row items-center px-4 py-3 border-b border-border">
+        <Pressable
+          onPress={() => router.back()}
+          className="w-10 h-10 items-center justify-center"
+        >
+          <MaterialIcons
+            name="arrow-back"
+            size={24}
+            color={iconColors.textPrimary}
+          />
+        </Pressable>
+        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+          Settings
+        </Text>
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>

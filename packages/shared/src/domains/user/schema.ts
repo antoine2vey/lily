@@ -30,6 +30,9 @@ export const User = Schema.Struct({
   status: UserStatus,
   timezone: Schema.NullOr(Schema.String),
   preferredNotificationTime: Schema.NullOr(Schema.String),
+  publicProfile: Schema.Boolean,
+  shareGrowthData: Schema.Boolean,
+  personalizedTips: Schema.Boolean,
 })
 
 export const UserCreateRequest = Schema.Struct({
@@ -59,6 +62,11 @@ export const UserSettings = Schema.Struct({
     doNotDisturbStart: Schema.String,
     doNotDisturbEnd: Schema.String,
   }),
+  privacy: Schema.Struct({
+    publicProfile: Schema.Boolean,
+    shareGrowthData: Schema.Boolean,
+    personalizedTips: Schema.Boolean,
+  }),
   timezone: Schema.NullOr(Schema.String),
   preferredNotificationTime: Schema.NullOr(Schema.String),
 })
@@ -78,6 +86,13 @@ export const UserSettingsUpdateRequest = Schema.Struct({
       doNotDisturb: Schema.optional(Schema.Boolean),
       doNotDisturbStart: Schema.optional(Schema.String),
       doNotDisturbEnd: Schema.optional(Schema.String),
+    })
+  ),
+  privacy: Schema.optional(
+    Schema.Struct({
+      publicProfile: Schema.optional(Schema.Boolean),
+      shareGrowthData: Schema.optional(Schema.Boolean),
+      personalizedTips: Schema.optional(Schema.Boolean),
     })
   ),
   timezone: Schema.optional(Schema.String),

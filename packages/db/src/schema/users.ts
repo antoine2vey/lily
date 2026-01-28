@@ -49,6 +49,9 @@ export const users = pgTable('users', {
   preferredNotificationTime: text('preferred_notification_time').default(
     '09:00'
   ),
+  publicProfile: boolean('public_profile').notNull().default(true),
+  shareGrowthData: boolean('share_growth_data').notNull().default(true),
+  personalizedTips: boolean('personalized_tips').notNull().default(true),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({
