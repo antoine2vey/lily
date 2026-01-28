@@ -45,6 +45,9 @@ export const updateUserSettings = (
       doNotDisturb: data.notifications?.doNotDisturb,
       doNotDisturbStart: data.notifications?.doNotDisturbStart,
       doNotDisturbEnd: data.notifications?.doNotDisturbEnd,
+      publicProfile: data.privacy?.publicProfile,
+      shareGrowthData: data.privacy?.shareGrowthData,
+      personalizedTips: data.privacy?.personalizedTips,
       timezone: data.timezone,
       preferredNotificationTime: data.preferredNotificationTime,
     })
@@ -123,6 +126,11 @@ export const updateUserSettings = (
         doNotDisturb: user.doNotDisturb,
         doNotDisturbStart: user.doNotDisturbStart || '22:00',
         doNotDisturbEnd: user.doNotDisturbEnd || '07:00',
+      },
+      privacy: {
+        publicProfile: user.publicProfile,
+        shareGrowthData: user.shareGrowthData,
+        personalizedTips: user.personalizedTips,
       },
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,

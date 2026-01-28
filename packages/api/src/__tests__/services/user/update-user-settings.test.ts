@@ -96,6 +96,22 @@ describe('updateUserSettings', () => {
     expect(result._tag).toBe('Failure')
   })
 
+  it('should update privacy preferences', async () => {
+    const result = await Effect.runPromise(
+      updateUserSettings({
+        privacy: {
+          publicProfile: false,
+          shareGrowthData: false,
+        },
+      }).pipe(Effect.provide(createTestLayer('user-1')))
+    )
+
+    expect(result.privacy.publicProfile).toBe(false)
+    expect(result.privacy.shareGrowthData).toBe(false)
+    // Unchanged field should remain
+    expect(result.privacy.personalizedTips).toBe(true)
+  })
+
   it('should preserve unchanged fields', async () => {
     const result = await Effect.runPromise(
       updateUserSettings({ name: 'Changed Name' }).pipe(

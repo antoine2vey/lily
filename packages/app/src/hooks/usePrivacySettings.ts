@@ -1,4 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { UserSettings } from '@lily/shared'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiEffectRunner, useEffectQuery } from 'src/utils/client'
 
 interface PrivacySettings {
   publicProfile: boolean
@@ -6,69 +8,62 @@ interface PrivacySettings {
   personalizedTips: boolean
 }
 
-async function fetchPrivacySettings(): Promise<PrivacySettings> {
-  // TODO: Implement actual API call when backend is ready
-  // const response = await api.user.privacySettings()
-  // return response
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  return {
-    publicProfile: false,
-    shareGrowthData: true,
-    personalizedTips: true,
-  }
-}
-
-async function updatePrivacySettings(
-  settings: Partial<PrivacySettings>
-): Promise<PrivacySettings> {
-  // TODO: Implement actual API call when backend is ready
-  // const response = await api.user.updatePrivacySettings(settings)
-  // return response
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  return settings as PrivacySettings
-}
-
 export function usePrivacySettings() {
-  return useQuery({
-    queryKey: ['privacySettings'],
-    queryFn: fetchPrivacySettings,
-  })
+  const query = useEffectQuery('users', 'getUserSettings', {})
+  return {
+    ...query,
+    data: query.data?.privacy,
+  }
 }
 
 export function useUpdatePrivacySettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: updatePrivacySettings,
-    onMutate: async (newSettings) => {
-      await queryClient.cancelQueries({ queryKey: ['privacySettings'] })
-      const previousSettings = queryClient.getQueryData<PrivacySettings>([
-        'privacySettings',
-      ])
-      queryClient.setQueryData<PrivacySettings>(
-        ['privacySettings'],
-        (old): PrivacySettings => ({
-          publicProfile: old?.publicProfile ?? false,
-          shareGrowthData: old?.shareGrowthData ?? true,
-          personalizedTips: old?.personalizedTips ?? true,
-          ...newSettings,
-        })
-      )
-      return { previousSettings }
+    mutationFn: async (settings: Partial<PrivacySettings>) => {
+      const result = await apiEffectRunner('users', 'updateUserSettings', {
+        payload: { privacy: settings },
+      })
+      return result.privacy
     },
-    onError: (_err, _newSettings, context) => {
-      if (context?.previousSettings) {
-        queryClient.setQueryData(['privacySettings'], context.previousSettings)
+    onMutate: async (newSettings) => {
+      await queryClient.cancelQueries({
+        queryKey: ['users', 'getUserSettings', {}],
+      })
+      const previous = queryClient.getQueryData<UserSettings>([
+        'users',
+        'getUserSettings',
+        {},
+      ])
+
+      queryClient.setQueryData<UserSettings>(
+        ['users', 'getUserSettings', {}],
+        (old): UserSettings | undefined => {
+          if (!old) return undefined
+          return {
+            ...old,
+            privacy: {
+              ...old.privacy,
+              ...newSettings,
+            },
+          }
+        }
+      )
+
+      return { previous }
+    },
+    onError: (_, __, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ['users', 'getUserSettings', {}],
+          context.previous
+        )
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['privacySettings'] })
+      queryClient.invalidateQueries({
+        queryKey: ['users', 'getUserSettings', {}],
+      })
     },
   })
 }
