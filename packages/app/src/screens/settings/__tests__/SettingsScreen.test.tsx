@@ -14,6 +14,13 @@ jest.mock('@/hooks/useDeleteAccount', () => ({
   useDeleteAccount: jest.fn(),
 }))
 
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    logout: jest.fn(),
+    state: { _tag: 'Authenticated', user: { name: 'Test' } },
+  })),
+}))
+
 import { useDeleteAccount } from '@/hooks/useDeleteAccount'
 import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
