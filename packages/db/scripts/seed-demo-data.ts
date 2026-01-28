@@ -228,9 +228,13 @@ const seedDemoData = Effect.gen(function* () {
       emailVerified: true,
       role: 'user',
       status: 'active',
-      soilAlerts: true,
-      wateringReminders: true,
+      careReminders: true,
+      weeklyDigest: true,
+      achievementNotifications: true,
+      tips: true,
+      productUpdates: false,
       ads: false,
+      doNotDisturb: false,
     })
     .onConflictDoUpdate({
       target: users.email,

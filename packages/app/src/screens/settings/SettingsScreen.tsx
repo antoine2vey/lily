@@ -10,12 +10,10 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Badge } from 'src/components/Badge'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useDeleteAccount } from 'src/hooks/useDeleteAccount'
-import { useSubscription } from 'src/hooks/useSubscription'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
 import { iconColors } from 'src/theme'
@@ -34,8 +32,6 @@ const getThemeLabel = (theme: Theme): string =>
 
 export function SettingsScreen() {
   const { data: user, isLoading: isLoadingUser } = useUser()
-  const { data: subscription, isLoading: isLoadingSubscription } =
-    useSubscription()
   const { theme, setTheme } = useTheme()
   const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount()
 
@@ -51,29 +47,7 @@ export function SettingsScreen() {
     })
   }
 
-  const getPlanBadge = () => {
-    if (!subscription) return null
-
-    if (subscription.status === 'trialing') {
-      return <Badge label="Trial" variant="info" size="sm" />
-    }
-
-    return pipe(
-      Match.value(subscription.plan),
-      Match.when('premium', () => (
-        <Badge label="Premium" variant="success" size="sm" />
-      )),
-      Match.when('pro', () => (
-        <Badge label="Pro" variant="success" size="sm" />
-      )),
-      Match.when('free', () => (
-        <Badge label="Free" variant="neutral" size="sm" />
-      )),
-      Match.exhaustive
-    )
-  }
-
-  if (isLoadingUser || isLoadingSubscription) {
+  if (isLoadingUser) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 items-center justify-center">
@@ -95,58 +69,7 @@ export function SettingsScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Account Section */}
-        <View className="px-6 py-4">
-          <SectionHeader title="Account" />
-          <View className="mt-3">
-            <ListRow
-              leftIcon={
-                <MaterialIcons
-                  name="email"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              title="Email"
-              subtitle={user?.email}
-              showChevron
-              onPress={() => {
-                // TODO: Navigate to change email
-              }}
-            />
-            <ListRow
-              leftIcon={
-                <MaterialIcons
-                  name="lock"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              title="Password"
-              subtitle="Change your password"
-              showChevron
-              onPress={() => {
-                // TODO: Navigate to change password
-              }}
-            />
-            <ListRow
-              leftIcon={
-                <MaterialIcons
-                  name="workspace-premium"
-                  size={18}
-                  color="#FFC107"
-                />
-              }
-              title="Subscription"
-              rightElement={getPlanBadge()}
-              showChevron
-              onPress={() => {
-                // TODO: Navigate to subscription
-              }}
-            />
-          </View>
-        </View>
-
+        {/* TODO: Wire theme switcher to backend */}
         {/* Appearance Section */}
         <View className="px-6 py-4 border-t border-border">
           <SectionHeader title="Appearance" />

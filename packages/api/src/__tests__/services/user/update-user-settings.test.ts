@@ -41,15 +41,15 @@ describe('updateUserSettings', () => {
     const result = await Effect.runPromise(
       updateUserSettings({
         notifications: {
-          soilAlerts: false,
-          wateringReminders: false,
+          careReminders: false,
+          weeklyDigest: false,
           ads: true,
         },
       }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
-    expect(result.notifications.soilAlerts).toBe(false)
-    expect(result.notifications.wateringReminders).toBe(false)
+    expect(result.notifications.careReminders).toBe(false)
+    expect(result.notifications.weeklyDigest).toBe(false)
     expect(result.notifications.ads).toBe(true)
   })
 
@@ -57,14 +57,14 @@ describe('updateUserSettings', () => {
     const result = await Effect.runPromise(
       updateUserSettings({
         notifications: {
-          soilAlerts: false,
+          careReminders: false,
         },
       }).pipe(Effect.provide(createTestLayer('user-1')))
     )
 
-    expect(result.notifications.soilAlerts).toBe(false)
+    expect(result.notifications.careReminders).toBe(false)
     // Other notification settings should remain unchanged
-    expect(result.notifications.wateringReminders).toBe(true)
+    expect(result.notifications.weeklyDigest).toBe(true)
     expect(result.notifications.ads).toBe(false)
   })
 
@@ -106,6 +106,6 @@ describe('updateUserSettings', () => {
     expect(result.name).toBe('Changed Name')
     expect(result.email).toBe('another@example.com')
     expect(result.bio).toBe('Plant enthusiast')
-    expect(result.notifications.soilAlerts).toBe(false)
+    expect(result.notifications.careReminders).toBe(false)
   })
 })
