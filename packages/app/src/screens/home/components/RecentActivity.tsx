@@ -15,6 +15,7 @@ type ActivityType =
 interface Activity {
   id: string
   type: ActivityType
+  plantId: string
   plantName: string
   timestamp: DateInput
   plantImageUrl?: string

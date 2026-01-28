@@ -14,6 +14,7 @@ export type ActivityType =
 export interface UIActivity {
   id: string
   type: ActivityType
+  plantId: string
   plantName: string
   timestamp: Date
   plantImageUrl?: string
@@ -45,6 +46,7 @@ export function useRecentActivities(limit = 10) {
       Array.map((item) => ({
         id: item.id,
         type: mapCareLogTypeToActivityType(item.type),
+        plantId: item.plantId,
         plantName: item.plantName,
         timestamp: item.date instanceof Date ? item.date : new Date(item.date),
         plantImageUrl: item.plantImageUrl,

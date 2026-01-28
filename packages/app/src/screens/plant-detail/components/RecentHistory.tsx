@@ -79,7 +79,7 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
             return (
               <View
                 key={event.id}
-                className="flex-row items-center py-3"
+                className="flex-row items-center py-1.5"
                 testID={`history-event-${event.id}`}
               >
                 <View

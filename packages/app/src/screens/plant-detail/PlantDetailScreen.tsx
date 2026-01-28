@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { daysUntilApiDate, formatApiDateAsNextDate } from '@lily/shared'
-import { Array, Match, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
@@ -9,12 +9,14 @@ import {
   Image,
   Pressable,
   ScrollView,
+  Share,
   Text,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
+import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
@@ -150,10 +152,16 @@ export function PlantDetailScreen() {
     path: { id: plantId ?? '' },
   })
 
+  const { data: careLogs } = useEffectQuery('careLogs', 'getCareLogs', {
+    path: { plantId: plantId ?? '' },
+    urlParams: { page: '1', limit: '3', type: 'all' },
+  })
+
   const uploadPhoto = useUploadPhoto()
   const waterPlant = useWaterPlant()
   const fertilizePlant = useFertilizePlant()
   const updatePlant = useUpdatePlant(plantId ?? '')
+  const deletePlant = useDeletePlant()
 
   const handleBack = useCallback(() => {
     router.back()
@@ -190,9 +198,8 @@ export function PlantDetailScreen() {
   }, [plantId, plant?.name, fertilizePlant])
 
   const handleEditSchedule = useCallback(() => {
-    // TODO: Navigate to edit care schedule
-    console.log('Edit schedule for plant:', plantId)
-  }, [plantId])
+    router.push(`/plant/${plantId}/edit`)
+  }, [plantId, router])
 
   const handlePhotoPress = useCallback(
     (photoId: string) => {
@@ -226,9 +233,8 @@ export function PlantDetailScreen() {
   }, [plantId, router])
 
   const handleEdit = useCallback(() => {
-    // TODO: Navigate to edit plant (T4.09)
-    console.log('Edit plant:', plantId)
-  }, [plantId])
+    router.push(`/plant/${plantId}/edit`)
+  }, [plantId, router])
 
   const handleToggleFavorite = useCallback(() => {
     if (!plantId || !plant) return
@@ -247,10 +253,12 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant, updatePlant])
 
-  const handleShare = useCallback(() => {
-    // TODO: Share plant profile
-    console.log('Share plant:', plantId)
-  }, [plantId])
+  const handleShare = useCallback(async () => {
+    if (!plant) return
+    await Share.share({
+      message: `Check out my plant "${plant.name}" on Lily!`,
+    })
+  }, [plant])
 
   const handleDelete = useCallback(() => {
     setShowOptionsSheet(false)
@@ -258,11 +266,22 @@ export function PlantDetailScreen() {
   }, [])
 
   const handleConfirmDelete = useCallback(() => {
-    // TODO: Delete plant and navigate back (T4.11)
-    console.log('Delete plant:', plantId)
-    setShowDeleteConfirm(false)
-    router.back()
-  }, [plantId, router])
+    if (!plantId) return
+    deletePlant.mutate(
+      { path: { id: plantId } },
+      {
+        onSuccess: () => {
+          setShowDeleteConfirm(false)
+          toast.success(`${plant?.name} deleted`)
+          router.back()
+        },
+        onError: () => {
+          setShowDeleteConfirm(false)
+          toast.error('Failed to delete plant')
+        },
+      }
+    )
+  }, [plantId, plant?.name, deletePlant, router])
 
   if (isLoading) {
     return <PlantDetailSkeleton />
@@ -288,13 +307,30 @@ export function PlantDetailScreen() {
     createdAt: photo.takenAt,
   }))
 
-  // Mock history events - would come from API
-  const historyEvents: Array<{
-    id: string
-    type: 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
-    date: Date
-    notes?: string
-  }> = []
+  const historyEvents = pipe(
+    Option.fromNullable(careLogs?.items),
+    Option.map(
+      Array.map((log) => ({
+        id: log.id,
+        type: pipe(
+          Match.value(log.type),
+          Match.when('watering', () => 'watered' as const),
+          Match.when('fertilization', () => 'fertilized' as const),
+          Match.exhaustive
+        ),
+        date: log.date,
+      }))
+    ),
+    Option.getOrElse(
+      () =>
+        [] as {
+          id: string
+          type: 'watered' | 'fertilized'
+          date: Date
+          notes?: string
+        }[]
+    )
+  )
 
   return (
     <View className="flex-1 bg-background" testID="plant-detail-screen">
