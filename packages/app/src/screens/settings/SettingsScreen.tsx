@@ -31,7 +31,7 @@ const getThemeLabel = (theme: Theme): string =>
   )
 
 export function SettingsScreen() {
-  const { data: user, isLoading: isLoadingUser } = useUser()
+  const { isLoading: isLoadingUser } = useUser()
   const { theme, setTheme } = useTheme()
   const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount()
 
