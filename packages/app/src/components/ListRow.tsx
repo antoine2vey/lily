@@ -11,6 +11,7 @@ interface ListRowProps {
   onPress?: () => void
   showChevron?: boolean
   destructive?: boolean
+  disabled?: boolean
 }
 
 export function ListRow({
@@ -21,8 +22,13 @@ export function ListRow({
   onPress,
   showChevron = false,
   destructive = false,
+  disabled = false,
 }: ListRowProps) {
-  const titleColorClass = destructive ? 'text-coral' : 'text-text-primary'
+  const titleColorClass = disabled
+    ? 'text-text-muted'
+    : destructive
+      ? 'text-coral'
+      : 'text-text-primary'
 
   const content = (
     <View className="flex-row items-center min-h-[56px] py-2">
@@ -52,7 +58,7 @@ export function ListRow({
     </View>
   )
 
-  if (onPress) {
+  if (onPress && !disabled) {
     return (
       <Pressable
         onPress={onPress}

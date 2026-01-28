@@ -11,11 +11,9 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useAuth } from 'src/contexts/AuthContext'
-import { useDeleteAccount } from 'src/hooks/useDeleteAccount'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
 import { iconColors } from 'src/theme'
@@ -36,19 +34,7 @@ export function SettingsScreen() {
   const { isLoading: isLoadingUser } = useUser()
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
-  const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount()
-
   const [showThemeModal, setShowThemeModal] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-  const handleDeleteAccount = () => {
-    deleteAccount(undefined, {
-      onSuccess: () => {
-        setShowDeleteConfirm(false)
-        logout()
-      },
-    })
-  }
 
   if (isLoadingUser) {
     return (
@@ -201,17 +187,18 @@ export function SettingsScreen() {
               title="Sign Out"
               onPress={() => logout()}
             />
+            {/* TODO: Wire delete account to real API */}
             <ListRow
               leftIcon={
                 <MaterialIcons
                   name="delete-outline"
                   size={18}
-                  color={iconColors.coral}
+                  color={iconColors.muted}
                 />
               }
               title="Delete Account"
-              destructive
-              onPress={() => setShowDeleteConfirm(true)}
+              subtitle="Coming soon"
+              disabled
             />
           </View>
         </View>
@@ -230,25 +217,6 @@ export function SettingsScreen() {
         onClose={() => setShowThemeModal(false)}
         currentTheme={theme}
         onSelect={setTheme}
-      />
-
-      {/* Delete Account Confirmation */}
-      <ConfirmationModal
-        visible={showDeleteConfirm}
-        title="Delete Account?"
-        message="This will permanently delete all your plants, care history, and achievements. This action cannot be undone."
-        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Account'}
-        cancelLabel="Keep Account"
-        destructive
-        icon={
-          <MaterialIcons
-            name="delete-forever"
-            size={28}
-            color={iconColors.coral}
-          />
-        }
-        onConfirm={handleDeleteAccount}
-        onCancel={() => setShowDeleteConfirm(false)}
       />
     </SafeAreaView>
   )

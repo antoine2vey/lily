@@ -6,11 +6,6 @@ jest.mock('@/hooks/usePrivacySettings', () => ({
   useUpdatePrivacySettings: jest.fn(),
 }))
 
-jest.mock('@/hooks/useExportData', () => ({
-  useExportData: jest.fn(),
-}))
-
-import { useExportData } from '@/hooks/useExportData'
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
@@ -19,11 +14,8 @@ import { PrivacySettingsScreen } from '../PrivacySettingsScreen'
 
 const mockedUsePrivacySettings = usePrivacySettings as jest.Mock
 const mockedUseUpdatePrivacySettings = useUpdatePrivacySettings as jest.Mock
-const mockedUseExportData = useExportData as jest.Mock
-
 describe('PrivacySettingsScreen', () => {
   const mockUpdateSettings = jest.fn()
-  const mockExportData = jest.fn()
 
   const defaultSettings = {
     publicProfile: true,
@@ -35,10 +27,6 @@ describe('PrivacySettingsScreen', () => {
     jest.clearAllMocks()
     mockedUseUpdatePrivacySettings.mockReturnValue({
       mutate: mockUpdateSettings,
-    })
-    mockedUseExportData.mockReturnValue({
-      mutate: mockExportData,
-      isPending: false,
     })
   })
 
@@ -100,7 +88,7 @@ describe('PrivacySettingsScreen', () => {
     render(<PrivacySettingsScreen />)
 
     expect(screen.getByText('Your Data')).toBeTruthy()
-    expect(screen.getByText('Export My Data')).toBeTruthy()
+    expect(screen.getByText('Export My Data (Coming Soon)')).toBeTruthy()
     expect(screen.getByText('Request Data Deletion')).toBeTruthy()
   })
 
@@ -119,7 +107,7 @@ describe('PrivacySettingsScreen', () => {
     expect(mockUpdateSettings).toHaveBeenCalledWith({ publicProfile: false })
   })
 
-  it('calls exportData when export button is pressed', () => {
+  it('shows export data button as disabled', () => {
     mockedUsePrivacySettings.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
@@ -127,24 +115,6 @@ describe('PrivacySettingsScreen', () => {
 
     render(<PrivacySettingsScreen />)
 
-    fireEvent.press(screen.getByText('Export My Data'))
-
-    expect(mockExportData).toHaveBeenCalled()
-  })
-
-  it('shows requesting text when exporting', () => {
-    mockedUsePrivacySettings.mockReturnValue({
-      data: defaultSettings,
-      isLoading: false,
-    })
-
-    mockedUseExportData.mockReturnValue({
-      mutate: mockExportData,
-      isPending: true,
-    })
-
-    render(<PrivacySettingsScreen />)
-
-    expect(screen.getByText('Requesting...')).toBeTruthy()
+    expect(screen.getByText('Export My Data (Coming Soon)')).toBeTruthy()
   })
 })
