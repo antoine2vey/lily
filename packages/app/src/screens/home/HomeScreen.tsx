@@ -115,7 +115,7 @@ export function HomeScreen() {
   const handleActivityPress = (_activityId: string) => {
     // Activity press navigates to the related plant
     const activity = pipe(
-      Array.findFirst(recentActivities ?? [], (a) => a.id === _activityId),
+      Array.findFirst(recentActivities ?? [], (a) => a.id === _activityId)
     )
     pipe(
       activity,

@@ -89,7 +89,9 @@ describe('useAchievements', () => {
     })
 
     const categories =
-      result.current.data?.achievements.map((a: { category: string }) => a.category) ?? []
+      result.current.data?.achievements.map(
+        (a: { category: string }) => a.category
+      ) ?? []
     expect(categories).toContain('plants')
     expect(categories).toContain('care')
     expect(categories).toContain('streaks')
@@ -111,7 +113,9 @@ describe('useAchievements', () => {
 
     const data = result.current.data
     expect(data).toBeDefined()
-    const actualUnlocked = data?.achievements.filter((a: { unlocked: boolean }) => a.unlocked).length
+    const actualUnlocked = data?.achievements.filter(
+      (a: { unlocked: boolean }) => a.unlocked
+    ).length
     expect(data?.unlockedCount).toBe(actualUnlocked)
   })
 })
