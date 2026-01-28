@@ -12,5 +12,10 @@ export function useUser() {
     Match.orElse(() => false)
   )
 
-  return useEffectQuery('users', 'getUserSettings', {}, { enabled: isAuthenticated })
+  return useEffectQuery(
+    'users',
+    'getUserSettings',
+    {},
+    { enabled: isAuthenticated }
+  )
 }

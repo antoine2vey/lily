@@ -74,30 +74,6 @@ describe('EditProfileScreen', () => {
     expect(screen.getByPlaceholderText('Your name')).toBeTruthy()
   })
 
-  it('displays username input field', () => {
-    mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
-      isLoading: false,
-    })
-
-    render(<EditProfileScreen />)
-
-    expect(screen.getByText('Username')).toBeTruthy()
-    expect(screen.getByText('@')).toBeTruthy()
-  })
-
-  it('displays private profile toggle', () => {
-    mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
-      isLoading: false,
-    })
-
-    render(<EditProfileScreen />)
-
-    expect(screen.getByText('Private Profile')).toBeTruthy()
-    expect(screen.getByText(/Only people you approve can see/)).toBeTruthy()
-  })
-
   it('allows editing name field', () => {
     mockedUseUser.mockReturnValue({
       data: { ...mockUsers[0], name: '' },

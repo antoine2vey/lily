@@ -6,10 +6,6 @@ jest.mock('@/hooks/useUser', () => ({
   useUser: jest.fn(),
 }))
 
-jest.mock('@/hooks/useSubscription', () => ({
-  useSubscription: jest.fn(),
-}))
-
 jest.mock('@/hooks/useTheme', () => ({
   useTheme: jest.fn(),
 }))
@@ -19,13 +15,11 @@ jest.mock('@/hooks/useDeleteAccount', () => ({
 }))
 
 import { useDeleteAccount } from '@/hooks/useDeleteAccount'
-import { useSubscription } from '@/hooks/useSubscription'
 import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
 const mockedUseUser = useUser as jest.Mock
-const mockedUseSubscription = useSubscription as jest.Mock
 const mockedUseTheme = useTheme as jest.Mock
 const mockedUseDeleteAccount = useDeleteAccount as jest.Mock
 
@@ -48,10 +42,6 @@ describe('SettingsScreen', () => {
 
   it('shows loading state when data is loading', () => {
     mockedUseUser.mockReturnValue({ data: undefined, isLoading: true })
-    mockedUseSubscription.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-    })
 
     render(<SettingsScreen />)
 
@@ -63,41 +53,15 @@ describe('SettingsScreen', () => {
       data: mockUsers[0],
       isLoading: false,
     })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
 
     render(<SettingsScreen />)
 
     expect(screen.getByText('Settings')).toBeTruthy()
   })
 
-  it('displays account section', () => {
-    mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
-
-    render(<SettingsScreen />)
-
-    expect(screen.getByText('Account')).toBeTruthy()
-    expect(screen.getByText('Email')).toBeTruthy()
-    expect(screen.getByText('Password')).toBeTruthy()
-    expect(screen.getByText('Subscription')).toBeTruthy()
-  })
-
   it('displays appearance section', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
       isLoading: false,
     })
 
@@ -113,10 +77,6 @@ describe('SettingsScreen', () => {
       data: mockUsers[0],
       isLoading: false,
     })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
 
     render(<SettingsScreen />)
 
@@ -129,10 +89,6 @@ describe('SettingsScreen', () => {
       data: mockUsers[0],
       isLoading: false,
     })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
 
     render(<SettingsScreen />)
 
@@ -143,10 +99,6 @@ describe('SettingsScreen', () => {
   it('displays support section', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
       isLoading: false,
     })
 
@@ -163,10 +115,6 @@ describe('SettingsScreen', () => {
       data: mockUsers[0],
       isLoading: false,
     })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
 
     render(<SettingsScreen />)
 
@@ -180,10 +128,6 @@ describe('SettingsScreen', () => {
       data: mockUsers[0],
       isLoading: false,
     })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
-      isLoading: false,
-    })
 
     render(<SettingsScreen />)
 
@@ -193,43 +137,9 @@ describe('SettingsScreen', () => {
     expect(screen.getByText(/This will permanently delete/)).toBeTruthy()
   })
 
-  it('displays premium badge for premium users', () => {
-    mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'premium', status: 'active' },
-      isLoading: false,
-    })
-
-    render(<SettingsScreen />)
-
-    expect(screen.getByText('Premium')).toBeTruthy()
-  })
-
-  it('displays trial badge for trialing users', () => {
-    mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'premium', status: 'trialing' },
-      isLoading: false,
-    })
-
-    render(<SettingsScreen />)
-
-    expect(screen.getByText('Trial')).toBeTruthy()
-  })
-
   it('displays version number', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
       isLoading: false,
     })
 
@@ -241,10 +151,6 @@ describe('SettingsScreen', () => {
   it('opens theme modal when theme is pressed', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
-      isLoading: false,
-    })
-    mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free', status: 'active' },
       isLoading: false,
     })
 

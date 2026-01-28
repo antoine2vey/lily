@@ -1,104 +1,76 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { UserSettings } from '@lily/shared'
+import { useEffectQuery } from 'src/utils/client'
+import { apiEffectRunner } from 'src/utils/client'
 
 interface NotificationSettings {
   careReminders: boolean
-  reminderTime: string // HH:mm format
   weeklyDigest: boolean
   achievements: boolean
   tips: boolean
   productUpdates: boolean
+  ads: boolean
   doNotDisturb: boolean
-  doNotDisturbStart: string // HH:mm format
-  doNotDisturbEnd: string // HH:mm format
-}
-
-async function fetchNotificationSettings(): Promise<NotificationSettings> {
-  // TODO: Implement actual API call when backend is ready
-  // const settings = await api.notifications.getSettings()
-  // return settings
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  // Mock response
-  return {
-    careReminders: true,
-    reminderTime: '09:00',
-    weeklyDigest: true,
-    achievements: true,
-    tips: true,
-    productUpdates: false,
-    doNotDisturb: false,
-    doNotDisturbStart: '22:00',
-    doNotDisturbEnd: '07:00',
-  }
-}
-
-async function updateNotificationSettingsApi(
-  settings: Partial<NotificationSettings>
-): Promise<NotificationSettings> {
-  // TODO: Implement actual API call when backend is ready
-  // const updated = await api.notifications.updateSettings(settings)
-  // return updated
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  // Return merged settings (mock)
-  return {
-    careReminders: true,
-    reminderTime: '09:00',
-    weeklyDigest: true,
-    achievements: true,
-    tips: true,
-    productUpdates: false,
-    doNotDisturb: false,
-    doNotDisturbStart: '22:00',
-    doNotDisturbEnd: '07:00',
-    ...settings,
-  }
+  doNotDisturbStart: string
+  doNotDisturbEnd: string
 }
 
 export function useNotificationSettings() {
-  return useQuery({
-    queryKey: ['notification-settings'],
-    queryFn: fetchNotificationSettings,
-  })
+  const query = useEffectQuery('users', 'getUserSettings', {})
+  return {
+    ...query,
+    data: query.data?.notifications,
+  }
 }
 
 export function useUpdateNotificationSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: updateNotificationSettingsApi,
+    mutationFn: async (settings: Partial<NotificationSettings>) => {
+      const result = await apiEffectRunner('users', 'updateUserSettings', {
+        payload: { notifications: settings },
+      })
+      return result.notifications
+    },
     onMutate: async (newSettings) => {
-      await queryClient.cancelQueries({ queryKey: ['notification-settings'] })
-      const previous = queryClient.getQueryData<NotificationSettings>([
-        'notification-settings',
+      await queryClient.cancelQueries({
+        queryKey: ['users', 'getUserSettings', {}],
+      })
+      const previous = queryClient.getQueryData<UserSettings>([
+        'effect',
+        'users',
+        'getUserSettings',
       ])
 
-      queryClient.setQueryData<NotificationSettings>(
-        ['notification-settings'],
-        (old): NotificationSettings => ({
-          careReminders: old?.careReminders ?? true,
-          reminderTime: old?.reminderTime ?? '09:00',
-          weeklyDigest: old?.weeklyDigest ?? true,
-          achievements: old?.achievements ?? true,
-          tips: old?.tips ?? true,
-          productUpdates: old?.productUpdates ?? false,
-          doNotDisturb: old?.doNotDisturb ?? false,
-          doNotDisturbStart: old?.doNotDisturbStart ?? '22:00',
-          doNotDisturbEnd: old?.doNotDisturbEnd ?? '07:00',
-          ...newSettings,
-        })
+      queryClient.setQueryData<UserSettings>(
+        ['users', 'getUserSettings', {}],
+        (old): UserSettings | undefined => {
+          if (!old) return undefined
+          return {
+            ...old,
+            notifications: {
+              ...old.notifications,
+              ...newSettings,
+            },
+          }
+        }
       )
 
       return { previous }
     },
     onError: (_, __, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(['notification-settings'], context.previous)
+        queryClient.setQueryData(
+          ['users', 'getUserSettings', {}],
+          context.previous
+        )
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['users', 'getUserSettings', {}],
+      })
     },
   })
 }

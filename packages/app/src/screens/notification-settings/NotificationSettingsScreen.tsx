@@ -89,7 +89,7 @@ export function NotificationSettingsScreen() {
   const { state } = useAuth()
 
   const [showTimePicker, setShowTimePicker] = useState<
-    'reminder' | 'dndStart' | 'dndEnd' | 'notificationTime' | null
+    'dndStart' | 'dndEnd' | 'notificationTime' | null
   >(null)
   const [showTimezonePicker, setShowTimezonePicker] = useState(false)
   const [timezone, setTimezone] = useState<string>('UTC')
@@ -194,7 +194,7 @@ export function NotificationSettingsScreen() {
   }
 
   const handleTimeChange = (
-    key: 'reminderTime' | 'doNotDisturbStart' | 'doNotDisturbEnd',
+    key: 'doNotDisturbStart' | 'doNotDisturbEnd',
     date: Date
   ) => {
     updateSettings({ [key]: formatTimeString(date) })
@@ -251,24 +251,6 @@ export function NotificationSettingsScreen() {
               onValueChange={(value) => handleToggle('careReminders', value)}
             />
 
-            {settings.careReminders && (
-              <Pressable
-                onPress={() => setShowTimePicker('reminder')}
-                className="flex-row items-center py-3 ml-13"
-              >
-                <MaterialIcons
-                  name="access-time"
-                  size={18}
-                  color={iconColors.textMuted}
-                />
-                <Text className="flex-1 text-base ml-3 font-regular text-text-primary">
-                  Daily Reminder Time
-                </Text>
-                <Text className="text-base font-medium text-primary">
-                  {formatTimeDisplay(parseTime(settings.reminderTime))}
-                </Text>
-              </Pressable>
-            )}
           </View>
         </View>
 
@@ -463,7 +445,6 @@ export function NotificationSettingsScreen() {
         <DateTimePicker
           value={pipe(
             Match.value(showTimePicker),
-            Match.when('reminder', () => parseTime(settings.reminderTime)),
             Match.when('dndStart', () => parseTime(settings.doNotDisturbStart)),
             Match.when('dndEnd', () => parseTime(settings.doNotDisturbEnd)),
             Match.when('notificationTime', () =>
@@ -480,9 +461,6 @@ export function NotificationSettingsScreen() {
             if (selectedTime) {
               pipe(
                 Match.value(showTimePicker),
-                Match.when('reminder', () =>
-                  handleTimeChange('reminderTime', selectedTime)
-                ),
                 Match.when('dndStart', () =>
                   handleTimeChange('doNotDisturbStart', selectedTime)
                 ),

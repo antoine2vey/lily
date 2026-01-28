@@ -26,9 +26,15 @@ describe('getUserSettings', () => {
       getUserSettings().pipe(Effect.provide(createTestLayer('user-2')))
     )
 
-    expect(result.notifications.soilAlerts).toBe(false)
-    expect(result.notifications.wateringReminders).toBe(true)
+    expect(result.notifications.careReminders).toBe(false)
+    expect(result.notifications.weeklyDigest).toBe(true)
+    expect(result.notifications.achievements).toBe(true)
+    expect(result.notifications.tips).toBe(true)
+    expect(result.notifications.productUpdates).toBe(false)
     expect(result.notifications.ads).toBe(true)
+    expect(result.notifications.doNotDisturb).toBe(false)
+    expect(result.notifications.doNotDisturbStart).toBe('22:00')
+    expect(result.notifications.doNotDisturbEnd).toBe('07:00')
   })
 
   it('should return bio when present', async () => {
@@ -49,9 +55,7 @@ describe('getUserSettings', () => {
 
   it('should fail with UserNotFoundError when user does not exist', async () => {
     const result = await Effect.runPromiseExit(
-      getUserSettings().pipe(
-        Effect.provide(createTestLayer('non-existent'))
-      )
+      getUserSettings().pipe(Effect.provide(createTestLayer('non-existent')))
     )
 
     expect(result._tag).toBe('Failure')

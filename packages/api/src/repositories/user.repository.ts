@@ -16,9 +16,15 @@ export interface UpdateUserData {
   email?: string
   image?: string | null
   bio?: string | null
-  soilAlerts?: boolean
-  wateringReminders?: boolean
+  careReminders?: boolean
+  weeklyDigest?: boolean
+  achievementNotifications?: boolean
+  tips?: boolean
+  productUpdates?: boolean
   ads?: boolean
+  doNotDisturb?: boolean
+  doNotDisturbStart?: string | null
+  doNotDisturbEnd?: string | null
   emailVerified?: boolean
   role?: 'user' | 'admin'
   status?: 'active' | 'suspended' | 'banned'
