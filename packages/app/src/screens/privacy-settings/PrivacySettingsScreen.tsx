@@ -14,7 +14,6 @@ import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
-import { useExportData } from 'src/hooks/useExportData'
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
@@ -24,7 +23,6 @@ import { iconColors } from 'src/theme'
 export function PrivacySettingsScreen() {
   const { data: settings, isLoading } = usePrivacySettings()
   const { mutate: updateSettings } = useUpdatePrivacySettings()
-  const { mutate: exportData, isPending: isExporting } = useExportData()
 
   const handleToggle = (
     key: 'publicProfile' | 'shareGrowthData' | 'personalizedTips',
@@ -174,12 +172,9 @@ export function PrivacySettingsScreen() {
         <View className="px-6 py-4 border-t border-border">
           <SectionHeader title="Your Data" />
           <View className="mt-4 gap-4">
-            <Button
-              variant="secondary"
-              onPress={() => exportData()}
-              disabled={isExporting}
-            >
-              {isExporting ? 'Requesting...' : 'Export My Data'}
+            {/* TODO: Wire export data to real API */}
+            <Button variant="secondary" disabled>
+              Export My Data (Coming Soon)
             </Button>
 
             <Pressable

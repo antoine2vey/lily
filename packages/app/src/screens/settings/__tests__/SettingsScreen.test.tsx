@@ -10,10 +10,6 @@ jest.mock('@/hooks/useTheme', () => ({
   useTheme: jest.fn(),
 }))
 
-jest.mock('@/hooks/useDeleteAccount', () => ({
-  useDeleteAccount: jest.fn(),
-}))
-
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     logout: jest.fn(),
@@ -21,18 +17,14 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-import { useDeleteAccount } from '@/hooks/useDeleteAccount'
 import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
 const mockedUseUser = useUser as jest.Mock
 const mockedUseTheme = useTheme as jest.Mock
-const mockedUseDeleteAccount = useDeleteAccount as jest.Mock
-
 describe('SettingsScreen', () => {
   const mockSetTheme = jest.fn()
-  const mockDeleteAccount = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -40,10 +32,6 @@ describe('SettingsScreen', () => {
       theme: 'system' as const,
       setTheme: mockSetTheme,
       isLoading: false,
-    })
-    mockedUseDeleteAccount.mockReturnValue({
-      mutate: mockDeleteAccount,
-      isPending: false,
     })
   })
 
@@ -130,7 +118,7 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('Delete Account')).toBeTruthy()
   })
 
-  it('shows delete confirmation modal when delete account is pressed', () => {
+  it('shows delete account as disabled with coming soon', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
@@ -138,10 +126,8 @@ describe('SettingsScreen', () => {
 
     render(<SettingsScreen />)
 
-    fireEvent.press(screen.getByText('Delete Account'))
-
-    expect(screen.getByText('Delete Account?')).toBeTruthy()
-    expect(screen.getByText(/This will permanently delete/)).toBeTruthy()
+    expect(screen.getByText('Delete Account')).toBeTruthy()
+    expect(screen.getByText('Coming soon')).toBeTruthy()
   })
 
   it('displays version number', () => {

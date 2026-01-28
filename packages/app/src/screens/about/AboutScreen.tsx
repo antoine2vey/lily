@@ -63,7 +63,10 @@ export function AboutScreen() {
             title="Open Source Licenses"
             showChevron
             onPress={() => {
-              // TODO: Navigate to licenses screen
+              // TODO: Replace with a dedicated licenses screen
+              Linking.openURL(
+                'https://github.com/lily-app/lily/blob/main/LICENSES.md'
+              )
             }}
           />
           <ListRow
