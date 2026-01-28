@@ -6,18 +6,21 @@ describe('RecentActivity', () => {
     {
       id: '1',
       type: 'watered' as const,
+      plantId: 'plant-1',
       plantName: 'Monstera',
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
     },
     {
       id: '2',
       type: 'fertilized' as const,
+      plantId: 'plant-2',
       plantName: 'Fern',
       timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
     },
     {
       id: '3',
       type: 'added' as const,
+      plantId: 'plant-3',
       plantName: 'Cactus',
       timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
     },
@@ -96,6 +99,7 @@ describe('RecentActivity', () => {
     const mistedActivity = {
       id: '4',
       type: 'misted' as const,
+      plantId: 'plant-4',
       plantName: 'Palm',
       timestamp: new Date(),
     }
@@ -115,6 +119,7 @@ describe('RecentActivity', () => {
     const movedActivity = {
       id: '5',
       type: 'moved' as const,
+      plantId: 'plant-5',
       plantName: 'Aloe',
       timestamp: new Date(),
     }
@@ -134,6 +139,7 @@ describe('RecentActivity', () => {
     const prunedActivity = {
       id: '6',
       type: 'pruned' as const,
+      plantId: 'plant-6',
       plantName: 'Rose',
       timestamp: new Date(),
     }

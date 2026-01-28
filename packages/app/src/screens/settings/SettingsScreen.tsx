@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
+import { useAuth } from 'src/contexts/AuthContext'
 import { useDeleteAccount } from 'src/hooks/useDeleteAccount'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
@@ -33,6 +34,7 @@ const getThemeLabel = (theme: Theme): string =>
 
 export function SettingsScreen() {
   const { isLoading: isLoadingUser } = useUser()
+  const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const { mutate: deleteAccount, isPending: isDeleting } = useDeleteAccount()
 
@@ -43,7 +45,7 @@ export function SettingsScreen() {
     deleteAccount(undefined, {
       onSuccess: () => {
         setShowDeleteConfirm(false)
-        // TODO: Navigate to login screen after deletion
+        logout()
       },
     })
   }
@@ -197,9 +199,7 @@ export function SettingsScreen() {
                 />
               }
               title="Sign Out"
-              onPress={() => {
-                // TODO: Implement sign out
-              }}
+              onPress={() => logout()}
             />
             <ListRow
               leftIcon={

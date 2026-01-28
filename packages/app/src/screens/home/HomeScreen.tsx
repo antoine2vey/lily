@@ -30,7 +30,7 @@ import { StatsRow } from './components/StatsRow'
 
 export function HomeScreen() {
   const { state, logout } = useAuth()
-  const _router = useRouter()
+  const router = useRouter()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
   const {
@@ -108,20 +108,29 @@ export function HomeScreen() {
     }
   }
 
-  const handlePlantPress = (_plantId: string) => {
-    // TODO: Navigate to plant detail
+  const handlePlantPress = (plantId: string) => {
+    router.push(`/plant/${plantId}`)
   }
 
   const handleActivityPress = (_activityId: string) => {
-    // TODO: Navigate to activity detail
+    // Activity press navigates to the related plant
+    const activity = pipe(
+      Array.findFirst(recentActivities ?? [], (a) => a.id === _activityId),
+    )
+    pipe(
+      activity,
+      Option.map((a) => {
+        router.push(`/plant/${a.plantId}`)
+      })
+    )
   }
 
   const handleSeeAllActivities = () => {
-    // TODO: Navigate to full history
+    router.push('/(app)/(tabs)/care' as never)
   }
 
   const handleNotificationsPress = () => {
-    // TODO: Navigate to notifications
+    router.push('/notifications')
   }
 
   if (isLoading) {
@@ -228,7 +237,7 @@ export function HomeScreen() {
             className="flex-row items-center p-4 bg-surface rounded-xl mb-3"
             onPress={() => {
               setShowAddPlant(false)
-              // TODO: Navigate to AI scanner
+              router.push('/add-plant/ai-scanner')
             }}
           >
             <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
@@ -257,7 +266,7 @@ export function HomeScreen() {
             className="flex-row items-center p-4 bg-surface rounded-xl"
             onPress={() => {
               setShowAddPlant(false)
-              // TODO: Navigate to manual add
+              router.push('/add-plant/manual-basic')
             }}
           >
             <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
