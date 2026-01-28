@@ -16,7 +16,6 @@ import { images } from 'src/assets/images'
 import { Avatar } from 'src/components/Avatar'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
-import { NotificationBell } from 'src/components/NotificationBell'
 import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
@@ -29,7 +28,7 @@ import { RecentActivity } from './components/RecentActivity'
 import { StatsRow } from './components/StatsRow'
 
 export function HomeScreen() {
-  const { state, logout } = useAuth()
+  const { state } = useAuth()
   const router = useRouter()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
@@ -129,10 +128,6 @@ export function HomeScreen() {
     router.push('/(app)/(tabs)/care' as never)
   }
 
-  const handleNotificationsPress = () => {
-    router.push('/notifications')
-  }
-
   if (isLoading) {
     return <HomeScreenSkeleton />
   }
@@ -162,19 +157,13 @@ export function HomeScreen() {
                 {userName} ☀️
               </Text>
             </View>
-            <View className="flex-row items-center gap-3">
-              <Pressable onPress={logout}>
-                <Avatar
-                  source={userAvatar ? { uri: userAvatar } : undefined}
-                  name={userName}
-                  size="md"
-                />
-              </Pressable>
-              <NotificationBell
-                unreadCount={0}
-                onPress={handleNotificationsPress}
+            <Pressable onPress={() => router.push('/settings')}>
+              <Avatar
+                source={userAvatar ? { uri: userAvatar } : undefined}
+                name={userName}
+                size="md"
               />
-            </View>
+            </Pressable>
           </View>
 
           {hasPlants ? (
