@@ -5,9 +5,9 @@ import {
   PlantRepository,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db'
-import { paginate } from '@lily/shared'
+import { endOfDay, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
 
@@ -41,6 +41,17 @@ export const createMockPlantRepository = (
 
       if (params.filter === 'needsAttention') {
         filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
+      }
+
+      if (params.filter === 'overdue') {
+        const endOfTodayDt = endOfDay(DateTime.unsafeNow(), params.timezone)
+        const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
+        filtered = Array.filter(
+          filtered,
+          (p) =>
+            p.nextWateringAt !== null &&
+            p.nextWateringAt.getTime() <= Number(endOfTodayMs)
+        )
       }
 
       if (params.sort === 'name') {

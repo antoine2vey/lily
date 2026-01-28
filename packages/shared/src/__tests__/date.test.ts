@@ -32,6 +32,7 @@ import {
   now,
   parseApiDate,
   startOfDay,
+  withTimeZone,
 } from '../domains/common/date'
 
 // Helper to create a fixed DateTime for testing
@@ -380,24 +381,24 @@ describe('Date Utilities', () => {
 
     it('should return true for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(isToday(today)).toBe(true)
+      expect(isToday(today, DateTime.unsafeNow(), 'UTC')).toBe(true)
     })
 
     it('should return true for today at different times', () => {
       const todayMorning = createFixedDateTime(2024, 6, 15, 6, 0)
       const todayEvening = createFixedDateTime(2024, 6, 15, 22, 0)
-      expect(isToday(todayMorning)).toBe(true)
-      expect(isToday(todayEvening)).toBe(true)
+      expect(isToday(todayMorning, DateTime.unsafeNow(), 'UTC')).toBe(true)
+      expect(isToday(todayEvening, DateTime.unsafeNow(), 'UTC')).toBe(true)
     })
 
     it('should return false for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isToday(yesterday)).toBe(false)
+      expect(isToday(yesterday, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
 
     it('should return false for tomorrow', () => {
       const tomorrow = createFixedDateTime(2024, 6, 16, 12, 0)
-      expect(isToday(tomorrow)).toBe(false)
+      expect(isToday(tomorrow, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
   })
 
@@ -413,24 +414,24 @@ describe('Date Utilities', () => {
 
     it('should return true for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isYesterday(yesterday)).toBe(true)
+      expect(isYesterday(yesterday, 'UTC')).toBe(true)
     })
 
     it('should return true for yesterday at any time', () => {
       const yesterdayMorning = createFixedDateTime(2024, 6, 14, 6, 0)
       const yesterdayEvening = createFixedDateTime(2024, 6, 14, 23, 59)
-      expect(isYesterday(yesterdayMorning)).toBe(true)
-      expect(isYesterday(yesterdayEvening)).toBe(true)
+      expect(isYesterday(yesterdayMorning, 'UTC')).toBe(true)
+      expect(isYesterday(yesterdayEvening, 'UTC')).toBe(true)
     })
 
     it('should return false for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 12, 0)
-      expect(isYesterday(today)).toBe(false)
+      expect(isYesterday(today, 'UTC')).toBe(false)
     })
 
     it('should return false for two days ago', () => {
       const twoDaysAgo = createFixedDateTime(2024, 6, 13, 12, 0)
-      expect(isYesterday(twoDaysAgo)).toBe(false)
+      expect(isYesterday(twoDaysAgo, 'UTC')).toBe(false)
     })
   })
 
@@ -499,7 +500,7 @@ describe('Date Utilities', () => {
   describe('startOfDay', () => {
     it('should return 00:00:00.000 of the same day', () => {
       const dateTime = createFixedDateTime(2024, 6, 15, 14, 30, 45)
-      const result = startOfDay(dateTime)
+      const result = startOfDay(dateTime, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.year).toBe(2024)
@@ -513,7 +514,7 @@ describe('Date Utilities', () => {
 
     it('should handle already at midnight', () => {
       const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
-      const result = startOfDay(midnight)
+      const result = startOfDay(midnight, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.hours).toBe(0)
@@ -523,7 +524,7 @@ describe('Date Utilities', () => {
 
     it('should handle end of day', () => {
       const endOfDayTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
-      const result = startOfDay(endOfDayTime)
+      const result = startOfDay(endOfDayTime, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.day).toBe(15)
@@ -534,7 +535,7 @@ describe('Date Utilities', () => {
   describe('endOfDay', () => {
     it('should return 23:59:59.999 of the same day', () => {
       const dateTime = createFixedDateTime(2024, 6, 15, 8, 0, 0)
-      const result = endOfDay(dateTime)
+      const result = endOfDay(dateTime, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.year).toBe(2024)
@@ -548,7 +549,7 @@ describe('Date Utilities', () => {
 
     it('should handle midnight input', () => {
       const midnight = createFixedDateTime(2024, 6, 15, 0, 0, 0)
-      const result = endOfDay(midnight)
+      const result = endOfDay(midnight, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.day).toBe(15)
@@ -558,7 +559,7 @@ describe('Date Utilities', () => {
 
     it('should handle already at end of day', () => {
       const endTime = createFixedDateTime(2024, 6, 15, 23, 59, 59)
-      const result = endOfDay(endTime)
+      const result = endOfDay(endTime, 'UTC')
       const parts = DateTime.toParts(result)
 
       expect(parts.hours).toBe(23)
@@ -571,7 +572,7 @@ describe('Date Utilities', () => {
     it('should return Sunday 23:59:59.999 for a Monday', () => {
       // June 17, 2024 is Monday
       const monday = createFixedDateTime(2024, 6, 17, 12, 0)
-      const result = endOfWeek(monday)
+      const result = endOfWeek(monday, 'UTC')
       const parts = DateTime.toParts(result)
 
       // Should be Sunday June 23, 2024
@@ -585,7 +586,7 @@ describe('Date Utilities', () => {
     it('should return same Sunday for a Sunday', () => {
       // June 16, 2024 is Sunday
       const sunday = createFixedDateTime(2024, 6, 16, 10, 0)
-      const result = endOfWeek(sunday)
+      const result = endOfWeek(sunday, 'UTC')
       const parts = DateTime.toParts(result)
 
       // Should be end of same Sunday
@@ -596,7 +597,7 @@ describe('Date Utilities', () => {
     it('should return Sunday 23:59:59.999 for a Saturday', () => {
       // June 15, 2024 is Saturday
       const saturday = createFixedDateTime(2024, 6, 15, 12, 0)
-      const result = endOfWeek(saturday)
+      const result = endOfWeek(saturday, 'UTC')
       const parts = DateTime.toParts(result)
 
       // Should be Sunday June 16, 2024
@@ -608,7 +609,7 @@ describe('Date Utilities', () => {
     it('should handle month boundary', () => {
       // June 26, 2024 is Wednesday
       const wednesday = createFixedDateTime(2024, 6, 26, 12, 0)
-      const result = endOfWeek(wednesday)
+      const result = endOfWeek(wednesday, 'UTC')
       const parts = DateTime.toParts(result)
 
       // Should be Sunday June 30, 2024
@@ -629,30 +630,34 @@ describe('Date Utilities', () => {
 
     it('should return true for dates before today', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 23, 59)
-      expect(isOverdueByDay(yesterday)).toBe(true)
+      expect(isOverdueByDay(yesterday, DateTime.unsafeNow(), 'UTC')).toBe(true)
     })
 
     it('should return false for today (even early morning)', () => {
       const todayMorning = createFixedDateTime(2024, 6, 15, 0, 0)
-      expect(isOverdueByDay(todayMorning)).toBe(false)
+      expect(isOverdueByDay(todayMorning, DateTime.unsafeNow(), 'UTC')).toBe(
+        false
+      )
     })
 
     it('should return false for future dates', () => {
       const tomorrow = createFixedDateTime(2024, 6, 16, 8, 0)
-      expect(isOverdueByDay(tomorrow)).toBe(false)
+      expect(isOverdueByDay(tomorrow, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
 
     it('should use reference date when provided', () => {
       const date = createFixedDateTime(2024, 6, 14, 12, 0)
       const reference = createFixedDateTime(2024, 6, 13, 12, 0)
       // June 14 is not overdue relative to June 13
-      expect(isOverdueByDay(date, reference)).toBe(false)
+      expect(isOverdueByDay(date, reference, 'UTC')).toBe(false)
     })
 
     it('should differ from isOverdue for times within same day', () => {
       // isOverdueByDay checks against start of day, not current time
       const earlierToday = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(isOverdueByDay(earlierToday)).toBe(false) // Not overdue by day
+      expect(isOverdueByDay(earlierToday, DateTime.unsafeNow(), 'UTC')).toBe(
+        false
+      ) // Not overdue by day
       expect(isOverdue(earlierToday)).toBe(true) // But overdue by time
     })
   })
@@ -671,30 +676,30 @@ describe('Date Utilities', () => {
     it('should return true for tomorrow (within this week)', () => {
       // June 16, 2024 is Sunday (end of week)
       const sunday = createFixedDateTime(2024, 6, 16, 12, 0)
-      expect(isThisWeek(sunday)).toBe(true)
+      expect(isThisWeek(sunday, DateTime.unsafeNow(), 'UTC')).toBe(true)
     })
 
     it('should return false for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 18, 0)
-      expect(isThisWeek(today)).toBe(false)
+      expect(isThisWeek(today, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
 
     it('should return false for past dates', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(isThisWeek(yesterday)).toBe(false)
+      expect(isThisWeek(yesterday, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
 
     it('should return false for next week', () => {
       // June 17, 2024 is Monday of next week
       const nextMonday = createFixedDateTime(2024, 6, 17, 12, 0)
-      expect(isThisWeek(nextMonday)).toBe(false)
+      expect(isThisWeek(nextMonday, DateTime.unsafeNow(), 'UTC')).toBe(false)
     })
 
     it('should use reference date when provided', () => {
       // If reference is Monday June 17, then June 20 (Thursday) is this week
       const reference = createFixedDateTime(2024, 6, 17, 12, 0) // Monday
       const thursday = createFixedDateTime(2024, 6, 20, 12, 0)
-      expect(isThisWeek(thursday, reference)).toBe(true)
+      expect(isThisWeek(thursday, reference, 'UTC')).toBe(true)
     })
   })
 
@@ -775,17 +780,17 @@ describe('Date Utilities', () => {
 
     it('should return "Today" for today', () => {
       const today = createFixedDateTime(2024, 6, 15, 8, 0)
-      expect(getDateGroupLabel(today)).toBe('Today')
+      expect(getDateGroupLabel(today, 'UTC')).toBe('Today')
     })
 
     it('should return "Yesterday" for yesterday', () => {
       const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
-      expect(getDateGroupLabel(yesterday)).toBe('Yesterday')
+      expect(getDateGroupLabel(yesterday, 'UTC')).toBe('Yesterday')
     })
 
     it('should return formatted date for other days', () => {
       const lastWeek = createFixedDateTime(2024, 6, 10, 12, 0)
-      const result = getDateGroupLabel(lastWeek)
+      const result = getDateGroupLabel(lastWeek, 'UTC')
       expect(result).not.toBe('Today')
       expect(result).not.toBe('Yesterday')
       expect(result.length).toBeGreaterThan(0)
@@ -867,12 +872,12 @@ describe('Date Utilities', () => {
     describe('getApiDateGroupLabel', () => {
       it('should return "Today" for today', () => {
         const today = new Date('2024-06-15T08:00:00Z')
-        const result = getApiDateGroupLabel(today)
+        const result = getApiDateGroupLabel(today, 'UTC')
         expect(result).toBe('Today')
       })
 
       it('should return default for null', () => {
-        const result = getApiDateGroupLabel(null)
+        const result = getApiDateGroupLabel(null, 'UTC')
         expect(result).toBe('Unknown')
       })
     })
@@ -998,6 +1003,149 @@ describe('Date Utilities', () => {
       const dec31 = createFixedDateTime(2024, 12, 31)
       const formatted = formatShortDate(dec31)
       expect(formatted).toContain('31')
+    })
+  })
+
+  describe('timezone-aware functions', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // Jan 29, 2025 12:00 UTC (Wednesday)
+      vi.setSystemTime(new Date('2025-01-29T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('withTimeZone should convert UTC DateTime to zoned with local parts', () => {
+      const utcDt = createFixedDateTime(2025, 1, 29, 0, 30)
+      const zoned = withTimeZone(utcDt, 'Asia/Tokyo')
+      const parts = DateTime.toParts(zoned)
+      // UTC 00:30 + 9h = 09:30 JST
+      expect(parts.hours).toBe(9)
+      expect(parts.day).toBe(29)
+    })
+
+    it('isToday with timezone — Tokyo sees Jan 29 for UTC 00:30 Jan 29', () => {
+      const utcDt = createFixedDateTime(2025, 1, 29, 0, 30)
+      const ref = createFixedDateTime(2025, 1, 29, 0, 30)
+      // In Tokyo (UTC+9), 00:30 UTC Jan 29 = 09:30 Jan 29 → today
+      expect(isToday(utcDt, ref, 'Asia/Tokyo')).toBe(true)
+    })
+
+    it('isToday with timezone — New York sees Jan 28 for UTC 00:30 Jan 29', () => {
+      const utcDt = createFixedDateTime(2025, 1, 29, 0, 30)
+      const ref = createFixedDateTime(2025, 1, 29, 0, 30)
+      // In New York (UTC-5), 00:30 UTC Jan 29 = 19:30 Jan 28 → both ref and target are Jan 28
+      // Both are Jan 28 in NY, so isToday is true (they're the same day in that TZ)
+      expect(isToday(utcDt, ref, 'America/New_York')).toBe(true)
+    })
+
+    it('isToday with timezone — day boundary: Jan 28 23:30 UTC is Jan 29 in Paris', () => {
+      // Jan 28 23:30 UTC = Jan 29 00:30 in Europe/Paris (UTC+1)
+      const utcDt = createFixedDateTime(2025, 1, 28, 23, 30)
+      // Reference is Jan 28 12:00 UTC = Jan 28 13:00 Paris
+      const ref = createFixedDateTime(2025, 1, 28, 12, 0)
+      // In Paris: target is Jan 29, ref is Jan 28 → not today
+      expect(isToday(utcDt, ref, 'Europe/Paris')).toBe(false)
+    })
+
+    it('startOfDay with timezone returns midnight in user timezone', () => {
+      const utcDt = createFixedDateTime(2025, 1, 29, 10, 30)
+      const result = startOfDay(utcDt, 'America/New_York')
+      const parts = DateTime.toParts(result)
+      expect(parts.hours).toBe(0)
+      expect(parts.minutes).toBe(0)
+      expect(parts.seconds).toBe(0)
+      // In NY, 10:30 UTC = 05:30 Jan 29 → startOfDay = Jan 29 00:00
+      expect(parts.day).toBe(29)
+    })
+
+    it('endOfDay with timezone returns 23:59:59.999 in user timezone', () => {
+      const utcDt = createFixedDateTime(2025, 1, 29, 10, 30)
+      const result = endOfDay(utcDt, 'Asia/Tokyo')
+      const parts = DateTime.toParts(result)
+      expect(parts.hours).toBe(23)
+      expect(parts.minutes).toBe(59)
+      expect(parts.seconds).toBe(59)
+      expect(parts.millis).toBe(999)
+      // In Tokyo, 10:30 UTC = 19:30 Jan 29 → endOfDay = Jan 29 23:59:59.999
+      expect(parts.day).toBe(29)
+    })
+
+    it('endOfWeek with timezone respects user timezone', () => {
+      // Jan 29 2025 is Wednesday
+      const utcDt = createFixedDateTime(2025, 1, 29, 10, 0)
+      const resultUtc = endOfWeek(utcDt, 'UTC')
+      const resultTokyo = endOfWeek(utcDt, 'Asia/Tokyo')
+      // Both should end on Sunday but the day might differ due to TZ shift
+      const partsUtc = DateTime.toParts(resultUtc)
+      const partsTokyo = DateTime.toParts(resultTokyo)
+      expect(partsUtc.hours).toBe(23)
+      expect(partsTokyo.hours).toBe(23)
+    })
+
+    it('isOverdueByDay with timezone — different results per timezone', () => {
+      // Task: Jan 29 23:30 UTC
+      // Reference: Jan 30 12:00 UTC
+      const taskDate = createFixedDateTime(2025, 1, 29, 23, 30)
+      const ref = createFixedDateTime(2025, 1, 30, 12, 0)
+
+      // In Paris (UTC+1): ref is Jan 30 13:00 → startOfDay(Paris) = Jan 30 00:00 Paris = Jan 29 23:00 UTC
+      // task Jan 29 23:30 UTC = Jan 30 00:30 Paris → same day as ref → NOT overdue
+      expect(isOverdueByDay(taskDate, ref, 'Europe/Paris')).toBe(false)
+
+      // In UTC: ref is Jan 30 → startOfDay = Jan 30 00:00 UTC
+      // task Jan 29 23:30 UTC < Jan 30 00:00 UTC → overdue
+      expect(isOverdueByDay(taskDate, ref, 'UTC')).toBe(true)
+
+      // Task on the same day as ref in Paris should NOT be overdue
+      const taskSameDay = createFixedDateTime(2025, 1, 30, 5, 0)
+      // In Paris: task is Jan 30 06:00 → same day as ref (Jan 30) → not overdue
+      expect(isOverdueByDay(taskSameDay, ref, 'Europe/Paris')).toBe(false)
+
+      // In LA (UTC-8): ref is Jan 30 04:00 LA → startOfDay(LA) = Jan 30 00:00 LA = Jan 30 08:00 UTC
+      // taskSameDay Jan 30 05:00 UTC = Jan 29 21:00 LA → previous day → overdue
+      expect(isOverdueByDay(taskSameDay, ref, 'America/Los_Angeles')).toBe(true)
+    })
+
+    it('isThisWeek with timezone — categorization changes by timezone', () => {
+      // Jan 29 2025 is Wednesday. End of week = Sunday Feb 2
+      const ref = createFixedDateTime(2025, 1, 29, 12, 0)
+      // A task on Feb 1 12:00 UTC
+      const task = createFixedDateTime(2025, 2, 1, 12, 0)
+
+      // Should be this week in both UTC and Tokyo
+      expect(isThisWeek(task, ref, 'UTC')).toBe(true)
+      expect(isThisWeek(task, ref, 'Asia/Tokyo')).toBe(true)
+    })
+
+    it('functions work with explicit UTC timezone', () => {
+      const ref = createFixedDateTime(2025, 1, 29, 12, 0)
+      const target = createFixedDateTime(2025, 1, 29, 8, 0)
+
+      // isToday with UTC timezone
+      expect(isToday(target, ref, 'UTC')).toBe(true)
+      expect(isToday(target, DateTime.unsafeNow(), 'UTC')).toBe(true)
+
+      // startOfDay with UTC timezone
+      const sod = startOfDay(ref, 'UTC')
+      const parts = DateTime.toParts(sod)
+      expect(parts.hours).toBe(0)
+      expect(parts.day).toBe(29)
+
+      // endOfDay with UTC timezone
+      const eod = endOfDay(ref, 'UTC')
+      const eodParts = DateTime.toParts(eod)
+      expect(eodParts.hours).toBe(23)
+
+      // isOverdueByDay with UTC timezone
+      const yesterday = createFixedDateTime(2025, 1, 28, 23, 59)
+      expect(isOverdueByDay(yesterday, ref, 'UTC')).toBe(true)
+
+      // isThisWeek with UTC timezone
+      const tomorrow = createFixedDateTime(2025, 1, 30, 12, 0)
+      expect(isThisWeek(tomorrow, ref, 'UTC')).toBe(true)
     })
   })
 

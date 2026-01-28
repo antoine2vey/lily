@@ -16,7 +16,7 @@ import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Match, pipe } from 'effect'
 
 // Implement the Plants API group
 export const PlantsApiLive = (api: Api) =>
@@ -29,8 +29,12 @@ export const PlantsApiLive = (api: Api) =>
           plantsService.findPlants({
             page: parseInt(urlParams.page, 10) || 1,
             limit: parseInt(urlParams.limit, 10) || 20,
-            filter:
-              urlParams.filter === 'needsAttention' ? 'needsAttention' : 'all',
+            filter: pipe(
+              Match.value(urlParams.filter),
+              Match.when('needsAttention', () => 'needsAttention' as const),
+              Match.when('overdue', () => 'overdue' as const),
+              Match.orElse(() => 'all' as const)
+            ),
             sort: urlParams.sort === 'name' ? 'name' : 'added',
           })
         )

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { getTimeBasedGreeting, isOverdue, parseApiDate } from '@lily/shared'
+import { getTimeBasedGreeting } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -41,6 +41,14 @@ export function HomeScreen() {
     urlParams: { page: '1', limit: '20', filter: 'all', sort: 'added' },
   })
 
+  const { data: overduePlantsData, refetch: refetchOverdue } = useEffectQuery(
+    'plants',
+    'getPlants',
+    {
+      urlParams: { page: '1', limit: '50', filter: 'overdue', sort: 'added' },
+    }
+  )
+
   const { data: recentActivities, refetch: refetchActivities } =
     useRecentActivities(5)
 
@@ -73,22 +81,12 @@ export function HomeScreen() {
     (arr) => arr.length
   )
 
-  // Filter plants that need water (nextWateringAt is in the past or today)
-  const allOverduePlants = pipe(
-    plantList,
-    Array.filter((plant) =>
-      pipe(
-        parseApiDate(plant.nextWateringAt),
-        Option.map(isOverdue),
-        Option.getOrElse(() => false)
-      )
-    )
-  )
-
-  const allOverduePlantIds = Array.map(allOverduePlants, (p) => p.id)
+  // Overdue plants from dedicated API query
+  const overduePlantList = overduePlantsData?.items ?? []
+  const allOverduePlantIds = Array.map(overduePlantList, (p) => p.id)
 
   const plantsNeedingWater = pipe(
-    allOverduePlants,
+    overduePlantList,
     Array.take(3),
     Array.map((plant) => ({
       id: plant.id,
@@ -98,7 +96,7 @@ export function HomeScreen() {
   )
 
   const onRefresh = async () => {
-    await Promise.all([refetchPlants(), refetchActivities()])
+    await Promise.all([refetchPlants(), refetchOverdue(), refetchActivities()])
   }
 
   const handleWaterAll = () => {
