@@ -5,6 +5,26 @@ jest.mock('@/hooks/useSubscriptionUsage', () => ({
   useSubscriptionUsage: jest.fn(),
 }))
 
+jest.mock('@/hooks/useSyncSubscription', () => ({
+  useSyncSubscription: jest.fn().mockReturnValue({
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/contexts/RevenueCatContext', () => ({
+  useRevenueCat: jest.fn().mockReturnValue({
+    offerings: null,
+    isLoading: false,
+    purchase: jest.fn(),
+    restore: jest.fn(),
+  }),
+}))
+
+jest.mock('@/services/revenuecat', () => ({
+  isDevModeEnabled: jest.fn().mockReturnValue(false),
+}))
+
 import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
 import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 

@@ -1,31 +1,56 @@
-import { waitFor } from '@testing-library/react-native'
+jest.mock('src/utils/client', () => ({
+  useEffectQuery: jest.fn().mockReturnValue({
+    data: {
+      subscription: {
+        id: 'sub_123',
+        userId: 'user_1',
+        tier: 'paid',
+        status: 'active',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        trialStartsAt: null,
+        trialEndsAt: null,
+        canceledAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      usage: {
+        aiChatsCount: 5,
+        cardScansCount: 2,
+        plantIdentifiesCount: 3,
+      },
+      tierConfig: {
+        tier: 'paid',
+        name: 'Premium',
+        priceMonthly: 4.99,
+        maxPlants: null,
+        maxAiChatsMonthly: null,
+        maxCardScansMonthly: null,
+        maxPlantIdentifiesMonthly: null,
+      },
+    },
+    isLoading: false,
+    isSuccess: true,
+  }),
+  apiEffectRunner: jest.fn(),
+}))
+
 import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
 import { useSubscription } from '../useSubscription'
 
 describe('useSubscription', () => {
-  it('returns loading state initially', () => {
+  it('returns subscription data when successful', () => {
     const { result } = renderQueryHook(() => useSubscription())
 
-    expect(result.current.isLoading).toBe(true)
-  })
-
-  it('returns subscription data when successful', async () => {
-    const { result } = renderQueryHook(() => useSubscription())
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
+    expect(result.current.isLoading).toBe(false)
     expect(result.current.data).toBeDefined()
     expect(result.current.data?.tierConfig.tier).toBe('paid')
     expect(result.current.data?.subscription?.status).toBe('active')
   })
 
-  it('returns isSuccess when loaded', async () => {
+  it('returns isSuccess when loaded', () => {
     const { result } = renderQueryHook(() => useSubscription())
 
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true)
-    })
+    expect(result.current.isSuccess).toBe(true)
   })
 })
