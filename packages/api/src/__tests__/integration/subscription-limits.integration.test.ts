@@ -229,7 +229,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         status: 'active',
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        provider: 'stripe',
+        provider: 'revenuecat',
       })
 
       for (let i = 1; i <= 10; i++) {
@@ -357,7 +357,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         status: 'expired',
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        provider: 'stripe',
+        provider: 'revenuecat',
       })
 
       for (let i = 1; i <= 5; i++) {

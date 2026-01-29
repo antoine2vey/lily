@@ -1,7 +1,5 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import type { IPaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
-import { PaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
 import {
   SubscriptionService,
   SubscriptionServiceLive,
@@ -11,37 +9,9 @@ import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getCurrentSubscription', () => {
-  // Mock payment provider - not needed for this endpoint but required by service
-  const mockPaymentProvider: IPaymentProvider = {
-    createCheckoutSession: () =>
-      Effect.succeed({
-        sessionId: 'sess_1',
-        url: 'https://checkout.stripe.com',
-      }),
-    cancelSubscription: () => Effect.void,
-    constructWebhookEvent: () =>
-      Effect.succeed({
-        type: 'test',
-        data: { object: {} },
-      } as unknown as never),
-    getSubscriptionDetails: () =>
-      Effect.succeed({
-        status: 'active',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
-        customerId: '1',
-      }),
-  }
-
-  const PaymentProviderMock = Layer.succeed(
-    PaymentProvider,
-    mockPaymentProvider
-  )
-
   it('should return null subscription for user without subscription', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ subscription: null }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -69,11 +39,11 @@ describe('getCurrentSubscription', () => {
       trialEndsAt: null,
       currentPeriodStart: new Date('2024-01-01'),
       currentPeriodEnd: new Date('2024-02-01'),
-      externalSubscriptionId: 'sub_123',
-      externalCustomerId: 'cus_123',
-      provider: 'stripe',
-      productId: null,
-      store: null,
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -81,7 +51,6 @@ describe('getCurrentSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ subscription, tier: 'paid' }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -112,11 +81,11 @@ describe('getCurrentSubscription', () => {
       trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(),
-      externalSubscriptionId: 'sub_123',
-      externalCustomerId: 'cus_123',
-      provider: 'stripe',
-      productId: null,
-      store: null,
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -124,7 +93,6 @@ describe('getCurrentSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ subscription, tier: 'paid' }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -153,11 +121,11 @@ describe('getCurrentSubscription', () => {
       trialEndsAt: null,
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(),
-      externalSubscriptionId: 'sub_123',
-      externalCustomerId: 'cus_123',
-      provider: 'stripe',
-      productId: null,
-      store: null,
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -166,7 +134,6 @@ describe('getCurrentSubscription', () => {
     // Expired subscription falls back to free tier
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ subscription, tier: 'free' }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -200,7 +167,6 @@ describe('getCurrentSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ usage }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -223,7 +189,6 @@ describe('getCurrentSubscription', () => {
   it('should return null usage for user without usage record', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({ usage: null }),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 

@@ -1,7 +1,5 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import type { IPaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
-import { PaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
 import {
   SubscriptionService,
   SubscriptionServiceLive,
@@ -10,37 +8,9 @@ import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('getAllTiers', () => {
-  // Mock payment provider - not needed for this endpoint but required by service
-  const mockPaymentProvider: IPaymentProvider = {
-    createCheckoutSession: () =>
-      Effect.succeed({
-        sessionId: 'sess_1',
-        url: 'https://checkout.stripe.com',
-      }),
-    cancelSubscription: () => Effect.void,
-    constructWebhookEvent: () =>
-      Effect.succeed({
-        type: 'test',
-        data: { object: {} },
-      } as unknown as never),
-    getSubscriptionDetails: () =>
-      Effect.succeed({
-        status: 'active',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
-        customerId: '1',
-      }),
-  }
-
-  const PaymentProviderMock = Layer.succeed(
-    PaymentProvider,
-    mockPaymentProvider
-  )
-
   it('should return all available tiers', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({}),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -66,7 +36,6 @@ describe('getAllTiers', () => {
   it('should include free tier config', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({}),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -93,7 +62,6 @@ describe('getAllTiers', () => {
   it('should include paid tier config', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({}),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -121,7 +89,6 @@ describe('getAllTiers', () => {
   it('should include tier limits in response', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({}),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
@@ -149,7 +116,6 @@ describe('getAllTiers', () => {
   it('should return tiers in consistent order', async () => {
     const testLayer = Layer.mergeAll(
       createMockSubscriptionRepository({}),
-      PaymentProviderMock,
       MockRevenueCatProviderLive
     )
 
