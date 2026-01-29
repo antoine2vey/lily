@@ -4,13 +4,10 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
+import { compact } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Effect, Match, Option, pipe, Record } from 'effect'
-
-// Remove undefined values from an object
-const compact = <T extends Record<string, unknown>>(obj: T) =>
-  Record.filter(obj, (value) => value !== undefined)
+import { Effect, Match, Option, pipe } from 'effect'
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
