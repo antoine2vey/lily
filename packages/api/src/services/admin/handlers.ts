@@ -25,7 +25,9 @@ export const AdminApiLive = (api: Api) =>
           adminService.updateRole(id, payload.role).pipe(withSqlErrorAsDefect)
         )
         .handle('updateUserStatus', ({ path: { id }, payload }) =>
-          adminService.updateStatus(id, payload.status).pipe(withSqlErrorAsDefect)
+          adminService
+            .updateStatus(id, payload.status)
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('deleteUser', ({ path: { id } }) =>
           adminService.deleteUser(id).pipe(withSqlErrorAsDefect)

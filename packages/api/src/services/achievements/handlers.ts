@@ -17,7 +17,9 @@ export const AchievementsApiLive = (api: Api) =>
           achievementsService.getUserAchievements().pipe(withSqlErrorAsDefect)
         )
         .handle('unlockAchievement', ({ payload }) =>
-          achievementsService.unlockAchievement(payload).pipe(withSqlErrorAsDefect)
+          achievementsService
+            .unlockAchievement(payload)
+            .pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(

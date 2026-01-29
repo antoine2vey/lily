@@ -39,7 +39,9 @@ export const CareLogsApiLive = (api: Api) =>
             .pipe(withSqlErrorAsDefect)
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
-          careLogsService.createCareLog(plantId, payload).pipe(withSqlErrorAsDefect)
+          careLogsService
+            .createCareLog(plantId, payload)
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('getCareLog', ({ path: { plantId, logId } }) =>
           careLogsService.getCareLog(plantId, logId).pipe(withSqlErrorAsDefect)
@@ -50,7 +52,9 @@ export const CareLogsApiLive = (api: Api) =>
             .pipe(withSqlErrorAsDefect)
         )
         .handle('deleteCareLog', ({ path: { plantId, logId } }) =>
-          careLogsService.deleteCareLog(plantId, logId).pipe(withSqlErrorAsDefect)
+          careLogsService
+            .deleteCareLog(plantId, logId)
+            .pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(

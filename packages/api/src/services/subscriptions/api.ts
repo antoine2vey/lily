@@ -22,8 +22,7 @@ export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
   )
   .add(
     // GET /subscriptions/tiers - Get all available tiers
-    HttpApiEndpoint.get('getTiers')`/tiers`
-      .addSuccess(Schema.Array(TierConfig))
+    HttpApiEndpoint.get('getTiers')`/tiers`.addSuccess(Schema.Array(TierConfig))
   )
   .prefix('/subscriptions')
   .middleware(Authentication)

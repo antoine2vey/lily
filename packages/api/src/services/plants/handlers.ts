@@ -57,7 +57,9 @@ export const PlantsApiLive = (api: Api) =>
           plantsService.findPlantById({ id }).pipe(withInfraErrorsAsDefect)
         )
         .handle('updatePlant', ({ path: { id }, payload }) =>
-          plantsService.updatePlant({ ...payload, id }).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .updatePlant({ ...payload, id })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('deletePlant', ({ path: { id } }) =>
           plantsService.deletePlant({ id }).pipe(withInfraErrorsAsDefect)
@@ -82,10 +84,14 @@ export const PlantsApiLive = (api: Api) =>
             .pipe(withInfraErrorsAsDefect)
         )
         .handle('waterPlant', ({ path: { id }, payload }) =>
-          plantsService.waterPlant({ ...payload, id }).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .waterPlant({ ...payload, id })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('waterMultiplePlants', ({ payload }) =>
-          plantsService.waterMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .waterMultiplePlants(payload)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('fertilizePlant', ({ path: { id } }) =>
           plantsService.fertilizePlant({ id }).pipe(withInfraErrorsAsDefect)
