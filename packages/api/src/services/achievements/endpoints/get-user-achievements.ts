@@ -7,7 +7,7 @@ import type {
   AchievementWithProgress,
 } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Array, Console, Effect, Match, Option, pipe, Record } from 'effect'
+import { Array, Effect, Match, Option, pipe, Record } from 'effect'
 
 interface ProgressCounts {
   plants: number

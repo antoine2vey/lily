@@ -1,3 +1,4 @@
+import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
 import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
@@ -14,7 +15,7 @@ export function useScanCard() {
       photoUri: string
     ): Promise<PlantIdentificationResult> => {
       const file = createFileFromUri(photoUri, {
-        name: `scan-card-${Date.now()}.jpg`,
+        name: `scan-card-${String(nowAsEpochMillis())}.jpg`,
         type: 'image/jpeg',
       })
 
@@ -39,7 +40,7 @@ export function useScanCardMultiple() {
     ): Promise<PlantIdentificationResult> => {
       const files = Arr.map(photoUris, (uri, index) =>
         createFileFromUri(uri, {
-          name: `scan-card-${Date.now()}-${index}.jpg`,
+          name: `scan-card-${String(nowAsEpochMillis())}-${String(index)}.jpg`,
           type: 'image/jpeg',
         })
       )

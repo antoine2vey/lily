@@ -1,3 +1,4 @@
+import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
@@ -30,7 +31,7 @@ export function useIdentifyPlant() {
       photoUri: string
     ): Promise<PlantIdentificationResult> => {
       const file = createFileFromUri(photoUri, {
-        name: `identify-${Date.now()}.jpg`,
+        name: `identify-${String(nowAsEpochMillis())}.jpg`,
         type: 'image/jpeg',
       })
 

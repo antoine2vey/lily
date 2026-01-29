@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockNow } from 'src/__tests__/utils/dates'
 import { GallerySection } from '../components/GallerySection'
 
 describe('GallerySection', () => {
@@ -6,12 +7,12 @@ describe('GallerySection', () => {
     {
       id: 'photo-1',
       url: 'https://example.com/photo1.jpg',
-      createdAt: new Date(),
+      createdAt: mockNow(),
     },
     {
       id: 'photo-2',
       url: 'https://example.com/photo2.jpg',
-      createdAt: new Date(),
+      createdAt: mockNow(),
     },
   ]
 

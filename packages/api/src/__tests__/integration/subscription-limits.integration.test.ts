@@ -57,8 +57,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE device_tokens RESTART IDENTITY CASCADE`
       )
-      await db.execute(sql`TRUNCATE TABLE session RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE account RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
     }
 

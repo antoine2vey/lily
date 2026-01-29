@@ -1,5 +1,71 @@
 import { DateTime, Duration, Option, pipe } from 'effect'
 
+// ============================================================================
+// Effect DateTime Interop Utilities
+// These replace native Date methods while respecting DateTimePicker constraints
+// ============================================================================
+
+/**
+ * Get epoch milliseconds for unique identifiers.
+ * Use this instead of Date.now() for generating unique IDs.
+ *
+ * @returns Current time as epoch milliseconds
+ */
+export const nowAsEpochMillis = (): number =>
+  DateTime.toEpochMillis(DateTime.unsafeNow())
+
+/**
+ * Get current time as ISO string.
+ * Use this instead of new Date().toISOString()
+ *
+ * @returns Current time as ISO 8601 string
+ */
+export const nowAsIsoString = (): string =>
+  DateTime.formatIso(DateTime.unsafeNow())
+
+/**
+ * Convert DateTime to ISO string.
+ * Use this instead of date.toISOString()
+ *
+ * @param dt - DateTime to convert
+ * @returns ISO 8601 formatted string
+ */
+export const toIsoString = (dt: DateTime.DateTime): string =>
+  DateTime.formatIso(dt)
+
+/**
+ * Create a Date object for time picker with specified hours and minutes.
+ * DateTimePicker requires native Date objects, so we create them via Effect DateTime.
+ *
+ * @param hours - Hour (0-23)
+ * @param minutes - Minute (0-59)
+ * @returns Native Date object for use with DateTimePicker
+ */
+export const makeTimePickerDate = (hours: number, minutes: number): Date =>
+  DateTime.toDateUtc(
+    DateTime.unsafeMake({
+      year: 2024,
+      month: 1,
+      day: 1,
+      hours,
+      minutes,
+      seconds: 0,
+      millis: 0,
+    })
+  )
+
+/**
+ * Parse a DateTime and convert to native Date.
+ * Useful for components that require native Date objects like AI SDK Message.createdAt.
+ *
+ * @param input - DateTime input (ISO string, epoch millis, Date, or DateTime parts)
+ * @returns Option containing native Date
+ */
+export const parseToNativeDate = (
+  input: DateTime.DateTime.Input
+): Option.Option<Date> =>
+  pipe(DateTime.make(input), Option.map(DateTime.toDateUtc))
+
 /**
  * Apply a named timezone to a DateTime, returning a Zoned DateTime.
  * If no timezone is provided, returns the original DateTime unchanged.

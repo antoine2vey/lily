@@ -1,5 +1,6 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockIsoString } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('@/utils/client', () => ({
@@ -44,7 +45,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -62,7 +63,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -79,7 +80,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -96,7 +97,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -119,7 +120,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -139,7 +140,7 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: new Date().toISOString(),
+      nextWateringAt: mockIsoString(),
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -164,7 +165,7 @@ describe('PlantsScreen', () => {
 
     fireEvent.press(screen.getByText('Add Plant'))
 
-    expect(screen.getByText('Scan with AI')).toBeTruthy()
+    expect(screen.getByText('Identify with AI')).toBeTruthy()
     expect(screen.getByText('Add manually')).toBeTruthy()
   })
 
@@ -174,7 +175,7 @@ describe('PlantsScreen', () => {
         id: '1',
         name: 'Monstera',
         health: 'HEALTHY',
-        nextWateringAt: new Date().toISOString(),
+        nextWateringAt: mockIsoString(),
       },
     ]
 

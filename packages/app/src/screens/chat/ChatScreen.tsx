@@ -1,3 +1,4 @@
+import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Option, pipe } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
@@ -59,7 +60,7 @@ export function ChatScreen() {
       createdAt:
         msg.createdAt instanceof Date
           ? msg.createdAt.toISOString()
-          : new Date().toISOString(),
+          : nowAsIsoString(),
     })),
     Array.reverse
   )

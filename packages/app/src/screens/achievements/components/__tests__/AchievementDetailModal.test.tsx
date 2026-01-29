@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
+import { mockFixedDate } from 'src/__tests__/utils/dates'
 import { AchievementDetailModal } from '../AchievementDetailModal'
 
 describe('AchievementDetailModal', () => {
@@ -10,7 +11,7 @@ describe('AchievementDetailModal', () => {
     description: 'Add your first plant to your collection',
     icon: 'seedling',
     unlocked: true,
-    unlockedAt: new Date('2024-06-15T10:30:00Z'),
+    unlockedAt: mockFixedDate(2024, 6, 15, 10, 30),
     rarity: 'common' as const,
   }
 

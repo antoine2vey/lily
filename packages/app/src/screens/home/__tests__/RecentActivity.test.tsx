@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockDateAgo, mockNow } from 'src/__tests__/utils/dates'
 import { RecentActivity } from '../components/RecentActivity'
 
 describe('RecentActivity', () => {
@@ -8,21 +9,21 @@ describe('RecentActivity', () => {
       type: 'watered' as const,
       plantId: 'plant-1',
       plantName: 'Monstera',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      timestamp: mockDateAgo(2, 'hours'), // 2 hours ago
     },
     {
       id: '2',
       type: 'fertilized' as const,
       plantId: 'plant-2',
       plantName: 'Fern',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // Yesterday
+      timestamp: mockDateAgo(1, 'days'), // Yesterday
     },
     {
       id: '3',
       type: 'added' as const,
       plantId: 'plant-3',
       plantName: 'Cactus',
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      timestamp: mockDateAgo(2, 'days'), // 2 days ago
     },
   ]
 
@@ -101,7 +102,7 @@ describe('RecentActivity', () => {
       type: 'misted' as const,
       plantId: 'plant-4',
       plantName: 'Palm',
-      timestamp: new Date(),
+      timestamp: mockNow(),
     }
 
     render(
@@ -121,7 +122,7 @@ describe('RecentActivity', () => {
       type: 'moved' as const,
       plantId: 'plant-5',
       plantName: 'Aloe',
-      timestamp: new Date(),
+      timestamp: mockNow(),
     }
 
     render(
@@ -141,7 +142,7 @@ describe('RecentActivity', () => {
       type: 'pruned' as const,
       plantId: 'plant-6',
       plantName: 'Rose',
-      timestamp: new Date(),
+      timestamp: mockNow(),
     }
 
     render(

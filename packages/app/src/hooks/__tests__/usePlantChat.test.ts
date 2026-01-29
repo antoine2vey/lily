@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react-native'
+import { mockNow } from 'src/__tests__/utils/dates'
 
 // Mock dependencies - must be before importing the module under test
 jest.mock('expo/fetch', () => ({
@@ -79,7 +80,7 @@ describe('usePlantChat', () => {
         id: 'msg-1',
         role: 'user' as const,
         content: 'Hello',
-        createdAt: new Date(),
+        createdAt: mockNow(),
       },
     ]
 
@@ -115,7 +116,7 @@ describe('usePlantChat', () => {
             id: 'msg-1',
             role: 'assistant',
             content: 'Hello!',
-            createdAt: new Date(),
+            createdAt: mockNow(),
             parts: [{ type: 'text', text: 'Hello!' }],
           },
         ],

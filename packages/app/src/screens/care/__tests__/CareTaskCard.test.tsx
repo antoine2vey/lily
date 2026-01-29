@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockNow } from 'src/__tests__/utils/dates'
 import { CareTaskCard } from '../components/CareTaskCard'
 
 describe('CareTaskCard', () => {
@@ -13,7 +14,7 @@ describe('CareTaskCard', () => {
     plantImageUrl: 'https://example.com/monstera.jpg',
     type: 'water' as const,
     completed: false,
-    dueDate: new Date(),
+    dueDate: mockNow(),
   }
 
   beforeEach(() => {

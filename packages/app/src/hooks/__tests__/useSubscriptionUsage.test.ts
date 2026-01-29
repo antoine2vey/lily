@@ -1,3 +1,5 @@
+import { mockNow } from 'src/__tests__/utils/dates'
+
 jest.mock('src/utils/client', () => ({
   useEffectQuery: jest.fn().mockReturnValue({
     data: {
@@ -6,13 +8,13 @@ jest.mock('src/utils/client', () => ({
         userId: 'user_1',
         tier: 'free',
         status: 'active',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        currentPeriodStart: mockNow(),
+        currentPeriodEnd: mockNow(),
         trialStartsAt: null,
         trialEndsAt: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: mockNow(),
+        updatedAt: mockNow(),
       },
       usage: {
         aiChatsCount: 5,

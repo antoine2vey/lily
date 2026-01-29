@@ -1,6 +1,6 @@
-import { getApiDateGroupLabel, StaleTime } from '@lily/shared'
+import { getApiDateGroupLabel, StaleTime, toIsoString } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
-import { Array, DateTime, Order, pipe, Record } from 'effect'
+import { Array, DateTime, Option, Order, pipe, Record } from 'effect'
 import { useEffectQuery } from '@/utils/client'
 
 type BackendCareType = 'watering' | 'fertilization'
@@ -52,13 +52,18 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
     logs,
     Array.reduce({} as Record<string, CareEvent[]>, (acc, log) => {
       const dateKey = getDateKey(log.date)
+      const createdAtIso = pipe(
+        DateTime.make(log.createdAt),
+        Option.map(toIsoString),
+        Option.getOrElse(() => '')
+      )
       const event: CareEvent = {
         id: log.id,
         plantId: log.plantId,
         type: mapBackendType(log.type),
         notes: log.notes,
         photoUrl: log.photoUrl,
-        createdAt: log.createdAt.toISOString(),
+        createdAt: createdAtIso,
       }
 
       if (!acc[dateKey]) {

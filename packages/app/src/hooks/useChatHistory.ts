@@ -1,5 +1,5 @@
 import type { Message } from '@ai-sdk/react'
-import { StaleTime } from '@lily/shared'
+import { parseToNativeDate, StaleTime } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
@@ -25,7 +25,10 @@ const toMessage = (msg: {
   createdAt:
     msg.createdAt instanceof Date
       ? msg.createdAt
-      : new Date(String(msg.createdAt)),
+      : pipe(
+          parseToNativeDate(String(msg.createdAt)),
+          Option.getOrElse(() => new Date(0))
+        ),
 })
 
 // Transform API message to display format for ChatMessage component
@@ -43,7 +46,10 @@ const toDisplayMessage = (msg: {
   createdAt:
     msg.createdAt instanceof Date
       ? msg.createdAt
-      : new Date(String(msg.createdAt)),
+      : pipe(
+          parseToNativeDate(String(msg.createdAt)),
+          Option.getOrElse(() => new Date(0))
+        ),
 })
 
 export function useChatHistory(plantId?: string) {
