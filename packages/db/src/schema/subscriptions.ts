@@ -34,10 +34,7 @@ export const subscriptionEventTypeEnum = pgEnum('subscription_event_type', [
   'usage_limit_reached',
 ])
 
-export const paymentProviderEnum = pgEnum('payment_provider', [
-  'stripe',
-  'revenuecat',
-])
+export const paymentProviderEnum = pgEnum('payment_provider', ['revenuecat'])
 
 export const appStoreEnum = pgEnum('app_store', ['APP_STORE', 'PLAY_STORE'])
 
@@ -81,11 +78,10 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   }).notNull(),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
 
-  // Provider sync (provider-agnostic)
+  // RevenueCat provider fields
   externalSubscriptionId: text('external_subscription_id'),
   externalCustomerId: text('external_customer_id'),
-  provider: paymentProviderEnum('provider').notNull().default('stripe'),
-  // RevenueCat specific fields
+  provider: paymentProviderEnum('provider').notNull().default('revenuecat'),
   productId: text('product_id'), // e.g. "lily_monthly", "lily_annual"
   store: appStoreEnum('store'), // APP_STORE or PLAY_STORE
 
