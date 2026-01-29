@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
+import React from 'react'
 import { AuthProvider, useAuth } from '../AuthContext'
 
 // Mock expo-router
@@ -55,7 +55,7 @@ jest.mock('src/utils/notifications', () => ({
   getPlatform: jest.fn().mockReturnValue('ios'),
 }))
 
-const wrapper = ({ children }: { children: ReactNode }) => (
+const wrapper = ({ children }: { children: React.ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
 )
 

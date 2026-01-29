@@ -8,6 +8,7 @@ module.exports = {
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
     '^msgpackr$': '<rootDir>/src/__tests__/mocks/msgpackr.ts',
+    '^react-native-purchases$': '<rootDir>/src/__tests__/mocks/react-native-purchases.ts',
   },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
