@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -94,26 +95,37 @@ export const userSubscriptions = pgTable('user_subscriptions', {
 })
 
 // Monthly usage tracking
-export const subscriptionUsage = pgTable('subscription_usage', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+export const subscriptionUsage = pgTable(
+  'subscription_usage',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
 
-  periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
-  periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
 
-  aiChatsCount: integer('ai_chats_count').notNull().default(0),
-  cardScansCount: integer('card_scans_count').notNull().default(0),
-  plantIdentifiesCount: integer('plant_identifies_count').notNull().default(0),
+    aiChatsCount: integer('ai_chats_count').notNull().default(0),
+    cardScansCount: integer('card_scans_count').notNull().default(0),
+    plantIdentifiesCount: integer('plant_identifies_count')
+      .notNull()
+      .default(0),
 
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('subscription_usage_user_period_idx').on(
+      table.userId,
+      table.periodStart
+    ),
+  ]
+)
 
 // Subscription events (audit log)
 export const subscriptionEvents = pgTable('subscription_events', {

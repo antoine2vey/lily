@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "subscription_usage_user_period_idx" ON "subscription_usage" USING btree ("user_id","period_start");

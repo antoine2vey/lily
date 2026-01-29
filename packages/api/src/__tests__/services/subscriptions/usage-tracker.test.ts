@@ -42,6 +42,7 @@ describe('UsageTracker', () => {
       create: () => Effect.succeed(null),
       updateStatus: () => Effect.succeed(null),
       updateFromWebhook: () => Effect.succeed(null),
+      updateByUserId: () => Effect.succeed(null),
       cancel: () => Effect.succeed(null),
       getTier: () =>
         Effect.succeed({

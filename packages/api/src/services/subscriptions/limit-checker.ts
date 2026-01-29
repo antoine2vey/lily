@@ -39,10 +39,10 @@ const isDev = process.env.DISABLE_LIMITS === 'true'
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,
   Effect.gen(function* () {
-    if (isDev) {
-      yield* Effect.log('LimitChecker: dev mode, all limits disabled')
-      return noopLimitChecker
-    }
+    // if (isDev) {
+    //   yield* Effect.log('LimitChecker: dev mode, all limits disabled')
+    //   return noopLimitChecker
+    // }
 
     const subRepo = yield* SubscriptionRepository
     const achievementRepo = yield* AchievementRepository

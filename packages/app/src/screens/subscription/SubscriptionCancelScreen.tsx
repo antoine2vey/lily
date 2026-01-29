@@ -13,12 +13,10 @@ const FEATURES_LOST = [
 ]
 
 const getSubscriptionManagementUrl = (): string => {
-  return pipe(
-    Platform.OS,
-    (os) =>
-      os === 'ios'
-        ? 'https://apps.apple.com/account/subscriptions'
-        : 'https://play.google.com/store/account/subscriptions'
+  return pipe(Platform.OS, (os) =>
+    os === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions'
   )
 }
 
@@ -80,7 +78,11 @@ export function SubscriptionCancelScreen() {
             Array.map((feature) => (
               <View key={feature} className="flex-row items-center">
                 <View className="w-8 h-8 rounded-full items-center justify-center mr-3 bg-coral/10">
-                  <MaterialIcons name="close" size={18} color={iconColors.coral} />
+                  <MaterialIcons
+                    name="close"
+                    size={18}
+                    color={iconColors.coral}
+                  />
                 </View>
                 <Text className="flex-1 text-base text-text-primary">
                   {feature}

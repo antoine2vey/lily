@@ -17,11 +17,7 @@ export const logout = (): Effect.Effect<
     const refreshTokenRepo = yield* RefreshTokenRepository
 
     // Revoke all refresh tokens for this user
-    const revokedCount = yield* refreshTokenRepo.revokeAllForUser(user.id)
-
-    yield* Effect.log(
-      `Revoked ${revokedCount} refresh tokens for user ${user.id}`
-    )
+    yield* refreshTokenRepo.revokeAllForUser(user.id)
 
     return { message: 'Successfully logged out' }
   })
