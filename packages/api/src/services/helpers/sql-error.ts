@@ -27,6 +27,8 @@ const isSqlError = (e: unknown): e is SqlError =>
 export const withSqlErrorAsDefect = <A, E, R>(
   effect: Effect.Effect<A, E, R>
 ): Effect.Effect<A, Exclude<E, SqlError>, R> =>
-  Effect.catchIf(effect, isSqlError, (e) =>
-    Effect.die(e)
-  ) as Effect.Effect<A, Exclude<E, SqlError>, R>
+  Effect.catchIf(effect, isSqlError, (e) => Effect.die(e)) as Effect.Effect<
+    A,
+    Exclude<E, SqlError>,
+    R
+  >

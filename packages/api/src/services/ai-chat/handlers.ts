@@ -22,7 +22,9 @@ export const AIChatApiLive = (api: Api) =>
 
       return handlers
         .handle('sendChatMessage', ({ path: { plantId }, payload }) =>
-          aiChatService.sendChatMessage(plantId, payload).pipe(withInfraErrorsAsDefect)
+          aiChatService
+            .sendChatMessage(plantId, payload)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('streamChatMessage', ({ path: { plantId }, payload }) =>
           streamChatMessage(plantId, { message: payload.message }).pipe(

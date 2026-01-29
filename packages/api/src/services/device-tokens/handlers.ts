@@ -14,10 +14,14 @@ export const DeviceTokensApiLive = (api: Api) =>
 
       return handlers
         .handle('registerDeviceToken', ({ payload }) =>
-          deviceTokensService.registerDeviceToken(payload).pipe(withSqlErrorAsDefect)
+          deviceTokensService
+            .registerDeviceToken(payload)
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('unregisterDeviceToken', ({ path: { tokenId } }) =>
-          deviceTokensService.unregisterDeviceToken(tokenId).pipe(withSqlErrorAsDefect)
+          deviceTokensService
+            .unregisterDeviceToken(tokenId)
+            .pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(
