@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
 import { FlatList, Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
 import { PlantsScreenSkeleton } from 'src/components/skeletons'
+import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
+import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
+import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
 import { PlantCard } from './components/PlantCard'
 import { type FilterOption, PlantFilters } from './components/PlantFilters'
 import { PlantSearchBar } from './components/PlantSearchBar'
@@ -17,8 +19,6 @@ import {
   SortOptionsSheet,
 } from './components/SortOptionsSheet'
 import { type ViewMode, ViewToggle } from './components/ViewToggle'
-
-type HealthStatus = 'healthy' | 'attention' | 'critical'
 
 interface PlantCardData {
   id: string
@@ -29,16 +29,6 @@ interface PlantCardData {
   needsWater?: boolean
   isFavorite?: boolean
 }
-
-const mapApiHealthToCardHealth = (health: string): HealthStatus =>
-  pipe(
-    Match.value(health),
-    Match.when('HEALTHY', () => 'healthy' as const),
-    Match.when('THRIVING', () => 'healthy' as const),
-    Match.when('NEEDS_ATTENTION', () => 'attention' as const),
-    Match.when('SICK', () => 'critical' as const),
-    Match.orElse(() => 'healthy' as const)
-  )
 
 const getDaysUntilWater = (nextWateringAt: DateInput): Option.Option<number> =>
   pipe(
@@ -182,10 +172,10 @@ export function PlantsScreen() {
     return (
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        className="flex-1 bg-[#f7f7f6]"
+        className="flex-1 bg-background"
       >
         <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
-          <Text className="text-3xl font-bold tracking-tight text-[#141712]">
+          <Text className="text-3xl font-bold tracking-tight text-text-primary">
             My Plants
           </Text>
         </View>
@@ -198,53 +188,13 @@ export function PlantsScreen() {
             onPress: () => setShowAddPlant(true),
           }}
         />
-        <BottomSheet
+        <AddPlantOptionsSheet
           visible={showAddPlant}
           onClose={() => setShowAddPlant(false)}
-          title="Add Plant"
-        >
-          <View className="py-4">
-            <Pressable
-              className="flex-row items-center p-4 bg-white rounded-xl mb-3"
-              onPress={() => {
-                setShowAddPlant(false)
-              }}
-            >
-              <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
-                <MaterialIcons name="camera-alt" size={20} color="#5B8C5A" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-[#141712]">
-                  Scan with AI
-                </Text>
-                <Text className="text-sm text-gray-500">
-                  Identify your plant instantly
-                </Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
-            </Pressable>
-
-            <Pressable
-              className="flex-row items-center p-4 bg-white rounded-xl"
-              onPress={() => {
-                setShowAddPlant(false)
-              }}
-            >
-              <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
-                <MaterialIcons name="edit" size={20} color="#5B8C5A" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-[#141712]">
-                  Add manually
-                </Text>
-                <Text className="text-sm text-gray-500">
-                  Enter plant details yourself
-                </Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
-            </Pressable>
-          </View>
-        </BottomSheet>
+          onSelectAI={() => router.push('/add-plant/ai-scanner')}
+          onSelectScan={() => router.push('/add-plant/nursery-scanner')}
+          onSelectManual={() => router.push('/add-plant/manual-basic')}
+        />
       </SafeAreaView>
     )
   }
@@ -252,11 +202,11 @@ export function PlantsScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-[#f7f7f6]"
+      className="flex-1 bg-background"
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
-        <Text className="text-3xl font-bold tracking-tight text-[#141712]">
+        <Text className="text-3xl font-bold tracking-tight text-text-primary">
           My Plants
         </Text>
         <View className="flex-row items-center gap-3">
@@ -268,7 +218,7 @@ export function PlantsScreen() {
             <MaterialIcons
               name={showSearch ? 'close' : 'search'}
               size={24}
-              color="#141712"
+              color={iconColors.textPrimary}
             />
           </Pressable>
           <Pressable
@@ -276,7 +226,11 @@ export function PlantsScreen() {
             className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-soft"
             testID="sort-button"
           >
-            <MaterialIcons name="sort" size={24} color="#141712" />
+            <MaterialIcons
+              name="sort"
+              size={24}
+              color={iconColors.textPrimary}
+            />
           </Pressable>
           <ViewToggle view={viewMode} onToggle={handleToggleView} />
         </View>

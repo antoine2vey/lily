@@ -1,4 +1,3 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { getTimeBasedGreeting } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
@@ -14,13 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from 'src/assets/images'
 import { Avatar } from 'src/components/Avatar'
-import { BottomSheet } from 'src/components/BottomSheet'
 import { EmptyState } from 'src/components/EmptyState'
 import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { useUser } from 'src/hooks/useUser'
 import { useWaterAll } from 'src/hooks/useWaterAll'
+import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
@@ -214,67 +213,13 @@ export function HomeScreen() {
       </ScrollView>
 
       {/* Add Plant Sheet */}
-      <BottomSheet
+      <AddPlantOptionsSheet
         visible={showAddPlant}
         onClose={() => setShowAddPlant(false)}
-        title="Add Plant"
-      >
-        <View className="py-4">
-          <Pressable
-            className="flex-row items-center p-4 bg-surface rounded-xl mb-3"
-            onPress={() => {
-              setShowAddPlant(false)
-              router.push('/add-plant/ai-scanner')
-            }}
-          >
-            <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
-              <MaterialIcons
-                name="camera-alt"
-                size={20}
-                color={iconColors.primary}
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base text-text-primary font-semibold">
-                Scan with AI
-              </Text>
-              <Text className="text-sm text-text-secondary font-regular">
-                Identify your plant instantly
-              </Text>
-            </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={iconColors.muted}
-            />
-          </Pressable>
-
-          <Pressable
-            className="flex-row items-center p-4 bg-surface rounded-xl"
-            onPress={() => {
-              setShowAddPlant(false)
-              router.push('/add-plant/manual-basic')
-            }}
-          >
-            <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center mr-3">
-              <MaterialIcons name="edit" size={20} color={iconColors.primary} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base text-text-primary font-semibold">
-                Add manually
-              </Text>
-              <Text className="text-sm text-text-secondary font-regular">
-                Enter plant details yourself
-              </Text>
-            </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={iconColors.muted}
-            />
-          </Pressable>
-        </View>
-      </BottomSheet>
+        onSelectAI={() => router.push('/add-plant/ai-scanner')}
+        onSelectScan={() => router.push('/add-plant/nursery-scanner')}
+        onSelectManual={() => router.push('/add-plant/manual-basic')}
+      />
     </SafeAreaView>
   )
 }

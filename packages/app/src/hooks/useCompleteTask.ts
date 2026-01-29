@@ -2,6 +2,7 @@ import type { CareTaskType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 interface CompleteTaskParams {
   taskId: string
@@ -36,9 +37,9 @@ export function useCompleteTask() {
     mutationFn: completeTaskApi,
     onSuccess: () => {
       // Invalidate care tasks, plants, and care logs (for homepage recent activities)
-      queryClient.invalidateQueries({ queryKey: ['careTasks'] })
-      queryClient.invalidateQueries({ queryKey: ['plants'] })
-      queryClient.invalidateQueries({ queryKey: ['careLogs'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.careLogs.all })
     },
   })
 }

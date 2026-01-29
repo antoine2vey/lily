@@ -1,4 +1,4 @@
-import { Option, pipe } from 'effect'
+import { Option, pipe, Record } from 'effect'
 import { Platform } from 'react-native'
 import Purchases, {
   type CustomerInfo,
@@ -42,7 +42,7 @@ export const initialize = (): void => {
     Purchases.setLogLevel(LOG_LEVEL.VERBOSE)
     Purchases.configure({ apiKey })
     isConfigured = true
-    console.log(`[RevenueCat] Initialized with API key ${apiKey}`)
+    console.log('[RevenueCat] Initialized successfully')
     // Log the App User ID for dashboard lookup
     Purchases.getAppUserID().then((userId) => {
       console.log(`[RevenueCat] App User ID: ${userId}`)
@@ -191,7 +191,7 @@ export const getOfferings = async (): Promise<PurchasesOfferings | null> => {
     const offerings = await Purchases.getOfferings()
     console.log('[RevenueCat] Offerings received:', {
       current: offerings.current?.identifier ?? null,
-      allKeys: Object.keys(offerings.all),
+      allKeys: Record.keys(offerings.all),
     })
     return offerings
   } catch (error) {
@@ -257,8 +257,8 @@ export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
     const customerInfo = await Purchases.getCustomerInfo()
     console.log('[RevenueCat] Customer Info:', {
       appUserId: await Purchases.getAppUserID(),
-      activeEntitlements: Object.keys(customerInfo.entitlements.active),
-      allEntitlements: Object.keys(customerInfo.entitlements.all),
+      activeEntitlements: Record.keys(customerInfo.entitlements.active),
+      allEntitlements: Record.keys(customerInfo.entitlements.all),
       activeSubscriptions: customerInfo.activeSubscriptions,
       managementURL: customerInfo.managementURL,
     })
@@ -297,14 +297,14 @@ export const debugState = async (): Promise<void> => {
     console.log('Offerings:', {
       hasCurrent: !!offerings.current,
       currentId: offerings.current?.identifier ?? 'none',
-      allOfferingIds: Object.keys(offerings.all),
+      allOfferingIds: Record.keys(offerings.all),
       packages: offerings.current?.availablePackages.length ?? 0,
     })
 
     const customerInfo = await Purchases.getCustomerInfo()
     console.log('Entitlements:', {
-      active: Object.keys(customerInfo.entitlements.active),
-      all: Object.keys(customerInfo.entitlements.all),
+      active: Record.keys(customerInfo.entitlements.active),
+      all: Record.keys(customerInfo.entitlements.all),
     })
     console.log('Active Subscriptions:', customerInfo.activeSubscriptions)
     console.log('==============================')

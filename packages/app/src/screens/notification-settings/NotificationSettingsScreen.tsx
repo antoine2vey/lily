@@ -57,6 +57,7 @@ function parseTime(timeString: string): Date {
     Option.map(Number),
     Option.getOrElse(() => 0)
   )
+  // Create a Date object for the time picker (required by DateTimePicker)
   const date = new Date()
   date.setHours(hours, minutes, 0, 0)
   return date
@@ -70,8 +71,10 @@ const formatTimeDisplay = (date: Date): string =>
   )
 
 function formatTimeString(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, '0')
-  const minutes = date.getMinutes().toString().padStart(2, '0')
+  // Extract hours and minutes for API format (HH:MM)
+  // Using Date methods here as this is for DateTimePicker interop
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
 }
 
@@ -111,6 +114,8 @@ export function NotificationSettingsScreen() {
 
   // Load user timezone settings
   useEffect(() => {
+    let cancelled = false
+
     const loadTimezoneSettings = async () => {
       if (state._tag !== 'Authenticated') return
 
@@ -120,19 +125,28 @@ export function NotificationSettingsScreen() {
           'getUserSettings',
           {}
         )
-        setTimezone(userSettings.timezone || getDeviceTimezone())
-        setPreferredNotificationTime(
-          userSettings.preferredNotificationTime || '09:00'
-        )
+        if (!cancelled) {
+          setTimezone(userSettings.timezone || getDeviceTimezone())
+          setPreferredNotificationTime(
+            userSettings.preferredNotificationTime || '09:00'
+          )
+        }
       } catch (_error) {
         // Fall back to device timezone on error
-        setTimezone(getDeviceTimezone())
+        if (!cancelled) {
+          setTimezone(getDeviceTimezone())
+        }
       } finally {
-        setIsLoadingTimezone(false)
+        if (!cancelled) {
+          setIsLoadingTimezone(false)
+        }
       }
     }
 
     loadTimezoneSettings()
+    return () => {
+      cancelled = true
+    }
   }, [state])
 
   const handleTimezoneChange = useCallback(

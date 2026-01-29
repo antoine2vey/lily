@@ -1,4 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { DateTime } from 'effect'
+import { queryKeys } from '@/utils/query-keys'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 interface UploadPhotoParams {
@@ -14,22 +16,17 @@ export function useUploadPhoto() {
 
   return useMutation({
     mutationFn: async ({ plantId, photoUri }: UploadPhotoParams) => {
+      const timestamp = DateTime.toEpochMillis(DateTime.unsafeNow())
       const file = createFileFromUri(photoUri, {
-        name: `plant-${plantId}-${Date.now()}.jpg`,
+        name: `plant-${plantId}-${timestamp}.jpg`,
         type: 'image/jpeg',
       })
 
       await uploadMultipart<void>(`/api/plants/${plantId}/photos`, [file])
     },
     onSuccess: () => {
-      // Invalidate plant photos
-      queryClient.invalidateQueries({
-        queryKey: ['plants', 'getPlantPhotos'],
-      })
-      // Invalidate plant detail (photo count may have changed)
-      queryClient.invalidateQueries({
-        queryKey: ['plants', 'getPlant'],
-      })
+      // Invalidate plant photos and details
+      queryClient.invalidateQueries({ queryKey: queryKeys.plants.details() })
     },
   })
 }

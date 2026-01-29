@@ -234,7 +234,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             accessToken: response.accessToken,
           })
           // Register device for push notifications after successful auth
-          registerDeviceForPush()
+          registerDeviceForPush().catch((err) => {
+            console.warn('Push notification registration failed:', err)
+          })
         }
         return { success: true }
       } catch (error) {
@@ -264,7 +266,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           })
           // Register device for push notifications after completing username setup
           if (state._tag === 'NeedsUsername') {
-            registerDeviceForPush()
+            registerDeviceForPush().catch((err) => {
+              console.warn('Push notification registration failed:', err)
+            })
           }
         }
         return { success: true }

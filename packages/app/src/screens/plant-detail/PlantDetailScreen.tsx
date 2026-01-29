@@ -23,6 +23,7 @@ import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
 import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
+import { mapApiHealthToCardHealth } from 'src/utils/health'
 import { CareSchedule } from './components/CareSchedule'
 import { ChatCTA } from './components/ChatCTA'
 import { GallerySection } from './components/GallerySection'
@@ -30,18 +31,6 @@ import { IdealEnvironment } from './components/IdealEnvironment'
 import { PlantHeader } from './components/PlantHeader'
 import { PlantOptionsSheet } from './components/PlantOptionsSheet'
 import { RecentHistory } from './components/RecentHistory'
-
-type HealthStatus = 'healthy' | 'attention' | 'critical'
-
-const mapApiHealthToCardHealth = (health: string): HealthStatus =>
-  pipe(
-    Match.value(health),
-    Match.when('HEALTHY', () => 'healthy' as const),
-    Match.when('THRIVING', () => 'healthy' as const),
-    Match.when('NEEDS_ATTENTION', () => 'attention' as const),
-    Match.when('SICK', () => 'critical' as const),
-    Match.orElse(() => 'healthy' as const)
-  )
 
 type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'

@@ -1,6 +1,7 @@
 import type { UserSettings } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiEffectRunner, useEffectQuery } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 
 interface NotificationSettings {
   careReminders: boolean
@@ -13,6 +14,9 @@ interface NotificationSettings {
   doNotDisturbStart: string
   doNotDisturbEnd: string
 }
+
+// Query key used for optimistic updates (matches useEffectQuery format)
+const USER_SETTINGS_QUERY_KEY = ['users', 'getUserSettings', {}]
 
 export function useNotificationSettings() {
   const query = useEffectQuery('users', 'getUserSettings', {})
@@ -33,17 +37,13 @@ export function useUpdateNotificationSettings() {
       return result.notifications
     },
     onMutate: async (newSettings) => {
-      await queryClient.cancelQueries({
-        queryKey: ['users', 'getUserSettings', {}],
-      })
-      const previous = queryClient.getQueryData<UserSettings>([
-        'effect',
-        'users',
-        'getUserSettings',
-      ])
+      await queryClient.cancelQueries({ queryKey: USER_SETTINGS_QUERY_KEY })
+      const previous = queryClient.getQueryData<UserSettings>(
+        USER_SETTINGS_QUERY_KEY
+      )
 
       queryClient.setQueryData<UserSettings>(
-        ['users', 'getUserSettings', {}],
+        USER_SETTINGS_QUERY_KEY,
         (old): UserSettings | undefined => {
           if (!old) return undefined
           return {
@@ -60,16 +60,11 @@ export function useUpdateNotificationSettings() {
     },
     onError: (_, __, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(
-          ['users', 'getUserSettings', {}],
-          context.previous
-        )
+        queryClient.setQueryData(USER_SETTINGS_QUERY_KEY, context.previous)
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['users', 'getUserSettings', {}],
-      })
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.settings() })
     },
   })
 }

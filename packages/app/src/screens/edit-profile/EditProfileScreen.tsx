@@ -1,7 +1,7 @@
 import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -21,10 +21,18 @@ import { BioInput } from './components/BioInput'
 export function EditProfileScreen() {
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile()
+  const mountedRef = useRef(true)
 
   const [name, setName] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -49,10 +57,14 @@ export function EditProfileScreen() {
       },
       {
         onSuccess: () => {
-          router.back()
+          if (mountedRef.current) {
+            router.back()
+          }
         },
         onError: () => {
-          Alert.alert('Error', 'Failed to update profile. Please try again.')
+          if (mountedRef.current) {
+            Alert.alert('Error', 'Failed to update profile. Please try again.')
+          }
         },
       }
     )
