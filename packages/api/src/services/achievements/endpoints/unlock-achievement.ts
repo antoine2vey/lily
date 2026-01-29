@@ -3,17 +3,12 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { Array, Effect, Option } from 'effect'
 
 // Unlock achievement for the current user
 export const unlockAchievement = (
   request: UnlockAchievementRequest
-): Effect.Effect<
-  Achievement,
-  SqlError | DatabaseError,
-  AchievementRepository | CurrentUser
-> =>
+): Effect.Effect<Achievement, SqlError, AchievementRepository | CurrentUser> =>
   Effect.gen(function* () {
     const { id: userId } = yield* CurrentUser
     const repo = yield* AchievementRepository
@@ -28,7 +23,12 @@ export const unlockAchievement = (
       )
 
       return yield* Option.match(foundOption, {
-        onNone: () => Effect.fail(new DatabaseError()),
+        onNone: () =>
+          Effect.die(
+            new Error(
+              `Achievement ${request.achievement} not found after unlock returned null`
+            )
+          ),
         onSome: (found) =>
           Effect.succeed({
             id: found.id,

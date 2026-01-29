@@ -12,7 +12,6 @@ import {
   UsernameRequest,
   UserProfile,
 } from '@lily/shared/auth'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { Schema } from 'effect'
 
 // Auth error schemas
@@ -25,7 +24,7 @@ export const AuthApi = HttpApiGroup.make('auth')
     HttpApiEndpoint.post('sendMagicLink')`/magic-link`
       .setPayload(MagicLinkRequest)
       .addSuccess(MagicLinkSentResponse)
-      .addError(DatabaseError, { status: 500 })
+      .addError(AuthError, { status: 400 })
       .addError(RateLimitExceededError, { status: 429 })
   )
   .add(
@@ -49,7 +48,6 @@ export const AuthApi = HttpApiGroup.make('auth')
     HttpApiEndpoint.post('verifyMagicLink')`/verify`
       .setPayload(MagicLinkVerifyRequest)
       .addSuccess(AuthResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(AuthError, { status: 400 })
       .addError(RateLimitExceededError, { status: 429 })
   )
@@ -58,14 +56,12 @@ export const AuthApi = HttpApiGroup.make('auth')
     HttpApiEndpoint.post('refreshToken')`/refresh`
       .setPayload(RefreshTokenRequest)
       .addSuccess(RefreshTokenResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(AuthError, { status: 401 })
   )
   .add(
     // GET /auth/me - Get current user profile (requires auth)
     HttpApiEndpoint.get('getCurrentUser')`/me`
       .addSuccess(UserProfile)
-      .addError(DatabaseError, { status: 500 })
       .addError(AuthError, { status: 401 })
       .middleware(Authentication)
   )
@@ -73,7 +69,6 @@ export const AuthApi = HttpApiGroup.make('auth')
     // POST /auth/logout - Revoke refresh tokens and logout
     HttpApiEndpoint.post('logout')`/logout`
       .addSuccess(LogoutResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(AuthError, { status: 401 })
       .middleware(Authentication)
   )
@@ -82,7 +77,6 @@ export const AuthApi = HttpApiGroup.make('auth')
     HttpApiEndpoint.post('setUsername')`/username`
       .setPayload(UsernameRequest)
       .addSuccess(UserProfile)
-      .addError(DatabaseError, { status: 500 })
       .addError(AuthError, { status: 400 })
       .addError(AuthError, { status: 401 })
       .middleware(Authentication)

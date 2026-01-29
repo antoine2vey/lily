@@ -1,9 +1,9 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { PaginationParams } from '@lily/shared'
-import { DatabaseError } from '@lily/shared/errors/database'
 import {
   Notification,
+  NotificationNotFoundError,
   NotificationsListResponse,
 } from '@lily/shared/notification'
 import { Schema } from 'effect'
@@ -24,15 +24,13 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
     HttpApiEndpoint.get('getNotifications')`/`
       .setUrlParams(NotificationsQueryParams)
       .addSuccess(NotificationsListResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
     // PUT /notifications/:notificationId/read - Mark notification as read
     HttpApiEndpoint.put('markNotificationRead')`/${notificationIdParam}/read`
       .addSuccess(Notification)
-      .addError(DatabaseError, { status: 500 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
+      .addError(NotificationNotFoundError)
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/notifications')

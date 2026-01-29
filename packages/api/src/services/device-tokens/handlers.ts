@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { DeviceTokensService } from '@lily/api/services/device-tokens/service'
+import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
 import { Effect, Layer } from 'effect'
 
 // Implement the Device Tokens API group
@@ -13,10 +14,10 @@ export const DeviceTokensApiLive = (api: Api) =>
 
       return handlers
         .handle('registerDeviceToken', ({ payload }) =>
-          deviceTokensService.registerDeviceToken(payload)
+          deviceTokensService.registerDeviceToken(payload).pipe(withSqlErrorAsDefect)
         )
         .handle('unregisterDeviceToken', ({ path: { tokenId } }) =>
-          deviceTokensService.unregisterDeviceToken(tokenId)
+          deviceTokensService.unregisterDeviceToken(tokenId).pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(

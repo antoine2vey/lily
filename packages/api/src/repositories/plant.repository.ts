@@ -1,5 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import {
+  extractCount,
+  getPaginationParams,
+} from '@lily/api/repositories/helpers/pagination'
 import { plantPhotos, plants } from '@lily/db'
 import { endOfDay, type PaginatedResponse, paginate } from '@lily/shared'
 import {
@@ -13,16 +17,7 @@ import {
   lte,
   or,
 } from 'drizzle-orm'
-import {
-  Array,
-  Context,
-  DateTime,
-  Effect,
-  Layer,
-  Match,
-  Option,
-  pipe,
-} from 'effect'
+import { Context, DateTime, Effect, Layer, Match, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface FindPlantsParams {
@@ -137,15 +132,7 @@ export const PlantRepositoryLive = Layer.effect(
     return {
       findAll: (params: FindPlantsParams) =>
         Effect.gen(function* () {
-          const page = pipe(
-            Option.fromNullable(params.page),
-            Option.getOrElse(() => 1)
-          )
-          const limit = pipe(
-            Option.fromNullable(params.limit),
-            Option.getOrElse(() => 20)
-          )
-          const offset = (page - 1) * limit
+          const { page, limit, offset } = getPaginationParams(params)
 
           // Build filter conditions
           const userCondition = eq(plants.userId, params.userId)
@@ -174,11 +161,7 @@ export const PlantRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(plants)
             .where(filterConditions)
-          const total = pipe(
-            Array.head(countResult),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
-          )
+          const total = extractCount(countResult)
 
           const items = yield* db
             .select()
@@ -256,25 +239,13 @@ export const PlantRepositoryLive = Layer.effect(
 
       findPhotos: (params: FindPhotosParams) =>
         Effect.gen(function* () {
-          const page = pipe(
-            Option.fromNullable(params.page),
-            Option.getOrElse(() => 1)
-          )
-          const limit = pipe(
-            Option.fromNullable(params.limit),
-            Option.getOrElse(() => 20)
-          )
-          const offset = (page - 1) * limit
+          const { page, limit, offset } = getPaginationParams(params)
 
           const countResult = yield* db
             .select({ value: count() })
             .from(plantPhotos)
             .where(eq(plantPhotos.plantId, params.plantId))
-          const total = pipe(
-            Array.head(countResult),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
-          )
+          const total = extractCount(countResult)
 
           const items = yield* db
             .select()

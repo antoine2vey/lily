@@ -1,12 +1,7 @@
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { PgClient } from '@effect/sql-pg'
 import * as schema from '@lily/db/schema'
-import { Config, Data, Layer } from 'effect'
-
-// Error type for database operations
-export class DatabaseError extends Data.TaggedError('DatabaseError')<{
-  cause: unknown
-}> {}
+import { Config, Layer } from 'effect'
 
 // PostgreSQL client configuration
 export const PgLive = PgClient.layerConfig({

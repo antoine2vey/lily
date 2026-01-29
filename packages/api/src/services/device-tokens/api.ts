@@ -3,8 +3,8 @@ import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   DeviceToken,
   DeviceTokenCreateRequest,
+  DeviceTokenNotFoundError,
 } from '@lily/shared/device-token'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { Schema } from 'effect'
 
 // Path parameter for token ID
@@ -17,7 +17,6 @@ export const DeviceTokensApi = HttpApiGroup.make('deviceTokens')
     HttpApiEndpoint.post('registerDeviceToken')`/`
       .setPayload(DeviceTokenCreateRequest)
       .addSuccess(DeviceToken, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -25,8 +24,7 @@ export const DeviceTokensApi = HttpApiGroup.make('deviceTokens')
     // DELETE /device-tokens/:tokenId - Unregister device token
     HttpApiEndpoint.del('unregisterDeviceToken')`/${tokenIdParam}`
       .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(DatabaseError, { status: 500 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
+      .addError(DeviceTokenNotFoundError)
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/device-tokens')

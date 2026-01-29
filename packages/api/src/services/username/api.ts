@@ -1,5 +1,4 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { UsernameAvailability } from '@lily/shared/username'
 import { Schema } from 'effect'
 
@@ -13,7 +12,6 @@ export const UsernameApi = HttpApiGroup.make('username')
     HttpApiEndpoint.get('checkUsername')`/check`
       .setUrlParams(Schema.Struct({ username: usernameQuery }))
       .addSuccess(UsernameAvailability)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
   )
   .prefix('/username')

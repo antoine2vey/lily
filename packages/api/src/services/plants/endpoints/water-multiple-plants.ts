@@ -1,10 +1,10 @@
 import * as SqlClient from '@effect/sql/SqlClient'
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
   WaterMultiplePlantsRequest,
@@ -27,8 +27,6 @@ export const waterMultiplePlants = (
     const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
-    const notificationRepo = yield* NotificationRepository
-    const userRepo = yield* UserRepository
 
     if (request.plantIds.length === 0) {
       return []
@@ -72,42 +70,15 @@ export const waterMultiplePlants = (
                       nextWateringAt,
                     })
 
-                    // Schedule reminder if enabled
-                    if (plant.remindersEnabled) {
-                      const user = yield* userRepo.findById(plant.userId)
-                      const timezone = pipe(
-                        Option.fromNullable(user),
-                        Option.flatMap((u) => Option.fromNullable(u.timezone)),
-                        Option.getOrNull
-                      )
-                      const preferredTime = pipe(
-                        Option.fromNullable(user),
-                        Option.flatMap((u) =>
-                          Option.fromNullable(u.preferredNotificationTime)
-                        ),
-                        Option.getOrNull
-                      )
-
-                      const scheduledAt = yield* calculateScheduledAt(
-                        nextWateringAt,
-                        timezone,
-                        preferredTime
-                      )
-
-                      yield* notificationRepo.deletePendingByPlantAndType(
-                        plantId,
-                        'watering_reminder'
-                      )
-
-                      yield* notificationRepo.create({
-                        type: 'watering_reminder',
-                        title: `Time to water your ${plant.name}`,
-                        body: `Your ${plant.name} needs watering today.`,
-                        scheduledAt,
-                        userId: plant.userId,
-                        plantId,
-                      })
-                    }
+                    // Schedule reminder using shared helper
+                    yield* scheduleCareReminder({
+                      plantId,
+                      plantName: plant.name,
+                      userId: plant.userId,
+                      type: 'watering_reminder',
+                      scheduledDate: nextWateringAt,
+                      remindersEnabled: plant.remindersEnabled,
+                    })
 
                     return {
                       plantId,

@@ -8,13 +8,16 @@ import {
 } from '@lily/db'
 import {
   compact,
+  endOfMonthAsDate,
+  nowAsDate,
   type SubscriptionStatus,
   type SubscriptionTier,
+  startOfMonthAsDate,
   type TierConfig,
   type UsageField,
 } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, Effect, Layer, Match, Option, pipe } from 'effect'
 
 export interface CreateSubscriptionData {
   userId: string
@@ -104,20 +107,10 @@ export const SubscriptionRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
-    const getMonthBoundaries = () => {
-      const now = new Date()
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const periodEnd = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        0,
-        23,
-        59,
-        59,
-        999
-      )
-      return { periodStart, periodEnd }
-    }
+    const getMonthBoundaries = () => ({
+      periodStart: startOfMonthAsDate(),
+      periodEnd: endOfMonthAsDate(),
+    })
 
     return {
       findByUserId: (userId: string) =>
@@ -199,7 +192,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
                   Option.fromNullable(data.productId)
                 ),
                 store: Option.getOrNull(Option.fromNullable(data.store)),
-                updatedAt: new Date(),
+                updatedAt: nowAsDate(),
               },
             })
             .returning()
@@ -210,7 +203,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const [subscription] = yield* db
             .update(userSubscriptions)
-            .set({ status, updatedAt: new Date() })
+            .set({ status, updatedAt: nowAsDate() })
             .where(eq(userSubscriptions.userId, userId))
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
@@ -221,7 +214,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
         data: Partial<CreateSubscriptionData>
       ) =>
         Effect.gen(function* () {
-          const updateData = compact(data, { updatedAt: new Date() })
+          const updateData = compact(data, { updatedAt: nowAsDate() })
 
           const [subscription] = yield* db
             .update(userSubscriptions)
@@ -238,7 +231,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       updateByUserId: (userId: string, data: Partial<CreateSubscriptionData>) =>
         Effect.gen(function* () {
-          const updateData = compact(data, { updatedAt: new Date() })
+          const updateData = compact(data, { updatedAt: nowAsDate() })
 
           const [subscription] = yield* db
             .update(userSubscriptions)
@@ -254,8 +247,8 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .update(userSubscriptions)
             .set({
               status: 'canceled',
-              canceledAt: new Date(),
-              updatedAt: new Date(),
+              canceledAt: nowAsDate(),
+              updatedAt: nowAsDate(),
             })
             .where(eq(userSubscriptions.userId, userId))
             .returning()
@@ -409,8 +402,8 @@ export const SubscriptionRepositoryLive = Layer.effect(
               aiChatsCount: 0,
               cardScansCount: 0,
               plantIdentifiesCount: 0,
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              createdAt: nowAsDate(),
+              updatedAt: nowAsDate(),
             }))
           )
         }),
@@ -432,24 +425,29 @@ export const SubscriptionRepositoryLive = Layer.effect(
             })
             .onConflictDoNothing()
 
-          // Map field to column
-          const columnMap = {
-            aiChats: subscriptionUsage.aiChatsCount,
-            cardScans: subscriptionUsage.cardScansCount,
-            plantIdentifies: subscriptionUsage.plantIdentifiesCount,
-          }
-
-          const column = columnMap[field]
+          // Map field to column and column name using Match
+          const { column, columnName } = pipe(
+            Match.value(field),
+            Match.when('aiChats', () => ({
+              column: subscriptionUsage.aiChatsCount,
+              columnName: 'aiChatsCount' as const,
+            })),
+            Match.when('cardScans', () => ({
+              column: subscriptionUsage.cardScansCount,
+              columnName: 'cardScansCount' as const,
+            })),
+            Match.when('plantIdentifies', () => ({
+              column: subscriptionUsage.plantIdentifiesCount,
+              columnName: 'plantIdentifiesCount' as const,
+            })),
+            Match.exhaustive
+          )
 
           const [usage] = yield* db
             .update(subscriptionUsage)
             .set({
-              [field === 'aiChats'
-                ? 'aiChatsCount'
-                : field === 'cardScans'
-                  ? 'cardScansCount'
-                  : 'plantIdentifiesCount']: sql`${column} + 1`,
-              updatedAt: new Date(),
+              [columnName]: sql`${column} + 1`,
+              updatedAt: nowAsDate(),
             })
             .where(
               and(

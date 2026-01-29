@@ -1,5 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import {
+  extractCount,
+  getPaginationParams,
+} from '@lily/api/repositories/helpers/pagination'
 import { chatMessages } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
@@ -77,15 +81,7 @@ export const ChatRepositoryLive = Layer.effect(
     return {
       findByPlantId: (params: FindChatHistoryParams) =>
         Effect.gen(function* () {
-          const page = pipe(
-            Option.fromNullable(params.page),
-            Option.getOrElse(() => 1)
-          )
-          const limit = pipe(
-            Option.fromNullable(params.limit),
-            Option.getOrElse(() => 20)
-          )
-          const offset = (page - 1) * limit
+          const { page, limit, offset } = getPaginationParams(params)
 
           const filterConditions = and(
             eq(chatMessages.plantId, params.plantId),
@@ -96,11 +92,7 @@ export const ChatRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(chatMessages)
             .where(filterConditions)
-          const total = pipe(
-            Array.head(countResult),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
-          )
+          const total = extractCount(countResult)
 
           const rows = yield* db
             .select()

@@ -5,11 +5,9 @@ import {
   AuthenticationLive,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.impl'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
-import {
-  SubscriptionService,
-  SubscriptionServiceLive,
-} from '@lily/api/services/subscriptions/service'
+import { SubscriptionService } from '@lily/api/services/subscriptions/service'
 import { Effect, Layer } from 'effect'
 
 // Implement the Subscriptions API group (authenticated endpoints)
@@ -25,12 +23,14 @@ export const SubscriptionsApiLive = (api: Api) =>
             return yield* subscriptionService.getCurrentSubscription(
               currentUser.id
             )
-          })
+          }).pipe(withInfraErrorsAsDefect)
         )
-        .handle('getTiers', () => subscriptionService.getAllTiers())
+        .handle('getTiers', () =>
+          subscriptionService.getAllTiers().pipe(withInfraErrorsAsDefect)
+        )
     })
   ).pipe(
-    Layer.provide(SubscriptionServiceLive),
+    Layer.provide(SubscriptionService.Default),
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(RevenueCatProviderLive),
     Layer.provide(AuthenticationLive)
@@ -54,11 +54,11 @@ export const SubscriptionWebhooksApiLive = (api: Api) =>
           )
 
           return { received: true }
-        })
+        }).pipe(withInfraErrorsAsDefect)
       )
     })
   ).pipe(
-    Layer.provide(SubscriptionServiceLive),
+    Layer.provide(SubscriptionService.Default),
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(RevenueCatProviderLive)
   )

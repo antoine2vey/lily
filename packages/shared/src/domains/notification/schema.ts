@@ -1,6 +1,9 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
+// Re-export errors for convenient imports
+export { NotificationNotFoundError } from './errors'
+
 // Notification status enum
 export const NotificationStatus = Schema.Union(
   Schema.Literal('pending'),

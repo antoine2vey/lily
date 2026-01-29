@@ -5,7 +5,6 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { Effect } from 'effect'
 
 export const createCareLog = (
@@ -13,7 +12,7 @@ export const createCareLog = (
   request: CareLogCreateRequest
 ): Effect.Effect<
   CareLog,
-  SqlError | DatabaseError,
+  SqlError,
   | CareLogRepository
   | EventBus
   | CurrentUser
@@ -30,7 +29,7 @@ export const createCareLog = (
     // Get plant to check health status
     const plant = yield* plantRepo.findById(plantId)
 
-    const log = yield* repo.create({
+    const logOrNull = yield* repo.create({
       type: request.type,
       notes: request.notes,
       date: request.date,
@@ -38,9 +37,11 @@ export const createCareLog = (
       plantId,
     })
 
-    if (!log) {
-      return yield* Effect.fail(new DatabaseError())
+    if (!logOrNull) {
+      return yield* Effect.die(new Error('Failed to create care log'))
     }
+
+    const log = logOrNull
 
     // Emit CareLogCreated event
     yield* publishWithRetry(

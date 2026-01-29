@@ -10,6 +10,7 @@ import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
@@ -26,60 +27,68 @@ export const PlantsApiLive = (api: Api) =>
 
       return handlers
         .handle('getPlants', ({ urlParams }) =>
-          plantsService.findPlants({
-            page: parseInt(urlParams.page, 10) || 1,
-            limit: parseInt(urlParams.limit, 10) || 20,
-            filter: pipe(
-              Match.value(urlParams.filter),
-              Match.when('needsAttention', () => 'needsAttention' as const),
-              Match.when('overdue', () => 'overdue' as const),
-              Match.orElse(() => 'all' as const)
-            ),
-            sort: urlParams.sort === 'name' ? 'name' : 'added',
-          })
+          plantsService
+            .findPlants({
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+              filter: pipe(
+                Match.value(urlParams.filter),
+                Match.when('needsAttention', () => 'needsAttention' as const),
+                Match.when('overdue', () => 'overdue' as const),
+                Match.orElse(() => 'all' as const)
+              ),
+              sort: urlParams.sort === 'name' ? 'name' : 'added',
+            })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('createPlant', ({ payload }) =>
-          plantsService.createPlant(payload)
+          plantsService.createPlant(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('scanCard', ({ payload: { images } }) =>
-          plantsService.scanCard(images)
+          plantsService.scanCard(images).pipe(withInfraErrorsAsDefect)
         )
         .handle('scanCardMultiple', ({ payload: { images } }) =>
-          plantsService.scanCardMultiple(images)
+          plantsService.scanCardMultiple(images).pipe(withInfraErrorsAsDefect)
         )
         .handle('aiIdentify', ({ payload: { images } }) =>
-          plantsService.aiIdentify(images)
+          plantsService.aiIdentify(images).pipe(withInfraErrorsAsDefect)
         )
         .handle('getPlant', ({ path: { id } }) =>
-          plantsService.findPlantById({ id })
+          plantsService.findPlantById({ id }).pipe(withInfraErrorsAsDefect)
         )
         .handle('updatePlant', ({ path: { id }, payload }) =>
-          plantsService.updatePlant({ ...payload, id })
+          plantsService.updatePlant({ ...payload, id }).pipe(withInfraErrorsAsDefect)
         )
         .handle('deletePlant', ({ path: { id } }) =>
-          plantsService.deletePlant({ id })
+          plantsService.deletePlant({ id }).pipe(withInfraErrorsAsDefect)
         )
         .handle('getPlantPhotos', ({ path: { id }, urlParams }) =>
-          plantsService.getPlantPhotos({
-            plantId: id,
-            page: parseInt(urlParams.page, 10) || 1,
-            limit: parseInt(urlParams.limit, 10) || 20,
-          })
+          plantsService
+            .getPlantPhotos({
+              plantId: id,
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+            })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
-          plantsService.uploadPlantPhoto({ plantId: id, files })
+          plantsService
+            .uploadPlantPhoto({ plantId: id, files })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
-          plantsService.deletePlantPhoto({ plantId: id, photoId })
+          plantsService
+            .deletePlantPhoto({ plantId: id, photoId })
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('waterPlant', ({ path: { id }, payload }) =>
-          plantsService.waterPlant({ ...payload, id })
+          plantsService.waterPlant({ ...payload, id }).pipe(withInfraErrorsAsDefect)
         )
         .handle('waterMultiplePlants', ({ payload }) =>
-          plantsService.waterMultiplePlants(payload)
+          plantsService.waterMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('fertilizePlant', ({ path: { id } }) =>
-          plantsService.fertilizePlant({ id })
+          plantsService.fertilizePlant({ id }).pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(

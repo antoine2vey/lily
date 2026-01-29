@@ -6,7 +6,6 @@ import {
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   AIIdentifyResponse,
@@ -42,7 +41,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.get('getPlants')`/`
       .setUrlParams(PlantsQueryParams)
       .addSuccess(PlantsListResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -50,7 +48,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.post('createPlant')`/`
       .setPayload(EnhancedPlantCreateRequest)
       .addSuccess(Plant, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -65,7 +62,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
         )
       )
       .addSuccess(AIIdentifyResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -81,7 +77,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
         )
       )
       .addSuccess(AIIdentifyResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -97,7 +92,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
         )
       )
       .addSuccess(AIIdentifyResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(LimitExceededError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -107,14 +101,12 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
       .setPayload(WaterMultiplePlantsRequest)
       .addSuccess(WaterMultiplePlantsResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
     // GET /plants/:id - Get plant by ID (includes recent photos)
     HttpApiEndpoint.get('getPlant')`/${plantIdParam}`
       .addSuccess(PlantDetail)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -123,7 +115,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.put('updatePlant')`/${plantIdParam}`
       .setPayload(PlantUpdateRequest)
       .addSuccess(Plant)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -131,7 +122,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // DELETE /plants/:id - Delete plant
     HttpApiEndpoint.del('deletePlant')`/${plantIdParam}`
       .addSuccess(Plant)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -140,7 +130,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.get('getPlantPhotos')`/${plantIdParam}/photos`
       .setUrlParams(PaginationParams)
       .addSuccess(PlantPhotosListResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -155,7 +144,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
         )
       )
       .addSuccess(Schema.Void, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -166,7 +154,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
       'deletePlantPhoto'
     )`/${plantIdParam}/photos/${photoIdParam}`
       .addSuccess(Schema.Void)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -176,7 +163,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.post('waterPlant')`/${plantIdParam}/water`
       .setPayload(PlantWaterRequest)
       .addSuccess(Plant)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -184,7 +170,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/:plantId/fertilize - "Fertilize Now" shortcut
     HttpApiEndpoint.post('fertilizePlant')`/${plantIdParam}/fertilize`
       .addSuccess(Plant)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

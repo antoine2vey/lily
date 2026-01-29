@@ -4,7 +4,6 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
-import { DatabaseError } from '@lily/shared/errors/database'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Effect, Option, pipe } from 'effect'
 
@@ -12,7 +11,7 @@ export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
-  SqlError | DatabaseError | LimitExceededError,
+  SqlError | LimitExceededError,
   PlantRepository | EventBus | CurrentUser | LimitChecker
 > =>
   Effect.gen(function* () {
@@ -24,7 +23,7 @@ export const createPlant = (
     // Check if user has reached their plant limit
     yield* limitChecker.checkPlantLimit(userId)
 
-    const plant = yield* repo.create({
+    const plantOrNull = yield* repo.create({
       name: request.name,
       description: request.description || null,
       category: request.category || null,
@@ -42,9 +41,11 @@ export const createPlant = (
       userId,
     })
 
-    if (!plant) {
-      return yield* Effect.fail(new DatabaseError())
+    if (!plantOrNull) {
+      return yield* Effect.die(new Error('Failed to create plant'))
     }
+
+    const plant = plantOrNull
 
     yield* publishWithRetry(
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })

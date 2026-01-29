@@ -5,7 +5,6 @@ import {
   SubscriptionInfo,
   TierConfig,
 } from '@lily/shared'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { Schema } from 'effect'
 
 // RevenueCat webhook headers - authorization bearer token
@@ -19,14 +18,12 @@ export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
     // GET /subscriptions/current - Get current subscription status
     HttpApiEndpoint.get('getCurrentSubscription')`/current`
       .addSuccess(SubscriptionInfo)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
     // GET /subscriptions/tiers - Get all available tiers
     HttpApiEndpoint.get('getTiers')`/tiers`
       .addSuccess(Schema.Array(TierConfig))
-      .addError(DatabaseError, { status: 500 })
   )
   .prefix('/subscriptions')
   .middleware(Authentication)
@@ -41,6 +38,5 @@ export const SubscriptionWebhooksApi = HttpApiGroup.make(
       .setHeaders(RevenueCatWebhookHeaders)
       .addSuccess(Schema.Struct({ received: Schema.Boolean }))
       .addError(PaymentProviderError, { status: 400 })
-      .addError(DatabaseError, { status: 500 })
   )
   .prefix('/subscriptions')

@@ -5,7 +5,6 @@ import {
   AchievementsResponse,
   UnlockAchievementRequest,
 } from '@lily/shared/achievement'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
 
@@ -15,7 +14,6 @@ export const AchievementsApi = HttpApiGroup.make('achievements')
     // GET /achievements - List all achievements with progress for current user
     HttpApiEndpoint.get('getUserAchievements')`/`
       .addSuccess(AchievementsResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -24,7 +22,6 @@ export const AchievementsApi = HttpApiGroup.make('achievements')
     HttpApiEndpoint.post('unlockAchievement')`/unlock`
       .setPayload(UnlockAchievementRequest)
       .addSuccess(Achievement, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

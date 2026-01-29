@@ -1,5 +1,8 @@
 import { Schema } from 'effect'
 
+// Re-export errors for convenient imports
+export { DeviceTokenNotFoundError } from './errors'
+
 // Device token schemas
 export const DeviceToken = Schema.Struct({
   id: Schema.String,
