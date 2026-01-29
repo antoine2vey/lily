@@ -54,6 +54,11 @@ export interface ISubscriptionRepository {
     data: Partial<CreateSubscriptionData>
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
 
+  readonly updateByUserId: (
+    userId: string,
+    data: Partial<CreateSubscriptionData>
+  ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
+
   readonly cancel: (
     userId: string
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
@@ -116,12 +121,10 @@ export const SubscriptionRepositoryLive = Layer.effect(
     return {
       findByUserId: (userId: string) =>
         Effect.gen(function* () {
-          yield* Effect.log('[Repo.findByUserId] Starting with userId:', userId)
           const [subscription] = yield* db
             .select()
             .from(userSubscriptions)
             .where(eq(userSubscriptions.userId, userId))
-          yield* Effect.log('[Repo.findByUserId] Query result:', subscription)
           return Option.getOrNull(Option.fromNullable(subscription))
         }),
 
@@ -248,6 +251,36 @@ export const SubscriptionRepositoryLive = Layer.effect(
           return Option.getOrNull(Option.fromNullable(subscription))
         }),
 
+      updateByUserId: (userId: string, data: Partial<CreateSubscriptionData>) =>
+        Effect.gen(function* () {
+          const updateData: Record<string, unknown> = { updatedAt: new Date() }
+          if (data.tier !== undefined) updateData.tier = data.tier
+          if (data.status !== undefined) updateData.status = data.status
+          if (data.trialStartsAt !== undefined)
+            updateData.trialStartsAt = data.trialStartsAt
+          if (data.trialEndsAt !== undefined)
+            updateData.trialEndsAt = data.trialEndsAt
+          if (data.currentPeriodStart !== undefined)
+            updateData.currentPeriodStart = data.currentPeriodStart
+          if (data.currentPeriodEnd !== undefined)
+            updateData.currentPeriodEnd = data.currentPeriodEnd
+          if (data.externalCustomerId !== undefined)
+            updateData.externalCustomerId = data.externalCustomerId
+          if (data.externalSubscriptionId !== undefined)
+            updateData.externalSubscriptionId = data.externalSubscriptionId
+          if (data.productId !== undefined)
+            updateData.productId = data.productId
+          if (data.store !== undefined) updateData.store = data.store
+          if (data.provider !== undefined) updateData.provider = data.provider
+
+          const [subscription] = yield* db
+            .update(userSubscriptions)
+            .set(updateData)
+            .where(eq(userSubscriptions.userId, userId))
+            .returning()
+          return Option.getOrNull(Option.fromNullable(subscription))
+        }),
+
       cancel: (userId: string) =>
         Effect.gen(function* () {
           const [subscription] = yield* db
@@ -264,18 +297,15 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       getTier: (tier: SubscriptionTier) =>
         Effect.gen(function* () {
-          yield* Effect.log('[Repo.getTier] Starting with tier:', tier)
           const result = yield* db
             .select()
             .from(subscriptionTiers)
             .where(eq(subscriptionTiers.tier, tier))
-          yield* Effect.log('[Repo.getTier] Query result:', result)
 
           const config = result[0]
 
           // If tier not found, return free tier defaults as fallback
           if (!config) {
-            yield* Effect.log('[Repo.getTier] No config found, using fallback')
             return {
               tier: 'free' as const,
               name: 'Free',
@@ -287,7 +317,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
             } satisfies TierConfig
           }
 
-          yield* Effect.log('[Repo.getTier] Returning config:', config)
           return {
             tier: config.tier,
             name: config.name,
@@ -315,15 +344,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       getCurrentUsage: (userId: string) =>
         Effect.gen(function* () {
-          yield* Effect.log(
-            '[Repo.getCurrentUsage] Starting with userId:',
-            userId
-          )
           const { periodStart, periodEnd } = getMonthBoundaries()
-          yield* Effect.log('[Repo.getCurrentUsage] Period:', {
-            periodStart,
-            periodEnd,
-          })
 
           const [usage] = yield* db
             .select()
@@ -334,12 +355,8 @@ export const SubscriptionRepositoryLive = Layer.effect(
                 eq(subscriptionUsage.periodStart, periodStart)
               )
             )
-          yield* Effect.log('[Repo.getCurrentUsage] Existing usage:', usage)
 
           if (!usage) {
-            yield* Effect.log(
-              '[Repo.getCurrentUsage] No usage found, creating...'
-            )
             // Auto-create usage record for current period
             const [newUsage] = yield* db
               .insert(subscriptionUsage)
@@ -353,13 +370,9 @@ export const SubscriptionRepositoryLive = Layer.effect(
               })
               .onConflictDoNothing()
               .returning()
-            yield* Effect.log('[Repo.getCurrentUsage] Insert result:', newUsage)
 
             // If conflict, fetch the existing one
             if (!newUsage) {
-              yield* Effect.log(
-                '[Repo.getCurrentUsage] Conflict, fetching existing...'
-              )
               const [existing] = yield* db
                 .select()
                 .from(subscriptionUsage)
@@ -369,10 +382,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
                     eq(subscriptionUsage.periodStart, periodStart)
                   )
                 )
-              yield* Effect.log(
-                '[Repo.getCurrentUsage] Existing after conflict:',
-                existing
-              )
               return Option.getOrNull(Option.fromNullable(existing))
             }
 

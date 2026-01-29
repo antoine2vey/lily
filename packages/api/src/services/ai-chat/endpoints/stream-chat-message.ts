@@ -7,9 +7,11 @@ import { AiService, streamSdk } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import type { LimitExceededError } from '@lily/shared'
 import type { UIMessage } from 'ai'
-import { Array, Effect } from 'effect'
+import { Array, Effect, Stream } from 'effect'
+
+const QUOTA_EXCEEDED_MESSAGE =
+  "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱"
 
 export interface StreamChatRequest {
   message: string
@@ -49,7 +51,7 @@ export const streamChatMessage = (
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
-  Error | SqlError | LimitExceededError,
+  Error | SqlError,
   | ChatRepository
   | AiService
   | EventBus
@@ -66,14 +68,41 @@ export const streamChatMessage = (
     const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
 
-    // Check if user has reached their AI chat limit
-    yield* limitChecker.checkAiChatLimit(userId)
-
     // Create the new user message
     const userMessage: UIMessage = {
       id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       role: 'user',
       parts: [{ type: 'text', text: request.message }],
+    }
+
+    // Check if user has reached their AI chat limit
+    const limitExceeded = yield* limitChecker.checkAiChatLimit(userId).pipe(
+      Effect.map(() => false),
+      Effect.catchTag('LimitExceededError', () => Effect.succeed(true))
+    )
+
+    if (limitExceeded) {
+      // Save user message and quota exceeded response
+      const assistantUIMessage: UIMessage = {
+        id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        role: 'assistant',
+        parts: [{ type: 'text', text: QUOTA_EXCEEDED_MESSAGE }],
+      }
+
+      yield* chatRepo.saveChat({
+        plantId,
+        userId,
+        messages: [userMessage, assistantUIMessage],
+      })
+
+      // Return a stream with the quota exceeded message
+      const quotaStream = Stream.make(
+        new TextEncoder().encode(QUOTA_EXCEEDED_MESSAGE)
+      )
+
+      return HttpServerResponse.stream(quotaStream, {
+        contentType: 'text/plain; charset=utf-8',
+      })
     }
 
     // Get previous messages from database (secure - server-side history)

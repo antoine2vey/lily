@@ -102,13 +102,6 @@ export const getUserAchievements = (): Effect.Effect<
 
     const unlockedCount = Array.filter(achievements, (a) => a.unlocked).length
 
-    yield* Console.log({
-      achievements,
-      level: Math.floor(unlockedCount / 3) + 1,
-      unlockedCount,
-      totalCount: achievements.length,
-    })
-
     return {
       achievements,
       level: Math.floor(unlockedCount / 3) + 1,

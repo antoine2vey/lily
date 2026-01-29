@@ -53,6 +53,7 @@ export const createMockSubscriptionRepository = (
     create: () => Effect.succeed(subscription),
     updateStatus: () => Effect.succeed(subscription),
     updateFromWebhook: () => Effect.succeed(subscription),
+    updateByUserId: () => Effect.succeed(subscription),
     cancel: () => Effect.succeed(subscription),
     getTier: () => Effect.succeed(tierConfig),
     getAllTiers: () => Effect.succeed([freeTierConfig, paidTierConfig]),

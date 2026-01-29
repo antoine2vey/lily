@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
@@ -7,6 +6,7 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import { Effect } from 'effect'
+import qrcode from 'qrcode-terminal'
 
 // 10 minutes expiry
 const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
@@ -55,16 +55,18 @@ export const sendMagicLink = ({
     const callbackUrl = `${baseUrl}/api/auth/magic-link/callback?token=${token}`
 
     if (process.env.NODE_ENV !== 'production') {
-      // In development, open the magic link in the iOS simulator
-      // Use detached spawn with sleep so response is sent before redirect
-      // const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
-      const expoGoLink = `lily://verify?code=${token}`
-      const child = spawn(
-        'sh',
-        ['-c', `sleep 1 && xcrun simctl openurl booted '${expoGoLink}'`],
-        { detached: true, stdio: 'ignore' }
-      )
-      child.unref()
+      // In development, print QR code to console for easy testing on physical device
+      const deepLink = `lily://verify?code=${token}`
+
+      yield* Effect.sync(() => {
+        console.log('\n' + '='.repeat(50))
+        console.log('🔗 Magic Link Deep Link:')
+        console.log(deepLink)
+        console.log('='.repeat(50))
+        console.log('\n📱 Scan this QR code with your device:\n')
+        qrcode.generate(deepLink, { small: true })
+        console.log('='.repeat(50) + '\n')
+      })
     } else {
       // In production, send the email
       yield* Effect.catchAll(
@@ -73,10 +75,7 @@ export const sendMagicLink = ({
           token,
           callbackUrl,
         }),
-        (error) =>
-          Effect.logError('Failed to send magic link email:', error).pipe(
-            Effect.map(() => undefined)
-          )
+        () => Effect.void
       )
     }
 
