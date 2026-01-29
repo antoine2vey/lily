@@ -1,8 +1,8 @@
-# Agent Instructions for Lily App Package
+# App Package Architecture
 
-This document provides instructions specific to the React Native mobile app (`packages/app`).
+This document describes the architecture and patterns specific to the React Native mobile app.
 
-> **Inherits from:** Root `CLAUDE.md` - All Effect.js patterns, array methods, and code conventions apply here.
+> **Global rules** (Effect patterns, code conventions) are in the root `/CLAUDE.md`
 
 ---
 
@@ -26,22 +26,11 @@ StyleSheet.create() should **NEVER** be used for styles that can be expressed wi
 ```tsx
 // ❌ FORBIDDEN - Raw StyleSheet for static styles
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAF8',
-    padding: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
+  container: { flex: 1, backgroundColor: '#F8FAF8', padding: 16 },
 })
 
 // ✅ CORRECT - Tailwind classes
 <View className="flex-1 bg-background p-4">
-  <Text className="text-xl font-semibold text-text-primary">Title</Text>
-</View>
 ```
 
 ### When Inline Styles ARE Acceptable
@@ -167,16 +156,6 @@ const getButtonClasses = (variant: ButtonVariant): string =>
     Match.exhaustive
   )
 
-const getTextClasses = (variant: ButtonVariant): string =>
-  pipe(
-    Match.value(variant),
-    Match.when('primary', () => 'text-white'),
-    Match.when('secondary', () => 'text-primary'),
-    Match.when('destructive', () => 'text-white'),
-    Match.when('ghost', () => 'text-primary'),
-    Match.exhaustive
-  )
-
 // Usage
 export function Button({ variant = 'primary', children }: ButtonProps) {
   return (
@@ -194,83 +173,14 @@ export function Button({ variant = 'primary', children }: ButtonProps) {
 
 ---
 
-## Code Conventions (Inherited)
-
-These rules are inherited from the root `CLAUDE.md` and apply to all code in this package:
-
-### Effect Array Module - MANDATORY
-
-**NEVER use native array methods.** Always use Effect's Array module:
-
-```tsx
-import { Array, pipe } from 'effect'
-
-// ❌ FORBIDDEN
-const names = plants.map(p => p.name)
-const healthy = plants.filter(p => p.health === 'good')
-const first = plants[0]
-
-// ✅ REQUIRED
-const names = Array.map(plants, (p) => p.name)
-const healthy = Array.filter(plants, (p) => p.health === 'good')
-const first = Array.head(plants) // Returns Option<Plant>
-```
-
-### Pattern Matching - MANDATORY
-
-**NEVER use switch statements.** Always use Effect's Match module:
-
-```tsx
-import { Match, pipe } from 'effect'
-
-// ❌ FORBIDDEN
-switch (status) {
-  case 'healthy': return 'bg-success'
-  case 'warning': return 'bg-warning'
-  default: return 'bg-error'
-}
-
-// ✅ REQUIRED
-pipe(
-  Match.value(status),
-  Match.when('healthy', () => 'bg-success'),
-  Match.when('warning', () => 'bg-warning'),
-  Match.orElse(() => 'bg-error')
-)
-```
-
-### Option Handling - MANDATORY
-
-**NEVER use null/undefined checks directly.** Use Effect's Option module:
-
-```tsx
-import { Option, pipe } from 'effect'
-
-// ❌ FORBIDDEN
-const name = plant?.name ?? 'Unknown'
-
-// ✅ REQUIRED
-const name = pipe(
-  plantOption,
-  Option.map((p) => p.name),
-  Option.getOrElse(() => 'Unknown')
-)
-```
-
----
-
-## Common Mistakes to Avoid
+## Common Styling Mistakes
 
 ### 1. Using StyleSheet.create() for Static Styles
 
 ```tsx
 // ❌ WRONG
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-  },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16 },
 })
 <View style={styles.card}>...</View>
 
@@ -290,40 +200,7 @@ const styles = StyleSheet.create({
 <Text className="text-text-primary">
 ```
 
-### 3. Using Native Array Methods
-
-```tsx
-// ❌ WRONG
-{plants.map((plant) => <PlantCard key={plant.id} plant={plant} />)}
-
-// ✅ CORRECT
-{Array.map(plants, (plant) => <PlantCard key={plant.id} plant={plant} />)}
-```
-
-### 4. Using Switch for Variants
-
-```tsx
-// ❌ WRONG
-const getStatusColor = (status: Status) => {
-  switch (status) {
-    case 'healthy': return 'text-success'
-    case 'needs-water': return 'text-warning'
-    case 'critical': return 'text-error'
-  }
-}
-
-// ✅ CORRECT
-const getStatusColor = (status: Status): string =>
-  pipe(
-    Match.value(status),
-    Match.when('healthy', () => 'text-success'),
-    Match.when('needs-water', () => 'text-warning'),
-    Match.when('critical', () => 'text-error'),
-    Match.exhaustive
-  )
-```
-
-### 5. Mixing Styles Unnecessarily
+### 3. Mixing Styles Unnecessarily
 
 ```tsx
 // ❌ WRONG - Mixing className and style for things Tailwind can handle
@@ -333,29 +210,9 @@ const getStatusColor = (status: Status): string =>
 <View className="flex-1 p-4 bg-background">
 ```
 
-### 6. Using Ternary for Conditional Styles
-
-```tsx
-// ❌ WRONG
-<View className={isActive ? 'bg-primary' : 'bg-surface'}>
-
-// ✅ BETTER - Use template literals for simple cases
-<View className={`${isActive ? 'bg-primary' : 'bg-surface'} rounded-lg p-4`}>
-
-// ✅ BEST - Use Match for complex variant logic
-const bgClass = pipe(
-  Match.value({ isActive, isDisabled }),
-  Match.when({ isActive: true }, () => 'bg-primary'),
-  Match.when({ isDisabled: true }, () => 'bg-text-muted'),
-  Match.orElse(() => 'bg-surface')
-)
-```
-
 ---
 
-## Quick Reference
-
-### Common Component Patterns
+## Quick Reference Patterns
 
 **Card:**
 ```tsx
