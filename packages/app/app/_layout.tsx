@@ -19,6 +19,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
 import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
+import { useAppStateSync } from 'src/hooks/useAppStateSync'
 import { AnimatedSplashScreen } from 'src/screens/splash'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
@@ -50,20 +51,24 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
   const showContent = fontsLoaded && !isLoading
 
+  // Check if user is authenticated for hooks that need it
+  const isAuthenticated = pipe(
+    Match.value(state),
+    Match.when({ _tag: 'Authenticated' }, () => true),
+    Match.orElse(() => false)
+  )
+
+  // Add app state sync for subscription (syncs when app returns to foreground)
+  useAppStateSync(isAuthenticated)
+
   // Set up notification listeners and RevenueCat identity when authenticated
   useEffect(() => {
-    const isAuthenticated = pipe(
-      Match.value(state),
-      Match.when({ _tag: 'Authenticated' }, () => true),
-      Match.orElse(() => false)
-    )
-
     if (isAuthenticated && state._tag === 'Authenticated') {
       RevenueCatService.identify(state.user.id)
       const cleanup = setupNotificationListeners(router)
       return cleanup
     }
-  }, [state, router])
+  }, [state, router, isAuthenticated])
 
   useEffect(() => {
     if (showContent) {

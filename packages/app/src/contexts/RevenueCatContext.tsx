@@ -1,4 +1,3 @@
-import { Option, pipe } from 'effect'
 import {
   createContext,
   type ReactNode,
@@ -11,6 +10,7 @@ import type {
   PurchasesOfferings,
   PurchasesPackage,
 } from 'react-native-purchases'
+import { useSubscriptionSync } from 'src/hooks/useSubscriptionSync'
 import * as RevenueCatService from 'src/services/revenuecat'
 
 interface RevenueCatContextValue {
@@ -18,6 +18,7 @@ interface RevenueCatContextValue {
   isLoading: boolean
   purchase: (pkg: PurchasesPackage) => Promise<void>
   restore: () => Promise<void>
+  syncSubscription: () => void
 }
 
 const RevenueCatContext = createContext<RevenueCatContextValue | null>(null)
@@ -37,6 +38,7 @@ interface RevenueCatProviderProps {
 export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const { syncSubscription } = useSubscriptionSync()
 
   useEffect(() => {
     const initAndLoadOfferings = async () => {
@@ -73,6 +75,7 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
         isLoading,
         purchase,
         restore,
+        syncSubscription,
       }}
     >
       {children}

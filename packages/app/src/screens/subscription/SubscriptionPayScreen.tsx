@@ -34,7 +34,7 @@ const PREMIUM_FEATURES = [
 export function SubscriptionPayScreen() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
-  const { offerings, purchase } = useRevenueCat()
+  const { offerings, purchase, syncSubscription } = useRevenueCat()
 
   const monthlyPackage = pipe(
     Option.fromNullable(offerings?.current?.monthly),
@@ -58,6 +58,11 @@ export function SubscriptionPayScreen() {
     setIsLoading(true)
     try {
       await purchase(selectedPackage)
+
+      // Sync subscription after purchase (with small delay for webhook processing)
+      setTimeout(() => {
+        syncSubscription()
+      }, 500)
 
       const message = RevenueCatService.isDevModeEnabled()
         ? 'Purchase simulated! (Dev Mode)\n\nIn production, this would be a real purchase.'
