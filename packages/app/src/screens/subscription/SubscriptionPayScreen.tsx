@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
-import { useSyncSubscription } from 'src/hooks/useSyncSubscription'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { iconColors } from 'src/theme'
 import { FeatureList } from './components/FeatureList'
@@ -36,7 +35,6 @@ export function SubscriptionPayScreen() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
   const { offerings, purchase } = useRevenueCat()
-  const syncMutation = useSyncSubscription()
 
   const monthlyPackage = pipe(
     Option.fromNullable(offerings?.current?.monthly),
@@ -59,13 +57,8 @@ export function SubscriptionPayScreen() {
 
     setIsLoading(true)
     try {
-      // 1. Execute purchase via RevenueCat SDK (or mock in dev mode)
       await purchase(selectedPackage)
 
-      // 2. Tell backend to sync (ensures DB is updated even if webhook is delayed)
-      await syncMutation.mutateAsync({})
-
-      // 3. Navigate back on success
       const message = RevenueCatService.isDevModeEnabled()
         ? 'Purchase simulated! (Dev Mode)\n\nIn production, this would be a real purchase.'
         : 'Thank you for subscribing to Lily Pro!'

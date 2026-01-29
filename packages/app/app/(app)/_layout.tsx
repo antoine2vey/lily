@@ -46,6 +46,13 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen
+        name="subscription/cancel"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
         name="achievements"
         options={{
           headerShown: false,

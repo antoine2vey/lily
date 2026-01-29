@@ -27,13 +27,6 @@ jest.mock('@/contexts/RevenueCatContext', () => ({
   }),
 }))
 
-jest.mock('@/hooks/useSyncSubscription', () => ({
-  useSyncSubscription: jest.fn().mockReturnValue({
-    mutateAsync: jest.fn(),
-    isPending: false,
-  }),
-}))
-
 jest.mock('@/services/revenuecat', () => ({
   isDevModeEnabled: jest.fn().mockReturnValue(false),
 }))
