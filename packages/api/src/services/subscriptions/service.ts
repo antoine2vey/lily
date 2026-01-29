@@ -2,15 +2,13 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 import {
-  type AppStore,
   type PaymentProviderError,
   type Subscription,
-  SubscriptionNotFoundError,
   type SubscriptionStatus,
   type SubscriptionTier,
   type TierConfig,
 } from '@lily/shared'
-import { Console, Context, Effect, Layer, Match, Option, pipe } from 'effect'
+import { Context, Effect, Layer, Match, Option, pipe } from 'effect'
 
 export interface SubscriptionInfoResult {
   subscription: Subscription | null
@@ -27,18 +25,10 @@ export interface ISubscriptionService {
     userId: string
   ) => Effect.Effect<SubscriptionInfoResult, SqlError>
 
-  readonly cancelSubscription: (
-    userId: string
-  ) => Effect.Effect<void, SubscriptionNotFoundError | SqlError>
-
   readonly handleRevenueCatWebhookEvent: (
     payload: string,
     authorization: string | undefined
   ) => Effect.Effect<void, PaymentProviderError | SqlError>
-
-  readonly syncSubscription: (
-    userId: string
-  ) => Effect.Effect<SubscriptionInfoResult, PaymentProviderError | SqlError>
 
   readonly getAllTiers: () => Effect.Effect<TierConfig[], SqlError>
 }
@@ -89,21 +79,8 @@ export const SubscriptionServiceLive = Layer.effect(
     return {
       getCurrentSubscription: (userId: string) =>
         Effect.gen(function* () {
-          yield* Effect.log(
-            '[getCurrentSubscription] Starting for userId:',
-            userId
-          )
-
-          yield* Effect.log('[getCurrentSubscription] Fetching subscription...')
           const subscription = yield* subRepo.findByUserId(userId)
-          yield* Effect.log(
-            '[getCurrentSubscription] Subscription result:',
-            subscription
-          )
-
-          yield* Effect.log('[getCurrentSubscription] Fetching usage...')
           const usage = yield* subRepo.getCurrentUsage(userId)
-          yield* Effect.log('[getCurrentSubscription] Usage result:', usage)
 
           // Get tier config based on effective tier
           const effectiveTier: SubscriptionTier =
@@ -112,21 +89,8 @@ export const SubscriptionServiceLive = Layer.effect(
               subscription.status === 'trialing')
               ? (subscription.tier as SubscriptionTier)
               : 'free'
-          yield* Effect.log(
-            '[getCurrentSubscription] Effective tier:',
-            effectiveTier
-          )
 
-          yield* Effect.log('[getCurrentSubscription] Fetching tier config...')
           const tierConfig = yield* subRepo.getTier(effectiveTier)
-          yield* Effect.log('[getCurrentSubscription] Tier config:', tierConfig)
-
-          yield* Console.log({
-            subscription,
-            usage,
-            effectiveTier,
-            tierConfig,
-          })
 
           return {
             subscription: subscription
@@ -161,27 +125,6 @@ export const SubscriptionServiceLive = Layer.effect(
           }
         }),
 
-      cancelSubscription: (userId: string) =>
-        Effect.gen(function* () {
-          const subscription = yield* subRepo.findByUserId(userId)
-
-          if (!subscription) {
-            return yield* Effect.fail(
-              new SubscriptionNotFoundError({
-                userId,
-              })
-            )
-          }
-
-          // Update local record (RevenueCat handles the actual cancellation via app stores)
-          yield* subRepo.cancel(userId)
-
-          // Log the cancellation
-          yield* subRepo.logEvent(userId, 'subscription_canceled', {
-            previousTier: subscription.tier,
-          })
-        }),
-
       handleRevenueCatWebhookEvent: (
         payload: string,
         authorization: string | undefined
@@ -197,6 +140,15 @@ export const SubscriptionServiceLive = Layer.effect(
           const userId = eventData.app_user_id
           const productId = eventData.product_id
           const store = mapRevenueCatStore(eventData.store)
+
+          yield* Effect.log('[Webhook] Parsed event:', {
+            type: eventData.type,
+            userId,
+            productId,
+            store: eventData.store,
+            periodType: eventData.period_type,
+          })
+
           const status = mapEventToStatus(eventData.type, eventData.period_type)
 
           // Calculate dates from milliseconds
@@ -208,13 +160,7 @@ export const SubscriptionServiceLive = Layer.effect(
           // Handle different event types
           const handleEvent = pipe(
             Match.value(eventData.type),
-            Match.when('TEST', () =>
-              Effect.gen(function* () {
-                yield* Effect.log(
-                  'Received RevenueCat TEST webhook - validation successful'
-                )
-              })
-            ),
+            Match.when('TEST', () => Effect.void),
             Match.when('INITIAL_PURCHASE', () =>
               Effect.gen(function* () {
                 // Determine if this is a trial
@@ -249,17 +195,14 @@ export const SubscriptionServiceLive = Layer.effect(
               Effect.gen(function* () {
                 const existingSub = yield* subRepo.findByUserId(userId)
                 if (existingSub) {
-                  yield* subRepo.updateFromWebhook(
-                    existingSub.externalSubscriptionId ?? '',
-                    {
-                      status: 'active',
-                      currentPeriodStart: purchasedAt,
-                      currentPeriodEnd: expiresAt,
-                      // Clear trial dates on renewal
-                      trialStartsAt: null,
-                      trialEndsAt: null,
-                    }
-                  )
+                  yield* subRepo.updateByUserId(userId, {
+                    status: 'active',
+                    currentPeriodStart: purchasedAt,
+                    currentPeriodEnd: expiresAt,
+                    // Clear trial dates on renewal
+                    trialStartsAt: null,
+                    trialEndsAt: null,
+                  })
                   yield* subRepo.logEvent(userId, 'subscription_updated', {
                     status: 'active',
                     eventType: 'RENEWAL',
@@ -282,12 +225,9 @@ export const SubscriptionServiceLive = Layer.effect(
               Effect.gen(function* () {
                 const existingSub = yield* subRepo.findByUserId(userId)
                 if (existingSub) {
-                  yield* subRepo.updateFromWebhook(
-                    existingSub.externalSubscriptionId ?? '',
-                    {
-                      status: 'active',
-                    }
-                  )
+                  yield* subRepo.updateByUserId(userId, {
+                    status: 'active',
+                  })
                   yield* subRepo.logEvent(userId, 'subscription_updated', {
                     status: 'active',
                     eventType: 'UNCANCELLATION',
@@ -322,14 +262,11 @@ export const SubscriptionServiceLive = Layer.effect(
               Effect.gen(function* () {
                 const existingSub = yield* subRepo.findByUserId(userId)
                 if (existingSub) {
-                  yield* subRepo.updateFromWebhook(
-                    existingSub.externalSubscriptionId ?? '',
-                    {
-                      productId,
-                      currentPeriodStart: purchasedAt,
-                      currentPeriodEnd: expiresAt,
-                    }
-                  )
+                  yield* subRepo.updateByUserId(userId, {
+                    productId,
+                    currentPeriodStart: purchasedAt,
+                    currentPeriodEnd: expiresAt,
+                  })
                   yield* subRepo.logEvent(userId, 'subscription_updated', {
                     status: 'active',
                     eventType: 'PRODUCT_CHANGE',
@@ -338,132 +275,10 @@ export const SubscriptionServiceLive = Layer.effect(
                 }
               })
             ),
-            Match.orElse(() =>
-              Effect.gen(function* () {
-                yield* Effect.log(
-                  `Unhandled RevenueCat event type: ${eventData.type}`
-                )
-              })
-            )
+            Match.orElse(() => Effect.void)
           )
 
           yield* handleEvent
-        }),
-
-      syncSubscription: (userId: string) =>
-        Effect.gen(function* () {
-          // Fetch subscriber info from RevenueCat
-          const subscriberInfo =
-            yield* revenueCatProvider.getSubscriberInfo(userId)
-
-          // Find the active entitlement (we use 'premium' as the entitlement ID)
-          const entitlements = subscriberInfo.subscriber.entitlements
-          const premiumEntitlement = pipe(
-            Option.fromNullable(entitlements.premium),
-            Option.filter(
-              (e) =>
-                e.expires_date === null || new Date(e.expires_date) > new Date()
-            )
-          )
-
-          // If there's an active premium entitlement, update the subscription
-          if (Option.isSome(premiumEntitlement)) {
-            const entitlement = premiumEntitlement.value
-            const subscriptions = subscriberInfo.subscriber.subscriptions
-            const productId = entitlement.product_identifier
-            const subscriptionDetails = subscriptions[productId]
-
-            // Determine status
-            let status: SubscriptionStatus = 'active'
-            if (subscriptionDetails) {
-              if (subscriptionDetails.period_type === 'TRIAL') {
-                status = 'trialing'
-              } else if (subscriptionDetails.billing_issues_detected_at) {
-                status = 'past_due'
-              } else if (subscriptionDetails.unsubscribe_detected_at) {
-                status = 'canceled'
-              }
-            }
-
-            const purchaseDate = new Date(entitlement.purchase_date)
-            const expiresDate = entitlement.expires_date
-              ? new Date(entitlement.expires_date)
-              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-
-            const store = mapRevenueCatStore(entitlement.store)
-
-            // Create or update subscription
-            yield* subRepo.create({
-              userId,
-              tier: 'paid',
-              status,
-              trialStartsAt:
-                subscriptionDetails?.period_type === 'TRIAL'
-                  ? purchaseDate
-                  : null,
-              trialEndsAt:
-                subscriptionDetails?.period_type === 'TRIAL'
-                  ? expiresDate
-                  : null,
-              currentPeriodStart: purchaseDate,
-              currentPeriodEnd: expiresDate,
-              externalSubscriptionId: productId,
-              externalCustomerId:
-                subscriberInfo.subscriber.original_app_user_id,
-              provider: 'revenuecat',
-              productId,
-              store,
-            })
-          }
-
-          // Return the current subscription state from our database
-          const subscription = yield* subRepo.findByUserId(userId)
-          const usage = yield* subRepo.getCurrentUsage(userId)
-
-          // Get tier config based on effective tier
-          const effectiveTier: SubscriptionTier =
-            subscription &&
-            (subscription.status === 'active' ||
-              subscription.status === 'trialing')
-              ? (subscription.tier as SubscriptionTier)
-              : 'free'
-
-          const tierConfig = yield* subRepo.getTier(effectiveTier)
-
-          return {
-            subscription: subscription
-              ? {
-                  id: subscription.id,
-                  userId: subscription.userId,
-                  tier: subscription.tier as SubscriptionTier,
-                  status: subscription.status as SubscriptionStatus,
-                  provider: 'revenuecat' as const,
-                  productId: subscription.productId ?? undefined,
-                  store: (subscription.store as AppStore) ?? undefined,
-                  trialStartsAt: Option.getOrNull(
-                    Option.fromNullable(subscription.trialStartsAt)
-                  ),
-                  trialEndsAt: Option.getOrNull(
-                    Option.fromNullable(subscription.trialEndsAt)
-                  ),
-                  currentPeriodStart: subscription.currentPeriodStart,
-                  currentPeriodEnd: subscription.currentPeriodEnd,
-                  canceledAt: Option.getOrNull(
-                    Option.fromNullable(subscription.canceledAt)
-                  ),
-                  createdAt: subscription.createdAt,
-                  updatedAt: subscription.updatedAt,
-                }
-              : null,
-            usage: usage
-              ? {
-                  aiChatsCount: usage.aiChatsCount,
-                  cardScansCount: usage.cardScansCount,
-                  plantIdentifiesCount: usage.plantIdentifiesCount,
-                }
-              : null,
-            tierConfig,
-          }
         }),
 
       getAllTiers: () => subRepo.getAllTiers(),

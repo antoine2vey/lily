@@ -21,38 +21,13 @@ export const SubscriptionsApiLive = (api: Api) =>
       return handlers
         .handle('getCurrentSubscription', () =>
           Effect.gen(function* () {
-            yield* Effect.log('[Handler] getCurrentSubscription called')
             const currentUser = yield* CurrentUser
-            yield* Effect.log('[Handler] CurrentUser:', currentUser)
-            const result = yield* subscriptionService
-              .getCurrentSubscription(currentUser.id)
-              .pipe(
-                Effect.tapError((error) =>
-                  Effect.log('[Handler] Service error:', error)
-                )
-              )
-            yield* Effect.log('[Handler] Service returned:', result)
-            return result
-          }).pipe(
-            Effect.tapError((error) =>
-              Effect.log('[Handler] Unhandled error:', error)
+            return yield* subscriptionService.getCurrentSubscription(
+              currentUser.id
             )
-          )
+          })
         )
         .handle('getTiers', () => subscriptionService.getAllTiers())
-        .handle('cancelSubscription', () =>
-          Effect.gen(function* () {
-            const { id: userId } = yield* CurrentUser
-            yield* subscriptionService.cancelSubscription(userId)
-            return { message: 'Subscription canceled successfully' }
-          })
-        )
-        .handle('syncSubscription', () =>
-          Effect.gen(function* () {
-            const { id: userId } = yield* CurrentUser
-            return yield* subscriptionService.syncSubscription(userId)
-          })
-        )
     })
   ).pipe(
     Layer.provide(SubscriptionServiceLive),

@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
-import { useSyncSubscription } from 'src/hooks/useSyncSubscription'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { iconColors } from 'src/theme'
 import { PlanCard } from './components/PlanCard'
@@ -43,14 +42,12 @@ const PREMIUM_FEATURES = [
 export function SubscriptionUsageScreen() {
   const { data, isLoading } = useSubscriptionUsage()
   const { restore } = useRevenueCat()
-  const syncMutation = useSyncSubscription()
   const [isRestoring, setIsRestoring] = useState(false)
 
   const handleRestorePurchases = async () => {
     setIsRestoring(true)
     try {
       await restore()
-      await syncMutation.mutateAsync({})
 
       const message = RevenueCatService.isDevModeEnabled()
         ? 'Restore simulated! (Dev Mode)'
@@ -62,6 +59,10 @@ export function SubscriptionUsageScreen() {
     } finally {
       setIsRestoring(false)
     }
+  }
+
+  const handleCancelSubscription = () => {
+    router.push('/subscription/cancel')
   }
 
   if (isLoading || !data) {
@@ -118,6 +119,20 @@ export function SubscriptionUsageScreen() {
             )}
           </PlanCard>
         </View>
+
+        {/* Cancel Subscription Button (Premium users only) */}
+        {data.isPremium && data.status === 'active' && (
+          <View className="mx-4 mt-4">
+            <Pressable
+              onPress={handleCancelSubscription}
+              className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"
+            >
+              <Text className="text-base font-semibold text-coral">
+                Cancel Subscription
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Premium Upgrade Card */}
         {!data.isPremium && (
