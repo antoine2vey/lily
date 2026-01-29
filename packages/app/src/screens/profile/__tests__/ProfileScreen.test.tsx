@@ -47,6 +47,20 @@ describe('ProfileScreen', () => {
     })
   })
 
+  const mockSubscriptionInfo = {
+    subscription: null,
+    usage: null,
+    tierConfig: {
+      tier: 'free' as const,
+      name: 'Free',
+      priceMonthly: 0,
+      maxPlants: 3,
+      maxAiChatsMonthly: 10,
+      maxCardScansMonthly: 5,
+      maxPlantIdentifiesMonthly: 5,
+    },
+  }
+
   it('renders loading state', () => {
     mockedUseUser.mockReturnValue({ data: undefined, isLoading: true })
     mockedUsePlants.mockReturnValue({ data: undefined, isLoading: true })
@@ -73,7 +87,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
     })
     mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free' },
+      data: mockSubscriptionInfo,
       isLoading: false,
     })
     mockedUseAchievements.mockReturnValue({
@@ -96,7 +110,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
     })
     mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free' },
+      data: mockSubscriptionInfo,
       isLoading: false,
     })
     mockedUseAchievements.mockReturnValue({
@@ -119,7 +133,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
     })
     mockedUseSubscription.mockReturnValue({
-      data: { plan: 'free' },
+      data: mockSubscriptionInfo,
       isLoading: false,
     })
     mockedUseAchievements.mockReturnValue({
