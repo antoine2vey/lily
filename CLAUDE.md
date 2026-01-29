@@ -1,10 +1,19 @@
-# Agent Instructions for Lily
+# Lily - Global Coding Rules
 
-This document provides instructions for AI assistants working with the Lily codebase.
+This document defines the global coding rules that apply to **all packages** in the Lily monorepo. Package-specific architecture is documented in each package's own `CLAUDE.md`.
+
+> **See also:**
+> - `CONTRIBUTING.md` - Development workflow and commands
+> - `.claude/ARCHITECTURE.md` - Codebase map and navigation
+> - `packages/*/CLAUDE.md` - Package-specific architecture
 
 ## Project Overview
 
-Lily is a plant care management application built as a TypeScript monorepo using Bun. It consists of a backend API, database layer, shared utilities, and a React Native mobile app.
+Lily is a plant care management application built as a TypeScript monorepo using Bun. It consists of:
+- **api** - Backend API server (Effect Platform)
+- **db** - Drizzle ORM schema and migrations
+- **shared** - Shared types, schemas, and utilities
+- **app** - React Native mobile app (Expo)
 
 ## Tech Stack
 
@@ -18,183 +27,7 @@ Lily is a plant care management application built as a TypeScript monorepo using
 - **Linting**: Biome
 - **Testing**: Vitest
 
-## Monorepo Structure
-
-```
-packages/
-├── api/      # Backend API server (Effect RPC)
-├── db/       # Drizzle ORM schema and migrations
-├── shared/   # Shared types, schemas, and utilities
-└── app/      # React Native mobile app (Expo)
-```
-
-## Common Commands
-
-### Quick Reference
-
-```bash
-bun run build      # Build all packages (turbo cached)
-bun run lint       # Lint all packages
-bun run lint:fix   # Auto-fix lint issues
-bun run tsc        # Type check all packages
-bun run test       # Run all tests
-bun run dev        # Start development servers
-```
-
-### Development Workflow
-
-```bash
-# 1. Start infrastructure (postgres, redis only - API runs locally)
-docker compose up -d postgres redis
-
-# 2. Run API locally with hot reload
-bun run dev
-
-# 3. Type check
-bun run tsc
-
-# Docker Infrastructure
-docker compose up -d postgres redis     # Start only infrastructure services
-docker compose down                     # Stop all services
-docker compose down -v                  # Stop and remove volumes
-docker compose ps                       # Show service status
-
-# Build (uses Turborepo for caching)
-bun run build                           # Build all packages (cached)
-
-# Database (with Docker postgres running)
-docker compose exec postgres psql -U lily -d lily   # Connect to database
-bun run db:generate                     # Generate Drizzle migrations
-bun run db:push                         # Push schema to database
-bun run db:migrate                      # Run pending migrations
-bun run db:studio                       # Open Drizzle Studio
-
-# Testing
-docker compose up -d postgres-test      # Start test database
-bun run test                            # Run all tests
-bun run test:integration                # Run integration tests
-
-# Linting
-bun run lint                            # Check all packages
-bun run lint:fix                        # Auto-fix issues
-```
-
-## Docker Infrastructure
-
-Docker is used for **infrastructure only** (postgres, redis). The API runs locally via `bun run dev` for faster iteration.
-
-| Service | Port | Description |
-|---------|------|-------------|
-| postgres | 5432 | Development database |
-| postgres-test | 5433 | Test database |
-| redis | 6379 | Caching/session storage |
-
-**Note:** The `api` service in docker-compose.yml is optional and only used for production-like testing.
-
-**Database Credentials:**
-- User: `lily`
-- Password: `lily123`
-- Database: `lily` (dev) / `lily_test` (test)
-
-## Codebase Map
-
-### Package Entry Points
-
-| Package | Entry Point | Purpose |
-|---------|-------------|---------|
-| api | `src/index.ts` | Server bootstrap, layer composition |
-| api | `src/api.ts` | API group composition |
-| db | `src/index.ts` | DrizzleLive export, schema re-exports |
-| shared | `src/index.ts` | All domain schemas and service abstractions |
-
-### API Services (`packages/api/src/services/`)
-
-| Domain | Path | Key Endpoints |
-|--------|------|---------------|
-| auth | `services/auth/` | magic-link, verify, sign-out, refresh-token |
-| plants | `services/plants/` | CRUD, water, fertilize, photos, ai-identify |
-| care-logs | `services/care-logs/` | CRUD for care history |
-| user | `services/user/` | settings management |
-| subscriptions | `services/subscriptions/` | billing, limits, usage tracking |
-| notifications | `services/notifications/` | push notifications, scheduler |
-| achievements | `services/achievements/` | gamification, event-driven unlocks |
-| ai-chat | `services/ai-chat/` | plant care chat assistant |
-| admin | `services/admin/` | user management (role-protected) |
-| device-tokens | `services/device-tokens/` | push token registration |
-
-### Repositories (`packages/api/src/repositories/`)
-
-| Repository | File | Domain |
-|------------|------|--------|
-| UserRepository | `user.repository.ts` | User CRUD |
-| PlantRepository | `plant.repository.ts` | Plants, photos |
-| CareLogRepository | `care-log.repository.ts` | Care history |
-| AchievementRepository | `achievement.repository.ts` | Achievements |
-| NotificationRepository | `notification.repository.ts` | Notifications |
-| ChatRepository | `chat.repository.ts` | AI chat history |
-| SubscriptionRepository | `subscription.repository.ts` | Subscriptions |
-| DeviceTokenRepository | `device-token.repository.ts` | Push tokens |
-
-### Domain Schemas (`packages/shared/src/domains/`)
-
-| Domain | Files | Key Exports |
-|--------|-------|-------------|
-| plant | `schema.ts`, `errors.ts`, `selectors.ts` | Plant, PlantPhoto, PlantNotFoundError |
-| user | `schema.ts`, `errors.ts` | User, UserSettings |
-| auth | `schema.ts` | LoginRequest, Session, Token |
-| care-log | `schema.ts`, `errors.ts` | CareLog, CareLogType |
-| subscriptions | `schema.ts`, `errors.ts` | Plan, Usage, LimitExceededError |
-| achievement | `schema.ts`, `definitions.ts` | Achievement, AchievementDefinition |
-| notification | `schema.ts`, `errors.ts` | Notification, NotificationPrefs |
-| common | `errors.ts`, `pagination.ts` | DatabaseError, PaginatedResponse |
-
-### Database Schema (`packages/db/src/schema/`)
-
-| File | Tables |
-|------|--------|
-| `users.ts` | users (profiles, roles) |
-| `auth.ts` | magic_links, sessions, refresh_tokens |
-| `plants.ts` | plants, plant_photos |
-| `plant-history.ts` | plant_history (care events) |
-| `care-logs.ts` | care_logs |
-| `notifications.ts` | notifications, device_tokens |
-| `achievements.ts` | achievements, user_achievements |
-| `chat.ts` | chat_messages |
-| `subscriptions.ts` | plans, subscriptions, usage |
-
-### Service Abstractions (`packages/shared/src/services/`)
-
-| Service | Path | Implementations |
-|---------|------|-----------------|
-| AI | `ai/service.ts` | OpenAI (in api) |
-| Email | `email/service.ts` | Resend (in api) |
-| EventBus | `event-bus/service.ts` | Memory, Redis (in api) |
-| FileService | `file/fileservice.ts` | GCS |
-| MessageQueue | `message-queue/service.ts` | Redis (in api) |
-| PushService | `push/service.ts` | Expo (in api) |
-
-### Test Structure (`packages/api/src/__tests__/`)
-
-```
-__tests__/
-├── fixtures/          # Mock data: users.ts, plants.ts, care-logs.ts, etc.
-├── mocks/             # Mock layers: *.repository.ts, ai.service.ts, etc.
-└── services/          # Tests by domain: auth/, plants/, subscriptions/, etc.
-```
-
-### Quick Reference Patterns
-
-| To find... | Search pattern |
-|------------|----------------|
-| Service endpoints | `services/{domain}/endpoints/*.ts` |
-| API definitions | `services/{domain}/api.ts` |
-| Business logic | `services/{domain}/service.ts` |
-| Repository interface | `repositories/{domain}.repository.ts` |
-| Domain schemas | `shared/src/domains/{domain}/schema.ts` |
-| Domain errors | `shared/src/domains/{domain}/errors.ts` |
-| DB table schema | `db/src/schema/{table}.ts` |
-| Tests for feature | `__tests__/services/{domain}/*.test.ts` |
-| Mock for testing | `__tests__/mocks/{domain}.*.ts` |
+---
 
 ## Code Conventions
 
@@ -206,15 +39,18 @@ __tests__/
 - 80-character line width
 - ES5 trailing commas
 
-## Imports
+### Imports
 
-Imports should always be absolute imports (with @). Never use relative imports
+Imports should always be absolute imports (with @). Never use relative imports.
 
-### Effect.js Patterns
+---
+
+## Effect.js Patterns (MANDATORY)
 
 This codebase uses Effect.js for functional programming. **Always prefer Effect utilities over native JavaScript methods** for composition, iteration, mapping, filtering, and pattern matching.
 
-**Generator syntax for Effects:**
+### Generator Syntax
+
 ```typescript
 Effect.gen(function* () {
   const repo = yield* PlantRepository
@@ -223,7 +59,8 @@ Effect.gen(function* () {
 })
 ```
 
-**Use Effect utilities instead of native JS:**
+### Effect Utilities
+
 ```typescript
 // Mapping - use Effect.map
 Effect.map(effect, (value) => transform(value))
@@ -237,35 +74,22 @@ Effect.forEach(items, (item) => processItem(item))
 // Parallel execution - use Effect.all
 Effect.all([effectA, effectB, effectC])
 
-// Filtering with effects - use Effect.filter
-Effect.filter(items, (item) => Effect.succeed(item.isActive))
-
 // Pattern matching - use Match for exhaustive checks
 import { Match } from 'effect'
 const handler = Match.type<MyUnion>().pipe(
   Match.when('case1', () => handleCase1()),
   Match.when('case2', () => handleCase2()),
-  Match.exhaustive // Compile + runtime exhaustiveness check
+  Match.exhaustive
 )
 ```
 
-**Use Effect's Array module for pure transformations:**
-```typescript
-import { Array } from 'effect'
+---
 
-// Instead of native .map/.filter/.reduce
-Array.map(items, transform)
-Array.filter(items, predicate)
-Array.reduce(items, initial, reducer)
-Array.head(items)  // Option<T> instead of T | undefined
-Array.findFirst(items, predicate)
-```
-
-### Strict Effect-First Rules (MANDATORY)
+## Strict Effect-First Rules (MANDATORY)
 
 **This codebase enforces Effect utilities everywhere. Native JavaScript methods are PROHIBITED.**
 
-#### Prohibited Native Methods
+### Prohibited Native Methods
 
 The following are **FORBIDDEN** and must never be used:
 
@@ -274,7 +98,7 @@ The following are **FORBIDDEN** and must never be used:
 - Control flow: `switch` statements (use `Match` instead)
 - Nullable patterns: ternary operators for null checks, `??` for Option-like patterns
 
-#### Required Effect Replacements
+### Required Effect Replacements
 
 | Native JS | Effect Replacement |
 |-----------|-------------------|
@@ -302,7 +126,7 @@ The following are **FORBIDDEN** and must never be used:
 | `str.includes(x)` | `String.includes(str, x)` |
 | `str.split(x)` | `String.split(str, x)` |
 
-#### Effect Modules Reference
+### Effect Modules Reference
 
 Always import and use these Effect modules:
 
@@ -323,7 +147,7 @@ import {
 } from 'effect'
 ```
 
-#### Code Examples
+### Code Examples
 
 **Array transformations:**
 ```typescript
@@ -385,304 +209,13 @@ const values = Record.values(config)
 const updated = Struct.evolve(user, { name: () => 'New Name' })
 ```
 
-**Service definition:**
-```typescript
-export class MyService extends Effect.Service<MyService>()('MyService', {
-  effect: Effect.gen(function* () {
-    const dep = yield* SomeDependency
-    return {
-      myMethod: () => Effect.succeed('result'),
-    }
-  }),
-}) {}
-```
+---
 
-**Layer composition:**
-```typescript
-Layer.provide(MyServiceLive),
-Layer.provide(RepositoryLive),
-```
-
-### Repository Pattern
-
-Repositories handle database operations and are injected via Effect Layers:
-
-```typescript
-// Define interface
-export interface IPlantRepository {
-  findById: (id: string) => Effect.Effect<Plant, PlantNotFoundError>
-}
-
-// Create context tag
-export class PlantRepository extends Context.Tag('PlantRepository')<
-  PlantRepository,
-  IPlantRepository
->() {}
-
-// Implement live layer
-export const PlantRepositoryLive = Layer.effect(
-  PlantRepository,
-  Effect.gen(function* () {
-    const db = yield* DrizzleClient
-    return {
-      findById: (id) => // implementation
-    }
-  })
-)
-```
-
-### API Endpoint Definition
-
-Endpoints use Effect Platform's HttpApiEndpoint:
-
-```typescript
-HttpApiEndpoint.get('findPlants', '/plants')
-  .addSuccess(Schema.Array(Plant))
-  .addError(DatabaseError, { status: 500 })
-```
-
-### Handler Implementation
-
-```typescript
-export const PlantsApiLive = (api: Api) =>
-  HttpApiBuilder.group(api, 'plants', (handlers) =>
-    Effect.gen(function* () {
-      const service = yield* PlantsService
-      return handlers
-        .handle('findPlants', () => service.findPlants())
-        .handle('createPlant', ({ payload }) => service.createPlant(payload))
-    })
-  ).pipe(
-    Layer.provide(PlantsService.Default),
-    Layer.provide(PlantRepositoryLive)
-  )
-```
-
-### Service File Structure
-
-Each service domain in `packages/api/src/services/` follows this structure:
-
-```
-services/{domain}/
-├── api.ts              # HttpApiEndpoint definitions
-├── handlers.ts         # HttpApiBuilder.group implementation
-├── service.ts          # Effect.Service aggregator
-├── middleware.ts       # Auth/permission middleware (if needed)
-└── endpoints/          # Individual endpoint functions
-    ├── find-{entity}s.ts
-    ├── find-{entity}-by-id.ts
-    ├── create-{entity}.ts
-    ├── update-{entity}.ts
-    └── delete-{entity}.ts
-```
-
-### Request/Response Naming
-
-Follow these naming conventions for API DTOs:
-- **Requests**: `{Entity}CreateRequest`, `{Entity}UpdateRequest`
-- **Responses**: `{Entity}ListResponse`, `{Entity}Response`
-- **Params**: `Find{Entity}sParams`, `PaginationParams`
-- **Data types**: `Create{Entity}Data`, `Update{Entity}Data` (suffixed with `Data`)
-
-### Middleware Pattern
-
-Use `HttpApiMiddleware.Tag` for cross-cutting concerns:
-
-```typescript
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
-  'Authentication',
-  {
-    failure: Unauthorized,
-    provides: CurrentUser,
-    security: { bearer: HttpApiSecurity.bearer },
-  }
-) {}
-```
-
-### Pagination Pattern
-
-- Use `PaginationParams` schema with `page` and `limit` as strings (for URL encoding)
-- Use `parsePaginationParams()` to convert to numbers
-- Use `paginate()` helper for building responses
-- Return `PaginatedResponse<T>` with `hasMore` field
-
-### Event Publishing
-
-Events are discriminated unions with `_tag` field:
-
-```typescript
-eventBus.publish({
-  _tag: 'PlantCreated',
-  userId,
-  plantId: plant.id,
-})
-```
-
-Use `publishWithRetry()` for resilient event publishing.
-
-### Logging
-
-Use Effect's built-in logger:
-
-```typescript
-yield* Effect.log('message', { context: value })
-yield* Effect.logWarning('warning message')
-```
-
-### Domain Structure
-
-Each domain in `packages/shared/src/domains/` follows this structure:
-
-```
-domain/
-├── schema.ts      # Zod/Effect schemas
-├── errors.ts      # Domain-specific errors
-└── selectors.ts   # Data projection functions (optional)
-```
-
-### Error Handling
-
-Define typed errors using Schema.TaggedError:
-
-```typescript
-export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()(
-  'PlantNotFoundError',
-  { id: Schema.String }
-) {}
-```
-
-## Testing Guidelines
-
-**Tests are mandatory when writing any new feature or endpoint.** Every new endpoint must have corresponding tests before it can be considered complete.
-
-### Test Structure
-
-Tests are centralized in `packages/api/src/__tests__/`:
-
-```
-packages/api/src/__tests__/
-├── setup.ts                    # Global test setup
-├── fixtures/                   # Reusable test data
-│   ├── users.ts
-│   ├── plants.ts
-│   └── care-logs.ts
-├── mocks/                      # Mock repository layers
-│   ├── user.repository.ts
-│   ├── plant.repository.ts
-│   └── care-log.repository.ts
-└── services/                   # Test files by domain
-    ├── user/
-    │   ├── find-users.test.ts
-    │   ├── find-user-by-id.test.ts
-    │   ├── create-user.test.ts
-    │   ├── update-user.test.ts
-    │   └── delete-user.test.ts
-    ├── plants/
-    │   └── ...
-    └── care-logs/
-        └── ...
-```
-
-### Mock Pattern
-
-Mock at the **Repository level**, not at the database level. This leverages Effect's DI properly:
-
-```typescript
-// __tests__/mocks/user.repository.ts
-export const createMockUserRepository = (
-  users: User[]
-): Layer.Layer<UserRepository> => {
-  const repo: IUserRepository = {
-    findAll: () => Effect.succeed(users),
-    findById: (id) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(users, (u) => u.id === id),
-          Option.getOrNull
-        )
-      ),
-    // ... other methods
-  }
-  return Layer.succeed(UserRepository, repo)
-}
-```
-
-### Writing Tests
-
-```typescript
-// __tests__/services/user/find-user-by-id.test.ts
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
-import { findUserById } from '@lily/api/services/user/endpoints/find-user-by-id'
-import { Effect } from 'effect'
-import { describe, expect, it } from 'vitest'
-
-describe('findUserById', () => {
-  it('should return user when found', async () => {
-    const result = await Effect.runPromise(
-      findUserById('user-1').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
-      )
-    )
-    expect(result).toEqual(mockUsers[0])
-  })
-
-  it('should fail with UserNotFoundError when not found', async () => {
-    const result = await Effect.runPromiseExit(
-      findUserById('non-existent').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
-      )
-    )
-    expect(result._tag).toBe('Failure')
-  })
-})
-```
-
-### Test Commands
-
-```bash
-bun test                    # Run all tests
-bun test --watch            # Watch mode
-```
-
-### Adding Tests for New Features
-
-When adding a new domain/service:
-
-1. Create fixtures in `__tests__/fixtures/{domain}.ts`
-2. Create mock repository in `__tests__/mocks/{domain}.repository.ts`
-3. Create test files in `__tests__/services/{domain}/`
-4. Test all CRUD operations and error cases
-
-## Database
-
-- ORM: Drizzle ORM
-- Schema location: `packages/db/src/schema.ts`
-- Migrations: `packages/db/drizzle/`
-- Use UUIDs for primary keys
-- Always include `createdAt` and `updatedAt` timestamps
-
-## Important Notes
-
-1. **Never use userId path parameters** — Always use `CurrentUser` from the auth middleware to identify the authenticated user. Do not accept userId in URL paths.
-2. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
-2. **NEVER use native array methods** - Always use Effect's Array module (`.map()`, `.filter()`, `.reduce()` are FORBIDDEN)
-3. **NEVER use switch statements** - Always use Match module with `Match.exhaustive`
-4. **NEVER use null/undefined directly** - Wrap in Option and use Option utilities
-5. **ALWAYS use pipe()** - For all data transformations, use `pipe()` for composition
-6. **Use Effect.gen for effects** - Use `Effect.gen` for effectful sequences, `pipe` for pure transformations
-7. **Type safety** - Leverage Effect Schema for runtime validation
-8. **Layer composition** - Properly provide all dependencies via Layers
-9. **Error propagation** - Use typed errors that flow through the Effect system
-10. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases at compile and runtime
-11. **No semicolons** - Biome enforces this automatically
-12. **Single quotes** - Use single quotes for strings
-
-### Date Handling (MANDATORY)
+## Date Handling (MANDATORY)
 
 **NEVER use native JavaScript Date methods directly.** Always use Effect's DateTime module or the shared date utilities in `@lily/shared`.
 
-#### Prohibited Patterns
+### Prohibited Patterns
 
 The following native Date patterns are **FORBIDDEN**:
 
@@ -693,7 +226,7 @@ The following native Date patterns are **FORBIDDEN**:
 - `date.getDay()` / `date.getMonth()` etc. - Use `DateTime.toParts()`
 - Manual day calculations like `ms / (1000*60*60*24)` - Use `Duration` module
 
-#### Required Effect Replacements
+### Required Effect Replacements
 
 | Native JS | Effect Replacement |
 |-----------|-------------------|
@@ -704,7 +237,7 @@ The following native Date patterns are **FORBIDDEN**:
 | `date.getDay()` | `DateTime.toParts(dt).weekDay` |
 | `date.getMonth()` | `DateTime.toParts(dt).month` |
 
-#### Shared Date Utilities (`@lily/shared`)
+### Shared Date Utilities (`@lily/shared`)
 
 For common date operations, prefer the shared utilities:
 
@@ -712,12 +245,14 @@ For common date operations, prefer the shared utilities:
 import {
   parseApiDate,           // Parse ISO string → Option<DateTime>
   now,                    // Get current time as DateTime.Utc
+  nowAsDate,              // Get current time as native Date (for interop)
+  nowAsEpochMillis,       // Get current time as epoch milliseconds
+  nowAsIsoString,         // Get current time as ISO string
   daysUntil,              // Days until a DateTime (positive=future, negative=past)
   daysUntilApiDate,       // Parse + calculate days (convenience)
   formatDayOfWeek,        // "Monday"
   formatDayOfWeekShort,   // "Mon"
   formatNextDate,         // "Next: Monday"
-  formatApiDateAsNextDate,// Parse + format (convenience)
   formatRelativeTime,     // "2h ago", "Yesterday"
   formatTime,             // "2:30 PM"
   formatShortDate,        // "Mon, Jan 15"
@@ -727,42 +262,32 @@ import {
 } from '@lily/shared'
 ```
 
-#### Timezone Handling
+### Timezone Handling
 
 1. **API dates are UTC** - Parse with `DateTime.make()` or `parseApiDate()`
 2. **Display in user timezone** - Use `DateTime.setZone()` with user's IANA timezone
 3. **Store as UTC** - Always store dates in UTC format in database
 4. **User timezone stored** - Access from user settings, default to 'UTC'
 
-#### Examples
+---
 
-```typescript
-// ❌ FORBIDDEN - Native Date
-const daysUntil = Math.ceil(
-  (new Date(apiDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-)
+## Important Rules
 
-// ✅ REQUIRED - Shared utility (preferred)
-const daysUntil = daysUntilApiDate(apiDate)
+1. **Never use userId path parameters** — Always use `CurrentUser` from the auth middleware to identify the authenticated user. Do not accept userId in URL paths.
+2. **Always use Effect patterns** - Don't mix Promise-based code with Effect code
+3. **NEVER use native array methods** - Always use Effect's Array module
+4. **NEVER use switch statements** - Always use Match module with `Match.exhaustive`
+5. **NEVER use null/undefined directly** - Wrap in Option and use Option utilities
+6. **ALWAYS use pipe()** - For all data transformations, use `pipe()` for composition
+7. **Use Effect.gen for effects** - Use `Effect.gen` for effectful sequences, `pipe` for pure transformations
+8. **Type safety** - Leverage Effect Schema for runtime validation
+9. **Layer composition** - Properly provide all dependencies via Layers
+10. **Error propagation** - Use typed errors that flow through the Effect system
+11. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases
+12. **No semicolons** - Biome enforces this automatically
+13. **Single quotes** - Use single quotes for strings
 
-// ✅ REQUIRED - Effect DateTime (when more control needed)
-const daysUntil = pipe(
-  DateTime.make(apiDate),
-  Option.map((dt) => DateTime.distance(DateTime.unsafeNow(), dt)),
-  Option.map((ms) => Math.ceil(Duration.toDays(Duration.millis(ms)))),
-  Option.getOrElse(() => 0)
-)
-
-// ❌ FORBIDDEN - Native Date for day name
-const dayName = ['Sun', 'Mon', ...][new Date(apiDate).getDay()]
-
-// ✅ REQUIRED - Shared utility
-const dayName = pipe(
-  parseApiDate(apiDate),
-  Option.map(formatDayOfWeekShort),
-  Option.getOrElse(() => 'Unknown')
-)
-```
+---
 
 ## Effect Documentation
 
@@ -770,18 +295,3 @@ An Effect documentation MCP server is available for reference. Use it to:
 - Look up Effect module APIs (Array, Option, Match, Record, Struct, DateTime, Duration, etc.)
 - Find correct function signatures and usage patterns
 - Discover available utilities for any Effect module
-
-## Design System
-
-The Lily app follows a comprehensive design system documented in `packages/app/DESIGN_SYSTEM.md`.
-
-**Quick Reference:**
-- Primary Green: `#5B8C5A`
-- Coral (destructive): `#E8997E`
-- Background: `#F8FAF8`
-- Surface: `#FFFFFF`
-- Text Primary: `#1A1A1A`
-- Border Radius: 8/12/16/24px
-- Spacing: 4/8/16/24/32px (8pt grid)
-
-See `packages/app/DESIGN_SYSTEM.md` for complete color palette, typography, components, and usage guidelines.
