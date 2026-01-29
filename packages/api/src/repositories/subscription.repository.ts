@@ -6,11 +6,12 @@ import {
   subscriptionUsage,
   userSubscriptions,
 } from '@lily/db'
-import type {
-  SubscriptionStatus,
-  SubscriptionTier,
-  TierConfig,
-  UsageField,
+import {
+  compact,
+  type SubscriptionStatus,
+  type SubscriptionTier,
+  type TierConfig,
+  type UsageField,
 } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -220,23 +221,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
         data: Partial<CreateSubscriptionData>
       ) =>
         Effect.gen(function* () {
-          const updateData: Record<string, unknown> = { updatedAt: new Date() }
-          if (data.tier !== undefined) updateData.tier = data.tier
-          if (data.status !== undefined) updateData.status = data.status
-          if (data.trialStartsAt !== undefined)
-            updateData.trialStartsAt = data.trialStartsAt
-          if (data.trialEndsAt !== undefined)
-            updateData.trialEndsAt = data.trialEndsAt
-          if (data.currentPeriodStart !== undefined)
-            updateData.currentPeriodStart = data.currentPeriodStart
-          if (data.currentPeriodEnd !== undefined)
-            updateData.currentPeriodEnd = data.currentPeriodEnd
-          if (data.externalCustomerId !== undefined)
-            updateData.externalCustomerId = data.externalCustomerId
-          if (data.productId !== undefined)
-            updateData.productId = data.productId
-          if (data.store !== undefined) updateData.store = data.store
-          if (data.provider !== undefined) updateData.provider = data.provider
+          const updateData = compact(data, { updatedAt: new Date() })
 
           const [subscription] = yield* db
             .update(userSubscriptions)
@@ -253,25 +238,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       updateByUserId: (userId: string, data: Partial<CreateSubscriptionData>) =>
         Effect.gen(function* () {
-          const updateData: Record<string, unknown> = { updatedAt: new Date() }
-          if (data.tier !== undefined) updateData.tier = data.tier
-          if (data.status !== undefined) updateData.status = data.status
-          if (data.trialStartsAt !== undefined)
-            updateData.trialStartsAt = data.trialStartsAt
-          if (data.trialEndsAt !== undefined)
-            updateData.trialEndsAt = data.trialEndsAt
-          if (data.currentPeriodStart !== undefined)
-            updateData.currentPeriodStart = data.currentPeriodStart
-          if (data.currentPeriodEnd !== undefined)
-            updateData.currentPeriodEnd = data.currentPeriodEnd
-          if (data.externalCustomerId !== undefined)
-            updateData.externalCustomerId = data.externalCustomerId
-          if (data.externalSubscriptionId !== undefined)
-            updateData.externalSubscriptionId = data.externalSubscriptionId
-          if (data.productId !== undefined)
-            updateData.productId = data.productId
-          if (data.store !== undefined) updateData.store = data.store
-          if (data.provider !== undefined) updateData.provider = data.provider
+          const updateData = compact(data, { updatedAt: new Date() })
 
           const [subscription] = yield* db
             .update(userSubscriptions)
