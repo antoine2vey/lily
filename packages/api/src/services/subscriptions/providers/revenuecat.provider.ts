@@ -3,7 +3,7 @@ import {
   type RevenueCatSubscriberInfo,
   type RevenueCatWebhookEvent,
 } from '@lily/shared'
-import { Config, Context, Effect, Layer, Option, pipe, Schema } from 'effect'
+import { Config, Context, Effect, Layer, pipe, Schema } from 'effect'
 
 // RevenueCat provider interface (different from generic payment provider)
 export interface IRevenueCatProvider {

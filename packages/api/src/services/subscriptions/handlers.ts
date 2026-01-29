@@ -6,7 +6,6 @@ import {
   CurrentUser,
 } from '@lily/api/services/auth/middleware.impl'
 import { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
-import { StripePaymentProviderLive } from '@lily/api/services/subscriptions/providers/stripe.provider'
 import {
   SubscriptionService,
   SubscriptionServiceLive,
@@ -41,17 +40,6 @@ export const SubscriptionsApiLive = (api: Api) =>
           )
         )
         .handle('getTiers', () => subscriptionService.getAllTiers())
-        .handle('createCheckoutSession', ({ payload }) =>
-          Effect.gen(function* () {
-            const currentUser = yield* CurrentUser
-            return yield* subscriptionService.createCheckoutSession({
-              userId: currentUser.id,
-              email: currentUser.email,
-              successUrl: payload.successUrl,
-              cancelUrl: payload.cancelUrl,
-            })
-          })
-        )
         .handle('cancelSubscription', () =>
           Effect.gen(function* () {
             const { id: userId } = yield* CurrentUser
@@ -69,7 +57,6 @@ export const SubscriptionsApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(SubscriptionServiceLive),
     Layer.provide(SubscriptionRepositoryLive),
-    Layer.provide(StripePaymentProviderLive),
     Layer.provide(RevenueCatProviderLive),
     Layer.provide(AuthenticationLive)
   )
@@ -80,39 +67,23 @@ export const SubscriptionWebhooksApiLive = (api: Api) =>
     Effect.gen(function* () {
       const subscriptionService = yield* SubscriptionService
 
-      return handlers
-        .handle('handleWebhook', ({ headers }) =>
-          Effect.gen(function* () {
-            // Get raw request body for signature verification
-            const request = yield* HttpServerRequest.HttpServerRequest
-            const rawBody = yield* request.text
+      return handlers.handle('handleRevenueCatWebhook', ({ headers }) =>
+        Effect.gen(function* () {
+          // Get raw request body for authorization verification
+          const request = yield* HttpServerRequest.HttpServerRequest
+          const rawBody = yield* request.text
 
-            yield* subscriptionService.handleWebhookEvent(
-              rawBody,
-              headers['stripe-signature']
-            )
+          yield* subscriptionService.handleRevenueCatWebhookEvent(
+            rawBody,
+            headers.authorization
+          )
 
-            return { received: true }
-          })
-        )
-        .handle('handleRevenueCatWebhook', ({ headers }) =>
-          Effect.gen(function* () {
-            // Get raw request body for authorization verification
-            const request = yield* HttpServerRequest.HttpServerRequest
-            const rawBody = yield* request.text
-
-            yield* subscriptionService.handleRevenueCatWebhookEvent(
-              rawBody,
-              headers.authorization
-            )
-
-            return { received: true }
-          })
-        )
+          return { received: true }
+        })
+      )
     })
   ).pipe(
     Layer.provide(SubscriptionServiceLive),
     Layer.provide(SubscriptionRepositoryLive),
-    Layer.provide(StripePaymentProviderLive),
     Layer.provide(RevenueCatProviderLive)
   )

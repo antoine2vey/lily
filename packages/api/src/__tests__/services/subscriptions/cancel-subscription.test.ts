@@ -1,63 +1,16 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import type { ISubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import type { IPaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
-import { PaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
 import {
   SubscriptionService,
   SubscriptionServiceLive,
 } from '@lily/api/services/subscriptions/service'
 import type { userSubscriptions } from '@lily/db'
-import { PaymentProviderError, SubscriptionNotFoundError } from '@lily/shared'
+import { SubscriptionNotFoundError } from '@lily/shared'
 import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('cancelSubscription', () => {
-  // Track calls to payment provider
-  const createMockPaymentProvider = (options: {
-    cancelCalls?: string[]
-    shouldFail?: boolean
-  }) => {
-    const cancelCalls = pipe(
-      Option.fromNullable(options.cancelCalls),
-      Option.getOrElse(() => [] as string[])
-    )
-
-    const provider: IPaymentProvider = {
-      createCheckoutSession: () =>
-        Effect.succeed({
-          sessionId: 'sess_1',
-          url: 'https://checkout.stripe.com',
-        }),
-      cancelSubscription: (subscriptionId: string) => {
-        cancelCalls.push(subscriptionId)
-        if (options.shouldFail) {
-          return Effect.fail(
-            new PaymentProviderError({
-              message: 'Payment provider error',
-              code: 'provider_error',
-            })
-          )
-        }
-        return Effect.void
-      },
-      constructWebhookEvent: () =>
-        Effect.succeed({
-          type: 'test',
-          data: { object: {} },
-        } as unknown as never),
-      getSubscriptionDetails: () =>
-        Effect.succeed({
-          status: 'active',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          customerId: '1',
-        }),
-    }
-
-    return { provider, cancelCalls }
-  }
-
   // Track repository calls
   const createMockRepo = (options: {
     subscription?: typeof userSubscriptions.$inferSelect | null
@@ -146,22 +99,20 @@ describe('cancelSubscription', () => {
       trialEndsAt: null,
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(),
-      externalSubscriptionId: 'sub_stripe_123',
-      externalCustomerId: 'cus_123',
-      provider: 'stripe',
-      productId: null,
-      store: null,
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
     const repoMock = createMockRepo({ subscription })
-    const paymentMock = createMockPaymentProvider({})
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider),
       MockRevenueCatProviderLive
     )
 
@@ -176,7 +127,6 @@ describe('cancelSubscription', () => {
     )
 
     expect(Exit.isSuccess(result)).toBe(true)
-    expect(paymentMock.cancelCalls).toContain('sub_stripe_123')
     expect(repoMock.cancelCalls).toContain('user-1')
     expect(
       Array.some(repoMock.logEvents, (e) => e.event === 'subscription_canceled')
@@ -185,11 +135,9 @@ describe('cancelSubscription', () => {
 
   it('should fail when user has no subscription', async () => {
     const repoMock = createMockRepo({ subscription: null })
-    const paymentMock = createMockPaymentProvider({})
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider),
       MockRevenueCatProviderLive
     )
 
@@ -207,51 +155,7 @@ describe('cancelSubscription', () => {
     if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
       expect(result.cause.error).toBeInstanceOf(SubscriptionNotFoundError)
     }
-    expect(paymentMock.cancelCalls).toHaveLength(0)
     expect(repoMock.cancelCalls).toHaveLength(0)
-  })
-
-  it('should fail when subscription has no external ID', async () => {
-    const subscription: typeof userSubscriptions.$inferSelect = {
-      id: 'sub-1',
-      userId: 'user-1',
-      tier: 'paid',
-      status: 'active',
-      trialStartsAt: null,
-      trialEndsAt: null,
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(),
-      externalSubscriptionId: null, // No external ID
-      externalCustomerId: null,
-      provider: 'stripe',
-      productId: null,
-      store: null,
-      canceledAt: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    const repoMock = createMockRepo({ subscription })
-    const paymentMock = createMockPaymentProvider({})
-
-    const testLayer = Layer.mergeAll(
-      Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider),
-      MockRevenueCatProviderLive
-    )
-
-    const result = await Effect.runPromiseExit(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        yield* service.cancelSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionServiceLive),
-        Effect.provide(testLayer)
-      )
-    )
-
-    expect(Exit.isFailure(result)).toBe(true)
-    expect(paymentMock.cancelCalls).toHaveLength(0)
   })
 
   it('should log cancellation event with previous tier', async () => {
@@ -264,22 +168,20 @@ describe('cancelSubscription', () => {
       trialEndsAt: null,
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(),
-      externalSubscriptionId: 'sub_stripe_123',
-      externalCustomerId: 'cus_123',
-      provider: 'stripe',
-      productId: null,
-      store: null,
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
     const repoMock = createMockRepo({ subscription })
-    const paymentMock = createMockPaymentProvider({})
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider),
       MockRevenueCatProviderLive
     )
 

@@ -13,7 +13,7 @@ export const SubscriptionStatus = Schema.Literal(
 )
 export type SubscriptionStatus = typeof SubscriptionStatus.Type
 
-export const PaymentProvider = Schema.Literal('stripe', 'revenuecat')
+export const PaymentProvider = Schema.Literal('revenuecat')
 export type PaymentProvider = typeof PaymentProvider.Type
 
 export const AppStore = Schema.Literal('APP_STORE', 'PLAY_STORE')
@@ -78,21 +78,7 @@ export const SubscriptionInfo = Schema.Struct({
 })
 export type SubscriptionInfo = typeof SubscriptionInfo.Type
 
-// Request schemas
-export const CreateCheckoutSessionRequest = Schema.Struct({
-  successUrl: Schema.String,
-  cancelUrl: Schema.String,
-})
-export type CreateCheckoutSessionRequest =
-  typeof CreateCheckoutSessionRequest.Type
-
 // Response schemas
-export const CheckoutSessionResponse = Schema.Struct({
-  sessionId: Schema.String,
-  url: Schema.String,
-})
-export type CheckoutSessionResponse = typeof CheckoutSessionResponse.Type
-
 export const CancelSubscriptionResponse = Schema.Struct({
   subscription: Subscription,
   message: Schema.String,
