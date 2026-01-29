@@ -3,6 +3,11 @@ import {
   PaymentProvider,
   type WebhookEvent,
 } from '@lily/api/services/subscriptions/payment-provider.interface'
+import {
+  type IRevenueCatProvider,
+  RevenueCatProvider,
+} from '@lily/api/services/subscriptions/providers/revenuecat.provider'
+import type { RevenueCatSubscriberInfo } from '@lily/shared'
 import { PaymentProviderError } from '@lily/shared'
 import { Effect, Layer, Option, pipe } from 'effect'
 
@@ -28,7 +33,7 @@ export interface MockPaymentProviderOptions {
 
 export const createMockPaymentProvider = (
   options: MockPaymentProviderOptions = {}
-): Layer.Layer<PaymentProvider> => {
+): Layer.Layer<PaymentProvider | RevenueCatProvider> => {
   const provider: IPaymentProvider = {
     createCheckoutSession: (params) =>
       Effect.gen(function* () {
@@ -103,5 +108,31 @@ export const createMockPaymentProvider = (
       }),
   }
 
-  return Layer.succeed(PaymentProvider, provider)
+  // Default RevenueCat mock that does nothing
+  const defaultSubscriberInfo: RevenueCatSubscriberInfo = {
+    request_date: new Date().toISOString(),
+    request_date_ms: Date.now(),
+    subscriber: {
+      original_app_user_id: 'test-user',
+      first_seen: new Date().toISOString(),
+      entitlements: {},
+      subscriptions: {},
+      non_subscriptions: {},
+    },
+  }
+
+  const revenueCatProvider: IRevenueCatProvider = {
+    constructWebhookEvent: () =>
+      Effect.fail(
+        new PaymentProviderError({
+          message: 'Not implemented in mock',
+        })
+      ),
+    getSubscriberInfo: () => Effect.succeed(defaultSubscriberInfo),
+  }
+
+  return Layer.mergeAll(
+    Layer.succeed(PaymentProvider, provider),
+    Layer.succeed(RevenueCatProvider, revenueCatProvider)
+  )
 }

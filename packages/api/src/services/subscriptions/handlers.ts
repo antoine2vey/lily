@@ -5,6 +5,7 @@ import {
   AuthenticationLive,
   CurrentUser,
 } from '@lily/api/services/auth/middleware.impl'
+import { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 import { StripePaymentProviderLive } from '@lily/api/services/subscriptions/providers/stripe.provider'
 import {
   SubscriptionService,
@@ -21,9 +22,23 @@ export const SubscriptionsApiLive = (api: Api) =>
       return handlers
         .handle('getCurrentSubscription', () =>
           Effect.gen(function* () {
-            const { id: userId } = yield* CurrentUser
-            return yield* subscriptionService.getCurrentSubscription(userId)
-          })
+            yield* Effect.log('[Handler] getCurrentSubscription called')
+            const currentUser = yield* CurrentUser
+            yield* Effect.log('[Handler] CurrentUser:', currentUser)
+            const result = yield* subscriptionService
+              .getCurrentSubscription(currentUser.id)
+              .pipe(
+                Effect.tapError((error) =>
+                  Effect.log('[Handler] Service error:', error)
+                )
+              )
+            yield* Effect.log('[Handler] Service returned:', result)
+            return result
+          }).pipe(
+            Effect.tapError((error) =>
+              Effect.log('[Handler] Unhandled error:', error)
+            )
+          )
         )
         .handle('getTiers', () => subscriptionService.getAllTiers())
         .handle('createCheckoutSession', ({ payload }) =>
@@ -44,11 +59,18 @@ export const SubscriptionsApiLive = (api: Api) =>
             return { message: 'Subscription canceled successfully' }
           })
         )
+        .handle('syncSubscription', () =>
+          Effect.gen(function* () {
+            const { id: userId } = yield* CurrentUser
+            return yield* subscriptionService.syncSubscription(userId)
+          })
+        )
     })
   ).pipe(
     Layer.provide(SubscriptionServiceLive),
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(StripePaymentProviderLive),
+    Layer.provide(RevenueCatProviderLive),
     Layer.provide(AuthenticationLive)
   )
 
@@ -58,23 +80,39 @@ export const SubscriptionWebhooksApiLive = (api: Api) =>
     Effect.gen(function* () {
       const subscriptionService = yield* SubscriptionService
 
-      return handlers.handle('handleWebhook', ({ headers }) =>
-        Effect.gen(function* () {
-          // Get raw request body for signature verification
-          const request = yield* HttpServerRequest.HttpServerRequest
-          const rawBody = yield* request.text
+      return handlers
+        .handle('handleWebhook', ({ headers }) =>
+          Effect.gen(function* () {
+            // Get raw request body for signature verification
+            const request = yield* HttpServerRequest.HttpServerRequest
+            const rawBody = yield* request.text
 
-          yield* subscriptionService.handleWebhookEvent(
-            rawBody,
-            headers['stripe-signature']
-          )
+            yield* subscriptionService.handleWebhookEvent(
+              rawBody,
+              headers['stripe-signature']
+            )
 
-          return { received: true }
-        })
-      )
+            return { received: true }
+          })
+        )
+        .handle('handleRevenueCatWebhook', ({ headers }) =>
+          Effect.gen(function* () {
+            // Get raw request body for authorization verification
+            const request = yield* HttpServerRequest.HttpServerRequest
+            const rawBody = yield* request.text
+
+            yield* subscriptionService.handleRevenueCatWebhookEvent(
+              rawBody,
+              headers.authorization
+            )
+
+            return { received: true }
+          })
+        )
     })
   ).pipe(
     Layer.provide(SubscriptionServiceLive),
     Layer.provide(SubscriptionRepositoryLive),
-    Layer.provide(StripePaymentProviderLive)
+    Layer.provide(StripePaymentProviderLive),
+    Layer.provide(RevenueCatProviderLive)
   )

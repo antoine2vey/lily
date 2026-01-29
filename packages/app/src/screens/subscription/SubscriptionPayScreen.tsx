@@ -1,8 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRevenueCat } from 'src/contexts/RevenueCatContext'
+import { useSyncSubscription } from 'src/hooks/useSyncSubscription'
+import * as RevenueCatService from 'src/services/revenuecat'
 import { iconColors } from 'src/theme'
 import { FeatureList } from './components/FeatureList'
 import { PricingToggle } from './components/PricingToggle'
@@ -31,25 +35,70 @@ const PREMIUM_FEATURES = [
 export function SubscriptionPayScreen() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
+  const { offerings, purchase } = useRevenueCat()
+  const syncMutation = useSyncSubscription()
+
+  const monthlyPackage = pipe(
+    Option.fromNullable(offerings?.current?.monthly),
+    Option.getOrUndefined
+  )
+
+  const annualPackage = pipe(
+    Option.fromNullable(offerings?.current?.annual),
+    Option.getOrUndefined
+  )
+
+  const selectedPackage =
+    billingPeriod === 'monthly' ? monthlyPackage : annualPackage
 
   const handleSubscribe = async () => {
+    if (!selectedPackage) {
+      Alert.alert('Error', 'No package available. Please try again later.')
+      return
+    }
+
     setIsLoading(true)
     try {
-      // TODO: Implement actual purchase via RevenueCat
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      Alert.alert('Success', 'Thank you for subscribing to Lily Pro!', [
+      // 1. Execute purchase via RevenueCat SDK (or mock in dev mode)
+      await purchase(selectedPackage)
+
+      // 2. Tell backend to sync (ensures DB is updated even if webhook is delayed)
+      await syncMutation.mutateAsync({})
+
+      // 3. Navigate back on success
+      const message = RevenueCatService.isDevModeEnabled()
+        ? 'Purchase simulated! (Dev Mode)\n\nIn production, this would be a real purchase.'
+        : 'Thank you for subscribing to Lily Pro!'
+
+      Alert.alert('Success', message, [
         { text: 'OK', onPress: () => router.back() },
       ])
-    } catch {
-      Alert.alert('Error', 'Failed to complete purchase. Please try again.')
+    } catch (error) {
+      // User cancelled purchase is not an error
+      const isCancelled =
+        error instanceof Error && error.message.includes('cancelled')
+      if (!isCancelled) {
+        Alert.alert('Error', 'Failed to complete purchase. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
-  const getPrice = () => {
-    return billingPeriod === 'monthly' ? '$4.99/month' : '$39.99/year'
-  }
+  const monthlyPrice = pipe(
+    Option.fromNullable(monthlyPackage?.product.priceString),
+    Option.getOrElse(() => '€4.99')
+  )
+
+  const annualPrice = pipe(
+    Option.fromNullable(annualPackage?.product.priceString),
+    Option.getOrElse(() => '€29.99')
+  )
+
+  const getPrice = () =>
+    billingPeriod === 'monthly'
+      ? `${monthlyPrice}/month`
+      : `${annualPrice}/year`
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
@@ -77,7 +126,6 @@ export function SubscriptionPayScreen() {
         {/* Hero Image */}
         <View className="items-center px-8 mb-4">
           <View className="w-48 h-48 rounded-2xl overflow-hidden items-center justify-center bg-surface-tinted">
-            {/* Placeholder for hero image */}
             <MaterialIcons
               name="local-florist"
               size={80}
@@ -121,9 +169,9 @@ export function SubscriptionPayScreen() {
           <PricingToggle
             selected={billingPeriod}
             onSelect={setBillingPeriod}
-            monthlyPrice="$4.99"
-            annualPrice="$39.99"
-            savingsPercent={33}
+            monthlyPrice={monthlyPrice}
+            annualPrice={annualPrice}
+            savingsPercent={50}
           />
         </View>
       </ScrollView>

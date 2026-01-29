@@ -25,7 +25,9 @@ export interface CreateSubscriptionData {
   currentPeriodEnd: Date
   externalSubscriptionId?: string | null
   externalCustomerId?: string | null
-  provider?: string
+  provider?: 'stripe' | 'revenuecat'
+  productId?: string | null
+  store?: 'APP_STORE' | 'PLAY_STORE' | null
 }
 
 export interface ISubscriptionRepository {
@@ -114,10 +116,12 @@ export const SubscriptionRepositoryLive = Layer.effect(
     return {
       findByUserId: (userId: string) =>
         Effect.gen(function* () {
+          yield* Effect.log('[Repo.findByUserId] Starting with userId:', userId)
           const [subscription] = yield* db
             .select()
             .from(userSubscriptions)
             .where(eq(userSubscriptions.userId, userId))
+          yield* Effect.log('[Repo.findByUserId] Query result:', subscription)
           return Option.getOrNull(Option.fromNullable(subscription))
         }),
 
@@ -159,8 +163,10 @@ export const SubscriptionRepositoryLive = Layer.effect(
               ),
               provider: pipe(
                 Option.fromNullable(data.provider),
-                Option.getOrElse(() => 'stripe')
+                Option.getOrElse(() => 'stripe' as const)
               ),
+              productId: Option.getOrNull(Option.fromNullable(data.productId)),
+              store: Option.getOrNull(Option.fromNullable(data.store)),
             })
             .onConflictDoUpdate({
               target: userSubscriptions.userId,
@@ -183,8 +189,12 @@ export const SubscriptionRepositoryLive = Layer.effect(
                 ),
                 provider: pipe(
                   Option.fromNullable(data.provider),
-                  Option.getOrElse(() => 'stripe')
+                  Option.getOrElse(() => 'stripe' as const)
                 ),
+                productId: Option.getOrNull(
+                  Option.fromNullable(data.productId)
+                ),
+                store: Option.getOrNull(Option.fromNullable(data.store)),
                 updatedAt: new Date(),
               },
             })
@@ -220,6 +230,10 @@ export const SubscriptionRepositoryLive = Layer.effect(
             updateData.currentPeriodEnd = data.currentPeriodEnd
           if (data.externalCustomerId !== undefined)
             updateData.externalCustomerId = data.externalCustomerId
+          if (data.productId !== undefined)
+            updateData.productId = data.productId
+          if (data.store !== undefined) updateData.store = data.store
+          if (data.provider !== undefined) updateData.provider = data.provider
 
           const [subscription] = yield* db
             .update(userSubscriptions)
@@ -250,15 +264,18 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       getTier: (tier: SubscriptionTier) =>
         Effect.gen(function* () {
+          yield* Effect.log('[Repo.getTier] Starting with tier:', tier)
           const result = yield* db
             .select()
             .from(subscriptionTiers)
             .where(eq(subscriptionTiers.tier, tier))
+          yield* Effect.log('[Repo.getTier] Query result:', result)
 
           const config = result[0]
 
           // If tier not found, return free tier defaults as fallback
           if (!config) {
+            yield* Effect.log('[Repo.getTier] No config found, using fallback')
             return {
               tier: 'free' as const,
               name: 'Free',
@@ -270,6 +287,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             } satisfies TierConfig
           }
 
+          yield* Effect.log('[Repo.getTier] Returning config:', config)
           return {
             tier: config.tier,
             name: config.name,
@@ -297,7 +315,15 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       getCurrentUsage: (userId: string) =>
         Effect.gen(function* () {
+          yield* Effect.log(
+            '[Repo.getCurrentUsage] Starting with userId:',
+            userId
+          )
           const { periodStart, periodEnd } = getMonthBoundaries()
+          yield* Effect.log('[Repo.getCurrentUsage] Period:', {
+            periodStart,
+            periodEnd,
+          })
 
           const [usage] = yield* db
             .select()
@@ -308,8 +334,12 @@ export const SubscriptionRepositoryLive = Layer.effect(
                 eq(subscriptionUsage.periodStart, periodStart)
               )
             )
+          yield* Effect.log('[Repo.getCurrentUsage] Existing usage:', usage)
 
           if (!usage) {
+            yield* Effect.log(
+              '[Repo.getCurrentUsage] No usage found, creating...'
+            )
             // Auto-create usage record for current period
             const [newUsage] = yield* db
               .insert(subscriptionUsage)
@@ -323,9 +353,13 @@ export const SubscriptionRepositoryLive = Layer.effect(
               })
               .onConflictDoNothing()
               .returning()
+            yield* Effect.log('[Repo.getCurrentUsage] Insert result:', newUsage)
 
             // If conflict, fetch the existing one
             if (!newUsage) {
+              yield* Effect.log(
+                '[Repo.getCurrentUsage] Conflict, fetching existing...'
+              )
               const [existing] = yield* db
                 .select()
                 .from(subscriptionUsage)
@@ -335,6 +369,10 @@ export const SubscriptionRepositoryLive = Layer.effect(
                     eq(subscriptionUsage.periodStart, periodStart)
                   )
                 )
+              yield* Effect.log(
+                '[Repo.getCurrentUsage] Existing after conflict:',
+                existing
+              )
               return Option.getOrNull(Option.fromNullable(existing))
             }
 

@@ -17,8 +17,8 @@ describe('useSubscription', () => {
     })
 
     expect(result.current.data).toBeDefined()
-    expect(result.current.data?.plan).toBe('pro')
-    expect(result.current.data?.status).toBe('active')
+    expect(result.current.data?.tierConfig.tier).toBe('paid')
+    expect(result.current.data?.subscription?.status).toBe('active')
   })
 
   it('returns isSuccess when loaded', async () => {

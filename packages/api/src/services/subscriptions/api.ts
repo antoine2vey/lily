@@ -16,6 +16,11 @@ const WebhookHeaders = Schema.Struct({
   'stripe-signature': Schema.String,
 })
 
+// RevenueCat webhook headers - authorization bearer token
+const RevenueCatWebhookHeaders = Schema.Struct({
+  authorization: Schema.optional(Schema.String),
+})
+
 // Authenticated subscription endpoints
 export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
   .add(
@@ -49,6 +54,15 @@ export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
       .addError(PaymentProviderError, { status: 502 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
+  .add(
+    // POST /subscriptions/sync - Sync subscription from RevenueCat
+    // Called by app after purchase to ensure backend is updated
+    HttpApiEndpoint.post('syncSubscription')`/sync`
+      .addSuccess(SubscriptionInfo)
+      .addError(DatabaseError, { status: 500 })
+      .addError(PaymentProviderError, { status: 502 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
   .prefix('/subscriptions')
   .middleware(Authentication)
 
@@ -57,9 +71,17 @@ export const SubscriptionWebhooksApi = HttpApiGroup.make(
   'subscription-webhooks'
 )
   .add(
-    // POST /subscriptions/webhook - Handle payment provider webhooks (no auth)
+    // POST /subscriptions/webhook - Handle Stripe payment provider webhooks (no auth)
     HttpApiEndpoint.post('handleWebhook')`/webhook`
       .setHeaders(WebhookHeaders)
+      .addSuccess(Schema.Struct({ received: Schema.Boolean }))
+      .addError(PaymentProviderError, { status: 400 })
+      .addError(DatabaseError, { status: 500 })
+  )
+  .add(
+    // POST /subscriptions/webhook/revenuecat - Handle RevenueCat webhooks (no auth)
+    HttpApiEndpoint.post('handleRevenueCatWebhook')`/webhook/revenuecat`
+      .setHeaders(RevenueCatWebhookHeaders)
       .addSuccess(Schema.Struct({ received: Schema.Boolean }))
       .addError(PaymentProviderError, { status: 400 })
       .addError(DatabaseError, { status: 500 })

@@ -57,7 +57,8 @@ export const sendMagicLink = ({
     if (process.env.NODE_ENV !== 'production') {
       // In development, open the magic link in the iOS simulator
       // Use detached spawn with sleep so response is sent before redirect
-      const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
+      // const expoGoLink = `exp://192.168.1.85:8081/--/verify?code=${token}`
+      const expoGoLink = `lily://verify?code=${token}`
       const child = spawn(
         'sh',
         ['-c', `sleep 1 && xcrun simctl openurl booted '${expoGoLink}'`],

@@ -5,7 +5,7 @@ import { Badge } from 'src/components/Badge'
 
 interface PlanCardProps {
   planName: string
-  status: 'active' | 'trialing' | 'canceled' | 'past_due'
+  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due'
   children: ReactNode
 }
 
@@ -20,6 +20,9 @@ export function PlanCard({ planName, status, children }: PlanCardProps) {
     )),
     Match.when('canceled', () => (
       <Badge label="Canceled" variant="neutral" size="sm" />
+    )),
+    Match.when('expired', () => (
+      <Badge label="Expired" variant="neutral" size="sm" />
     )),
     Match.when('past_due', () => (
       <Badge label="Past Due" variant="warning" size="sm" />
