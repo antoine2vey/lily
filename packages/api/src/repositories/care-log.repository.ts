@@ -1,7 +1,11 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import {
+  extractCount,
+  getPaginationParams,
+} from '@lily/api/repositories/helpers/pagination'
 import { careLogs, plants } from '@lily/db'
-import { paginate } from '@lily/shared'
+import { nowAsDate, paginate } from '@lily/shared'
 import type {
   CareLog,
   CareLogsListResponse,
@@ -90,15 +94,7 @@ export const CareLogRepositoryLive = Layer.effect(
     return {
       findByPlantId: (params: FindCareLogsParams) =>
         Effect.gen(function* () {
-          const page = pipe(
-            Option.fromNullable(params.page),
-            Option.getOrElse(() => 1)
-          )
-          const limit = pipe(
-            Option.fromNullable(params.limit),
-            Option.getOrElse(() => 20)
-          )
-          const offset = (page - 1) * limit
+          const { page, limit, offset } = getPaginationParams(params)
 
           const filterConditions =
             params.type && params.type !== 'all'
@@ -112,11 +108,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(careLogs)
             .where(filterConditions)
-          const total = pipe(
-            Array.head(countResult),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
-          )
+          const total = extractCount(countResult)
 
           const rows = yield* db
             .select()
@@ -184,7 +176,7 @@ export const CareLogRepositoryLive = Layer.effect(
             notes: Option.getOrNull(Option.fromNullable(d.notes)),
             date: pipe(
               Option.fromNullable(d.date),
-              Option.getOrElse(() => new Date())
+              Option.getOrElse(() => nowAsDate())
             ),
             photoUrl: Option.getOrNull(Option.fromNullable(d.photoUrl)),
             plantId: d.plantId,
@@ -202,7 +194,7 @@ export const CareLogRepositoryLive = Layer.effect(
               notes: Option.getOrNull(Option.fromNullable(data.notes)),
               date: pipe(
                 Option.fromNullable(data.date),
-                Option.getOrElse(() => new Date())
+                Option.getOrElse(() => nowAsDate())
               ),
               photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
               plantId: data.plantId,
@@ -219,7 +211,7 @@ export const CareLogRepositoryLive = Layer.effect(
               notes: Option.getOrNull(Option.fromNullable(data.notes)),
               date: data.date,
               photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
-              updatedAt: new Date(),
+              updatedAt: nowAsDate(),
             })
             .where(eq(careLogs.id, id))
             .returning()

@@ -4,6 +4,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { UserService } from '@lily/api/services/user/service'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
@@ -16,12 +17,14 @@ export const UsersApiLive = (api: Api) =>
       const userService = yield* UserService
 
       return handlers
-        .handle('getUserSettings', () => userService.getUserSettings())
+        .handle('getUserSettings', () =>
+          userService.getUserSettings().pipe(withInfraErrorsAsDefect)
+        )
         .handle('updateUserSettings', ({ payload }) =>
-          userService.updateUserSettings(payload)
+          userService.updateUserSettings(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('uploadAvatar', ({ payload: { files } }) =>
-          userService.uploadAvatar(files)
+          userService.uploadAvatar(files).pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(

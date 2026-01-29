@@ -8,7 +8,6 @@ import {
   Authentication,
   Unauthorized,
 } from '@lily/api/services/auth/middleware.types'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
@@ -19,7 +18,6 @@ export const UsersApi = HttpApiGroup.make('users')
     // GET /users/settings - Fetch profile info & notification prefs (uses CurrentUser)
     HttpApiEndpoint.get('getUserSettings')`/settings`
       .addSuccess(UserSettings)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Unauthorized, { status: 401 })
   )
@@ -28,7 +26,6 @@ export const UsersApi = HttpApiGroup.make('users')
     HttpApiEndpoint.put('updateUserSettings')`/settings`
       .setPayload(UserSettingsUpdateRequest)
       .addSuccess(UserSettings)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Unauthorized, { status: 401 })
   )
@@ -43,7 +40,6 @@ export const UsersApi = HttpApiGroup.make('users')
         )
       )
       .addSuccess(Schema.Struct({ url: Schema.String }))
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Unauthorized, { status: 401 })

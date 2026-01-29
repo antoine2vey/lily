@@ -6,6 +6,7 @@ import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { AuthService } from '@lily/api/services/auth/service'
+import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 import { Effect, Layer } from 'effect'
@@ -18,7 +19,7 @@ export const AuthApiLive = (api: Api) =>
 
       return handlers
         .handle('sendMagicLink', ({ payload }) =>
-          authService.sendMagicLink(payload)
+          authService.sendMagicLink(payload).pipe(withSqlErrorAsDefect)
         )
         .handle('magicLinkCallback', ({ urlParams }) =>
           Effect.gen(function* () {
@@ -27,18 +28,20 @@ export const AuthApiLive = (api: Api) =>
             return HttpServerResponse.redirect(result.redirectUrl, {
               status: 302,
             })
-          })
+          }).pipe(withSqlErrorAsDefect)
         )
         .handle('verifyMagicLink', ({ payload }) =>
-          authService.verifyMagicLink(payload)
+          authService.verifyMagicLink(payload).pipe(withSqlErrorAsDefect)
         )
         .handle('refreshToken', ({ payload }) =>
-          authService.refreshToken(payload)
+          authService.refreshToken(payload).pipe(withSqlErrorAsDefect)
         )
-        .handle('getCurrentUser', () => authService.getCurrentUser())
-        .handle('logout', () => authService.logout())
+        .handle('getCurrentUser', () =>
+          authService.getCurrentUser().pipe(withSqlErrorAsDefect)
+        )
+        .handle('logout', () => authService.logout().pipe(withSqlErrorAsDefect))
         .handle('setUsername', ({ payload }) =>
-          authService.setUsername(payload)
+          authService.setUsername(payload).pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(

@@ -1,5 +1,6 @@
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { rateLimits } from '@lily/db/schema/auth'
+import { nowAsDate } from '@lily/shared'
 import { eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import { RateLimitExceededError } from './errors'
@@ -50,9 +51,9 @@ export const RateLimiterServiceLive = Layer.effect(
     return {
       checkRateLimit: (key: string, config: RateLimitConfig) =>
         Effect.gen(function* () {
-          const now = new Date()
+          const currentTime = nowAsDate()
           const windowStart = new Date(
-            now.getTime() - config.windowSeconds * 1000
+            currentTime.getTime() - config.windowSeconds * 1000
           )
 
           // Find existing rate limit record
@@ -68,7 +69,7 @@ export const RateLimiterServiceLive = Layer.effect(
             yield* db.insert(rateLimits).values({
               key,
               count: 1,
-              windowStart: now,
+              windowStart: currentTime,
             })
             return
           }
@@ -82,7 +83,7 @@ export const RateLimiterServiceLive = Layer.effect(
               .update(rateLimits)
               .set({
                 count: 1,
-                windowStart: now,
+                windowStart: currentTime,
               })
               .where(eq(rateLimits.key, key))
             return
@@ -93,7 +94,7 @@ export const RateLimiterServiceLive = Layer.effect(
             const retryAfter = Math.ceil(
               (record.windowStart.getTime() +
                 config.windowSeconds * 1000 -
-                now.getTime()) /
+                currentTime.getTime()) /
                 1000
             )
             return yield* Effect.fail(

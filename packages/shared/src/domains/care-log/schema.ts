@@ -1,6 +1,9 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
+// Re-export errors for convenient imports
+export { CareLogNotFoundError } from './errors'
+
 // Care log schemas
 export const CareLog = Schema.Struct({
   id: Schema.String,

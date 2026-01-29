@@ -6,6 +6,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
+import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { Effect, Layer } from 'effect'
 
@@ -17,33 +18,39 @@ export const CareLogsApiLive = (api: Api) =>
 
       return handlers
         .handle('getRecentActivities', ({ urlParams }) =>
-          careLogsService.getRecentActivities({
-            limit: parseInt(urlParams.limit, 10) || 10,
-          })
+          careLogsService
+            .getRecentActivities({
+              limit: parseInt(urlParams.limit, 10) || 10,
+            })
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
-          careLogsService.getCareLogs({
-            plantId,
-            page: parseInt(urlParams.page, 10) || 1,
-            limit: parseInt(urlParams.limit, 10) || 20,
-            type:
-              urlParams.type === 'watering' ||
-              urlParams.type === 'fertilization'
-                ? urlParams.type
-                : 'all',
-          })
+          careLogsService
+            .getCareLogs({
+              plantId,
+              page: parseInt(urlParams.page, 10) || 1,
+              limit: parseInt(urlParams.limit, 10) || 20,
+              type:
+                urlParams.type === 'watering' ||
+                urlParams.type === 'fertilization'
+                  ? urlParams.type
+                  : 'all',
+            })
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
-          careLogsService.createCareLog(plantId, payload)
+          careLogsService.createCareLog(plantId, payload).pipe(withSqlErrorAsDefect)
         )
         .handle('getCareLog', ({ path: { plantId, logId } }) =>
-          careLogsService.getCareLog(plantId, logId)
+          careLogsService.getCareLog(plantId, logId).pipe(withSqlErrorAsDefect)
         )
         .handle('updateCareLog', ({ path: { plantId, logId }, payload }) =>
-          careLogsService.updateCareLog(plantId, logId, payload)
+          careLogsService
+            .updateCareLog(plantId, logId, payload)
+            .pipe(withSqlErrorAsDefect)
         )
         .handle('deleteCareLog', ({ path: { plantId, logId } }) =>
-          careLogsService.deleteCareLog(plantId, logId)
+          careLogsService.deleteCareLog(plantId, logId).pipe(withSqlErrorAsDefect)
         )
     })
   ).pipe(

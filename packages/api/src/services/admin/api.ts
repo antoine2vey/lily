@@ -12,7 +12,6 @@ import {
   CannotModifySelfError,
   ForbiddenError,
 } from '@lily/shared/errors/admin'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
 
@@ -26,14 +25,12 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.get('listUsers')`/users`
       .setUrlParams(AdminUserListParams)
       .addSuccess(PaginatedResponse(AdminUser))
-      .addError(DatabaseError, { status: 500 })
       .addError(ForbiddenError, { status: 403 })
   )
   .add(
     // GET /admin/users/:id - Get user by ID
     HttpApiEndpoint.get('getUser')`/users/${userIdParam}`
       .addSuccess(AdminUser)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })
   )
@@ -42,7 +39,6 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.put('updateUser')`/users/${userIdParam}`
       .setPayload(AdminUserUpdateRequest)
       .addSuccess(AdminUser)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })
@@ -52,7 +48,6 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.put('updateUserRole')`/users/${userIdParam}/role`
       .setPayload(AdminRoleChangeRequest)
       .addSuccess(AdminUser)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })
@@ -62,7 +57,6 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.put('updateUserStatus')`/users/${userIdParam}/status`
       .setPayload(AdminStatusChangeRequest)
       .addSuccess(AdminUser)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })
@@ -71,7 +65,6 @@ export const AdminApi = HttpApiGroup.make('admin')
     // DELETE /admin/users/:id - Delete user
     HttpApiEndpoint.del('deleteUser')`/users/${userIdParam}`
       .addSuccess(AdminUser)
-      .addError(DatabaseError, { status: 500 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })

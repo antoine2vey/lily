@@ -1,7 +1,16 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import {
+  extractCount,
+  getPaginationParams,
+} from '@lily/api/repositories/helpers/pagination'
 import { notifications } from '@lily/db'
-import { paginate } from '@lily/shared'
+import {
+  nowAsDate,
+  paginate,
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
+} from '@lily/shared'
 import type {
   Notification,
   NotificationStatus,
@@ -109,15 +118,7 @@ export const NotificationRepositoryLive = Layer.effect(
     return {
       findByUserId: (params: FindNotificationsParams) =>
         Effect.gen(function* () {
-          const page = pipe(
-            Option.fromNullable(params.page),
-            Option.getOrElse(() => 1)
-          )
-          const limit = pipe(
-            Option.fromNullable(params.limit),
-            Option.getOrElse(() => 20)
-          )
-          const offset = (page - 1) * limit
+          const { page, limit, offset } = getPaginationParams(params)
 
           const filterConditions =
             params.status && params.status !== 'all'
@@ -131,11 +132,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .select({ value: count() })
             .from(notifications)
             .where(filterConditions)
-          const total = pipe(
-            Array.head(countResult),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
-          )
+          const total = extractCount(countResult)
 
           const rows = yield* db
             .select()
@@ -206,7 +203,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(notifications.status, 'pending'),
-                lte(notifications.scheduledAt, new Date())
+                lte(notifications.scheduledAt, nowAsDate())
               )
             )
             .orderBy(notifications.scheduledAt)
@@ -230,7 +227,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .update(notifications)
             .set({
               status: 'sent',
-              sentAt: new Date(),
+              sentAt: nowAsDate(),
             })
             .where(eq(notifications.id, id))
             .returning()
@@ -277,10 +274,8 @@ export const NotificationRepositoryLive = Layer.effect(
 
       hasNotificationToday: (userId: string, plantId: string) =>
         Effect.gen(function* () {
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          const tomorrow = new Date(today)
-          tomorrow.setDate(tomorrow.getDate() + 1)
+          const today = startOfTodayAsDate()
+          const tomorrow = startOfTomorrowAsDate()
 
           const [result] = yield* db
             .select({ count: count() })

@@ -4,11 +4,11 @@ import { PaginationParams } from '@lily/shared'
 import {
   CareLog,
   CareLogCreateRequest,
+  CareLogNotFoundError,
   CareLogsListResponse,
   CareLogUpdateRequest,
   RecentActivitiesListResponse,
 } from '@lily/shared/care-log'
-import { DatabaseError } from '@lily/shared/errors/database'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
@@ -34,7 +34,6 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     HttpApiEndpoint.get('getRecentActivities')`/care-logs/recent`
       .setUrlParams(RecentActivitiesQueryParams)
       .addSuccess(RecentActivitiesListResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -42,7 +41,6 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     HttpApiEndpoint.get('getCareLogs')`/plants/${plantIdParam}/logs`
       .setUrlParams(CareLogsQueryParams)
       .addSuccess(CareLogsListResponse)
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -51,7 +49,6 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     HttpApiEndpoint.post('createCareLog')`/plants/${plantIdParam}/logs`
       .setPayload(CareLogCreateRequest)
       .addSuccess(CareLog, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
@@ -62,9 +59,8 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       'getCareLog'
     )`/plants/${plantIdParam}/logs/${logIdParam}`
       .addSuccess(CareLog)
-      .addError(DatabaseError, { status: 500 })
+      .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -74,9 +70,8 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
     )`/plants/${plantIdParam}/logs/${logIdParam}`
       .setPayload(CareLogUpdateRequest)
       .addSuccess(CareLog)
-      .addError(DatabaseError, { status: 500 })
+      .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -85,9 +80,8 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       'deleteCareLog'
     )`/plants/${plantIdParam}/logs/${logIdParam}`
       .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(DatabaseError, { status: 500 })
+      .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .middleware(Authentication)

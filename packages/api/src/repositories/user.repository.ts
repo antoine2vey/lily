@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db'
+import { nowAsDate } from '@lily/shared'
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -222,7 +223,7 @@ export const UserRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const [user] = yield* db
             .update(users)
-            .set({ role, updatedAt: new Date() })
+            .set({ role, updatedAt: nowAsDate() })
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
@@ -232,7 +233,7 @@ export const UserRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const [user] = yield* db
             .update(users)
-            .set({ status, updatedAt: new Date() })
+            .set({ status, updatedAt: nowAsDate() })
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))

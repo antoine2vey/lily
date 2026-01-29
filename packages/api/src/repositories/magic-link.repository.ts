@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { magicLinks } from '@lily/db/schema/auth'
+import { hoursAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -72,7 +73,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
 
       findValidByToken: (token: string) =>
         Effect.gen(function* () {
-          const now = new Date()
+          const currentTime = nowAsDate()
           const results = yield* db
             .select()
             .from(magicLinks)
@@ -87,7 +88,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const record = pipe(results, Array.head, Option.getOrNull)
 
           // Check expiration manually since drizzle gt() can be tricky with dates
-          if (record && record.expiresAt > now) {
+          if (record && record.expiresAt > currentTime) {
             return record
           }
           return null
@@ -98,7 +99,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const results = yield* db
             .update(magicLinks)
             .set({
-              usedAt: new Date(),
+              usedAt: nowAsDate(),
             })
             .where(eq(magicLinks.id, id))
             .returning()
@@ -109,7 +110,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
       deleteExpired: () =>
         Effect.gen(function* () {
           // Delete tokens older than 1 hour (expired + buffer for cleanup)
-          const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+          const oneHourAgo = hoursAgoAsDate(1)
           const result = yield* db
             .delete(magicLinks)
             .where(lt(magicLinks.expiresAt, oneHourAgo))

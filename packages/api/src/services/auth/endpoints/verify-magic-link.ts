@@ -8,6 +8,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import { users } from '@lily/db/schema/users'
+import { nowAsDate } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
 import { eq } from 'drizzle-orm'
 import { Array, Effect, Option, pipe } from 'effect'
@@ -80,7 +81,7 @@ export const verifyMagicLink = ({
       if (!user.emailVerified) {
         yield* db
           .update(users)
-          .set({ emailVerified: true, updatedAt: new Date() })
+          .set({ emailVerified: true, updatedAt: nowAsDate() })
           .where(eq(users.id, user.id))
         user = { ...user, emailVerified: true }
       }
@@ -108,7 +109,9 @@ export const verifyMagicLink = ({
     // Generate refresh token
     const refreshToken = yield* jwtService.generateRefreshToken()
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
-    const refreshTokenExpiry = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS)
+    const refreshTokenExpiry = new Date(
+      nowAsDate().getTime() + REFRESH_TOKEN_EXPIRY_MS
+    )
 
     // Store hashed refresh token
     yield* refreshTokenRepo.create(

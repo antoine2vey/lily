@@ -5,6 +5,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { nowAsDate } from '@lily/shared'
 import {
   type GCSConfigError,
   GCSService,
@@ -40,7 +41,7 @@ export const uploadPlantPhoto = ({
           contentType: file.contentType,
         })
 
-        return { plantId, url, takenAt: new Date() }
+        return { plantId, url, takenAt: nowAsDate() }
       })
     )
 

@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { deviceTokens } from '@lily/db'
+import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { and, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
@@ -125,7 +126,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .update(deviceTokens)
             .set({
               ...data,
-              updatedAt: new Date(),
+              updatedAt: nowAsDate(),
             })
             .where(eq(deviceTokens.id, id))
             .returning()

@@ -1,9 +1,6 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import {
-  SubscriptionService,
-  SubscriptionServiceLive,
-} from '@lily/api/services/subscriptions/service'
+import { SubscriptionService } from '@lily/api/services/subscriptions/service'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -20,7 +17,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -59,7 +56,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -101,7 +98,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -142,7 +139,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -175,7 +172,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -197,7 +194,7 @@ describe('getCurrentSubscription', () => {
         const service = yield* SubscriptionService
         return yield* service.getCurrentSubscription('user-1')
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )

@@ -4,6 +4,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { CareTasksService } from '@lily/api/services/care-tasks/service'
+import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
 import { Effect, Layer } from 'effect'
 
 // Implement the Care Tasks API group
@@ -13,7 +14,7 @@ export const CareTasksApiLive = (api: Api) =>
       const careTasksService = yield* CareTasksService
 
       return handlers.handle('getCareTasks', () =>
-        careTasksService.findCareTasks()
+        careTasksService.findCareTasks().pipe(withSqlErrorAsDefect)
       )
     })
   ).pipe(

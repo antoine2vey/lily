@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { refreshTokens } from '@lily/db/schema/auth'
+import { daysAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -71,7 +72,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
 
       findValidByTokenHash: (tokenHash: string) =>
         Effect.gen(function* () {
-          const now = new Date()
+          const currentTime = nowAsDate()
           const results = yield* db
             .select()
             .from(refreshTokens)
@@ -85,7 +86,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           const record = pipe(results, Array.head, Option.getOrNull)
 
           // Check expiration manually
-          if (record && record.expiresAt > now) {
+          if (record && record.expiresAt > currentTime) {
             return record
           }
           return null
@@ -96,7 +97,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           const results = yield* db
             .update(refreshTokens)
             .set({
-              revokedAt: new Date(),
+              revokedAt: nowAsDate(),
             })
             .where(eq(refreshTokens.id, id))
             .returning()
@@ -109,7 +110,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           const results = yield* db
             .update(refreshTokens)
             .set({
-              revokedAt: new Date(),
+              revokedAt: nowAsDate(),
             })
             .where(
               and(
@@ -125,7 +126,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
       deleteExpiredAndRevoked: () =>
         Effect.gen(function* () {
           // Delete revoked tokens older than 30 days
-          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+          const thirtyDaysAgo = daysAgoAsDate(30)
           const result = yield* db
             .delete(refreshTokens)
             .where(lt(refreshTokens.createdAt, thirtyDaysAgo))

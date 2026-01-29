@@ -1,9 +1,6 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import {
-  SubscriptionService,
-  SubscriptionServiceLive,
-} from '@lily/api/services/subscriptions/service'
+import { SubscriptionService } from '@lily/api/services/subscriptions/service'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -19,7 +16,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -44,7 +41,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -70,7 +67,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -97,7 +94,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -124,7 +121,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )
@@ -134,7 +131,7 @@ describe('getAllTiers', () => {
         const service = yield* SubscriptionService
         return yield* service.getAllTiers()
       }).pipe(
-        Effect.provide(SubscriptionServiceLive),
+        Effect.provide(SubscriptionService.Default),
         Effect.provide(testLayer)
       )
     )

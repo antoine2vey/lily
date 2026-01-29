@@ -61,6 +61,136 @@ export const parseApiDate = (
 export const now = (): DateTime.Utc => DateTime.unsafeNow()
 
 /**
+ * Get current time as native JavaScript Date for database operations.
+ * Use this instead of `new Date()` to comply with Effect-first policy.
+ *
+ * @returns Current time as native Date
+ */
+export const nowAsDate = (): Date => DateTime.toDateUtc(DateTime.unsafeNow())
+
+/**
+ * Get start of current month as Date.
+ * Used for subscription period calculations.
+ *
+ * @returns First day of current month at 00:00:00.000
+ */
+export const startOfMonthAsDate = (): Date => {
+  const current = DateTime.unsafeNow()
+  const parts = DateTime.toParts(current)
+  return DateTime.toDateUtc(
+    DateTime.unsafeMake({
+      year: parts.year,
+      month: parts.month,
+      day: 1,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      millis: 0,
+    })
+  )
+}
+
+/**
+ * Get end of current month as Date.
+ * Used for subscription period calculations.
+ *
+ * @returns Last day of current month at 23:59:59.999
+ */
+export const endOfMonthAsDate = (): Date => {
+  const current = DateTime.unsafeNow()
+  const parts = DateTime.toParts(current)
+  // Get last day by going to next month day 0
+  const lastDay = new Date(parts.year, parts.month, 0).getDate()
+  return DateTime.toDateUtc(
+    DateTime.unsafeMake({
+      year: parts.year,
+      month: parts.month,
+      day: lastDay,
+      hours: 23,
+      minutes: 59,
+      seconds: 59,
+      millis: 999,
+    })
+  )
+}
+
+/**
+ * Get date in the past by subtracting duration.
+ * Used for cleanup operations (e.g., delete records older than 30 days).
+ *
+ * @param days - Number of days to subtract
+ * @returns Date that many days in the past
+ */
+export const daysAgoAsDate = (days: number): Date =>
+  DateTime.toDateUtc(DateTime.subtract(DateTime.unsafeNow(), { days }))
+
+/**
+ * Get date in the past by subtracting hours.
+ *
+ * @param hours - Number of hours to subtract
+ * @returns Date that many hours in the past
+ */
+export const hoursAgoAsDate = (hours: number): Date =>
+  DateTime.toDateUtc(DateTime.subtract(DateTime.unsafeNow(), { hours }))
+
+/**
+ * Get start of today as Date in a specific timezone.
+ *
+ * @param timezone - IANA timezone string
+ * @returns Start of today (00:00:00.000) in the specified timezone
+ */
+export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
+  const current = DateTime.setZone(
+    DateTime.unsafeNow(),
+    DateTime.zoneUnsafeMakeNamed(timezone)
+  )
+  const parts = DateTime.toParts(current)
+  return DateTime.toDateUtc(
+    DateTime.unsafeMakeZoned(
+      {
+        year: parts.year,
+        month: parts.month,
+        day: parts.day,
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        millis: 0,
+      },
+      { timeZone: timezone, adjustForTimeZone: true }
+    )
+  )
+}
+
+/**
+ * Get start of tomorrow as Date in a specific timezone.
+ *
+ * @param timezone - IANA timezone string
+ * @returns Start of tomorrow (00:00:00.000) in the specified timezone
+ */
+export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
+  const current = DateTime.setZone(
+    DateTime.unsafeNow(),
+    DateTime.zoneUnsafeMakeNamed(timezone)
+  )
+  const tomorrow = DateTime.add(current, { days: 1 })
+  const parts = DateTime.toParts(tomorrow)
+  return DateTime.toDateUtc(
+    DateTime.unsafeMakeZoned(
+      {
+        year: parts.year,
+        month: parts.month,
+        day: parts.day,
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        millis: 0,
+      },
+      { timeZone: timezone, adjustForTimeZone: true }
+    )
+  )
+}
+
+/**
  * Calculate days until a future date (positive) or days overdue (negative).
  *
  * @param target - Target DateTime to compare against current time

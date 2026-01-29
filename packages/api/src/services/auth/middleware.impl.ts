@@ -2,9 +2,9 @@ import {
   UserRepository,
   UserRepositoryLive,
 } from '@lily/api/repositories/user.repository'
+import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
-import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Layer, Redacted } from 'effect'
+import { Effect, Layer } from 'effect'
 import { Authentication, Unauthorized } from './middleware.types'
 
 // Re-export types for convenience
@@ -22,61 +22,23 @@ const AuthenticationBase = Layer.effect(
     return Authentication.of({
       bearer: (token) =>
         Effect.gen(function* () {
-          const tokenValue = Redacted.value(token)
-
-          // Verify JWT token
-          const payload = yield* Effect.catchAll(
-            jwtService.verifyAccessToken(tokenValue),
+          const { profile } = yield* Effect.catchAll(
+            validateUserFromToken({
+              token,
+              createError: (message) => new Unauthorized({ message }),
+            }).pipe(
+              Effect.provideService(JWTService, jwtService),
+              Effect.provideService(UserRepository, userRepo)
+            ),
             (error) =>
               Effect.fail(
                 new Unauthorized({
-                  message: error.message,
+                  message: 'message' in error ? error.message : 'Invalid token',
                 })
               )
           )
 
-          // Check user status from JWT payload first
-          if (payload.status !== 'active') {
-            return yield* Effect.fail(
-              new Unauthorized({
-                message: `Account is ${payload.status}`,
-              })
-            )
-          }
-
-          // Optionally fetch fresh user data from DB for critical operations
-          // For now, we trust the JWT payload but fetch user for full profile
-          const user = yield* Effect.catchAll(
-            userRepo.findById(payload.sub),
-            () => Effect.fail(new Unauthorized({ message: 'Database error' }))
-          )
-
-          if (!user) {
-            return yield* Effect.fail(
-              new Unauthorized({ message: 'User not found' })
-            )
-          }
-
-          // Double-check user status from DB (in case it changed after token was issued)
-          if (user.status !== 'active') {
-            return yield* Effect.fail(
-              new Unauthorized({
-                message: `Account is ${user.status}`,
-              })
-            )
-          }
-
-          // Return user profile for CurrentUser context
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            username: user.name || undefined,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-            role: user.role,
-            status: user.status,
-          } as UserProfile
+          return profile
         }),
     })
   })
