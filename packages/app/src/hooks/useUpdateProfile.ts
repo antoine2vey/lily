@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth } from 'src/contexts/AuthContext'
+import { DateTime } from 'effect'
 import { apiEffectRunner } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
 interface UpdateProfileData {
@@ -16,8 +17,9 @@ export function useUpdateProfile() {
     mutationFn: async (data: UpdateProfileData) => {
       // Upload avatar if a local URI was provided
       if (data.avatarUri) {
+        const timestamp = DateTime.toEpochMillis(DateTime.unsafeNow())
         const file = createFileFromUri(data.avatarUri, {
-          name: `avatar-${Date.now()}.jpg`,
+          name: `avatar-${timestamp}.jpg`,
           type: 'image/jpeg',
         })
         await uploadMultipart<{ url: string }>('/api/users/avatar', [file])
@@ -32,9 +34,7 @@ export function useUpdateProfile() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['users', 'getUserSettings'],
-      })
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.settings() })
     },
   })
 }

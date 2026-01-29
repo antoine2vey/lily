@@ -2,6 +2,7 @@ import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Array, DateTime, pipe } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 type AppCareType = 'water' | 'fertilize'
 type BackendCareType = 'watering' | 'fertilization'
@@ -69,20 +70,13 @@ export function useSaveCareLog() {
 
   return useMutation({
     mutationFn: saveCareLogApi,
-    onSuccess: (_, variables) => {
-      // Invalidate care logs for each plant
-      pipe(
-        variables.plantIds,
-        Array.forEach((_plantId) => {
-          queryClient.invalidateQueries({
-            queryKey: ['careLogs', 'getCareLogs'],
-          })
-        })
-      )
+    onSuccess: () => {
+      // Invalidate care logs
+      queryClient.invalidateQueries({ queryKey: queryKeys.careLogs.all })
       // Invalidate care tasks
-      queryClient.invalidateQueries({ queryKey: ['careTasks'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
       // Invalidate plants list (may update last watered/fertilized dates)
-      queryClient.invalidateQueries({ queryKey: ['plants'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
     },
   })
 }

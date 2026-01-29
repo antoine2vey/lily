@@ -43,8 +43,10 @@ export function RevenueCatProvider({ children }: RevenueCatProviderProps) {
   useEffect(() => {
     const initAndLoadOfferings = async () => {
       try {
-        // Initialize RevenueCat SDK first
-        RevenueCatService.initialize()
+        // Initialize RevenueCat SDK only if not already initialized
+        if (!RevenueCatService.isEnabled()) {
+          RevenueCatService.initialize()
+        }
 
         // Then load offerings
         const result = await RevenueCatService.getOfferings()

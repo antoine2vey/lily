@@ -1,8 +1,6 @@
+import { Array, Record } from 'effect'
 import * as SecureStore from 'expo-secure-store'
-
-const API_BASE_URL = 'http://192.168.1.85:3000'
-const ACCESS_TOKEN_KEY = 'lily_access_token'
-const REFRESH_TOKEN_KEY = 'lily_refresh_token'
+import { ACCESS_TOKEN_KEY, API_BASE_URL, refreshAccessToken } from './client'
 
 // biome-ignore lint/suspicious/noExplicitAny: FormData requires any for React Native file objects
 type FileObject = any
@@ -11,44 +9,6 @@ interface UploadFile {
   uri: string
   name: string
   type: string
-}
-
-/**
- * Attempt to refresh the access token using the stored refresh token
- */
-const refreshAccessToken = async (): Promise<string | null> => {
-  try {
-    const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
-    if (!refreshToken) {
-      return null
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-    })
-
-    if (!response.ok) {
-      // Refresh failed, clear tokens
-      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
-      return null
-    }
-
-    const data = await response.json()
-    const newAccessToken = data.accessToken
-
-    // Store the new access token
-    await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
-
-    return newAccessToken
-  } catch (error) {
-    console.error('Token refresh failed:', error)
-    return null
-  }
 }
 
 /**
@@ -69,7 +29,7 @@ export async function uploadMultipart<T>(
 
   const formData = new FormData()
 
-  files.forEach((file) => {
+  Array.forEach(files, (file) => {
     const fileObject: FileObject = {
       uri: file.uri,
       type: file.type,
@@ -79,7 +39,7 @@ export async function uploadMultipart<T>(
   })
 
   if (additionalFields) {
-    Object.entries(additionalFields).forEach(([key, value]) => {
+    Array.forEach(Record.toEntries(additionalFields), ([key, value]) => {
       formData.append(key, value)
     })
   }

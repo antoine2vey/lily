@@ -35,22 +35,23 @@ type ExtractError<T> = T extends HttpApi.HttpApi<
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-export const API_BASE_URL = 'http://192.168.1.85:3000'
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.85:3000'
 
-// Flag to prevent multiple simultaneous refresh attempts
-let isRefreshing = false
+// Shared promise for concurrent refresh requests
 let refreshPromise: Promise<string | null> | null = null
 
 /**
- * Attempt to refresh the access token using the stored refresh token
+ * Attempt to refresh the access token using the stored refresh token.
+ * Uses a shared promise to prevent concurrent refresh attempts.
  */
-const refreshAccessToken = async (): Promise<string | null> => {
+export const refreshAccessToken = async (): Promise<string | null> => {
   // If already refreshing, wait for the existing promise
-  if (isRefreshing && refreshPromise) {
+  if (refreshPromise) {
     return refreshPromise
   }
 
-  isRefreshing = true
+  // Create the promise immediately to prevent race conditions
   refreshPromise = (async () => {
     try {
       const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
@@ -84,7 +85,6 @@ const refreshAccessToken = async (): Promise<string | null> => {
       console.error('Token refresh failed:', error)
       return null
     } finally {
-      isRefreshing = false
       refreshPromise = null
     }
   })()

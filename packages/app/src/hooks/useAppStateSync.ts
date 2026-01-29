@@ -1,3 +1,4 @@
+import { DateTime } from 'effect'
 import { useEffect, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import * as RevenueCatService from 'src/services/revenuecat'
@@ -20,7 +21,7 @@ export function useAppStateSync(isAuthenticated: boolean) {
         nextAppState === 'active'
 
       if (isComingToForeground) {
-        const now = Date.now()
+        const now = DateTime.toEpochMillis(DateTime.unsafeNow())
         if (now - lastSyncRef.current >= SYNC_THROTTLE_MS) {
           lastSyncRef.current = now
           // Wake RevenueCat SDK (fetches latest from cache/network)

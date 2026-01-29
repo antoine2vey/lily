@@ -1,13 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffectMutation } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 export function useWaterPlant() {
   const queryClient = useQueryClient()
 
   return useEffectMutation('plants', 'waterPlant', {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['plants', 'getPlant'] })
-      queryClient.invalidateQueries({ queryKey: ['plants', 'getPlants'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.plants.details() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.plants.lists() })
     },
   })
 }

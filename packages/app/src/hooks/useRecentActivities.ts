@@ -1,5 +1,5 @@
-import { StaleTime } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { parseApiDate, StaleTime } from '@lily/shared'
+import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
 // UI activity type - maps API types to display types
@@ -31,6 +31,16 @@ const mapCareLogTypeToActivityType = (
     Match.exhaustive
   )
 
+// Convert API date to Date object for UI consumption
+const toDate = (dateInput: Date | string): Date =>
+  dateInput instanceof Date
+    ? dateInput
+    : pipe(
+        parseApiDate(dateInput),
+        Option.map(DateTime.toDateUtc),
+        Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeNow()))
+      )
+
 export function useRecentActivities(limit = 10) {
   const query = useEffectQuery(
     'careLogs',
@@ -48,7 +58,7 @@ export function useRecentActivities(limit = 10) {
         type: mapCareLogTypeToActivityType(item.type),
         plantId: item.plantId,
         plantName: item.plantName,
-        timestamp: item.date instanceof Date ? item.date : new Date(item.date),
+        timestamp: toDate(item.date),
         plantImageUrl: item.plantImageUrl,
       }))
     ),

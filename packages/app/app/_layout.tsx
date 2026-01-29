@@ -25,11 +25,12 @@ import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
 
+// RevenueCat service is now initialized lazily in RevenueCatProvider
+
 // Prevent the splash screen from auto-hiding before fonts are loaded
 SplashScreen.preventAutoHideAsync()
 
-// Initialize RevenueCat SDK
-RevenueCatService.initialize()
+// Note: RevenueCat SDK initialization moved to RevenueCatProvider to avoid double initialization
 
 const queryClient = new QueryClient()
 
