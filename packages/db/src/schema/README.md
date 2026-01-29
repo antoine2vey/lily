@@ -311,10 +311,10 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   currentPeriodStart: timestamp('current_period_start').notNull(),
   currentPeriodEnd: timestamp('current_period_end').notNull(),
 
-  // Stripe integration
+  // RevenueCat integration
   externalSubscriptionId: text('external_subscription_id'),
   externalCustomerId: text('external_customer_id'),
-  provider: text('provider').default('stripe'),
+  provider: text('provider').default('revenuecat'),
 
   // Cancellation
   canceledAt: timestamp('canceled_at'),

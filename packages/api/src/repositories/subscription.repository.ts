@@ -25,7 +25,7 @@ export interface CreateSubscriptionData {
   currentPeriodEnd: Date
   externalSubscriptionId?: string | null
   externalCustomerId?: string | null
-  provider?: 'stripe' | 'revenuecat'
+  provider?: 'revenuecat'
   productId?: string | null
   store?: 'APP_STORE' | 'PLAY_STORE' | null
 }
@@ -163,7 +163,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
               ),
               provider: pipe(
                 Option.fromNullable(data.provider),
-                Option.getOrElse(() => 'stripe' as const)
+                Option.getOrElse(() => 'revenuecat' as const)
               ),
               productId: Option.getOrNull(Option.fromNullable(data.productId)),
               store: Option.getOrNull(Option.fromNullable(data.store)),
@@ -189,7 +189,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
                 ),
                 provider: pipe(
                   Option.fromNullable(data.provider),
-                  Option.getOrElse(() => 'stripe' as const)
+                  Option.getOrElse(() => 'revenuecat' as const)
                 ),
                 productId: Option.getOrNull(
                   Option.fromNullable(data.productId)
