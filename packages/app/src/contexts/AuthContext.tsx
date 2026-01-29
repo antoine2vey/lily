@@ -10,6 +10,7 @@ import {
   useEffect,
   useState,
 } from 'react'
+import * as RevenueCatService from 'src/services/revenuecat'
 import { apiEffectRunner } from 'src/utils/client'
 import { getExpoPushToken, getPlatform } from 'src/utils/notifications'
 import {
@@ -281,6 +282,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(async () => {
     // Unregister device from push notifications before logout
     await unregisterDeviceFromPush()
+
+    // Clear RevenueCat identity
+    try {
+      await RevenueCatService.logout()
+    } catch {
+      // Ignore errors during RevenueCat logout
+    }
 
     try {
       await apiEffectRunner('auth', 'logout', {})

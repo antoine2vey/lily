@@ -18,12 +18,17 @@ import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
+import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { AnimatedSplashScreen } from 'src/screens/splash'
+import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
 
 // Prevent the splash screen from auto-hiding before fonts are loaded
 SplashScreen.preventAutoHideAsync()
+
+// Initialize RevenueCat SDK
+RevenueCatService.initialize()
 
 const queryClient = new QueryClient()
 
@@ -45,7 +50,7 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
   const showContent = fontsLoaded && !isLoading
 
-  // Set up notification listeners when authenticated
+  // Set up notification listeners and RevenueCat identity when authenticated
   useEffect(() => {
     const isAuthenticated = pipe(
       Match.value(state),
@@ -53,7 +58,8 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
       Match.orElse(() => false)
     )
 
-    if (isAuthenticated) {
+    if (isAuthenticated && state._tag === 'Authenticated') {
+      RevenueCatService.identify(state.user.id)
       const cleanup = setupNotificationListeners(router)
       return cleanup
     }
@@ -99,9 +105,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="auto" />
-          <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
-          <Toaster />
+          <RevenueCatProvider>
+            <StatusBar style="auto" />
+            <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
+            <Toaster />
+          </RevenueCatProvider>
         </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
+import { useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +11,10 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
+import { useSyncSubscription } from 'src/hooks/useSyncSubscription'
+import * as RevenueCatService from 'src/services/revenuecat'
 import { iconColors } from 'src/theme'
 import { PlanCard } from './components/PlanCard'
 import { UsageMeter } from './components/UsageMeter'
@@ -38,12 +42,26 @@ const PREMIUM_FEATURES = [
 
 export function SubscriptionUsageScreen() {
   const { data, isLoading } = useSubscriptionUsage()
+  const { restore } = useRevenueCat()
+  const syncMutation = useSyncSubscription()
+  const [isRestoring, setIsRestoring] = useState(false)
 
-  const handleRestorePurchases = () => {
-    // TODO: Implement restore purchases via RevenueCat
-    Alert.alert('Restore Purchases', 'Looking for previous purchases...', [
-      { text: 'OK' },
-    ])
+  const handleRestorePurchases = async () => {
+    setIsRestoring(true)
+    try {
+      await restore()
+      await syncMutation.mutateAsync({})
+
+      const message = RevenueCatService.isDevModeEnabled()
+        ? 'Restore simulated! (Dev Mode)'
+        : 'Purchases restored successfully.'
+
+      Alert.alert('Success', message, [{ text: 'OK' }])
+    } catch {
+      Alert.alert('Error', 'Failed to restore purchases. Please try again.')
+    } finally {
+      setIsRestoring(false)
+    }
   }
 
   if (isLoading || !data) {
@@ -155,10 +173,11 @@ export function SubscriptionUsageScreen() {
         {/* Restore Purchases */}
         <Pressable
           onPress={handleRestorePurchases}
+          disabled={isRestoring}
           className="items-center py-6"
         >
           <Text className="text-sm font-medium text-text-muted">
-            Restore Purchases
+            {isRestoring ? 'Restoring...' : 'Restore Purchases'}
           </Text>
         </Pressable>
 

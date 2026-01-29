@@ -1,3 +1,4 @@
+import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import type { ISubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { IPaymentProvider } from '@lily/api/services/subscriptions/payment-provider.interface'
@@ -148,6 +149,8 @@ describe('cancelSubscription', () => {
       externalSubscriptionId: 'sub_stripe_123',
       externalCustomerId: 'cus_123',
       provider: 'stripe',
+      productId: null,
+      store: null,
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -158,7 +161,8 @@ describe('cancelSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider)
+      Layer.succeed(PaymentProvider, paymentMock.provider),
+      MockRevenueCatProviderLive
     )
 
     const result = await Effect.runPromiseExit(
@@ -185,7 +189,8 @@ describe('cancelSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider)
+      Layer.succeed(PaymentProvider, paymentMock.provider),
+      MockRevenueCatProviderLive
     )
 
     const result = await Effect.runPromiseExit(
@@ -219,6 +224,8 @@ describe('cancelSubscription', () => {
       externalSubscriptionId: null, // No external ID
       externalCustomerId: null,
       provider: 'stripe',
+      productId: null,
+      store: null,
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -229,7 +236,8 @@ describe('cancelSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider)
+      Layer.succeed(PaymentProvider, paymentMock.provider),
+      MockRevenueCatProviderLive
     )
 
     const result = await Effect.runPromiseExit(
@@ -259,6 +267,8 @@ describe('cancelSubscription', () => {
       externalSubscriptionId: 'sub_stripe_123',
       externalCustomerId: 'cus_123',
       provider: 'stripe',
+      productId: null,
+      store: null,
       canceledAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -269,7 +279,8 @@ describe('cancelSubscription', () => {
 
     const testLayer = Layer.mergeAll(
       Layer.succeed(SubscriptionRepository, repoMock.repo),
-      Layer.succeed(PaymentProvider, paymentMock.provider)
+      Layer.succeed(PaymentProvider, paymentMock.provider),
+      MockRevenueCatProviderLive
     )
 
     await Effect.runPromise(

@@ -34,6 +34,13 @@ export const subscriptionEventTypeEnum = pgEnum('subscription_event_type', [
   'usage_limit_reached',
 ])
 
+export const paymentProviderEnum = pgEnum('payment_provider', [
+  'stripe',
+  'revenuecat',
+])
+
+export const appStoreEnum = pgEnum('app_store', ['APP_STORE', 'PLAY_STORE'])
+
 // Tier configuration (seeded static data)
 export const subscriptionTiers = pgTable('subscription_tiers', {
   tier: subscriptionTierEnum('tier').primaryKey(),
@@ -77,7 +84,10 @@ export const userSubscriptions = pgTable('user_subscriptions', {
   // Provider sync (provider-agnostic)
   externalSubscriptionId: text('external_subscription_id'),
   externalCustomerId: text('external_customer_id'),
-  provider: text('provider').notNull().default('stripe'),
+  provider: paymentProviderEnum('provider').notNull().default('stripe'),
+  // RevenueCat specific fields
+  productId: text('product_id'), // e.g. "lily_monthly", "lily_annual"
+  store: appStoreEnum('store'), // APP_STORE or PLAY_STORE
 
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()

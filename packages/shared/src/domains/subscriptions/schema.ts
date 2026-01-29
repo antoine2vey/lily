@@ -13,6 +13,12 @@ export const SubscriptionStatus = Schema.Literal(
 )
 export type SubscriptionStatus = typeof SubscriptionStatus.Type
 
+export const PaymentProvider = Schema.Literal('stripe', 'revenuecat')
+export type PaymentProvider = typeof PaymentProvider.Type
+
+export const AppStore = Schema.Literal('APP_STORE', 'PLAY_STORE')
+export type AppStore = typeof AppStore.Type
+
 // Tier configuration
 export const TierConfig = Schema.Struct({
   tier: SubscriptionTier,
@@ -31,6 +37,9 @@ export const Subscription = Schema.Struct({
   userId: Schema.String,
   tier: SubscriptionTier,
   status: SubscriptionStatus,
+  provider: Schema.optional(PaymentProvider),
+  productId: Schema.optional(Schema.String),
+  store: Schema.optional(AppStore),
   trialStartsAt: Schema.NullOr(Schema.Date),
   trialEndsAt: Schema.NullOr(Schema.Date),
   currentPeriodStart: Schema.Date,

@@ -1,4 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { Option, pipe } from 'effect'
+import { useMemo } from 'react'
+import { useSubscription } from 'src/hooks/useSubscription'
 
 interface UsageItem {
   type: 'ai_chats' | 'plant_ids' | 'card_scans'
@@ -8,34 +10,65 @@ interface UsageItem {
 
 interface SubscriptionUsage {
   planName: string
-  status: 'active' | 'trialing' | 'canceled' | 'past_due'
+  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due'
   usage: UsageItem[]
   isPremium: boolean
 }
 
-async function fetchSubscriptionUsage(): Promise<SubscriptionUsage> {
-  // TODO: Implement actual API call when backend is ready
-  // const response = await api.subscriptions.usage()
-  // return response
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
-  return {
-    planName: 'Lily Free',
-    status: 'active',
-    isPremium: false,
-    usage: [
-      { type: 'ai_chats', current: 3, max: 10 },
-      { type: 'plant_ids', current: 2, max: 5 },
-      { type: 'card_scans', current: 5, max: 10 },
-    ],
-  }
-}
-
 export function useSubscriptionUsage() {
-  return useQuery({
-    queryKey: ['subscription-usage'],
-    queryFn: fetchSubscriptionUsage,
-  })
+  const { data, isLoading, error } = useSubscription()
+
+  const usage = useMemo((): SubscriptionUsage | undefined => {
+    if (!data) return undefined
+
+    const tierConfig = data.tierConfig
+    const isPremium = tierConfig.tier === 'paid'
+
+    const status: SubscriptionUsage['status'] = pipe(
+      Option.fromNullable(data.subscription),
+      Option.map((s) => s.status),
+      Option.getOrElse(() => 'active' as const)
+    )
+
+    const usageCounts = data.usage
+
+    const usageItems: UsageItem[] = [
+      {
+        type: 'ai_chats',
+        current: pipe(
+          Option.fromNullable(usageCounts),
+          Option.map((u) => u.aiChatsCount),
+          Option.getOrElse(() => 0)
+        ),
+        max: tierConfig.maxAiChatsMonthly ?? Infinity,
+      },
+      {
+        type: 'plant_ids',
+        current: pipe(
+          Option.fromNullable(usageCounts),
+          Option.map((u) => u.plantIdentifiesCount),
+          Option.getOrElse(() => 0)
+        ),
+        max: tierConfig.maxPlantIdentifiesMonthly ?? Infinity,
+      },
+      {
+        type: 'card_scans',
+        current: pipe(
+          Option.fromNullable(usageCounts),
+          Option.map((u) => u.cardScansCount),
+          Option.getOrElse(() => 0)
+        ),
+        max: tierConfig.maxCardScansMonthly ?? Infinity,
+      },
+    ]
+
+    return {
+      planName: tierConfig.name,
+      status,
+      usage: usageItems,
+      isPremium,
+    }
+  }, [data])
+
+  return { data: usage, isLoading, error }
 }

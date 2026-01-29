@@ -67,11 +67,10 @@ export function ProfileScreen() {
     if (!subscription) return null
 
     return pipe(
-      Match.value(subscription.plan),
-      Match.when('premium', () => (
+      Match.value(subscription.tierConfig.tier),
+      Match.when('paid', () => (
         <Badge label="PREMIUM" variant="success" size="sm" />
       )),
-      Match.when('pro', () => <Badge label="PRO" variant="info" size="sm" />),
       Match.when('free', () => null),
       Match.exhaustive
     )
