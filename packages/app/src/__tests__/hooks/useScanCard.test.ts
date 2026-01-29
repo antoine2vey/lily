@@ -100,13 +100,18 @@ describe('useScanCard', () => {
 
     it('should return identification result on success', async () => {
       const mockResult = {
-        plantName: 'Monstera',
-        scientificName: 'Monstera deliciosa',
+        name: 'Monstera',
+        family: 'Araceae',
         confidence: 0.95,
-        careInstructions: {
-          watering: 'Weekly',
-          light: 'Indirect',
-        },
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        sunlightPreference: 'indirect',
+        humidityRating: 3,
+        petToxicityRating: 2,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A beautiful tropical plant',
+        imageUrl: 'https://example.com/monstera.jpg',
       }
       mockUploadMultipart.mockResolvedValue(mockResult)
 
@@ -114,7 +119,7 @@ describe('useScanCard', () => {
         wrapper: createQueryWrapper(),
       })
 
-      let returnedData: typeof mockResult | undefined
+      let returnedData: unknown
 
       await act(async () => {
         returnedData = await result.current.mutateAsync('file://photo.jpg')
@@ -250,9 +255,18 @@ describe('useScanCardMultiple', () => {
 
     it('should return combined identification result', async () => {
       const mockResult = {
-        plantName: 'Monstera',
-        scientificName: 'Monstera deliciosa',
+        name: 'Monstera',
+        family: 'Araceae',
         confidence: 0.98,
+        alternatives: [],
+        wateringFrequencyDays: 7,
+        sunlightPreference: 'indirect',
+        humidityRating: 3,
+        petToxicityRating: 2,
+        fertilizationFrequencyDays: 30,
+        category: 'Tropical',
+        description: 'A beautiful tropical plant',
+        imageUrl: 'https://example.com/monstera.jpg',
       }
       mockUploadMultipart.mockResolvedValue(mockResult)
 
@@ -260,7 +274,7 @@ describe('useScanCardMultiple', () => {
         wrapper: createQueryWrapper(),
       })
 
-      let returnedData: typeof mockResult | undefined
+      let returnedData: unknown
 
       await act(async () => {
         returnedData = await result.current.mutateAsync([

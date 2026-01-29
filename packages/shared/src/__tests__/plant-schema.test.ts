@@ -66,9 +66,9 @@ describe('Plant Schemas', () => {
     })
 
     it('should reject invalid health status', () => {
-      const plant = { ...validPlant, health: 'DEAD' }
+      const plant = { ...validPlant, health: 'DEAD' as unknown }
 
-      expect(() => Schema.decodeSync(Plant)(plant)).toThrow()
+      expect(() => Schema.decodeSync(Plant)(plant as never)).toThrow()
     })
 
     it('should accept null for nullable fields', () => {
@@ -92,9 +92,11 @@ describe('Plant Schemas', () => {
     })
 
     it('should reject missing required fields', () => {
-      const { name, ...plantWithoutName } = validPlant
+      const { name: _name, ...plantWithoutName } = validPlant
 
-      expect(() => Schema.decodeSync(Plant)(plantWithoutName)).toThrow()
+      expect(() =>
+        Schema.decodeSync(Plant)(plantWithoutName as never)
+      ).toThrow()
     })
 
     it('should require boolean fields', () => {
@@ -148,7 +150,9 @@ describe('Plant Schemas', () => {
         // Missing all required ratings
       }
 
-      expect(() => Schema.decodeSync(PlantCreateRequest)(request)).toThrow()
+      expect(() =>
+        Schema.decodeSync(PlantCreateRequest)(request as never)
+      ).toThrow()
     })
   })
 
@@ -311,7 +315,9 @@ describe('Plant Schemas', () => {
         // Missing imageUrl
       }
 
-      expect(() => Schema.decodeSync(AIIdentifyResponse)(response)).toThrow()
+      expect(() =>
+        Schema.decodeSync(AIIdentifyResponse)(response as never)
+      ).toThrow()
     })
   })
 
@@ -337,7 +343,7 @@ describe('Plant Schemas', () => {
         // Missing takenAt and plantId
       }
 
-      expect(() => Schema.decodeSync(PlantPhoto)(photo)).toThrow()
+      expect(() => Schema.decodeSync(PlantPhoto)(photo as never)).toThrow()
     })
   })
 

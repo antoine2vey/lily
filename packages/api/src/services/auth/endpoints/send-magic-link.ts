@@ -55,7 +55,7 @@ export const sendMagicLink = ({
     const baseUrl = process.env.API_BASE_URL || 'http://192.168.1.85:3000'
     const callbackUrl = `${baseUrl}/api/auth/magic-link/callback?token=${token}`
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV === 'development') {
       // In development, print QR code to console for easy testing on physical device
       const deepLink = `lily://verify?code=${token}`
 
@@ -68,7 +68,7 @@ export const sendMagicLink = ({
         qrcode.generate(deepLink, { small: true })
         console.log(`${'='.repeat(50)}\n`)
       })
-    } else {
+    } else if (process.env.NODE_ENV === 'production') {
       // In production, send the email
       yield* Effect.catchAll(
         sendMagicLinkEmail({

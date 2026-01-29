@@ -6,6 +6,11 @@ export interface MockAiServiceData {
   plantChatResponse?: string
 }
 
+// Create an async generator to simulate the text stream
+async function* createTextStream(text: string): AsyncIterable<string> {
+  yield text
+}
+
 export const createMockAiService = (
   data: MockAiServiceData = {}
 ): Layer.Layer<AiService> => {
@@ -32,6 +37,12 @@ export const createMockAiService = (
       }),
     plantChat: (_plantId: string, _messages: UIMessage[]) =>
       Effect.succeed(Stream.make(responseBytes)),
+    // Returns a mock StreamTextResult-like object for streaming endpoint
+    plantChatStream: (_plantId: string, _messages: UIMessage[]) =>
+      Effect.succeed({
+        textStream: createTextStream(response),
+        text: Promise.resolve(response),
+      }),
     plantCardScan: (_url: string) =>
       Effect.succeed({
         name: 'Mock Plant',

@@ -69,7 +69,7 @@ describe('useWaterAll', () => {
 
   it('should invalidate queries on success', () => {
     // Get the onSuccess callback from the mock call
-    mockedUseEffectMutation.mockImplementation((section, method, options) => {
+    mockedUseEffectMutation.mockImplementation((_section, _method, options) => {
       // Simulate calling onSuccess
       if (options?.onSuccess) {
         options.onSuccess(undefined as never, undefined as never, undefined)

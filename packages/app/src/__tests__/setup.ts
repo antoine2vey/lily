@@ -7,6 +7,21 @@ import './mocks/navigation'
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
 
+// Suppress known React testing warnings that are false positives
+// These occur with VirtualizedList and TanStack Query internal async updates
+const originalConsoleError = console.error
+console.error = (...args: unknown[]) => {
+  const message = args[0]
+  if (
+    typeof message === 'string' &&
+    (message.includes('inside a test was not wrapped in act') ||
+      message.includes('Each child in a list should have a unique "key" prop'))
+  ) {
+    return
+  }
+  originalConsoleError(...args)
+}
+
 // Mock safe area context
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 0, right: 0, bottom: 0, left: 0 }

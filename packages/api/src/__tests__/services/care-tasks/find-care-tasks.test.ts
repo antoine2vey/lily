@@ -1,24 +1,206 @@
-import {
-  mockPlantsForCareTasks,
-  mockPlantsNoCare,
-} from '@lily/api/__tests__/fixtures/care-tasks'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
+import type { plants } from '@lily/db'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Helper to create test layer with CurrentUser
-const createTestLayer = (userId = 'user-1', plants = mockPlantsForCareTasks) =>
-  Layer.mergeAll(
-    createMockPlantRepository({ plants }),
-    createMockCurrentUser({ id: userId }),
-    createMockUserRepository(mockUsers)
-  )
+type PlantRecord = typeof plants.$inferSelect
+
+// Create fixture dates dynamically based on a fixed reference time
+const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
+  const yesterday = new Date(referenceDate)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const today = new Date(referenceDate)
+  today.setHours(12, 0, 0, 0)
+
+  const tomorrow = new Date(referenceDate)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const inThreeDays = new Date(referenceDate)
+  inThreeDays.setDate(inThreeDays.getDate() + 3)
+
+  const nextWeek = new Date(referenceDate)
+  nextWeek.setDate(nextWeek.getDate() + 10)
+
+  return [
+    {
+      id: 'plant-1',
+      name: 'Monstera',
+      description: 'A tropical plant',
+      imageUrl: 'https://example.com/monstera.jpg',
+      category: 'tropical',
+      dateAdded: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      humidityRating: 4,
+      lightingRating: 3,
+      petToxicityRating: 2,
+      wateringRating: 3,
+      health: 'HEALTHY',
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-10'),
+      nextWateringAt: yesterday, // Overdue
+      remindersEnabled: true,
+      fertilizationFrequencyDays: 30,
+      lastFertilizedAt: new Date('2024-01-01'),
+      nextFertilizationAt: tomorrow, // This week
+      isFavorite: false,
+      userId: 'user-1',
+    },
+    {
+      id: 'plant-2',
+      name: 'Snake Plant',
+      description: 'Low maintenance',
+      imageUrl: null,
+      category: 'succulent',
+      dateAdded: new Date('2024-01-02'),
+      updatedAt: new Date('2024-01-02'),
+      humidityRating: 2,
+      lightingRating: 2,
+      petToxicityRating: 3,
+      wateringRating: 1,
+      health: 'THRIVING',
+      wateringFrequencyDays: 14,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: today, // Today
+      remindersEnabled: true,
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+      isFavorite: false,
+      userId: 'user-1',
+    },
+    {
+      id: 'plant-3',
+      name: 'Fiddle Leaf Fig',
+      description: null,
+      imageUrl: null,
+      category: 'tropical',
+      dateAdded: new Date('2024-01-03'),
+      updatedAt: new Date('2024-01-03'),
+      humidityRating: 4,
+      lightingRating: 4,
+      petToxicityRating: 2,
+      wateringRating: 4,
+      health: 'HEALTHY',
+      wateringFrequencyDays: 10,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: inThreeDays, // This week
+      remindersEnabled: true,
+      fertilizationFrequencyDays: 14,
+      lastFertilizedAt: null,
+      nextFertilizationAt: inThreeDays, // This week
+      isFavorite: false,
+      userId: 'user-1',
+    },
+    {
+      id: 'plant-4',
+      name: 'Cactus',
+      description: 'Desert plant',
+      imageUrl: null,
+      category: 'succulent',
+      dateAdded: new Date('2024-01-04'),
+      updatedAt: new Date('2024-01-04'),
+      humidityRating: 1,
+      lightingRating: 5,
+      petToxicityRating: 1,
+      wateringRating: 1,
+      health: 'THRIVING',
+      wateringFrequencyDays: 30,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: nextWeek, // Not this week
+      remindersEnabled: true,
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+      isFavorite: false,
+      userId: 'user-1',
+    },
+    {
+      id: 'plant-5',
+      name: 'Other User Plant',
+      description: 'Belongs to another user',
+      imageUrl: null,
+      category: 'tropical',
+      dateAdded: new Date('2024-01-05'),
+      updatedAt: new Date('2024-01-05'),
+      humidityRating: 3,
+      lightingRating: 3,
+      petToxicityRating: 0,
+      wateringRating: 3,
+      health: 'HEALTHY',
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: yesterday, // Overdue but belongs to user-2
+      remindersEnabled: true,
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+      isFavorite: false,
+      userId: 'user-2',
+    },
+  ]
+}
+
+const createMockPlantsNoCare = (referenceDate: Date): PlantRecord[] => {
+  const nextWeek = new Date(referenceDate)
+  nextWeek.setDate(nextWeek.getDate() + 10)
+
+  return [
+    {
+      id: 'plant-no-care-1',
+      name: 'No Care Plant',
+      description: 'No pending care',
+      imageUrl: null,
+      category: 'tropical',
+      dateAdded: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+      humidityRating: 3,
+      lightingRating: 3,
+      petToxicityRating: 0,
+      wateringRating: 3,
+      health: 'HEALTHY',
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: nextWeek, // Far in the future
+      remindersEnabled: true,
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+      isFavorite: false,
+      userId: 'user-1',
+    },
+  ]
+}
+
+// Fixed reference date for all tests: Wed Jan 29, 2025 at 14:00 UTC
+const REFERENCE_DATE = new Date('2025-01-29T14:00:00Z')
 
 describe('findCareTasks', () => {
+  // Use fake timers for all tests to ensure consistent date behavior
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(REFERENCE_DATE)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // Helper to create test layer with CurrentUser
+  const createTestLayer = (
+    userId = 'user-1',
+    plants = createMockPlantsForCareTasks(REFERENCE_DATE)
+  ) =>
+    Layer.mergeAll(
+      createMockPlantRepository({ plants }),
+      createMockCurrentUser({ id: userId }),
+      createMockUserRepository(mockUsers)
+    )
+
   it('should return tasks grouped by overdue, today, and thisWeek', async () => {
     const result = await Effect.runPromise(
       findCareTasks().pipe(Effect.provide(createTestLayer()))
@@ -88,7 +270,9 @@ describe('findCareTasks', () => {
   it('should return empty arrays when no tasks are pending', async () => {
     const result = await Effect.runPromise(
       findCareTasks().pipe(
-        Effect.provide(createTestLayer('user-1', mockPlantsNoCare))
+        Effect.provide(
+          createTestLayer('user-1', createMockPlantsNoCare(REFERENCE_DATE))
+        )
       )
     )
 
@@ -180,13 +364,8 @@ describe('findCareTasks', () => {
 
   describe('timezone-aware grouping', () => {
     beforeEach(() => {
-      vi.useFakeTimers()
-      // Wed Jan 29, 2025 at 23:30 UTC
+      // Wed Jan 29, 2025 at 23:30 UTC (overrides the outer beforeEach time)
       vi.setSystemTime(new Date('2025-01-29T23:30:00Z'))
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
     })
 
     it('should group tasks according to user timezone', async () => {

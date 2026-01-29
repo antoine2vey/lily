@@ -50,8 +50,12 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject invalid tiers', () => {
-      expect(() => Schema.decodeSync(SubscriptionTier)('premium')).toThrow()
-      expect(() => Schema.decodeSync(SubscriptionTier)('enterprise')).toThrow()
+      expect(() =>
+        Schema.decodeSync(SubscriptionTier)('premium' as never)
+      ).toThrow()
+      expect(() =>
+        Schema.decodeSync(SubscriptionTier)('enterprise' as never)
+      ).toThrow()
     })
   })
 
@@ -71,8 +75,12 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject invalid statuses', () => {
-      expect(() => Schema.decodeSync(SubscriptionStatus)('pending')).toThrow()
-      expect(() => Schema.decodeSync(SubscriptionStatus)('paused')).toThrow()
+      expect(() =>
+        Schema.decodeSync(SubscriptionStatus)('pending' as never)
+      ).toThrow()
+      expect(() =>
+        Schema.decodeSync(SubscriptionStatus)('paused' as never)
+      ).toThrow()
     })
   })
 
@@ -84,8 +92,12 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject invalid providers', () => {
-      expect(() => Schema.decodeSync(PaymentProvider)('stripe')).toThrow()
-      expect(() => Schema.decodeSync(PaymentProvider)('paypal')).toThrow()
+      expect(() =>
+        Schema.decodeSync(PaymentProvider)('stripe' as never)
+      ).toThrow()
+      expect(() =>
+        Schema.decodeSync(PaymentProvider)('paypal' as never)
+      ).toThrow()
     })
   })
 
@@ -96,8 +108,8 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject invalid stores', () => {
-      expect(() => Schema.decodeSync(AppStore)('AMAZON')).toThrow()
-      expect(() => Schema.decodeSync(AppStore)('WEB')).toThrow()
+      expect(() => Schema.decodeSync(AppStore)('AMAZON' as never)).toThrow()
+      expect(() => Schema.decodeSync(AppStore)('WEB' as never)).toThrow()
     })
   })
 
@@ -202,9 +214,11 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject missing required fields', () => {
-      const { userId, ...withoutUserId } = validSubscription
+      const { userId: _userId, ...withoutUserId } = validSubscription
 
-      expect(() => Schema.decodeSync(Subscription)(withoutUserId)).toThrow()
+      expect(() =>
+        Schema.decodeSync(Subscription)(withoutUserId as never)
+      ).toThrow()
     })
   })
 
@@ -265,7 +279,7 @@ describe('Subscription Schemas', () => {
         // Missing other counts
       }
 
-      expect(() => Schema.decodeSync(UsageCounts)(partial)).toThrow()
+      expect(() => Schema.decodeSync(UsageCounts)(partial as never)).toThrow()
     })
   })
 
@@ -339,8 +353,8 @@ describe('Subscription Schemas', () => {
     })
 
     it('should reject invalid usage fields', () => {
-      expect(() => Schema.decodeSync(UsageField)('plants')).toThrow()
-      expect(() => Schema.decodeSync(UsageField)('photos')).toThrow()
+      expect(() => Schema.decodeSync(UsageField)('plants' as never)).toThrow()
+      expect(() => Schema.decodeSync(UsageField)('photos' as never)).toThrow()
     })
   })
 })

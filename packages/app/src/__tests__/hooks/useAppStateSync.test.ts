@@ -10,6 +10,8 @@
  * For now, we test the core behaviors that can be reliably mocked.
  */
 
+type AppStateStatus = 'active' | 'background' | 'inactive'
+
 // Simple unit tests for the throttle logic
 describe('useAppStateSync throttle logic', () => {
   const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
@@ -77,20 +79,20 @@ describe('useAppStateSync throttle logic', () => {
     })
 
     it('should not trigger on active to background', () => {
-      const previousState = 'active'
-      const nextState = 'background'
+      const previousState: AppStateStatus = 'active'
+      const nextState: AppStateStatus = 'background'
       const isComingToForeground =
         previousState.match(/inactive|background/) !== null &&
-        nextState === 'active'
+        (nextState as AppStateStatus) === 'active'
       expect(isComingToForeground).toBe(false)
     })
 
     it('should not trigger on background to inactive', () => {
-      const previousState = 'background'
-      const nextState = 'inactive'
+      const previousState: AppStateStatus = 'background'
+      const nextState: AppStateStatus = 'inactive'
       const isComingToForeground =
         previousState.match(/inactive|background/) !== null &&
-        nextState === 'active'
+        (nextState as AppStateStatus) === 'active'
       expect(isComingToForeground).toBe(false)
     })
   })

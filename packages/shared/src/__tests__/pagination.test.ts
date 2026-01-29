@@ -229,7 +229,7 @@ describe('Pagination Utilities', () => {
         hasMore: false,
       }
 
-      expect(() => Schema.decodeSync(NumberResponse)(data)).toThrow()
+      expect(() => Schema.decodeSync(NumberResponse)(data as never)).toThrow()
     })
 
     it('should reject missing required fields', () => {
@@ -239,7 +239,7 @@ describe('Pagination Utilities', () => {
         Schema.decodeSync(StringResponse)({
           items: ['a'],
           // missing total, page, limit, hasMore
-        })
+        } as never)
       ).toThrow()
     })
 
