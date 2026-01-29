@@ -99,7 +99,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: null }),
         data: { items: null },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),
@@ -123,7 +123,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: mockItems }),
         data: { items: mockItems },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),
@@ -155,7 +155,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: mockItems }),
         data: { items: mockItems },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),
@@ -198,7 +198,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: mockItems }),
         data: { items: mockItems },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),
@@ -225,7 +225,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: mockItems }),
         data: { items: mockItems },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),
@@ -269,7 +269,7 @@ describe('useRecentActivities', () => {
       mockedUseEffectQuery.mockReturnValue({
         ...mockQuerySuccess({ items: [] }),
         data: { items: [] },
-      })
+      } as never)
 
       const { result } = renderHook(() => useRecentActivities(), {
         wrapper: createQueryWrapper(),

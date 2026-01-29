@@ -289,6 +289,31 @@ import {
 
 ---
 
+## Testing Commands
+
+| Package | Command | Notes |
+|---------|---------|-------|
+| **api** | `bun run test` | Vitest with Effect mocks |
+| **shared** | `bun run test` | Vitest |
+| **app** | `bun run test` | Jest |
+
+### Running Tests
+
+```bash
+# From package directory
+cd packages/api && bun run test
+cd packages/shared && bun run test
+cd packages/app && bun run test
+
+# Run specific test file
+bun run test my-test-file
+
+# Run with coverage
+bun run test --coverage
+```
+
+---
+
 ## Effect Documentation
 
 An Effect documentation MCP server is available for reference. Use it to:

@@ -49,8 +49,8 @@ describe('User Schemas', () => {
     })
 
     it('should reject invalid roles', () => {
-      expect(() => Schema.decodeSync(UserRole)('superadmin')).toThrow()
-      expect(() => Schema.decodeSync(UserRole)('moderator')).toThrow()
+      expect(() => Schema.decodeSync(UserRole)('superadmin' as never)).toThrow()
+      expect(() => Schema.decodeSync(UserRole)('moderator' as never)).toThrow()
     })
   })
 
@@ -62,8 +62,8 @@ describe('User Schemas', () => {
     })
 
     it('should reject invalid statuses', () => {
-      expect(() => Schema.decodeSync(UserStatus)('deleted')).toThrow()
-      expect(() => Schema.decodeSync(UserStatus)('pending')).toThrow()
+      expect(() => Schema.decodeSync(UserStatus)('deleted' as never)).toThrow()
+      expect(() => Schema.decodeSync(UserStatus)('pending' as never)).toThrow()
     })
   })
 
@@ -115,9 +115,9 @@ describe('User Schemas', () => {
     })
 
     it('should reject missing required fields', () => {
-      const { email, ...userWithoutEmail } = validUser
+      const { email: _email, ...userWithoutEmail } = validUser
 
-      expect(() => Schema.decodeSync(User)(userWithoutEmail)).toThrow()
+      expect(() => Schema.decodeSync(User)(userWithoutEmail as never)).toThrow()
     })
 
     it('should require boolean notification fields', () => {
@@ -157,13 +157,17 @@ describe('User Schemas', () => {
     it('should reject missing email', () => {
       const request = { name: 'New User' }
 
-      expect(() => Schema.decodeSync(UserCreateRequest)(request)).toThrow()
+      expect(() =>
+        Schema.decodeSync(UserCreateRequest)(request as never)
+      ).toThrow()
     })
 
     it('should reject missing name', () => {
       const request = { email: 'new@example.com' }
 
-      expect(() => Schema.decodeSync(UserCreateRequest)(request)).toThrow()
+      expect(() =>
+        Schema.decodeSync(UserCreateRequest)(request as never)
+      ).toThrow()
     })
   })
 

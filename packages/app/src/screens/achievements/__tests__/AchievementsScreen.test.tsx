@@ -14,6 +14,7 @@ const mockedUseAchievements = useAchievements as jest.Mock
 const mockAchievements = [
   {
     id: '1',
+    key: 'first-plant',
     name: 'First Plant',
     description: 'Add your first plant',
     category: 'plants' as const,
@@ -24,6 +25,7 @@ const mockAchievements = [
   },
   {
     id: '2',
+    key: 'green-thumb',
     name: 'Green Thumb',
     description: 'Successfully care for 10 plants',
     category: 'care' as const,
@@ -34,6 +36,7 @@ const mockAchievements = [
   },
   {
     id: '3',
+    key: 'week-warrior',
     name: 'Week Warrior',
     description: 'Maintain a 7-day care streak',
     category: 'streaks' as const,

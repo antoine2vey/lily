@@ -50,7 +50,7 @@ const suspendedUser: User = {
 
 // Custom error class for testing
 class TestAuthError extends Error {
-  constructor(public readonly message: string) {
+  constructor(override readonly message: string) {
     super(message)
     this.name = 'TestAuthError'
   }
