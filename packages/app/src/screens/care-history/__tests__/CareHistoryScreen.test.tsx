@@ -1,5 +1,6 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockFixedDate } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -126,7 +127,7 @@ describe('CareHistoryScreen', () => {
           {
             id: '1',
             type: 'water',
-            timestamp: new Date('2024-01-15T10:00:00'),
+            timestamp: mockFixedDate(2024, 1, 15, 10, 0),
           },
         ],
       },

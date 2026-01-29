@@ -64,8 +64,7 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
 const formatDate = (date: Date | null | undefined): string =>
   pipe(
     Option.fromNullable(date),
-    Option.map((d) => d.toISOString()),
-    Option.flatMap(parseApiDate),
+    Option.flatMap((d) => parseApiDate(d)),
     Option.map(formatLongDate),
     Option.getOrElse(() => 'Unknown')
   )

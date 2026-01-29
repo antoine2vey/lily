@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react-native'
+import { mockFixedDate } from 'src/__tests__/utils/dates'
 import {
   createQueryWrapper,
   mockQueryLoading,
@@ -22,13 +23,13 @@ const mockChatMessages = [
     id: 'msg-1',
     role: 'user' as const,
     content: 'Hello',
-    createdAt: new Date('2024-01-01T10:00:00Z'),
+    createdAt: mockFixedDate(2024, 1, 1, 10, 0),
   },
   {
     id: 'msg-2',
     role: 'assistant' as const,
     content: 'Hi there!',
-    createdAt: new Date('2024-01-01T10:00:01Z'),
+    createdAt: mockFixedDate(2024, 1, 1, 10, 1),
   },
 ]
 

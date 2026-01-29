@@ -1,7 +1,7 @@
 import * as schema from '@lily/db/schema'
 import { count, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Option, pipe } from 'effect'
+import { Array as Arr, Option, pipe } from 'effect'
 import pg from 'pg'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
@@ -43,8 +43,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await db.execute(sql`TRUNCATE TABLE plant_scans RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE session RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE account RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
 
       // Create test user
@@ -111,8 +109,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await db.execute(sql`TRUNCATE TABLE plant_scans RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE session RESTART IDENTITY CASCADE`)
-      await db.execute(sql`TRUNCATE TABLE account RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
     })
@@ -207,10 +203,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
 
       // Verify first plant was NOT updated (rolled back)
+      const firstPlantId = pipe(
+        Arr.head(testPlantIds),
+        Option.getOrElse(() => '')
+      )
       const [plant] = await db
         .select()
         .from(schema.plants)
-        .where(eq(schema.plants.id, testPlantIds[0]!))
+        .where(eq(schema.plants.id, firstPlantId))
 
       expect(plant?.lastWateredAt).toBeNull()
 

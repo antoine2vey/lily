@@ -1,5 +1,6 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockIsoStringFuture } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -76,12 +77,8 @@ describe('PlantDetailScreen', () => {
     lightingRating: 5,
     wateringRating: 5,
     humidityRating: 5,
-    nextWateringAt: new Date(
-      Date.now() + 2 * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    nextFertilizationAt: new Date(
-      Date.now() + 14 * 24 * 60 * 60 * 1000
-    ).toISOString(),
+    nextWateringAt: mockIsoStringFuture(2, 'days'),
+    nextFertilizationAt: mockIsoStringFuture(14, 'days'),
   }
 
   beforeEach(() => {

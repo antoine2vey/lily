@@ -24,7 +24,7 @@ import { ProfileMenuItem } from './components/ProfileMenuItem'
 import { StatsCard } from './components/StatsCard'
 
 export function ProfileScreen() {
-  const { logout } = useAuth()
+  const { state, logout } = useAuth()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { data: plants, isLoading: isLoadingPlants } = usePlants()
   const { data: subscription, isLoading: isLoadingSubscription } =
@@ -114,7 +114,12 @@ export function ProfileScreen() {
           )}
           name={user?.name ?? 'Plant Lover'}
           username={user?.email?.split('@')[0]}
-          memberSince={new Date()}
+          memberSince={pipe(
+            Match.value(state),
+            Match.when({ _tag: 'Authenticated' }, (s) => s.user.createdAt),
+            Match.when({ _tag: 'NeedsUsername' }, (s) => s.user.createdAt),
+            Match.orElse(() => undefined)
+          )}
         />
 
         {/* Stats Card */}

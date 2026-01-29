@@ -60,13 +60,13 @@ export const sendMagicLink = ({
       const deepLink = `lily://verify?code=${token}`
 
       yield* Effect.sync(() => {
-        console.log('\n' + '='.repeat(50))
+        console.log(`\n${'='.repeat(50)}`)
         console.log('🔗 Magic Link Deep Link:')
         console.log(deepLink)
         console.log('='.repeat(50))
         console.log('\n📱 Scan this QR code with your device:\n')
         qrcode.generate(deepLink, { small: true })
-        console.log('='.repeat(50) + '\n')
+        console.log(`${'='.repeat(50)}\n`)
       })
     } else {
       // In production, send the email

@@ -1,4 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import {
+  mockDateFuture,
+  mockFixedDate,
+  mockNow,
+} from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -89,7 +94,7 @@ describe('CareScreen', () => {
             plantImageUrl: null,
             type: 'water',
             completed: false,
-            dueDate: new Date('2024-01-01'),
+            dueDate: mockFixedDate(2024, 1, 1),
           },
         ],
         today: [],
@@ -117,7 +122,7 @@ describe('CareScreen', () => {
             plantImageUrl: null,
             type: 'fertilize',
             completed: false,
-            dueDate: new Date(),
+            dueDate: mockNow(),
           },
         ],
         thisWeek: [],
@@ -132,8 +137,7 @@ describe('CareScreen', () => {
   })
 
   it('displays this week section when there are upcoming tasks', () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 3)
+    const futureDate = mockDateFuture(3, 'days')
 
     mockedUseCareTasks.mockReturnValue({
       data: {
@@ -161,8 +165,7 @@ describe('CareScreen', () => {
   })
 
   it('shows confirmation modal when completing future task', () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 3)
+    const futureDate = mockDateFuture(3, 'days')
 
     mockedUseCareTasks.mockReturnValue({
       data: {
@@ -194,8 +197,7 @@ describe('CareScreen', () => {
   })
 
   it('displays multiple sections simultaneously', () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 2)
+    const futureDate = mockDateFuture(2, 'days')
 
     mockedUseCareTasks.mockReturnValue({
       data: {
@@ -207,7 +209,7 @@ describe('CareScreen', () => {
             plantImageUrl: null,
             type: 'water',
             completed: false,
-            dueDate: new Date('2024-01-01'),
+            dueDate: mockFixedDate(2024, 1, 1),
           },
         ],
         today: [
@@ -218,7 +220,7 @@ describe('CareScreen', () => {
             plantImageUrl: null,
             type: 'fertilize',
             completed: false,
-            dueDate: new Date(),
+            dueDate: mockNow(),
           },
         ],
         thisWeek: [

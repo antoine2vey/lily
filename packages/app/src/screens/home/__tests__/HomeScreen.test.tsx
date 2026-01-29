@@ -113,7 +113,7 @@ describe('HomeScreen', () => {
     fireEvent.press(screen.getByText('Add Your First Plant'))
 
     expect(screen.getByText('Add Plant')).toBeTruthy()
-    expect(screen.getByText('Scan with AI')).toBeTruthy()
+    expect(screen.getByText('Identify with AI')).toBeTruthy()
     expect(screen.getByText('Add manually')).toBeTruthy()
   })
 

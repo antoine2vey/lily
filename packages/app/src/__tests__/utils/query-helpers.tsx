@@ -9,6 +9,7 @@ import {
   renderHook,
 } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
+import { mockEpochMillis } from './dates'
 
 /**
  * Create a test query client with sensible defaults
@@ -64,7 +65,7 @@ export function renderQueryHook<TResult, TProps>(
 export function mockQuerySuccess<T>(data: T): UseQueryResult<T, Error> {
   return {
     data,
-    dataUpdatedAt: Date.now(),
+    dataUpdatedAt: mockEpochMillis(),
     error: null,
     errorUpdatedAt: 0,
     errorUpdateCount: 0,
@@ -132,7 +133,7 @@ export function mockQueryError<T = unknown>(
     data: undefined,
     dataUpdatedAt: 0,
     error,
-    errorUpdatedAt: Date.now(),
+    errorUpdatedAt: mockEpochMillis(),
     errorUpdateCount: 1,
     failureCount: 1,
     failureReason: error,
@@ -178,7 +179,7 @@ export function mockMutationSuccess<
     mutateAsync: jest.fn().mockResolvedValue({} as TData),
     reset: jest.fn(),
     status: 'success',
-    submittedAt: Date.now(),
+    submittedAt: mockEpochMillis(),
     variables: undefined,
   } as unknown as UseMutationResult<TData, Error, TVariables>
 }
@@ -205,7 +206,7 @@ export function mockMutationLoading<
     mutateAsync: jest.fn(),
     reset: jest.fn(),
     status: 'pending',
-    submittedAt: Date.now(),
+    submittedAt: mockEpochMillis(),
     variables: undefined,
   } as unknown as UseMutationResult<TData, Error, TVariables>
 }
@@ -231,7 +232,7 @@ export function mockMutationError<TData = unknown, TVariables = unknown>(
     mutateAsync: jest.fn().mockRejectedValue(error),
     reset: jest.fn(),
     status: 'error',
-    submittedAt: Date.now(),
+    submittedAt: mockEpochMillis(),
     variables: undefined,
   } as unknown as UseMutationResult<TData, Error, TVariables>
 }

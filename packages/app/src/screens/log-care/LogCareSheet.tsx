@@ -1,5 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatShortDate, formatTime, parseApiDate } from '@lily/shared'
+import {
+  formatShortDate,
+  formatTime,
+  nowAsDate,
+  parseApiDate,
+} from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
@@ -36,8 +41,8 @@ export function LogCareSheet({
 }: LogCareSheetProps) {
   const [plantIds, setPlantIds] = useState<string[]>([])
   const [careType, setCareType] = useState<CareType>('water')
-  const [date, setDate] = useState(new Date())
-  const [time, setTime] = useState(new Date())
+  const [date, setDate] = useState(nowAsDate)
+  const [time, setTime] = useState(nowAsDate)
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState<string | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -82,8 +87,8 @@ export function LogCareSheet({
           // Reset form
           setPlantIds(defaultPlantId ? [defaultPlantId] : [])
           setCareType('water')
-          setDate(new Date())
-          setTime(new Date())
+          setDate(nowAsDate())
+          setTime(nowAsDate())
           setNotes('')
           setPhoto(null)
           onClose()

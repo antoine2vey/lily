@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { nowAsDate } from '@lily/shared'
 import { Array } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -161,7 +162,7 @@ export function GalleryScreen() {
   const _allItems = Array.prepend(photos, {
     id: 'add-photo-header',
     url: '',
-    takenAt: new Date(),
+    takenAt: nowAsDate(),
     plantId: plantId ?? '',
   } as PhotoItem)
 

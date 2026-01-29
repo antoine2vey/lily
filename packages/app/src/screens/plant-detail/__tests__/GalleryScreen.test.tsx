@@ -4,6 +4,7 @@ import {
   resetNavigationMocks,
   setMockSearchParams,
 } from 'src/__tests__/mocks/navigation'
+import { mockNow } from 'src/__tests__/utils/dates'
 import { GalleryScreen } from '../GalleryScreen'
 
 // Mock the hooks
@@ -33,13 +34,13 @@ describe('GalleryScreen', () => {
       {
         id: 'photo-1',
         url: 'https://example.com/photo1.jpg',
-        takenAt: new Date(),
+        takenAt: mockNow(),
         plantId: 'plant-1',
       },
       {
         id: 'photo-2',
         url: 'https://example.com/photo2.jpg',
-        takenAt: new Date(),
+        takenAt: mockNow(),
         plantId: 'plant-1',
       },
     ],

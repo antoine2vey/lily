@@ -1,6 +1,7 @@
 import type { UserProfile } from '@lily/shared/auth'
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
+import { mockNow } from '../utils/dates'
 
 // ============================================================================
 // Mock Auth Context
@@ -45,8 +46,8 @@ export const defaultMockUser: UserProfile = {
   name: 'Test User',
   role: 'user',
   status: 'active',
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  createdAt: mockNow(),
+  updatedAt: mockNow(),
 }
 
 interface MockAuthProviderProps {

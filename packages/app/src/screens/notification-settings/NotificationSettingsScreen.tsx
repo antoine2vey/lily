@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatTime, parseApiDate } from '@lily/shared'
+import { formatTime, makeTimePickerDate, parseApiDate } from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Array, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
@@ -58,9 +58,7 @@ function parseTime(timeString: string): Date {
     Option.getOrElse(() => 0)
   )
   // Create a Date object for the time picker (required by DateTimePicker)
-  const date = new Date()
-  date.setHours(hours, minutes, 0, 0)
-  return date
+  return makeTimePickerDate(hours, minutes)
 }
 
 const formatTimeDisplay = (date: Date): string =>

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
+import { mockNow } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -85,13 +86,13 @@ describe('ChatScreen', () => {
           id: 'msg-1',
           role: 'user',
           content: 'Hello',
-          createdAt: new Date(),
+          createdAt: mockNow(),
         },
         {
           id: 'msg-2',
           role: 'assistant',
           content: 'Hi! How can I help with your plants?',
-          createdAt: new Date(),
+          createdAt: mockNow(),
         },
       ],
       append: mockAppend,
@@ -119,13 +120,13 @@ describe('ChatScreen', () => {
           id: 'msg-1',
           role: 'user',
           content: 'Hello',
-          createdAt: new Date(),
+          createdAt: mockNow(),
         },
         {
           id: 'msg-2',
           role: 'assistant',
           content: '',
-          createdAt: new Date(),
+          createdAt: mockNow(),
         },
       ],
       append: mockAppend,

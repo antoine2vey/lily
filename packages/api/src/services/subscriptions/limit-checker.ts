@@ -27,14 +27,14 @@ export class LimitChecker extends Context.Tag('LimitChecker')<
   ILimitChecker
 >() {}
 
-const noopLimitChecker: ILimitChecker = {
+const _noopLimitChecker: ILimitChecker = {
   checkPlantLimit: () => Effect.void,
   checkAiChatLimit: () => Effect.void,
   checkCardScanLimit: () => Effect.void,
   checkPlantIdentifyLimit: () => Effect.void,
 }
 
-const isDev = process.env.DISABLE_LIMITS === 'true'
+const _isDev = process.env.DISABLE_LIMITS === 'true'
 
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,
