@@ -107,6 +107,10 @@ temp/
 *.sln
 *.sw?
 
+# Expo/React Native native builds
+ios/
+android/
+
 # OS generated files
 Thumbs.db
 gcs-google-credentials.json
