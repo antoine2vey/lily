@@ -1,6 +1,11 @@
 import { Array, Record } from 'effect'
 import * as SecureStore from 'expo-secure-store'
-import { ACCESS_TOKEN_KEY, API_BASE_URL, refreshAccessToken } from './client'
+import {
+  ACCESS_TOKEN_KEY,
+  API_BASE_URL,
+  ApiError,
+  refreshAccessToken,
+} from './client'
 
 // biome-ignore lint/suspicious/noExplicitAny: FormData requires any for React Native file objects
 type FileObject = any
@@ -67,6 +72,18 @@ export async function uploadMultipart<T>(
         body: formData,
       })
       if (!retryResponse.ok) {
+        // Try to parse error response for typed errors
+        try {
+          const errorBody = await retryResponse.json()
+          if (errorBody._tag) {
+            throw new ApiError(
+              errorBody._tag,
+              errorBody.message ?? 'Request failed'
+            )
+          }
+        } catch (parseError) {
+          if (parseError instanceof ApiError) throw parseError
+        }
         throw new Error(`Upload failed: ${retryResponse.status}`)
       }
       return retryResponse.json()
@@ -75,6 +92,19 @@ export async function uploadMultipart<T>(
   }
 
   if (!response.ok) {
+    // Try to parse error response for typed errors like LimitExceededError
+    try {
+      const errorBody = await response.json()
+      if (errorBody._tag) {
+        throw new ApiError(
+          errorBody._tag,
+          errorBody.message ?? 'Request failed'
+        )
+      }
+    } catch (parseError) {
+      // If parsing fails, throw generic error
+      if (parseError instanceof ApiError) throw parseError
+    }
     throw new Error(`Upload failed: ${response.status}`)
   }
 
