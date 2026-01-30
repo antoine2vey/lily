@@ -1,8 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import type { userSubscriptions } from '@lily/db'
 import { LimitExceededError } from '@lily/shared'
-import { Context, Effect, Layer, Option, pipe } from 'effect'
+import { Context, DateTime, Effect, Layer, Match, Option, pipe } from 'effect'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
@@ -27,22 +28,41 @@ export class LimitChecker extends Context.Tag('LimitChecker')<
   ILimitChecker
 >() {}
 
-const _noopLimitChecker: ILimitChecker = {
+const noopLimitChecker: ILimitChecker = {
   checkPlantLimit: () => Effect.void,
   checkAiChatLimit: () => Effect.void,
   checkCardScanLimit: () => Effect.void,
   checkPlantIdentifyLimit: () => Effect.void,
 }
 
-const _isDev = process.env.DISABLE_LIMITS === 'true'
+const disableLimitChecker = process.env.DISABLE_LIMITS === 'true'
+
+// Helper to determine if a subscription grants premium access
+const hasPremiumAccess = (
+  subscription: typeof userSubscriptions.$inferSelect
+): boolean => {
+  const periodEnd = DateTime.unsafeMake(subscription.currentPeriodEnd)
+  const now = DateTime.unsafeNow()
+  const isWithinBillingPeriod = DateTime.greaterThan(periodEnd, now)
+
+  return pipe(
+    Match.value(subscription.status),
+    Match.when('active', () => true),
+    Match.when('trialing', () => true),
+    Match.when('canceled', () => isWithinBillingPeriod),
+    Match.when('past_due', () => isWithinBillingPeriod),
+    Match.when('expired', () => false),
+    Match.exhaustive
+  )
+}
 
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,
   Effect.gen(function* () {
-    // if (isDev) {
-    //   yield* Effect.log('LimitChecker: dev mode, all limits disabled')
-    //   return noopLimitChecker
-    // }
+    if (disableLimitChecker) {
+      yield* Effect.log('LimitChecker is disabled')
+      return noopLimitChecker
+    }
 
     const subRepo = yield* SubscriptionRepository
     const achievementRepo = yield* AchievementRepository
@@ -52,13 +72,13 @@ export const LimitCheckerLive = Layer.effect(
       Effect.gen(function* () {
         const subscription = yield* subRepo.findByUserId(userId)
 
-        // Default to free tier if no subscription exists
-        const effectiveTier =
-          subscription &&
-          (subscription.status === 'active' ||
-            subscription.status === 'trialing')
-            ? subscription.tier
-            : 'free'
+        // Determine effective tier based on subscription status and billing period
+        const effectiveTier = pipe(
+          Option.fromNullable(subscription),
+          Option.filter(hasPremiumAccess),
+          Option.map((sub) => sub.tier),
+          Option.getOrElse(() => 'free' as const)
+        )
 
         const tierConfig = yield* subRepo.getTier(effectiveTier)
         return { subscription, tierConfig }

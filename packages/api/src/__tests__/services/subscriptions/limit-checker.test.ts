@@ -184,7 +184,49 @@ describe('LimitChecker', () => {
       expect(Exit.isFailure(result)).toBe(true)
     })
 
-    it('should enforce free limits for cancelled subscription', async () => {
+    it('should enforce free limits for cancelled subscription after period ends', async () => {
+      // Period ended 1 day ago - user should lose premium access
+      const pastPeriodEnd = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'canceled',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd: pastPeriodEnd,
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'free',
+        plantCount: 5,
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isFailure(result)).toBe(true)
+    })
+
+    it('should allow canceled subscription with future period end', async () => {
+      // User canceled but still has 7 days of paid access remaining
+      const futurePeriodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -193,13 +235,91 @@ describe('LimitChecker', () => {
         trialStartsAt: null,
         trialEndsAt: null,
         currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        currentPeriodEnd: futurePeriodEnd,
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'paid',
+        plantCount: 100, // Over free limit but within paid
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isSuccess(result)).toBe(true)
+    })
+
+    it('should allow past_due subscription with future period end (grace period)', async () => {
+      // Payment failed but user still has access during grace period
+      const futurePeriodEnd = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'past_due',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: futurePeriodEnd,
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'paid',
+        plantCount: 50,
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isSuccess(result)).toBe(true)
+    })
+
+    it('should enforce free limits for past_due subscription after period ends', async () => {
+      // Payment failed and grace period has ended
+      const pastPeriodEnd = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'past_due',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        currentPeriodEnd: pastPeriodEnd,
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
