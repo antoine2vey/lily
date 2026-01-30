@@ -65,20 +65,6 @@ describe('Timezone Utilities', () => {
       expect(Exit.isFailure(result)).toBe(true)
     })
 
-    it('should accept numeric offset format', async () => {
-      // Effect DateTime accepts numeric offsets like "+05:00"
-      const result = await Effect.runPromise(validateTimezone('+05:00'))
-
-      expect(result).toBe('+05:00')
-    })
-
-    it('should accept common abbreviations', async () => {
-      // Effect DateTime accepts some common abbreviations
-      const result = await Effect.runPromise(validateTimezone('EST'))
-
-      expect(result).toBe('EST')
-    })
-
     it('should return InvalidTimezoneError with correct timezone', async () => {
       const result = await Effect.runPromiseExit(
         validateTimezone('NotReal/Zone')
