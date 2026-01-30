@@ -12,10 +12,25 @@ import type { ReactNode } from 'react'
 import { mockEpochMillis } from './dates'
 
 /**
+ * Track all QueryClients created during tests for cleanup
+ */
+const testQueryClients: QueryClient[] = []
+
+/**
+ * Clear all tracked QueryClients - called in afterEach
+ */
+export function cleanupQueryClients(): void {
+  for (const client of testQueryClients) {
+    client.clear()
+  }
+  testQueryClients.length = 0
+}
+
+/**
  * Create a test query client with sensible defaults
  */
 export function createTestQueryClient(): QueryClient {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
@@ -24,9 +39,12 @@ export function createTestQueryClient(): QueryClient {
       },
       mutations: {
         retry: false,
+        gcTime: 0,
       },
     },
   })
+  testQueryClients.push(client)
+  return client
 }
 
 /**
@@ -262,12 +280,4 @@ export function mockMutationIdle<
     submittedAt: 0,
     variables: undefined,
   } as unknown as UseMutationResult<TData, Error, TVariables>
-}
-
-/**
- * Helper to wait for a query to settle
- */
-export async function waitForQuery(queryClient: QueryClient): Promise<void> {
-  await queryClient.getQueryCache().onFocus()
-  await new Promise((resolve) => setTimeout(resolve, 0))
 }
