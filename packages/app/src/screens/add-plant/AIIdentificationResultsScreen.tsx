@@ -54,10 +54,7 @@ export function AIIdentificationResultsScreen() {
             error instanceof ApiError &&
             error._tag === 'LimitExceededError'
           ) {
-            Alert.alert(
-              'Plant Limit Reached',
-              "You've reached your limit of plants on the free plan. Upgrade to Premium for unlimited plants!"
-            )
+            Alert.alert('Plant Limit Reached', error.message)
             return
           }
 

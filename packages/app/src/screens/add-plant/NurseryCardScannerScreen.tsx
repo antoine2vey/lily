@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
 import { iconColors } from 'src/theme'
+import { ApiError } from 'src/utils/client'
 
 function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
   return (
@@ -80,16 +81,24 @@ export function NurseryCardScannerScreen() {
 
     const firstPhoto = Arr.unsafeGet(capturedPhotos, 0)
 
+    const handleScanError = (error: unknown) => {
+      if (error instanceof ApiError && error._tag === 'LimitExceededError') {
+        Alert.alert('Scan Limit Reached', error.message)
+      } else {
+        Alert.alert(
+          'Scan Failed',
+          "We couldn't read the nursery card. Try another photo or add manually."
+        )
+      }
+    }
+
     // Single photo: use single scan endpoint
     if (capturedPhotos.length === 1) {
       try {
         const result = await scanCard(firstPhoto)
         navigateWithResult(firstPhoto, result)
-      } catch {
-        Alert.alert(
-          'Scan Failed',
-          "We couldn't read the nursery card. Try another photo or add manually."
-        )
+      } catch (error) {
+        handleScanError(error)
       }
       return
     }
@@ -98,11 +107,8 @@ export function NurseryCardScannerScreen() {
     try {
       const result = await scanCardMultiple(capturedPhotos)
       navigateWithResult(firstPhoto, result)
-    } catch {
-      Alert.alert(
-        'Scan Failed',
-        "We couldn't read the nursery card. Try again or add manually."
-      )
+    } catch (error) {
+      handleScanError(error)
     }
   }
 
@@ -175,7 +181,10 @@ export function NurseryCardScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
+      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+
+      {/* Overlay UI - positioned absolutely on top of camera */}
+      <View className="absolute inset-0" pointerEvents="box-none">
         {/* Top bar with back button and counter */}
         <View
           className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4"
@@ -201,7 +210,10 @@ export function NurseryCardScannerScreen() {
         </View>
 
         {/* Scan area overlay */}
-        <View style={{ flex: 1 }} className="items-center justify-center">
+        <View
+          className="flex-1 items-center justify-center"
+          pointerEvents="none"
+        >
           <View
             className="w-72 h-48 rounded-xl items-center justify-center border-2 border-primary"
             style={{ backgroundColor: 'transparent' }}
@@ -219,110 +231,116 @@ export function NurseryCardScannerScreen() {
           </View>
         </View>
 
-        {/* Thumbnail strip */}
-        {capturedPhotos.length > 0 && (
-          <View className="px-4 mb-3">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}
-            >
-              {Arr.map(capturedPhotos, (uri, index) => (
-                <View key={uri} className="relative">
-                  <Image
-                    source={{ uri }}
-                    className="w-16 h-16 rounded-lg"
-                    resizeMode="cover"
-                  />
-                  <Pressable
-                    onPress={() => removePhoto(index)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-coral items-center justify-center"
-                  >
-                    <MaterialIcons
-                      name="close"
-                      size={12}
-                      color={iconColors.white}
-                    />
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Bottom controls */}
         <View
-          className="flex-row items-center justify-between px-12"
-          style={{ paddingBottom: insets.bottom + 24 }}
+          className="absolute bottom-0 left-0 right-0"
+          pointerEvents="box-none"
         >
-          <Pressable
-            onPress={handlePickFromGallery}
-            disabled={!canCapture || isCapturing || isScanning}
-            className="w-12 h-12 rounded-full items-center justify-center"
-            style={{
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity: canCapture ? 1 : 0.4,
-            }}
+          <View>
+            {/* Thumbnail strip */}
+            {capturedPhotos.length > 0 && (
+              <View className="px-4 mb-4">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingTop: 8 }}
+                >
+                  {Arr.map(capturedPhotos, (uri, index) => (
+                    <View key={uri} className="relative">
+                      <Image
+                        source={{ uri }}
+                        className="w-16 h-16 rounded-lg"
+                        resizeMode="cover"
+                      />
+                      <Pressable
+                        onPress={() => removePhoto(index)}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-coral items-center justify-center"
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={12}
+                          color={iconColors.white}
+                        />
+                      </Pressable>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+          {/* Bottom controls */}
+          <View
+            className="flex-row items-center justify-between px-12"
+            style={{ paddingBottom: insets.bottom + 24 }}
           >
-            <MaterialIcons
-              name="photo-library"
-              size={24}
-              color={iconColors.white}
-            />
-          </Pressable>
+            <Pressable
+              onPress={handlePickFromGallery}
+              disabled={!canCapture || isCapturing || isScanning}
+              className="w-12 h-12 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                opacity: canCapture ? 1 : 0.4,
+              }}
+            >
+              <MaterialIcons
+                name="photo-library"
+                size={24}
+                color={iconColors.white}
+              />
+            </Pressable>
 
-          {capturedPhotos.length > 0 ? (
-            <Pressable
-              onPress={handleScanAll}
-              disabled={isScanning}
-              className="px-8 py-4 rounded-full bg-primary"
-              style={{ opacity: isScanning ? 0.7 : 1 }}
-            >
-              {isScanning ? (
-                <ActivityIndicator size="small" color={iconColors.white} />
-              ) : (
-                <Text className="text-base font-semibold text-white">
-                  Scan{' '}
-                  {capturedPhotos.length === 1
-                    ? 'Card'
-                    : `All (${capturedPhotos.length})`}
-                </Text>
-              )}
-            </Pressable>
-          ) : (
-            <Pressable
-              onPress={handleCapture}
-              disabled={isCapturing || !canCapture}
-              className="w-[72px] h-[72px] rounded-full items-center justify-center border-4 border-white"
-              style={{ opacity: isCapturing ? 0.7 : 1 }}
-            >
-              {isCapturing ? (
-                <ActivityIndicator size="small" color={iconColors.white} />
-              ) : (
-                <View className="w-[56px] h-[56px] rounded-full bg-white" />
-              )}
-            </Pressable>
-          )}
+            {capturedPhotos.length > 0 ? (
+              <Pressable
+                onPress={handleScanAll}
+                disabled={isScanning}
+                className="px-8 py-4 rounded-full bg-primary"
+                style={{ opacity: isScanning ? 0.7 : 1 }}
+              >
+                {isScanning ? (
+                  <ActivityIndicator size="small" color={iconColors.white} />
+                ) : (
+                  <Text className="text-base font-semibold text-white">
+                    Scan{' '}
+                    {capturedPhotos.length === 1
+                      ? 'Card'
+                      : `All (${capturedPhotos.length})`}
+                  </Text>
+                )}
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={handleCapture}
+                disabled={isCapturing || !canCapture}
+                className="w-[72px] h-[72px] rounded-full items-center justify-center border-4 border-white"
+                style={{ opacity: isCapturing ? 0.7 : 1 }}
+              >
+                {isCapturing ? (
+                  <ActivityIndicator size="small" color={iconColors.white} />
+                ) : (
+                  <View className="w-[56px] h-[56px] rounded-full bg-white" />
+                )}
+              </Pressable>
+            )}
 
-          {/* Capture button (smaller) when photos exist */}
-          {capturedPhotos.length > 0 && canCapture ? (
-            <Pressable
-              onPress={handleCapture}
-              disabled={isCapturing || isScanning}
-              className="w-12 h-12 rounded-full items-center justify-center border-2 border-white"
-              style={{ opacity: isCapturing ? 0.7 : 1 }}
-            >
-              {isCapturing ? (
-                <ActivityIndicator size="small" color={iconColors.white} />
-              ) : (
-                <View className="w-9 h-9 rounded-full bg-white" />
-              )}
-            </Pressable>
-          ) : (
-            <View className="w-12 h-12" />
-          )}
+            {/* Capture button (smaller) when photos exist */}
+            {capturedPhotos.length > 0 && canCapture ? (
+              <Pressable
+                onPress={handleCapture}
+                disabled={isCapturing || isScanning}
+                className="w-12 h-12 rounded-full items-center justify-center border-2 border-white"
+                style={{ opacity: isCapturing ? 0.7 : 1 }}
+              >
+                {isCapturing ? (
+                  <ActivityIndicator size="small" color={iconColors.white} />
+                ) : (
+                  <View className="w-9 h-9 rounded-full bg-white" />
+                )}
+              </Pressable>
+            ) : (
+              <View className="w-12 h-12" />
+            )}
+          </View>
         </View>
-      </CameraView>
+      </View>
     </View>
   )
 }

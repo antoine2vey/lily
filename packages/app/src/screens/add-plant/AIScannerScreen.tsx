@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
 import { iconColors } from 'src/theme'
+import { ApiError } from 'src/utils/client'
 
 function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
   return (
@@ -93,11 +94,15 @@ export function AIScannerScreen() {
         })
         const aiResult = await identify(jpeg.uri)
         navigateWithResult(jpeg.uri, aiResult)
-      } catch {
-        Alert.alert(
-          'Identification Failed',
-          "We couldn't identify this plant. Try another photo or add manually."
-        )
+      } catch (error) {
+        if (error instanceof ApiError && error._tag === 'LimitExceededError') {
+          Alert.alert('Scan Limit Reached', error.message)
+        } else {
+          Alert.alert(
+            'Identification Failed',
+            "We couldn't identify this plant. Try another photo or add manually."
+          )
+        }
       } finally {
         setIsCapturing(false)
       }
@@ -113,11 +118,15 @@ export function AIScannerScreen() {
           const aiResult = await identify(photo.uri)
           navigateWithResult(photo.uri, aiResult)
         }
-      } catch {
-        Alert.alert(
-          'Identification Failed',
-          "We couldn't identify this plant. Try another photo or add manually."
-        )
+      } catch (error) {
+        if (error instanceof ApiError && error._tag === 'LimitExceededError') {
+          Alert.alert('Scan Limit Reached', error.message)
+        } else {
+          Alert.alert(
+            'Identification Failed',
+            "We couldn't identify this plant. Try another photo or add manually."
+          )
+        }
       } finally {
         setIsCapturing(false)
       }
@@ -138,7 +147,10 @@ export function AIScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
+      <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+
+      {/* Overlay UI - positioned absolutely on top of camera */}
+      <View className="absolute inset-0" pointerEvents="box-none">
         {/* Top bar with back button */}
         <View
           className="absolute top-0 left-0 right-0 z-10 flex-row items-center px-4"
@@ -154,7 +166,10 @@ export function AIScannerScreen() {
         </View>
 
         {/* Centered scan frame */}
-        <View style={{ flex: 1 }} className="items-center justify-center">
+        <View
+          className="flex-1 items-center justify-center"
+          pointerEvents="none"
+        >
           <ScanFrame />
           <Text className="text-base mt-6 font-medium text-white">
             Position your plant in the frame
@@ -163,7 +178,7 @@ export function AIScannerScreen() {
 
         {/* Bottom controls */}
         <View
-          className="flex-row items-center justify-between px-12"
+          className="absolute bottom-0 left-0 right-0 flex-row items-center justify-between px-12"
           style={{ paddingBottom: insets.bottom + 24 }}
         >
           <Pressable
@@ -194,7 +209,7 @@ export function AIScannerScreen() {
           {/* Spacer to keep capture button centered */}
           <View className="w-12 h-12" />
         </View>
-      </CameraView>
+      </View>
     </View>
   )
 }
