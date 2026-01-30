@@ -4,8 +4,16 @@ import '@testing-library/jest-native/extend-expect'
 import './mocks/expo-modules'
 import './mocks/navigation'
 
+// Import QueryClient cleanup utility
+import { cleanupQueryClients } from './utils/query-helpers'
+
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
+
+// Clean up QueryClients after each test to prevent open handles
+afterEach(() => {
+  cleanupQueryClients()
+})
 
 // Suppress known React testing warnings that are false positives
 // These occur with VirtualizedList and TanStack Query internal async updates
