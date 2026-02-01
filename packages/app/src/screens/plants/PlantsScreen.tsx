@@ -187,7 +187,7 @@ export function PlantsScreen() {
     }
   }, [showSearch])
 
-  if (isLoading) {
+  if (isLoading && !plantsData) {
     return <PlantsScreenSkeleton />
   }
 

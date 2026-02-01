@@ -41,7 +41,7 @@ export function ProfileScreen() {
     isLoadingSubscription ||
     isLoadingAchievements
 
-  if (isLoading) {
+  if (isLoading && !user && !plants) {
     return (
       <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
