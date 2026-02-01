@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
-import { ApiError } from 'src/utils/client'
+import { UploadError } from 'src/utils/upload'
 
 export function AIScannerScreen() {
   const iconColors = useIconColors()
@@ -47,7 +47,10 @@ export function AIScannerScreen() {
         const aiResult = await identify(jpeg.uri)
         navigateWithResult(jpeg.uri, aiResult)
       } catch (error) {
-        if (error instanceof ApiError && error._tag === 'LimitExceededError') {
+        if (
+          error instanceof UploadError &&
+          error.apiError?._tag === 'LimitExceededError'
+        ) {
           Alert.alert('Scan Limit Reached', error.message)
         } else {
           Alert.alert(
@@ -71,7 +74,10 @@ export function AIScannerScreen() {
           navigateWithResult(photo.uri, aiResult)
         }
       } catch (error) {
-        if (error instanceof ApiError && error._tag === 'LimitExceededError') {
+        if (
+          error instanceof UploadError &&
+          error.apiError?._tag === 'LimitExceededError'
+        ) {
           Alert.alert('Scan Limit Reached', error.message)
         } else {
           Alert.alert(

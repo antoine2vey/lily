@@ -5,9 +5,8 @@ import {
 } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { Unauthorized } from '@lily/api/services/auth/middleware.types'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
-import type { User } from '@lily/shared'
+import { UnauthorizedError, type User } from '@lily/shared'
 import { Effect, Exit, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -21,7 +20,7 @@ describe('Authentication Middleware (validateUserFromToken)', () => {
       createMockUserRepository(options.users ?? mockUsers)
     )
 
-  const createError = (message: string) => new Unauthorized({ message })
+  const createError = (message: string) => new UnauthorizedError({ message })
 
   it('should successfully authenticate with valid token', async () => {
     const layer = createTestLayer({

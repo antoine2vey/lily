@@ -3,9 +3,22 @@ import * as SecureStore from 'expo-secure-store'
 import {
   ACCESS_TOKEN_KEY,
   API_BASE_URL,
-  ApiError,
-  refreshAccessToken,
+  type ApiFailure,
+  refreshAccessTokenAsync,
 } from './client'
+
+/**
+ * Error class for upload failures with typed API error support
+ */
+export class UploadError extends Error {
+  readonly apiError?: ApiFailure
+
+  constructor(message: string, apiError?: ApiFailure) {
+    super(message)
+    this.name = 'UploadError'
+    this.apiError = apiError
+  }
+}
 
 // biome-ignore lint/suspicious/noExplicitAny: FormData requires any for React Native file objects
 type FileObject = any
@@ -62,7 +75,7 @@ export async function uploadMultipart<T>(
 
   // Handle token refresh if 401
   if (response.status === 401) {
-    const newToken = await refreshAccessToken()
+    const newToken = await refreshAccessTokenAsync()
     if (newToken) {
       // Retry with new token
       headers.Authorization = `Bearer ${newToken}`
@@ -76,19 +89,19 @@ export async function uploadMultipart<T>(
         try {
           const errorBody = await retryResponse.json()
           if (errorBody._tag) {
-            throw new ApiError(
-              errorBody._tag,
-              errorBody.message ?? 'Request failed'
+            throw new UploadError(
+              errorBody.message ?? 'Request failed',
+              errorBody as ApiFailure
             )
           }
         } catch (parseError) {
-          if (parseError instanceof ApiError) throw parseError
+          if (parseError instanceof UploadError) throw parseError
         }
-        throw new Error(`Upload failed: ${retryResponse.status}`)
+        throw new UploadError(`Upload failed: ${retryResponse.status}`)
       }
       return retryResponse.json()
     }
-    throw new Error('Authentication failed')
+    throw new UploadError('Authentication failed')
   }
 
   if (!response.ok) {
@@ -96,16 +109,16 @@ export async function uploadMultipart<T>(
     try {
       const errorBody = await response.json()
       if (errorBody._tag) {
-        throw new ApiError(
-          errorBody._tag,
-          errorBody.message ?? 'Request failed'
+        throw new UploadError(
+          errorBody.message ?? 'Request failed',
+          errorBody as ApiFailure
         )
       }
     } catch (parseError) {
       // If parsing fails, throw generic error
-      if (parseError instanceof ApiError) throw parseError
+      if (parseError instanceof UploadError) throw parseError
     }
-    throw new Error(`Upload failed: ${response.status}`)
+    throw new UploadError(`Upload failed: ${response.status}`)
   }
 
   // Check if response has content

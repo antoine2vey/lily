@@ -261,8 +261,12 @@ describe('useRecentActivities', () => {
         wrapper: createQueryWrapper(),
       })
 
-      expect(result.current.isError).toBe(true)
-      expect(result.current.error).toBe(mockError)
+      // With typed error handling, API errors are returned via isApiError/apiError
+      expect(result.current.isApiError).toBe(true)
+      expect(result.current.apiError).toEqual({
+        _tag: 'UnknownError',
+        message: mockError.message,
+      })
     })
 
     it('should pass through success state', () => {

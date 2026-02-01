@@ -4,11 +4,12 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
+import { UnauthorizedError } from '@lily/shared'
 import { Effect, Layer } from 'effect'
-import { Authentication, Unauthorized } from './middleware.types'
+import { Authentication } from './middleware.types'
 
 // Re-export types for convenience
-export { Authentication, CurrentUser, Unauthorized } from './middleware.types'
+export { Authentication, CurrentUser } from './middleware.types'
 
 /**
  * Base layer for Authentication middleware (requires JWTService and UserRepository)
@@ -25,14 +26,14 @@ const AuthenticationBase = Layer.effect(
           const { profile } = yield* Effect.catchAll(
             validateUserFromToken({
               token,
-              createError: (message) => new Unauthorized({ message }),
+              createError: (message) => new UnauthorizedError({ message }),
             }).pipe(
               Effect.provideService(JWTService, jwtService),
               Effect.provideService(UserRepository, userRepo)
             ),
             (error) =>
               Effect.fail(
-                new Unauthorized({
+                new UnauthorizedError({
                   message: 'message' in error ? error.message : 'Invalid token',
                 })
               )
