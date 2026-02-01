@@ -484,16 +484,14 @@ const seedDemoData = Effect.gen(function* () {
   // Cactus - Very infrequent, newly added
   const cactus = createdPlants.find((p) => p.name === 'Cactus')
   if (cactus) {
-    yield* db
-      .insert(careLogs)
-      .values([
-        {
-          type: 'watering',
-          notes: 'Initial watering after potting',
-          date: daysAgo(1),
-          plantId: cactus.id,
-        },
-      ])
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Initial watering after potting',
+        date: daysAgo(1),
+        plantId: cactus.id,
+      },
+    ])
     yield* Console.log('  Cactus: 1 care log (newly added)')
   }
 
