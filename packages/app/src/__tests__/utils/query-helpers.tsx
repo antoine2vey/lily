@@ -1,9 +1,4 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  type UseMutationResult,
-  type UseQueryResult,
-} from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   type RenderHookOptions,
   renderHook,
@@ -77,12 +72,23 @@ export function renderQueryHook<TResult, TProps>(
 }
 
 /**
- * Mock a successful query response - returns UseQueryResult compatible type
+ * Mock a successful query response - returns type compatible with useEffectQuery
  * Type assertion is centralized here so tests don't need `as any`
+ * Includes the extended fields (result, apiError, isApiError) from useEffectQuery
+ *
+ * Note: Returns `any` because TanStack Query types use literal boolean types
+ * (e.g., `isError: false` not `isError: boolean`) which cannot be satisfied
+ * by a generic mock object.
  */
-export function mockQuerySuccess<T>(data: T): UseQueryResult<T, Error> {
+export function mockQuerySuccess<T>(
+  data: T
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
     data,
+    result: undefined,
+    apiError: undefined,
+    isApiError: false,
     dataUpdatedAt: mockEpochMillis(),
     error: null,
     errorUpdatedAt: 0,
@@ -106,15 +112,21 @@ export function mockQuerySuccess<T>(data: T): UseQueryResult<T, Error> {
     isSuccess: true,
     refetch: jest.fn().mockResolvedValue({ data, status: 'success' }),
     status: 'success',
-  } as unknown as UseQueryResult<T, Error>
+    promise: Promise.resolve(data),
+  }
 }
 
 /**
- * Mock a loading query state - returns UseQueryResult compatible type
+ * Mock a loading query state - returns type compatible with useEffectQuery
  */
-export function mockQueryLoading<T = unknown>(): UseQueryResult<T, Error> {
+export function mockQueryLoading<T = unknown>(
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
-    data: undefined,
+    data: undefined as T | undefined,
+    result: undefined,
+    apiError: undefined,
+    isApiError: false,
     dataUpdatedAt: 0,
     error: null,
     errorUpdatedAt: 0,
@@ -138,53 +150,66 @@ export function mockQueryLoading<T = unknown>(): UseQueryResult<T, Error> {
     isSuccess: false,
     refetch: jest.fn(),
     status: 'pending',
-  } as unknown as UseQueryResult<T, Error>
+    promise: new Promise<T>(() => {}),
+  }
 }
 
 /**
- * Mock an error query state - returns UseQueryResult compatible type
+ * Mock an error query state - returns type compatible with useEffectQuery
+ * With typed errors, API errors are returned via apiError field
  */
 export function mockQueryError<T = unknown>(
   error: Error = new Error('Query failed')
-): UseQueryResult<T, Error> {
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
+  const rejectedPromise = Promise.reject(error)
+  rejectedPromise.catch(() => {})
+
   return {
-    data: undefined,
+    data: undefined as T | undefined,
+    result: undefined,
+    apiError: { _tag: 'UnknownError' as const, message: error.message },
+    isApiError: true,
     dataUpdatedAt: 0,
-    error,
+    error: null,
     errorUpdatedAt: mockEpochMillis(),
     errorUpdateCount: 1,
     failureCount: 1,
     failureReason: error,
     fetchStatus: 'idle',
-    isError: true,
+    isError: false,
     isFetched: true,
     isFetchedAfterMount: true,
     isFetching: false,
     isInitialLoading: false,
     isLoading: false,
-    isLoadingError: true,
+    isLoadingError: false,
     isPaused: false,
     isPending: false,
     isPlaceholderData: false,
     isRefetchError: false,
     isRefetching: false,
     isStale: false,
-    isSuccess: false,
+    isSuccess: true,
     refetch: jest.fn(),
-    status: 'error',
-  } as unknown as UseQueryResult<T, Error>
+    status: 'success',
+    promise: rejectedPromise,
+  }
 }
 
 /**
- * Mock a successful mutation - returns UseMutationResult compatible type
+ * Mock a successful mutation - returns type compatible with useEffectMutation
+ * Includes the extended fields (result, apiError, isApiError)
  */
-export function mockMutationSuccess<
-  TData = unknown,
-  TVariables = unknown,
->(): UseMutationResult<TData, Error, TVariables> {
+export function mockMutationSuccess<TData = unknown, TVariables = unknown>(
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
     context: undefined,
-    data: undefined,
+    data: undefined as TData | undefined,
+    result: undefined,
+    apiError: undefined,
+    isApiError: false,
     error: null,
     failureCount: 0,
     failureReason: null,
@@ -198,20 +223,22 @@ export function mockMutationSuccess<
     reset: jest.fn(),
     status: 'success',
     submittedAt: mockEpochMillis(),
-    variables: undefined,
-  } as unknown as UseMutationResult<TData, Error, TVariables>
+    variables: undefined as TVariables | undefined,
+  }
 }
 
 /**
- * Mock a loading mutation state - returns UseMutationResult compatible type
+ * Mock a loading mutation state - returns type compatible with useEffectMutation
  */
-export function mockMutationLoading<
-  TData = unknown,
-  TVariables = unknown,
->(): UseMutationResult<TData, Error, TVariables> {
+export function mockMutationLoading<TData = unknown, TVariables = unknown>(
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
     context: undefined,
-    data: undefined,
+    data: undefined as TData | undefined,
+    result: undefined,
+    apiError: undefined,
+    isApiError: false,
     error: null,
     failureCount: 0,
     failureReason: null,
@@ -225,46 +252,53 @@ export function mockMutationLoading<
     reset: jest.fn(),
     status: 'pending',
     submittedAt: mockEpochMillis(),
-    variables: undefined,
-  } as unknown as UseMutationResult<TData, Error, TVariables>
+    variables: undefined as TVariables | undefined,
+  }
 }
 
 /**
- * Mock an error mutation state - returns UseMutationResult compatible type
+ * Mock an error mutation state - returns type compatible with useEffectMutation
+ * With typed errors, API errors are returned via apiError field
  */
 export function mockMutationError<TData = unknown, TVariables = unknown>(
   error: Error = new Error('Mutation failed')
-): UseMutationResult<TData, Error, TVariables> {
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
     context: undefined,
-    data: undefined,
-    error,
+    data: undefined as TData | undefined,
+    result: undefined,
+    apiError: { _tag: 'UnknownError' as const, message: error.message },
+    isApiError: true,
+    error: null,
     failureCount: 1,
     failureReason: error,
-    isError: true,
+    isError: false,
     isIdle: false,
     isPaused: false,
     isPending: false,
-    isSuccess: false,
+    isSuccess: true,
     mutate: jest.fn(),
-    mutateAsync: jest.fn().mockRejectedValue(error),
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
     reset: jest.fn(),
-    status: 'error',
+    status: 'success',
     submittedAt: mockEpochMillis(),
-    variables: undefined,
-  } as unknown as UseMutationResult<TData, Error, TVariables>
+    variables: undefined as TVariables | undefined,
+  }
 }
 
 /**
- * Mock an idle mutation state - returns UseMutationResult compatible type
+ * Mock an idle mutation state - returns type compatible with useEffectMutation
  */
-export function mockMutationIdle<
-  TData = unknown,
-  TVariables = unknown,
->(): UseMutationResult<TData, Error, TVariables> {
+export function mockMutationIdle<TData = unknown, TVariables = unknown>(
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
+): any {
   return {
     context: undefined,
-    data: undefined,
+    data: undefined as TData | undefined,
+    result: undefined,
+    apiError: undefined,
+    isApiError: false,
     error: null,
     failureCount: 0,
     failureReason: null,
@@ -278,6 +312,6 @@ export function mockMutationIdle<
     reset: jest.fn(),
     status: 'idle',
     submittedAt: 0,
-    variables: undefined,
-  } as unknown as UseMutationResult<TData, Error, TVariables>
+    variables: undefined as TVariables | undefined,
+  }
 }

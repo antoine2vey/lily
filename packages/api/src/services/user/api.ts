@@ -4,11 +4,8 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
-import {
-  Authentication,
-  Unauthorized,
-} from '@lily/api/services/auth/middleware.types'
-import { UserNotFoundError } from '@lily/shared/errors/user'
+import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { UnauthorizedError, UserNotFoundError } from '@lily/shared'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 
@@ -19,7 +16,7 @@ export const UsersApi = HttpApiGroup.make('users')
     HttpApiEndpoint.get('getUserSettings')`/settings`
       .addSuccess(UserSettings)
       .addError(UserNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+      .addError(UnauthorizedError, { status: 401 })
   )
   .add(
     // PUT /users/settings - Update profile & global notification settings (uses CurrentUser)
@@ -27,7 +24,7 @@ export const UsersApi = HttpApiGroup.make('users')
       .setPayload(UserSettingsUpdateRequest)
       .addSuccess(UserSettings)
       .addError(UserNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+      .addError(UnauthorizedError, { status: 401 })
   )
   .add(
     // POST /users/avatar - Upload user avatar (uses CurrentUser)
@@ -42,7 +39,7 @@ export const UsersApi = HttpApiGroup.make('users')
       .addSuccess(Schema.Struct({ url: Schema.String }))
       .addError(UserNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
-      .addError(Unauthorized, { status: 401 })
+      .addError(UnauthorizedError, { status: 401 })
   )
   .prefix('/users')
   .middleware(Authentication)

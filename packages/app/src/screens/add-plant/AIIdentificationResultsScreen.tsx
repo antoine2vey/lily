@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Either, Match, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
@@ -9,7 +10,6 @@ import { Button } from 'src/components/ui/Button'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
 import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
-import { ApiError } from 'src/utils/client'
 
 export function AIIdentificationResultsScreen() {
   const params = useLocalSearchParams<{ photoUri?: string; result?: string }>()
@@ -47,20 +47,29 @@ export function AIIdentificationResultsScreen() {
         },
       },
       {
-        onSuccess: (plant) => {
-          router.dismissAll()
-          router.push(`/plant/${plant.id}`)
-        },
-        onError: (error) => {
-          if (
-            error instanceof ApiError &&
-            error._tag === 'LimitExceededError'
-          ) {
-            Alert.alert('Plant Limit Reached', error.message)
-            return
-          }
-
-          Alert.alert('Error', 'Failed to create plant. Please try again.')
+        onSuccess: (apiResult) => {
+          pipe(
+            apiResult,
+            Either.match({
+              onLeft: (error) =>
+                pipe(
+                  Match.value(error),
+                  Match.when({ _tag: 'LimitExceededError' }, (e) =>
+                    Alert.alert('Plant Limit Reached', e.message)
+                  ),
+                  Match.orElse(() =>
+                    Alert.alert(
+                      'Error',
+                      'Failed to create plant. Please try again.'
+                    )
+                  )
+                ),
+              onRight: (plant) => {
+                router.dismissAll()
+                router.push(`/plant/${plant.id}`)
+              },
+            })
+          )
         },
       }
     )

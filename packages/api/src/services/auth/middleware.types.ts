@@ -1,10 +1,7 @@
-import {
-  HttpApiMiddleware,
-  HttpApiSchema,
-  HttpApiSecurity,
-} from '@effect/platform'
+import { HttpApiMiddleware, HttpApiSecurity } from '@effect/platform'
+import { UnauthorizedError } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
-import { Context, Schema } from 'effect'
+import { Context } from 'effect'
 
 /**
  * Current authenticated user context provided by auth middleware
@@ -15,26 +12,13 @@ export class CurrentUser extends Context.Tag('CurrentUser')<
 >() {}
 
 /**
- * Unauthorized error returned when authentication fails
- */
-export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
-  'Unauthorized',
-  {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Unauthorized',
-    }),
-  },
-  HttpApiSchema.annotations({ status: 401 })
-) {}
-
-/**
  * Authentication middleware using Bearer token
  * Validates JWT token and provides CurrentUser context to handlers
  */
 export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
   'Authentication',
   {
-    failure: Unauthorized,
+    failure: UnauthorizedError,
     provides: CurrentUser,
     security: {
       bearer: HttpApiSecurity.bearer,

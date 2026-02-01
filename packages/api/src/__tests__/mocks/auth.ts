@@ -2,8 +2,8 @@ import { HttpServerRequest } from '@effect/platform'
 import {
   Authentication,
   CurrentUser,
-  Unauthorized,
 } from '@lily/api/services/auth/middleware.types'
+import { UnauthorizedError } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Layer } from 'effect'
 
@@ -56,7 +56,7 @@ export const createMockAuthentication = (
     Authentication.of({
       bearer: () => {
         if (shouldFail || !user) {
-          return Effect.fail(new Unauthorized({ message: failMessage }))
+          return Effect.fail(new UnauthorizedError({ message: failMessage }))
         }
         return Effect.succeed(user)
       },
