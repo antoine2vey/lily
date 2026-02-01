@@ -24,11 +24,11 @@ import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
+import { useIconColors } from 'src/hooks/useIconColors'
+import { useTheme } from 'src/hooks/useTheme'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useTheme } from 'src/hooks/useTheme'
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
 import { CareSchedule } from './components/CareSchedule'
@@ -68,8 +68,14 @@ const mapHumidityRatingToHumidity = (rating: number): HumidityLevel => {
 function PlantDetailSkeleton() {
   const iconColors = useIconColors()
   return (
-    <View className="flex-1 bg-background dark:bg-background-dark" testID="plant-detail-skeleton">
-      <View style={{ height: HERO_HEIGHT }} className="bg-gray-200 dark:bg-slate-700" />
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      testID="plant-detail-skeleton"
+    >
+      <View
+        style={{ height: HERO_HEIGHT }}
+        className="bg-gray-200 dark:bg-slate-700"
+      />
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={iconColors.primary} />
       </View>
@@ -361,7 +367,10 @@ export function PlantDetailScreen() {
   )
 
   return (
-    <View className="flex-1 bg-background dark:bg-background-dark" testID="plant-detail-screen">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      testID="plant-detail-screen"
+    >
       {/* Fixed Hero Image */}
       <View className="absolute top-0 left-0 right-0">
         <PlantHeroImage imageUrl={plant.imageUrl} />

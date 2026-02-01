@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { Pressable } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type ViewMode = 'grid' | 'list'
 
@@ -19,18 +20,19 @@ const getIconName = (view: ViewMode): 'view-list' | 'grid-view' =>
 
 export function ViewToggle({ view, onToggle }: ViewToggleProps) {
   const iconName = getIconName(view)
+  const iconColors = useIconColors()
 
   return (
     <Pressable
       onPress={onToggle}
-      className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-soft"
+      className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-surface-dark shadow-soft"
       testID="view-toggle"
       accessibilityLabel={`Switch to ${view === 'grid' ? 'list' : 'grid'} view`}
     >
       <MaterialIcons
         name={iconName}
         size={24}
-        color="#141712"
+        color={iconColors.textPrimary}
         testID={`icon-${iconName}`}
       />
     </Pressable>

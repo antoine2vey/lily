@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, type PressableProps } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type IconButtonProps = Omit<PressableProps, 'children'> & {
   icon: keyof typeof MaterialIcons.glyphMap
@@ -11,10 +11,13 @@ type IconButtonProps = Omit<PressableProps, 'children'> & {
 export function IconButton({
   icon,
   size = 24,
-  color = iconColors.slate900,
+  color,
   disabled,
   ...props
 }: IconButtonProps) {
+  const iconColors = useIconColors()
+  const iconColor = color ?? iconColors.slate900
+
   return (
     <Pressable
       disabled={disabled}
@@ -25,7 +28,7 @@ export function IconButton({
       `}
       {...props}
     >
-      <MaterialIcons name={icon} size={size} color={color} />
+      <MaterialIcons name={icon} size={size} color={iconColor} />
     </Pressable>
   )
 }

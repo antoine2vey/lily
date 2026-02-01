@@ -4,63 +4,15 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
-import { iconColors } from 'src/theme'
 import { ApiError } from 'src/utils/client'
 
-function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
-  return (
-    <View className="flex-1 items-center justify-center px-6 bg-black">
-      <MaterialIcons name="camera-alt" size={64} color={iconColors.textMuted} />
-      <Text className="text-xl text-center mt-4 mb-2 font-semibold text-white">
-        Camera Access Required
-      </Text>
-      <Text className="text-base text-center mb-6 font-regular text-text-muted">
-        We need camera access to identify your plants. Tap below to grant
-        permission.
-      </Text>
-      <Pressable
-        onPress={onRequest}
-        className="px-8 py-4 rounded-xl bg-primary"
-      >
-        <Text className="text-base font-semibold text-white">
-          Enable Camera
-        </Text>
-      </Pressable>
-    </View>
-  )
-}
-
-function ScanFrame() {
-  return (
-    <View className="w-64 h-64 items-center justify-center">
-      {/* Top left corner */}
-      <View className="absolute top-0 left-0 w-12 h-12">
-        <View className="absolute top-0 left-0 right-0 h-1 rounded-full bg-primary" />
-        <View className="absolute top-0 left-0 bottom-0 w-1 rounded-full bg-primary" />
-      </View>
-      {/* Top right corner */}
-      <View className="absolute top-0 right-0 w-12 h-12">
-        <View className="absolute top-0 left-0 right-0 h-1 rounded-full bg-primary" />
-        <View className="absolute top-0 right-0 bottom-0 w-1 rounded-full bg-primary" />
-      </View>
-      {/* Bottom left corner */}
-      <View className="absolute bottom-0 left-0 w-12 h-12">
-        <View className="absolute bottom-0 left-0 right-0 h-1 rounded-full bg-primary" />
-        <View className="absolute top-0 left-0 bottom-0 w-1 rounded-full bg-primary" />
-      </View>
-      {/* Bottom right corner */}
-      <View className="absolute bottom-0 right-0 w-12 h-12">
-        <View className="absolute bottom-0 left-0 right-0 h-1 rounded-full bg-primary" />
-        <View className="absolute top-0 right-0 bottom-0 w-1 rounded-full bg-primary" />
-      </View>
-    </View>
-  )
-}
-
 export function AIScannerScreen() {
+  const iconColors = useIconColors()
   const [permission, requestPermission] = useCameraPermissions()
   const [isCapturing, setIsCapturing] = useState(false)
   const cameraRef = useRef<CameraView>(null)
@@ -142,7 +94,13 @@ export function AIScannerScreen() {
   }
 
   if (!permission.granted) {
-    return <CameraPermissionRequest onRequest={requestPermission} />
+    return (
+      <CameraPermissionRequest
+        onRequest={requestPermission}
+        icon="camera-alt"
+        description="We need camera access to identify your plants. Tap below to grant permission."
+      />
+    )
   }
 
   return (
@@ -165,16 +123,11 @@ export function AIScannerScreen() {
           </Pressable>
         </View>
 
-        {/* Centered scan frame */}
-        <View
-          className="flex-1 items-center justify-center"
-          pointerEvents="none"
-        >
-          <ScanFrame />
-          <Text className="text-base mt-6 font-medium text-white">
-            Position your plant in the frame
-          </Text>
-        </View>
+        {/* Dark overlay with cutout */}
+        <ScannerOverlay
+          statusText="Hold steady..."
+          helperText="Position your plant in the frame"
+        />
 
         {/* Bottom controls */}
         <View

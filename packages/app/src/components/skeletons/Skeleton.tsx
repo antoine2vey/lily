@@ -49,7 +49,7 @@ export function Skeleton({
   return (
     <Animated.View
       style={[animatedStyle, style]}
-      className={`bg-gray-300 ${roundedMap[rounded]} ${className}`}
+      className={`bg-gray-300 dark:bg-slate-700 ${roundedMap[rounded]} ${className}`}
     >
       {children}
     </Animated.View>

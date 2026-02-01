@@ -82,9 +82,14 @@ export const executePlantCare = (
     )
 
     // Build update payload dynamically
+    // Reset health to HEALTHY if plant was NEEDS_ATTENTION
+    const healthUpdate =
+      plant.health === 'NEEDS_ATTENTION' ? { health: 'HEALTHY' as const } : {}
+
     const updatePayload = {
       [config.lastCareField]: now,
       ...(nextCareAt && { [config.nextCareField]: nextCareAt }),
+      ...healthUpdate,
     }
 
     // Update the plant

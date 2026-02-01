@@ -16,38 +16,13 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
-import { iconColors } from 'src/theme'
 import { ApiError } from 'src/utils/client'
 
-function CameraPermissionRequest({ onRequest }: { onRequest: () => void }) {
-  return (
-    <View className="flex-1 items-center justify-center px-6 bg-black">
-      <MaterialIcons
-        name="qr-code-scanner"
-        size={64}
-        color={iconColors.textMuted}
-      />
-      <Text className="text-xl text-center mt-4 mb-2 font-semibold text-white">
-        Camera Access Required
-      </Text>
-      <Text className="text-base text-center mb-6 font-regular text-text-muted">
-        We need camera access to scan nursery cards. Tap below to grant
-        permission.
-      </Text>
-      <Pressable
-        onPress={onRequest}
-        className="px-8 py-4 rounded-xl bg-primary"
-      >
-        <Text className="text-base font-semibold text-white">
-          Enable Camera
-        </Text>
-      </Pressable>
-    </View>
-  )
-}
-
 export function NurseryCardScannerScreen() {
+  const iconColors = useIconColors()
   const [permission, requestPermission] = useCameraPermissions()
   const [isCapturing, setIsCapturing] = useState(false)
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([])
@@ -176,7 +151,13 @@ export function NurseryCardScannerScreen() {
   }
 
   if (!permission.granted) {
-    return <CameraPermissionRequest onRequest={requestPermission} />
+    return (
+      <CameraPermissionRequest
+        onRequest={requestPermission}
+        icon="qr-code-scanner"
+        description="We need camera access to scan nursery cards. Tap below to grant permission."
+      />
+    )
   }
 
   return (
@@ -209,27 +190,15 @@ export function NurseryCardScannerScreen() {
           )}
         </View>
 
-        {/* Scan area overlay */}
-        <View
-          className="flex-1 items-center justify-center"
-          pointerEvents="none"
-        >
-          <View
-            className="w-72 h-48 rounded-xl items-center justify-center border-2 border-primary"
-            style={{ backgroundColor: 'transparent' }}
-          >
-            <View className="absolute inset-0 items-center justify-center">
-              <Text className="text-lg font-medium text-white">
-                {canCapture ? 'Hold steady...' : 'Limit reached'}
-              </Text>
-              <Text className="text-sm mt-1 font-regular text-text-muted">
-                {canCapture
-                  ? 'Align tag within frame'
-                  : `Tap "Scan All" to process ${capturedPhotos.length} cards`}
-              </Text>
-            </View>
-          </View>
-        </View>
+        {/* Dark overlay with cutout */}
+        <ScannerOverlay
+          statusText={canCapture ? 'Hold steady...' : 'Limit reached'}
+          helperText={
+            canCapture
+              ? 'Align tag within frame'
+              : `Tap "Scan All" to process ${capturedPhotos.length} cards`
+          }
+        />
 
         <View
           className="absolute bottom-0 left-0 right-0"

@@ -1,13 +1,7 @@
-import { Number as EffectNumber } from 'effect'
+import RNSlider from '@react-native-community/slider'
 import type { ReactNode } from 'react'
-import { useCallback, useRef } from 'react'
-import {
-  type GestureResponderEvent,
-  type LayoutChangeEvent,
-  PanResponder,
-  Text,
-  View,
-} from 'react-native'
+import { Text, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface SliderProps {
   value: number
@@ -19,6 +13,7 @@ interface SliderProps {
   maxLabel?: string
   valueLabel?: string
   icon?: ReactNode
+  iconBgColor?: string
   label?: string
 }
 
@@ -32,100 +27,55 @@ export function Slider({
   maxLabel,
   valueLabel,
   icon,
+  iconBgColor,
   label,
 }: SliderProps) {
-  const trackWidth = useRef(0)
-  const trackRef = useRef<View>(null)
-
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    trackWidth.current = event.nativeEvent.layout.width
-  }, [])
-
-  const calculateValue = useCallback(
-    (locationX: number): number => {
-      const width = trackWidth.current
-      if (width === 0) return value
-
-      const ratio = EffectNumber.clamp(locationX / width, {
-        minimum: 0,
-        maximum: 1,
-      })
-      const rawValue = min + ratio * (max - min)
-      const steppedValue = Math.round(rawValue / step) * step
-      return EffectNumber.clamp(steppedValue, { minimum: min, maximum: max })
-    },
-    [min, max, step, value]
-  )
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event: GestureResponderEvent) => {
-        const newValue = calculateValue(event.nativeEvent.locationX)
-        onValueChange(newValue)
-      },
-      onPanResponderMove: (event: GestureResponderEvent) => {
-        const newValue = calculateValue(event.nativeEvent.locationX)
-        onValueChange(newValue)
-      },
-    })
-  ).current
-
-  const normalizedValue = (value - min) / (max - min)
-  const percentage = EffectNumber.clamp(normalizedValue * 100, {
-    minimum: 0,
-    maximum: 100,
-  })
+  const iconColors = useIconColors()
+  const resolvedIconBgColor = iconBgColor ?? iconColors.surfaceTinted
 
   return (
-    <View className="w-full">
+    <View className="w-full gap-4">
       {(icon || label || valueLabel) && (
-        <View className="flex-row items-center justify-between mb-2">
+        <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-2">
-            {icon}
+            {icon && (
+              <View
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: resolvedIconBgColor }}
+              >
+                {icon}
+              </View>
+            )}
             {label && (
-              <Text className="text-base font-medium text-text-primary">
+              <Text className="text-base font-bold text-text-primary dark:text-white">
                 {label}
               </Text>
             )}
           </View>
           {valueLabel && (
-            <Text className="text-xs font-medium text-primary">
+            <Text className="text-xs font-medium text-primary dark:text-primary-light">
               {valueLabel}
             </Text>
           )}
         </View>
       )}
-      <View
-        ref={trackRef}
-        onLayout={handleLayout}
-        className="h-6 justify-center"
-        {...panResponder.panHandlers}
-      >
-        <View className="w-full h-1.5 rounded-full bg-border">
-          <View
-            className="h-full rounded-full bg-primary"
-            style={{
-              width: `${percentage}%`,
-            }}
-          />
-        </View>
-        <View
-          className="absolute w-6 h-6 rounded-full items-center justify-center bg-primary border-2 border-white shadow-md"
-          style={{
-            left: `${percentage}%`,
-            marginLeft: -12,
-            elevation: 3,
-          }}
-        />
-      </View>
+      <RNSlider
+        value={value}
+        onValueChange={onValueChange}
+        minimumValue={min}
+        maximumValue={max}
+        step={step}
+        minimumTrackTintColor={iconColors.primary}
+        maximumTrackTintColor={iconColors.surfaceTinted}
+        thumbTintColor={iconColors.primary}
+        style={{ height: 40 }}
+      />
       {(minLabel || maxLabel) && (
-        <View className="flex-row justify-between mt-1">
-          <Text className="text-xs font-regular text-text-muted">
+        <View className="flex-row justify-between -mt-2">
+          <Text className="text-xs font-medium text-text-muted dark:text-slate-400">
             {minLabel}
           </Text>
-          <Text className="text-xs font-regular text-text-muted">
+          <Text className="text-xs font-medium text-text-muted dark:text-slate-400">
             {maxLabel}
           </Text>
         </View>

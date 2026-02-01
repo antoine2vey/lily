@@ -8,17 +8,17 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { FormInput, FormTextArea } from 'src/components'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
 import { useUser } from 'src/hooks/useUser'
-import { iconColors } from 'src/theme'
 import { AvatarPicker } from './components/AvatarPicker'
-import { BioInput } from './components/BioInput'
 
 export function EditProfileScreen() {
+  const iconColors = useIconColors()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile()
   const mountedRef = useRef(true)
@@ -96,7 +96,7 @@ export function EditProfileScreen() {
 
   if (isLoadingUser) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -109,26 +109,29 @@ export function EditProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView
+      className="flex-1 bg-background dark:bg-background-dark"
+      edges={['top']}
+    >
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3">
+      <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={handleCancel}>
-          <Text className="text-base font-regular text-primary">Cancel</Text>
+          <Text className="text-base font-medium text-text-muted">Cancel</Text>
         </Pressable>
-        <Text className="text-lg font-semibold text-text-primary">
+        <Text className="text-lg font-bold text-text-primary dark:text-white">
           Edit Profile
         </Text>
         <Pressable onPress={handleSave} disabled={isUpdating}>
           {isUpdating ? (
             <ActivityIndicator size="small" color={iconColors.primary} />
           ) : (
-            <Text className="text-base font-semibold text-primary">Save</Text>
+            <Text className="text-base font-bold text-primary">Save</Text>
           )}
         </Pressable>
       </View>
 
       <ScrollView
-        className="flex-1 px-4"
+        className="flex-1"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -142,22 +145,24 @@ export function EditProfileScreen() {
           onPress={handleChangePhoto}
         />
 
-        {/* Display Name Input */}
-        <View className="mb-4">
-          <Text className="text-sm mb-2 font-medium text-text-primary">
-            Display Name
-          </Text>
-          <TextInput
+        {/* Form Fields */}
+        <View className="px-6 gap-6">
+          <FormInput
+            label="Display Name"
             value={name}
             onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor={iconColors.textMuted}
-            className="rounded-xl px-4 py-3.5 bg-input-bg text-base text-text-primary font-regular"
+            placeholder="Enter your name"
+          />
+
+          <FormTextArea
+            label="Bio"
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Tell us about your plants..."
+            maxLength={150}
+            showCharacterCount
           />
         </View>
-
-        {/* Bio Input */}
-        <BioInput value={bio} onChangeText={setBio} maxLength={150} />
 
         {/* Bottom spacer */}
         <View className="h-12" />

@@ -18,5 +18,29 @@ export const handleUncancellation = (
         status: 'active',
         eventType: 'UNCANCELLATION',
       })
+    } else {
+      // No subscription existing but user uncancelled (paid after cancellation while subscription was valid)
+      yield* subRepo.create({
+        userId: ctx.userId,
+        tier: 'paid',
+        status: 'active',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: ctx.purchasedAt,
+        currentPeriodEnd: ctx.expiresAt,
+        externalSubscriptionId:
+          ctx.eventData.original_transaction_id ?? ctx.eventData.id,
+        externalCustomerId: ctx.eventData.original_app_user_id,
+        provider: 'revenuecat',
+        productId: ctx.productId,
+        store: ctx.store,
+      })
+
+      yield* subRepo.logEvent(ctx.userId, 'subscription_created', {
+        tier: 'paid',
+        status: 'active',
+        eventType: 'RENEWAL',
+        note: 'Created from RENEWAL event (subscription was missing)',
+      })
     }
   })

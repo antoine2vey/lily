@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface ChatCTAProps {
   plantName: string
@@ -7,24 +8,38 @@ interface ChatCTAProps {
 }
 
 export function ChatCTA({ plantName, onPress }: ChatCTAProps) {
+  const iconColors = useIconColors()
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center bg-primary active:bg-primary-dark rounded-2xl py-4 px-5"
+      className="bg-surface dark:bg-surface-dark rounded-3xl p-5 border border-primary/20 shadow-lg active:bg-surface-tinted dark:active:bg-slate-700"
       testID="chat-cta"
     >
-      <View className="w-11 h-11 rounded-full bg-white/20 items-center justify-center mr-4">
-        <MaterialIcons name="chat" size={22} color="#FFFFFF" />
+      <View className="flex-row items-center">
+        {/* AI Icon */}
+        <View className="w-12 h-12 rounded-full bg-primary items-center justify-center mr-4">
+          <MaterialIcons name="auto-awesome" size={24} color="white" />
+        </View>
+
+        {/* Text Content */}
+        <View className="flex-1">
+          <Text className="text-base font-bold text-text-primary dark:text-white">
+            Ask Lily about {plantName}
+          </Text>
+          <Text className="text-sm text-text-muted dark:text-slate-400 mt-0.5">
+            Get AI-powered care tips and advice
+          </Text>
+        </View>
+
+        {/* Arrow */}
+        <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
+          <MaterialIcons
+            name="arrow-forward"
+            size={18}
+            color={iconColors.primary}
+          />
+        </View>
       </View>
-      <View className="flex-1">
-        <Text className="text-white text-base font-semibold">
-          Ask about {plantName}
-        </Text>
-        <Text className="text-white/80 text-sm font-regular mt-0.5">
-          Get personalized care tips
-        </Text>
-      </View>
-      <MaterialIcons name="arrow-forward" size={20} color="#FFFFFF" />
     </Pressable>
   )
 }

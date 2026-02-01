@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import * as SplashScreen from 'expo-splash-screen'
 import { useCallback, useEffect, useState } from 'react'
 import { Animated, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface AnimatedSplashScreenProps {
   children: React.ReactNode
@@ -16,6 +16,7 @@ export function AnimatedSplashScreen({
   children,
   isReady,
 }: AnimatedSplashScreenProps) {
+  const iconColors = useIconColors()
   const [isSplashAnimationComplete, setSplashAnimationComplete] =
     useState(false)
   const fadeAnim = useState(() => new Animated.Value(1))[0]

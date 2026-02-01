@@ -110,11 +110,11 @@ module.exports = {
         },
       },
       fontFamily: {
-        regular: ['PlusJakartaSans_400Regular'],
-        medium: ['PlusJakartaSans_500Medium'],
-        semibold: ['PlusJakartaSans_600SemiBold'],
-        bold: ['PlusJakartaSans_700Bold'],
-        extrabold: ['PlusJakartaSans_800ExtraBold'],
+        regular: ['SpaceGrotesk_400Regular'],
+        medium: ['SpaceGrotesk_500Medium'],
+        semibold: ['SpaceGrotesk_600SemiBold'],
+        bold: ['SpaceGrotesk_700Bold'],
+        extrabold: ['SpaceGrotesk_700Bold'],
       },
       borderRadius: {
         sm: '8px',

@@ -55,26 +55,26 @@ export function TypingIndicator() {
   })
 
   return (
-    <View className="flex-row items-start mb-4">
-      <View className="mr-2 mt-1">
+    <View className="flex-row items-end mb-4">
+      <View className="mr-3 mb-1">
         <Avatar name="Lily" size="sm" />
       </View>
       <View
-        className="px-4 py-3 rounded-2xl flex-row items-center bg-primary-tint"
+        className="h-10 px-4 rounded-2xl flex-row items-center gap-1.5 bg-primary-tint dark:bg-primary/20"
         style={{
-          borderTopLeftRadius: 4,
+          borderBottomLeftRadius: 4,
         }}
       >
         <Animated.View
-          className="w-2 h-2 rounded-full mr-1 bg-primary"
+          className="w-1.5 h-1.5 rounded-full bg-primary/60"
           style={[getAnimatedStyle(dot1)]}
         />
         <Animated.View
-          className="w-2 h-2 rounded-full mr-1 bg-primary"
+          className="w-1.5 h-1.5 rounded-full bg-primary/60"
           style={[getAnimatedStyle(dot2)]}
         />
         <Animated.View
-          className="w-2 h-2 rounded-full bg-primary"
+          className="w-1.5 h-1.5 rounded-full bg-primary/60"
           style={[getAnimatedStyle(dot3)]}
         />
       </View>

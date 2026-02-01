@@ -26,32 +26,32 @@ describe('CareTypeChips', () => {
     expect(screen.getByText('Select Action')).toBeTruthy()
   })
 
-  it('renders water chip', () => {
+  it('renders watering option', () => {
     render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
 
-    expect(screen.getByText('Water')).toBeTruthy()
+    expect(screen.getByText('Watering')).toBeTruthy()
   })
 
-  it('renders fertilize chip', () => {
+  it('renders fertilization option', () => {
     render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
 
-    expect(screen.getByText('Fertilize')).toBeTruthy()
+    expect(screen.getByText('Fertilization')).toBeTruthy()
   })
 
-  it('calls onValueChange when chip is pressed', () => {
+  it('calls onValueChange when fertilization is pressed', () => {
     render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
 
-    fireEvent.press(screen.getByText('Fertilize'))
+    fireEvent.press(screen.getByText('Fertilization'))
 
     expect(mockOnValueChange).toHaveBeenCalledWith('fertilize')
   })
 
-  it('calls onValueChange with water when water chip is pressed', () => {
+  it('calls onValueChange with water when watering is pressed', () => {
     render(
       <CareTypeChips value="fertilize" onValueChange={mockOnValueChange} />
     )
 
-    fireEvent.press(screen.getByText('Water'))
+    fireEvent.press(screen.getByText('Watering'))
 
     expect(mockOnValueChange).toHaveBeenCalledWith('water')
   })

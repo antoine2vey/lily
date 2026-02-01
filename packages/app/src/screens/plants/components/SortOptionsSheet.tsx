@@ -3,7 +3,7 @@ import { Array } from 'effect'
 import { View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type SortOption = 'name' | 'dateAdded' | 'nextWater' | 'health'
 
@@ -32,6 +32,8 @@ export function SortOptionsSheet({
   selectedOption,
   onSelect,
 }: SortOptionsSheetProps) {
+  const iconColors = useIconColors()
+
   const handleSelect = (option: SortOption) => {
     onSelect(option)
     onClose()

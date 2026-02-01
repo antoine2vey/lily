@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import {
@@ -7,9 +8,10 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button } from 'src/components/ui/Button'
 import { Input } from 'src/components/ui/Input'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { CategoryPicker } from './components/CategoryPicker'
 import { PhotoPicker } from './components/PhotoPicker'
 import { WizardHeader } from './components/WizardHeader'
@@ -19,6 +21,8 @@ export function ManualAddBasicInfoScreen() {
     prefillName?: string
     prefillCategory?: string
   }>()
+  const insets = useSafeAreaInsets()
+  const iconColors = useIconColors()
 
   const [photo, setPhoto] = useState<string | null>(null)
   const [name, setName] = useState(params.prefillName ?? '')
@@ -34,7 +38,10 @@ export function ManualAddBasicInfoScreen() {
   const canProceed = name.trim().length > 0
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
       <WizardHeader step={1} totalSteps={3} onBack={() => router.back()} />
 
       <KeyboardAvoidingView
@@ -42,47 +49,61 @@ export function ManualAddBasicInfoScreen() {
         className="flex-1"
       >
         <ScrollView
-          className="flex-1 px-6"
+          className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 120 }}
         >
-          <Text className="text-2xl mb-2 mt-4 font-bold text-text-primary">
-            Basic Info
-          </Text>
-          <Text className="text-base mb-6 font-regular text-text-secondary">
-            Add a photo and name your plant.
-          </Text>
-
-          <PhotoPicker
-            photo={photo}
-            onPickPhoto={setPhoto}
-            placeholder="Tap to add photo"
-          />
-
-          <View className="mb-4">
-            <Text className="text-sm mb-2 font-medium text-text-primary">
-              Nickname or Plant Name <Text className="text-coral">*</Text>
-            </Text>
-            <Input
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Monstera Deliciosa"
-            />
+          {/* Photo Upload Area */}
+          <View className="p-4 pt-6">
+            <PhotoPicker photo={photo} onPickPhoto={setPhoto} />
           </View>
 
-          <CategoryPicker
-            value={category}
-            onSelect={setCategory}
-            label="Category"
-          />
+          {/* Form Fields */}
+          <View className="px-4 gap-6">
+            {/* Plant Name Input */}
+            <View className="gap-2">
+              <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
+                Nickname or Plant Name <Text className="text-primary">*</Text>
+              </Text>
+              <Input
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. Monstera Deliciosa"
+                suffix={
+                  <MaterialIcons
+                    name="edit"
+                    size={20}
+                    color={iconColors.textMuted}
+                  />
+                }
+              />
+            </View>
+
+            {/* Category Select */}
+            <CategoryPicker
+              value={category}
+              onSelect={setCategory}
+              label="Category"
+            />
+          </View>
         </ScrollView>
 
-        <View className="px-6 py-4 bg-background">
-          <Button onPress={handleNext} disabled={!canProceed}>
+        {/* Footer / Action Button */}
+        <View
+          className="absolute bottom-0 left-0 right-0 px-4 pt-4 bg-background dark:bg-background-dark"
+          style={{ paddingBottom: insets.bottom + 16 }}
+        >
+          <Button
+            onPress={handleNext}
+            disabled={!canProceed}
+            pill
+            icon="arrow-forward"
+          >
             Next
           </Button>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }

@@ -6,15 +6,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { ToggleRow } from 'src/components/ToggleRow'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { FormTextArea } from 'src/components'
 import { Button } from 'src/components/ui/Button'
-import { Input } from 'src/components/ui/Input'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { ApiError } from 'src/utils/client'
 import { FrequencyPicker } from './components/FrequencyPicker'
 import { WizardHeader } from './components/WizardHeader'
@@ -33,8 +33,8 @@ type CareNeeds = {
 }
 
 const WATERING_PRESETS = [
-  { days: 3, label: '3 days' },
   { days: 7, label: '7 days' },
+  { days: 3, label: '3 days' },
   { days: 14, label: '14 days' },
   { days: 30, label: '30 days' },
 ]
@@ -50,6 +50,8 @@ export function ManualAddScheduleScreen() {
     basicInfo?: string
     careNeeds?: string
   }>()
+  const insets = useSafeAreaInsets()
+  const iconColors = useIconColors()
   const basicInfo: BasicInfo = params.basicInfo
     ? JSON.parse(decodeURIComponent(params.basicInfo))
     : { photo: null, name: '', category: '' }
@@ -104,93 +106,92 @@ export function ManualAddScheduleScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <WizardHeader step={3} totalSteps={3} onBack={() => router.back()} />
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
+      <WizardHeader
+        step={3}
+        totalSteps={3}
+        onBack={() => router.back()}
+        title="Set Schedule"
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         <ScrollView
-          className="flex-1 px-6"
+          className="flex-1 p-6"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ gap: 32, paddingBottom: 120 }}
         >
-          <Text className="text-2xl mb-2 mt-4 font-bold text-text-primary">
-            Schedule
-          </Text>
-          <Text className="text-base mb-6 font-regular text-text-secondary">
-            Set up care reminders for your plant.
-          </Text>
-
+          {/* Watering Section */}
           <FrequencyPicker
-            icon={
-              <MaterialIcons
-                name="water-drop"
-                size={16}
-                color={iconColors.primary}
-              />
-            }
+            icon={<MaterialIcons name="water-drop" size={22} color="#60A5FA" />}
             label="Watering Schedule"
             value={wateringDays}
             onValueChange={setWateringDays}
             presets={WATERING_PRESETS}
           />
 
+          {/* Fertilizing Section */}
           <FrequencyPicker
-            icon={
-              <MaterialIcons name="eco" size={16} color={iconColors.primary} />
-            }
+            icon={<MaterialIcons name="spa" size={22} color="#F59E0B" />}
             label="Fertilizing Schedule"
             value={fertilizingDays}
             onValueChange={setFertilizingDays}
             presets={FERTILIZING_PRESETS}
           />
 
-          <View className="py-2 mb-4">
-            <ToggleRow
-              icon={
-                <MaterialIcons
-                  name="notifications"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              label="Care Reminders"
-              description="Get notified when tasks are due"
+          {/* Reminders Toggle */}
+          <View className="bg-white dark:bg-surface-dark p-4 px-5 rounded-xl shadow-sm border border-border dark:border-slate-700 flex-row items-center justify-between">
+            <View>
+              <Text className="text-base font-bold text-text-primary dark:text-white">
+                Care Reminders
+              </Text>
+              <Text className="text-xs text-text-muted dark:text-slate-400 mt-1">
+                Get notified when tasks are due
+              </Text>
+            </View>
+            <Switch
               value={careReminders}
               onValueChange={setCareReminders}
+              trackColor={{
+                false: iconColors.border,
+                true: iconColors.primary,
+              }}
+              thumbColor={iconColors.white}
+              ios_backgroundColor={iconColors.border}
             />
           </View>
 
-          <View className="mb-4">
-            <Text className="text-sm mb-2 font-medium text-text-primary">
-              Notes
-            </Text>
-            <Input
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Add care tips or specific needs..."
-              multiline
-              numberOfLines={4}
-              style={{ height: 100, textAlignVertical: 'top', paddingTop: 12 }}
-            />
-          </View>
+          {/* Notes Section */}
+          <FormTextArea
+            label="Notes"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add care tips or specific needs..."
+          />
         </ScrollView>
 
-        <View className="flex-row gap-3 px-6 py-4 bg-background">
-          <View className="flex-1">
-            <Button variant="secondary" onPress={() => router.back()}>
-              Back
-            </Button>
-          </View>
-          <View className="flex-1">
-            <Button onPress={handleFinish} loading={isPending} icon="check">
-              Finish
-            </Button>
-          </View>
+        {/* Footer */}
+        <View
+          className="px-4 pt-4 bg-background dark:bg-background-dark"
+          style={{ paddingBottom: insets.bottom + 16 }}
+        >
+          <Button
+            onPress={handleFinish}
+            loading={isPending}
+            pill
+            icon="check"
+            iconPosition="left"
+          >
+            Finish & Add Plant
+          </Button>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }

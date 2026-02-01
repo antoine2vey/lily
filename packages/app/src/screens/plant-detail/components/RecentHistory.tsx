@@ -2,7 +2,7 @@ import { type DateInput, formatRelativeTime, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type EventType = 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
 
@@ -23,7 +23,10 @@ interface EventConfig {
   label: string
 }
 
-const getEventConfig = (type: EventType): EventConfig =>
+const getEventConfig = (
+  type: EventType,
+  iconColors: ReturnType<typeof useIconColors>
+): EventConfig =>
   pipe(
     Match.value(type),
     Match.when('watered', () => ({
@@ -57,6 +60,7 @@ const formatDate = (date: DateInput): string =>
   )
 
 export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
+  const iconColors = useIconColors()
   const recentEvents = Array.take(events, 3)
 
   return (
@@ -68,14 +72,14 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
       <View className="mt-4">
         {Array.length(recentEvents) === 0 ? (
           <Text
-            className="text-sm py-4 text-center font-regular text-text-muted"
+            className="text-sm py-4 text-center font-regular text-text-muted dark:text-slate-400"
             testID="no-history"
           >
             No care history yet
           </Text>
         ) : (
           Array.map(recentEvents, (event) => {
-            const config = getEventConfig(event.type)
+            const config = getEventConfig(event.type, iconColors)
             return (
               <View
                 key={event.id}
@@ -87,19 +91,19 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
                   style={{ backgroundColor: config.color }}
                 />
                 <View className="flex-1">
-                  <Text className="text-base font-medium text-text-primary">
+                  <Text className="text-base font-medium text-text-primary dark:text-white">
                     {config.label}
                   </Text>
                   {event.notes && (
                     <Text
-                      className="text-xs mt-0.5 font-regular text-text-muted"
+                      className="text-xs mt-0.5 font-regular text-text-muted dark:text-slate-400"
                       numberOfLines={1}
                     >
                       {event.notes}
                     </Text>
                   )}
                 </View>
-                <Text className="text-sm font-regular text-text-muted">
+                <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
                   {formatDate(event.date)}
                 </Text>
               </View>

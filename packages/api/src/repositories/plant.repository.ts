@@ -12,8 +12,10 @@ import {
   count,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
+  isNull,
   lte,
   or,
 } from 'drizzle-orm'
@@ -42,6 +44,8 @@ export interface CreatePlantData {
   wateringRating: number
   wateringFrequencyDays: number
   fertilizationFrequencyDays?: number | null
+  nextWateringAt?: Date
+  nextFertilizationAt?: Date | null
   health: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
   userId: string
 }
@@ -52,6 +56,7 @@ export interface UpdatePlantData {
   category?: string | null
   imageUrl?: string | null
   wateringFrequencyDays?: number
+  fertilizationFrequencyDays?: number | null
   humidityRating?: number
   lightingRating?: number
   petToxicityRating?: number
@@ -115,6 +120,11 @@ export interface IPlantRepository {
     plantId: string,
     photoId: string
   ) => Effect.Effect<void, SqlError>
+  readonly markOverduePlantsAsNeedsAttention: () => Effect.Effect<
+    number,
+    SqlError
+  >
+  readonly markHealthyPlantsInOrder: () => Effect.Effect<number, SqlError>
 }
 
 // Tag for dependency injection
@@ -294,6 +304,62 @@ export const PlantRepositoryLive = Layer.effect(
             .where(
               and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
             )
+        }),
+
+      markOverduePlantsAsNeedsAttention: () =>
+        Effect.gen(function* () {
+          const now = new Date()
+          // Find plants that are overdue (watering OR fertilization is past due)
+          // and currently HEALTHY or THRIVING
+          const result = yield* db
+            .update(plants)
+            .set({ health: 'NEEDS_ATTENTION' })
+            .where(
+              and(
+                or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
+                or(
+                  // Watering is overdue
+                  and(
+                    isNotNull(plants.nextWateringAt),
+                    lte(plants.nextWateringAt, now)
+                  ),
+                  // Fertilization is overdue
+                  and(
+                    isNotNull(plants.nextFertilizationAt),
+                    lte(plants.nextFertilizationAt, now)
+                  )
+                )
+              )
+            )
+            .returning()
+          return result.length
+        }),
+
+      markHealthyPlantsInOrder: () =>
+        Effect.gen(function* () {
+          const now = new Date()
+          // Find plants that are NEEDS_ATTENTION but ALL their schedules are in order
+          // Both watering AND fertilization must be OK (null or in the future)
+          const result = yield* db
+            .update(plants)
+            .set({ health: 'HEALTHY' })
+            .where(
+              and(
+                eq(plants.health, 'NEEDS_ATTENTION'),
+                // Watering is OK (null or in the future)
+                or(
+                  isNull(plants.nextWateringAt),
+                  gt(plants.nextWateringAt, now)
+                ),
+                // Fertilization is OK (null or in the future)
+                or(
+                  isNull(plants.nextFertilizationAt),
+                  gt(plants.nextFertilizationAt, now)
+                )
+              )
+            )
+            .returning()
+          return result.length
         }),
     }
   })

@@ -65,9 +65,16 @@ export const waterMultiplePlants = (
                     )
                     const nextWateringAt = DateTime.toDateUtc(nextWateringDt)
 
+                    // Reset health to HEALTHY if plant was NEEDS_ATTENTION
+                    const healthUpdate =
+                      plant.health === 'NEEDS_ATTENTION'
+                        ? { health: 'HEALTHY' as const }
+                        : {}
+
                     const updatedPlant = yield* repo.update(plantId, {
                       lastWateredAt: now,
                       nextWateringAt,
+                      ...healthUpdate,
                     })
 
                     // Schedule reminder using shared helper

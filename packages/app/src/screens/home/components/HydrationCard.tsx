@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
+import { LinearGradient } from 'expo-linear-gradient'
 import { Image, Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface Plant {
   id: string
@@ -18,13 +19,15 @@ interface HydrationCardProps {
 
 const MAX_VISIBLE_PLANTS = 3
 
-function PlantCircle({
-  plant,
-  onPress,
-}: {
+interface PlantCircleProps {
   plant: Plant
   onPress: () => void
-}) {
+  iconColors: ReturnType<typeof useIconColors>
+}
+
+function PlantCircle({ plant, onPress, iconColors }: PlantCircleProps) {
+  const isDark = iconColors.isDark
+
   return (
     <Pressable
       onPress={onPress}
@@ -34,13 +37,14 @@ function PlantCircle({
       {/* Plant image with water drop badge */}
       <View className="relative">
         <View
-          className="w-[72px] h-[72px] rounded-full overflow-hidden bg-white items-center justify-center"
+          className="w-[72px] h-[72px] rounded-full overflow-hidden items-center justify-center"
           style={{
+            backgroundColor: isDark ? '#374151' : '#FFFFFF',
             borderWidth: 3,
-            borderColor: 'white',
+            borderColor: isDark ? '#4B5563' : 'white',
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
+            shadowOpacity: isDark ? 0.3 : 0.1,
             shadowRadius: 4,
             elevation: 3,
           }}
@@ -52,7 +56,10 @@ function PlantCircle({
               resizeMode="cover"
             />
           ) : (
-            <View className="w-full h-full items-center justify-center bg-primary-tint">
+            <View
+              className="w-full h-full items-center justify-center"
+              style={{ backgroundColor: isDark ? '#2D3728' : '#E8F5E8' }}
+            >
               <MaterialIcons name="eco" size={32} color={iconColors.primary} />
             </View>
           )}
@@ -61,17 +68,22 @@ function PlantCircle({
         <View
           className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
           style={{
-            backgroundColor: '#E3F2FD',
+            backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : '#E3F2FD',
             borderWidth: 2,
-            borderColor: 'white',
+            borderColor: isDark ? '#4B5563' : 'white',
           }}
         >
-          <MaterialIcons name="water-drop" size={14} color="#2196F3" />
+          <MaterialIcons
+            name="water-drop"
+            size={14}
+            color={iconColors.waterBlue}
+          />
         </View>
       </View>
       {/* Plant name */}
       <Text
-        className="text-xs text-text-secondary font-semibold"
+        className="text-xs font-semibold"
+        style={{ color: isDark ? '#D1D5DB' : '#374151' }}
         numberOfLines={1}
       >
         {plant.name}
@@ -86,6 +98,9 @@ export function HydrationCard({
   onPlantPress,
   isLoading = false,
 }: HydrationCardProps) {
+  const iconColors = useIconColors()
+  const isDark = iconColors.isDark
+
   if (plants.length === 0) {
     return null
   }
@@ -93,26 +108,53 @@ export function HydrationCard({
   const visiblePlants = pipe(plants, Array.take(MAX_VISIBLE_PLANTS))
   const remainingCount = plants.length - MAX_VISIBLE_PLANTS
 
+  // Theme-aware gradient colors
+  const gradientColors: [string, string, string] = isDark
+    ? ['#1E2A1A', '#243320', '#2D3728']
+    : ['#dceccb', '#eaf6df', '#ffffff']
+
   return (
-    <View
-      className="rounded-[32px] p-6 overflow-hidden"
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={{
-        backgroundColor: '#dceccb',
+        borderRadius: 32,
+        padding: 24,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: isDark ? 0.3 : 0.06,
+        shadowRadius: 20,
+        elevation: 4,
       }}
     >
       {/* Header */}
       <View className="flex-row items-start justify-between mb-6">
         <View>
-          <Text className="text-xl text-text-primary mb-1 font-bold">
+          <Text
+            className="text-xl mb-1 font-bold"
+            style={{ color: isDark ? '#FFFFFF' : '#1A1A1A' }}
+          >
             Hydration Time
           </Text>
-          <Text className="text-sm text-text-secondary font-medium">
+          <Text
+            className="text-sm font-medium"
+            style={{ color: isDark ? '#9CA3AF' : '#475569' }}
+          >
             {plants.length} plant{plants.length !== 1 ? 's' : ''}{' '}
             {plants.length === 1 ? 'needs' : 'need'} water today
           </Text>
         </View>
         {/* Water drop icon */}
-        <View className="p-2 rounded-full bg-white/60">
+        <View
+          className="p-2 rounded-full"
+          style={{
+            backgroundColor: isDark
+              ? 'rgba(155, 199, 109, 0.2)'
+              : 'rgba(255, 255, 255, 0.6)',
+          }}
+        >
           <MaterialIcons
             name="water-drop"
             size={24}
@@ -128,12 +170,19 @@ export function HydrationCard({
             key={plant.id}
             plant={plant}
             onPress={() => onPlantPress(plant.id)}
+            iconColors={iconColors}
           />
         ))}
         {remainingCount > 0 && (
           <View className="items-center gap-2">
-            <View className="w-[72px] h-[72px] rounded-full items-center justify-center bg-primary-tint">
-              <Text className="text-base font-bold text-primary">
+            <View
+              className="w-[72px] h-[72px] rounded-full items-center justify-center"
+              style={{ backgroundColor: isDark ? '#2D3728' : '#E8F5E8' }}
+            >
+              <Text
+                className="text-base font-bold"
+                style={{ color: iconColors.primary }}
+              >
                 +{remainingCount}
               </Text>
             </View>
@@ -161,6 +210,6 @@ export function HydrationCard({
           {isLoading ? 'Watering...' : 'Water All'}
         </Text>
       </Pressable>
-    </View>
+    </LinearGradient>
   )
 }

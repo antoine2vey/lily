@@ -1,25 +1,28 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { forwardRef } from 'react'
 import { TextInput, type TextInputProps, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type InputProps = TextInputProps & {
   icon?: keyof typeof MaterialIcons.glyphMap
   prefix?: string
   suffix?: React.ReactNode
   error?: boolean
+  pill?: boolean
 }
 
 export const Input = forwardRef<TextInput, InputProps>(
-  ({ icon, prefix, suffix, error, style, ...props }, ref) => {
+  ({ icon, prefix, suffix, error, pill = false, style, ...props }, ref) => {
+    const iconColors = useIconColors()
+
     return (
       <View
         className={`
-          flex-row items-center w-full h-14 rounded-xl
-          bg-input-bg dark:bg-surface-dark
-          border
-          ${error ? 'border-error' : 'border-transparent focus:border-primary'}
-          px-4
+          flex-row items-center w-full h-14
+          ${pill ? 'rounded-full' : 'rounded-xl'}
+          bg-surface-tinted dark:bg-surface-dark
+          ${error ? 'border-2 border-error' : ''}
+          ${pill ? 'pl-4 pr-4' : 'px-5'}
         `}
       >
         {icon && (

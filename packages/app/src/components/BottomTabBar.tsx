@@ -3,7 +3,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { Array } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 export interface CustomBottomTabBarProps
   extends Pick<BottomTabBarProps, 'state' | 'descriptors' | 'navigation'> {
@@ -42,11 +42,12 @@ export function BottomTabBar({
   navigation,
   onFabPress,
 }: CustomBottomTabBarProps) {
+  const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
 
   return (
     <View
-      className="bg-white border-t border-border"
+      className="bg-white dark:bg-surface-dark border-t border-border dark:border-slate-700"
       style={{
         paddingBottom: insets.bottom,
         height: 64 + insets.bottom,
@@ -80,7 +81,9 @@ export function BottomTabBar({
 
           const isFocused = state.index === index
           const iconName = getTabIcon(route.name, isFocused)
-          const colorClass = isFocused ? 'text-primary' : 'text-text-muted'
+          const colorClass = isFocused
+            ? 'text-primary font-bold'
+            : 'text-slate-400 font-semibold'
 
           const onPress = () => {
             const event = navigation.emit({
@@ -98,16 +101,14 @@ export function BottomTabBar({
             <Pressable
               key={route.key}
               onPress={onPress}
-              className="flex-1 items-center justify-end pb-2"
+              className="flex-1 items-center justify-end pb-2 gap-1.5"
             >
               <MaterialIcons
                 name={iconName}
-                size={24}
-                color={isFocused ? iconColors.primary : iconColors.muted}
+                size={26}
+                color={isFocused ? iconColors.primary : '#9ca3af'}
               />
-              <Text className={`text-[10px] mt-1 font-medium ${colorClass}`}>
-                {label}
-              </Text>
+              <Text className={`text-[11px] ${colorClass}`}>{label}</Text>
             </Pressable>
           )
         })}

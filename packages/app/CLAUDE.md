@@ -45,7 +45,7 @@ Use inline `style` prop **ONLY** for:
 
 2. **Font families** (NativeWind limitation):
    ```tsx
-   <Text className="text-base text-text-primary" style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+   <Text className="text-base text-text-primary" style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}>
      Text with custom font
    </Text>
    ```
@@ -129,11 +129,10 @@ Use Tailwind spacing classes (based on 4px increments):
 | Caption | `text-[11px] font-medium uppercase tracking-wide` |
 
 **Font families** (use with style prop):
-- `PlusJakartaSans_400Regular` - Regular text
-- `PlusJakartaSans_500Medium` - Medium weight
-- `PlusJakartaSans_600SemiBold` - Semibold (buttons, headings)
-- `PlusJakartaSans_700Bold` - Bold (titles)
-- `PlusJakartaSans_800ExtraBold` - Extra bold
+- `SpaceGrotesk_400Regular` - Regular text
+- `SpaceGrotesk_500Medium` - Medium weight
+- `SpaceGrotesk_600SemiBold` - Semibold (buttons, headings)
+- `SpaceGrotesk_700Bold` - Bold (titles)
 
 ---
 
@@ -162,7 +161,7 @@ export function Button({ variant = 'primary', children }: ButtonProps) {
     <Pressable className={`rounded-xl py-4 px-8 ${getButtonClasses(variant)}`}>
       <Text
         className={`text-base font-semibold text-center ${getTextClasses(variant)}`}
-        style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}
+        style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
       >
         {children}
       </Text>
@@ -222,7 +221,7 @@ const styles = StyleSheet.create({
 **Primary Button:**
 ```tsx
 <Pressable className="bg-primary active:bg-primary-dark rounded-xl py-4 px-8">
-  <Text className="text-white text-base text-center" style={{ fontFamily: 'PlusJakartaSans_600SemiBold' }}>
+  <Text className="text-white text-base text-center" style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}>
     Button
   </Text>
 </Pressable>
@@ -240,7 +239,7 @@ const styles = StyleSheet.create({
 ```tsx
 <Text
   className="text-[11px] text-text-muted uppercase tracking-wide mb-2"
-  style={{ fontFamily: 'PlusJakartaSans_500Medium' }}
+  style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
 >
   SECTION TITLE
 </Text>

@@ -3,13 +3,15 @@ import { router } from 'expo-router'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 export function AboutScreen() {
+  const iconColors = useIconColors()
+
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-border">
+      <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
           onPress={() => router.back()}
           className="w-10 h-10 items-center justify-center"
@@ -20,7 +22,7 @@ export function AboutScreen() {
             color={iconColors.textPrimary}
           />
         </Pressable>
-        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
           About
         </Text>
       </View>
@@ -39,7 +41,9 @@ export function AboutScreen() {
               color={iconColors.primary}
             />
           </View>
-          <Text className="text-2xl font-bold text-text-primary">Lily</Text>
+          <Text className="text-2xl font-bold text-text-primary dark:text-white">
+            Lily
+          </Text>
           <Text className="text-xs mt-1 uppercase tracking-wider font-semibold text-primary">
             VERSION 1.0.0
           </Text>
@@ -55,7 +59,7 @@ export function AboutScreen() {
         </View>
 
         {/* Links Section */}
-        <View className="px-6 py-4 border-t border-border">
+        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
           <ListRow
             leftIcon={
               <MaterialIcons name="code" size={18} color={iconColors.primary} />
@@ -106,7 +110,7 @@ export function AboutScreen() {
 
         {/* Footer */}
         <View className="px-6 py-8 items-center">
-          <Text className="text-sm font-regular text-text-muted">
+          <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
             Made with love in Portland, OR
           </Text>
         </View>

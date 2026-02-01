@@ -6,7 +6,7 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { nowAsDate } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { Effect } from 'effect'
+import { Console, Effect } from 'effect'
 import qrcode from 'qrcode-terminal'
 
 // 10 minutes expiry
@@ -58,6 +58,8 @@ export const sendMagicLink = ({
     if (process.env.NODE_ENV === 'development') {
       // In development, print QR code to console for easy testing on physical device
       const deepLink = `lily://verify?code=${token}`
+
+      yield* Console.log(`xcrun simctl openurl booted ${deepLink}`)
 
       yield* Effect.sync(() => {
         console.log(`\n${'='.repeat(50)}`)

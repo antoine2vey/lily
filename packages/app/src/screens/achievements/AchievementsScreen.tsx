@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useAchievements } from 'src/hooks/useAchievements'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { AchievementCard } from './components/AchievementCard'
 import { AchievementDetailModal } from './components/AchievementDetailModal'
 
@@ -26,13 +26,14 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
 }
 
 export function AchievementsScreen() {
+  const iconColors = useIconColors()
   const { data, isLoading } = useAchievements()
   const [selectedAchievement, setSelectedAchievement] =
     useState<AchievementWithProgress | null>(null)
 
   if (isLoading || !data) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -61,9 +62,9 @@ export function AchievementsScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-border">
+      <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
           onPress={() => router.back()}
           className="w-10 h-10 items-center justify-center"
@@ -74,14 +75,14 @@ export function AchievementsScreen() {
             color={iconColors.textPrimary}
           />
         </Pressable>
-        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
           Achievements
         </Text>
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Level Header */}
-        <View className="px-6 py-6 items-center bg-surface">
+        <View className="px-6 py-6 items-center bg-surface dark:bg-surface-dark">
           <View className="w-20 h-20 rounded-full items-center justify-center mb-3 bg-achievement-gold">
             <MaterialIcons
               name="emoji-events"
@@ -89,10 +90,10 @@ export function AchievementsScreen() {
               color={iconColors.white}
             />
           </View>
-          <Text className="text-2xl font-bold text-text-primary">
+          <Text className="text-2xl font-bold text-text-primary dark:text-white">
             Level {level}
           </Text>
-          <Text className="text-sm mt-1 font-regular text-text-muted">
+          <Text className="text-sm mt-1 font-regular text-text-muted dark:text-slate-400">
             {unlockedCount} of {totalCount} achievements
           </Text>
           <View className="w-full mt-4 px-8">

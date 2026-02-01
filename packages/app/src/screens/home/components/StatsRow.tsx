@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface StatsRowProps {
   total: number
@@ -21,21 +21,23 @@ function StatBox({
   variant = 'default',
   showWarningIcon = false,
 }: StatBoxProps) {
+  const iconColors = useIconColors()
+
   const valueColorClass =
     variant === 'healthy'
       ? 'text-primary'
       : variant === 'warning' && value > 0
         ? 'text-warning'
-        : 'text-text-primary'
+        : 'text-text-primary dark:text-white'
 
   const borderColorClass =
     variant === 'warning' && value > 0
       ? 'border-warning/20'
-      : 'border-slate-100'
+      : 'border-slate-100 dark:border-slate-700'
 
   return (
     <View
-      className={`flex-1 bg-white rounded-[20px] py-4 px-2 items-center justify-center border ${borderColorClass}`}
+      className={`flex-1 bg-white dark:bg-surface-dark rounded-[20px] py-4 px-2 items-center justify-center border ${borderColorClass}`}
       style={{
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },

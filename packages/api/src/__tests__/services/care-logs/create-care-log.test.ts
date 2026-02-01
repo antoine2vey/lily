@@ -117,4 +117,40 @@ describe('createCareLog', () => {
       type: 'watering',
     })
   })
+
+  it('should reset health to HEALTHY and emit AttentionResponded when plant needs attention', async () => {
+    const publishedEvents: AppEvent[] = []
+    const eventBusMock = createMockEventBus({ publishedEvents })
+    // Create a plant that NEEDS_ATTENTION
+    const plantsWithAttention = [
+      {
+        ...mockPlants[0],
+        id: 'attention-plant',
+        health: 'NEEDS_ATTENTION' as const,
+        userId: 'user-1',
+      },
+    ]
+
+    await Effect.runPromise(
+      createCareLog('attention-plant', { type: 'watering' }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockCareLogRepository(mockCareLogs),
+            eventBusMock,
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockPlantRepository({ plants: plantsWithAttention }),
+            createMockNotificationRepository([])
+          )
+        )
+      )
+    )
+
+    // Should have CareLogCreated and AttentionResponded events
+    expect(publishedEvents.length).toBe(2)
+    expect(publishedEvents[1]).toMatchObject({
+      _tag: 'AttentionResponded',
+      userId: 'user-1',
+      plantId: 'attention-plant',
+    })
+  })
 })

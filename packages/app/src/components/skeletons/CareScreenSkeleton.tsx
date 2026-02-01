@@ -6,7 +6,7 @@ function CareTaskCardSkeleton({ compact = false }: { compact?: boolean }) {
   const imageSize = compact ? 40 : 48
 
   return (
-    <View className="flex-row items-center p-3 rounded-xl mb-2 bg-surface">
+    <View className="flex-row items-center p-3 rounded-xl mb-2 bg-surface dark:bg-surface-dark">
       <SkeletonCircle size={imageSize} />
       <View className="flex-1 ml-3 gap-1">
         <SkeletonBox width="60%" height={compact ? 14 : 16} rounded="sm" />
@@ -36,7 +36,7 @@ function SectionSkeleton({ itemCount = 2 }: { itemCount?: number }) {
 
 export function CareScreenSkeleton() {
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
       <View className="flex-1 px-4">
         {/* Header */}
         <View className="flex-row items-center justify-between py-4">

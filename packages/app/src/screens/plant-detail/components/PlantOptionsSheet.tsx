@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface PlantOptionsSheetProps {
   visible: boolean
@@ -25,6 +25,8 @@ export function PlantOptionsSheet({
   onShare,
   onDelete,
 }: PlantOptionsSheetProps) {
+  const iconColors = useIconColors()
+
   const handleAction = (action: () => void) => () => {
     onClose()
     action()

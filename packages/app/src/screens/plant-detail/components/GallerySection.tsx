@@ -1,8 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
-import { Image, Pressable, ScrollView, View } from 'react-native'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { iconColors } from 'src/theme'
+import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface GallerySectionProps {
   photos: ReadonlyArray<{
@@ -21,30 +20,46 @@ export function GallerySection({
   onAddPhoto,
   onSeeAll,
 }: GallerySectionProps) {
+  const iconColors = useIconColors()
+
   return (
     <View testID="gallery-section">
-      <SectionHeader
-        title="Gallery"
-        action={
-          photos.length > 0
-            ? { label: 'See All', onPress: onSeeAll }
-            : undefined
-        }
-      />
+      {/* Header */}
+      <Pressable
+        onPress={photos.length > 0 ? onSeeAll : undefined}
+        className="flex-row justify-between items-center mb-4 px-1"
+      >
+        <Text className="text-lg font-bold text-text-primary dark:text-white">
+          Gallery
+        </Text>
+        {photos.length > 0 && (
+          <MaterialIcons
+            name="arrow-forward"
+            size={20}
+            color={iconColors.textMuted}
+          />
+        )}
+      </Pressable>
+
+      {/* Photos Strip */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        className="mt-4 -mx-4 px-4"
-        contentContainerStyle={{ gap: 8 }}
+        className="-mx-4 px-4"
+        contentContainerStyle={{ gap: 16, paddingRight: 16 }}
         testID="gallery-scroll"
       >
         {/* Add Photo Button */}
         <Pressable
           onPress={onAddPhoto}
-          className="w-20 h-20 rounded-lg items-center justify-center border-2 border-dashed border-border"
+          className="w-24 h-24 rounded-2xl items-center justify-center border-2 border-dashed border-border dark:border-slate-600 bg-surface-tinted dark:bg-surface-dark active:bg-surface dark:active:bg-primary/10"
           testID="add-photo-button"
         >
-          <MaterialIcons name="add" size={24} color={iconColors.primary} />
+          <MaterialIcons
+            name="add-a-photo"
+            size={24}
+            color={iconColors.textMuted}
+          />
         </Pressable>
 
         {/* Photo Thumbnails */}
@@ -52,11 +67,12 @@ export function GallerySection({
           <Pressable
             key={photo.id}
             onPress={() => onPhotoPress(photo.id)}
+            className="active:opacity-80"
             testID={`photo-${photo.id}`}
           >
             <Image
               source={{ uri: photo.url }}
-              className="w-20 h-20 rounded-lg"
+              className="w-24 h-24 rounded-2xl bg-surface-tinted dark:bg-surface-dark"
               resizeMode="cover"
             />
           </Pressable>

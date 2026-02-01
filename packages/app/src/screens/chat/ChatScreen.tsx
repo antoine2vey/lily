@@ -12,8 +12,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useChatHistory } from 'src/hooks/useChatHistory'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlantChat } from 'src/hooks/usePlantChat'
-import { iconColors } from 'src/theme'
 import { ChatHeader } from './components/ChatHeader'
 import { ChatInput } from './components/ChatInput'
 import { ChatMessage } from './components/ChatMessage'
@@ -29,6 +29,7 @@ interface ChatMessageData {
 }
 
 export function ChatScreen() {
+  const iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const flatListRef = useRef<FlatList<ChatMessageData>>(null)
   const queryClient = useQueryClient()
@@ -118,7 +119,7 @@ export function ChatScreen() {
 
   if (isLoadingHistory) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <ChatHeader />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
@@ -128,7 +129,10 @@ export function ChatScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView
+      className="flex-1 bg-background dark:bg-background-dark"
+      edges={['top']}
+    >
       <ChatHeader />
 
       <KeyboardAvoidingView

@@ -3,23 +3,38 @@ import { Array, pipe } from 'effect'
 import { useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlants } from 'src/hooks/usePlants'
-import { iconColors } from 'src/theme'
+
+interface Plant {
+  id: string
+  name: string
+  imageUrl?: string | null
+}
 
 interface PlantSelectorProps {
   selectedIds: string[]
   onSelectionChange: (ids: string[]) => void
   label?: string
+  initialPlants?: Plant[]
 }
 
 export function PlantSelector({
   selectedIds,
   onSelectionChange,
-  label = 'Select Plants',
+  label = 'Select Plant',
+  initialPlants,
 }: PlantSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { data: plantsData } = usePlants()
-  const plants = plantsData?.items ?? []
+  const iconColors = useIconColors()
+  const loadedPlants = plantsData?.items ?? []
+
+  // Merge initialPlants with loaded plants, deduplicating by id
+  const plants = pipe(
+    [...(initialPlants ?? []), ...loadedPlants],
+    Array.dedupeWith((a, b) => a.id === b.id)
+  )
 
   const selectedPlants = pipe(
     plants,
@@ -41,54 +56,83 @@ export function PlantSelector({
 
   const displayText =
     selectedPlants.length === 0
-      ? 'Select plants'
+      ? 'Select a plant'
       : selectedPlants.length === 1
         ? selectedPlants[0].name
         : `${selectedPlants.length} plants selected`
 
   return (
     <>
-      <View className="mb-4">
+      <View className="mb-6">
         {label && (
-          <Text className="text-sm mb-2 font-medium text-text-primary">
+          <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
             {label}
           </Text>
         )}
         <Pressable
           onPress={() => setIsOpen(true)}
-          className="flex-row items-center justify-between h-14 px-4 rounded-xl bg-input-bg active:opacity-80"
+          className="relative flex-row items-center h-14 rounded-full bg-surface-tinted dark:bg-slate-800 active:opacity-90"
         >
-          <View className="flex-row items-center flex-1">
-            {selectedPlants.length > 0 && (
-              <View className="flex-row mr-2">
-                {pipe(
-                  selectedPlants,
-                  Array.take(3),
-                  Array.map((plant, index) => (
-                    <Image
-                      key={plant.id}
-                      source={{ uri: plant.imageUrl ?? undefined }}
-                      className="w-8 h-8 rounded-full border-2 border-surface"
-                      style={{
-                        marginLeft: index > 0 ? -12 : 0,
-                      }}
-                    />
-                  ))
-                )}
+          {/* Plant image(s) on left - stacked when multiple */}
+          <View className="absolute left-1.5 top-1.5 bottom-1.5 flex-row">
+            {selectedPlants.length === 0 ? (
+              <View className="h-full aspect-square rounded-full bg-white dark:bg-surface-dark shadow-sm overflow-hidden items-center justify-center">
+                <MaterialIcons
+                  name="eco"
+                  size={20}
+                  color={iconColors.textMuted}
+                />
               </View>
+            ) : (
+              pipe(
+                selectedPlants,
+                Array.take(3),
+                Array.map((plant, index) => (
+                  <View
+                    key={plant.id}
+                    className="h-full aspect-square rounded-full bg-white shadow-sm overflow-hidden border-2 border-white"
+                    style={{
+                      marginLeft: index > 0 ? -12 : 0,
+                      zIndex: 3 - index,
+                    }}
+                  >
+                    <Image
+                      source={{ uri: plant.imageUrl ?? undefined }}
+                      className="w-full h-full"
+                      resizeMode="cover"
+                    />
+                  </View>
+                ))
+              )
             )}
-            <Text
-              className={`text-base flex-1 font-regular ${selectedPlants.length > 0 ? 'text-text-primary' : 'text-text-muted'}`}
-              numberOfLines={1}
-            >
-              {displayText}
-            </Text>
           </View>
-          <MaterialIcons
-            name="expand-more"
-            size={24}
-            color={iconColors.textMuted}
-          />
+
+          {/* Plant name */}
+          <Text
+            className={`flex-1 text-base font-bold pr-10 ${
+              selectedPlants.length > 0
+                ? 'text-text-primary dark:text-white'
+                : 'text-text-muted dark:text-slate-400'
+            }`}
+            style={{
+              paddingLeft:
+                selectedPlants.length <= 1
+                  ? 56
+                  : 56 + Math.min(selectedPlants.length - 1, 2) * 24,
+            }}
+            numberOfLines={1}
+          >
+            {displayText}
+          </Text>
+
+          {/* Expand icon on right */}
+          <View className="absolute right-5 top-0 bottom-0 justify-center">
+            <MaterialIcons
+              name="expand-more"
+              size={24}
+              color={iconColors.textMuted}
+            />
+          </View>
         </Pressable>
       </View>
 
@@ -107,24 +151,24 @@ export function PlantSelector({
                 <Pressable
                   key={plant.id}
                   onPress={() => togglePlant(plant.id)}
-                  className="flex-row items-center py-3 border-b border-border"
+                  className="flex-row items-center py-3 border-b border-border dark:border-slate-700"
                 >
                   <Image
                     source={{ uri: plant.imageUrl ?? undefined }}
-                    className="w-12 h-12 rounded-full mr-3 bg-border"
+                    className="w-12 h-12 rounded-full mr-3 bg-border dark:bg-slate-700"
                   />
                   <Text
-                    className={`flex-1 text-base text-text-primary ${isSelected ? 'font-semibold' : 'font-regular'}`}
+                    className={`flex-1 text-base text-text-primary dark:text-white ${isSelected ? 'font-bold' : 'font-regular'}`}
                   >
                     {plant.name}
                   </Text>
                   <View
-                    className={`w-6 h-6 rounded items-center justify-center ${isSelected ? 'bg-primary' : 'border-2 border-border'}`}
+                    className={`w-6 h-6 rounded-full items-center justify-center ${isSelected ? 'bg-primary' : 'border-2 border-border dark:border-slate-600'}`}
                   >
                     {isSelected && (
                       <MaterialIcons
                         name="check"
-                        size={18}
+                        size={16}
                         color={iconColors.white}
                       />
                     )}

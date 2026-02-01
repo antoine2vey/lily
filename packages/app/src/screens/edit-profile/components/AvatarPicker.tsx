@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe } from 'effect'
 import { Image, Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface AvatarPickerProps {
   avatarUrl: Option.Option<string>
@@ -10,17 +10,18 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
+  const iconColors = useIconColors()
   return (
-    <View className="items-center py-6">
+    <View className="items-center pt-8 pb-8 gap-3">
       <Pressable onPress={onPress}>
         <View className="relative">
           {/* Avatar */}
-          <View className="w-24 h-24 rounded-full items-center justify-center border-[3px] border-primary">
+          <View className="w-28 h-28 rounded-full p-1 border-2 border-border dark:border-slate-700">
             {pipe(
               avatarUrl,
               Option.match({
                 onNone: () => (
-                  <View className="w-full h-full rounded-full items-center justify-center bg-primary-tint">
+                  <View className="w-full h-full rounded-full items-center justify-center bg-primary-tint dark:bg-primary/20">
                     <Text className="text-3xl font-bold text-primary">
                       {name.charAt(0).toUpperCase()}
                     </Text>
@@ -38,15 +39,15 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
           </View>
 
           {/* Edit badge */}
-          <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center bg-surface border-2 border-primary">
-            <MaterialIcons name="edit" size={16} color={iconColors.primary} />
+          <View className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center bg-surface dark:bg-surface-dark shadow-md border border-border dark:border-slate-700">
+            <MaterialIcons name="edit" size={18} color={iconColors.primary} />
           </View>
         </View>
       </Pressable>
 
       {/* Change Photo text */}
-      <Pressable onPress={onPress} className="mt-3">
-        <Text className="text-sm font-semibold text-primary">Change Photo</Text>
+      <Pressable onPress={onPress}>
+        <Text className="text-sm font-bold text-primary">Change Photo</Text>
       </Pressable>
     </View>
   )

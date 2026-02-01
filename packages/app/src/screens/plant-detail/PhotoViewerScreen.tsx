@@ -6,10 +6,11 @@ import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useDeletePhoto } from 'src/hooks/useDeletePhoto'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { useEffectQuery } from 'src/utils/client'
 
 export function PhotoViewerScreen() {
+  const iconColors = useIconColors()
   const { plantId, photoId } = useLocalSearchParams<{
     plantId: string
     photoId: string

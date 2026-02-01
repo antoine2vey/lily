@@ -3,7 +3,7 @@ import { Array, pipe } from 'effect'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 const CATEGORIES = [
   { id: 'indoor', label: 'Indoor', icon: 'home' as const },
@@ -27,6 +27,7 @@ export function CategoryPicker({
   onSelect,
   label = 'Category',
 }: CategoryPickerProps) {
+  const iconColors = useIconColors()
   const [isOpen, setIsOpen] = useState(false)
 
   const selectedCategory = pipe(
@@ -41,18 +42,18 @@ export function CategoryPicker({
 
   return (
     <>
-      <View className="mb-4">
+      <View className="gap-2">
         {label && (
-          <Text className="text-sm mb-2 font-medium text-text-primary">
+          <Text className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300">
             {label}
           </Text>
         )}
         <Pressable
           onPress={() => setIsOpen(true)}
-          className="flex-row items-center justify-between h-14 px-4 rounded-xl bg-input-bg active:opacity-80"
+          className="flex-row items-center justify-between px-4 py-3.5 rounded-2xl bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50 active:opacity-80"
         >
           <Text
-            className={`text-base font-regular ${value ? 'text-text-primary' : 'text-text-muted'}`}
+            className={`text-base font-medium ${value ? 'text-text-primary dark:text-white' : 'text-text-muted dark:text-slate-400'}`}
           >
             {selectedLabel}
           </Text>
@@ -80,11 +81,13 @@ export function CategoryPicker({
                   onSelect(category.id)
                   setIsOpen(false)
                 }}
-                className="flex-row items-center py-4 border-b border-border active:bg-primary-tint"
+                className="flex-row items-center py-4 border-b border-border dark:border-slate-700 active:bg-primary-tint dark:active:bg-primary/20"
               >
                 <View
                   className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
-                    value === category.id ? 'bg-primary' : 'bg-primary-tint'
+                    value === category.id
+                      ? 'bg-primary'
+                      : 'bg-primary-tint dark:bg-primary/20'
                   }`}
                 >
                   <MaterialIcons
@@ -98,7 +101,7 @@ export function CategoryPicker({
                   />
                 </View>
                 <Text
-                  className={`flex-1 text-base text-text-primary ${
+                  className={`flex-1 text-base text-text-primary dark:text-white ${
                     value === category.id ? 'font-semibold' : 'font-regular'
                   }`}
                 >

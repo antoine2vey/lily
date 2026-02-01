@@ -14,9 +14,9 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { usePhotos } from 'src/hooks/usePhotos'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
-import { iconColors } from 'src/theme'
 
 const NUM_COLUMNS = 3
 const SPACING = 2
@@ -31,6 +31,7 @@ interface PhotoItem {
 }
 
 export function GalleryScreen() {
+  const iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()

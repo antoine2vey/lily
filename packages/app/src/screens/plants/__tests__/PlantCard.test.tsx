@@ -8,6 +8,8 @@ describe('PlantCard', () => {
     id: 'plant-1',
     name: 'Monstera Deliciosa',
     health: 'healthy' as const,
+    watering: { daysUntil: undefined, isOverdue: false },
+    fertilization: { daysUntil: undefined, isOverdue: false },
   }
 
   beforeEach(() => {
@@ -51,55 +53,168 @@ describe('PlantCard', () => {
     expect(screen.getByTestId('health-dot')).toBeTruthy()
   })
 
-  it('shows "Overdue" when plant needs water', () => {
-    const overdueWaterPlant = {
-      ...basePlant,
-      needsWater: true,
-      daysUntilWater: 0,
-    }
+  describe('watering indicators', () => {
+    it('shows "Overdue" when watering is overdue', () => {
+      const overdueWaterPlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: true },
+      }
 
-    render(<PlantCard plant={overdueWaterPlant} onPress={mockOnPress} />)
+      render(<PlantCard plant={overdueWaterPlant} onPress={mockOnPress} />)
 
-    expect(screen.getByText('Overdue')).toBeTruthy()
+      expect(screen.getByText('Overdue')).toBeTruthy()
+    })
+
+    it('shows "Today" when watering is due today', () => {
+      const todayWaterPlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: false },
+      }
+
+      render(<PlantCard plant={todayWaterPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Today')).toBeTruthy()
+    })
+
+    it('shows "Tomorrow" when watering is due tomorrow', () => {
+      const tomorrowWaterPlant = {
+        ...basePlant,
+        watering: { daysUntil: 1, isOverdue: false },
+      }
+
+      render(<PlantCard plant={tomorrowWaterPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Tomorrow')).toBeTruthy()
+    })
+
+    it('shows days count when watering is in future', () => {
+      const futureWaterPlant = {
+        ...basePlant,
+        watering: { daysUntil: 5, isOverdue: false },
+      }
+
+      render(<PlantCard plant={futureWaterPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('5 days')).toBeTruthy()
+    })
   })
 
-  it('shows "Today" when watering is due today', () => {
-    const todayWaterPlant = {
-      ...basePlant,
-      needsWater: false,
-      daysUntilWater: 0,
-    }
+  describe('fertilization indicators', () => {
+    it('shows "Overdue" when fertilization is overdue', () => {
+      const overdueFertilizePlant = {
+        ...basePlant,
+        fertilization: { daysUntil: 0, isOverdue: true },
+      }
 
-    render(<PlantCard plant={todayWaterPlant} onPress={mockOnPress} />)
+      render(<PlantCard plant={overdueFertilizePlant} onPress={mockOnPress} />)
 
-    expect(screen.getByText('Today')).toBeTruthy()
+      expect(screen.getByText('Overdue')).toBeTruthy()
+    })
+
+    it('shows "Today" when fertilization is due today', () => {
+      const todayFertilizePlant = {
+        ...basePlant,
+        fertilization: { daysUntil: 0, isOverdue: false },
+      }
+
+      render(<PlantCard plant={todayFertilizePlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Today')).toBeTruthy()
+    })
+
+    it('shows days count when fertilization is in future', () => {
+      const futureFertilizePlant = {
+        ...basePlant,
+        fertilization: { daysUntil: 3, isOverdue: false },
+      }
+
+      render(<PlantCard plant={futureFertilizePlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('3 days')).toBeTruthy()
+    })
   })
 
-  it('shows "Tomorrow" when watering is due tomorrow', () => {
-    const tomorrowWaterPlant = {
-      ...basePlant,
-      needsWater: false,
-      daysUntilWater: 1,
-    }
+  describe('combined care indicators', () => {
+    it('shows both overdue indicators when both are overdue', () => {
+      const bothOverduePlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: true },
+        fertilization: { daysUntil: 0, isOverdue: true },
+      }
 
-    render(<PlantCard plant={tomorrowWaterPlant} onPress={mockOnPress} />)
+      render(<PlantCard plant={bothOverduePlant} onPress={mockOnPress} />)
 
-    expect(screen.getByText('Tomorrow')).toBeTruthy()
+      expect(screen.getAllByText('Overdue')).toHaveLength(2)
+    })
+
+    it('shows only overdue indicator when one is overdue and one is not', () => {
+      const oneOverduePlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: true },
+        fertilization: { daysUntil: 5, isOverdue: false },
+      }
+
+      render(<PlantCard plant={oneOverduePlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Overdue')).toBeTruthy()
+      expect(screen.queryByText('5 days')).toBeNull()
+    })
+
+    it('shows both today indicators when both are due today', () => {
+      const bothTodayPlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: false },
+        fertilization: { daysUntil: 0, isOverdue: false },
+      }
+
+      render(<PlantCard plant={bothTodayPlant} onPress={mockOnPress} />)
+
+      expect(screen.getAllByText('Today')).toHaveLength(2)
+    })
+
+    it('shows only today indicator when one is due today and one is not', () => {
+      const oneTodayPlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: false },
+        fertilization: { daysUntil: 5, isOverdue: false },
+      }
+
+      render(<PlantCard plant={oneTodayPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Today')).toBeTruthy()
+      expect(screen.queryByText('5 days')).toBeNull()
+    })
+
+    it('shows soonest care when neither is overdue (watering sooner)', () => {
+      const wateringSoonerPlant = {
+        ...basePlant,
+        watering: { daysUntil: 2, isOverdue: false },
+        fertilization: { daysUntil: 5, isOverdue: false },
+      }
+
+      render(<PlantCard plant={wateringSoonerPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('2 days')).toBeTruthy()
+      expect(screen.queryByText('5 days')).toBeNull()
+    })
+
+    it('shows soonest care when neither is overdue (fertilization sooner)', () => {
+      const fertilizationSoonerPlant = {
+        ...basePlant,
+        watering: { daysUntil: 5, isOverdue: false },
+        fertilization: { daysUntil: 1, isOverdue: false },
+      }
+
+      render(
+        <PlantCard plant={fertilizationSoonerPlant} onPress={mockOnPress} />
+      )
+
+      expect(screen.getByText('Tomorrow')).toBeTruthy()
+      expect(screen.queryByText('5 days')).toBeNull()
+    })
   })
 
-  it('shows days count when watering is in future', () => {
-    const futureWaterPlant = {
-      ...basePlant,
-      needsWater: false,
-      daysUntilWater: 5,
-    }
-
-    render(<PlantCard plant={futureWaterPlant} onPress={mockOnPress} />)
-
-    expect(screen.getByText('5 days')).toBeTruthy()
-  })
-
-  it('does not show water indicator when daysUntilWater is undefined', () => {
+  it('does not show care indicator when no schedules are set', () => {
     render(<PlantCard plant={basePlant} onPress={mockOnPress} />)
 
     expect(screen.queryByText('Overdue')).toBeNull()
@@ -128,5 +243,22 @@ describe('PlantCard', () => {
     render(<PlantCard plant={criticalPlant} onPress={mockOnPress} />)
 
     expect(screen.getByTestId('health-dot')).toBeTruthy()
+  })
+
+  it('shows favorite indicator when plant is favorite', () => {
+    const favoritePlant = {
+      ...basePlant,
+      isFavorite: true,
+    }
+
+    render(<PlantCard plant={favoritePlant} onPress={mockOnPress} />)
+
+    expect(screen.getByTestId('favorite-indicator')).toBeTruthy()
+  })
+
+  it('does not show favorite indicator when plant is not favorite', () => {
+    render(<PlantCard plant={basePlant} onPress={mockOnPress} />)
+
+    expect(screen.queryByTestId('favorite-indicator')).toBeNull()
   })
 })

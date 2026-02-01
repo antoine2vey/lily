@@ -1,10 +1,10 @@
-import { Array } from 'effect'
+import { Array, Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, type TextStyle, View } from 'react-native'
 
 interface MarkdownTextProps {
   children: string
-  style?: TextStyle
+  textClassName?: string
   className?: string
 }
 
@@ -58,26 +58,32 @@ const parseInlineMarkdown = (text: string): TextSegment[] => {
   return segments.length > 0 ? segments : [{ text, bold: false, italic: false }]
 }
 
+// Get font style based on segment formatting
+const getSegmentStyle = (segment: TextSegment): TextStyle | undefined =>
+  pipe(
+    Match.value(segment),
+    Match.when({ bold: true }, () => ({ fontFamily: 'SpaceGrotesk_700Bold' })),
+    Match.when({ italic: true }, () => ({ fontStyle: 'italic' as const })),
+    Match.orElse(() => undefined)
+  )
+
 // Render a line with inline formatting
 const renderLine = (
   line: string,
   lineIndex: number,
-  baseStyle?: TextStyle
+  textClassName?: string
 ): ReactNode => {
   const segments = parseInlineMarkdown(line)
 
   return (
-    <Text key={lineIndex}>
+    <Text key={lineIndex} className={textClassName}>
       {Array.map(segments, (segment, i) => {
         const segmentKey = `${lineIndex}-seg-${segment.text.slice(0, 10)}-${i}`
         return (
           <Text
             key={segmentKey}
-            style={[
-              baseStyle,
-              segment.bold && { fontFamily: 'PlusJakartaSans_700Bold' },
-              segment.italic && { fontStyle: 'italic' },
-            ]}
+            className={textClassName}
+            style={getSegmentStyle(segment)}
           >
             {segment.text}
           </Text>
@@ -108,7 +114,7 @@ const isListItem = (
 
 export function MarkdownText({
   children,
-  style,
+  textClassName,
   className,
 }: MarkdownTextProps) {
   // Normalize escaped newlines to actual newlines, then split
@@ -133,16 +139,9 @@ export function MarkdownText({
         if (isItem) {
           return (
             <View key={lineKey} className="flex-row mb-1">
-              <Text
-                style={[
-                  style,
-                  { width: 24, fontFamily: 'PlusJakartaSans_400Regular' },
-                ]}
-              >
-                {marker}
-              </Text>
+              <Text className={`${textClassName ?? ''} w-6`}>{marker}</Text>
               <View className="flex-1">
-                {renderLine(content, index, style)}
+                {renderLine(content, index, textClassName)}
               </View>
             </View>
           )
@@ -150,7 +149,7 @@ export function MarkdownText({
 
         return (
           <View key={lineKey} className="mb-1">
-            {renderLine(trimmedLine, index, style)}
+            {renderLine(trimmedLine, index, textClassName)}
           </View>
         )
       })}

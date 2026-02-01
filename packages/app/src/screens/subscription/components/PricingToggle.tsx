@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
 
 type BillingPeriod = 'monthly' | 'annual'
@@ -21,66 +22,107 @@ export function PricingToggle({
   const isAnnualSelected = selected === 'annual'
 
   return (
-    <View className="flex-row px-4">
+    <View className="flex-row px-4 gap-3">
       {/* Monthly Option */}
       <Pressable
         onPress={() => onSelect('monthly')}
-        className={`flex-1 mr-2 p-4 rounded-xl items-center border-2 ${
+        className={`flex-1 p-4 rounded-2xl border-2 min-h-[110px] justify-between ${
           isMonthlySelected
-            ? 'bg-primary-tint border-primary'
-            : 'bg-surface border-border'
+            ? 'bg-primary-tint dark:bg-primary/20 border-primary'
+            : 'bg-surface dark:bg-surface-dark border-border/50 dark:border-slate-700/50'
         }`}
       >
-        <Text
-          className={`text-sm mb-1 font-medium ${
-            isMonthlySelected ? 'text-primary' : 'text-text-muted'
-          }`}
-        >
-          Monthly
-        </Text>
-        <Text
-          className={`text-xl font-bold ${
-            isMonthlySelected ? 'text-primary' : 'text-text-primary'
-          }`}
-        >
-          {monthlyPrice}
-        </Text>
+        <View className="flex-row justify-between items-start">
+          <Text
+            className={`text-sm font-bold ${
+              isMonthlySelected
+                ? 'text-primary'
+                : 'text-text-muted dark:text-slate-400'
+            }`}
+          >
+            Monthly
+          </Text>
+          <View
+            className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
+              isMonthlySelected
+                ? 'bg-primary border-primary'
+                : 'border-border dark:border-slate-600'
+            }`}
+          >
+            {isMonthlySelected && (
+              <MaterialIcons name="check" size={12} color="white" />
+            )}
+          </View>
+        </View>
+        <View>
+          <Text
+            className={`text-2xl font-bold ${
+              isMonthlySelected
+                ? 'text-text-primary dark:text-white'
+                : 'text-text-primary dark:text-white'
+            }`}
+          >
+            {monthlyPrice}
+          </Text>
+          <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+            /mo
+          </Text>
+        </View>
       </Pressable>
 
       {/* Annual Option */}
       <Pressable
         onPress={() => onSelect('annual')}
-        className={`flex-1 ml-2 p-4 rounded-xl items-center relative border-2 ${
+        className={`flex-1 p-4 rounded-2xl border-2 min-h-[110px] justify-between relative ${
           isAnnualSelected
-            ? 'bg-primary-tint border-primary'
-            : 'bg-surface border-border'
+            ? 'bg-primary-tint dark:bg-primary/20 border-primary'
+            : 'bg-surface dark:bg-surface-dark border-border/50 dark:border-slate-700/50'
         }`}
       >
         {/* Savings Badge */}
         {savingsPercent && (
-          <View className="absolute -top-3 right-2 px-2 py-0.5 rounded-full bg-achievement-gold">
-            <Text className="text-xs font-semibold text-text-primary">
-              SAVE {savingsPercent}%
+          <View className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary z-10">
+            <Text className="text-[10px] font-bold uppercase text-white">
+              Save {savingsPercent}%
             </Text>
           </View>
         )}
-        <Text
-          className={`text-sm mb-1 font-medium ${
-            isAnnualSelected ? 'text-primary' : 'text-text-muted'
-          }`}
-        >
-          Annual
-        </Text>
-        <Text
-          className={`text-xl font-bold ${
-            isAnnualSelected ? 'text-primary' : 'text-text-primary'
-          }`}
-        >
-          {annualPrice}
-        </Text>
-        <Text className="text-xs mt-0.5 font-regular text-text-muted">
-          per year
-        </Text>
+        <View className="flex-row justify-between items-start">
+          <Text
+            className={`text-sm font-bold ${
+              isAnnualSelected
+                ? 'text-primary'
+                : 'text-text-muted dark:text-slate-400'
+            }`}
+          >
+            Annual
+          </Text>
+          <View
+            className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
+              isAnnualSelected
+                ? 'bg-primary border-primary'
+                : 'border-border dark:border-slate-600'
+            }`}
+          >
+            {isAnnualSelected && (
+              <MaterialIcons name="check" size={12} color="white" />
+            )}
+          </View>
+        </View>
+        <View>
+          <Text
+            className={`text-2xl font-bold ${
+              isAnnualSelected
+                ? 'text-text-primary dark:text-white'
+                : 'text-text-primary dark:text-white'
+            }`}
+          >
+            {annualPrice}
+          </Text>
+          <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+            /yr (billed annually)
+          </Text>
+        </View>
       </Pressable>
     </View>
   )

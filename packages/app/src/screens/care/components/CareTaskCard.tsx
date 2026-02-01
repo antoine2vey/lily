@@ -3,7 +3,7 @@ import type { CareTaskType } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
 import { Image, Pressable, Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { UndoButton } from './UndoButton'
 
 interface CareTaskCardProps {
@@ -30,7 +30,10 @@ interface TaskConfig {
   label: string
 }
 
-const getTaskConfig = (type: CareTaskType): TaskConfig =>
+const getTaskConfig = (
+  type: CareTaskType,
+  iconColors: ReturnType<typeof useIconColors>
+): TaskConfig =>
   pipe(
     Match.value(type),
     Match.when('water', () => ({
@@ -55,7 +58,8 @@ export function CareTaskCard({
   compact = false,
   isPendingCompletion = false,
 }: CareTaskCardProps) {
-  const config = getTaskConfig(task.type)
+  const iconColors = useIconColors()
+  const config = getTaskConfig(task.type, iconColors)
 
   const containerClass = pipe(
     Match.value({ overdue, isPendingCompletion }),
@@ -66,11 +70,11 @@ export function CareTaskCard({
     Match.when(
       { overdue: true },
       () =>
-        'flex-row items-center p-3 rounded-xl mb-2 bg-surface border border-coral active:opacity-90'
+        'flex-row items-center p-3 rounded-xl mb-2 bg-surface dark:bg-surface-dark border border-coral active:opacity-90'
     ),
     Match.orElse(
       () =>
-        'flex-row items-center p-3 rounded-xl mb-2 bg-surface active:opacity-90'
+        'flex-row items-center p-3 rounded-xl mb-2 bg-surface dark:bg-surface-dark active:opacity-90'
     )
   )
 
@@ -101,7 +105,7 @@ export function CareTaskCard({
       </Pressable>
       <View className="flex-1 ml-3">
         <Text
-          className={`${compact ? 'text-sm' : 'text-base'} font-medium text-text-primary`}
+          className={`${compact ? 'text-sm' : 'text-base'} font-medium text-text-primary dark:text-white`}
           numberOfLines={1}
         >
           {task.plantName}

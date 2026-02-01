@@ -1,7 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
 
 interface Feature {
   title: string
@@ -14,32 +13,27 @@ interface FeatureListProps {
 
 export function FeatureList({ features }: FeatureListProps) {
   return (
-    <View className="px-4">
-      {pipe(
-        features,
-        Array.map((feature, index) => (
-          <View
-            key={feature.title}
-            className={`flex-row items-start ${index === features.length - 1 ? '' : 'mb-4'}`}
-          >
-            <View className="w-6 h-6 rounded-full items-center justify-center mr-3 mt-0.5 bg-primary-tint">
-              <MaterialIcons
-                name="check"
-                size={14}
-                color={iconColors.primary}
-              />
+    <View className="mx-4 p-6 rounded-3xl bg-surface dark:bg-surface-dark shadow-lg border border-border/30 dark:border-slate-700/30">
+      <View className="gap-5">
+        {pipe(
+          features,
+          Array.map((feature) => (
+            <View key={feature.title} className="flex-row items-start gap-4">
+              <View className="w-6 h-6 rounded-full items-center justify-center mt-0.5 bg-primary">
+                <MaterialIcons name="check" size={14} color="white" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm mb-1 font-bold text-text-primary dark:text-white">
+                  {feature.title}
+                </Text>
+                <Text className="text-xs font-regular text-text-muted dark:text-slate-400">
+                  {feature.description}
+                </Text>
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="text-base mb-0.5 font-semibold text-text-primary">
-                {feature.title}
-              </Text>
-              <Text className="text-sm font-regular text-text-muted">
-                {feature.description}
-              </Text>
-            </View>
-          </View>
-        ))
-      )}
+          ))
+        )}
+      </View>
     </View>
   )
 }

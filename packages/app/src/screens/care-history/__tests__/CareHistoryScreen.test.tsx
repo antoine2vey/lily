@@ -19,6 +19,20 @@ jest.mock('@/hooks/useCareHistory', () => ({
   useCareHistory: jest.fn(),
 }))
 
+jest.mock('@/hooks/usePlants', () => ({
+  usePlants: jest.fn(() => ({
+    data: { items: [], total: 0 },
+    isLoading: false,
+  })),
+}))
+
+jest.mock('@/hooks/useSaveCareLog', () => ({
+  useSaveCareLog: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+  })),
+}))
+
 import { useCareHistory } from '@/hooks/useCareHistory'
 import { usePlant } from '@/hooks/usePlant'
 import { CareHistoryScreen } from '../CareHistoryScreen'

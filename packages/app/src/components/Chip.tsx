@@ -31,8 +31,12 @@ export function Chip({
   disabled = false,
 }: ChipProps) {
   const variantClasses = getVariantClasses(variant)
-  const bgClass = selected ? 'bg-primary' : 'bg-white border border-slate-200'
-  const textClass = selected ? 'text-white' : 'text-text-primary'
+  const bgClass = selected
+    ? 'bg-primary'
+    : 'bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700'
+  const textClass = selected
+    ? 'text-white'
+    : 'text-text-primary dark:text-white'
   const opacityClass = disabled ? 'opacity-50' : ''
 
   const content = (

@@ -1,26 +1,19 @@
+import { MaterialIcons } from '@expo/vector-icons'
 import { getTimeBasedGreeting } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import {
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { images } from 'src/assets/images'
 import { Avatar } from 'src/components/Avatar'
-import { EmptyState } from 'src/components/EmptyState'
 import { HomeScreenSkeleton } from 'src/components/skeletons'
+import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { useUser } from 'src/hooks/useUser'
 import { useWaterAll } from 'src/hooks/useWaterAll'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { HydrationCard } from './components/HydrationCard'
 import { RecentActivity } from './components/RecentActivity'
@@ -29,6 +22,7 @@ import { StatsRow } from './components/StatsRow'
 export function HomeScreen() {
   const { state } = useAuth()
   const router = useRouter()
+  const iconColors = useIconColors()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
   const {
@@ -108,10 +102,10 @@ export function HomeScreen() {
     router.push(`/plant/${plantId}`)
   }
 
-  const handleActivityPress = (_activityId: string) => {
+  const handleActivityPress = (activityId: string) => {
     // Activity press navigates to the related plant
     const activity = pipe(
-      Array.findFirst(recentActivities ?? [], (a) => a.id === _activityId)
+      Array.findFirst(recentActivities ?? [], (a) => a.id === activityId)
     )
     pipe(
       activity,
@@ -122,7 +116,7 @@ export function HomeScreen() {
   }
 
   const handleSeeAllActivities = () => {
-    router.push('/(app)/(tabs)/care' as never)
+    router.push('/(app)/(tabs)/care')
   }
 
   if (isLoading) {
@@ -132,7 +126,7 @@ export function HomeScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
@@ -145,42 +139,65 @@ export function HomeScreen() {
           />
         }
       >
-        <View className="flex-1 px-4">
+        <View className="flex-1 px-6">
           {/* Header */}
-          <View className="flex-row items-center justify-between pt-6 pb-4">
+          <View className="flex-row items-center justify-between pt-8 pb-4">
             <View className="flex-1">
-              <Text className="text-2xl text-text-primary tracking-tight leading-tight font-bold">
+              <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
                 {getTimeBasedGreeting()},{'\n'}
                 {userName} ☀️
               </Text>
             </View>
-            <Pressable onPress={() => router.push('/settings')}>
-              <Avatar
-                source={userAvatar ? { uri: userAvatar } : undefined}
-                name={userName}
-                size="md"
-              />
-            </Pressable>
+            <View className="flex-row items-center gap-3">
+              <Pressable onPress={() => router.push('/settings')}>
+                <Avatar
+                  source={userAvatar ? { uri: userAvatar } : undefined}
+                  name={userName}
+                  size="md"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/(app)/notification-settings')}
+                className="w-11 h-11 rounded-full bg-white dark:bg-surface-dark items-center justify-center"
+                style={{
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 2,
+                  elevation: 1,
+                }}
+              >
+                <MaterialIcons
+                  name="notifications"
+                  size={24}
+                  color={iconColors.textPrimary}
+                />
+              </Pressable>
+            </View>
           </View>
 
           {hasPlants ? (
-            <View className="gap-4 pb-6">
+            <View className="pb-6">
               {/* Hydration Card */}
               {plantsNeedingWater.length > 0 && (
-                <HydrationCard
-                  plants={plantsNeedingWater}
-                  onWaterAll={handleWaterAll}
-                  onPlantPress={handlePlantPress}
-                  isLoading={isWateringAll}
-                />
+                <View className="mb-8 mt-2">
+                  <HydrationCard
+                    plants={plantsNeedingWater}
+                    onWaterAll={handleWaterAll}
+                    onPlantPress={handlePlantPress}
+                    isLoading={isWateringAll}
+                  />
+                </View>
               )}
 
               {/* Stats Row */}
-              <StatsRow
-                total={plantList.length}
-                healthy={healthyCount}
-                attention={attentionCount}
-              />
+              <View className="mb-8">
+                <StatsRow
+                  total={plantList.length}
+                  healthy={healthyCount}
+                  attention={attentionCount}
+                />
+              </View>
 
               {/* Recent Activity */}
               <RecentActivity
@@ -191,22 +208,28 @@ export function HomeScreen() {
             </View>
           ) : (
             /* Empty State */
-            <View className="flex-1 items-center justify-center px-6">
-              <View className="w-64 h-64 rounded-lg overflow-hidden mb-8">
-                <Image
-                  source={images.seedlingPot}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
+            <View className="flex-1">
+              {/* Typography */}
+              <View className="gap-1 mt-4">
+                <Text className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">
+                  Your garden awaits
+                </Text>
+                <Text className="text-base font-medium text-slate-500 dark:text-slate-400 leading-relaxed w-1/2">
+                  Add your first plant to start your care journey
+                </Text>
               </View>
-              <EmptyState
-                title="Your garden awaits"
-                description="Add your first plant to start your care journey"
-                action={{
-                  label: 'Add Your First Plant',
-                  onPress: () => setShowAddPlant(true),
-                }}
-              />
+
+              {/* CTA Button */}
+              <View className="w-full mt-8">
+                <Button
+                  icon="add"
+                  iconPosition="left"
+                  onPress={() => setShowAddPlant(true)}
+                  pill
+                >
+                  Add Your First Plant
+                </Button>
+              </View>
             </View>
           )}
         </View>

@@ -1,3 +1,8 @@
 export { CareHistoryScreen } from './CareHistoryScreen'
-export { CareEventCard } from './components/CareEventCard'
-export { Timeline } from './components/Timeline'
+export {
+  type CareEvent,
+  CareEventCard,
+  type CareEventType,
+  getEventConfig,
+} from './components/CareEventCard'
+export { Timeline, type TimelineGroup } from './components/Timeline'

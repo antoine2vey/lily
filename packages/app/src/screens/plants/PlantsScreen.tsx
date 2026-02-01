@@ -3,12 +3,12 @@ import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, Order, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { EmptyState } from 'src/components/EmptyState'
 import { PlantsScreenSkeleton } from 'src/components/skeletons'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { iconColors } from 'src/theme'
 import { useEffectQuery } from 'src/utils/client'
 import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
 import { PlantCard } from './components/PlantCard'
@@ -20,30 +20,52 @@ import {
 } from './components/SortOptionsSheet'
 import { type ViewMode, ViewToggle } from './components/ViewToggle'
 
+interface CareStatus {
+  daysUntil?: number
+  isOverdue: boolean
+}
+
 interface PlantCardData {
   id: string
   name: string
   imageUrl?: string
   health: HealthStatus
-  daysUntilWater?: number
-  needsWater?: boolean
+  watering: CareStatus
+  fertilization: CareStatus
   isFavorite?: boolean
 }
 
-const getDaysUntilWater = (nextWateringAt: DateInput): Option.Option<number> =>
+const getDaysUntil = (date: DateInput): Option.Option<number> =>
   pipe(
-    parseApiDate(nextWateringAt),
-    Option.map((dt) => Math.max(0, daysUntil(dt)))
+    parseApiDate(date),
+    Option.map((dt) => daysUntil(dt))
   )
+
+const getCareStatus = (nextDate: DateInput): CareStatus => {
+  const daysOption = getDaysUntil(nextDate)
+  if (Option.isNone(daysOption)) {
+    return { daysUntil: undefined, isOverdue: false }
+  }
+  const days = daysOption.value
+  return {
+    daysUntil: Math.max(0, days),
+    isOverdue: days < 0,
+  }
+}
 
 const plantNameOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.string,
   (plant) => plant.name
 )
 
-const plantWaterOrder: Order.Order<PlantCardData> = Order.mapInput(
+const plantCareOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.number,
-  (plant) => plant.daysUntilWater ?? 999
+  (plant) => {
+    // Sort by most urgent care need
+    const waterDays = plant.watering.daysUntil ?? 999
+    const fertilizeDays = plant.fertilization.daysUntil ?? 999
+    return Math.min(waterDays, fertilizeDays)
+  }
 )
 
 const healthOrderMap: Record<HealthStatus, number> = {
@@ -59,6 +81,7 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
 
 export function PlantsScreen() {
   const router = useRouter()
+  const iconColors = useIconColors()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all')
   const [sortOption, setSortOption] = useState<SortOption>('name')
@@ -67,30 +90,30 @@ export function PlantsScreen() {
   const [showSearch, setShowSearch] = useState(false)
   const [showAddPlant, setShowAddPlant] = useState(false)
 
-  const { data: plantsData, isLoading } = useEffectQuery(
-    'plants',
-    'getPlants',
-    {
-      urlParams: { page: '1', limit: '50', filter: 'all', sort: 'added' },
-    }
-  )
+  const {
+    data: plantsData,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useEffectQuery('plants', 'getPlants', {
+    urlParams: { page: '1', limit: '50', filter: 'all', sort: 'added' },
+  })
+
+  const handleRefresh = useCallback(() => {
+    refetch()
+  }, [refetch])
 
   const plants: ReadonlyArray<PlantCardData> = useMemo(() => {
     const items = plantsData?.items ?? []
-    return Array.map(items, (plant) => {
-      const daysOption = getDaysUntilWater(plant.nextWateringAt)
-      const days = Option.getOrUndefined(daysOption)
-      const needsWater = Option.isSome(daysOption) && daysOption.value <= 0
-      return {
-        id: plant.id,
-        name: plant.name,
-        imageUrl: plant.imageUrl ?? undefined,
-        health: mapApiHealthToCardHealth(plant.health),
-        daysUntilWater: days,
-        needsWater,
-        isFavorite: plant.isFavorite,
-      }
-    })
+    return Array.map(items, (plant) => ({
+      id: plant.id,
+      name: plant.name,
+      imageUrl: plant.imageUrl ?? undefined,
+      health: mapApiHealthToCardHealth(plant.health),
+      watering: getCareStatus(plant.nextWateringAt),
+      fertilization: getCareStatus(plant.nextFertilizationAt),
+      isFavorite: plant.isFavorite,
+    }))
   }, [plantsData])
 
   const filteredPlants = useMemo(() => {
@@ -122,7 +145,7 @@ export function PlantsScreen() {
       Match.value(sortOption),
       Match.when('name', () => Array.sort(result, plantNameOrder)),
       Match.when('dateAdded', () => result),
-      Match.when('nextWater', () => Array.sort(result, plantWaterOrder)),
+      Match.when('nextWater', () => Array.sort(result, plantCareOrder)),
       Match.when('health', () => Array.sort(result, plantHealthOrder)),
       Match.exhaustive
     )
@@ -172,10 +195,10 @@ export function PlantsScreen() {
     return (
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        className="flex-1 bg-background"
+        className="flex-1 bg-background dark:bg-background-dark"
       >
         <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
-          <Text className="text-3xl font-bold tracking-tight text-text-primary">
+          <Text className="text-3xl font-bold tracking-tight text-text-primary dark:text-white">
             My Plants
           </Text>
         </View>
@@ -202,17 +225,17 @@ export function PlantsScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
-        <Text className="text-3xl font-bold tracking-tight text-text-primary">
+        <Text className="text-3xl font-bold tracking-tight text-text-primary dark:text-white">
           My Plants
         </Text>
         <View className="flex-row items-center gap-3">
           <Pressable
             onPress={handleToggleSearch}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-soft"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-surface-dark shadow-soft"
             testID="search-button"
           >
             <MaterialIcons
@@ -223,7 +246,7 @@ export function PlantsScreen() {
           </Pressable>
           <Pressable
             onPress={() => setShowSortSheet(true)}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-soft"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-surface-dark shadow-soft"
             testID="sort-button"
           >
             <MaterialIcons
@@ -268,6 +291,13 @@ export function PlantsScreen() {
         contentContainerClassName="px-3 pb-24 pt-2"
         showsVerticalScrollIndicator={false}
         testID="plants-grid"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={handleRefresh}
+            tintColor={iconColors.primary}
+          />
+        }
         ListEmptyComponent={
           <View className="flex-1 pt-10">
             <EmptyState

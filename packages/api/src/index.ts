@@ -7,6 +7,7 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
@@ -15,6 +16,7 @@ import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
+import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import {
   RedisClientLive,
   RedisMessageQueueLive,
@@ -78,6 +80,13 @@ const NotificationWorkerLive = Layer.scopedDiscard(
   Layer.provide(ExpoPushServiceLive)
 )
 
+// Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
+const HealthSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startHealthScheduler
+  })
+).pipe(Layer.provide(PlantRepositoryLive))
+
 // Provide the implementation for all APIs
 const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AchievementsApiLive(Api)),
@@ -102,6 +111,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
   Layer.provide(AchievementSubscriberLive),
+  Layer.provide(HealthSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),

@@ -2,13 +2,12 @@
 import 'src/polyfills'
 
 import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
   useFonts,
-} from '@expo-google-fonts/plus-jakarta-sans'
+} from '@expo-google-fonts/space-grotesk'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { Slot, SplashScreen, useRouter } from 'expo-router'
@@ -19,6 +18,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
 import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
+import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
 import { AnimatedSplashScreen } from 'src/screens/splash'
 import * as RevenueCatService from 'src/services/revenuecat'
@@ -32,7 +32,30 @@ SplashScreen.preventAutoHideAsync()
 
 // Note: RevenueCat SDK initialization moved to RevenueCatProvider to avoid double initialization
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // Don't retry on 401 errors - let apiEffectRunner handle token refresh
+        const msg = error instanceof Error ? error.message : String(error)
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
+          return false
+        }
+        return failureCount < 3
+      },
+    },
+    mutations: {
+      retry: (failureCount, error) => {
+        // Don't retry on 401 errors for mutations either
+        const msg = error instanceof Error ? error.message : String(error)
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
+          return false
+        }
+        return failureCount < 3
+      },
+    },
+  },
+})
 
 interface RootLayoutNavProps {
   fontsLoaded: boolean
@@ -94,11 +117,10 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   })
 
   useEffect(() => {
@@ -110,14 +132,21 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <RevenueCatProvider>
-            <StatusBar style="auto" />
-            <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
-            <Toaster />
-          </RevenueCatProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <RevenueCatProvider>
+              <ThemedStatusBar />
+              <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
+              <Toaster />
+            </RevenueCatProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   )
+}
+
+function ThemedStatusBar() {
+  const { isDark } = useThemeContext()
+  return <StatusBar style={isDark ? 'light' : 'dark'} />
 }

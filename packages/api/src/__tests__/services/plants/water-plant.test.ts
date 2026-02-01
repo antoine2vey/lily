@@ -93,4 +93,39 @@ describe('waterPlant', () => {
     expect(result.remindersEnabled).toBe(true)
     expect(result.nextWateringAt).toBeDefined()
   })
+
+  it('should reset health to HEALTHY when plant NEEDS_ATTENTION', async () => {
+    // Create a plant that NEEDS_ATTENTION
+    const plantsWithAttention = [
+      {
+        ...mockPlants[0],
+        id: 'attention-plant',
+        health: 'NEEDS_ATTENTION' as const,
+      },
+    ]
+
+    const result = await Effect.runPromise(
+      waterPlant({ id: 'attention-plant' }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants: plantsWithAttention }),
+            createMockCareLogRepository(mockCareLogs),
+            createMockNotificationRepository([]),
+            createMockUserRepository(mockUsers)
+          )
+        )
+      )
+    )
+
+    expect(result.health).toBe('HEALTHY')
+  })
+
+  it('should not change health if plant is already HEALTHY', async () => {
+    // plant-1 has health = 'HEALTHY'
+    const result = await Effect.runPromise(
+      waterPlant({ id: 'plant-1' }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.health).toBe('HEALTHY')
+  })
 })

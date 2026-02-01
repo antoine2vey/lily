@@ -2,6 +2,8 @@ import {
   FetchHttpClient,
   type HttpApi,
   HttpApiClient,
+  HttpClient,
+  HttpClientRequest,
   type HttpClientResponse,
 } from '@effect/platform'
 import { Api } from '@lily/api/api'
@@ -11,7 +13,7 @@ import {
   useMutation,
   useQuery,
 } from '@tanstack/react-query'
-import { Cause, Effect, Layer, Runtime } from 'effect'
+import { Cause, Effect, Option, pipe, Runtime } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 
 // Type helpers to extract HttpApi type parameters
@@ -40,6 +42,17 @@ export const API_BASE_URL =
 
 // Shared promise for concurrent refresh requests
 let refreshPromise: Promise<string | null> | null = null
+
+// Callback for auth failure (token refresh failed)
+let onAuthFailure: (() => void) | null = null
+
+/**
+ * Set the callback to be invoked when token refresh fails.
+ * This allows AuthContext to trigger logout when refresh tokens expire.
+ */
+export const setOnAuthFailure = (callback: (() => void) | null): void => {
+  onAuthFailure = callback
+}
 
 /**
  * Attempt to refresh the access token using the stored refresh token.
@@ -92,32 +105,6 @@ export const refreshAccessToken = async (): Promise<string | null> => {
   return refreshPromise
 }
 
-// Create a custom fetch layer that injects the auth token
-const createAuthFetchLayer = () =>
-  FetchHttpClient.layer.pipe(
-    Layer.provide(
-      Layer.effect(
-        FetchHttpClient.RequestInit,
-        Effect.gen(function* () {
-          const token = yield* Effect.tryPromise({
-            try: () => SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
-            catch: () => null,
-          })
-
-          const headers: Record<string, string> = {}
-          if (token) {
-            headers.Authorization = `Bearer ${token}`
-          }
-
-          return {
-            credentials: 'include' as RequestCredentials,
-            headers,
-          }
-        })
-      )
-    )
-  )
-
 type Client = HttpApiClient.Client<
   ExtractGroups<typeof Api>,
   ExtractError<typeof Api>,
@@ -125,11 +112,32 @@ type Client = HttpApiClient.Client<
 >
 
 class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
-  dependencies: [createAuthFetchLayer()],
+  dependencies: [FetchHttpClient.layer],
   effect: Effect.gen(function* () {
     return {
       client: yield* HttpApiClient.make(Api, {
         baseUrl: API_BASE_URL,
+        transformClient: (httpClient) =>
+          HttpClient.mapRequestEffect(httpClient, (request) =>
+            Effect.gen(function* () {
+              const token = yield* Effect.tryPromise({
+                try: () => SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+                catch: () => null,
+              })
+              return pipe(
+                Option.fromNullable(token),
+                Option.match({
+                  onNone: () => request,
+                  onSome: (t) =>
+                    HttpClientRequest.setHeader(
+                      request,
+                      'Authorization',
+                      `Bearer ${t}`
+                    ),
+                })
+              )
+            })
+          ),
       }),
     }
   }),
@@ -241,6 +249,10 @@ export async function apiEffectRunner<
       if (newToken) {
         // Retry the request with the new token
         return apiEffectRunner(section, method, params, retryCount + 1)
+      }
+      // Token refresh failed, trigger auth failure callback
+      if (onAuthFailure) {
+        onAuthFailure()
       }
     }
 

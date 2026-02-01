@@ -49,24 +49,17 @@ export function PlantFilters({
             key={key}
             onPress={() => onFilterChange(key)}
             activeOpacity={0.7}
-            style={{
-              height: 40,
-              flexShrink: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 24,
-              borderRadius: 9999,
-              backgroundColor: isSelected ? '#5B8C5A' : '#ffffff',
-              borderWidth: isSelected ? 0 : 1,
-              borderColor: '#edf0eb',
-              marginBottom: 15,
-            }}
+            className={`h-10 shrink-0 items-center justify-center px-6 rounded-full mb-4 ${
+              isSelected
+                ? 'bg-primary'
+                : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
+            }`}
           >
             <Text
               className={`text-sm ${
                 isSelected
                   ? 'text-white font-semibold'
-                  : 'text-[#141712] font-medium'
+                  : 'text-text-primary dark:text-white font-medium'
               }`}
             >
               {`${label} (${counts[key]})`}

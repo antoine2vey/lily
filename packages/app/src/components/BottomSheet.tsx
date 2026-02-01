@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef } from 'react'
 import {
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 const SCREEN_HEIGHT = Dimensions.get('window').height
 
@@ -28,6 +30,7 @@ export function BottomSheet({
   children,
   snapPoints = ['50%'],
 }: BottomSheetProps) {
+  const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
@@ -121,29 +124,42 @@ export function BottomSheet({
           <Pressable className="flex-1" onPress={handleClose} />
         </Animated.View>
         <Animated.View
-          className="absolute left-0 right-0 bottom-0 bg-white"
+          className="absolute left-0 right-0 bottom-0 bg-white dark:bg-surface-dark"
           style={{
             height: sheetHeight + insets.bottom,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
             transform: [{ translateY }],
             paddingBottom: insets.bottom,
           }}
         >
+          {/* Drag Handle */}
           <View
             {...panResponder.panHandlers}
-            className="items-center pt-2 pb-4"
+            className="items-center pt-3 pb-1"
           >
-            <View className="w-9 h-1 rounded-full bg-slate-300" />
+            <View className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
           </View>
+          {/* Header */}
           {title && (
-            <View className="px-6 pb-4 border-b border-border">
-              <Text className="text-lg text-center text-text-primary font-semibold">
+            <View className="px-6 py-4 flex-row items-center justify-between">
+              <Text className="text-2xl text-text-primary dark:text-white font-bold tracking-tight">
                 {title}
               </Text>
+              <Pressable
+                onPress={handleClose}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 items-center justify-center"
+              >
+                <MaterialIcons
+                  name="close"
+                  size={20}
+                  color={iconColors.textSecondary}
+                />
+              </Pressable>
             </View>
           )}
-          <View className="flex-1 px-6">{children}</View>
+          {/* Content */}
+          <View className="flex-1 px-5 pb-10">{children}</View>
         </Animated.View>
       </View>
     </Modal>

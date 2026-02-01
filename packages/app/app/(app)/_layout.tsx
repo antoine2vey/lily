@@ -59,6 +59,14 @@ export default function AppLayout() {
           presentation: 'card',
         }}
       />
+      <Stack.Screen
+        name="log-care"
+        options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+          animation: 'fade',
+        }}
+      />
     </Stack>
   )
 }
