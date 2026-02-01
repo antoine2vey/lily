@@ -1,5 +1,5 @@
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockUsers } from 'src/__tests__/fixtures/users'
 
 // Mock dependencies
 jest.mock('@/hooks/useUser', () => ({
@@ -76,7 +76,7 @@ describe('SettingsScreen', () => {
     render(<SettingsScreen />)
 
     expect(screen.getByText('Notifications')).toBeTruthy()
-    expect(screen.getByText('Notification Settings')).toBeTruthy()
+    expect(screen.getByText('Push Notifications')).toBeTruthy()
   })
 
   it('displays privacy section', () => {
@@ -105,7 +105,7 @@ describe('SettingsScreen', () => {
     expect(screen.getByText('About Lily')).toBeTruthy()
   })
 
-  it('displays account actions section', () => {
+  it('displays account section', () => {
     mockedUseUser.mockReturnValue({
       data: mockUsers[0],
       isLoading: false,
@@ -113,7 +113,7 @@ describe('SettingsScreen', () => {
 
     render(<SettingsScreen />)
 
-    expect(screen.getByText('Account Actions')).toBeTruthy()
+    expect(screen.getByText('Account')).toBeTruthy()
     expect(screen.getByText('Sign Out')).toBeTruthy()
     expect(screen.getByText('Delete Account')).toBeTruthy()
   })

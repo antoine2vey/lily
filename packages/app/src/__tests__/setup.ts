@@ -10,6 +10,18 @@ import { cleanupQueryClients } from './utils/query-helpers'
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
 
+// Mock ThemeContext globally to avoid "must be used within ThemeProvider" errors
+jest.mock('src/contexts/ThemeContext', () => ({
+  useThemeContext: () => ({
+    preference: 'light' as const,
+    resolvedTheme: 'light' as const,
+    isDark: false,
+    setTheme: jest.fn().mockResolvedValue(undefined),
+    isLoading: false,
+  }),
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 // Clean up QueryClients after each test to prevent open handles
 afterEach(() => {
   cleanupQueryClients()

@@ -48,13 +48,13 @@ describe('Health Scheduler', () => {
 
     const plants = [overduePlant]
 
-    const result = await Effect.runPromise(
+    await Effect.runPromise(
       checkOverduePlants.pipe(
         Effect.provide(createMockPlantRepository({ plants }))
       )
     )
 
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should mark THRIVING overdue plants as NEEDS_ATTENTION', async () => {
@@ -72,7 +72,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should not change health of plants that are not overdue', async () => {
@@ -90,7 +90,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('HEALTHY')
+    expect(plants[0]?.health).toBe('HEALTHY')
   })
 
   it('should not change health of plants already NEEDS_ATTENTION', async () => {
@@ -109,7 +109,7 @@ describe('Health Scheduler', () => {
     )
 
     // Should remain as NEEDS_ATTENTION (not re-marked)
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should not change health of SICK plants even if overdue', async () => {
@@ -128,7 +128,7 @@ describe('Health Scheduler', () => {
     )
 
     // SICK status should be preserved (more severe than NEEDS_ATTENTION)
-    expect(plants[0].health).toBe('SICK')
+    expect(plants[0]?.health).toBe('SICK')
   })
 
   it('should not mark plants without nextWateringAt', async () => {
@@ -146,7 +146,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('HEALTHY')
+    expect(plants[0]?.health).toBe('HEALTHY')
   })
 
   it('should reset NEEDS_ATTENTION to HEALTHY if schedule is in order', async () => {
@@ -164,7 +164,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('HEALTHY')
+    expect(plants[0]?.health).toBe('HEALTHY')
   })
 
   it('should reset NEEDS_ATTENTION to HEALTHY if no schedule is set', async () => {
@@ -182,7 +182,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('HEALTHY')
+    expect(plants[0]?.health).toBe('HEALTHY')
   })
 
   it('should not reset NEEDS_ATTENTION if plant is still overdue', async () => {
@@ -201,7 +201,7 @@ describe('Health Scheduler', () => {
     )
 
     // Should remain NEEDS_ATTENTION since it's still overdue
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should mark plant as NEEDS_ATTENTION if fertilization is overdue', async () => {
@@ -220,7 +220,7 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should not reset to HEALTHY if fertilization is still overdue', async () => {
@@ -240,7 +240,7 @@ describe('Health Scheduler', () => {
     )
 
     // Should remain NEEDS_ATTENTION because fertilization is still overdue
-    expect(plants[0].health).toBe('NEEDS_ATTENTION')
+    expect(plants[0]?.health).toBe('NEEDS_ATTENTION')
   })
 
   it('should reset to HEALTHY when both watering and fertilization are in order', async () => {
@@ -259,6 +259,6 @@ describe('Health Scheduler', () => {
       )
     )
 
-    expect(plants[0].health).toBe('HEALTHY')
+    expect(plants[0]?.health).toBe('HEALTHY')
   })
 })

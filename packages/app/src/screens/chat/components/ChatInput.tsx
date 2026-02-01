@@ -25,19 +25,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }
 
-  const handleAttachImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    })
-
-    if (!result.canceled && result.assets[0]) {
-      setAttachedImage(result.assets[0].uri)
-    }
-  }
-
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== 'granted') return

@@ -1,5 +1,5 @@
-import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { renderHook } from '@testing-library/react-native'
+import { mockCareLogs } from 'src/__tests__/fixtures/care-logs'
 import {
   createQueryWrapper,
   mockQueryLoading,

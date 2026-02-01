@@ -1,5 +1,5 @@
-import { mockPlantsForCareTasks } from '@lily/api/__tests__/fixtures/care-tasks'
 import { renderHook } from '@testing-library/react-native'
+import { mockPlantsForCareTasks } from 'src/__tests__/fixtures/care-tasks'
 import {
   createQueryWrapper,
   mockQueryLoading,

@@ -1,5 +1,5 @@
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockPlants } from 'src/__tests__/fixtures/plants'
 
 // Mock dependencies
 jest.mock('src/hooks/usePlants', () => ({

@@ -59,22 +59,25 @@ describe('GallerySection', () => {
     expect(onAddPhoto).toHaveBeenCalledTimes(1)
   })
 
-  it('shows See All button only when photos exist', () => {
+  it('shows header with gallery text when photos exist', () => {
     render(<GallerySection {...defaultProps} />)
-    expect(screen.getByText('See All')).toBeTruthy()
+    expect(screen.getByText('Gallery')).toBeTruthy()
   })
 
-  it('hides See All button when no photos', () => {
-    render(<GallerySection {...defaultProps} photos={[]} />)
-    expect(screen.queryByText('See All')).toBeNull()
-  })
-
-  it('calls onSeeAll when See All pressed', () => {
+  it('calls onSeeAll when header pressed with photos', () => {
     const onSeeAll = jest.fn()
     render(<GallerySection {...defaultProps} onSeeAll={onSeeAll} />)
 
-    fireEvent.press(screen.getByText('See All'))
+    fireEvent.press(screen.getByText('Gallery'))
     expect(onSeeAll).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onSeeAll when header pressed without photos', () => {
+    const onSeeAll = jest.fn()
+    render(<GallerySection {...defaultProps} photos={[]} onSeeAll={onSeeAll} />)
+
+    fireEvent.press(screen.getByText('Gallery'))
+    expect(onSeeAll).not.toHaveBeenCalled()
   })
 
   it('renders empty state when no photos', () => {

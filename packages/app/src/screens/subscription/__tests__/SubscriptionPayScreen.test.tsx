@@ -90,9 +90,7 @@ describe('SubscriptionPayScreen', () => {
   it('displays terms text', () => {
     render(<SubscriptionPayScreen />)
 
-    expect(
-      screen.getByText('Cancel anytime. Terms and conditions apply.')
-    ).toBeTruthy()
+    expect(screen.getByText('Recurring billing, cancel anytime.')).toBeTruthy()
   })
 
   it('displays close button', () => {
@@ -104,7 +102,7 @@ describe('SubscriptionPayScreen', () => {
   it('displays savings percentage for annual', () => {
     render(<SubscriptionPayScreen />)
 
-    // The component calculates savings based on mock prices
-    expect(screen.getByText(/SAVE \d+%/)).toBeTruthy()
+    // The component shows save badge with percentage
+    expect(screen.getByText(/Save \d+%/i)).toBeTruthy()
   })
 })

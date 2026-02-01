@@ -1,5 +1,8 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -97,11 +100,10 @@ describe('waterPlant', () => {
   it('should reset health to HEALTHY when plant NEEDS_ATTENTION', async () => {
     // Create a plant that NEEDS_ATTENTION
     const plantsWithAttention = [
-      {
-        ...mockPlants[0],
+      createTestPlant({
         id: 'attention-plant',
-        health: 'NEEDS_ATTENTION' as const,
-      },
+        health: 'NEEDS_ATTENTION',
+      }),
     ]
 
     const result = await Effect.runPromise(

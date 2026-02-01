@@ -1,5 +1,5 @@
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockPlants } from 'src/__tests__/fixtures/plants'
 import { mockIsoStringFuture } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
@@ -173,7 +173,7 @@ describe('PlantDetailScreen', () => {
     render(<PlantDetailScreen />)
 
     expect(screen.getByTestId('chat-cta')).toBeTruthy()
-    expect(screen.getByText('Get personalized care tips')).toBeTruthy()
+    expect(screen.getByText('Get AI-powered care tips and advice')).toBeTruthy()
   })
 
   it('displays care schedule section', () => {
