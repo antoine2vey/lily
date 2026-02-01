@@ -14,9 +14,7 @@ jest.mock('@/utils/client', () => ({
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { useEffectQuery } from '@/utils/client'
 
-const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
-  typeof useEffectQuery
->
+const mockedUseEffectQuery = useEffectQuery as jest.Mock
 
 describe('useRecentActivities', () => {
   beforeEach(() => {

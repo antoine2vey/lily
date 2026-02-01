@@ -73,45 +73,37 @@ export function renderQueryHook<TResult, TProps>(
 
 /**
  * Mock a successful query response - returns type compatible with useEffectQuery
- * Type assertion is centralized here so tests don't need `as any`
- * Includes the extended fields (result, apiError, isApiError) from useEffectQuery
- *
- * Note: Returns `any` because TanStack Query types use literal boolean types
- * (e.g., `isError: false` not `isError: boolean`) which cannot be satisfied
- * by a generic mock object.
+ * Uses `as const` on literals to satisfy TanStack Query's literal types
  */
-export function mockQuerySuccess<T>(
-  data: T
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+export function mockQuerySuccess<T>(data: T) {
   return {
     data,
     result: undefined,
     apiError: undefined,
-    isApiError: false,
+    isApiError: false as const,
     dataUpdatedAt: mockEpochMillis(),
     error: null,
     errorUpdatedAt: 0,
     errorUpdateCount: 0,
     failureCount: 0,
     failureReason: null,
-    fetchStatus: 'idle',
-    isError: false,
-    isFetched: true,
-    isFetchedAfterMount: true,
-    isFetching: false,
-    isInitialLoading: false,
-    isLoading: false,
-    isLoadingError: false,
-    isPaused: false,
-    isPending: false,
-    isPlaceholderData: false,
-    isRefetchError: false,
-    isRefetching: false,
-    isStale: false,
-    isSuccess: true,
+    fetchStatus: 'idle' as const,
+    isError: false as const,
+    isFetched: true as const,
+    isFetchedAfterMount: true as const,
+    isFetching: false as const,
+    isInitialLoading: false as const,
+    isLoading: false as const,
+    isLoadingError: false as const,
+    isPaused: false as const,
+    isPending: false as const,
+    isPlaceholderData: false as const,
+    isRefetchError: false as const,
+    isRefetching: false as const,
+    isStale: false as const,
+    isSuccess: true as const,
     refetch: jest.fn().mockResolvedValue({ data, status: 'success' }),
-    status: 'success',
+    status: 'success' as const,
     promise: Promise.resolve(data),
   }
 }
@@ -119,37 +111,35 @@ export function mockQuerySuccess<T>(
 /**
  * Mock a loading query state - returns type compatible with useEffectQuery
  */
-export function mockQueryLoading<T = unknown>(
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+export function mockQueryLoading<T = unknown>() {
   return {
     data: undefined as T | undefined,
     result: undefined,
     apiError: undefined,
-    isApiError: false,
+    isApiError: false as const,
     dataUpdatedAt: 0,
     error: null,
     errorUpdatedAt: 0,
     errorUpdateCount: 0,
     failureCount: 0,
     failureReason: null,
-    fetchStatus: 'fetching',
-    isError: false,
-    isFetched: false,
-    isFetchedAfterMount: false,
-    isFetching: true,
-    isInitialLoading: true,
-    isLoading: true,
-    isLoadingError: false,
-    isPaused: false,
-    isPending: true,
-    isPlaceholderData: false,
-    isRefetchError: false,
-    isRefetching: false,
-    isStale: false,
-    isSuccess: false,
+    fetchStatus: 'fetching' as const,
+    isError: false as const,
+    isFetched: false as const,
+    isFetchedAfterMount: false as const,
+    isFetching: true as const,
+    isInitialLoading: true as const,
+    isLoading: true as const,
+    isLoadingError: false as const,
+    isPaused: false as const,
+    isPending: true as const,
+    isPlaceholderData: false as const,
+    isRefetchError: false as const,
+    isRefetching: false as const,
+    isStale: false as const,
+    isSuccess: false as const,
     refetch: jest.fn(),
-    status: 'pending',
+    status: 'pending' as const,
     promise: new Promise<T>(() => {}),
   }
 }
@@ -160,8 +150,7 @@ export function mockQueryLoading<T = unknown>(
  */
 export function mockQueryError<T = unknown>(
   error: Error = new Error('Query failed')
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+) {
   const rejectedPromise = Promise.reject(error)
   rejectedPromise.catch(() => {})
 
@@ -169,59 +158,56 @@ export function mockQueryError<T = unknown>(
     data: undefined as T | undefined,
     result: undefined,
     apiError: { _tag: 'UnknownError' as const, message: error.message },
-    isApiError: true,
+    isApiError: true as const,
     dataUpdatedAt: 0,
     error: null,
     errorUpdatedAt: mockEpochMillis(),
     errorUpdateCount: 1,
     failureCount: 1,
     failureReason: error,
-    fetchStatus: 'idle',
-    isError: false,
-    isFetched: true,
-    isFetchedAfterMount: true,
-    isFetching: false,
-    isInitialLoading: false,
-    isLoading: false,
-    isLoadingError: false,
-    isPaused: false,
-    isPending: false,
-    isPlaceholderData: false,
-    isRefetchError: false,
-    isRefetching: false,
-    isStale: false,
-    isSuccess: true,
+    fetchStatus: 'idle' as const,
+    isError: false as const,
+    isFetched: true as const,
+    isFetchedAfterMount: true as const,
+    isFetching: false as const,
+    isInitialLoading: false as const,
+    isLoading: false as const,
+    isLoadingError: false as const,
+    isPaused: false as const,
+    isPending: false as const,
+    isPlaceholderData: false as const,
+    isRefetchError: false as const,
+    isRefetching: false as const,
+    isStale: false as const,
+    isSuccess: true as const,
     refetch: jest.fn(),
-    status: 'success',
+    status: 'success' as const,
     promise: rejectedPromise,
   }
 }
 
 /**
  * Mock a successful mutation - returns type compatible with useEffectMutation
- * Includes the extended fields (result, apiError, isApiError)
  */
-export function mockMutationSuccess<TData = unknown, TVariables = unknown>(
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+export function mockMutationSuccess<TData = unknown, TVariables = unknown>() {
   return {
     context: undefined,
     data: undefined as TData | undefined,
     result: undefined,
     apiError: undefined,
-    isApiError: false,
+    isApiError: false as const,
     error: null,
     failureCount: 0,
     failureReason: null,
-    isError: false,
-    isIdle: false,
-    isPaused: false,
-    isPending: false,
-    isSuccess: true,
+    isError: false as const,
+    isIdle: false as const,
+    isPaused: false as const,
+    isPending: false as const,
+    isSuccess: true as const,
     mutate: jest.fn(),
     mutateAsync: jest.fn().mockResolvedValue({} as TData),
     reset: jest.fn(),
-    status: 'success',
+    status: 'success' as const,
     submittedAt: mockEpochMillis(),
     variables: undefined as TVariables | undefined,
   }
@@ -230,27 +216,25 @@ export function mockMutationSuccess<TData = unknown, TVariables = unknown>(
 /**
  * Mock a loading mutation state - returns type compatible with useEffectMutation
  */
-export function mockMutationLoading<TData = unknown, TVariables = unknown>(
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+export function mockMutationLoading<TData = unknown, TVariables = unknown>() {
   return {
     context: undefined,
     data: undefined as TData | undefined,
     result: undefined,
     apiError: undefined,
-    isApiError: false,
+    isApiError: false as const,
     error: null,
     failureCount: 0,
     failureReason: null,
-    isError: false,
-    isIdle: false,
-    isPaused: false,
-    isPending: true,
-    isSuccess: false,
+    isError: false as const,
+    isIdle: false as const,
+    isPaused: false as const,
+    isPending: true as const,
+    isSuccess: false as const,
     mutate: jest.fn(),
     mutateAsync: jest.fn(),
     reset: jest.fn(),
-    status: 'pending',
+    status: 'pending' as const,
     submittedAt: mockEpochMillis(),
     variables: undefined as TVariables | undefined,
   }
@@ -262,26 +246,25 @@ export function mockMutationLoading<TData = unknown, TVariables = unknown>(
  */
 export function mockMutationError<TData = unknown, TVariables = unknown>(
   error: Error = new Error('Mutation failed')
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+) {
   return {
     context: undefined,
     data: undefined as TData | undefined,
     result: undefined,
     apiError: { _tag: 'UnknownError' as const, message: error.message },
-    isApiError: true,
+    isApiError: true as const,
     error: null,
     failureCount: 1,
     failureReason: error,
-    isError: false,
-    isIdle: false,
-    isPaused: false,
-    isPending: false,
-    isSuccess: true,
+    isError: false as const,
+    isIdle: false as const,
+    isPaused: false as const,
+    isPending: false as const,
+    isSuccess: true as const,
     mutate: jest.fn(),
     mutateAsync: jest.fn().mockResolvedValue(undefined),
     reset: jest.fn(),
-    status: 'success',
+    status: 'success' as const,
     submittedAt: mockEpochMillis(),
     variables: undefined as TVariables | undefined,
   }
@@ -290,27 +273,25 @@ export function mockMutationError<TData = unknown, TVariables = unknown>(
 /**
  * Mock an idle mutation state - returns type compatible with useEffectMutation
  */
-export function mockMutationIdle<TData = unknown, TVariables = unknown>(
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Query literal types require any
-): any {
+export function mockMutationIdle<TData = unknown, TVariables = unknown>() {
   return {
     context: undefined,
     data: undefined as TData | undefined,
     result: undefined,
     apiError: undefined,
-    isApiError: false,
+    isApiError: false as const,
     error: null,
     failureCount: 0,
     failureReason: null,
-    isError: false,
-    isIdle: true,
-    isPaused: false,
-    isPending: false,
-    isSuccess: false,
+    isError: false as const,
+    isIdle: true as const,
+    isPaused: false as const,
+    isPending: false as const,
+    isSuccess: false as const,
     mutate: jest.fn(),
     mutateAsync: jest.fn(),
     reset: jest.fn(),
-    status: 'idle',
+    status: 'idle' as const,
     submittedAt: 0,
     variables: undefined as TVariables | undefined,
   }
