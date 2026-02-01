@@ -119,7 +119,7 @@ export function HomeScreen() {
     router.push('/(app)/(tabs)/care')
   }
 
-  if (isLoading) {
+  if (isLoading && !plants) {
     return <HomeScreenSkeleton />
   }
 

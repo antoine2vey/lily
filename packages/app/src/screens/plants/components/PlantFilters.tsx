@@ -34,6 +34,7 @@ export function PlantFilters({
       horizontal
       showsHorizontalScrollIndicator={false}
       className="w-full"
+      style={{ flexGrow: 0, flexShrink: 0 }}
       contentContainerStyle={{
         flexDirection: 'row-reverse',
         gap: 12,
@@ -49,7 +50,7 @@ export function PlantFilters({
             key={key}
             onPress={() => onFilterChange(key)}
             activeOpacity={0.7}
-            className={`h-10 shrink-0 items-center justify-center px-6 rounded-full mb-4 ${
+            className={`h-10 shrink-0 items-center justify-center px-6 rounded-full ${
               isSelected
                 ? 'bg-primary'
                 : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'

@@ -70,7 +70,7 @@ export function CareHistoryScreen() {
           Array.filter((group) => group.events.length > 0)
         )
 
-  if (isLoading) {
+  if (isLoading && !history) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"

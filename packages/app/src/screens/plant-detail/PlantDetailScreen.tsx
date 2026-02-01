@@ -317,7 +317,7 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant?.name, deletePlant, router])
 
-  if (isLoading) {
+  if (isLoading && !plant) {
     return <PlantDetailSkeleton />
   }
 

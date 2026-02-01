@@ -145,7 +145,7 @@ export function CareScreen() {
     setFutureTaskModal({ visible: false, task: null, daysUntilDue: 0 })
   }
 
-  if (isLoading) {
+  if (isLoading && !tasks) {
     return <CareScreenSkeleton />
   }
 
@@ -181,7 +181,8 @@ export function CareScreen() {
       </View>
 
       <ScrollView
-        className="flex-1 px-6 mb-10"
+        className="flex-1 px-6"
+        contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
         {totalTasks === 0 && (

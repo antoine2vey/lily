@@ -56,7 +56,7 @@ export function PhotoViewerScreen() {
     )
   }, [deletePhoto, plantId, photoId, router])
 
-  if (isLoading) {
+  if (isLoading && !plant) {
     return (
       <View
         className="flex-1 bg-black items-center justify-center"
