@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'

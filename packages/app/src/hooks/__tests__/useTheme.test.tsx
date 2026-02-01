@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
+import type React from 'react'
+import { ThemeProvider } from 'src/contexts/ThemeContext'
 import { useTheme } from '../useTheme'
+
+// Unmock ThemeContext for this test file since we're testing the actual implementation
+jest.unmock('src/contexts/ThemeContext')
+
+// Wrapper that provides ThemeProvider
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <ThemeProvider>{children}</ThemeProvider>
+)
 
 // AsyncStorage is already mocked in expo-modules
 
@@ -12,7 +22,7 @@ describe('useTheme', () => {
   })
 
   it('returns default theme as system', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -24,7 +34,7 @@ describe('useTheme', () => {
   it('loads theme from storage', async () => {
     ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('dark')
 
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -35,7 +45,7 @@ describe('useTheme', () => {
   })
 
   it('provides setTheme function', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -45,7 +55,7 @@ describe('useTheme', () => {
   })
 
   it('updates theme when setTheme is called', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -59,7 +69,7 @@ describe('useTheme', () => {
   })
 
   it('persists theme to storage', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -73,7 +83,7 @@ describe('useTheme', () => {
   })
 
   it('provides loading state initially then resolves', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     // Initially loading
     expect(result.current.isLoading).toBe(true)
@@ -87,7 +97,7 @@ describe('useTheme', () => {
   it('ignores invalid stored theme values', async () => {
     ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('invalid')
 
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -102,7 +112,7 @@ describe('useTheme', () => {
       new Error('Storage error')
     )
 
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -113,7 +123,7 @@ describe('useTheme', () => {
   })
 
   it('accepts all valid theme values', async () => {
-    const { result } = renderHook(() => useTheme())
+    const { result } = renderHook(() => useTheme(), { wrapper })
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

@@ -22,7 +22,6 @@ interface TimelineProps {
 
 export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
   const iconColors = useIconColors()
-  const totalGroups = groups.length
 
   // Theme-aware colors for timeline
   const lineColor = iconColors.isDark

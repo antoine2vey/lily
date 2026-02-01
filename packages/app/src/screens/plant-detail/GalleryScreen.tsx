@@ -119,7 +119,7 @@ export function GalleryScreen() {
         <Text className="text-xs text-primary mt-2 font-medium">Add Photo</Text>
       </Pressable>
     ),
-    [handleAddPhoto]
+    [handleAddPhoto, iconColors.primary]
   )
 
   const renderEmpty = useCallback(
@@ -147,7 +147,7 @@ export function GalleryScreen() {
         </Pressable>
       </View>
     ),
-    [handleAddPhoto]
+    [handleAddPhoto, iconColors.textMuted]
   )
 
   const renderFooter = useCallback(() => {
@@ -157,7 +157,7 @@ export function GalleryScreen() {
         <ActivityIndicator size="small" color={iconColors.primary} />
       </View>
     )
-  }, [isFetching])
+  }, [isFetching, iconColors.primary])
 
   const photos = data?.items ?? []
   const _allItems = Array.prepend(photos, {

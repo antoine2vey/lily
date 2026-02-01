@@ -47,7 +47,7 @@ describe('PricingToggle', () => {
       />
     )
 
-    expect(screen.getByText('SAVE 33%')).toBeTruthy()
+    expect(screen.getByText(/SAVE 33%/i)).toBeTruthy()
   })
 
   it('calls onSelect with monthly when monthly is pressed', () => {
@@ -90,6 +90,7 @@ describe('PricingToggle', () => {
       />
     )
 
-    expect(screen.getByText('per year')).toBeTruthy()
+    // Text changed from "per year" to "/yr (billed annually)"
+    expect(screen.getByText(/\/yr.*billed annually/i)).toBeTruthy()
   })
 })

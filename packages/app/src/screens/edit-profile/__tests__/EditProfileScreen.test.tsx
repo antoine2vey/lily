@@ -1,5 +1,5 @@
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { mockUsers } from 'src/__tests__/fixtures/users'
 
 // Mock dependencies
 jest.mock('@/hooks/useUser', () => ({
@@ -71,7 +71,7 @@ describe('EditProfileScreen', () => {
     render(<EditProfileScreen />)
 
     expect(screen.getByText('Display Name')).toBeTruthy()
-    expect(screen.getByPlaceholderText('Your name')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Enter your name')).toBeTruthy()
   })
 
   it('allows editing name field', () => {
@@ -82,7 +82,7 @@ describe('EditProfileScreen', () => {
 
     render(<EditProfileScreen />)
 
-    const nameInput = screen.getByPlaceholderText('Your name')
+    const nameInput = screen.getByPlaceholderText('Enter your name')
     fireEvent.changeText(nameInput, 'New Name')
 
     expect(nameInput.props.value).toBe('New Name')

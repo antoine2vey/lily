@@ -1,7 +1,7 @@
-import { mockUserAchievements } from '@lily/api/__tests__/fixtures/achievements'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { render, screen } from '@testing-library/react-native'
+import { mockUserAchievements } from 'src/__tests__/fixtures/achievements'
+import { mockPlants } from 'src/__tests__/fixtures/plants'
+import { mockUsers } from 'src/__tests__/fixtures/users'
 
 // Mock dependencies
 jest.mock('@/contexts/AuthContext', () => ({

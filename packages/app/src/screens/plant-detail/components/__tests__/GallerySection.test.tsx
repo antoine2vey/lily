@@ -50,7 +50,7 @@ describe('GallerySection', () => {
     expect(screen.getByText('Gallery')).toBeTruthy()
   })
 
-  it('shows see all link when photos exist', () => {
+  it('header is clickable when photos exist', () => {
     render(
       <GallerySection
         photos={mockPhotos}
@@ -60,10 +60,11 @@ describe('GallerySection', () => {
       />
     )
 
-    expect(screen.getByText('See All')).toBeTruthy()
+    fireEvent.press(screen.getByText('Gallery'))
+    expect(mockOnSeeAll).toHaveBeenCalledTimes(1)
   })
 
-  it('hides see all when no photos', () => {
+  it('header click does nothing when no photos', () => {
     render(
       <GallerySection
         photos={[]}
@@ -73,7 +74,8 @@ describe('GallerySection', () => {
       />
     )
 
-    expect(screen.queryByText('See All')).toBeNull()
+    fireEvent.press(screen.getByText('Gallery'))
+    expect(mockOnSeeAll).not.toHaveBeenCalled()
   })
 
   it('renders add photo button', () => {
@@ -119,7 +121,7 @@ describe('GallerySection', () => {
     expect(mockOnPhotoPress).toHaveBeenCalledWith('photo-1')
   })
 
-  it('calls onSeeAll when see all is pressed', () => {
+  it('calls onSeeAll when header is pressed with photos', () => {
     render(
       <GallerySection
         photos={mockPhotos}
@@ -129,7 +131,7 @@ describe('GallerySection', () => {
       />
     )
 
-    fireEvent.press(screen.getByText('See All'))
+    fireEvent.press(screen.getByText('Gallery'))
 
     expect(mockOnSeeAll).toHaveBeenCalledTimes(1)
   })

@@ -1,5 +1,8 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -123,12 +126,11 @@ describe('createCareLog', () => {
     const eventBusMock = createMockEventBus({ publishedEvents })
     // Create a plant that NEEDS_ATTENTION
     const plantsWithAttention = [
-      {
-        ...mockPlants[0],
+      createTestPlant({
         id: 'attention-plant',
-        health: 'NEEDS_ATTENTION' as const,
+        health: 'NEEDS_ATTENTION',
         userId: 'user-1',
-      },
+      }),
     ]
 
     await Effect.runPromise(

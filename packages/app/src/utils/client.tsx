@@ -37,7 +37,6 @@ import {
   Option,
   pipe,
   Ref,
-  Runtime,
 } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 
