@@ -14,9 +14,7 @@ jest.mock('@/utils/client', () => ({
 import { useEffectQuery } from '@/utils/client'
 import { useChatHistory } from '../useChatHistory'
 
-const mockedUseEffectQuery = useEffectQuery as jest.MockedFunction<
-  typeof useEffectQuery
->
+const mockedUseEffectQuery = useEffectQuery as jest.Mock
 
 const mockChatMessages = [
   {
