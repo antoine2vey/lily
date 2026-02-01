@@ -199,6 +199,51 @@ export const createMockPlantRepository = (
       ),
 
     deletePhotoByPlantId: () => Effect.succeed(undefined),
+
+    markOverduePlantsAsNeedsAttention: () => {
+      const now = new Date()
+      let count = 0
+      for (const plant of plantsData) {
+        const wateringOverdue =
+          plant.nextWateringAt !== null &&
+          plant.nextWateringAt.getTime() <= now.getTime()
+        const fertilizationOverdue =
+          plant.nextFertilizationAt !== null &&
+          plant.nextFertilizationAt.getTime() <= now.getTime()
+
+        if (
+          (wateringOverdue || fertilizationOverdue) &&
+          (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
+        ) {
+          plant.health = 'NEEDS_ATTENTION'
+          count++
+        }
+      }
+      return Effect.succeed(count)
+    },
+
+    markHealthyPlantsInOrder: () => {
+      const now = new Date()
+      let count = 0
+      for (const plant of plantsData) {
+        const wateringOk =
+          plant.nextWateringAt === null ||
+          plant.nextWateringAt.getTime() > now.getTime()
+        const fertilizationOk =
+          plant.nextFertilizationAt === null ||
+          plant.nextFertilizationAt.getTime() > now.getTime()
+
+        if (
+          plant.health === 'NEEDS_ATTENTION' &&
+          wateringOk &&
+          fertilizationOk
+        ) {
+          plant.health = 'HEALTHY'
+          count++
+        }
+      }
+      return Effect.succeed(count)
+    },
   }
 
   return Layer.succeed(PlantRepository, repo)

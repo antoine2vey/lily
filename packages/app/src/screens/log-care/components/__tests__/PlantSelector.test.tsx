@@ -22,7 +22,7 @@ describe('PlantSelector', () => {
     })
   })
 
-  it('renders select plants label', () => {
+  it('renders select plant label', () => {
     render(
       <PlantSelector
         selectedIds={[]}
@@ -30,7 +30,7 @@ describe('PlantSelector', () => {
       />
     )
 
-    expect(screen.getByText('Select Plants')).toBeTruthy()
+    expect(screen.getByText('Select Plant')).toBeTruthy()
   })
 
   it('renders custom label', () => {
@@ -45,7 +45,7 @@ describe('PlantSelector', () => {
     expect(screen.getByText('Choose Plants')).toBeTruthy()
   })
 
-  it('shows select plants placeholder when none selected', () => {
+  it('shows select a plant placeholder when none selected', () => {
     render(
       <PlantSelector
         selectedIds={[]}
@@ -53,7 +53,7 @@ describe('PlantSelector', () => {
       />
     )
 
-    expect(screen.getByText('Select plants')).toBeTruthy()
+    expect(screen.getByText('Select a plant')).toBeTruthy()
   })
 
   it('shows plant name when one selected', () => {
@@ -86,9 +86,9 @@ describe('PlantSelector', () => {
       />
     )
 
-    fireEvent.press(screen.getByText('Select plants'))
+    fireEvent.press(screen.getByText('Select a plant'))
 
-    // Bottom sheet should open with title
-    expect(screen.getAllByText('Select Plants')).toHaveLength(2)
+    // Bottom sheet should open with title "Select Plants"
+    expect(screen.getByText('Select Plants')).toBeTruthy()
   })
 })

@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface CareScheduleProps {
   wateringDays: number
@@ -44,24 +44,28 @@ const getUrgencyStyles = (urgency: UrgencyState): UrgencyStyle =>
   pipe(
     Match.value(urgency),
     Match.when('overdue', () => ({
-      containerClass: 'bg-orange-50 border border-warning',
-      textClass: 'text-warning',
-      iconBgClass: 'bg-warning/20',
+      containerClass:
+        'bg-orange-50 dark:bg-warning/10 border border-warning dark:border-warning/50',
+      textClass: 'text-warning dark:text-amber-400',
+      iconBgClass: 'bg-warning/20 dark:bg-warning/30',
     })),
     Match.when('today', () => ({
-      containerClass: 'bg-primary-tint border border-primary',
-      textClass: 'text-primary',
-      iconBgClass: 'bg-primary/20',
+      containerClass:
+        'bg-primary-tint dark:bg-primary/10 border border-primary dark:border-primary/50',
+      textClass: 'text-primary dark:text-primary-light',
+      iconBgClass: 'bg-primary/20 dark:bg-primary/30',
     })),
     Match.when('soon', () => ({
-      containerClass: 'bg-amber-50 border border-amber-400',
-      textClass: 'text-amber-600',
-      iconBgClass: 'bg-amber-100',
+      containerClass:
+        'bg-amber-50 dark:bg-amber-500/10 border border-amber-400 dark:border-amber-500/50',
+      textClass: 'text-amber-600 dark:text-amber-400',
+      iconBgClass: 'bg-amber-100 dark:bg-amber-500/20',
     })),
     Match.orElse(() => ({
-      containerClass: 'bg-surface-tinted border border-border',
-      textClass: 'text-text-secondary',
-      iconBgClass: 'bg-surface',
+      containerClass:
+        'bg-surface dark:bg-surface-dark border border-border dark:border-slate-700',
+      textClass: 'text-text-secondary dark:text-slate-400',
+      iconBgClass: 'bg-surface-tinted dark:bg-slate-700',
     }))
   )
 
@@ -97,21 +101,21 @@ function CareCard({
   if (days === null) {
     return (
       <View
-        className="flex-1 p-4 rounded-xl bg-surface-tinted border border-border"
+        className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
         testID={`care-card-${label.toLowerCase()}`}
       >
         <View className="flex-row items-center mb-3">
-          <View className="w-8 h-8 rounded-full items-center justify-center bg-surface">
+          <View className="w-8 h-8 rounded-full items-center justify-center bg-surface-tinted dark:bg-slate-700">
             <MaterialIcons name={icon} size={18} color={iconColor} />
           </View>
-          <Text className="text-sm ml-2 font-medium text-text-primary">
+          <Text className="text-sm ml-2 font-medium text-text-primary dark:text-white">
             {label}
           </Text>
         </View>
-        <Text className="text-lg font-semibold text-text-muted">
+        <Text className="text-lg font-semibold text-text-muted dark:text-slate-400">
           Not scheduled
         </Text>
-        <Text className="text-xs font-regular text-text-muted mt-1">
+        <Text className="text-xs font-regular text-text-muted dark:text-slate-500 mt-1">
           Set a schedule to track
         </Text>
       </View>
@@ -134,7 +138,7 @@ function CareCard({
         >
           <MaterialIcons name={icon} size={18} color={iconColor} />
         </View>
-        <Text className="text-sm ml-2 font-medium text-text-primary">
+        <Text className="text-sm ml-2 font-medium text-text-primary dark:text-white">
           {label}
         </Text>
       </View>
@@ -143,14 +147,14 @@ function CareCard({
         {timeText}
       </Text>
 
-      <Text className="text-xs font-regular text-text-muted mt-1">
+      <Text className="text-xs font-regular text-text-muted dark:text-slate-400 mt-1">
         {nextDate}
       </Text>
 
       {showDoNow && (
         <Pressable
           onPress={onDoNow}
-          className="mt-3 py-2 px-3 rounded-lg bg-white/80 active:bg-white self-start"
+          className="mt-3 py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600 self-start"
           testID={`care-card-${label.toLowerCase()}-do-now`}
         >
           <Text className="text-xs font-semibold text-primary">Do Now</Text>
@@ -169,6 +173,8 @@ export function CareSchedule({
   onWaterNow,
   onFertilizeNow,
 }: CareScheduleProps) {
+  const iconColors = useIconColors()
+
   return (
     <View testID="care-schedule">
       <SectionHeader

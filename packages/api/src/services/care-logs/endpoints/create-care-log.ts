@@ -54,8 +54,9 @@ export const createCareLog = (
       })
     )
 
-    // Emit AttentionResponded if plant needed attention
+    // If plant needed attention, reset health to HEALTHY and emit event
     if (plant?.health === 'NEEDS_ATTENTION') {
+      yield* plantRepo.update(plantId, { health: 'HEALTHY' })
       yield* publishWithRetry(
         eventBus.publish({
           _tag: 'AttentionResponded',

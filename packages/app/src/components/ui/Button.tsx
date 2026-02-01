@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 
@@ -19,10 +19,17 @@ type ButtonProps = Omit<PressableProps, 'children'> & {
   iconPosition?: 'left' | 'right'
   loading?: boolean
   fullWidth?: boolean
+  pill?: boolean
 }
 
-const getVariantStyles = (variant: ButtonVariant, pressed: boolean) =>
-  pipe(
+type IconColors = ReturnType<typeof useIconColors>
+
+function getVariantStyles(
+  variant: ButtonVariant,
+  pressed: boolean,
+  iconColors: IconColors
+) {
+  return pipe(
     Match.value(variant),
     Match.when('primary', () => ({
       container: pressed ? 'bg-primary-dark' : 'bg-primary',
@@ -50,6 +57,7 @@ const getVariantStyles = (variant: ButtonVariant, pressed: boolean) =>
     })),
     Match.exhaustive
   )
+}
 
 export function Button({
   children,
@@ -58,9 +66,12 @@ export function Button({
   iconPosition = 'right',
   loading = false,
   fullWidth = true,
+  pill = false,
   disabled,
   ...props
 }: ButtonProps) {
+  const iconColors = useIconColors()
+
   return (
     <Pressable
       disabled={disabled || loading}
@@ -71,11 +82,11 @@ export function Button({
       {...props}
     >
       {({ pressed }) => {
-        const styles = getVariantStyles(variant, pressed)
+        const styles = getVariantStyles(variant, pressed, iconColors)
         return (
           <View
             className={`
-              h-[52px] rounded-xl flex-row items-center justify-center gap-2 px-8
+              h-14 ${pill ? 'rounded-full' : 'rounded-xl'} flex-row items-center justify-center gap-2 px-8
               ${fullWidth ? 'w-full' : ''}
               ${styles.container}
             `}

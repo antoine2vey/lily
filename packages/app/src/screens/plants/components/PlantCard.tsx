@@ -1,8 +1,14 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, Option, pipe } from 'effect'
+import { Array, Match, pipe } from 'effect'
 import { Image, Pressable, Text, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type HealthStatus = 'healthy' | 'attention' | 'critical'
+
+interface CareStatus {
+  daysUntil?: number
+  isOverdue: boolean
+}
 
 interface PlantCardProps {
   plant: {
@@ -10,8 +16,8 @@ interface PlantCardProps {
     name: string
     imageUrl?: string
     health: HealthStatus
-    daysUntilWater?: number
-    needsWater?: boolean
+    watering: CareStatus
+    fertilization: CareStatus
     isFavorite?: boolean
   }
   onPress: (plantId: string) => void
@@ -26,52 +32,106 @@ const getHealthDotClass = (health: HealthStatus): string =>
     Match.exhaustive
   )
 
-interface WaterIndicator {
+type CareType = 'water' | 'fertilize'
+
+interface CareIndicator {
+  type: CareType
   text: string
   isUrgent: boolean
+  icon: 'water-drop' | 'spa'
 }
 
-const getWaterIndicator = (
-  daysUntilWater: number | undefined,
-  needsWater: boolean | undefined
-): Option.Option<WaterIndicator> => {
-  if (needsWater) {
-    return Option.some({ text: 'Overdue', isUrgent: true })
+const formatDays = (days: number): string => {
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  return `${days} days`
+}
+
+const getCareIndicator = (
+  care: CareStatus,
+  type: CareType
+): CareIndicator | null => {
+  if (care.daysUntil === undefined) return null
+
+  const icon = type === 'water' ? 'water-drop' : 'spa'
+
+  if (care.isOverdue) {
+    return { type, text: 'Overdue', isUrgent: true, icon }
   }
-  if (daysUntilWater === undefined) {
-    return Option.none()
+
+  return {
+    type,
+    text: formatDays(care.daysUntil),
+    isUrgent: care.daysUntil === 0,
+    icon,
   }
-  if (daysUntilWater === 0) {
-    return Option.some({ text: 'Today', isUrgent: true })
+}
+
+const getCareIndicators = (
+  watering: CareStatus,
+  fertilization: CareStatus
+): ReadonlyArray<CareIndicator> => {
+  const waterIndicator = getCareIndicator(watering, 'water')
+  const fertilizeIndicator = getCareIndicator(fertilization, 'fertilize')
+
+  // Collect all indicators
+  const all: CareIndicator[] = []
+  if (waterIndicator) all.push(waterIndicator)
+  if (fertilizeIndicator) all.push(fertilizeIndicator)
+
+  if (all.length === 0) return []
+
+  // If both are overdue, show both
+  const overdue = Array.filter(all, (i) => i.text === 'Overdue')
+  if (overdue.length === 2) return overdue
+
+  // If one is overdue, show only that one
+  if (overdue.length === 1) return overdue
+
+  // If both are due today, show both
+  const dueToday = Array.filter(all, (i) => i.text === 'Today')
+  if (dueToday.length === 2) return dueToday
+
+  // If one is due today, show only that one
+  if (dueToday.length === 1) return dueToday
+
+  // Neither is overdue or due today - show the one that's soonest
+  const waterDays = watering.daysUntil ?? 999
+  const fertilizeDays = fertilization.daysUntil ?? 999
+
+  if (waterDays <= fertilizeDays && waterIndicator) {
+    return [waterIndicator]
   }
-  if (daysUntilWater === 1) {
-    return Option.some({ text: 'Tomorrow', isUrgent: false })
+  if (fertilizeIndicator) {
+    return [fertilizeIndicator]
   }
-  return Option.some({ text: `${daysUntilWater} days`, isUrgent: false })
+  if (waterIndicator) {
+    return [waterIndicator]
+  }
+
+  return []
 }
 
 export function PlantCard({ plant, onPress }: PlantCardProps) {
+  const iconColors = useIconColors()
   const healthDotClass = getHealthDotClass(plant.health)
-  const waterIndicator = getWaterIndicator(
-    plant.daysUntilWater,
-    plant.needsWater
-  )
+  const indicators = getCareIndicators(plant.watering, plant.fertilization)
 
   return (
     <Pressable
       testID={`plant-card-${plant.id}`}
       onPress={() => onPress(plant.id)}
-      className="flex flex-col gap-3 p-3 bg-white rounded-xl shadow-soft"
+      className="flex flex-col gap-3 p-3 bg-white dark:bg-surface-dark rounded-xl shadow-soft"
     >
       {/* Image Container */}
-      <View className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100">
+      <View className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700">
         {/* Favorite indicator */}
         {plant.isFavorite && (
           <View
             testID="favorite-indicator"
             className="absolute top-2 left-2 z-10"
           >
-            <MaterialIcons name="favorite" size={18} color="#E8997E" />
+            <MaterialIcons name="favorite" size={18} color={iconColors.coral} />
           </View>
         )}
         {/* Health indicator dot */}
@@ -91,7 +151,11 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
             testID="plant-placeholder"
             className="flex-1 items-center justify-center"
           >
-            <MaterialIcons name="local-florist" size={48} color="#5B8C5A" />
+            <MaterialIcons
+              name="local-florist"
+              size={48}
+              color={iconColors.primary}
+            />
           </View>
         )}
       </View>
@@ -100,26 +164,33 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
       <View>
         <Text
           numberOfLines={2}
-          className="text-[#141712] text-base font-bold leading-tight mb-1"
+          className="text-text-primary dark:text-white text-base font-bold leading-tight mb-1"
         >
           {plant.name}
         </Text>
-        {Option.isSome(waterIndicator) && (
-          <View className="flex-row items-center gap-1.5">
-            <MaterialIcons
-              name="water-drop"
-              size={16}
-              color={waterIndicator.value.isUrgent ? '#f97316' : '#5B8C5A'}
-            />
-            <Text
-              className={`text-xs font-semibold ${
-                waterIndicator.value.isUrgent
-                  ? 'text-orange-500'
-                  : 'text-primary'
-              }`}
-            >
-              {waterIndicator.value.text}
-            </Text>
+        {indicators.length > 0 && (
+          <View className="flex-row items-center gap-3">
+            {Array.map(indicators, (indicator) => (
+              <View
+                key={indicator.type}
+                className="flex-row items-center gap-1"
+              >
+                <MaterialIcons
+                  name={indicator.icon}
+                  size={14}
+                  color={
+                    indicator.isUrgent ? iconColors.warning : iconColors.primary
+                  }
+                />
+                <Text
+                  className={`text-xs font-semibold ${
+                    indicator.isUrgent ? 'text-orange-500' : 'text-primary'
+                  }`}
+                >
+                  {indicator.text}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
       </View>

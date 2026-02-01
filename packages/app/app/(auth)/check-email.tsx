@@ -35,7 +35,7 @@ export default function CheckEmailScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       <View className="flex-1 px-6 justify-between">
         {/* Top Spacer */}
@@ -46,9 +46,9 @@ export default function CheckEmailScreen() {
           {/* Hero Illustration */}
           <View className="w-64 h-64 items-center justify-center mb-8">
             {/* Outer circle - light green */}
-            <View className="absolute w-64 h-64 rounded-full bg-primary-tint" />
-            {/* Inner circle - lighter border */}
-            <View className="absolute w-56 h-56 rounded-full border-2 border-primary/20" />
+            <View className="absolute w-64 h-64 rounded-full bg-primary/10" />
+            {/* Inner circle - decorative border */}
+            <View className="absolute w-56 h-56 rounded-full border border-primary/20" />
             {/* Image container */}
             <View className="w-48 h-48">
               <Image
@@ -60,37 +60,33 @@ export default function CheckEmailScreen() {
           </View>
 
           {/* Typography Block */}
-          <View className="w-full items-center gap-3">
-            <Text
-              className="text-[28px] text-text-primary text-center"
-              style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-            >
+          <View className="w-full items-center gap-2">
+            <Text className="text-[32px] font-extrabold tracking-tight text-text-primary dark:text-white text-center px-4">
               Check your inbox
             </Text>
-            <Text
-              className="text-base text-text-secondary text-center"
-              style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-            >
-              We sent a magic link to
-            </Text>
-            <Text
-              className="text-base text-text-primary"
-              style={{ fontFamily: 'PlusJakartaSans_700Bold' }}
-            >
-              {pendingEmail ?? 'your email'}
+            <Text className="text-base font-regular text-text-secondary dark:text-slate-400 text-center leading-relaxed px-4 max-w-[300px]">
+              We sent a magic link to{'\n'}
+              <Text className="font-bold text-text-primary dark:text-white">
+                {pendingEmail ?? 'your email'}
+              </Text>
             </Text>
           </View>
         </View>
 
         {/* Action Area */}
-        <View className="w-full pb-8 gap-6">
+        <View className="w-full pt-10 pb-8 gap-6">
           {/* Primary Action Button */}
-          <Button icon="mail" iconPosition="left" onPress={handleOpenEmail}>
+          <Button
+            icon="mail"
+            iconPosition="left"
+            onPress={handleOpenEmail}
+            pill
+          >
             Open Email App
           </Button>
 
           {/* Secondary Actions */}
-          <View className="items-center gap-4">
+          <View className="items-center gap-5">
             <TextLink
               icon="refresh"
               iconPosition="right"

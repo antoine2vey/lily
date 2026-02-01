@@ -22,19 +22,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <View
-      className={`flex-row mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex-row mb-4 items-end ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       {!isUser && (
-        <View className="mr-2 mt-1">
+        <View className="mr-3 mb-5">
           <Avatar name="Lily" size="sm" />
         </View>
       )}
       <View className={`max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
         <View
-          className={`px-4 py-3 rounded-2xl ${isUser ? 'bg-primary' : 'bg-primary-tint'}`}
+          className={`px-4 py-3 rounded-md ${
+            isUser
+              ? 'bg-surface dark:bg-surface-dark border border-border dark:border-slate-700'
+              : 'bg-primary-tint dark:bg-primary/20'
+          }`}
           style={{
-            borderTopLeftRadius: isUser ? 16 : 4,
-            borderTopRightRadius: isUser ? 4 : 16,
+            borderBottomLeftRadius: isUser ? 16 : 4,
+            borderBottomRightRadius: isUser ? 4 : 16,
           }}
         >
           {message.imageUrl && (
@@ -45,26 +49,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
             />
           )}
           {isUser ? (
-            <Text
-              className="text-base text-white"
-              style={{ fontFamily: 'PlusJakartaSans_400Regular' }}
-            >
+            <Text className="text-md text-text-primary dark:text-white leading-relaxed font-regular">
               {message.content}
             </Text>
           ) : (
-            <MarkdownText
-              style={{
-                fontFamily: 'PlusJakartaSans_400Regular',
-                fontSize: 16,
-                lineHeight: 24,
-                color: '#1A1A1A',
-              }}
-            >
+            <MarkdownText textClassName="text-md text-text-primary dark:text-white leading-relaxed font-regular">
               {message.content}
             </MarkdownText>
           )}
         </View>
-        <Text className="text-xs mt-1 font-regular text-text-muted">
+        <Text
+          className={`text-xs mt-1 font-regular text-text-muted dark:text-slate-400 ${isUser ? 'mr-1' : 'ml-1'}`}
+        >
           {formatApiTime(message.createdAt)}
         </Text>
       </View>

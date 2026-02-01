@@ -49,6 +49,7 @@ export const PlantUpdateRequest = Schema.Struct({
   category: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
   wateringFrequencyDays: Schema.optional(Schema.Number),
+  fertilizationFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),
   humidityRating: Schema.optional(Schema.Number),
   lightingRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.optional(Schema.Number),

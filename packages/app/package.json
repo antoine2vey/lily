@@ -15,11 +15,12 @@
   "dependencies": {
     "@ai-sdk/react": "^1.0.0",
     "@effect/platform": "^0.90.0",
-    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
+    "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@lily/api": "workspace:*",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/slider": "^5.1.2",
     "@tanstack/react-query": "^5.81.5",
     "effect": "^3.17.5",
     "expo": "~54.0.32",

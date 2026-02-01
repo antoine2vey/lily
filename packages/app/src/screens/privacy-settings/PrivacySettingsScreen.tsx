@@ -14,13 +14,14 @@ import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
+import { useIconColors } from 'src/hooks/useIconColors'
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
 } from 'src/hooks/usePrivacySettings'
-import { iconColors } from 'src/theme'
 
 export function PrivacySettingsScreen() {
+  const iconColors = useIconColors()
   const { data: settings, isLoading } = usePrivacySettings()
   const { mutate: updateSettings } = useUpdatePrivacySettings()
 
@@ -51,7 +52,7 @@ export function PrivacySettingsScreen() {
 
   if (isLoading || !settings) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -64,9 +65,9 @@ export function PrivacySettingsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-border">
+      <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
           onPress={() => router.back()}
           className="w-10 h-10 items-center justify-center"
@@ -77,7 +78,7 @@ export function PrivacySettingsScreen() {
             color={iconColors.textPrimary}
           />
         </Pressable>
-        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
           Privacy & Data
         </Text>
       </View>
@@ -85,7 +86,7 @@ export function PrivacySettingsScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Description */}
         <View className="px-6 py-4">
-          <Text className="text-sm font-regular text-text-muted">
+          <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
             Manage how your data is used to improve your plant care journey.
           </Text>
         </View>
@@ -138,7 +139,7 @@ export function PrivacySettingsScreen() {
         </View>
 
         {/* Legal & Info Section */}
-        <View className="px-6 py-4 border-t border-border">
+        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
           <SectionHeader title="Legal & Info" />
           <View className="mt-3">
             <ListRow
@@ -169,7 +170,7 @@ export function PrivacySettingsScreen() {
         </View>
 
         {/* Data Actions Section */}
-        <View className="px-6 py-4 border-t border-border">
+        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
           <SectionHeader title="Your Data" />
           <View className="mt-4 gap-4">
             {/* TODO: Wire export data to real API */}

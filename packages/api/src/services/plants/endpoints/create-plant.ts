@@ -5,7 +5,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import type { LimitExceededError } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { Effect, Option, pipe } from 'effect'
+import { DateTime, Effect, Option, pipe } from 'effect'
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
@@ -23,6 +23,9 @@ export const createPlant = (
     // Check if user has reached their plant limit
     yield* limitChecker.checkPlantLimit(userId)
 
+    // Set next care dates to now (due immediately)
+    const now = DateTime.toDateUtc(DateTime.unsafeNow())
+
     const plantOrNull = yield* repo.create({
       name: request.name,
       description: request.description || null,
@@ -37,6 +40,8 @@ export const createPlant = (
       wateringRating: 0, // Default value
       wateringFrequencyDays: request.wateringFrequencyDays,
       fertilizationFrequencyDays: request.fertilizationFrequencyDays ?? null,
+      nextWateringAt: now,
+      nextFertilizationAt: request.fertilizationFrequencyDays ? now : null,
       health: 'HEALTHY', // Default value
       userId,
     })

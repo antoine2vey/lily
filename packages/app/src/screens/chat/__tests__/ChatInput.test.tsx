@@ -11,7 +11,7 @@ describe('ChatInput', () => {
   it('renders input with placeholder', () => {
     render(<ChatInput onSend={mockOnSend} />)
 
-    expect(screen.getByPlaceholderText('Ask about plant care...')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Ask about this plant...')).toBeTruthy()
   })
 
   it('renders component', () => {
@@ -23,7 +23,7 @@ describe('ChatInput', () => {
     render(<ChatInput onSend={mockOnSend} />)
 
     fireEvent.changeText(
-      screen.getByPlaceholderText('Ask about plant care...'),
+      screen.getByPlaceholderText('Ask about this plant...'),
       'Hello'
     )
 

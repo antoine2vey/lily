@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface ListRowProps {
   title: string
@@ -24,16 +24,17 @@ export function ListRow({
   destructive = false,
   disabled = false,
 }: ListRowProps) {
+  const iconColors = useIconColors()
   const titleColorClass = disabled
     ? 'text-text-muted'
     : destructive
       ? 'text-coral'
-      : 'text-text-primary'
+      : 'text-text-primary dark:text-white'
 
   const content = (
     <View className="flex-row items-center min-h-[56px] py-2">
       {leftIcon && (
-        <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint">
+        <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint dark:bg-primary/20">
           {leftIcon}
         </View>
       )}
@@ -42,7 +43,7 @@ export function ListRow({
           {title}
         </Text>
         {subtitle && (
-          <Text className="text-sm mt-0.5 text-text-muted font-regular">
+          <Text className="text-sm mt-0.5 text-text-muted dark:text-slate-400 font-regular">
             {subtitle}
           </Text>
         )}
@@ -62,7 +63,7 @@ export function ListRow({
     return (
       <Pressable
         onPress={onPress}
-        className="active:opacity-70 active:bg-black/5"
+        className="active:opacity-70 active:bg-black/5 dark:active:bg-white/5"
       >
         {content}
       </Pressable>

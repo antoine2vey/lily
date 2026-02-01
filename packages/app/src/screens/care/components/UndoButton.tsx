@@ -54,7 +54,7 @@ export function UndoButton({ onUndo }: UndoButtonProps) {
       >
         {/* Content */}
         <View
-          className="px-3 py-2 bg-surface"
+          className="px-3 py-2 bg-surface dark:bg-surface-dark"
           style={{ borderRadius: BORDER_RADIUS }}
         >
           <Text

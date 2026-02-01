@@ -44,7 +44,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -67,18 +67,18 @@ export default function LoginScreen() {
           {/* Main Content */}
           <View className="flex-1 px-6">
             {/* Header Section */}
-            <View className="mt-4 mb-8">
-              <Text className="text-[28px] font-bold text-text-primary mb-2">
+            <View className="mt-8 mb-10 items-center">
+              <Text className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white text-center mb-3">
                 Let's grow together
               </Text>
-              <Text className="text-base font-regular text-text-secondary">
+              <Text className="text-base font-medium text-text-muted dark:text-slate-400 text-center leading-relaxed">
                 Enter your email to get started.{'\n'}We'll send you a magic
                 link.
               </Text>
             </View>
 
             {/* Form Section */}
-            <View className="w-full gap-4">
+            <View className="w-full gap-6">
               {/* Email Input */}
               <View>
                 <Input
@@ -94,6 +94,7 @@ export default function LoginScreen() {
                   autoComplete="email"
                   autoCorrect={false}
                   error={!!error}
+                  pill
                 />
                 {error && (
                   <Text className="text-error text-sm font-medium mt-2 px-4">
@@ -107,6 +108,7 @@ export default function LoginScreen() {
                 icon="arrow-forward"
                 loading={loading}
                 onPress={handleSubmit}
+                pill
               >
                 Send Magic Link
               </Button>
@@ -114,7 +116,9 @@ export default function LoginScreen() {
           </View>
 
           {/* Bottom Illustration */}
-          <View className="w-full h-56 mt-auto overflow-hidden">
+          <View className="w-full h-64 mt-auto overflow-hidden">
+            {/* Gradient overlay */}
+            <View className="absolute inset-0 z-10 bg-gradient-to-t from-primary/10 to-transparent" />
             <Image
               source={images.plantsIllustration}
               className="w-full h-full"

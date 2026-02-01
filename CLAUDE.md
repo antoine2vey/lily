@@ -97,6 +97,7 @@ The following are **FORBIDDEN** and must never be used:
 - Object methods: `Object.keys()`, `Object.values()`, `Object.entries()`
 - Control flow: `switch` statements (use `Match` instead)
 - Nullable patterns: ternary operators for null checks, `??` for Option-like patterns
+- Nested ternaries: use `Match` module instead for multi-condition branching
 
 ### Required Effect Replacements
 
@@ -122,6 +123,7 @@ The following are **FORBIDDEN** and must never be used:
 | `x != null ? x : y` | `Option.match(option, { onNone: () => y, onSome: (x) => x })` |
 | `switch (x._tag)` | `Match.type<T>().pipe(Match.when(...), Match.exhaustive)` |
 | `if/else chains` | `Match` module for complex branching |
+| `a ? x : b ? y : z` | `Match.value(val).pipe(Match.when(...), Match.orElse(...))` |
 | `str.toUpperCase()` | `String.toUpperCase(str)` |
 | `str.includes(x)` | `String.includes(str, x)` |
 | `str.split(x)` | `String.split(str, x)` |
@@ -209,6 +211,24 @@ const values = Record.values(config)
 const updated = Struct.evolve(user, { name: () => 'New Name' })
 ```
 
+**Nested ternaries (use Match instead):**
+```typescript
+// ❌ FORBIDDEN - Nested ternaries
+const style = segment.bold
+  ? { fontFamily: 'Bold' }
+  : segment.italic
+    ? { fontStyle: 'italic' }
+    : undefined
+
+// ✅ REQUIRED - Match module
+const style = pipe(
+  Match.value(segment),
+  Match.when({ bold: true }, () => ({ fontFamily: 'Bold' })),
+  Match.when({ italic: true }, () => ({ fontStyle: 'italic' })),
+  Match.orElse(() => undefined)
+)
+```
+
 ---
 
 ## Date Handling (MANDATORY)
@@ -278,14 +298,15 @@ import {
 3. **NEVER use native array methods** - Always use Effect's Array module
 4. **NEVER use switch statements** - Always use Match module with `Match.exhaustive`
 5. **NEVER use null/undefined directly** - Wrap in Option and use Option utilities
-6. **ALWAYS use pipe()** - For all data transformations, use `pipe()` for composition
-7. **Use Effect.gen for effects** - Use `Effect.gen` for effectful sequences, `pipe` for pure transformations
-8. **Type safety** - Leverage Effect Schema for runtime validation
-9. **Layer composition** - Properly provide all dependencies via Layers
-10. **Error propagation** - Use typed errors that flow through the Effect system
-11. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases
-12. **No semicolons** - Biome enforces this automatically
-13. **Single quotes** - Use single quotes for strings
+6. **NEVER use nested ternaries** - Use Match module with `Match.when` and `Match.orElse` for multi-condition branching
+7. **ALWAYS use pipe()** - For all data transformations, use `pipe()` for composition
+8. **Use Effect.gen for effects** - Use `Effect.gen` for effectful sequences, `pipe` for pure transformations
+9. **Type safety** - Leverage Effect Schema for runtime validation
+10. **Layer composition** - Properly provide all dependencies via Layers
+11. **Error propagation** - Use typed errors that flow through the Effect system
+12. **Exhaustive matching** - Use `Match.exhaustive` for union types to catch missing cases
+13. **No semicolons** - Biome enforces this automatically
+14. **Single quotes** - Use single quotes for strings
 
 ---
 

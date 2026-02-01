@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { apiEffectRunner } from 'src/utils/client'
+import { apiEffectRunner, setOnAuthFailure } from 'src/utils/client'
 import { getExpoPushToken, getPlatform } from 'src/utils/notifications'
 import {
   clearAuthStorage,
@@ -114,6 +114,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const router = useRouter()
   const segments = useSegments() as string[]
+
+  // Register auth failure callback for token refresh failures
+  useEffect(() => {
+    const handleAuthFailure = async () => {
+      // Clear all auth storage
+      await Effect.runPromise(clearAuthStorage())
+      setPendingEmail(null)
+      setState({ _tag: 'Unauthenticated' })
+    }
+
+    setOnAuthFailure(handleAuthFailure)
+
+    return () => {
+      setOnAuthFailure(null)
+    }
+  }, [])
 
   // Check for stored token on mount
   useEffect(() => {

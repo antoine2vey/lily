@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type TextLinkVariant = 'primary' | 'secondary'
 
@@ -23,6 +23,8 @@ export function TextLink({
   onPress,
   disabled,
 }: TextLinkProps) {
+  const iconColors = useIconColors()
+
   const getStyles = (pressed: boolean) =>
     pipe(
       Match.value(variant),

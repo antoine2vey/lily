@@ -1,43 +1,32 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  type ResolvedTheme,
+  type ThemePreference,
+  useThemeContext,
+} from 'src/contexts/ThemeContext'
 
-type Theme = 'light' | 'dark' | 'system'
+export type { ResolvedTheme, ThemePreference }
 
-const THEME_STORAGE_KEY = 'app-theme'
-
+/**
+ * Hook for accessing and controlling the app theme.
+ * This is a convenience wrapper around ThemeContext for backwards compatibility.
+ *
+ * @example
+ * const { theme, setTheme, isDark } = useTheme()
+ */
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>('system')
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY)
-        if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
-          setThemeState(savedTheme as Theme)
-        }
-      } catch {
-        // Use default theme on error
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadTheme()
-  }, [])
-
-  const setTheme = useCallback(async (newTheme: Theme) => {
-    setThemeState(newTheme)
-    try {
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme)
-    } catch {
-      // Ignore storage errors
-    }
-  }, [])
+  const { preference, resolvedTheme, isDark, setTheme, isLoading } =
+    useThemeContext()
 
   return {
-    theme,
+    /** User's theme preference (light, dark, or system) */
+    theme: preference,
+    /** The actual theme being applied (light or dark) */
+    resolvedTheme,
+    /** Convenience boolean for checking dark mode */
+    isDark,
+    /** Update the theme preference */
     setTheme,
+    /** True while loading the stored preference */
     isLoading,
   }
 }

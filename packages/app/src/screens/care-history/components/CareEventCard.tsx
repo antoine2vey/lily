@@ -1,8 +1,7 @@
-import { MaterialIcons } from '@expo/vector-icons'
+import type { MaterialIcons } from '@expo/vector-icons'
 import { formatApiTime } from '@lily/shared'
 import { Match, pipe } from 'effect'
-import { Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { Image, Pressable, Text, View } from 'react-native'
 
 type CareEventType =
   | 'water'
@@ -17,6 +16,7 @@ interface CareEvent {
   type: CareEventType
   notes?: string
   createdAt: string
+  photoUrl?: string
 }
 
 interface CareEventCardProps {
@@ -26,41 +26,48 @@ interface CareEventCardProps {
 
 interface EventConfig {
   icon: keyof typeof MaterialIcons.glyphMap
-  color: string
+  bgColor: string
+  iconColor: string
   label: string
 }
 
-const getEventConfig = (type: CareEventType): EventConfig =>
+const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
   pipe(
     Match.value(type),
     Match.when('water', () => ({
       icon: 'water-drop' as const,
-      color: iconColors.waterBlue,
+      bgColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE', // blue-100
+      iconColor: isDark ? '#93C5FD' : '#3B82F6', // blue-500/300
       label: 'Watered',
     })),
     Match.when('fertilize', () => ({
       icon: 'eco' as const,
-      color: iconColors.fertilizerOrange,
+      bgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : '#D1FAE5', // green-100
+      iconColor: isDark ? '#9bc76d' : '#5B8C5A', // primary green
       label: 'Fertilized',
     })),
     Match.when('prune', () => ({
       icon: 'content-cut' as const,
-      color: iconColors.pruneRed,
+      bgColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#FFEDD5', // orange-100
+      iconColor: isDark ? '#FB923C' : '#EA580C', // orange-600/400
       label: 'Pruned',
     })),
     Match.when('rotate', () => ({
       icon: 'rotate-right' as const,
-      color: '#9C27B0',
+      bgColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF', // purple-100
+      iconColor: isDark ? '#C084FC' : '#9333EA', // purple-600/400
       label: 'Rotated',
     })),
     Match.when('mist', () => ({
-      icon: 'cloud' as const,
-      color: iconColors.mistTeal,
+      icon: 'water' as const,
+      bgColor: isDark ? 'rgba(8, 145, 178, 0.2)' : '#CFFAFE', // cyan-100
+      iconColor: isDark ? '#22D3EE' : '#0891B2', // cyan-600/400
       label: 'Misted',
     })),
     Match.when('repot', () => ({
       icon: 'yard' as const,
-      color: '#8D6E63',
+      bgColor: isDark ? 'rgba(146, 64, 14, 0.2)' : '#FEF3C7', // amber-100
+      iconColor: isDark ? '#FBBF24' : '#92400E', // amber-800/400
       label: 'Repotted',
     })),
     Match.exhaustive
@@ -68,39 +75,52 @@ const getEventConfig = (type: CareEventType): EventConfig =>
 
 export function CareEventCard({ event, onPress }: CareEventCardProps) {
   const config = getEventConfig(event.type)
+  const hasPhoto = !!event.photoUrl
 
   return (
     <Pressable
       onPress={onPress}
-      className="flex-1 p-3 rounded-xl ml-3 bg-surface"
+      className="flex-1 p-4 rounded-xl bg-surface-tinted dark:bg-surface-dark shadow-sm"
       style={({ pressed }) => ({
-        opacity: pressed ? 0.9 : 1,
+        opacity: pressed ? 0.95 : 1,
       })}
     >
-      <View className="flex-row items-center">
-        <View
-          className="w-8 h-8 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: `${config.color}20` }}
-        >
-          <MaterialIcons name={config.icon} size={16} color={config.color} />
-        </View>
-        <View className="flex-1">
-          <Text className="text-base font-medium text-text-primary">
-            {config.label}
-          </Text>
-          <Text className="text-xs font-regular text-text-muted">
-            {formatApiTime(event.createdAt)}
-          </Text>
-        </View>
+      {/* Header row with title and time */}
+      <View className="flex-row justify-between items-baseline mb-2">
+        <Text className="text-lg font-bold text-text-primary dark:text-white">
+          {config.label}
+        </Text>
+        <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
+          {formatApiTime(event.createdAt)}
+        </Text>
       </View>
+
+      {/* Notes */}
       {event.notes && (
         <Text
-          className="text-sm mt-2 font-regular text-text-secondary"
-          numberOfLines={2}
+          className={`text-sm font-regular text-text-muted dark:text-slate-400 ${hasPhoto ? 'mb-3' : ''}`}
+          numberOfLines={3}
         >
           {event.notes}
         </Text>
       )}
+
+      {/* Photo if present */}
+      {event.photoUrl && (
+        <View
+          className="w-full h-32 rounded-xl overflow-hidden shadow-sm"
+          style={{ borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.4)' }}
+        >
+          <Image
+            source={{ uri: event.photoUrl }}
+            className="w-full h-full"
+            resizeMode="cover"
+          />
+        </View>
+      )}
     </Pressable>
   )
 }
+
+export { getEventConfig }
+export type { CareEvent, CareEventType }

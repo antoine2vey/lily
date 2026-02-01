@@ -70,7 +70,7 @@ describe('ChatScreen', () => {
 
     renderWithProviders(<ChatScreen />)
 
-    expect(screen.getByPlaceholderText('Ask about plant care...')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Ask about this plant...')).toBeTruthy()
   })
 
   it('displays messages when available', () => {

@@ -263,12 +263,15 @@ export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
  * @returns Number of days (positive if future, negative if past)
  */
 export const daysUntil = (target: DateTime.DateTime): number => {
-  const current = DateTime.unsafeNow()
-  const distanceMs = DateTime.distance(current, target)
+  // Truncate to start of day to compare at day granularity
+  // This prevents "1 day overdue" when the target is earlier today
+  const currentDay = DateTime.startOf(DateTime.unsafeNow(), 'day')
+  const targetDay = DateTime.startOf(target, 'day')
+  const distanceMs = DateTime.distance(currentDay, targetDay)
   // Handle sign manually since Duration.millis doesn't preserve negative values
   const sign = distanceMs >= 0 ? 1 : -1
   const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
-  return sign * Math.ceil(days)
+  return sign * Math.round(days)
 }
 
 /**

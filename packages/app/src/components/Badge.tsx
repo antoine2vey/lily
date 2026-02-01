@@ -21,24 +21,24 @@ const getVariantClasses = (variant: BadgeVariant): VariantClasses =>
   pipe(
     Match.value(variant),
     Match.when('success', () => ({
-      container: 'bg-primary-tint',
-      text: 'text-primary',
+      container: 'bg-primary-tint dark:bg-primary/20',
+      text: 'text-primary dark:text-primary-light',
     })),
     Match.when('warning', () => ({
-      container: 'bg-amber-100',
-      text: 'text-amber-700',
+      container: 'bg-amber-100 dark:bg-amber-700/20',
+      text: 'text-amber-700 dark:text-amber-400',
     })),
     Match.when('error', () => ({
-      container: 'bg-orange-100',
-      text: 'text-coral',
+      container: 'bg-orange-100 dark:bg-orange-900/20',
+      text: 'text-coral dark:text-orange-400',
     })),
     Match.when('info', () => ({
-      container: 'bg-blue-100',
-      text: 'text-blue-500',
+      container: 'bg-blue-100 dark:bg-blue-900/20',
+      text: 'text-blue-500 dark:text-blue-400',
     })),
     Match.when('neutral', () => ({
-      container: 'bg-slate-100',
-      text: 'text-slate-500',
+      container: 'bg-slate-100 dark:bg-slate-700',
+      text: 'text-slate-500 dark:text-slate-300',
     })),
     Match.exhaustive
   )

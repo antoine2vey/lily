@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { Button } from 'src/components/ui/Button'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -31,6 +31,8 @@ export function ThemeSelectionModal({
   currentTheme,
   onSelect,
 }: ThemeSelectionModalProps) {
+  const iconColors = useIconColors()
+
   const handleSelect = (theme: Theme) => {
     onSelect(theme)
     onClose()
@@ -45,10 +47,10 @@ export function ThemeSelectionModal({
             onPress={() => handleSelect(key)}
             className="flex-row items-center py-4 active:opacity-70"
           >
-            <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint">
+            <View className="w-10 h-10 rounded-full items-center justify-center mr-3 bg-primary-tint dark:bg-primary/20">
               <MaterialIcons name={icon} size={20} color={iconColors.primary} />
             </View>
-            <Text className="flex-1 text-base font-medium text-text-primary">
+            <Text className="flex-1 text-base font-medium text-text-primary dark:text-white">
               {label}
             </Text>
             {currentTheme === key && (

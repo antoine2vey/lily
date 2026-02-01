@@ -25,7 +25,9 @@ export function ConfirmationModal({
   destructive = false,
   icon,
 }: ConfirmationModalProps) {
-  const iconBgClass = destructive ? 'bg-orange-100' : 'bg-primary-tint'
+  const iconBgClass = destructive
+    ? 'bg-orange-100 dark:bg-orange-900/20'
+    : 'bg-primary-tint dark:bg-primary/20'
 
   return (
     <Modal
@@ -40,7 +42,7 @@ export function ConfirmationModal({
       >
         <Pressable
           onPress={(e) => e.stopPropagation()}
-          className="w-[320px] bg-white rounded-3xl p-6 items-center"
+          className="w-[320px] bg-white dark:bg-surface-dark rounded-3xl p-6 items-center"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 10 },
@@ -56,10 +58,10 @@ export function ConfirmationModal({
               {icon}
             </View>
           )}
-          <Text className="text-xl text-center mb-2 text-text-primary font-semibold">
+          <Text className="text-xl text-center mb-2 text-text-primary dark:text-white font-semibold">
             {title}
           </Text>
-          <Text className="text-sm text-center mb-6 text-text-muted font-regular">
+          <Text className="text-sm text-center mb-6 text-text-muted dark:text-slate-400 font-regular">
             {message}
           </Text>
           <View className="w-full gap-3">
@@ -73,7 +75,7 @@ export function ConfirmationModal({
               onPress={onCancel}
               className="h-12 items-center justify-center"
             >
-              <Text className="text-base text-text-muted font-medium">
+              <Text className="text-base text-text-muted dark:text-slate-400 font-medium">
                 {cancelLabel}
               </Text>
             </Pressable>

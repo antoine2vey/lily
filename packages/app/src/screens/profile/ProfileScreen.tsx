@@ -15,15 +15,16 @@ import { Badge } from 'src/components/Badge'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useAchievements } from 'src/hooks/useAchievements'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlants } from 'src/hooks/usePlants'
 import { useSubscription } from 'src/hooks/useSubscription'
 import { useUser } from 'src/hooks/useUser'
-import { iconColors } from 'src/theme'
 import { ProfileHeader } from './components/ProfileHeader'
 import { ProfileMenuItem } from './components/ProfileMenuItem'
 import { StatsCard } from './components/StatsCard'
 
 export function ProfileScreen() {
+  const iconColors = useIconColors()
   const { state, logout } = useAuth()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { data: plants, isLoading: isLoadingPlants } = usePlants()
@@ -42,7 +43,7 @@ export function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
@@ -88,14 +89,19 @@ export function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <SafeAreaView
+      className="flex-1 bg-background dark:bg-background-dark"
+      edges={['top']}
+    >
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3">
-        <View className="w-10" />
-        <Text className="text-lg font-semibold text-text-primary">Profile</Text>
+      <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
+        <View className="w-12" />
+        <Text className="text-lg font-bold text-text-primary dark:text-white">
+          Profile
+        </Text>
         <Pressable
           onPress={() => router.push('/settings')}
-          className="w-10 h-10 items-center justify-center"
+          className="w-12 h-12 items-center justify-center rounded-full"
         >
           <MaterialIcons
             name="settings"
@@ -105,7 +111,7 @@ export function ProfileScreen() {
         </Pressable>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 px-0" showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <ProfileHeader
           avatarUrl={pipe(
@@ -126,7 +132,7 @@ export function ProfileScreen() {
         <StatsCard stats={stats} />
 
         {/* Menu Items */}
-        <View className="mt-6">
+        <View className="mt-4 gap-0">
           <ProfileMenuItem
             icon={
               <MaterialIcons name="edit" size={20} color={iconColors.primary} />

@@ -164,7 +164,7 @@ describe('Date Utilities', () => {
     it('should return 0 for same day', () => {
       const sameDay = createFixedDateTime(2024, 6, 15, 18, 0) // Same day, later time
       const result = daysUntil(sameDay)
-      expect(result).toBe(1) // Rounds up to next day since it's later
+      expect(result).toBe(0) // Same calendar day = 0 days
     })
 
     it('should handle month boundaries', () => {

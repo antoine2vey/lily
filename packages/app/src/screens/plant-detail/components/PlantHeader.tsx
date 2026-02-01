@@ -45,7 +45,7 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
     <View testID="plant-header">
       <View className="flex-row items-center justify-between">
         <Text
-          className="text-[28px] flex-1 mr-3 font-bold text-text-primary"
+          className="text-[28px] flex-1 mr-3 font-bold text-text-primary dark:text-white"
           numberOfLines={2}
           testID="plant-name"
         >
@@ -59,7 +59,7 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
       </View>
       {speciesLine && (
         <Text
-          className="text-sm mt-1 font-regular text-primary"
+          className="text-sm mt-1 font-regular text-primary dark:text-primary-light"
           testID="plant-species"
         >
           {speciesLine}

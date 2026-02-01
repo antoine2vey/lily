@@ -101,11 +101,11 @@ jest.mock('src/theme', () => ({
     background: '#F8FAF8',
   },
   fonts: {
-    regular: 'PlusJakartaSans_400Regular',
-    medium: 'PlusJakartaSans_500Medium',
-    semiBold: 'PlusJakartaSans_600SemiBold',
-    bold: 'PlusJakartaSans_700Bold',
-    extraBold: 'PlusJakartaSans_800ExtraBold',
+    regular: 'SpaceGrotesk_400Regular',
+    medium: 'SpaceGrotesk_500Medium',
+    semiBold: 'SpaceGrotesk_600SemiBold',
+    bold: 'SpaceGrotesk_700Bold',
+    extraBold: 'SpaceGrotesk_700Bold',
   },
   spacing: {
     xs: 4,

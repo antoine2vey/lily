@@ -6,7 +6,7 @@ export function HomeScreenSkeleton() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       <View className="flex-1 px-4 pt-6">
         {/* Header */}
@@ -22,7 +22,7 @@ export function HomeScreenSkeleton() {
         </View>
 
         {/* Hydration Card */}
-        <View className="bg-surface rounded-2xl p-6 mb-4 shadow-sm mt-4">
+        <View className="bg-surface dark:bg-surface-dark rounded-2xl p-6 mb-4 shadow-sm mt-4">
           <View className="flex-row items-center justify-between mb-3 mt-2">
             <View className="gap-1 flex-1">
               <SkeletonBox width={120} height={18} rounded="sm" />
@@ -53,7 +53,7 @@ export function HomeScreenSkeleton() {
           {[1, 2, 3].map((i) => (
             <View
               key={i}
-              className="flex-1 bg-surface rounded-xl p-4 shadow-sm items-center"
+              className="flex-1 bg-surface dark:bg-surface-dark rounded-xl p-4 shadow-sm items-center"
             >
               <SkeletonBox
                 width={32}
@@ -77,7 +77,7 @@ export function HomeScreenSkeleton() {
           {[1, 2, 3].map((i) => (
             <View
               key={i}
-              className="flex-row items-center bg-white rounded-[20px] p-4 mb-2"
+              className="flex-row items-center bg-white dark:bg-surface-dark rounded-[20px] p-4 mb-2"
             >
               <SkeletonCircle size={40} />
               <View className="flex-1 ml-3 gap-2">

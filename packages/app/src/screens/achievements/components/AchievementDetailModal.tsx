@@ -3,7 +3,7 @@ import { formatLongDate, parseApiDate } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
 import { Modal, Pressable, Text, View } from 'react-native'
 import { ProgressBar } from 'src/components/ProgressBar'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
@@ -25,8 +25,10 @@ interface AchievementDetailModalProps {
   achievement: Achievement | null
 }
 
-const getRarityColor = (rarity: Rarity): string =>
-  pipe(
+type IconColors = ReturnType<typeof useIconColors>
+
+function getRarityColor(rarity: Rarity, iconColors: IconColors): string {
+  return pipe(
     Match.value(rarity),
     Match.when('common', () => '#9CA3AF'),
     Match.when('rare', () => iconColors.info),
@@ -34,6 +36,7 @@ const getRarityColor = (rarity: Rarity): string =>
     Match.when('legendary', () => iconColors.achievementGold),
     Match.exhaustive
   )
+}
 
 const getRarityLabel = (rarity: Rarity): string =>
   pipe(
@@ -74,9 +77,11 @@ export function AchievementDetailModal({
   onClose,
   achievement,
 }: AchievementDetailModalProps) {
+  const iconColors = useIconColors()
+
   if (!achievement) return null
 
-  const rarityColor = getRarityColor(achievement.rarity)
+  const rarityColor = getRarityColor(achievement.rarity, iconColors)
   const iconName = getIconName(achievement.icon)
   const hasProgress =
     achievement.progress != null && achievement.maxProgress != null

@@ -11,7 +11,9 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, action }: SectionHeaderProps) {
   return (
     <View className="flex-row items-center justify-between">
-      <Text className="text-lg text-text-primary font-semibold">{title}</Text>
+      <Text className="text-lg text-text-primary dark:text-white font-semibold">
+        {title}
+      </Text>
       {action && (
         <Pressable
           onPress={action.onPress}

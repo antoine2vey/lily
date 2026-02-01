@@ -15,14 +15,13 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { SectionHeader } from 'src/components/SectionHeader'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useIconColors } from 'src/hooks/useIconColors'
 import {
   useNotificationSettings,
   useUpdateNotificationSettings,
 } from 'src/hooks/useNotificationSettings'
-import { iconColors } from 'src/theme'
 import { apiEffectRunner } from 'src/utils/client'
 import { getDeviceTimezone } from 'src/utils/notifications'
 
@@ -85,6 +84,7 @@ function getTimezoneLabel(timezone: string): string {
 }
 
 export function NotificationSettingsScreen() {
+  const iconColors = useIconColors()
   const { data: settings, isLoading } = useNotificationSettings()
   const { mutate: updateSettings } = useUpdateNotificationSettings()
   const { state } = useAuth()
@@ -217,7 +217,7 @@ export function NotificationSettingsScreen() {
 
   if (isLoading || !settings || isLoadingTimezone) {
     return (
-      <SafeAreaView className="flex-1 bg-background">
+      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
@@ -226,34 +226,43 @@ export function NotificationSettingsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView
+      className="flex-1 bg-background dark:bg-background-dark"
+      edges={['top']}
+    >
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-border">
+      <View className="flex-row items-center px-4 py-3">
         <Pressable
           onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center"
+          className="w-10 h-10 items-center justify-center rounded-full"
         >
           <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
+            name="arrow-back-ios-new"
+            size={20}
+            color={iconColors.primary}
           />
         </Pressable>
-        <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+        <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
           Notification Settings
         </Text>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-4"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 24 }}
+      >
         {/* Care Reminders Section */}
-        <View className="px-6 py-4">
-          <SectionHeader title="Care Reminders" />
-          <View className="mt-2">
+        <View className="mb-6">
+          <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+            Care Reminders
+          </Text>
+          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
               icon={
                 <MaterialIcons
                   name="notifications-active"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               }
@@ -261,19 +270,42 @@ export function NotificationSettingsScreen() {
               description="Get reminded when it's time to water or fertilize"
               value={settings.careReminders}
               onValueChange={(value) => handleToggle('careReminders', value)}
+              showBorder
             />
+
+            {/* Notification Time Picker */}
+            <Pressable
+              onPress={() => setShowTimePicker('notificationTime')}
+              className="p-4 bg-surface-tinted/50 dark:bg-slate-800/50"
+            >
+              <Text className="text-xs font-medium text-text-muted dark:text-slate-400 mb-2 ml-1">
+                Daily notification time
+              </Text>
+              <View className="flex-row items-center bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 rounded-xl py-3 px-4">
+                <Text className="flex-1 text-base text-text-primary dark:text-white">
+                  {formatTimeDisplay(parseTime(preferredNotificationTime))}
+                </Text>
+                <MaterialIcons
+                  name="expand-more"
+                  size={20}
+                  color={iconColors.textMuted}
+                />
+              </View>
+            </Pressable>
           </View>
         </View>
 
         {/* Updates & Alerts Section */}
-        <View className="px-6 py-4 border-t border-border">
-          <SectionHeader title="Updates & Alerts" />
-          <View className="mt-2">
+        <View className="mb-6">
+          <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+            Updates & Alerts
+          </Text>
+          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
               icon={
                 <MaterialIcons
                   name="email"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               }
@@ -281,13 +313,14 @@ export function NotificationSettingsScreen() {
               description="Receive a weekly summary of your plant care"
               value={settings.weeklyDigest}
               onValueChange={(value) => handleToggle('weeklyDigest', value)}
+              showBorder
             />
 
             <ToggleRow
               icon={
                 <MaterialIcons
                   name="emoji-events"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               }
@@ -295,13 +328,14 @@ export function NotificationSettingsScreen() {
               description="Get notified when you unlock achievements"
               value={settings.achievements}
               onValueChange={(value) => handleToggle('achievements', value)}
+              showBorder
             />
 
             <ToggleRow
               icon={
                 <MaterialIcons
                   name="lightbulb"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               }
@@ -309,13 +343,14 @@ export function NotificationSettingsScreen() {
               description="Receive helpful plant care tips"
               value={settings.tips}
               onValueChange={(value) => handleToggle('tips', value)}
+              showBorder
             />
 
             <ToggleRow
               icon={
                 <MaterialIcons
                   name="campaign"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               }
@@ -328,131 +363,190 @@ export function NotificationSettingsScreen() {
         </View>
 
         {/* Do Not Disturb Section */}
-        <View className="px-6 py-4 border-t border-border">
-          <SectionHeader title="Do Not Disturb" />
-          <View className="mt-2">
+        <View className="mb-6">
+          <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+            Do Not Disturb
+          </Text>
+          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
               icon={
                 <MaterialIcons
-                  name="do-not-disturb"
-                  size={18}
+                  name="bedtime"
+                  size={22}
                   color={iconColors.primary}
                 />
               }
-              label="Do Not Disturb"
-              description="Silence notifications during quiet hours"
+              label="Quiet Hours"
+              description="Pause notifications at night"
               value={settings.doNotDisturb}
               onValueChange={(value) => handleToggle('doNotDisturb', value)}
+              showBorder={settings.doNotDisturb}
             />
 
             {settings.doNotDisturb && (
-              <View className="ml-13">
+              <View className="flex-row border-t border-border/30 dark:border-slate-700/30">
                 <Pressable
                   onPress={() => setShowTimePicker('dndStart')}
-                  className="flex-row items-center py-3"
+                  className="flex-1 p-4 items-center border-r border-border/30 dark:border-slate-700/30 active:bg-surface-tinted dark:active:bg-slate-800"
                 >
-                  <Text className="flex-1 text-base font-regular text-text-primary">
-                    Start Time
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-text-muted dark:text-slate-400 mb-1">
+                    Start
                   </Text>
-                  <Text className="text-base font-medium text-primary">
+                  <Text className="text-xl font-bold text-text-primary dark:text-white">
                     {formatTimeDisplay(parseTime(settings.doNotDisturbStart))}
                   </Text>
                 </Pressable>
 
                 <Pressable
                   onPress={() => setShowTimePicker('dndEnd')}
-                  className="flex-row items-center py-3"
+                  className="flex-1 p-4 items-center active:bg-surface-tinted dark:active:bg-slate-800"
                 >
-                  <Text className="flex-1 text-base font-regular text-text-primary">
-                    End Time
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-text-muted dark:text-slate-400 mb-1">
+                    End
                   </Text>
-                  <Text className="text-base font-medium text-primary">
+                  <Text className="text-xl font-bold text-text-primary dark:text-white">
                     {formatTimeDisplay(parseTime(settings.doNotDisturbEnd))}
                   </Text>
                 </Pressable>
               </View>
             )}
           </View>
+          {settings.doNotDisturb && (
+            <Text className="text-xs text-text-muted dark:text-slate-400 mt-2 ml-3">
+              Notifications will be silenced between these times.
+            </Text>
+          )}
         </View>
 
         {/* Timezone Settings Section */}
-        <View className="px-6 py-4 border-t border-border">
-          <SectionHeader title="Timezone & Scheduling" />
-          <View className="mt-2">
-            {/* Preferred Notification Time */}
-            <Pressable
-              onPress={() => setShowTimePicker('notificationTime')}
-              className="flex-row items-center py-3"
-            >
-              <View className="w-10 h-10 rounded-full bg-surface-tinted items-center justify-center mr-3">
-                <MaterialIcons
-                  name="schedule"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base font-regular text-text-primary">
-                  Notification Time
-                </Text>
-                <Text className="text-sm text-text-muted">
-                  When you want to receive care reminders
-                </Text>
-              </View>
-              <Text className="text-base font-medium text-primary">
-                {formatTimeDisplay(parseTime(preferredNotificationTime))}
-              </Text>
-            </Pressable>
-
+        <View className="mb-6">
+          <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+            Timezone
+          </Text>
+          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             {/* Timezone */}
             <Pressable
               onPress={() => setShowTimezonePicker(true)}
-              className="flex-row items-center py-3"
+              className="flex-row items-center gap-3 p-4 active:bg-surface-tinted dark:active:bg-slate-800 border-b border-border/50 dark:border-slate-700/50"
             >
-              <View className="w-10 h-10 rounded-full bg-surface-tinted items-center justify-center mr-3">
+              <View className="w-10 h-10 rounded-xl items-center justify-center bg-primary-tint dark:bg-primary/20">
                 <MaterialIcons
                   name="public"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               </View>
               <View className="flex-1">
-                <Text className="text-base font-regular text-text-primary">
+                <Text className="text-base font-medium text-text-primary dark:text-white">
                   Timezone
                 </Text>
-                <Text className="text-sm text-text-muted">
+                <Text className="text-xs text-text-muted dark:text-slate-400 mt-0.5">
                   {getTimezoneLabel(timezone)}
                 </Text>
               </View>
               <MaterialIcons
                 name="chevron-right"
                 size={20}
-                color={iconColors.textMuted}
+                color={iconColors.border}
               />
             </Pressable>
 
             {/* Auto-detect Timezone */}
             <Pressable
               onPress={handleAutoDetectTimezone}
-              className="flex-row items-center py-3"
+              className="flex-row items-center gap-3 p-4 active:bg-surface-tinted dark:active:bg-slate-800"
             >
-              <View className="w-10 h-10 rounded-full bg-surface-tinted items-center justify-center mr-3">
+              <View className="w-10 h-10 rounded-xl items-center justify-center bg-primary-tint dark:bg-primary/20">
                 <MaterialIcons
                   name="my-location"
-                  size={18}
+                  size={22}
                   color={iconColors.primary}
                 />
               </View>
-              <Text className="flex-1 text-base font-regular text-text-primary">
+              <Text className="flex-1 text-base font-medium text-text-primary dark:text-white">
                 Auto-detect Timezone
               </Text>
             </Pressable>
           </View>
         </View>
+
+        {/* Bottom spacer */}
+        <View className="h-6" />
       </ScrollView>
 
-      {/* Time Pickers */}
-      {showTimePicker && (
+      {/* Time Pickers - iOS Modal wrapper */}
+      {showTimePicker && Platform.OS === 'ios' && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(null)}
+        >
+          <View className="flex-1 justify-end bg-black/30">
+            <View className="bg-surface dark:bg-surface-dark rounded-t-2xl">
+              <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
+                <Pressable onPress={() => setShowTimePicker(null)}>
+                  <Text className="text-base text-text-muted dark:text-slate-400">
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Text className="text-base font-semibold text-text-primary dark:text-white">
+                  {pipe(
+                    Match.value(showTimePicker),
+                    Match.when('dndStart', () => 'Start Time'),
+                    Match.when('dndEnd', () => 'End Time'),
+                    Match.when('notificationTime', () => 'Notification Time'),
+                    Match.exhaustive
+                  )}
+                </Text>
+                <Pressable onPress={() => setShowTimePicker(null)}>
+                  <Text className="text-base font-semibold text-primary">
+                    Done
+                  </Text>
+                </Pressable>
+              </View>
+              <DateTimePicker
+                value={pipe(
+                  Match.value(showTimePicker),
+                  Match.when('dndStart', () =>
+                    parseTime(settings.doNotDisturbStart)
+                  ),
+                  Match.when('dndEnd', () =>
+                    parseTime(settings.doNotDisturbEnd)
+                  ),
+                  Match.when('notificationTime', () =>
+                    parseTime(preferredNotificationTime)
+                  ),
+                  Match.exhaustive
+                )}
+                mode="time"
+                display="spinner"
+                themeVariant="light"
+                onChange={(_event: unknown, selectedTime: Date | undefined) => {
+                  if (selectedTime) {
+                    pipe(
+                      Match.value(showTimePicker),
+                      Match.when('dndStart', () =>
+                        handleTimeChange('doNotDisturbStart', selectedTime)
+                      ),
+                      Match.when('dndEnd', () =>
+                        handleTimeChange('doNotDisturbEnd', selectedTime)
+                      ),
+                      Match.when('notificationTime', () =>
+                        handleNotificationTimeChange(selectedTime)
+                      ),
+                      Match.exhaustive
+                    )
+                  }
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Time Pickers - Android */}
+      {showTimePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={pipe(
             Match.value(showTimePicker),
@@ -466,9 +560,7 @@ export function NotificationSettingsScreen() {
           mode="time"
           display="spinner"
           onChange={(_event: unknown, selectedTime: Date | undefined) => {
-            if (Platform.OS === 'android') {
-              setShowTimePicker(null)
-            }
+            setShowTimePicker(null)
             if (selectedTime) {
               pipe(
                 Match.value(showTimePicker),
@@ -495,12 +587,12 @@ export function NotificationSettingsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowTimezonePicker(false)}
       >
-        <SafeAreaView className="flex-1 bg-background">
+        <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
           {/* Modal Header */}
-          <View className="flex-row items-center px-4 py-3 border-b border-border">
+          <View className="flex-row items-center px-4 py-3">
             <Pressable
               onPress={() => setShowTimezonePicker(false)}
-              className="w-10 h-10 items-center justify-center"
+              className="w-10 h-10 items-center justify-center rounded-full"
             >
               <MaterialIcons
                 name="close"
@@ -508,21 +600,21 @@ export function NotificationSettingsScreen() {
                 color={iconColors.textPrimary}
               />
             </Pressable>
-            <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary">
+            <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
               Select Timezone
             </Text>
           </View>
 
           {/* Search Input */}
           <View className="px-4 py-3">
-            <View className="flex-row items-center bg-input-bg rounded-lg px-3">
+            <View className="flex-row items-center bg-surface dark:bg-surface-dark border border-border/30 dark:border-slate-700/30 rounded-xl px-4">
               <MaterialIcons
                 name="search"
                 size={20}
                 color={iconColors.textMuted}
               />
               <TextInput
-                className="flex-1 py-3 px-2 text-base text-text-primary"
+                className="flex-1 py-3 px-2 text-base text-text-primary dark:text-white"
                 placeholder="Search timezones..."
                 placeholderTextColor={iconColors.textMuted}
                 value={timezoneSearch}
@@ -534,26 +626,38 @@ export function NotificationSettingsScreen() {
           </View>
 
           {/* Timezone List */}
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-            {Array.map(filteredTimezones, (tz) => (
-              <Pressable
-                key={tz.value}
-                onPress={() => handleTimezoneChange(tz.value)}
-                className="flex-row items-center px-6 py-4 border-b border-border"
-              >
-                <Text className="flex-1 text-base text-text-primary">
-                  {tz.label}
-                </Text>
-                <Text className="text-sm text-text-muted mr-2">{tz.value}</Text>
-                {timezone === tz.value && (
-                  <MaterialIcons
-                    name="check"
-                    size={20}
-                    color={iconColors.primary}
-                  />
-                )}
-              </Pressable>
-            ))}
+          <ScrollView
+            className="flex-1 px-4"
+            showsVerticalScrollIndicator={false}
+          >
+            <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
+              {Array.map(filteredTimezones, (tz, index) => (
+                <Pressable
+                  key={tz.value}
+                  onPress={() => handleTimezoneChange(tz.value)}
+                  className={`flex-row items-center px-4 py-4 active:bg-surface-tinted dark:active:bg-slate-800 ${
+                    index < filteredTimezones.length - 1
+                      ? 'border-b border-border/50 dark:border-slate-700/50'
+                      : ''
+                  }`}
+                >
+                  <Text className="flex-1 text-base text-text-primary dark:text-white font-medium">
+                    {tz.label}
+                  </Text>
+                  <Text className="text-sm text-text-muted dark:text-slate-400 mr-2">
+                    {tz.value}
+                  </Text>
+                  {timezone === tz.value && (
+                    <MaterialIcons
+                      name="check"
+                      size={20}
+                      color={iconColors.primary}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+            <View className="h-8" />
           </ScrollView>
         </SafeAreaView>
       </Modal>

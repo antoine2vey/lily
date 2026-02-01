@@ -4,7 +4,7 @@ import { Skeleton, SkeletonBox, SkeletonCircle } from './Skeleton'
 
 function PlantCardSkeleton() {
   return (
-    <View className="flex flex-col gap-3 p-3 bg-white rounded-xl shadow-soft">
+    <View className="flex flex-col gap-3 p-3 bg-white dark:bg-surface-dark rounded-xl shadow-soft">
       {/* Image Container - matches PlantCard exactly */}
       <View className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100">
         {/* Health indicator dot */}
@@ -34,7 +34,7 @@ export function PlantsScreenSkeleton() {
     <View testID="plants-screen-skeleton" className="flex-1">
       <SafeAreaView
         edges={['top', 'left', 'right']}
-        className="flex-1 bg-[#f7f7f6]"
+        className="flex-1 bg-background dark:bg-background-dark"
       >
         <View>
           {/* Header - matches PlantsScreen exactly: px-5 pt-12 pb-2 */}

@@ -266,54 +266,551 @@ const seedDemoData = Effect.gen(function* () {
     yield* Console.log(`  Created plant: ${plant.name}`)
   }
 
-  // Create care logs for recent activity
-  yield* Console.log('Creating care log history...')
+  // Create comprehensive care log history for testing various scenarios
+  yield* Console.log('Creating comprehensive care log history...')
 
-  // Find Fiddle Leaf Fig for misting activity (using watering as proxy)
-  const fiddleLeafFig = createdPlants.find((p) => p.name === 'Fiddle Leaf Fig')
-  if (fiddleLeafFig) {
-    yield* db.insert(careLogs).values({
-      type: 'watering',
-      notes: 'Misted leaves',
-      date: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      plantId: fiddleLeafFig.id,
-    })
-    yield* Console.log('  Created care log: Fiddle Leaf Fig watered (misted)')
-  }
+  // Helper to create date in the past
+  const daysAgo = (days: number) =>
+    new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  const hoursAgo = (hours: number) =>
+    new Date(Date.now() - hours * 60 * 60 * 1000)
 
-  // Add some older care logs for history
-  const monstera = createdPlants.find((p) => p.name === 'Monstera')
-  if (monstera) {
-    yield* db.insert(careLogs).values({
-      type: 'watering',
-      notes: 'Regular watering',
-      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      plantId: monstera.id,
-    })
-    yield* Console.log('  Created care log: Monstera watered')
-  }
-
-  const peaceLily = createdPlants.find((p) => p.name === 'Peace Lily')
-  if (peaceLily) {
-    yield* db.insert(careLogs).values({
-      type: 'fertilization',
-      notes: 'Monthly fertilization',
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      plantId: peaceLily.id,
-    })
-    yield* Console.log('  Created care log: Peace Lily fertilized')
-  }
-
+  // Snake Plant - Long history, infrequent watering (succulent)
   const snakePlant = createdPlants.find((p) => p.name === 'Snake Plant')
   if (snakePlant) {
-    yield* db.insert(careLogs).values({
-      type: 'watering',
-      notes: 'Watered thoroughly',
-      date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
-      plantId: snakePlant.id,
-    })
-    yield* Console.log('  Created care log: Snake Plant watered (15 days ago)')
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(15),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered thoroughly',
+        date: daysAgo(29),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Slow release fertilizer',
+        date: daysAgo(25),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(43),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(57),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Monthly feed',
+        date: daysAgo(55),
+        plantId: snakePlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Repotted and watered',
+        date: daysAgo(90),
+        plantId: snakePlant.id,
+      },
+    ])
+    yield* Console.log('  Snake Plant: 7 care logs (15-90 days ago)')
   }
+
+  // Pothos - Regular watering, trailing vine
+  const pothos = createdPlants.find((p) => p.name === 'Pothos')
+  if (pothos) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(8),
+        plantId: pothos.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered well',
+        date: daysAgo(15),
+        plantId: pothos.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(22),
+        plantId: pothos.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Trimmed vines, light watering',
+        date: daysAgo(20),
+        plantId: pothos.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(29),
+        plantId: pothos.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Liquid fertilizer',
+        date: daysAgo(30),
+        plantId: pothos.id,
+      },
+    ])
+    yield* Console.log('  Pothos: 6 care logs (8-30 days ago)')
+  }
+
+  // Fern - High maintenance, frequent watering
+  const fern = createdPlants.find((p) => p.name === 'Fern')
+  if (fern) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Misted and watered',
+        date: daysAgo(4),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Heavy watering',
+        date: daysAgo(7),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Misted leaves',
+        date: daysAgo(8),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(10),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Misted and watered',
+        date: daysAgo(13),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered thoroughly',
+        date: daysAgo(16),
+        plantId: fern.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Diluted fertilizer',
+        date: daysAgo(14),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(19),
+        plantId: fern.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Misted leaves',
+        date: daysAgo(21),
+        plantId: fern.id,
+      },
+    ])
+    yield* Console.log('  Fern: 9 care logs (4-21 days ago, frequent)')
+  }
+
+  // Fiddle Leaf Fig - Medium maintenance with recent activity
+  const fiddleLeafFig = createdPlants.find((p) => p.name === 'Fiddle Leaf Fig')
+  if (fiddleLeafFig) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Misted leaves',
+        date: hoursAgo(2),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(3),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Balanced fertilizer',
+        date: daysAgo(14),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Thorough watering',
+        date: daysAgo(10),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(17),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Removed dead leaves, light watering',
+        date: daysAgo(21),
+        plantId: fiddleLeafFig.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Monthly feed',
+        date: daysAgo(44),
+        plantId: fiddleLeafFig.id,
+      },
+    ])
+    yield* Console.log('  Fiddle Leaf Fig: 7 care logs (2 hours - 44 days ago)')
+  }
+
+  // Cactus - Very infrequent, newly added
+  const cactus = createdPlants.find((p) => p.name === 'Cactus')
+  if (cactus) {
+    yield* db
+      .insert(careLogs)
+      .values([
+        {
+          type: 'watering',
+          notes: 'Initial watering after potting',
+          date: daysAgo(1),
+          plantId: cactus.id,
+        },
+      ])
+    yield* Console.log('  Cactus: 1 care log (newly added)')
+  }
+
+  // Aloe Vera - Moderate history
+  const aloeVera = createdPlants.find((p) => p.name === 'Aloe Vera')
+  if (aloeVera) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(5),
+        plantId: aloeVera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(19),
+        plantId: aloeVera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Thorough watering',
+        date: daysAgo(33),
+        plantId: aloeVera.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Succulent fertilizer',
+        date: daysAgo(45),
+        plantId: aloeVera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Divided pups, repotted and watered',
+        date: daysAgo(60),
+        plantId: aloeVera.id,
+      },
+    ])
+    yield* Console.log('  Aloe Vera: 5 care logs (5-60 days ago)')
+  }
+
+  // Monstera - Popular plant with good history
+  const monstera = createdPlants.find((p) => p.name === 'Monstera')
+  if (monstera) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(2),
+        plantId: monstera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered well',
+        date: daysAgo(9),
+        plantId: monstera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(16),
+        plantId: monstera.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Liquid fertilizer',
+        date: daysAgo(22),
+        plantId: monstera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Thorough watering',
+        date: daysAgo(23),
+        plantId: monstera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Cleaned aerial roots, watered',
+        date: daysAgo(30),
+        plantId: monstera.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Added moss pole, watered',
+        date: daysAgo(45),
+        plantId: monstera.id,
+      },
+    ])
+    yield* Console.log('  Monstera: 7 care logs (2-45 days ago)')
+  }
+
+  // Peace Lily - Flowering plant with varied care
+  const peaceLily = createdPlants.find((p) => p.name === 'Peace Lily')
+  if (peaceLily) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(2),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered and misted',
+        date: daysAgo(7),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(12),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(17),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Bloom booster fertilizer',
+        date: daysAgo(28),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Removed spent flowers, watered',
+        date: daysAgo(35),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Thorough watering',
+        date: daysAgo(22),
+        plantId: peaceLily.id,
+      },
+    ])
+    yield* Console.log('  Peace Lily: 7 care logs (2-35 days ago)')
+  }
+
+  // Spider Plant - Air purifier with propagation
+  const spiderPlant = createdPlants.find((p) => p.name === 'Spider Plant')
+  if (spiderPlant) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(4),
+        plantId: spiderPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Watered well',
+        date: daysAgo(11),
+        plantId: spiderPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(18),
+        plantId: spiderPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Harvested baby plants, watered',
+        date: daysAgo(25),
+        plantId: spiderPlant.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Balanced liquid feed',
+        date: daysAgo(40),
+        plantId: spiderPlant.id,
+      },
+    ])
+    yield* Console.log('  Spider Plant: 5 care logs (4-40 days ago)')
+  }
+
+  // Rubber Plant - Sturdy with moderate care
+  const rubberPlant = createdPlants.find((p) => p.name === 'Rubber Plant')
+  if (rubberPlant) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Thorough watering',
+        date: daysAgo(3),
+        plantId: rubberPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(13),
+        plantId: rubberPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Light watering',
+        date: daysAgo(23),
+        plantId: rubberPlant.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Wiped leaves clean, misted',
+        date: daysAgo(15),
+        plantId: rubberPlant.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Slow release pellets',
+        date: daysAgo(50),
+        plantId: rubberPlant.id,
+      },
+    ])
+    yield* Console.log('  Rubber Plant: 5 care logs (3-50 days ago)')
+  }
+
+  // Orchid - Needs attention, irregular care
+  const orchid = createdPlants.find((p) => p.name === 'Orchid')
+  if (orchid) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Ice cube method',
+        date: daysAgo(10),
+        plantId: orchid.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Soaked roots',
+        date: daysAgo(17),
+        plantId: orchid.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Ice cubes',
+        date: daysAgo(24),
+        plantId: orchid.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Orchid fertilizer',
+        date: daysAgo(30),
+        plantId: orchid.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(31),
+        plantId: orchid.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Cut old flower spike, watered',
+        date: daysAgo(45),
+        plantId: orchid.id,
+      },
+    ])
+    yield* Console.log(
+      '  Orchid: 6 care logs (10-45 days ago, needs attention)'
+    )
+  }
+
+  // Calathea - Needs attention, demanding plant
+  const calathea = createdPlants.find((p) => p.name === 'Calathea')
+  if (calathea) {
+    yield* db.insert(careLogs).values([
+      {
+        type: 'watering',
+        notes: 'Distilled water',
+        date: daysAgo(8),
+        plantId: calathea.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Misted heavily',
+        date: daysAgo(10),
+        plantId: calathea.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Regular watering',
+        date: daysAgo(13),
+        plantId: calathea.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Distilled water',
+        date: daysAgo(18),
+        plantId: calathea.id,
+      },
+      {
+        type: 'fertilization',
+        notes: 'Weak fertilizer solution',
+        date: daysAgo(25),
+        plantId: calathea.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Misted and watered',
+        date: daysAgo(23),
+        plantId: calathea.id,
+      },
+      {
+        type: 'watering',
+        notes: 'Removed brown leaf tips, watered',
+        date: daysAgo(30),
+        plantId: calathea.id,
+      },
+    ])
+    yield* Console.log(
+      '  Calathea: 7 care logs (8-30 days ago, needs attention)'
+    )
+  }
+
+  // Updated count: 7 + 6 + 9 + 7 + 1 + 5 + 7 + 7 + 5 + 5 + 6 + 7 = 72
+  const totalCareLogs = 72
 
   yield* Console.log('')
   yield* Console.log('Demo data seeded successfully!')
@@ -322,15 +819,35 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log(`  User: ${demoUser.name} (${demoUser.email})`)
   yield* Console.log(`  Plants: ${createdPlants.length} total`)
   yield* Console.log('    - 10 healthy')
-  yield* Console.log('    - 2 need attention')
-  yield* Console.log('  Care tasks:')
+  yield* Console.log('    - 2 need attention (Orchid, Calathea)')
+  yield* Console.log('')
+  yield* Console.log('  Care tasks due:')
   yield* Console.log('    - 3 overdue watering (Snake Plant, Pothos, Fern)')
   yield* Console.log('    - 1 overdue fertilization (Monstera)')
   yield* Console.log('    - 1 fertilization today (Fiddle Leaf Fig)')
   yield* Console.log(
     '    - 2 fertilization this week (Snake Plant, Peace Lily)'
   )
-  yield* Console.log('  Care logs: 4 activities')
+  yield* Console.log('')
+  yield* Console.log(
+    `  Care logs: ${totalCareLogs} activities across all plants`
+  )
+  yield* Console.log('    - Snake Plant: 7 logs (15-90 days ago)')
+  yield* Console.log('    - Pothos: 6 logs (8-30 days ago)')
+  yield* Console.log('    - Fern: 9 logs (4-21 days ago, high frequency)')
+  yield* Console.log('    - Fiddle Leaf Fig: 7 logs (2h-44 days ago)')
+  yield* Console.log('    - Cactus: 1 log (newly added)')
+  yield* Console.log('    - Aloe Vera: 5 logs (5-60 days ago)')
+  yield* Console.log('    - Monstera: 7 logs (2-45 days ago)')
+  yield* Console.log('    - Peace Lily: 7 logs (2-35 days ago)')
+  yield* Console.log('    - Spider Plant: 5 logs (4-40 days ago)')
+  yield* Console.log('    - Rubber Plant: 5 logs (3-50 days ago)')
+  yield* Console.log('    - Orchid: 6 logs (10-45 days ago)')
+  yield* Console.log('    - Calathea: 7 logs (8-30 days ago)')
+  yield* Console.log('')
+  yield* Console.log('  Care log types included:')
+  yield* Console.log('    - watering (frequent, with maintenance notes)')
+  yield* Console.log('    - fertilization (monthly)')
   yield* Console.log('')
   yield* Console.log(
     'To log in as Alex, use the magic link flow with: antoine@lily.app'

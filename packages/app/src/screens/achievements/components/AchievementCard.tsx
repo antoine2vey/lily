@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { ProgressBar } from 'src/components/ProgressBar'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
@@ -20,7 +20,10 @@ interface AchievementCardProps {
   onPress: () => void
 }
 
-const getRarityColor = (rarity: Rarity): string =>
+const getRarityColor = (
+  rarity: Rarity,
+  iconColors: ReturnType<typeof useIconColors>
+): string =>
   pipe(
     Match.value(rarity),
     Match.when('common', () => '#9CA3AF'),
@@ -50,7 +53,8 @@ export function AchievementCard({
   achievement,
   onPress,
 }: AchievementCardProps) {
-  const rarityColor = getRarityColor(achievement.rarity)
+  const iconColors = useIconColors()
+  const rarityColor = getRarityColor(achievement.rarity, iconColors)
   const iconName = getIconName(achievement.icon)
   const hasProgress =
     achievement.progress != null && achievement.maxProgress != null
@@ -61,7 +65,7 @@ export function AchievementCard({
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-1 p-4 rounded-2xl m-1 ${achievement.unlocked ? 'bg-surface' : 'bg-background border border-border'}`}
+      className={`flex-1 p-4 rounded-2xl m-1 ${achievement.unlocked ? 'bg-surface dark:bg-surface-dark' : 'bg-background dark:bg-background-dark border border-border dark:border-slate-700'}`}
       style={({ pressed }) => ({
         opacity: pressed ? 0.9 : achievement.unlocked ? 1 : 0.7,
       })}
@@ -85,7 +89,7 @@ export function AchievementCard({
 
         {/* Name */}
         <Text
-          className={`text-sm text-center font-semibold ${achievement.unlocked ? 'text-text-primary' : 'text-text-muted'}`}
+          className={`text-sm text-center font-semibold ${achievement.unlocked ? 'text-text-primary dark:text-white' : 'text-text-muted dark:text-slate-400'}`}
           numberOfLines={1}
         >
           {achievement.name}
@@ -93,7 +97,7 @@ export function AchievementCard({
 
         {/* Description */}
         <Text
-          className="text-xs text-center mt-1 font-regular text-text-muted"
+          className="text-xs text-center mt-1 font-regular text-text-muted dark:text-slate-400"
           numberOfLines={2}
         >
           {achievement.description}
@@ -107,7 +111,7 @@ export function AchievementCard({
               height={4}
               color={rarityColor}
             />
-            <Text className="text-xs text-center mt-1 font-regular text-text-muted">
+            <Text className="text-xs text-center mt-1 font-regular text-text-muted dark:text-slate-400">
               {achievement.progress}/{achievement.maxProgress}
             </Text>
           </View>

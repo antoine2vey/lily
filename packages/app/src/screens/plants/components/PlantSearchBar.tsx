@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, TextInput, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface PlantSearchBarProps {
   value: string
@@ -14,23 +15,24 @@ export function PlantSearchBar({
   onClear,
   placeholder = 'Search plants...',
 }: PlantSearchBarProps) {
+  const iconColors = useIconColors()
   return (
     <View
-      className="flex-row items-center gap-2 px-4 py-3 bg-gray-100 rounded-xl"
+      className="flex-row items-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-800 rounded-xl"
       testID="plant-search-bar"
     >
       <MaterialIcons
         name="search"
         size={20}
-        color="#9E9E9E"
+        color={iconColors.textMuted}
         testID="search-icon"
       />
       <TextInput
-        className="flex-1 text-base text-[#141712]"
+        className="flex-1 text-base text-text-primary dark:text-white"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#9E9E9E"
+        placeholderTextColor={iconColors.textMuted}
         testID="search-input"
       />
       {value.length > 0 && (
@@ -39,7 +41,7 @@ export function PlantSearchBar({
           testID="clear-button"
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
-          <MaterialIcons name="cancel" size={20} color="#9E9E9E" />
+          <MaterialIcons name="cancel" size={20} color={iconColors.textMuted} />
         </Pressable>
       )}
     </View>

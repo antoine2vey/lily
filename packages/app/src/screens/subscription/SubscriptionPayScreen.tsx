@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
+import { useIconColors } from 'src/hooks/useIconColors'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { iconColors } from 'src/theme'
 import { FeatureList } from './components/FeatureList'
 import { PricingToggle } from './components/PricingToggle'
 
@@ -35,6 +35,7 @@ export function SubscriptionPayScreen() {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
   const { offerings, purchase, syncSubscription } = useRevenueCat()
+  const iconColors = useIconColors()
 
   const monthlyPackage = pipe(
     Option.fromNullable(offerings?.current?.monthly),
@@ -99,13 +100,16 @@ export function SubscriptionPayScreen() {
       : `${annualPrice}/year`
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3">
+    <SafeAreaView
+      className="flex-1 bg-background dark:bg-background-dark"
+      edges={['top']}
+    >
+      {/* Close Button */}
+      <View className="absolute top-14 left-4 z-50">
         <Pressable
           testID="close-button"
           onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center"
+          className="w-10 h-10 items-center justify-center rounded-full bg-surface/80 dark:bg-surface-dark/80 shadow-sm border border-border/30 dark:border-slate-700/30"
         >
           <MaterialIcons
             name="close"
@@ -113,84 +117,122 @@ export function SubscriptionPayScreen() {
             color={iconColors.textPrimary}
           />
         </Pressable>
-        <View className="w-10" />
       </View>
 
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 120, paddingTop: 60 }}
       >
-        {/* Hero Image */}
-        <View className="items-center px-8 mb-4">
-          <View className="w-48 h-48 rounded-2xl overflow-hidden items-center justify-center bg-surface-tinted">
-            <MaterialIcons
-              name="local-florist"
-              size={80}
-              color={iconColors.primary}
-            />
-          </View>
-        </View>
+        {/* Content */}
+        <View className="gap-6">
+          {/* Title Section */}
+          <View className="items-center px-6 gap-2">
+            {/* Premium Access Badge */}
+            <View className="flex-row items-center px-3 py-1 rounded-full bg-primary-tint dark:bg-primary/20 border border-primary/20">
+              <MaterialIcons
+                name="diamond"
+                size={14}
+                color={iconColors.primary}
+              />
+              <Text className="text-xs ml-1.5 uppercase tracking-wider font-bold text-primary">
+                Premium Access
+              </Text>
+            </View>
 
-        {/* Premium Access Badge */}
-        <View className="items-center mb-2">
-          <View className="flex-row items-center px-4 py-1.5 rounded-full bg-primary-tint">
-            <MaterialIcons
-              name="workspace-premium"
-              size={16}
-              color={iconColors.achievementGold}
-            />
-            <Text className="text-xs ml-1.5 uppercase tracking-wider font-semibold text-primary">
-              Premium Access
+            {/* Title */}
+            <Text className="text-3xl text-center font-bold text-text-primary dark:text-white">
+              Unlock Lily Pro
+            </Text>
+
+            {/* Subtitle */}
+            <Text className="text-sm text-center leading-relaxed font-regular text-text-muted dark:text-slate-400 max-w-[280px]">
+              Give your plants the care they deserve with unlimited access to
+              premium features.
             </Text>
           </View>
-        </View>
 
-        {/* Title */}
-        <Text className="text-2xl text-center mb-2 px-4 font-bold text-text-primary">
-          Unlock Lily Pro
-        </Text>
-
-        {/* Subtitle */}
-        <Text className="text-base text-center mb-6 px-8 font-regular text-text-muted">
-          Give your plants the care they deserve with unlimited access to
-          premium features.
-        </Text>
-
-        {/* Feature List */}
-        <View className="mb-8">
+          {/* Feature List */}
           <FeatureList features={PREMIUM_FEATURES} />
-        </View>
 
-        {/* Pricing Toggle */}
-        <View className="mb-8">
-          <PricingToggle
-            selected={billingPeriod}
-            onSelect={setBillingPeriod}
-            monthlyPrice={monthlyPrice}
-            annualPrice={annualPrice}
-            savingsPercent={50}
-          />
+          {/* Pricing Toggle */}
+          <View className="pt-2">
+            <PricingToggle
+              selected={billingPeriod}
+              onSelect={setBillingPeriod}
+              monthlyPrice={monthlyPrice}
+              annualPrice={annualPrice}
+              savingsPercent={33}
+            />
+          </View>
+
+          {/* Subscribe Button */}
+          <View className="px-4 pt-4">
+            <Pressable
+              onPress={handleSubscribe}
+              disabled={isLoading}
+              className={`py-4 rounded-2xl items-center ${isLoading ? 'bg-primary-dark opacity-70' : 'bg-primary active:bg-primary-dark'}`}
+            >
+              <Text className="text-lg font-bold text-white">
+                {isLoading ? 'Processing...' : `Subscribe for ${getPrice()}`}
+              </Text>
+            </Pressable>
+
+            {/* Terms */}
+            <Text className="text-xs text-center mt-3 font-medium text-text-muted dark:text-slate-400">
+              Recurring billing, cancel anytime.
+            </Text>
+          </View>
+
+          {/* Trust Badges & Links */}
+          <View className="items-center gap-5 border-t border-border/30 dark:border-slate-700/30 mx-4 pt-6 mt-2">
+            {/* Trust Badges */}
+            <View className="flex-row items-center gap-8 opacity-70">
+              <View className="flex-row items-center gap-1.5">
+                <MaterialIcons
+                  name="verified-user"
+                  size={20}
+                  color={iconColors.textSecondary}
+                />
+                <Text className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-slate-300">
+                  Secure
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <MaterialIcons
+                  name="star"
+                  size={20}
+                  color={iconColors.textSecondary}
+                />
+                <Text className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-slate-300">
+                  Top Rated
+                </Text>
+              </View>
+            </View>
+
+            {/* Restore Purchase */}
+            <Pressable>
+              <Text className="text-xs font-semibold text-text-muted dark:text-slate-400 underline">
+                Restore Purchase
+              </Text>
+            </Pressable>
+
+            {/* Legal Links */}
+            <View className="flex-row gap-4">
+              <Pressable>
+                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+                  Terms of Service
+                </Text>
+              </Pressable>
+              <Pressable>
+                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+                  Privacy Policy
+                </Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Subscribe Button - Fixed at bottom */}
-      <View className="px-4 pb-4 pt-2 bg-background">
-        <Pressable
-          onPress={handleSubscribe}
-          disabled={isLoading}
-          className={`py-4 rounded-full items-center ${isLoading ? 'bg-primary-dark opacity-70' : 'bg-primary active:bg-primary-dark'}`}
-        >
-          <Text className="text-base font-semibold text-white">
-            {isLoading ? 'Processing...' : `Subscribe for ${getPrice()}`}
-          </Text>
-        </Pressable>
-
-        {/* Terms */}
-        <Text className="text-xs text-center mt-3 font-regular text-text-muted">
-          Cancel anytime. Terms and conditions apply.
-        </Text>
-      </View>
     </SafeAreaView>
   )
 }

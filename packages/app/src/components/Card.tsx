@@ -26,9 +26,13 @@ const getPaddingClass = (padding: CardPadding): string =>
 const getVariantClass = (variant: CardVariant): string =>
   pipe(
     Match.value(variant),
-    Match.when('elevated', () => 'bg-white'),
-    Match.when('outlined', () => 'bg-white border border-border'),
-    Match.when('filled', () => 'bg-surface-tinted'),
+    Match.when('elevated', () => 'bg-white dark:bg-surface-dark'),
+    Match.when(
+      'outlined',
+      () =>
+        'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
+    ),
+    Match.when('filled', () => 'bg-surface-tinted dark:bg-surface-dark'),
     Match.exhaustive
   )
 

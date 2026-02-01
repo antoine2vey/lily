@@ -1,19 +1,23 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { Image, Pressable, Text, View } from 'react-native'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 interface PhotoPickerProps {
   photo: string | null
   onPickPhoto: (uri: string) => void
   placeholder?: string
+  subtitle?: string
 }
 
 export function PhotoPicker({
   photo,
   onPickPhoto,
   placeholder = 'Tap to add photo',
+  subtitle = 'Show off your green friend',
 }: PhotoPickerProps) {
+  const iconColors = useIconColors()
+
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -44,37 +48,53 @@ export function PhotoPicker({
     }
   }
 
-  return (
-    <View className="items-center mb-6">
-      <Pressable
-        onPress={handlePickPhoto}
-        onLongPress={handleTakePhoto}
-        className="w-32 h-32 rounded-2xl items-center justify-center overflow-hidden border-2 border-dashed border-border bg-surface active:border-primary active:bg-primary-tint active:opacity-90"
-      >
-        {photo ? (
+  if (photo) {
+    return (
+      <View className="items-center mb-6">
+        <Pressable
+          onPress={handlePickPhoto}
+          onLongPress={handleTakePhoto}
+          className="w-full aspect-[4/3] rounded-xl overflow-hidden active:opacity-90"
+        >
           <Image
             source={{ uri: photo }}
             className="w-full h-full"
             resizeMode="cover"
           />
-        ) : (
-          <>
-            <MaterialIcons
-              name="add-a-photo"
-              size={32}
-              color={iconColors.textMuted}
-            />
-            <Text className="text-sm mt-2 text-center px-2 font-regular text-text-muted">
-              {placeholder}
-            </Text>
-          </>
-        )}
-      </Pressable>
-      {photo && (
-        <Pressable onPress={handlePickPhoto} className="mt-2">
-          <Text className="text-sm font-medium text-primary">Change photo</Text>
         </Pressable>
-      )}
-    </View>
+        <Pressable onPress={handlePickPhoto} className="mt-3">
+          <Text className="text-sm font-semibold text-primary dark:text-primary-light">
+            Change photo
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  return (
+    <Pressable
+      onPress={handlePickPhoto}
+      onLongPress={handleTakePhoto}
+      className="mb-6 items-center justify-center gap-4 rounded-xl border-2 border-dashed border-primary/30 bg-surface-tinted/30 dark:bg-slate-800/30 px-6 py-12 active:scale-[0.99]"
+    >
+      <View className="w-16 h-16 rounded-full bg-surface-tinted dark:bg-slate-800 items-center justify-center">
+        <MaterialIcons
+          name="add-a-photo"
+          size={32}
+          color={iconColors.primary}
+        />
+      </View>
+      <View className="items-center gap-2">
+        <Text className="text-lg font-bold text-text-primary dark:text-white text-center">
+          {placeholder}
+        </Text>
+        <Text className="text-sm font-regular text-text-secondary dark:text-slate-400 text-center">
+          {subtitle}
+        </Text>
+      </View>
+      <View className="mt-2 h-10 px-6 rounded-full bg-primary items-center justify-center">
+        <Text className="text-sm font-bold text-white">Add Photo</Text>
+      </View>
+    </Pressable>
   )
 }

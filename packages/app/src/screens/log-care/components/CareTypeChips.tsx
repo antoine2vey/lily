@@ -1,12 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
-import { Text, View } from 'react-native'
-import { Chip } from 'src/components/Chip'
-import { iconColors } from 'src/theme'
+import { Pressable, Text, View } from 'react-native'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 type CareType = 'water' | 'fertilize'
 
-interface CareTypeChipsProps {
+interface CareTypeToggleProps {
   value: CareType
   onValueChange: (type: CareType) => void
   label?: string
@@ -17,44 +16,54 @@ const CARE_TYPES: Array<{
   label: string
   icon: keyof typeof MaterialIcons.glyphMap
 }> = [
-  { type: 'water', label: 'Water', icon: 'water-drop' },
-  { type: 'fertilize', label: 'Fertilize', icon: 'eco' },
+  { type: 'water', label: 'Watering', icon: 'water-drop' },
+  { type: 'fertilize', label: 'Fertilization', icon: 'eco' },
 ]
 
 export function CareTypeChips({
   value,
   onValueChange,
   label = 'Care Type',
-}: CareTypeChipsProps) {
+}: CareTypeToggleProps) {
+  const iconColors = useIconColors()
   return (
-    <View className="mb-4">
+    <View className="mb-6">
       {label && (
-        <Text className="text-sm mb-3 font-medium text-text-primary">
+        <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
           {label}
         </Text>
       )}
-      <View className="flex-row flex-wrap gap-2">
+      {/* Toggle container */}
+      <View className="bg-surface-tinted dark:bg-slate-800 p-1.5 rounded-full flex-row h-14">
         {pipe(
           CARE_TYPES,
-          Array.map((careType) => (
-            <Chip
-              key={careType.type}
-              label={careType.label}
-              selected={value === careType.type}
-              onPress={() => onValueChange(careType.type)}
-              icon={
+          Array.map((careType) => {
+            const isSelected = value === careType.type
+            return (
+              <Pressable
+                key={careType.type}
+                onPress={() => onValueChange(careType.type)}
+                className={`flex-1 h-full flex-row items-center justify-center gap-2 rounded-full ${
+                  isSelected ? 'bg-primary' : ''
+                }`}
+              >
                 <MaterialIcons
                   name={careType.icon}
-                  size={14}
-                  color={
-                    value === careType.type
-                      ? iconColors.white
-                      : iconColors.textPrimary
-                  }
+                  size={20}
+                  color={isSelected ? iconColors.white : iconColors.textMuted}
                 />
-              }
-            />
-          ))
+                <Text
+                  className={`font-bold ${
+                    isSelected
+                      ? 'text-white'
+                      : 'text-text-muted dark:text-slate-400'
+                  }`}
+                >
+                  {careType.label}
+                </Text>
+              </Pressable>
+            )
+          })
         )}
       </View>
     </View>
