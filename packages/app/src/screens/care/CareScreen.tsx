@@ -19,10 +19,10 @@ import { SectionHeader } from 'src/components/SectionHeader'
 import { CareScreenSkeleton } from 'src/components/skeletons'
 import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 import { CareTaskCard } from './components/CareTaskCard'
 
-type TaskSection = 'overdue' | 'today' | 'thisWeek'
+type TaskSectionType = 'overdue' | 'today' | 'thisWeek'
 
 interface FutureTaskModalState {
   visible: boolean
@@ -56,6 +56,7 @@ const getTaskActionLabel = (type: CareTaskType): string =>
   )
 
 export function CareScreen() {
+  const iconColors = useIconColors()
   const { data: tasks, isLoading } = useCareTasks()
   const { mutate: completeTask } = useCompleteTask()
   const today = DateTime.unsafeNow()
@@ -113,7 +114,7 @@ export function CareScreen() {
     pendingTimeouts.current.set(task.id, timeoutId)
   }
 
-  const handleCardPress = (task: CareTask, section: TaskSection) => {
+  const handleCardPress = (task: CareTask, section: TaskSectionType) => {
     pipe(
       Match.value(section),
       Match.when('thisWeek', () => {
@@ -154,19 +155,22 @@ export function CareScreen() {
   const totalTasks = overdueCount + todayCount + thisWeekCount
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <SafeAreaView
+      edges={['top']}
+      className="flex-1 bg-background dark:bg-background-dark"
+    >
       {/* Header */}
       <View className="px-6 pt-2 pb-4">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="text-xs uppercase font-medium text-text-muted">
+            <Text className="text-xs uppercase font-medium text-text-muted dark:text-slate-400">
               Today, {formatDate(today)}
             </Text>
-            <Text className="text-3xl mt-1 font-bold text-text-primary">
+            <Text className="text-3xl mt-1 font-bold text-text-primary dark:text-white">
               Care
             </Text>
           </View>
-          <Pressable className="w-10 h-10 rounded-full items-center justify-center bg-surface">
+          <Pressable className="w-10 h-10 rounded-full items-center justify-center bg-surface dark:bg-surface-dark">
             <MaterialIcons
               name="calendar-today"
               size={22}
@@ -176,7 +180,10 @@ export function CareScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-6 mb-10"
+        showsVerticalScrollIndicator={false}
+      >
         {totalTasks === 0 && (
           <View className="items-center py-12">
             <MaterialIcons
@@ -184,102 +191,103 @@ export function CareScreen() {
               size={64}
               color={iconColors.primary}
             />
-            <Text className="text-lg mt-4 font-semibold text-text-primary">
+            <Text className="text-lg mt-4 font-semibold text-text-primary dark:text-white">
               All caught up!
             </Text>
-            <Text className="text-sm mt-1 text-center font-regular text-text-muted">
+            <Text className="text-sm mt-1 text-center font-regular text-text-muted dark:text-slate-400">
               No care tasks scheduled for now
             </Text>
           </View>
         )}
 
-        {/* Overdue Section */}
-        {overdueCount > 0 && (
-          <View className="mb-6">
-            <View className="flex-row items-center mb-3">
-              <SectionHeader title="Overdue" />
-              <View className="ml-2 px-2 py-0.5 rounded-full bg-coral">
-                <Text className="text-xs font-semibold text-white">
-                  {overdueCount}
-                </Text>
+        <View className="gap-6">
+          {/* Overdue Section */}
+          {overdueCount > 0 && (
+            <View>
+              <View className="flex-row items-center mb-3">
+                <SectionHeader title="Overdue" />
+                <View className="ml-2 px-2 py-0.5 rounded-full bg-coral">
+                  <Text className="text-xs font-semibold text-white">
+                    {overdueCount}
+                  </Text>
+                </View>
               </View>
-            </View>
-            {pipe(
-              tasks?.overdue ?? [],
-              Array.map((task) => (
-                <CareTaskCard
-                  key={task.id}
-                  task={task}
-                  onCardPress={() => handleCardPress(task, 'overdue')}
-                  onPlantPhotoPress={() => handlePlantPhotoPress(task.plantId)}
-                  onUndo={() => handleUndo(task.id)}
-                  overdue
-                  isPendingCompletion={pendingTaskIds.has(task.id)}
-                />
-              ))
-            )}
-          </View>
-        )}
-
-        {/* Today Section */}
-        {todayCount > 0 && (
-          <View className="mb-6">
-            <SectionHeader title="Today" />
-            <View className="mt-3">
               {pipe(
-                tasks?.today ?? [],
+                tasks?.overdue ?? [],
                 Array.map((task) => (
                   <CareTaskCard
                     key={task.id}
                     task={task}
-                    onCardPress={() => handleCardPress(task, 'today')}
+                    onCardPress={() => handleCardPress(task, 'overdue')}
                     onPlantPhotoPress={() =>
                       handlePlantPhotoPress(task.plantId)
                     }
                     onUndo={() => handleUndo(task.id)}
+                    overdue
                     isPendingCompletion={pendingTaskIds.has(task.id)}
                   />
                 ))
               )}
             </View>
-          </View>
-        )}
+          )}
 
-        {/* This Week Section */}
-        {thisWeekCount > 0 && (
-          <View className="mb-6">
-            <SectionHeader title="This Week" />
-            <View className="mt-3">
-              {pipe(
-                tasks?.thisWeek ?? [],
-                Array.groupBy((task) => formatWeekday(task.dueDate)),
-                Record.toEntries,
-                Array.map(([dayName, dayTasks]) => (
-                  <View key={dayName} className="mb-4">
-                    <Text className="text-xs uppercase mb-2 font-medium text-text-muted">
-                      {dayName}
-                    </Text>
-                    {Array.map(dayTasks, (task) => (
-                      <CareTaskCard
-                        key={task.id}
-                        task={task}
-                        onCardPress={() => handleCardPress(task, 'thisWeek')}
-                        onPlantPhotoPress={() =>
-                          handlePlantPhotoPress(task.plantId)
-                        }
-                        onUndo={() => handleUndo(task.id)}
-                        isPendingCompletion={pendingTaskIds.has(task.id)}
-                      />
-                    ))}
-                  </View>
-                ))
-              )}
+          {/* Today Section */}
+          {todayCount > 0 && (
+            <View>
+              <SectionHeader title="Today" />
+              <View className="mt-3">
+                {pipe(
+                  tasks?.today ?? [],
+                  Array.map((task) => (
+                    <CareTaskCard
+                      key={task.id}
+                      task={task}
+                      onCardPress={() => handleCardPress(task, 'today')}
+                      onPlantPhotoPress={() =>
+                        handlePlantPhotoPress(task.plantId)
+                      }
+                      onUndo={() => handleUndo(task.id)}
+                      isPendingCompletion={pendingTaskIds.has(task.id)}
+                    />
+                  ))
+                )}
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Bottom spacer */}
-        <View className="h-20" />
+          {/* This Week Section */}
+          {thisWeekCount > 0 && (
+            <View>
+              <SectionHeader title="This Week" />
+              <View className="mt-3">
+                {pipe(
+                  tasks?.thisWeek ?? [],
+                  Array.groupBy((task) => formatWeekday(task.dueDate)),
+                  Record.toEntries,
+                  Array.map(([dayName, dayTasks]) => (
+                    <View key={dayName} className="mb-4 last:mb-0">
+                      <Text className="text-xs uppercase mb-2 font-medium text-text-muted dark:text-slate-400">
+                        {dayName}
+                      </Text>
+                      {Array.map(dayTasks, (task) => (
+                        <CareTaskCard
+                          key={task.id}
+                          task={task}
+                          onCardPress={() => handleCardPress(task, 'thisWeek')}
+                          onPlantPhotoPress={() =>
+                            handlePlantPhotoPress(task.plantId)
+                          }
+                          onUndo={() => handleUndo(task.id)}
+                          isPendingCompletion={pendingTaskIds.has(task.id)}
+                        />
+                      ))}
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Future Task Confirmation Modal */}

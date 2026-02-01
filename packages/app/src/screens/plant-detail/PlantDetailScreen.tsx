@@ -6,13 +6,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Pressable,
-  ScrollView,
   Share,
   Text,
   View,
 } from 'react-native'
+import Animated, {
+  interpolateColor,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
@@ -21,7 +27,8 @@ import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
+import { useTheme } from 'src/hooks/useTheme'
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
 import { CareSchedule } from './components/CareSchedule'
@@ -35,6 +42,8 @@ import { RecentHistory } from './components/RecentHistory'
 type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
+
+const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
 const mapLightingRatingToSunlight = (rating: number): SunlightLevel => {
   if (rating <= 2) return 'low'
@@ -57,9 +66,10 @@ const mapHumidityRatingToHumidity = (rating: number): HumidityLevel => {
 }
 
 function PlantDetailSkeleton() {
+  const iconColors = useIconColors()
   return (
-    <View className="flex-1 bg-background" testID="plant-detail-skeleton">
-      <View className="h-[300px] bg-gray-200" />
+    <View className="flex-1 bg-background dark:bg-background-dark" testID="plant-detail-skeleton">
+      <View style={{ height: HERO_HEIGHT }} className="bg-gray-200 dark:bg-slate-700" />
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color={iconColors.primary} />
       </View>
@@ -72,16 +82,17 @@ interface ErrorStateProps {
 }
 
 function ErrorState({ onRetry }: ErrorStateProps) {
+  const iconColors = useIconColors()
   return (
     <View
-      className="flex-1 bg-background items-center justify-center p-6"
+      className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
       testID="plant-detail-error"
     >
       <MaterialIcons name="error-outline" size={48} color={iconColors.coral} />
-      <Text className="text-lg text-center mt-4 font-semibold text-text-primary">
+      <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
         Failed to load plant
       </Text>
-      <Text className="text-sm text-center mt-2 font-regular text-text-muted">
+      <Text className="text-sm text-center mt-2 font-regular text-text-muted dark:text-slate-400">
         Something went wrong while loading plant details.
       </Text>
       <Pressable
@@ -99,15 +110,17 @@ interface PlantHeroImageProps {
 }
 
 function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
+  const iconColors = useIconColors()
   if (!imageUrl) {
     return (
       <View
-        className="h-[300px] items-center justify-center bg-primary-tint"
+        style={{ height: HERO_HEIGHT }}
+        className="items-center justify-center bg-primary-tint dark:bg-primary/20"
         testID="plant-hero-placeholder"
       >
         <MaterialIcons
           name="local-florist"
-          size={64}
+          size={80}
           color={iconColors.primary}
         />
       </View>
@@ -117,7 +130,8 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
   return (
     <Image
       source={{ uri: imageUrl }}
-      className="h-[300px] w-full"
+      style={{ height: HERO_HEIGHT }}
+      className="w-full"
       resizeMode="cover"
       testID="plant-hero-image"
     />
@@ -128,9 +142,34 @@ export function PlantDetailScreen() {
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const iconColors = useIconColors()
+  const { isDark } = useTheme()
 
   const [showOptionsSheet, setShowOptionsSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Scroll tracking for header animation
+  const scrollY = useSharedValue(0)
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y
+    },
+  })
+
+  // Calculate when card reaches the top (accounting for header area)
+  const cardTopThreshold = HERO_HEIGHT - 48 - insets.top - 60
+
+  // Animated style for header button backgrounds
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      scrollY.value,
+      [0, cardTopThreshold],
+      isDark
+        ? ['rgba(30,41,59,0.4)', 'rgba(30,41,59,0.95)'] // slate-800
+        : ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.95)']
+    )
+    return { backgroundColor }
+  })
 
   const {
     data: plant,
@@ -322,43 +361,50 @@ export function PlantDetailScreen() {
   )
 
   return (
-    <View className="flex-1 bg-background" testID="plant-detail-screen">
-      <ScrollView
+    <View className="flex-1 bg-background dark:bg-background-dark" testID="plant-detail-screen">
+      {/* Fixed Hero Image */}
+      <View className="absolute top-0 left-0 right-0">
+        <PlantHeroImage imageUrl={plant.imageUrl} />
+      </View>
+
+      {/* Scrollable Content Card */}
+      <Animated.ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         testID="plant-detail-scroll"
+        contentContainerStyle={{ paddingTop: HERO_HEIGHT - 48 }}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
       >
-        {/* Hero Image */}
-        <PlantHeroImage imageUrl={plant.imageUrl} />
-
-        {/* Content area with overlap */}
+        {/* Content card with overlap */}
         <View
-          className="bg-white px-4 pb-8"
+          className="bg-background dark:bg-background-dark px-6 pb-8"
           style={{
-            marginTop: -24,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
+            borderTopLeftRadius: 40,
+            borderTopRightRadius: 40,
+            minHeight: Dimensions.get('window').height - HERO_HEIGHT + 100,
           }}
           testID="plant-detail-content"
         >
+          {/* Drag Handle */}
+          <View className="w-12 h-1.5 bg-border dark:bg-slate-600 rounded-full mx-auto mt-4 mb-6 opacity-50" />
+
           {/* Plant Header */}
-          <View className="pt-6">
-            <PlantHeader
-              plant={{
-                name: plant.name,
-                category: plant.category ?? undefined,
-                health: healthStatus,
-              }}
-            />
-          </View>
+          <PlantHeader
+            plant={{
+              name: plant.name,
+              category: plant.category ?? undefined,
+              health: healthStatus,
+            }}
+          />
 
           {/* Chat CTA */}
-          <View className="mt-6">
+          <View className="mt-8">
             <ChatCTA plantName={plant.name} onPress={handleChat} />
           </View>
 
           {/* Care Schedule */}
-          <View className="mt-8">
+          <View className="mt-10">
             <CareSchedule
               wateringDays={daysUntilWater}
               wateringDate={formatApiDateAsNextDate(plant.nextWateringAt)}
@@ -373,7 +419,7 @@ export function PlantDetailScreen() {
           </View>
 
           {/* Ideal Environment */}
-          <View className="mt-8">
+          <View className="mt-10">
             <IdealEnvironment
               sunlight={mapLightingRatingToSunlight(plant.lightingRating)}
               water={mapWateringRatingToWater(plant.wateringRating)}
@@ -382,7 +428,7 @@ export function PlantDetailScreen() {
           </View>
 
           {/* Gallery */}
-          <View className="mt-8">
+          <View className="mt-10">
             <GallerySection
               photos={photos}
               onPhotoPress={handlePhotoPress}
@@ -392,14 +438,14 @@ export function PlantDetailScreen() {
           </View>
 
           {/* Recent History */}
-          <View className="mt-8 mb-4">
+          <View className="mt-10 mb-4">
             <RecentHistory
               events={historyEvents}
               onViewAll={handleViewAllHistory}
             />
           </View>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Floating Header */}
       <View
@@ -407,28 +453,44 @@ export function PlantDetailScreen() {
         style={{ paddingTop: insets.top + 8 }}
         testID="plant-detail-header"
       >
-        <Pressable
-          onPress={handleBack}
-          className="w-10 h-10 rounded-full items-center justify-center bg-white/90"
-          testID="back-button"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
+        <Pressable onPress={handleBack} testID="back-button">
+          <Animated.View
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={animatedButtonStyle}
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={24}
+              color={iconColors.textPrimary}
+            />
+          </Animated.View>
         </Pressable>
-        <Pressable
-          onPress={handleMoreOptions}
-          className="w-10 h-10 rounded-full items-center justify-center bg-white/90"
-          testID="more-options-button"
-        >
-          <MaterialIcons
-            name="more-horiz"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <View className="flex-row gap-2">
+          <Pressable onPress={handleToggleFavorite}>
+            <Animated.View
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={animatedButtonStyle}
+            >
+              <MaterialIcons
+                name={plant.isFavorite ? 'favorite' : 'favorite-border'}
+                size={24}
+                color={iconColors.textPrimary}
+              />
+            </Animated.View>
+          </Pressable>
+          <Pressable onPress={handleMoreOptions} testID="more-options-button">
+            <Animated.View
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={animatedButtonStyle}
+            >
+              <MaterialIcons
+                name="more-vert"
+                size={24}
+                color={iconColors.textPrimary}
+              />
+            </Animated.View>
+          </Pressable>
+        </View>
       </View>
 
       {/* Options Sheet */}
