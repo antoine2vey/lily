@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { type DateInput, formatRelativeTime, parseApiDate } from '@lily/shared'
+import { type DateInput, getRelativeTime, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
+import type { i18n as I18n, TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -71,38 +73,86 @@ const getActivityConfig = (
   },
 })
 
-const formatActivityTitle = (type: ActivityType, plantName: string): string =>
+const formatActivityTitle = (
+  type: ActivityType,
+  plantName: string,
+  t: TFunction
+): string =>
   pipe(
     Match.value(type),
-    Match.when('added', () => `New plant added: ${plantName}`),
-    Match.when('moved', () => `Moved ${plantName} to light`),
-    Match.when('misted', () => `${plantName} misted`),
-    Match.when('watered', () => `${plantName} watered`),
-    Match.when('fertilized', () => `${plantName} fertilized`),
-    Match.when('pruned', () => `${plantName} pruned`),
+    Match.when('added', () =>
+      t('home:activity.plantAdded', { name: plantName })
+    ),
+    Match.when('moved', () =>
+      t('home:activity.plantMoved', { name: plantName })
+    ),
+    Match.when('misted', () =>
+      t('home:activity.plantMisted', { name: plantName })
+    ),
+    Match.when('watered', () =>
+      t('home:activity.plantWatered', { name: plantName })
+    ),
+    Match.when('fertilized', () =>
+      t('home:activity.plantFertilized', { name: plantName })
+    ),
+    Match.when('pruned', () =>
+      t('home:activity.plantPruned', { name: plantName })
+    ),
     Match.exhaustive
   )
 
-const formatActivityTime = (timestamp: DateInput): string =>
+const formatRelativeTimeResult = (
+  result: ReturnType<typeof getRelativeTime>,
+  i18n: I18n
+): string =>
+  pipe(
+    Match.value(result),
+    Match.when({ _tag: 'now' }, () => i18n.t('time.justNow', { ns: 'common' })),
+    Match.when({ _tag: 'minutes' }, ({ value }) =>
+      i18n.t('time.minutesAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'hours' }, ({ value }) =>
+      i18n.t('time.hoursAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'days' }, ({ value }) =>
+      value === 1
+        ? i18n.t('time.yesterday', { ns: 'common' })
+        : i18n.t('time.daysAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'date' }, ({ formatted }) => formatted),
+    Match.exhaustive
+  )
+
+const formatActivityTime = (
+  timestamp: DateInput,
+  t: TFunction,
+  i18n: I18n
+): string =>
   pipe(
     parseApiDate(timestamp),
-    Option.map(formatRelativeTime),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) =>
+      formatRelativeTimeResult(getRelativeTime(dt, i18n.language), i18n)
+    ),
+    Option.getOrElse(() => t('activity.unknownTime'))
   )
 
 interface ActivityItemProps {
   activity: Activity
   onPress: () => void
   activityConfig: Record<ActivityType, ActivityConfigItem>
+  t: TFunction
+  i18n: I18n
 }
 
 function ActivityItem({
   activity,
   onPress,
   activityConfig,
+  t,
+  i18n,
 }: ActivityItemProps) {
   const config = activityConfig[activity.type]
-  const title = formatActivityTitle(activity.type, activity.plantName)
+  const title = formatActivityTitle(activity.type, activity.plantName, t)
 
   return (
     <Pressable
@@ -115,7 +165,7 @@ function ActivityItem({
         shadowRadius: 2,
         elevation: 1,
       }}
-      accessibilityLabel={`${title}, ${formatActivityTime(activity.timestamp)}`}
+      accessibilityLabel={`${title}, ${formatActivityTime(activity.timestamp, t, i18n)}`}
     >
       {/* Activity Icon */}
       <View
@@ -134,7 +184,7 @@ function ActivityItem({
           {title}
         </Text>
         <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-          {formatActivityTime(activity.timestamp)}
+          {formatActivityTime(activity.timestamp, t, i18n)}
         </Text>
       </View>
     </Pressable>
@@ -146,16 +196,17 @@ export function RecentActivity({
   onSeeAll,
   onActivityPress,
 }: RecentActivityProps) {
+  const { t, i18n } = useTranslation('home')
   const iconColors = useIconColors()
   const activityConfig = getActivityConfig(iconColors.isDark)
 
   if (activities.length === 0) {
     return (
       <View>
-        <SectionHeader title="Recent Activity" />
+        <SectionHeader title={t('sections.recentActivity')} />
         <View className="bg-white dark:bg-surface-dark rounded-[20px] p-6 items-center">
           <Text className="text-sm text-text-muted dark:text-slate-400 text-center font-regular">
-            No recent activity yet.{'\n'}Start caring for your plants!
+            {t('activity.noActivity')}
           </Text>
         </View>
       </View>
@@ -166,11 +217,11 @@ export function RecentActivity({
     <View>
       <View className="flex-row items-center justify-between mb-4 px-1">
         <Text className="text-lg text-text-primary dark:text-white tracking-tight font-bold">
-          Recent Activity
+          {t('sections.recentActivity')}
         </Text>
         <Pressable onPress={onSeeAll} hitSlop={8}>
           <Text className="text-sm font-semibold text-primary dark:text-primary-light">
-            See All
+            {t('sections.seeAll')}
           </Text>
         </Pressable>
       </View>
@@ -183,6 +234,8 @@ export function RecentActivity({
               activity={activity}
               onPress={() => onActivityPress(activity.id)}
               activityConfig={activityConfig}
+              t={t}
+              i18n={i18n}
             />
           ))
         )}

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
 import { Button } from './ui/Button'
 
@@ -18,13 +19,16 @@ export function ConfirmationModal({
   visible,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   destructive = false,
   icon,
 }: ConfirmationModalProps) {
+  const { t } = useTranslation('common')
+  const displayConfirmLabel = confirmLabel ?? t('buttons.confirm')
+  const displayCancelLabel = cancelLabel ?? t('buttons.cancel')
   const iconBgClass = destructive
     ? 'bg-orange-100 dark:bg-orange-900/20'
     : 'bg-primary-tint dark:bg-primary/20'
@@ -69,14 +73,14 @@ export function ConfirmationModal({
               variant={destructive ? 'destructive' : 'primary'}
               onPress={onConfirm}
             >
-              {confirmLabel}
+              {displayConfirmLabel}
             </Button>
             <Pressable
               onPress={onCancel}
               className="h-12 items-center justify-center"
             >
               <Text className="text-base text-text-muted dark:text-slate-400 font-medium">
-                {cancelLabel}
+                {displayCancelLabel}
               </Text>
             </Pressable>
           </View>

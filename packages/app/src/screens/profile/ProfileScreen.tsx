@@ -16,6 +16,7 @@ import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useAchievements } from 'src/hooks/useAchievements'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useLocalization } from 'src/hooks/useLocalization'
 import { usePlants } from 'src/hooks/usePlants'
 import { useSubscription } from 'src/hooks/useSubscription'
 import { useUser } from 'src/hooks/useUser'
@@ -25,6 +26,7 @@ import { StatsCard } from './components/StatsCard'
 
 export function ProfileScreen() {
   const iconColors = useIconColors()
+  const { t } = useLocalization()
   const { state, logout } = useAuth()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { data: plants, isLoading: isLoadingPlants } = usePlants()
@@ -59,9 +61,9 @@ export function ProfileScreen() {
     : '0/0'
 
   const stats = [
-    { value: plantsCount, label: 'Plants' },
-    { value: careLogsCount, label: 'Care Logs' },
-    { value: achievementsProgress, label: 'Achievements' },
+    { value: plantsCount, label: t('profile:stats.plants') },
+    { value: careLogsCount, label: t('profile:stats.careLogs') },
+    { value: achievementsProgress, label: t('profile:stats.achievements') },
   ]
 
   const getSubscriptionBadge = () => {
@@ -70,7 +72,7 @@ export function ProfileScreen() {
     return pipe(
       Match.value(subscription.tierConfig.tier),
       Match.when('paid', () => (
-        <Badge label="PREMIUM" variant="success" size="sm" />
+        <Badge label={t('profile:premiumBadge')} variant="success" size="sm" />
       )),
       Match.when('free', () => null),
       Match.exhaustive
@@ -97,7 +99,7 @@ export function ProfileScreen() {
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
         <View className="w-12" />
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          Profile
+          {t('profile:title')}
         </Text>
         <Pressable
           onPress={() => router.push('/settings')}
@@ -118,7 +120,7 @@ export function ProfileScreen() {
             Option.fromNullable(user?.image),
             Option.flatMap(Option.fromNullable)
           )}
-          name={user?.name ?? 'Plant Lover'}
+          name={user?.name ?? t('profile:defaultBio')}
           username={user?.email?.split('@')[0]}
           memberSince={pipe(
             Match.value(state),
@@ -137,7 +139,7 @@ export function ProfileScreen() {
             icon={
               <MaterialIcons name="edit" size={20} color={iconColors.primary} />
             }
-            title="Edit Profile"
+            title={t('profile:actions.editProfile')}
             onPress={() => router.push('/profile/edit')}
           />
 
@@ -149,7 +151,7 @@ export function ProfileScreen() {
                 color={iconColors.achievementGold}
               />
             }
-            title="Subscription"
+            title={t('profile:actions.subscription')}
             badge={getSubscriptionBadge()}
             onPress={() => router.push('/subscription')}
           />
@@ -162,7 +164,7 @@ export function ProfileScreen() {
                 color={iconColors.primary}
               />
             }
-            title="My Achievements"
+            title={t('profile:actions.achievements')}
             onPress={() => router.push('/achievements')}
           />
 
@@ -174,7 +176,7 @@ export function ProfileScreen() {
                 color={iconColors.primary}
               />
             }
-            title="Help & Support"
+            title={t('profile:actions.helpSupport')}
             onPress={() => Linking.openURL('https://lily.app/help')}
           />
 
@@ -186,7 +188,7 @@ export function ProfileScreen() {
                 color={iconColors.primary}
               />
             }
-            title="Settings"
+            title={t('profile:actions.settings')}
             onPress={() => router.push('/settings')}
           />
 
@@ -198,7 +200,7 @@ export function ProfileScreen() {
                 color={iconColors.primary}
               />
             }
-            title="About"
+            title={t('profile:actions.about')}
             onPress={() => router.push('/about')}
           />
         </View>
@@ -206,7 +208,9 @@ export function ProfileScreen() {
         {/* Sign Out Button */}
         <View className="items-center py-8">
           <Pressable onPress={() => setShowSignOutConfirm(true)}>
-            <Text className="text-base font-semibold text-coral">Sign Out</Text>
+            <Text className="text-base font-semibold text-coral">
+              {t('profile:actions.signOut')}
+            </Text>
           </Pressable>
         </View>
 
@@ -217,10 +221,14 @@ export function ProfileScreen() {
       {/* Sign Out Confirmation Modal */}
       <ConfirmationModal
         visible={showSignOutConfirm}
-        title="Sign Out?"
-        message="Are you sure you want to sign out? You'll need to sign in again to access your plants."
-        confirmLabel={isSigningOut ? 'Signing Out...' : 'Sign Out'}
-        cancelLabel="Cancel"
+        title={t('profile:signOut.title')}
+        message={t('profile:signOut.message')}
+        confirmLabel={
+          isSigningOut
+            ? t('profile:signOut.signingOut')
+            : t('profile:signOut.confirmButton')
+        }
+        cancelLabel={t('common:buttons.cancel')}
         destructive
         icon={
           <MaterialIcons name="logout" size={28} color={iconColors.coral} />

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -11,26 +12,31 @@ interface CareTypeToggleProps {
   label?: string
 }
 
-const CARE_TYPES: Array<{
+interface CareTypeDefinition {
   type: CareType
-  label: string
+  labelKey: 'water' | 'fertilize'
   icon: keyof typeof MaterialIcons.glyphMap
-}> = [
-  { type: 'water', label: 'Watering', icon: 'water-drop' },
-  { type: 'fertilize', label: 'Fertilization', icon: 'eco' },
+}
+
+const CARE_TYPES: ReadonlyArray<CareTypeDefinition> = [
+  { type: 'water', labelKey: 'water', icon: 'water-drop' },
+  { type: 'fertilize', labelKey: 'fertilize', icon: 'eco' },
 ]
 
 export function CareTypeChips({
   value,
   onValueChange,
-  label = 'Care Type',
+  label,
 }: CareTypeToggleProps) {
+  const { t } = useTranslation('logCare')
   const iconColors = useIconColors()
+  const displayLabel = label ?? t('careType')
+
   return (
     <View className="mb-6">
-      {label && (
+      {displayLabel && (
         <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
-          {label}
+          {displayLabel}
         </Text>
       )}
       {/* Toggle container */}
@@ -59,7 +65,7 @@ export function CareTypeChips({
                       : 'text-text-muted dark:text-slate-400'
                   }`}
                 >
-                  {careType.label}
+                  {t(`careTypes.${careType.labelKey}`)}
                 </Text>
               </Pressable>
             )

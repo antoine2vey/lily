@@ -6,6 +6,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +23,7 @@ import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
 import { UploadError } from 'src/utils/upload'
 
 export function NurseryCardScannerScreen() {
+  const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const [permission, requestPermission] = useCameraPermissions()
   const [isCapturing, setIsCapturing] = useState(false)
@@ -61,12 +63,9 @@ export function NurseryCardScannerScreen() {
         error instanceof UploadError &&
         error.apiError?._tag === 'LimitExceededError'
       ) {
-        Alert.alert('Scan Limit Reached', error.message)
+        Alert.alert(t('scanner.scanLimitReached'), error.message)
       } else {
-        Alert.alert(
-          'Scan Failed',
-          "We couldn't read the nursery card. Try another photo or add manually."
-        )
+        Alert.alert(t('scanner.scanFailed'), t('scanner.scanFailedMessage'))
       }
     }
 
@@ -116,7 +115,7 @@ export function NurseryCardScannerScreen() {
           ...uris.slice(0, MAX_SCAN_FILES - prev.length),
         ])
       } catch {
-        Alert.alert('Error', 'Failed to process selected images.')
+        Alert.alert(t('scanner.error'), t('scanner.failedToProcess'))
       } finally {
         setIsCapturing(false)
       }
@@ -138,7 +137,7 @@ export function NurseryCardScannerScreen() {
           addPhoto(jpeg.uri)
         }
       } catch {
-        Alert.alert('Error', 'Failed to capture photo.')
+        Alert.alert(t('scanner.error'), t('scanner.failedToCapture'))
       } finally {
         setIsCapturing(false)
       }
@@ -158,7 +157,7 @@ export function NurseryCardScannerScreen() {
       <CameraPermissionRequest
         onRequest={requestPermission}
         icon="qr-code-scanner"
-        description="We need camera access to scan nursery cards. Tap below to grant permission."
+        description={t('scanner.cameraPermissionCard')}
       />
     )
   }
@@ -195,11 +194,13 @@ export function NurseryCardScannerScreen() {
 
         {/* Dark overlay with cutout */}
         <ScannerOverlay
-          statusText={canCapture ? 'Hold steady...' : 'Limit reached'}
+          statusText={
+            canCapture ? t('scanner.holdSteady') : t('scanner.limitReached')
+          }
           helperText={
             canCapture
-              ? 'Align tag within frame'
-              : `Tap "Scan All" to process ${capturedPhotos.length} cards`
+              ? t('scanner.alignTag')
+              : t('scanner.tapToProcess', { count: capturedPhotos.length })
           }
         />
 
@@ -271,10 +272,9 @@ export function NurseryCardScannerScreen() {
                   <ActivityIndicator size="small" color={iconColors.white} />
                 ) : (
                   <Text className="text-base font-semibold text-white">
-                    Scan{' '}
                     {capturedPhotos.length === 1
-                      ? 'Card'
-                      : `All (${capturedPhotos.length})`}
+                      ? t('scanner.scanCard')
+                      : t('scanner.scanAll', { count: capturedPhotos.length })}
                   </Text>
                 )}
               </Pressable>

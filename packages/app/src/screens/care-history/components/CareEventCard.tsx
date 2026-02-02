@@ -1,6 +1,8 @@
 import type { MaterialIcons } from '@expo/vector-icons'
 import { formatApiTime } from '@lily/shared'
 import { Match, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 
 type CareEventType =
@@ -28,7 +30,7 @@ interface EventConfig {
   icon: keyof typeof MaterialIcons.glyphMap
   bgColor: string
   iconColor: string
-  label: string
+  labelKey: 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist' | 'repot'
 }
 
 const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
@@ -38,42 +40,48 @@ const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
       icon: 'water-drop' as const,
       bgColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE', // blue-100
       iconColor: isDark ? '#93C5FD' : '#3B82F6', // blue-500/300
-      label: 'Watered',
+      labelKey: 'water' as const,
     })),
     Match.when('fertilize', () => ({
       icon: 'eco' as const,
       bgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : '#D1FAE5', // green-100
       iconColor: isDark ? '#9bc76d' : '#5B8C5A', // primary green
-      label: 'Fertilized',
+      labelKey: 'fertilize' as const,
     })),
     Match.when('prune', () => ({
       icon: 'content-cut' as const,
       bgColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#FFEDD5', // orange-100
       iconColor: isDark ? '#FB923C' : '#EA580C', // orange-600/400
-      label: 'Pruned',
+      labelKey: 'prune' as const,
     })),
     Match.when('rotate', () => ({
       icon: 'rotate-right' as const,
       bgColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF', // purple-100
       iconColor: isDark ? '#C084FC' : '#9333EA', // purple-600/400
-      label: 'Rotated',
+      labelKey: 'rotate' as const,
     })),
     Match.when('mist', () => ({
       icon: 'water' as const,
       bgColor: isDark ? 'rgba(8, 145, 178, 0.2)' : '#CFFAFE', // cyan-100
       iconColor: isDark ? '#22D3EE' : '#0891B2', // cyan-600/400
-      label: 'Misted',
+      labelKey: 'mist' as const,
     })),
     Match.when('repot', () => ({
       icon: 'yard' as const,
       bgColor: isDark ? 'rgba(146, 64, 14, 0.2)' : '#FEF3C7', // amber-100
       iconColor: isDark ? '#FBBF24' : '#92400E', // amber-800/400
-      label: 'Repotted',
+      labelKey: 'repot' as const,
     })),
     Match.exhaustive
   )
 
+const getEventLabel = (
+  labelKey: EventConfig['labelKey'],
+  t: TFunction
+): string => t(`types.${labelKey}.completed`)
+
 export function CareEventCard({ event, onPress }: CareEventCardProps) {
+  const { t } = useTranslation('care')
   const config = getEventConfig(event.type)
   const hasPhoto = !!event.photoUrl
 
@@ -88,7 +96,7 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
       {/* Header row with title and time */}
       <View className="flex-row justify-between items-baseline mb-2">
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          {config.label}
+          {getEventLabel(config.labelKey, t)}
         </Text>
         <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
           {formatApiTime(event.createdAt)}

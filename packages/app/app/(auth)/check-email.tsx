@@ -1,6 +1,7 @@
 import * as Linking from 'expo-linking'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Image, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from 'src/assets/images'
@@ -8,6 +9,7 @@ import { Button, TextLink } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 
 export default function CheckEmailScreen() {
+  const { t } = useTranslation('auth')
   const { pendingEmail, login } = useAuth()
   const router = useRouter()
   const [resending, setResending] = useState(false)
@@ -62,12 +64,13 @@ export default function CheckEmailScreen() {
           {/* Typography Block */}
           <View className="w-full items-center gap-2">
             <Text className="text-[32px] font-extrabold tracking-tight text-text-primary dark:text-white text-center px-4">
-              Check your inbox
+              {t('checkEmail.title')}
             </Text>
             <Text className="text-base font-regular text-text-secondary dark:text-slate-400 text-center leading-relaxed px-4 max-w-[300px]">
-              We sent a magic link to{'\n'}
+              {t('checkEmail.subtitle')}
+              {'\n'}
               <Text className="font-bold text-text-primary dark:text-white">
-                {pendingEmail ?? 'your email'}
+                {pendingEmail ?? t('checkEmail.emailFallback')}
               </Text>
             </Text>
           </View>
@@ -82,7 +85,7 @@ export default function CheckEmailScreen() {
             onPress={handleOpenEmail}
             pill
           >
-            Open Email App
+            {t('checkEmail.openEmailApp')}
           </Button>
 
           {/* Secondary Actions */}
@@ -93,10 +96,10 @@ export default function CheckEmailScreen() {
               onPress={handleResendLink}
               disabled={resending}
             >
-              {resending ? 'Sending...' : 'Resend link'}
+              {resending ? t('checkEmail.sending') : t('checkEmail.resendLink')}
             </TextLink>
             <TextLink variant="secondary" onPress={handleDifferentEmail}>
-              Use a different email
+              {t('checkEmail.differentEmail')}
             </TextLink>
           </View>
         </View>

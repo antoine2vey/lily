@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +18,7 @@ import { PhotoPicker } from './components/PhotoPicker'
 import { WizardHeader } from './components/WizardHeader'
 
 export function ManualAddBasicInfoScreen() {
+  const { t } = useTranslation('addPlant')
   const params = useLocalSearchParams<{
     prefillName?: string
     prefillCategory?: string
@@ -64,12 +66,13 @@ export function ManualAddBasicInfoScreen() {
             {/* Plant Name Input */}
             <View className="gap-2">
               <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
-                Nickname or Plant Name <Text className="text-primary">*</Text>
+                {t('basicInfo.nameLabel')}{' '}
+                <Text className="text-primary">*</Text>
               </Text>
               <Input
                 value={name}
                 onChangeText={setName}
-                placeholder="e.g. Monstera Deliciosa"
+                placeholder={t('basicInfo.namePlaceholder')}
                 suffix={
                   <MaterialIcons
                     name="edit"
@@ -84,7 +87,7 @@ export function ManualAddBasicInfoScreen() {
             <CategoryPicker
               value={category}
               onSelect={setCategory}
-              label="Category"
+              label={t('basicInfo.categoryLabel')}
             />
           </View>
         </ScrollView>
@@ -100,7 +103,7 @@ export function ManualAddBasicInfoScreen() {
             pill
             icon="arrow-forward"
           >
-            Next
+            {t('buttons.next')}
           </Button>
         </View>
       </KeyboardAvoidingView>

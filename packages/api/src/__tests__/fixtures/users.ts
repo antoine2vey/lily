@@ -27,6 +27,7 @@ export const mockUser1: User = {
   publicProfile: true,
   shareGrowthData: true,
   personalizedTips: true,
+  language: 'en',
 }
 
 export const mockUser2: User = {
@@ -55,6 +56,7 @@ export const mockUser2: User = {
   publicProfile: false,
   shareGrowthData: true,
   personalizedTips: false,
+  language: 'en',
 }
 
 export const mockUsers: User[] = [mockUser1, mockUser2]
@@ -85,6 +87,7 @@ export const mockAdminUser: User = {
   publicProfile: true,
   shareGrowthData: true,
   personalizedTips: true,
+  language: 'en',
 }
 
 export const mockSuspendedUser: User = {
@@ -113,6 +116,7 @@ export const mockSuspendedUser: User = {
   publicProfile: true,
   shareGrowthData: true,
   personalizedTips: true,
+  language: 'en',
 }
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
@@ -141,5 +145,6 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   publicProfile: true,
   shareGrowthData: true,
   personalizedTips: true,
+  language: 'en',
   ...overrides,
 })

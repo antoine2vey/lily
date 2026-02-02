@@ -126,6 +126,6 @@ describe('SubscriptionUsageScreen', () => {
 
     render(<SubscriptionUsageScreen />)
 
-    expect(screen.getByText('Restore Purchases')).toBeTruthy()
+    expect(screen.getByText('Restore Purchase')).toBeTruthy()
   })
 })

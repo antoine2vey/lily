@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Image,
@@ -38,6 +39,7 @@ function LoadingScreen({
 }
 
 export function EditPlantScreen() {
+  const { t } = useTranslation(['plantDetail', 'common', 'addPlant'])
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = params.plantId ?? ''
   const iconColors = useIconColors()
@@ -156,11 +158,11 @@ export function EditPlantScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={() => router.back()} className="py-2">
           <Text className="text-base font-medium text-text-secondary">
-            Cancel
+            {t('common:buttons.cancel')}
           </Text>
         </Pressable>
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          Edit Plant
+          {t('plantDetail:edit.title')}
         </Text>
         <Pressable
           onPress={handleSave}
@@ -173,7 +175,7 @@ export function EditPlantScreen() {
             <Text
               className={`text-base font-semibold ${hasChanges ? 'text-primary' : 'text-text-muted'}`}
             >
-              Save
+              {t('common:buttons.save')}
             </Text>
           )}
         </Pressable>
@@ -206,7 +208,7 @@ export function EditPlantScreen() {
             </Pressable>
             <Pressable onPress={handleChangePhoto} className="mt-3">
               <Text className="text-sm font-semibold text-primary dark:text-primary-light">
-                Change Photo
+                {t('plantDetail:edit.changePhoto')}
               </Text>
             </Pressable>
           </View>
@@ -214,65 +216,65 @@ export function EditPlantScreen() {
           {/* Basic Info Section */}
           <View className="gap-5 mb-8">
             <FormInput
-              label="Name"
+              label={t('plantDetail:edit.nameLabel')}
               value={name}
               onChangeText={setName}
-              placeholder="Plant name"
+              placeholder={t('plantDetail:edit.namePlaceholder')}
             />
 
             <CategoryPicker
               value={category}
               onSelect={setCategory}
-              label="Category"
+              label={t('plantDetail:edit.categoryLabel')}
             />
 
             <FormTextArea
-              label="Description"
+              label={t('plantDetail:edit.descriptionLabel')}
               value={description}
               onChangeText={setDescription}
-              placeholder="Add care notes or description..."
+              placeholder={t('plantDetail:edit.descriptionPlaceholder')}
             />
           </View>
 
           {/* Care Needs Section */}
           <View className="mb-8">
-            <SectionHeader title="Care Needs" />
+            <SectionHeader title={t('plantDetail:edit.careNeeds')} />
             <View className="mt-4 bg-surface dark:bg-surface-dark p-5 rounded-2xl shadow-sm border border-border/30 dark:border-slate-700/30 gap-6">
               <Slider
                 icon={
                   <MaterialIcons name="water-drop" size={20} color="#60A5FA" />
                 }
-                label="Watering"
+                label={t('addPlant:careNeeds.watering.label')}
                 value={watering}
                 onValueChange={setWatering}
                 min={0}
                 max={100}
-                minLabel="Drought tolerant"
-                maxLabel="Loves water"
+                minLabel={t('addPlant:careNeeds.watering.low')}
+                maxLabel={t('addPlant:careNeeds.watering.high')}
               />
 
               <Slider
                 icon={
                   <MaterialIcons name="wb-sunny" size={20} color="#FB923C" />
                 }
-                label="Light"
+                label={t('addPlant:careNeeds.light.label')}
                 value={light}
                 onValueChange={setLight}
                 min={0}
                 max={100}
-                minLabel="Low light"
-                maxLabel="Direct sun"
+                minLabel={t('addPlant:careNeeds.light.low')}
+                maxLabel={t('addPlant:careNeeds.light.high')}
               />
 
               <Slider
                 icon={<MaterialIcons name="cloud" size={20} color="#2DD4BF" />}
-                label="Humidity"
+                label={t('addPlant:careNeeds.humidity.label')}
                 value={humidity}
                 onValueChange={setHumidity}
                 min={0}
                 max={100}
-                minLabel="Dry air OK"
-                maxLabel="High humidity"
+                minLabel={t('addPlant:careNeeds.humidity.low')}
+                maxLabel={t('addPlant:careNeeds.humidity.high')}
               />
 
               {/* Pet Safe Toggle */}
@@ -287,10 +289,10 @@ export function EditPlantScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Pet Safe
+                      {t('plantDetail:edit.petSafe')}
                     </Text>
                     <Text className="text-xs text-text-muted dark:text-slate-400 mt-0.5">
-                      Safe for cats and dogs
+                      {t('plantDetail:edit.petSafeDescription')}
                     </Text>
                   </View>
                 </View>
@@ -310,20 +312,23 @@ export function EditPlantScreen() {
 
           {/* Care Schedule Section */}
           <View className="mb-8">
-            <SectionHeader title="Care Schedule" />
+            <SectionHeader title={t('plantDetail:edit.careSchedule')} />
             <View className="mt-4 gap-6">
               <FrequencyPicker
                 icon={
                   <MaterialIcons name="water-drop" size={20} color="#60A5FA" />
                 }
-                label="Watering Schedule"
+                label={t('addPlant:schedule.watering')}
                 value={wateringFrequencyDays}
                 onValueChange={setWateringFrequencyDays}
                 presets={[
-                  { days: 3, label: 'Every 3 days' },
-                  { days: 7, label: 'Weekly' },
-                  { days: 14, label: 'Bi-weekly' },
-                  { days: 30, label: 'Monthly' },
+                  {
+                    days: 3,
+                    label: t('addPlant:schedule.presets.everyThreeDays'),
+                  },
+                  { days: 7, label: t('addPlant:schedule.presets.weekly') },
+                  { days: 14, label: t('addPlant:schedule.presets.biweekly') },
+                  { days: 30, label: t('addPlant:schedule.presets.monthly') },
                 ]}
               />
 
@@ -333,7 +338,7 @@ export function EditPlantScreen() {
                   <View className="flex-row items-center gap-2">
                     <MaterialIcons name="eco" size={20} color="#22C55E" />
                     <Text className="text-lg font-bold text-text-primary dark:text-white">
-                      Fertilizing Schedule
+                      {t('addPlant:schedule.fertilizing')}
                     </Text>
                   </View>
                   <Switch
@@ -360,10 +365,22 @@ export function EditPlantScreen() {
                       value={fertilizationFrequencyDays}
                       onValueChange={setFertilizationFrequencyDays}
                       presets={[
-                        { days: 14, label: 'Bi-weekly' },
-                        { days: 30, label: 'Monthly' },
-                        { days: 60, label: 'Every 2 months' },
-                        { days: 90, label: 'Quarterly' },
+                        {
+                          days: 14,
+                          label: t('addPlant:schedule.presets.biweekly'),
+                        },
+                        {
+                          days: 30,
+                          label: t('addPlant:schedule.presets.monthly'),
+                        },
+                        {
+                          days: 60,
+                          label: t('addPlant:schedule.presets.everyTwoMonths'),
+                        },
+                        {
+                          days: 90,
+                          label: t('addPlant:schedule.presets.quarterly'),
+                        },
                       ]}
                     />
                   )}
@@ -371,7 +388,7 @@ export function EditPlantScreen() {
                 {!fertilizationEnabled && (
                   <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
                     <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
-                      Enable to set a fertilizing schedule
+                      {t('addPlant:schedule.enableFertilizing')}
                     </Text>
                   </View>
                 )}
@@ -382,7 +399,7 @@ export function EditPlantScreen() {
           {/* Danger Zone */}
           <View>
             <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-3 ml-1">
-              Danger Zone
+              {t('plantDetail:edit.dangerZone')}
             </Text>
             <Pressable
               onPress={() => setShowDeleteConfirm(true)}
@@ -390,7 +407,7 @@ export function EditPlantScreen() {
             >
               <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
               <Text className="text-base font-semibold text-error">
-                Delete Plant
+                {t('plantDetail:edit.deletePlant')}
               </Text>
             </Pressable>
           </View>
@@ -400,10 +417,14 @@ export function EditPlantScreen() {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={showDeleteConfirm}
-        title={`Delete ${plant.name}?`}
-        message="This will permanently remove all care history and photos."
-        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Plant'}
-        cancelLabel="Keep Plant"
+        title={t('plantDetail:delete.title', { name: plant.name })}
+        message={t('plantDetail:delete.message')}
+        confirmLabel={
+          isDeleting
+            ? t('common:loading.deleting')
+            : t('plantDetail:delete.confirm')
+        }
+        cancelLabel={t('plantDetail:delete.cancel')}
         destructive
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}

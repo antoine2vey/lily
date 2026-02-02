@@ -1,5 +1,6 @@
 import { CARE_TASK_UNDO_TIMEOUT_MS } from '@lily/shared'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Animated, Pressable, Text, View } from 'react-native'
 import Svg, { Rect } from 'react-native-svg'
 import { fonts } from 'src/theme'
@@ -14,6 +15,7 @@ interface UndoButtonProps {
 }
 
 export function UndoButton({ onUndo }: UndoButtonProps) {
+  const { t } = useTranslation('care')
   const progress = useRef(new Animated.Value(1)).current
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
 
@@ -61,7 +63,7 @@ export function UndoButton({ onUndo }: UndoButtonProps) {
             className="text-sm text-primary"
             style={{ fontFamily: fonts.semiBold }}
           >
-            Undo ?
+            {t('task.undoPrompt')}
           </Text>
         </View>
 

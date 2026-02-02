@@ -97,7 +97,7 @@ describe('HomeScreen', () => {
 
     expect(screen.getByText('Total')).toBeTruthy()
     expect(screen.getByText('Healthy')).toBeTruthy()
-    expect(screen.getByText('Attention')).toBeTruthy()
+    expect(screen.getByText('Needs Attention')).toBeTruthy()
   })
 
   it('opens add plant bottom sheet when button pressed', () => {
@@ -112,6 +112,7 @@ describe('HomeScreen', () => {
 
     fireEvent.press(screen.getByText('Add Your First Plant'))
 
+    // Verify the sheet opens with translated content
     expect(screen.getByText('Add Plant')).toBeTruthy()
     expect(screen.getByText('Identify with AI')).toBeTruthy()
     expect(screen.getByText('Add manually')).toBeTruthy()

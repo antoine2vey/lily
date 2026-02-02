@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -13,10 +14,13 @@ interface PhotoPickerProps {
 export function PhotoPicker({
   photo,
   onPickPhoto,
-  placeholder = 'Tap to add photo',
-  subtitle = 'Show off your green friend',
+  placeholder,
+  subtitle,
 }: PhotoPickerProps) {
+  const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
+  const displayPlaceholder = placeholder ?? t('photo.placeholder')
+  const displaySubtitle = subtitle ?? t('photo.subtitle')
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -64,7 +68,7 @@ export function PhotoPicker({
         </Pressable>
         <Pressable onPress={handlePickPhoto} className="mt-3">
           <Text className="text-sm font-semibold text-primary dark:text-primary-light">
-            Change photo
+            {t('photo.changePhoto')}
           </Text>
         </Pressable>
       </View>
@@ -86,14 +90,16 @@ export function PhotoPicker({
       </View>
       <View className="items-center gap-2">
         <Text className="text-lg font-bold text-text-primary dark:text-white text-center">
-          {placeholder}
+          {displayPlaceholder}
         </Text>
         <Text className="text-sm font-regular text-text-secondary dark:text-slate-400 text-center">
-          {subtitle}
+          {displaySubtitle}
         </Text>
       </View>
       <View className="mt-2 h-10 px-6 rounded-full bg-primary items-center justify-center">
-        <Text className="text-sm font-bold text-white">Add Photo</Text>
+        <Text className="text-sm font-bold text-white">
+          {t('photo.addPhoto')}
+        </Text>
       </View>
     </Pressable>
   )

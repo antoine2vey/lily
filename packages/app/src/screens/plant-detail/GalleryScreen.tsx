@@ -4,6 +4,7 @@ import { Array } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Dimensions,
@@ -31,6 +32,7 @@ interface PhotoItem {
 }
 
 export function GalleryScreen() {
+  const { t } = useTranslation('plantDetail')
   const iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
@@ -116,10 +118,12 @@ export function GalleryScreen() {
           size={32}
           color={iconColors.primary}
         />
-        <Text className="text-xs text-primary mt-2 font-medium">Add Photo</Text>
+        <Text className="text-xs text-primary mt-2 font-medium">
+          {t('gallery.addPhoto')}
+        </Text>
       </Pressable>
     ),
-    [handleAddPhoto, iconColors.primary]
+    [handleAddPhoto, iconColors.primary, t]
   )
 
   const renderEmpty = useCallback(
@@ -134,20 +138,22 @@ export function GalleryScreen() {
           color={iconColors.textMuted}
         />
         <Text className="text-lg text-text-primary mt-4 font-semibold">
-          No photos yet
+          {t('gallery.noPhotosTitle')}
         </Text>
         <Text className="text-sm text-text-muted mt-2 text-center px-8 font-regular">
-          Start documenting your plant's journey by adding your first photo
+          {t('gallery.noPhotosDescription')}
         </Text>
         <Pressable
           onPress={handleAddPhoto}
           className="mt-6 px-6 py-3 rounded-full bg-primary"
         >
-          <Text className="text-white font-semibold">Add First Photo</Text>
+          <Text className="text-white font-semibold">
+            {t('gallery.addFirstPhoto')}
+          </Text>
         </Pressable>
       </View>
     ),
-    [handleAddPhoto, iconColors.textMuted]
+    [handleAddPhoto, iconColors.textMuted, t]
   )
 
   const renderFooter = useCallback(() => {
@@ -198,10 +204,10 @@ export function GalleryScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-text-primary ml-2 font-semibold">
-          Photo Gallery
+          {t('gallery.title')}
         </Text>
         <Text className="text-sm text-text-muted font-regular">
-          {data?.total ?? 0} photos
+          {t('gallery.photoCount', { count: data?.total ?? 0 })}
         </Text>
       </View>
 

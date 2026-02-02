@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Pressable, TextInput, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -13,9 +14,11 @@ export function PlantSearchBar({
   value,
   onChangeText,
   onClear,
-  placeholder = 'Search plants...',
+  placeholder,
 }: PlantSearchBarProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
+  const placeholderText = placeholder ?? t('list.searchPlaceholder')
   return (
     <View
       className="flex-row items-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-800 rounded-xl"
@@ -31,7 +34,7 @@ export function PlantSearchBar({
         className="flex-1 text-base text-text-primary dark:text-white"
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={placeholderText}
         placeholderTextColor={iconColors.textMuted}
         testID="search-input"
       />

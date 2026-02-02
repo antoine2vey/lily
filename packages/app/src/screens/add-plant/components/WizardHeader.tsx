@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -13,10 +14,12 @@ export function WizardHeader({
   step,
   totalSteps,
   onBack,
-  title = 'Add New Plant',
+  title,
 }: WizardHeaderProps) {
+  const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const progress = (step / totalSteps) * 100
+  const displayTitle = title ?? t('wizardTitle')
 
   return (
     <View className="px-4 pt-2 pb-2 bg-background dark:bg-background-dark">
@@ -33,11 +36,11 @@ export function WizardHeader({
           />
         </Pressable>
         <Text className="text-lg font-bold text-text-primary dark:text-white flex-1 text-center">
-          {title}
+          {displayTitle}
         </Text>
         <View className="w-12 items-end">
           <Text className="text-sm font-bold text-primary dark:text-primary-light">
-            {step} of {totalSteps}
+            {t('stepIndicator', { step, total: totalSteps })}
           </Text>
         </View>
       </View>

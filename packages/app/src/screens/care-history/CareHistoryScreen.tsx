@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Pressable,
@@ -21,14 +22,15 @@ import { Timeline } from './components/Timeline'
 
 type CareEventType = 'water' | 'fertilize'
 
-const FILTER_OPTIONS: Array<{ type: CareEventType | 'all'; label: string }> = [
-  { type: 'all', label: 'All' },
-  { type: 'water', label: 'Water' },
-  { type: 'fertilize', label: 'Fertilize' },
-]
-
 export function CareHistoryScreen() {
+  const { t } = useTranslation('care')
   const iconColors = useIconColors()
+  const FILTER_OPTIONS: Array<{ type: CareEventType | 'all'; label: string }> =
+    [
+      { type: 'all', label: t('history.filterAll') },
+      { type: 'water', label: t('history.water') },
+      { type: 'fertilize', label: t('history.fertilize') },
+    ]
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = params.plantId ?? ''
   const insets = useSafeAreaInsets()
@@ -109,7 +111,7 @@ export function CareHistoryScreen() {
         {/* Center title */}
         <View className="items-center">
           <Text className="text-base font-bold text-text-primary dark:text-white">
-            Care History
+            {t('history.title')}
           </Text>
           {plant && (
             <Text className="text-xs font-medium text-text-muted dark:text-slate-400">
@@ -145,8 +147,8 @@ export function CareHistoryScreen() {
         {!filteredHistory || filteredHistory.length === 0 ? (
           <EmptyState
             illustration="notification"
-            title="No care history"
-            description="Start logging care activities to see them here"
+            title={t('history.empty.title')}
+            description={t('history.empty.subtitle')}
           />
         ) : (
           <Timeline
@@ -175,7 +177,7 @@ export function CareHistoryScreen() {
       <BottomSheet
         visible={showFilterSheet}
         onClose={() => setShowFilterSheet(false)}
-        title="Filter by Type"
+        title={t('history.filterByType')}
         snapPoints={['40%']}
       >
         <View className="flex-row flex-wrap gap-2 py-4">

@@ -9,6 +9,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Image,
   KeyboardAvoidingView,
@@ -60,6 +61,7 @@ export function LogCareSheet({
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showTimePicker, setShowTimePicker] = useState(false)
 
+  const { t, i18n } = useTranslation('logCare')
   const { mutate: saveCareLog, isPending } = useSaveCareLog()
   const iconColors = useIconColors()
 
@@ -120,15 +122,15 @@ export function LogCareSheet({
   const formatDateDisplay = (d: Date) =>
     pipe(
       parseApiDate(d),
-      Option.map(formatShortDate),
-      Option.getOrElse(() => 'Unknown')
+      Option.map((dt) => formatShortDate(dt, i18n.language)),
+      Option.getOrElse(() => t('unknownDate'))
     )
 
-  const formatTimeDisplay = (t: Date) =>
+  const formatTimeDisplay = (tm: Date) =>
     pipe(
-      parseApiDate(t),
-      Option.map(formatTime),
-      Option.getOrElse(() => 'Unknown')
+      parseApiDate(tm),
+      Option.map((dt) => formatTime(dt, i18n.language)),
+      Option.getOrElse(() => t('unknownDate'))
     )
 
   const canSave = plantIds.length > 0
@@ -139,7 +141,7 @@ export function LogCareSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title="Log Care"
+      title={t('title')}
       snapPoints={['85%']}
     >
       <KeyboardAvoidingView
@@ -155,7 +157,7 @@ export function LogCareSheet({
           <PlantSelector
             selectedIds={plantIds}
             onSelectionChange={setPlantIds}
-            label="Select Plant"
+            label={t('selectPlant')}
             initialPlants={defaultPlant ? [defaultPlant] : undefined}
           />
 
@@ -165,14 +167,14 @@ export function LogCareSheet({
           <View className="mb-6">
             <View className="flex-row items-center justify-between mb-2 ml-1">
               <Text className="text-sm font-bold text-text-muted dark:text-slate-400">
-                Date & Time
+                {t('dateTime')}
               </Text>
               <Pressable
                 onPress={handleSetNow}
                 className="px-3 py-1 rounded-full border border-primary/30 bg-primary/10"
               >
                 <Text className="text-xs font-bold text-primary uppercase tracking-wider">
-                  Now
+                  {t('now')}
                 </Text>
               </Pressable>
             </View>
@@ -218,12 +220,12 @@ export function LogCareSheet({
           {/* Notes */}
           <View className="mb-6">
             <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
-              Notes (Optional)
+              {t('notesLabel')}
             </Text>
             <TextInput
               value={notes}
               onChangeText={setNotes}
-              placeholder="How did the soil feel?"
+              placeholder={t('notesPlaceholder')}
               placeholderTextColor={iconColors.textMuted}
               multiline
               numberOfLines={3}
@@ -265,7 +267,7 @@ export function LogCareSheet({
                 />
               </View>
               <Text className="text-sm font-bold text-text-muted dark:text-slate-400 tracking-wide uppercase">
-                Add Photo
+                {t('addPhoto')}
               </Text>
             </Pressable>
           )}
@@ -281,7 +283,7 @@ export function LogCareSheet({
             icon="check"
             iconPosition="left"
           >
-            Save Log
+            {t('saveButton')}
           </Button>
         </View>
       </KeyboardAvoidingView>
@@ -305,16 +307,18 @@ export function LogCareSheet({
               <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
                 <Pressable onPress={() => setShowDatePicker(false)}>
                   <Text className="text-base font-medium text-text-muted">
-                    Cancel
+                    {t('datePicker.cancel')}
                   </Text>
                 </Pressable>
                 <Text
                   className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
                 >
-                  Select Date
+                  {t('datePicker.selectDate')}
                 </Text>
                 <Pressable onPress={() => setShowDatePicker(false)}>
-                  <Text className="text-base font-bold text-primary">Done</Text>
+                  <Text className="text-base font-bold text-primary">
+                    {t('datePicker.done')}
+                  </Text>
                 </Pressable>
               </View>
               <DateTimePicker
@@ -366,16 +370,18 @@ export function LogCareSheet({
               <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
                 <Pressable onPress={() => setShowTimePicker(false)}>
                   <Text className="text-base font-medium text-text-muted">
-                    Cancel
+                    {t('datePicker.cancel')}
                   </Text>
                 </Pressable>
                 <Text
                   className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
                 >
-                  Select Time
+                  {t('datePicker.selectTime')}
                 </Text>
                 <Pressable onPress={() => setShowTimePicker(false)}>
-                  <Text className="text-base font-bold text-primary">Done</Text>
+                  <Text className="text-base font-bold text-primary">
+                    {t('datePicker.done')}
+                  </Text>
                 </Pressable>
               </View>
               <DateTimePicker

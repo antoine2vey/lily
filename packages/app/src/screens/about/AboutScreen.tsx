@@ -1,11 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 export function AboutScreen() {
+  const { t } = useTranslation('about')
   const iconColors = useIconColors()
 
   return (
@@ -23,7 +25,7 @@ export function AboutScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
-          About
+          {t('title')}
         </Text>
       </View>
 
@@ -42,19 +44,17 @@ export function AboutScreen() {
             />
           </View>
           <Text className="text-2xl font-bold text-text-primary dark:text-white">
-            Lily
+            {t('appName')}
           </Text>
           <Text className="text-xs mt-1 uppercase tracking-wider font-semibold text-primary">
-            VERSION 1.0.0
+            {t('version', { version: '1.0.0' })}
           </Text>
         </View>
 
         {/* Mission Quote */}
         <View className="px-8 py-6">
           <Text className="text-sm text-center italic font-regular text-text-muted leading-[22px]">
-            "We believe every leaf tells a story. Our mission is to help your
-            indoor jungle thrive, one drop of water at a time. Thank you for
-            growing with us."
+            "{t('description')}"
           </Text>
         </View>
 
@@ -64,7 +64,7 @@ export function AboutScreen() {
             leftIcon={
               <MaterialIcons name="code" size={18} color={iconColors.primary} />
             }
-            title="Open Source Licenses"
+            title={t('links.licenses')}
             showChevron
             onPress={() => {
               // TODO: Replace with a dedicated licenses screen
@@ -81,7 +81,7 @@ export function AboutScreen() {
                 color={iconColors.primary}
               />
             }
-            title="Community Guidelines"
+            title={t('links.guidelines')}
             showChevron
             onPress={() => Linking.openURL('https://lily.app/guidelines')}
           />
@@ -93,7 +93,7 @@ export function AboutScreen() {
                 color={iconColors.primary}
               />
             }
-            title="Follow us on Instagram"
+            title={t('links.instagram')}
             rightElement={
               <MaterialIcons
                 name="open-in-new"
@@ -111,7 +111,7 @@ export function AboutScreen() {
         {/* Footer */}
         <View className="px-6 py-8 items-center">
           <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
-            Made with love in Portland, OR
+            {t('footer')}
           </Text>
         </View>
       </ScrollView>

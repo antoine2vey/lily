@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -11,6 +12,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const { t } = useTranslation('chat')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const [message, setMessage] = useState('')
@@ -65,7 +67,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           </View>
           <View className="ml-3 justify-center h-20">
             <Text className="text-sm font-semibold text-text-primary dark:text-white">
-              Image attached
+              {t('input.imageAttached')}
             </Text>
             <View className="flex-row items-center gap-1 mt-1">
               <MaterialIcons
@@ -74,7 +76,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 color={iconColors.primary}
               />
               <Text className="text-xs text-primary font-medium">
-                Analysis ready
+                {t('input.analysisReady')}
               </Text>
             </View>
           </View>
@@ -99,7 +101,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <TextInput
             value={message}
             onChangeText={setMessage}
-            placeholder="Ask about this plant..."
+            placeholder={t('input.placeholder')}
             placeholderTextColor={iconColors.textMuted}
             multiline
             className="flex-1 font-regular text-base text-text-primary dark:text-white py-3 max-h-32"

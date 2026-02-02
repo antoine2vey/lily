@@ -32,6 +32,7 @@ const mockUser: User = {
   publicProfile: true,
   shareGrowthData: true,
   personalizedTips: true,
+  language: 'en',
 }
 
 const adminUser: User = {

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -10,6 +11,7 @@ interface AvatarPickerProps {
 }
 
 export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
+  const { t } = useTranslation('profile')
   const iconColors = useIconColors()
   return (
     <View className="items-center pt-8 pb-8 gap-3">
@@ -47,7 +49,9 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
 
       {/* Change Photo text */}
       <Pressable onPress={onPress}>
-        <Text className="text-sm font-bold text-primary">Change Photo</Text>
+        <Text className="text-sm font-bold text-primary">
+          {t('edit.changePhoto')}
+        </Text>
       </Pressable>
     </View>
   )

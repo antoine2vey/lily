@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Alert,
@@ -18,32 +19,39 @@ import * as RevenueCatService from 'src/services/revenuecat'
 import { PlanCard } from './components/PlanCard'
 import { UsageMeter } from './components/UsageMeter'
 
-const USAGE_CONFIG = {
-  ai_chats: {
-    icon: 'chat' as const,
-    label: 'AI Chats',
-  },
-  plant_ids: {
-    icon: 'local-florist' as const,
-    label: 'Plant IDs',
-  },
-  card_scans: {
-    icon: 'qr-code-scanner' as const,
-    label: 'Card Scans',
-  },
+const USAGE_ICONS = {
+  ai_chats: 'chat' as const,
+  plant_ids: 'local-florist' as const,
+  card_scans: 'qr-code-scanner' as const,
 }
 
-const PREMIUM_FEATURES = [
-  'Unlimited AI Diagnostics',
-  'Detailed Care Guides',
-  'Advanced Statistics',
-]
-
 export function SubscriptionUsageScreen() {
+  const { t } = useTranslation(['subscription', 'common'])
   const { data, isLoading } = useSubscriptionUsage()
   const { restore } = useRevenueCat()
   const [isRestoring, setIsRestoring] = useState(false)
   const iconColors = useIconColors()
+
+  const USAGE_CONFIG = {
+    ai_chats: {
+      icon: USAGE_ICONS.ai_chats,
+      label: t('usage.aiChats'),
+    },
+    plant_ids: {
+      icon: USAGE_ICONS.plant_ids,
+      label: t('usage.plantIds'),
+    },
+    card_scans: {
+      icon: USAGE_ICONS.card_scans,
+      label: t('usage.cardScans'),
+    },
+  }
+
+  const PREMIUM_FEATURES = [
+    t('features.unlimitedDiagnostics'),
+    t('features.detailedGuides'),
+    t('features.advancedStats'),
+  ]
 
   const handleRestorePurchases = async () => {
     setIsRestoring(true)
@@ -51,12 +59,14 @@ export function SubscriptionUsageScreen() {
       await restore()
 
       const message = RevenueCatService.isDevModeEnabled()
-        ? 'Restore simulated! (Dev Mode)'
-        : 'Purchases restored successfully.'
+        ? t('messages.restoreSimulated')
+        : t('messages.restoreSuccess')
 
-      Alert.alert('Success', message, [{ text: 'OK' }])
+      Alert.alert(t('subscription:messages.success'), message, [
+        { text: t('common:buttons.ok') },
+      ])
     } catch {
-      Alert.alert('Error', 'Failed to restore purchases. Please try again.')
+      Alert.alert(t('messages.error'), t('messages.restoreFailed'))
     } finally {
       setIsRestoring(false)
     }
@@ -98,7 +108,7 @@ export function SubscriptionUsageScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
-          Subscription
+          {t('usage.title')}
         </Text>
       </View>
 
@@ -136,7 +146,7 @@ export function SubscriptionUsageScreen() {
               className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"
             >
               <Text className="text-base font-semibold text-coral">
-                Cancel Subscription
+                {t('buttons.cancelSubscription')}
               </Text>
             </Pressable>
           </View>
@@ -152,12 +162,12 @@ export function SubscriptionUsageScreen() {
 
             {/* Premium Access Label */}
             <Text className="text-sm mb-1 uppercase tracking-widest font-bold text-primary">
-              Premium Access
+              {t('title')}
             </Text>
 
             {/* Title */}
             <Text className="text-2xl mb-4 font-bold text-text-primary dark:text-white">
-              Upgrade to Lily Pro
+              {t('usage.upgradeTo')}
             </Text>
 
             {/* Feature List */}
@@ -184,7 +194,9 @@ export function SubscriptionUsageScreen() {
               onPress={() => router.push('/subscription/upgrade')}
               className="w-full py-4 rounded-xl items-center bg-primary active:bg-primary-dark"
             >
-              <Text className="text-base font-bold text-white">View Plans</Text>
+              <Text className="text-base font-bold text-white">
+                {t('buttons.viewPlans')}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -193,7 +205,7 @@ export function SubscriptionUsageScreen() {
         <View className="items-center py-6">
           <Pressable onPress={handleRestorePurchases} disabled={isRestoring}>
             <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
-              {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+              {isRestoring ? t('messages.restoring') : t('buttons.restore')}
             </Text>
           </Pressable>
         </View>

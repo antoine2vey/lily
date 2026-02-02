@@ -1,0 +1,66 @@
+export default {
+  title: 'Paramètres de notification',
+  sections: {
+    careReminders: 'Rappels de soins',
+    updatesAlerts: 'Mises à jour et alertes',
+    doNotDisturb: 'Ne pas déranger',
+  },
+  careReminders: {
+    title: 'Rappels de soins',
+    description: "Soyez rappelé quand il est temps d'arroser ou de fertiliser",
+    timeLabel: 'Heure de notification quotidienne',
+  },
+  updates: {
+    weeklyDigest: {
+      title: 'Résumé hebdomadaire',
+      description: 'Recevez un résumé hebdomadaire de vos soins',
+    },
+    achievements: {
+      title: 'Succès',
+      description: 'Soyez notifié quand vous débloquez des succès',
+    },
+    tips: {
+      title: 'Conseils pour les plantes',
+      description: 'Recevez des conseils utiles pour les soins',
+    },
+    productUpdates: {
+      title: 'Mises à jour du produit',
+      description: 'Découvrez les nouvelles fonctionnalités et améliorations',
+    },
+  },
+  quietHours: {
+    title: 'Heures calmes',
+    description: 'Mettre en pause les notifications la nuit',
+    notice: 'Les notifications seront mises en sourdine pendant ces heures.',
+    start: 'Début',
+    end: 'Fin',
+    startTime: 'Heure de début',
+    endTime: 'Heure de fin',
+    notificationTime: 'Heure de notification',
+    done: 'Terminé',
+    cancel: 'Annuler',
+  },
+  timezone: {
+    title: 'Fuseau horaire',
+    autoDetect: 'Détecter automatiquement le fuseau horaire',
+    select: 'Sélectionner le fuseau horaire',
+    search: 'Rechercher des fuseaux horaires...',
+    options: {
+      utc: 'UTC',
+      newYork: 'New York (ET)',
+      chicago: 'Chicago (CT)',
+      denver: 'Denver (MT)',
+      losAngeles: 'Los Angeles (PT)',
+      london: 'Londres (GMT/BST)',
+      paris: 'Paris (CET)',
+      berlin: 'Berlin (CET)',
+      tokyo: 'Tokyo (JST)',
+      shanghai: 'Shanghai (CST)',
+      sydney: 'Sydney (AEDT)',
+      dubai: 'Dubaï (GST)',
+      singapore: 'Singapour (SGT)',
+      mumbai: 'Mumbai (IST)',
+      saoPaulo: 'São Paulo (BRT)',
+    },
+  },
+} as const

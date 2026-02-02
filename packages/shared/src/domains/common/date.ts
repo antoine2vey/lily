@@ -294,38 +294,77 @@ export const daysBetween = (
  * Uses user's locale for localized day names.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Full day name in user's locale
  */
-export const formatDayOfWeek = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, { weekday: 'long' })
+export const formatDayOfWeek = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, { weekday: 'long' })
 
 /**
  * Format date as short day of week (e.g., "Mon").
  * Uses user's locale for localized day names.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Short day name in user's locale
  */
-export const formatDayOfWeekShort = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, { weekday: 'short' })
+export const formatDayOfWeekShort = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, { weekday: 'short' })
 
 /**
  * Format for "Next: Monday" style display.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted string like "Next: Monday"
  */
-export const formatNextDate = (dateTime: DateTime.DateTime): string =>
-  `Next: ${formatDayOfWeek(dateTime)}`
+export const formatNextDate = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string => `Next: ${formatDayOfWeek(dateTime, locale)}`
 
 /**
- * Format relative time (e.g., "Just now", "2h ago", "Yesterday").
- * Falls back to locale-formatted date for older dates.
- *
- * @param dateTime - DateTime to format relative to now
- * @returns Human-readable relative time string
+ * Relative time result types for localized formatting.
  */
-export const formatRelativeTime = (dateTime: DateTime.DateTime): string => {
+export type RelativeTimeResult =
+  | { readonly _tag: 'now' }
+  | { readonly _tag: 'minutes'; readonly value: number }
+  | { readonly _tag: 'hours'; readonly value: number }
+  | { readonly _tag: 'days'; readonly value: number }
+  | { readonly _tag: 'date'; readonly formatted: string }
+
+/**
+ * Get relative time data for a DateTime.
+ * Returns structured data that can be formatted with i18next or other i18n libraries.
+ *
+ * @param dateTime - DateTime to compare relative to now
+ * @param locale - Optional locale for date fallback formatting
+ * @returns Structured relative time data
+ *
+ * @example
+ * ```typescript
+ * const result = getRelativeTime(dateTime)
+ * pipe(
+ *   Match.value(result),
+ *   Match.when({ _tag: 'now' }, () => t('time.justNow')),
+ *   Match.when({ _tag: 'minutes' }, ({ value }) => t('time.minutesAgo', { count: value })),
+ *   Match.when({ _tag: 'hours' }, ({ value }) => t('time.hoursAgo', { count: value })),
+ *   Match.when({ _tag: 'days' }, ({ value }) => t('time.daysAgo', { count: value })),
+ *   Match.when({ _tag: 'date' }, ({ formatted }) => formatted),
+ *   Match.exhaustive
+ * )
+ * ```
+ */
+export const getRelativeTime = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): RelativeTimeResult => {
   const current = DateTime.unsafeNow()
   const distanceMs = DateTime.distance(dateTime, current)
   const duration = Duration.millis(distanceMs)
@@ -334,17 +373,42 @@ export const formatRelativeTime = (dateTime: DateTime.DateTime): string => {
   const hours = Math.floor(Duration.toHours(duration))
   const days = Math.floor(Duration.toDays(duration))
 
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${String(minutes)}m ago`
-  if (hours < 24) return `${String(hours)}h ago`
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${String(days)} days ago`
+  if (minutes < 1) return { _tag: 'now' }
+  if (minutes < 60) return { _tag: 'minutes', value: minutes }
+  if (hours < 24) return { _tag: 'hours', value: hours }
+  if (days < 7) return { _tag: 'days', value: days }
 
-  // For older dates, show the date in user's locale
-  return toNativeDate(dateTime).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  })
+  // For older dates, return formatted date string
+  return {
+    _tag: 'date',
+    formatted: toNativeDate(dateTime).toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
+    }),
+  }
+}
+
+/**
+ * Format relative time (e.g., "Just now", "5m ago", "Yesterday").
+ * Falls back to locale-formatted date for older dates.
+ *
+ * @deprecated Use `getRelativeTime` for localized formatting with i18next
+ * @param dateTime - DateTime to format relative to now
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
+ * @returns Human-readable relative time string (English only)
+ */
+export const formatRelativeTime = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string => {
+  const result = getRelativeTime(dateTime, locale)
+
+  if (result._tag === 'now') return 'Just now'
+  if (result._tag === 'minutes') return `${String(result.value)}m ago`
+  if (result._tag === 'hours') return `${String(result.value)}h ago`
+  if (result._tag === 'days')
+    return result.value === 1 ? 'Yesterday' : `${String(result.value)} days ago`
+  return result.formatted
 }
 
 /**
@@ -352,10 +416,14 @@ export const formatRelativeTime = (dateTime: DateTime.DateTime): string => {
  * Uses user's locale for localized time format.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted time string in user's locale
  */
-export const formatTime = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleTimeString(undefined, {
+export const formatTime = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleTimeString(locale, {
     hour: 'numeric',
     minute: '2-digit',
   })
@@ -365,10 +433,14 @@ export const formatTime = (dateTime: DateTime.DateTime): string =>
  * Uses user's locale for localized date format.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted short date string in user's locale
  */
-export const formatShortDate = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, {
+export const formatShortDate = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -623,10 +695,14 @@ export const isYesterday = (
  * Uses user's locale for localized date format.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted long date string in user's locale
  */
-export const formatLongDate = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, {
+export const formatLongDate = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -637,10 +713,14 @@ export const formatLongDate = (dateTime: DateTime.DateTime): string =>
  * Uses user's locale for localized date format.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted date with weekday in user's locale
  */
-export const formatDateWithWeekday = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, {
+export const formatDateWithWeekday = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
@@ -651,10 +731,14 @@ export const formatDateWithWeekday = (dateTime: DateTime.DateTime): string =>
  * Uses user's locale for localized date format.
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted member since string in user's locale
  */
-export const formatMemberSince = (dateTime: DateTime.DateTime): string =>
-  toNativeDate(dateTime).toLocaleDateString(undefined, {
+export const formatMemberSince = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string =>
+  toNativeDate(dateTime).toLocaleDateString(locale, {
     month: 'short',
     year: 'numeric',
   })
@@ -698,32 +782,38 @@ export const formatApiTime = (
  * Get date group label for grouping items (e.g., "Today", "Yesterday", "Monday, Jan 15").
  *
  * @param dateTime - DateTime to get group label for
+ * @param timezone - IANA timezone string
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Group label string
  */
 export const getDateGroupLabel = (
   dateTime: DateTime.DateTime,
-  timezone: string
+  timezone: string,
+  locale?: Intl.LocalesArgument
 ): string => {
   if (isToday(dateTime, DateTime.unsafeNow(), timezone)) return 'Today'
   if (isYesterday(dateTime, timezone)) return 'Yesterday'
-  return formatDateWithWeekday(dateTime)
+  return formatDateWithWeekday(dateTime, locale)
 }
 
 /**
  * Get date group label from API date.
  *
  * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param timezone - IANA timezone string
  * @param defaultValue - Value to return if date is invalid (default: "Unknown")
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Group label string
  */
 export const getApiDateGroupLabel = (
   dateInput: DateInput,
   timezone: string,
-  defaultValue = 'Unknown'
+  defaultValue = 'Unknown',
+  locale?: Intl.LocalesArgument
 ): string =>
   pipe(
     parseApiDate(dateInput),
-    Option.map((dt) => getDateGroupLabel(dt, timezone)),
+    Option.map((dt) => getDateGroupLabel(dt, timezone, locale)),
     Option.getOrElse(() => defaultValue)
   )
 
@@ -731,7 +821,10 @@ export const getApiDateGroupLabel = (
  * Format date for header display (e.g., "MONDAY, JAN 15" in uppercase).
  *
  * @param dateTime - DateTime to format
+ * @param locale - Optional locale (e.g., 'fr', 'en-US')
  * @returns Formatted uppercase date string
  */
-export const formatDateHeader = (dateTime: DateTime.DateTime): string =>
-  formatDateWithWeekday(dateTime).toUpperCase()
+export const formatDateHeader = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string => formatDateWithWeekday(dateTime, locale).toUpperCase()

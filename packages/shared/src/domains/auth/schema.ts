@@ -1,8 +1,12 @@
 import { Schema } from 'effect'
 
+// Language code literal (same as in user schema)
+const LanguageCode = Schema.Literal('en', 'fr')
+
 // Auth request schemas
 export const MagicLinkRequest = Schema.Struct({
   email: Schema.String,
+  language: Schema.optional(LanguageCode),
 })
 
 export const MagicLinkVerifyRequest = Schema.Struct({

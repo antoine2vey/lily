@@ -1,5 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -69,15 +71,25 @@ const getUrgencyStyles = (urgency: UrgencyState): UrgencyStyle =>
     }))
   )
 
-const getTimeText = (days: number, urgency: UrgencyState): string =>
+const getTimeText = (
+  days: number,
+  urgency: UrgencyState,
+  t: TFunction
+): string =>
   pipe(
     Match.value(urgency),
     Match.when('overdue', () =>
-      days === -1 ? '1 day overdue' : `${Math.abs(days)} days overdue`
+      days === -1
+        ? t('plants:detail.schedule.oneDayOverdue')
+        : t('plants:detail.schedule.daysOverdue', { count: Math.abs(days) })
     ),
-    Match.when('today', () => 'Today'),
-    Match.when('soon', () => (days === 1 ? 'Tomorrow' : `In ${days} days`)),
-    Match.orElse(() => `In ${days} days`)
+    Match.when('today', () => t('plants:detail.schedule.today')),
+    Match.when('soon', () =>
+      days === 1
+        ? t('plants:detail.schedule.tomorrow')
+        : t('plants:detail.schedule.inDays', { count: days })
+    ),
+    Match.orElse(() => t('plants:detail.schedule.inDays', { count: days }))
   )
 
 interface CareCardProps {
@@ -97,6 +109,8 @@ function CareCard({
   nextDate,
   onDoNow,
 }: CareCardProps) {
+  const { t } = useTranslation('plants')
+
   // Handle "not scheduled" state
   if (days === null) {
     return (
@@ -113,10 +127,10 @@ function CareCard({
           </Text>
         </View>
         <Text className="text-lg font-semibold text-text-muted dark:text-slate-400">
-          Not scheduled
+          {t('detail.notScheduled')}
         </Text>
         <Text className="text-xs font-regular text-text-muted dark:text-slate-500 mt-1">
-          Set a schedule to track
+          {t('detail.setScheduleToTrack')}
         </Text>
       </View>
     )
@@ -124,7 +138,7 @@ function CareCard({
 
   const urgency = getUrgencyState(days)
   const styles = getUrgencyStyles(urgency)
-  const timeText = getTimeText(days, urgency)
+  const timeText = getTimeText(days, urgency, t)
   const showDoNow = (urgency === 'overdue' || urgency === 'today') && onDoNow
 
   return (
@@ -157,7 +171,9 @@ function CareCard({
           className="mt-3 py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600 self-start"
           testID={`care-card-${label.toLowerCase()}-do-now`}
         >
-          <Text className="text-xs font-semibold text-primary">Do Now</Text>
+          <Text className="text-xs font-semibold text-primary">
+            {t('detail.doNow')}
+          </Text>
         </Pressable>
       )}
     </View>
@@ -173,20 +189,21 @@ export function CareSchedule({
   onWaterNow,
   onFertilizeNow,
 }: CareScheduleProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
 
   return (
     <View testID="care-schedule">
       <SectionHeader
-        title="Care Schedule"
-        action={{ label: 'Edit', onPress: onEdit }}
+        title={t('detail.careSchedule')}
+        action={{ label: t('detail.edit'), onPress: onEdit }}
       />
       <View className="flex-row gap-3 mt-4">
         <CareCard
           icon="water-drop"
           iconColor={iconColors.waterBlue}
           days={wateringDays}
-          label="Watering"
+          label={t('careTypes.water')}
           nextDate={wateringDate}
           onDoNow={onWaterNow}
         />
@@ -194,7 +211,7 @@ export function CareSchedule({
           icon="eco"
           iconColor={iconColors.fertilizerOrange}
           days={fertilizingDays}
-          label="Fertilizing"
+          label={t('careTypes.fertilize')}
           nextDate={fertilizingDate}
           onDoNow={onFertilizeNow}
         />

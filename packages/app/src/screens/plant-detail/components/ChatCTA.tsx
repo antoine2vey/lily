@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -8,6 +9,7 @@ interface ChatCTAProps {
 }
 
 export function ChatCTA({ plantName, onPress }: ChatCTAProps) {
+  const { t } = useTranslation('plantDetail')
   const iconColors = useIconColors()
   return (
     <Pressable
@@ -24,10 +26,10 @@ export function ChatCTA({ plantName, onPress }: ChatCTAProps) {
         {/* Text Content */}
         <View className="flex-1">
           <Text className="text-base font-bold text-text-primary dark:text-white">
-            Ask Lily about {plantName}
+            {t('chatCta.title', { plantName })}
           </Text>
           <Text className="text-sm text-text-muted dark:text-slate-400 mt-0.5">
-            Get AI-powered care tips and advice
+            {t('chatCta.subtitle')}
           </Text>
         </View>
 

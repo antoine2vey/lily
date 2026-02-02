@@ -1,0 +1,66 @@
+export default {
+  title: 'Notification Settings',
+  sections: {
+    careReminders: 'Care Reminders',
+    updatesAlerts: 'Updates & Alerts',
+    doNotDisturb: 'Do Not Disturb',
+  },
+  careReminders: {
+    title: 'Care Reminders',
+    description: "Get reminded when it's time to water or fertilize",
+    timeLabel: 'Daily notification time',
+  },
+  updates: {
+    weeklyDigest: {
+      title: 'Weekly Digest',
+      description: 'Receive a weekly summary of your plant care',
+    },
+    achievements: {
+      title: 'Achievements',
+      description: 'Get notified when you unlock achievements',
+    },
+    tips: {
+      title: 'Plant Tips',
+      description: 'Receive helpful plant care tips',
+    },
+    productUpdates: {
+      title: 'Product Updates',
+      description: 'Learn about new features and improvements',
+    },
+  },
+  quietHours: {
+    title: 'Quiet Hours',
+    description: 'Pause notifications at night',
+    notice: 'Notifications will be silenced between these times.',
+    start: 'Start',
+    end: 'End',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    notificationTime: 'Notification Time',
+    done: 'Done',
+    cancel: 'Cancel',
+  },
+  timezone: {
+    title: 'Timezone',
+    autoDetect: 'Auto-detect Timezone',
+    select: 'Select Timezone',
+    search: 'Search timezones...',
+    options: {
+      utc: 'UTC',
+      newYork: 'New York (ET)',
+      chicago: 'Chicago (CT)',
+      denver: 'Denver (MT)',
+      losAngeles: 'Los Angeles (PT)',
+      london: 'London (GMT/BST)',
+      paris: 'Paris (CET)',
+      berlin: 'Berlin (CET)',
+      tokyo: 'Tokyo (JST)',
+      shanghai: 'Shanghai (CST)',
+      sydney: 'Sydney (AEDT)',
+      dubai: 'Dubai (GST)',
+      singapore: 'Singapore (SGT)',
+      mumbai: 'Mumbai (IST)',
+      saoPaulo: 'São Paulo (BRT)',
+    },
+  },
+} as const

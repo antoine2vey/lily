@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -26,13 +27,14 @@ interface PlantCircleProps {
 }
 
 function PlantCircle({ plant, onPress, iconColors }: PlantCircleProps) {
+  const { t } = useTranslation('home')
   const isDark = iconColors.isDark
 
   return (
     <Pressable
       onPress={onPress}
       className="items-center gap-2"
-      accessibilityLabel={`View ${plant.name}`}
+      accessibilityLabel={t('hydration.viewPlant', { name: plant.name })}
     >
       {/* Plant image with water drop badge */}
       <View className="relative">
@@ -98,6 +100,7 @@ export function HydrationCard({
   onPlantPress,
   isLoading = false,
 }: HydrationCardProps) {
+  const { t } = useTranslation('home')
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
@@ -136,14 +139,13 @@ export function HydrationCard({
             className="text-xl mb-1 font-bold"
             style={{ color: isDark ? '#FFFFFF' : '#1A1A1A' }}
           >
-            Hydration Time
+            {t('hydration.title')}
           </Text>
           <Text
             className="text-sm font-medium"
             style={{ color: isDark ? '#9CA3AF' : '#475569' }}
           >
-            {plants.length} plant{plants.length !== 1 ? 's' : ''}{' '}
-            {plants.length === 1 ? 'needs' : 'need'} water today
+            {t('hydration.plantsNeedWater', { count: plants.length })}
           </Text>
         </View>
         {/* Water drop icon */}
@@ -202,12 +204,12 @@ export function HydrationCard({
           shadowRadius: 8,
           elevation: 4,
         }}
-        accessibilityLabel="Water all plants"
+        accessibilityLabel={t('hydration.waterAllPlants')}
         accessibilityRole="button"
       >
         <MaterialIcons name="check-circle" size={20} color={iconColors.white} />
         <Text className="text-[15px] text-white font-bold">
-          {isLoading ? 'Watering...' : 'Water All'}
+          {isLoading ? t('hydration.wateringAll') : t('hydration.waterAll')}
         </Text>
       </Pressable>
     </LinearGradient>

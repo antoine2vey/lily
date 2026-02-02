@@ -1,0 +1,35 @@
+import about from './about'
+import achievements from './achievements'
+import addPlant from './addPlant'
+import auth from './auth'
+import care from './care'
+import chat from './chat'
+import common from './common'
+import home from './home'
+import logCare from './logCare'
+import notifications from './notifications'
+import onboarding from './onboarding'
+import plantDetail from './plantDetail'
+import plants from './plants'
+import profile from './profile'
+import settings from './settings'
+import subscription from './subscription'
+
+export default {
+  common,
+  auth,
+  home,
+  plants,
+  care,
+  chat,
+  settings,
+  profile,
+  about,
+  onboarding,
+  achievements,
+  subscription,
+  addPlant,
+  plantDetail,
+  logCare,
+  notifications,
+} as const

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +22,7 @@ import {
 } from 'src/hooks/usePrivacySettings'
 
 export function PrivacySettingsScreen() {
+  const { t } = useTranslation(['settings', 'common'])
   const iconColors = useIconColors()
   const { data: settings, isLoading } = usePrivacySettings()
   const { mutate: updateSettings } = useUpdatePrivacySettings()
@@ -34,16 +36,16 @@ export function PrivacySettingsScreen() {
 
   const handleRequestDeletion = () => {
     Alert.alert(
-      'Request Data Deletion',
-      'This will delete all your data and close your account. Are you sure?',
+      t('settings:privacy.requestDeletionTitle'),
+      t('settings:privacy.requestDeletionMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common:buttons.cancel'), style: 'cancel' },
         {
-          text: 'Request Deletion',
+          text: t('settings:privacy.requestDeletion'),
           style: 'destructive',
           onPress: () =>
             Linking.openURL(
-              'mailto:privacy@lily.app?subject=Data Deletion Request'
+              `mailto:privacy@lily.app?subject=${encodeURIComponent(t('settings:privacy.requestDeletionEmailSubject'))}`
             ),
         },
       ]
@@ -79,7 +81,7 @@ export function PrivacySettingsScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
-          Privacy & Data
+          {t('settings:privacy.screenTitle')}
         </Text>
       </View>
 
@@ -87,13 +89,15 @@ export function PrivacySettingsScreen() {
         {/* Description */}
         <View className="px-6 py-4">
           <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
-            Manage how your data is used to improve your plant care journey.
+            {t('settings:privacy.description')}
           </Text>
         </View>
 
         {/* Visibility & Personalization Section */}
         <View className="px-6 py-4">
-          <SectionHeader title="Visibility & Personalization" />
+          <SectionHeader
+            title={t('settings:privacy.sections.visibilityPersonalization')}
+          />
           <View className="mt-3">
             <ToggleRow
               testID="toggle-public-profile"
@@ -104,8 +108,8 @@ export function PrivacySettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Public Profile"
-              description="Allow other gardeners to see your plant collection"
+              label={t('settings:privacy.publicProfile')}
+              description={t('settings:privacy.publicProfileDescription')}
               value={settings.publicProfile}
               onValueChange={(value) => handleToggle('publicProfile', value)}
             />
@@ -117,8 +121,8 @@ export function PrivacySettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Share Growth Data"
-              description="Contribute anonymous stats to help community research"
+              label={t('settings:privacy.shareGrowthData')}
+              description={t('settings:privacy.shareGrowthDataDescription')}
               value={settings.shareGrowthData}
               onValueChange={(value) => handleToggle('shareGrowthData', value)}
             />
@@ -130,8 +134,8 @@ export function PrivacySettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Personalized Tips"
-              description="Use my plant history to suggest care improvements"
+              label={t('settings:privacy.personalizedTips')}
+              description={t('settings:privacy.personalizedTipsDescription')}
               value={settings.personalizedTips}
               onValueChange={(value) => handleToggle('personalizedTips', value)}
             />
@@ -140,7 +144,7 @@ export function PrivacySettingsScreen() {
 
         {/* Legal & Info Section */}
         <View className="px-6 py-4 border-t border-border dark:border-slate-700">
-          <SectionHeader title="Legal & Info" />
+          <SectionHeader title={t('settings:privacy.sections.legalInfo')} />
           <View className="mt-3">
             <ListRow
               leftIcon={
@@ -150,7 +154,7 @@ export function PrivacySettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              title="Privacy Policy"
+              title={t('settings:about.privacyPolicy')}
               showChevron
               onPress={() => Linking.openURL('https://lily.app/privacy')}
             />
@@ -162,7 +166,7 @@ export function PrivacySettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              title="Terms of Service"
+              title={t('settings:about.termsOfService')}
               showChevron
               onPress={() => Linking.openURL('https://lily.app/terms')}
             />
@@ -171,11 +175,11 @@ export function PrivacySettingsScreen() {
 
         {/* Data Actions Section */}
         <View className="px-6 py-4 border-t border-border dark:border-slate-700">
-          <SectionHeader title="Your Data" />
+          <SectionHeader title={t('settings:privacy.sections.yourData')} />
           <View className="mt-4 gap-4">
             {/* TODO: Wire export data to real API */}
             <Button variant="secondary" disabled>
-              Export My Data (Coming Soon)
+              {t('settings:privacy.dataExportComingSoon')}
             </Button>
 
             <Pressable
@@ -183,7 +187,7 @@ export function PrivacySettingsScreen() {
               className="py-3 items-center"
             >
               <Text className="text-sm font-medium text-coral">
-                Request Data Deletion
+                {t('settings:privacy.requestDeletion')}
               </Text>
             </Pressable>
           </View>

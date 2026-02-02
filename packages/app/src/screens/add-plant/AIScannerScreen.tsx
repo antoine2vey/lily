@@ -4,6 +4,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
@@ -12,6 +13,7 @@ import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
 import { UploadError } from 'src/utils/upload'
 
 export function AIScannerScreen() {
+  const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const [permission, requestPermission] = useCameraPermissions()
   const [isCapturing, setIsCapturing] = useState(false)
@@ -51,11 +53,11 @@ export function AIScannerScreen() {
           error instanceof UploadError &&
           error.apiError?._tag === 'LimitExceededError'
         ) {
-          Alert.alert('Scan Limit Reached', error.message)
+          Alert.alert(t('scanner.scanLimitReached'), error.message)
         } else {
           Alert.alert(
-            'Identification Failed',
-            "We couldn't identify this plant. Try another photo or add manually."
+            t('scanner.identificationFailed'),
+            t('scanner.identificationFailedMessage')
           )
         }
       } finally {
@@ -78,11 +80,11 @@ export function AIScannerScreen() {
           error instanceof UploadError &&
           error.apiError?._tag === 'LimitExceededError'
         ) {
-          Alert.alert('Scan Limit Reached', error.message)
+          Alert.alert(t('scanner.scanLimitReached'), error.message)
         } else {
           Alert.alert(
-            'Identification Failed',
-            "We couldn't identify this plant. Try another photo or add manually."
+            t('scanner.identificationFailed'),
+            t('scanner.identificationFailedMessage')
           )
         }
       } finally {
@@ -104,7 +106,7 @@ export function AIScannerScreen() {
       <CameraPermissionRequest
         onRequest={requestPermission}
         icon="camera-alt"
-        description="We need camera access to identify your plants. Tap below to grant permission."
+        description={t('scanner.cameraPermission')}
       />
     )
   }
@@ -131,8 +133,8 @@ export function AIScannerScreen() {
 
         {/* Dark overlay with cutout */}
         <ScannerOverlay
-          statusText="Hold steady..."
-          helperText="Position your plant in the frame"
+          statusText={t('scanner.holdSteady')}
+          helperText={t('scanner.positionPlant')}
         />
 
         {/* Bottom controls */}

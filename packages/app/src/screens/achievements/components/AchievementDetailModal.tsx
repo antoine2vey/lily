@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatLongDate, parseApiDate } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -38,15 +40,8 @@ function getRarityColor(rarity: Rarity, iconColors: IconColors): string {
   )
 }
 
-const getRarityLabel = (rarity: Rarity): string =>
-  pipe(
-    Match.value(rarity),
-    Match.when('common', () => 'Common'),
-    Match.when('rare', () => 'Rare'),
-    Match.when('epic', () => 'Epic'),
-    Match.when('legendary', () => 'Legendary'),
-    Match.exhaustive
-  )
+const getRarityLabel = (rarity: Rarity, t: TFunction): string =>
+  t(`rarity.${rarity}`)
 
 const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
   const iconMap: Record<string, keyof typeof MaterialIcons.glyphMap> = {
@@ -64,12 +59,16 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
   return iconMap[icon] ?? 'star'
 }
 
-const formatDate = (date: Date | null | undefined): string =>
+const formatDate = (
+  date: Date | null | undefined,
+  t: TFunction,
+  locale?: Intl.LocalesArgument
+): string =>
   pipe(
     Option.fromNullable(date),
     Option.flatMap((d) => parseApiDate(d)),
-    Option.map(formatLongDate),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) => formatLongDate(dt, locale)),
+    Option.getOrElse(() => t('status.unknown'))
   )
 
 export function AchievementDetailModal({
@@ -77,6 +76,7 @@ export function AchievementDetailModal({
   onClose,
   achievement,
 }: AchievementDetailModalProps) {
+  const { t, i18n } = useTranslation('achievements')
   const iconColors = useIconColors()
 
   if (!achievement) return null
@@ -147,7 +147,7 @@ export function AchievementDetailModal({
                 className="text-xs uppercase font-semibold"
                 style={{ color: rarityColor }}
               >
-                {getRarityLabel(achievement.rarity)}
+                {getRarityLabel(achievement.rarity, t)}
               </Text>
             </View>
 
@@ -170,7 +170,9 @@ export function AchievementDetailModal({
                   color={iconColors.primary}
                 />
                 <Text className="text-sm ml-2 font-medium text-primary">
-                  Unlocked {formatDate(achievement.unlockedAt)}
+                  {t('status.unlocked', {
+                    date: formatDate(achievement.unlockedAt, t, i18n.language),
+                  })}
                 </Text>
               </View>
             ) : hasProgress ? (
@@ -181,7 +183,10 @@ export function AchievementDetailModal({
                   color={rarityColor}
                 />
                 <Text className="text-sm text-center mt-2 font-medium text-text-secondary">
-                  {achievement.progress} / {achievement.maxProgress} completed
+                  {t('status.progressCompleted', {
+                    current: achievement.progress,
+                    max: achievement.maxProgress,
+                  })}
                 </Text>
               </View>
             ) : (
@@ -192,7 +197,7 @@ export function AchievementDetailModal({
                   color={iconColors.textMuted}
                 />
                 <Text className="text-sm ml-2 font-regular text-text-muted">
-                  Keep going to unlock this achievement
+                  {t('status.keepGoing')}
                 </Text>
               </View>
             )}

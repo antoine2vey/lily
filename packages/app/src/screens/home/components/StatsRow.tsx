@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useLocalization } from 'src/hooks/useLocalization'
 
 interface StatsRowProps {
   total: number
@@ -65,13 +66,19 @@ function StatBox({
 }
 
 export function StatsRow({ total, healthy, attention }: StatsRowProps) {
+  const { t } = useLocalization()
+
   return (
     <View className="flex-row gap-3">
-      <StatBox value={total} label="Total" />
-      <StatBox value={healthy} label="Healthy" variant="healthy" />
+      <StatBox value={total} label={t('home:stats.total')} />
+      <StatBox
+        value={healthy}
+        label={t('home:stats.healthy')}
+        variant="healthy"
+      />
       <StatBox
         value={attention}
-        label="Attention"
+        label={t('home:stats.attention')}
         variant="warning"
         showWarningIcon
       />

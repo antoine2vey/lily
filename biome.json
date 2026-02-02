@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/dist/**", "!**/.expo/**"]
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/.expo/**",
+      "!**/ios/Pods/**",
+      "!**/android/.gradle/**",
+      "!**/android/build/**"
+    ]
   },
   "formatter": {
     "enabled": true,

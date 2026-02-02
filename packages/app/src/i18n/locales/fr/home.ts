@@ -1,0 +1,75 @@
+export default {
+  greeting: {
+    morning: 'Bonjour',
+    afternoon: 'Bon après-midi',
+    evening: 'Bonsoir',
+    withName: '{greeting}, {name} !',
+    withoutName: '{greeting} !',
+    defaultName: 'Jardinier',
+  },
+  summary: {
+    title: "Aujourd'hui",
+    tasksRemaining:
+      '{count, plural, one {# tâche restante} other {# tâches restantes}}',
+    allDone: "Tout est fait pour aujourd'hui !",
+    noTasks: 'Aucune tâche prévue',
+  },
+  sections: {
+    todaysTasks: 'Tâches du jour',
+    upcomingTasks: 'À venir',
+    recentActivity: 'Activité récente',
+    yourPlants: 'Vos plantes',
+    seeAll: 'Tout voir',
+  },
+  activity: {
+    noActivity:
+      "Pas encore d'activité récente.\nCommencez à prendre soin de vos plantes !",
+    plantAdded: 'Nouvelle plante ajoutée : {name}',
+    plantMoved: '{name} déplacée à la lumière',
+    plantMisted: '{name} vaporisée',
+    plantWatered: '{name} arrosée',
+    plantFertilized: '{name} fertilisée',
+    plantPruned: '{name} taillée',
+    unknownTime: 'Inconnu',
+  },
+  tasks: {
+    water: 'Arroser',
+    fertilize: 'Fertiliser',
+    repot: 'Rempoter',
+    prune: 'Tailler',
+    mist: 'Vaporiser',
+    rotate: 'Tourner',
+    checkHealth: 'Vérifier la santé',
+    markComplete: 'Marquer comme terminé',
+    undo: 'Annuler',
+    completed: 'Terminé',
+    overdue: 'En retard',
+    dueSoon: 'Bientôt',
+    dueIn: 'Dans {time}',
+    nextCare: 'Prochain : {task}',
+  },
+  stats: {
+    total: 'Total',
+    healthy: 'En forme',
+    attention: 'À surveiller',
+  },
+  empty: {
+    title: 'Votre jardin vous attend',
+    subtitle: 'Ajoutez votre première plante pour commencer votre aventure',
+    addButton: 'Ajouter votre première plante',
+  },
+  quickActions: {
+    addPlant: 'Ajouter une plante',
+    scanPlant: 'Identifier une plante',
+    logCare: 'Enregistrer un soin',
+  },
+  hydration: {
+    title: "Temps d'hydratation",
+    plantsNeedWater:
+      "{count, plural, one {# plante a besoin} other {# plantes ont besoin}} d'eau aujourd'hui",
+    wateringAll: 'Arrosage...',
+    waterAll: 'Tout arroser',
+    viewPlant: 'Voir {name}',
+    waterAllPlants: 'Arroser toutes les plantes',
+  },
+} as const

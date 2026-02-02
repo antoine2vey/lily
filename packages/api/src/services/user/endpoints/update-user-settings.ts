@@ -47,6 +47,7 @@ export const updateUserSettings = (
       personalizedTips: data.privacy?.personalizedTips,
       timezone: data.timezone,
       preferredNotificationTime: data.preferredNotificationTime,
+      language: data.language,
     })
 
     const user = yield* repo.update(id, updateData)
@@ -131,5 +132,6 @@ export const updateUserSettings = (
       },
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
+      language: user.language,
     }
   })

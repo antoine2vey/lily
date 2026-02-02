@@ -11,6 +11,7 @@ import {
 import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
@@ -30,14 +31,20 @@ interface FutureTaskModalState {
   daysUntilDue: number
 }
 
-const formatDate = (dateTime: DateTime.DateTime): string =>
-  formatDateHeader(dateTime)
+const formatDate = (
+  dateTime: DateTime.DateTime,
+  locale?: Intl.LocalesArgument
+): string => formatDateHeader(dateTime, locale)
 
-const formatWeekday = (date: Date): string =>
+const formatWeekday = (
+  date: Date,
+  fallback: string,
+  locale?: Intl.LocalesArgument
+): string =>
   pipe(
     parseApiDate(date),
-    Option.map(formatDayOfWeek),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) => formatDayOfWeek(dt, locale)),
+    Option.getOrElse(() => fallback)
   )
 
 const calculateDaysUntilDue = (dueDate: Date): number =>
@@ -47,15 +54,16 @@ const calculateDaysUntilDue = (dueDate: Date): number =>
     Option.getOrElse(() => 0)
   )
 
-const getTaskActionLabel = (type: CareTaskType): string =>
+const getTaskActionKey = (type: CareTaskType): 'water' | 'fertilize' =>
   pipe(
     Match.value(type),
-    Match.when('water', () => 'watered'),
-    Match.when('fertilize', () => 'fertilized'),
+    Match.when('water', () => 'water' as const),
+    Match.when('fertilize', () => 'fertilize' as const),
     Match.exhaustive
   )
 
 export function CareScreen() {
+  const { t, i18n } = useTranslation('care')
   const iconColors = useIconColors()
   const { data: tasks, isLoading } = useCareTasks()
   const { mutate: completeTask } = useCompleteTask()
@@ -103,7 +111,9 @@ export function CareScreen() {
     // Set timeout to actually call API after the undo timeout
     const timeoutId = setTimeout(() => {
       handleCompleteTaskApi(task.id, task.plantId, task.type)
-      toast.success(`${task.plantName} ${getTaskActionLabel(task.type)}!`)
+      toast.success(
+        `${task.plantName} ${t(`types.${getTaskActionKey(task.type)}.completed`)}!`
+      )
       pendingTimeouts.current.delete(task.id)
       setPendingTaskIds((prev) => {
         const next = new Set(prev)
@@ -164,10 +174,12 @@ export function CareScreen() {
         <View className="flex-row items-center justify-between">
           <View>
             <Text className="text-xs uppercase font-medium text-text-muted dark:text-slate-400">
-              Today, {formatDate(today)}
+              {t('screen.todayDate', {
+                date: formatDate(today, i18n.language),
+              })}
             </Text>
             <Text className="text-3xl mt-1 font-bold text-text-primary dark:text-white">
-              Care
+              {t('screen.title')}
             </Text>
           </View>
           <Pressable className="w-10 h-10 rounded-full items-center justify-center bg-surface dark:bg-surface-dark">
@@ -193,10 +205,10 @@ export function CareScreen() {
               color={iconColors.primary}
             />
             <Text className="text-lg mt-4 font-semibold text-text-primary dark:text-white">
-              All caught up!
+              {t('screen.allCaughtUp')}
             </Text>
             <Text className="text-sm mt-1 text-center font-regular text-text-muted dark:text-slate-400">
-              No care tasks scheduled for now
+              {t('screen.noTasksScheduled')}
             </Text>
           </View>
         )}
@@ -206,7 +218,7 @@ export function CareScreen() {
           {overdueCount > 0 && (
             <View>
               <View className="flex-row items-center mb-3">
-                <SectionHeader title="Overdue" />
+                <SectionHeader title={t('screen.sections.overdue')} />
                 <View className="ml-2 px-2 py-0.5 rounded-full bg-coral">
                   <Text className="text-xs font-semibold text-white">
                     {overdueCount}
@@ -235,7 +247,7 @@ export function CareScreen() {
           {/* Today Section */}
           {todayCount > 0 && (
             <View>
-              <SectionHeader title="Today" />
+              <SectionHeader title={t('screen.sections.today')} />
               <View className="mt-3">
                 {pipe(
                   tasks?.today ?? [],
@@ -259,11 +271,13 @@ export function CareScreen() {
           {/* This Week Section */}
           {thisWeekCount > 0 && (
             <View>
-              <SectionHeader title="This Week" />
+              <SectionHeader title={t('screen.sections.thisWeek')} />
               <View className="mt-3">
                 {pipe(
                   tasks?.thisWeek ?? [],
-                  Array.groupBy((task) => formatWeekday(task.dueDate)),
+                  Array.groupBy((task) =>
+                    formatWeekday(task.dueDate, t('unknownDay'), i18n.language)
+                  ),
                   Record.toEntries,
                   Array.map(([dayName, dayTasks]) => (
                     <View key={dayName} className="mb-4 last:mb-0">
@@ -294,10 +308,12 @@ export function CareScreen() {
       {/* Future Task Confirmation Modal */}
       <ConfirmationModal
         visible={futureTaskModal.visible}
-        title="Complete Early?"
-        message={`This task is scheduled in ${futureTaskModal.daysUntilDue} day${futureTaskModal.daysUntilDue > 1 ? 's' : ''}. Complete it anyway?`}
-        confirmLabel="Complete Now"
-        cancelLabel="Cancel"
+        title={t('screen.completeEarly.title')}
+        message={t('screen.completeEarly.message', {
+          count: futureTaskModal.daysUntilDue,
+        })}
+        confirmLabel={t('screen.completeEarly.confirm')}
+        cancelLabel={t('screen.completeEarly.cancel')}
         onConfirm={handleConfirmFutureTask}
         onCancel={handleCancelFutureTask}
         icon={

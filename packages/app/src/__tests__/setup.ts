@@ -7,6 +7,102 @@ import './mocks/navigation'
 // Import QueryClient cleanup utility
 import { cleanupQueryClients } from './utils/query-helpers'
 
+// Mock react-i18next globally for all components
+// This creates a simple mock that returns translations from the actual translation files
+jest.mock('react-i18next', () => {
+  // Import translations inside the mock factory
+  const en = require('../i18n/locales/en').default
+
+  const getTranslationValue = (
+    namespace: string,
+    keyPath: string,
+    options?: Record<string, unknown>
+  ): string => {
+    // Get the namespace object
+    const namespaceObj = en[namespace]
+    if (!namespaceObj) return keyPath
+
+    // Navigate the path
+    const parts = keyPath.split('.')
+    let current: unknown = namespaceObj
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part]
+      } else {
+        return keyPath // Key not found, return original key path
+      }
+    }
+
+    // Return the string value or the key if not a string
+    if (typeof current === 'string') {
+      // Handle interpolation
+      if (options) {
+        let result = current
+        for (const [optKey, optValue] of Object.entries(options)) {
+          result = result.replace(
+            new RegExp(`\\{${optKey}\\}`, 'g'),
+            String(optValue)
+          )
+        }
+        return result
+      }
+      return current
+    }
+    return keyPath
+  }
+
+  return {
+    useTranslation: (namespaces?: string | string[]) => {
+      // Get the default namespace from the parameter
+      const defaultNs = Array.isArray(namespaces)
+        ? namespaces[0]
+        : namespaces || 'common'
+
+      const t = (key: string, options?: Record<string, unknown>): string => {
+        // Handle explicit namespaced keys like 'plantDetail:edit.title'
+        const colonIndex = key.indexOf(':')
+        if (colonIndex > -1) {
+          const namespace = key.substring(0, colonIndex)
+          const keyPath = key.substring(colonIndex + 1)
+          return getTranslationValue(namespace, keyPath, options)
+        }
+        // Use the default namespace from useTranslation
+        return getTranslationValue(defaultNs, key, options)
+      }
+
+      // Create a t function that can handle namespace in options
+      const i18nT = (
+        key: string,
+        options?: Record<string, unknown>
+      ): string => {
+        // Handle namespace in options like i18n.t('key', { ns: 'namespace' })
+        const ns = typeof options?.ns === 'string' ? options.ns : defaultNs
+        const colonIndex = key.indexOf(':')
+        if (colonIndex > -1) {
+          const namespace = key.substring(0, colonIndex)
+          const keyPath = key.substring(colonIndex + 1)
+          return getTranslationValue(namespace, keyPath, options)
+        }
+        return getTranslationValue(ns, key, options)
+      }
+
+      return {
+        t,
+        i18n: {
+          language: 'en',
+          changeLanguage: jest.fn().mockResolvedValue(undefined),
+          t: i18nT,
+        },
+      }
+    },
+    Trans: ({ children }: { children: React.ReactNode }) => children,
+    initReactI18next: {
+      type: '3rdParty',
+      init: jest.fn(),
+    },
+  }
+})
+
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
 
@@ -21,6 +117,82 @@ jest.mock('src/contexts/ThemeContext', () => ({
   }),
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
+
+// Mock LocalizationContext globally to avoid "must be used within LocalizationProvider" errors
+jest.mock('src/contexts/LocalizationContext', () => ({
+  useLocalizationContext: () => ({
+    language: 'en' as const,
+    setLanguage: jest.fn().mockResolvedValue(undefined),
+    isLoading: false,
+    supportedLanguages: [
+      { code: 'en', name: 'English', nativeName: 'English' },
+      { code: 'fr', name: 'French', nativeName: 'Français' },
+    ],
+  }),
+  LocalizationProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
+}))
+
+// Mock useLocalization hook globally
+jest.mock('src/hooks/useLocalization', () => {
+  // Import translations inside the mock factory
+  const en = require('../i18n/locales/en').default
+
+  const getTranslationValue = (
+    namespace: string,
+    keyPath: string,
+    options?: Record<string, unknown>
+  ): string => {
+    const namespaceObj = en[namespace]
+    if (!namespaceObj) return `${namespace}:${keyPath}`
+
+    const parts = keyPath.split('.')
+    let current: unknown = namespaceObj
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part]
+      } else {
+        return `${namespace}:${keyPath}`
+      }
+    }
+
+    if (typeof current === 'string') {
+      if (options) {
+        let result = current
+        for (const [optKey, optValue] of Object.entries(options)) {
+          result = result.replace(
+            new RegExp(`\\{${optKey}\\}`, 'g'),
+            String(optValue)
+          )
+        }
+        return result
+      }
+      return current
+    }
+    return `${namespace}:${keyPath}`
+  }
+
+  return {
+    useLocalization: () => ({
+      t: (key: string, options?: Record<string, unknown>): string => {
+        const colonIndex = key.indexOf(':')
+        if (colonIndex > -1) {
+          const namespace = key.substring(0, colonIndex)
+          const keyPath = key.substring(colonIndex + 1)
+          return getTranslationValue(namespace, keyPath, options)
+        }
+        return key
+      },
+      language: 'en' as const,
+      setLanguage: jest.fn().mockResolvedValue(undefined),
+      isLoading: false,
+      supportedLanguages: [
+        { code: 'en', name: 'English', nativeName: 'English' },
+        { code: 'fr', name: 'French', nativeName: 'Français' },
+      ],
+    }),
+  }
+})
 
 // Clean up QueryClients after each test to prevent open handles
 afterEach(() => {

@@ -1,9 +1,11 @@
 import { router, Tabs } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { BottomTabBar } from 'src/components/BottomTabBar'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
 
 export default function TabsLayout() {
+  const { t } = useTranslation('common')
   const [showAddPlant, setShowAddPlant] = useState(false)
 
   return (
@@ -20,25 +22,25 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Home',
+            title: t('tabs.home'),
           }}
         />
         <Tabs.Screen
           name="plants"
           options={{
-            title: 'My Plants',
+            title: t('tabs.plants'),
           }}
         />
         <Tabs.Screen
           name="care"
           options={{
-            title: 'Care',
+            title: t('tabs.care'),
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'Profile',
+            title: t('tabs.profile'),
           }}
         />
       </Tabs>

@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
@@ -12,30 +13,31 @@ import { PricingToggle } from './components/PricingToggle'
 
 type BillingPeriod = 'monthly' | 'annual'
 
-const PREMIUM_FEATURES = [
-  {
-    title: 'Unlimited AI Chats',
-    description: 'Instant answers for all your plant questions',
-  },
-  {
-    title: 'Expert Consultations',
-    description: '1-on-1 advice from certified botanists',
-  },
-  {
-    title: 'No Ads',
-    description: 'Focus on your garden, distraction-free',
-  },
-  {
-    title: 'Priority Support',
-    description: 'Skip the line whenever you need help',
-  },
-]
-
 export function SubscriptionPayScreen() {
+  const { t } = useTranslation(['subscription', 'common'])
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
   const { offerings, purchase, syncSubscription } = useRevenueCat()
   const iconColors = useIconColors()
+
+  const PREMIUM_FEATURES = [
+    {
+      title: t('features.unlimitedChats.title'),
+      description: t('features.unlimitedChats.description'),
+    },
+    {
+      title: t('features.expertConsultations.title'),
+      description: t('features.expertConsultations.description'),
+    },
+    {
+      title: t('features.noAds.title'),
+      description: t('features.noAds.description'),
+    },
+    {
+      title: t('features.prioritySupport.title'),
+      description: t('features.prioritySupport.description'),
+    },
+  ]
 
   const monthlyPackage = pipe(
     Option.fromNullable(offerings?.current?.monthly),
@@ -52,7 +54,7 @@ export function SubscriptionPayScreen() {
 
   const handleSubscribe = async () => {
     if (!selectedPackage) {
-      Alert.alert('Error', 'No package available. Please try again later.')
+      Alert.alert(t('messages.error'), t('messages.noPackage'))
       return
     }
 
@@ -66,18 +68,18 @@ export function SubscriptionPayScreen() {
       }, 500)
 
       const message = RevenueCatService.isDevModeEnabled()
-        ? 'Purchase simulated! (Dev Mode)\n\nIn production, this would be a real purchase.'
-        : 'Thank you for subscribing to Lily Pro!'
+        ? t('messages.devPurchase')
+        : t('messages.thankYou')
 
-      Alert.alert('Success', message, [
-        { text: 'OK', onPress: () => router.back() },
+      Alert.alert(t('subscription:messages.success'), message, [
+        { text: t('common:buttons.ok'), onPress: () => router.back() },
       ])
     } catch (error) {
       // User cancelled purchase is not an error
       const isCancelled =
         error instanceof Error && error.message.includes('cancelled')
       if (!isCancelled) {
-        Alert.alert('Error', 'Failed to complete purchase. Please try again.')
+        Alert.alert(t('messages.error'), t('messages.purchaseFailed'))
       }
     } finally {
       setIsLoading(false)
@@ -136,19 +138,18 @@ export function SubscriptionPayScreen() {
                 color={iconColors.primary}
               />
               <Text className="text-xs ml-1.5 uppercase tracking-wider font-bold text-primary">
-                Premium Access
+                {t('title')}
               </Text>
             </View>
 
             {/* Title */}
             <Text className="text-3xl text-center font-bold text-text-primary dark:text-white">
-              Unlock Lily Pro
+              {t('headline')}
             </Text>
 
             {/* Subtitle */}
             <Text className="text-sm text-center leading-relaxed font-regular text-text-muted dark:text-slate-400 max-w-[280px]">
-              Give your plants the care they deserve with unlimited access to
-              premium features.
+              {t('description')}
             </Text>
           </View>
 
@@ -174,13 +175,15 @@ export function SubscriptionPayScreen() {
               className={`py-4 rounded-2xl items-center ${isLoading ? 'bg-primary-dark opacity-70' : 'bg-primary active:bg-primary-dark'}`}
             >
               <Text className="text-lg font-bold text-white">
-                {isLoading ? 'Processing...' : `Subscribe for ${getPrice()}`}
+                {isLoading
+                  ? t('buttons.processing')
+                  : t('buttons.subscribe', { price: getPrice() })}
               </Text>
             </Pressable>
 
             {/* Terms */}
             <Text className="text-xs text-center mt-3 font-medium text-text-muted dark:text-slate-400">
-              Recurring billing, cancel anytime.
+              {t('billing')}
             </Text>
           </View>
 
@@ -195,7 +198,7 @@ export function SubscriptionPayScreen() {
                   color={iconColors.textSecondary}
                 />
                 <Text className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-slate-300">
-                  Secure
+                  {t('badges.secure')}
                 </Text>
               </View>
               <View className="flex-row items-center gap-1.5">
@@ -205,7 +208,7 @@ export function SubscriptionPayScreen() {
                   color={iconColors.textSecondary}
                 />
                 <Text className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-slate-300">
-                  Top Rated
+                  {t('badges.topRated')}
                 </Text>
               </View>
             </View>
@@ -213,7 +216,7 @@ export function SubscriptionPayScreen() {
             {/* Restore Purchase */}
             <Pressable>
               <Text className="text-xs font-semibold text-text-muted dark:text-slate-400 underline">
-                Restore Purchase
+                {t('buttons.restore')}
               </Text>
             </Pressable>
 
@@ -221,12 +224,12 @@ export function SubscriptionPayScreen() {
             <View className="flex-row gap-4">
               <Pressable>
                 <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
-                  Terms of Service
+                  {t('legal.terms')}
                 </Text>
               </Pressable>
               <Pressable>
                 <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
-                  Privacy Policy
+                  {t('legal.privacy')}
                 </Text>
               </Pressable>
             </View>

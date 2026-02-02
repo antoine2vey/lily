@@ -3,6 +3,7 @@ import { Either, Match, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Chip } from 'src/components/Chip'
@@ -12,6 +13,7 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
 
 export function AIIdentificationResultsScreen() {
+  const { t } = useTranslation('addPlant')
   const params = useLocalSearchParams<{ photoUri?: string; result?: string }>()
   const iconColors = useIconColors()
   const photoUri = params.photoUri ? decodeURIComponent(params.photoUri) : ''
@@ -55,13 +57,10 @@ export function AIIdentificationResultsScreen() {
                 pipe(
                   Match.value(error),
                   Match.when({ _tag: 'LimitExceededError' }, (e) =>
-                    Alert.alert('Plant Limit Reached', e.message)
+                    Alert.alert(t('scanner.plantLimitReached'), e.message)
                   ),
                   Match.orElse(() =>
-                    Alert.alert(
-                      'Error',
-                      'Failed to create plant. Please try again.'
-                    )
+                    Alert.alert(t('scanner.error'), t('errors.createFailed'))
                   )
                 ),
               onRight: (plant) => {
@@ -108,13 +107,12 @@ export function AIIdentificationResultsScreen() {
             color={iconColors.coral}
           />
           <Text className="text-xl text-center mt-4 font-semibold text-text-primary dark:text-white">
-            Identification Failed
+            {t('scanner.identificationFailed')}
           </Text>
           <Text className="text-base text-center mt-2 mb-6 font-regular text-text-muted dark:text-slate-400">
-            We couldn't identify this plant. Try taking another photo or add it
-            manually.
+            {t('scanner.identificationFailedMessage')}
           </Text>
-          <Button onPress={handleRetry}>Try Again</Button>
+          <Button onPress={handleRetry}>{t('results.tryAgain')}</Button>
         </View>
       </View>
     )
@@ -140,7 +138,7 @@ export function AIIdentificationResultsScreen() {
           />
         </Pressable>
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          Plant Identified
+          {t('results.plantIdentified')}
         </Text>
         <View className="w-10 h-10" />
       </View>
@@ -175,7 +173,7 @@ export function AIIdentificationResultsScreen() {
                   color={iconColors.primary}
                 />
                 <Text className="text-xs font-bold text-primary">
-                  {confidencePercent}% Match
+                  {t('results.match', { percent: confidencePercent })}
                 </Text>
               </View>
             </View>
@@ -216,10 +214,10 @@ export function AIIdentificationResultsScreen() {
                     />
                     <Text className="text-xs font-semibold text-text-primary dark:text-white">
                       {result.sunlightPreference === 'high'
-                        ? 'High Light'
+                        ? t('results.highLight')
                         : result.sunlightPreference === 'medium'
-                          ? 'Medium Light'
-                          : 'Low Light'}
+                          ? t('results.mediumLight')
+                          : t('results.lowLight')}
                     </Text>
                   </View>
                 )}
@@ -234,7 +232,7 @@ export function AIIdentificationResultsScreen() {
           result.humidityRating != null) && (
           <View className="px-5 pt-2 pb-4">
             <Text className="text-lg font-bold text-text-primary dark:text-white pb-4">
-              Suggested Care
+              {t('results.suggestedCare')}
             </Text>
             <View className="bg-surface-tinted dark:bg-slate-800 rounded-2xl p-4 gap-3">
               {result.wateringFrequencyDays && (
@@ -248,10 +246,12 @@ export function AIIdentificationResultsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Water
+                      {t('results.water')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
-                      Every {result.wateringFrequencyDays} days
+                      {t('results.everyDays', {
+                        count: result.wateringFrequencyDays,
+                      })}
                     </Text>
                   </View>
                 </View>
@@ -267,14 +267,14 @@ export function AIIdentificationResultsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Light
+                      {t('results.light')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
                       {result.sunlightPreference === 'high'
-                        ? 'Bright indirect'
+                        ? t('results.lightHigh')
                         : result.sunlightPreference === 'medium'
-                          ? 'Medium indirect'
-                          : 'Low light'}
+                          ? t('results.lightMedium')
+                          : t('results.lightLow')}
                     </Text>
                   </View>
                 </View>
@@ -290,14 +290,14 @@ export function AIIdentificationResultsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Humidity
+                      {t('results.humidity')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
                       {result.humidityRating >= 60
-                        ? 'High'
+                        ? t('results.humidityHigh')
                         : result.humidityRating >= 40
-                          ? 'Moderate'
-                          : 'Low'}{' '}
+                          ? t('results.humidityModerate')
+                          : t('results.humidityLow')}{' '}
                       ({result.humidityRating}%)
                     </Text>
                   </View>
@@ -318,12 +318,12 @@ export function AIIdentificationResultsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Pet Safety
+                      {t('results.petSafety')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
                       {result.petToxicityRating > 50
-                        ? 'Toxic to pets'
-                        : 'Pet-safe'}
+                        ? t('results.toxicToPets')
+                        : t('results.petSafe')}
                     </Text>
                   </View>
                 </View>
@@ -339,10 +339,12 @@ export function AIIdentificationResultsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-text-primary dark:text-white">
-                      Fertilizer
+                      {t('results.fertilizer')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
-                      Every {result.fertilizationFrequencyDays} days
+                      {t('results.everyDays', {
+                        count: result.fertilizationFrequencyDays,
+                      })}
                     </Text>
                   </View>
                 </View>
@@ -355,7 +357,7 @@ export function AIIdentificationResultsScreen() {
         {result.alternatives.length > 0 && (
           <View className="px-5 pb-4">
             <Text className="text-sm font-medium text-text-muted dark:text-slate-400 mb-3">
-              Other possibilities
+              {t('results.otherPossibilities')}
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {result.alternatives
@@ -392,7 +394,7 @@ export function AIIdentificationResultsScreen() {
           icon="add-circle"
           iconPosition="left"
         >
-          Add to Collection
+          {t('results.addToCollection')}
         </Button>
         <View className="flex-row items-center justify-center gap-8 pt-4">
           <Pressable
@@ -405,7 +407,7 @@ export function AIIdentificationResultsScreen() {
               color={iconColors.textSecondary}
             />
             <Text className="text-sm font-semibold text-text-secondary">
-              Edit Details
+              {t('results.editDetails')}
             </Text>
           </Pressable>
           <View className="h-4 w-px bg-border dark:bg-slate-600" />
@@ -419,7 +421,7 @@ export function AIIdentificationResultsScreen() {
               color={iconColors.textSecondary}
             />
             <Text className="text-sm font-semibold text-text-secondary">
-              Try Again
+              {t('results.tryAgain')}
             </Text>
           </Pressable>
         </View>
