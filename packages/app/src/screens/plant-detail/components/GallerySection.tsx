@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -20,6 +21,7 @@ export function GallerySection({
   onAddPhoto,
   onSeeAll,
 }: GallerySectionProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
 
   return (
@@ -30,7 +32,7 @@ export function GallerySection({
         className="flex-row justify-between items-center mb-4 px-1"
       >
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          Gallery
+          {t('detail.gallery')}
         </Text>
         {photos.length > 0 && (
           <MaterialIcons

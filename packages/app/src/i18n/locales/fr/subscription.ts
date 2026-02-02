@@ -1,0 +1,94 @@
+export default {
+  title: 'Accès Premium',
+  headline: 'Débloquez Lily Pro',
+  description:
+    "Offrez à vos plantes les soins qu'elles méritent avec un accès illimité aux fonctionnalités premium.",
+  features: {
+    unlimitedChats: {
+      title: 'Chats IA illimités',
+      description:
+        'Réponses instantanées à toutes vos questions sur les plantes',
+    },
+    expertConsultations: {
+      title: "Consultations d'experts",
+      description: 'Conseils personnalisés de botanistes certifiés',
+    },
+    noAds: {
+      title: 'Sans publicité',
+      description: 'Concentrez-vous sur votre jardin, sans distraction',
+    },
+    prioritySupport: {
+      title: 'Support prioritaire',
+      description: "Passez en premier quand vous avez besoin d'aide",
+    },
+    unlimitedDiagnostics: 'Diagnostics IA illimités',
+    detailedGuides: 'Guides de soins détaillés',
+    advancedStats: 'Statistiques avancées',
+  },
+  buttons: {
+    subscribe: "S'abonner pour {price}",
+    processing: 'Traitement...',
+    restore: "Restaurer l'achat",
+    viewPlans: 'Voir les forfaits',
+    cancelSubscription: "Annuler l'abonnement",
+  },
+  billing: 'Facturation récurrente, annulez à tout moment.',
+  badges: {
+    secure: 'Sécurisé',
+    topRated: 'Bien noté',
+  },
+  legal: {
+    terms: "Conditions d'utilisation",
+    privacy: 'Politique de confidentialité',
+  },
+  messages: {
+    devPurchase:
+      'Achat simulé ! (Mode Dev)\n\nEn production, ce serait un vrai achat.',
+    thankYou: 'Merci de vous être abonné à Lily Pro !',
+    error: 'Erreur',
+    noPackage: 'Aucun forfait disponible. Veuillez réessayer plus tard.',
+    purchaseFailed: "L'achat a échoué. Veuillez réessayer.",
+    restoreSuccess: 'Achats restaurés avec succès.',
+    restoreSimulated: 'Restauration simulée ! (Mode Dev)',
+    restoreFailed: 'Échec de la restauration des achats. Veuillez réessayer.',
+    restoring: 'Restauration...',
+    success: 'Succès',
+  },
+  usage: {
+    title: 'Abonnement',
+    currentPlan: 'Forfait actuel',
+    upgradeTo: 'Passer à Lily Pro',
+    aiChats: 'Chats IA',
+    plantIds: 'Identifications',
+    cardScans: "Scans d'étiquettes",
+  },
+  status: {
+    active: 'Actif',
+    trial: 'Essai',
+    canceled: 'Annulé',
+    expired: 'Expiré',
+    pastDue: 'En retard',
+  },
+  pricing: {
+    monthly: 'Mensuel',
+    annual: 'Annuel',
+    perMonth: '/mois',
+    perYear: '/an (facturé annuellement)',
+    save: 'Économisez {percent}%',
+  },
+  cancel: {
+    title: "Annuler l'abonnement",
+    headline: 'Nous sommes tristes de vous voir partir',
+    subtitle:
+      'Si vous annulez, vous perdrez accès à ces fonctionnalités premium :',
+    info: "Vous conserverez l'accès aux fonctionnalités premium jusqu'à la fin de votre période de facturation. Vous pouvez vous réabonner à tout moment.",
+    keepButton: 'Garder mon abonnement',
+    continueButton: "Continuer l'annulation",
+    featuresLost: {
+      diagnostics: 'Diagnostics IA illimités',
+      guides: 'Guides de soins détaillés',
+      stats: 'Statistiques avancées',
+      support: 'Support prioritaire',
+    },
+  },
+} as const

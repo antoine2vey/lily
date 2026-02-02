@@ -3,6 +3,7 @@ import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, Order, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { EmptyState } from 'src/components/EmptyState'
@@ -80,6 +81,7 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
 )
 
 export function PlantsScreen() {
+  const { t } = useTranslation('plants')
   const router = useRouter()
   const iconColors = useIconColors()
   const [searchQuery, setSearchQuery] = useState('')
@@ -199,15 +201,15 @@ export function PlantsScreen() {
       >
         <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
           <Text className="text-3xl font-bold tracking-tight text-text-primary dark:text-white">
-            My Plants
+            {t('list.title')}
           </Text>
         </View>
         <EmptyState
           illustration="plant"
-          title="No plants yet"
-          description="Start building your collection by adding your first plant"
+          title={t('list.empty.title')}
+          description={t('list.empty.subtitle')}
           action={{
-            label: 'Add Plant',
+            label: t('list.empty.button'),
             onPress: () => setShowAddPlant(true),
           }}
         />
@@ -230,7 +232,7 @@ export function PlantsScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
         <Text className="text-3xl font-bold tracking-tight text-text-primary dark:text-white">
-          My Plants
+          {t('list.title')}
         </Text>
         <View className="flex-row items-center gap-3">
           <Pressable
@@ -302,8 +304,8 @@ export function PlantsScreen() {
           <View className="flex-1 pt-10">
             <EmptyState
               illustration="search"
-              title="No plants found"
-              description="Try adjusting your search or filters"
+              title={t('list.noResults.title')}
+              description={t('list.noResults.subtitle')}
             />
           </View>
         }

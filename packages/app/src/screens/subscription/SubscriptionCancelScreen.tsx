@@ -1,16 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Linking, Platform, Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
-
-const FEATURES_LOST = [
-  'Unlimited AI plant diagnostics',
-  'Detailed care guides',
-  'Advanced plant statistics',
-  'Priority support',
-]
 
 const getSubscriptionManagementUrl = (): string => {
   return pipe(Platform.OS, (os) =>
@@ -21,7 +15,15 @@ const getSubscriptionManagementUrl = (): string => {
 }
 
 export function SubscriptionCancelScreen() {
+  const { t } = useTranslation('subscription')
   const iconColors = useIconColors()
+
+  const FEATURES_LOST = [
+    t('cancel.featuresLost.diagnostics'),
+    t('cancel.featuresLost.guides'),
+    t('cancel.featuresLost.stats'),
+    t('cancel.featuresLost.support'),
+  ]
 
   const handleOpenSubscriptionSettings = async () => {
     const url = getSubscriptionManagementUrl()
@@ -50,7 +52,7 @@ export function SubscriptionCancelScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
-          Cancel Subscription
+          {t('cancel.title')}
         </Text>
       </View>
 
@@ -68,12 +70,12 @@ export function SubscriptionCancelScreen() {
 
         {/* Title */}
         <Text className="text-2xl text-center mb-2 font-bold text-text-primary dark:text-white">
-          We're sad to see you go
+          {t('cancel.headline')}
         </Text>
 
         {/* Subtitle */}
         <Text className="text-base text-center mb-8 text-text-secondary dark:text-slate-400">
-          If you cancel, you'll lose access to these premium features:
+          {t('cancel.subtitle')}
         </Text>
 
         {/* Features lost */}
@@ -106,8 +108,7 @@ export function SubscriptionCancelScreen() {
             style={{ marginRight: 12, marginTop: 2 }}
           />
           <Text className="flex-1 text-sm text-text-secondary dark:text-slate-400">
-            You'll retain access to premium features until the end of your
-            current billing period. You can resubscribe anytime.
+            {t('cancel.info')}
           </Text>
         </View>
 
@@ -122,7 +123,7 @@ export function SubscriptionCancelScreen() {
             className="py-4 rounded-xl items-center bg-primary active:bg-primary-dark"
           >
             <Text className="text-base font-semibold text-white">
-              Keep My Subscription
+              {t('cancel.keepButton')}
             </Text>
           </Pressable>
 
@@ -132,7 +133,7 @@ export function SubscriptionCancelScreen() {
             className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"
           >
             <Text className="text-base font-semibold text-coral">
-              Continue to Cancel
+              {t('cancel.continueButton')}
             </Text>
           </Pressable>
         </View>

@@ -22,6 +22,7 @@ import {
   getApiDateGroupLabel,
   getCurrentHour,
   getDateGroupLabel,
+  getRelativeTime,
   getTimeBasedGreeting,
   isFuture,
   isOverdue,
@@ -297,6 +298,56 @@ describe('Date Utilities', () => {
       // Should return locale-formatted date (e.g., "Jun 1" in English)
       expect(result.length).toBeGreaterThan(0)
       expect(result).not.toContain('ago')
+    })
+  })
+
+  describe('getRelativeTime', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return "now" tag for less than 1 minute ago', () => {
+      const justNow = createFixedDateTime(2024, 6, 15, 11, 59, 30)
+      const result = getRelativeTime(justNow)
+      expect(result).toEqual({ _tag: 'now' })
+    })
+
+    it('should return "minutes" tag with value for less than 60 minutes', () => {
+      const thirtyMinutesAgo = createFixedDateTime(2024, 6, 15, 11, 30)
+      const result = getRelativeTime(thirtyMinutesAgo)
+      expect(result).toEqual({ _tag: 'minutes', value: 30 })
+    })
+
+    it('should return "hours" tag with value for less than 24 hours', () => {
+      const threeHoursAgo = createFixedDateTime(2024, 6, 15, 9, 0)
+      const result = getRelativeTime(threeHoursAgo)
+      expect(result).toEqual({ _tag: 'hours', value: 3 })
+    })
+
+    it('should return "days" tag with value 1 for yesterday', () => {
+      const yesterday = createFixedDateTime(2024, 6, 14, 12, 0)
+      const result = getRelativeTime(yesterday)
+      expect(result).toEqual({ _tag: 'days', value: 1 })
+    })
+
+    it('should return "days" tag with value for less than 7 days', () => {
+      const fiveDaysAgo = createFixedDateTime(2024, 6, 10, 12, 0)
+      const result = getRelativeTime(fiveDaysAgo)
+      expect(result).toEqual({ _tag: 'days', value: 5 })
+    })
+
+    it('should return "date" tag with formatted string for older dates', () => {
+      const twoWeeksAgo = createFixedDateTime(2024, 6, 1, 12, 0)
+      const result = getRelativeTime(twoWeeksAgo)
+      expect(result._tag).toBe('date')
+      if (result._tag === 'date') {
+        expect(result.formatted.length).toBeGreaterThan(0)
+      }
     })
   })
 

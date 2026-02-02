@@ -1,19 +1,35 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { useIconColors } from 'src/hooks/useIconColors'
 
-const CATEGORIES = [
-  { id: 'indoor', label: 'Indoor', icon: 'home' as const },
-  { id: 'outdoor', label: 'Outdoor', icon: 'park' as const },
-  { id: 'succulent', label: 'Succulent', icon: 'eco' as const },
-  { id: 'tropical', label: 'Tropical', icon: 'filter-vintage' as const },
-  { id: 'flowering', label: 'Flowering', icon: 'local-florist' as const },
-  { id: 'herb', label: 'Herb', icon: 'grass' as const },
-  { id: 'tree', label: 'Tree', icon: 'nature' as const },
-  { id: 'vine', label: 'Vine', icon: 'spa' as const },
+type CategoryKey =
+  | 'indoor'
+  | 'outdoor'
+  | 'succulent'
+  | 'tropical'
+  | 'flowering'
+  | 'herb'
+  | 'tree'
+  | 'vine'
+
+interface CategoryDefinition {
+  id: CategoryKey
+  icon: keyof typeof MaterialIcons.glyphMap
+}
+
+const CATEGORIES: ReadonlyArray<CategoryDefinition> = [
+  { id: 'indoor', icon: 'home' },
+  { id: 'outdoor', icon: 'park' },
+  { id: 'succulent', icon: 'eco' },
+  { id: 'tropical', icon: 'filter-vintage' },
+  { id: 'flowering', icon: 'local-florist' },
+  { id: 'herb', icon: 'grass' },
+  { id: 'tree', icon: 'nature' },
+  { id: 'vine', icon: 'spa' },
 ]
 
 interface CategoryPickerProps {
@@ -25,10 +41,12 @@ interface CategoryPickerProps {
 export function CategoryPicker({
   value,
   onSelect,
-  label = 'Category',
+  label,
 }: CategoryPickerProps) {
+  const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const [isOpen, setIsOpen] = useState(false)
+  const displayLabel = label ?? t('basicInfo.categoryLabel')
 
   const selectedCategory = pipe(
     CATEGORIES,
@@ -37,15 +55,15 @@ export function CategoryPicker({
 
   const selectedLabel =
     selectedCategory._tag === 'Some'
-      ? selectedCategory.value.label
-      : 'Select category'
+      ? t(`basicInfo.categories.${selectedCategory.value.id}`)
+      : t('basicInfo.selectCategory')
 
   return (
     <>
       <View className="gap-2">
-        {label && (
+        {displayLabel && (
           <Text className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300">
-            {label}
+            {displayLabel}
           </Text>
         )}
         <Pressable
@@ -68,7 +86,7 @@ export function CategoryPicker({
       <BottomSheet
         visible={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Select Category"
+        title={t('basicInfo.selectCategoryTitle')}
         snapPoints={['60%']}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -105,7 +123,7 @@ export function CategoryPicker({
                     value === category.id ? 'font-semibold' : 'font-regular'
                   }`}
                 >
-                  {category.label}
+                  {t(`basicInfo.categories.${category.id}`)}
                 </Text>
                 {value === category.id && (
                   <MaterialIcons

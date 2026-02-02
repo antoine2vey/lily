@@ -1,3 +1,4 @@
+import type { LanguageCode } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Match, Option, pipe } from 'effect'
 import { useRouter, useSegments } from 'expo-router'
@@ -84,7 +85,10 @@ type AuthState =
 type AuthContextValue = {
   state: AuthState
   pendingEmail: string | null
-  login: (email: string) => Promise<{ success: boolean; error?: string }>
+  login: (
+    email: string,
+    language?: LanguageCode
+  ) => Promise<{ success: boolean; error?: string }>
   verifyMagicLink: (
     code: string
   ) => Promise<{ success: boolean; error?: string }>
@@ -205,10 +209,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [state, segments, router])
 
   const login = useCallback(
-    async (email: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      email: string,
+      language?: LanguageCode
+    ): Promise<{ success: boolean; error?: string }> => {
       try {
         await apiEffectRunner('auth', 'sendMagicLink', {
-          payload: { email },
+          payload: { email, language },
         })
         await Effect.runPromise(storeUserEmail(email))
         setPendingEmail(email)

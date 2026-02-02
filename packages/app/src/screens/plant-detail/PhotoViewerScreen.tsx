@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
@@ -10,6 +11,7 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { useEffectQuery } from 'src/utils/client'
 
 export function PhotoViewerScreen() {
+  const { t } = useTranslation(['plantDetail', 'common'])
   const iconColors = useIconColors()
   const { plantId, photoId } = useLocalSearchParams<{
     plantId: string
@@ -78,12 +80,16 @@ export function PhotoViewerScreen() {
           size={48}
           color={iconColors.textMuted}
         />
-        <Text className="text-white mt-4 font-medium">Photo not found</Text>
+        <Text className="text-white mt-4 font-medium">
+          {t('plantDetail:photoViewer.photoNotFound')}
+        </Text>
         <Pressable
           onPress={handleBack}
           className="mt-6 px-6 py-3 rounded-full bg-white/20"
         >
-          <Text className="text-white font-semibold">Go Back</Text>
+          <Text className="text-white font-semibold">
+            {t('common:buttons.goBack')}
+          </Text>
         </Pressable>
       </View>
     )
@@ -124,10 +130,10 @@ export function PhotoViewerScreen() {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={showDeleteConfirm}
-        title="Delete Photo?"
-        message="This photo will be permanently removed. This action cannot be undone."
-        confirmLabel="Delete Photo"
-        cancelLabel="Keep Photo"
+        title={t('plantDetail:photoViewer.deleteTitle')}
+        message={t('plantDetail:photoViewer.deleteMessage')}
+        confirmLabel={t('plantDetail:photoViewer.deleteConfirm')}
+        cancelLabel={t('plantDetail:photoViewer.deleteCancel')}
         destructive
         icon={
           <MaterialIcons name="delete" size={32} color={iconColors.coral} />

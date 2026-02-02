@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
@@ -25,6 +26,7 @@ export function PlantOptionsSheet({
   onShare,
   onDelete,
 }: PlantOptionsSheetProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
 
   const handleAction = (action: () => void) => () => {
@@ -36,7 +38,7 @@ export function PlantOptionsSheet({
     <BottomSheet visible={visible} onClose={onClose}>
       <View className="pb-2">
         <Text className="text-lg text-center font-semibold text-text-primary">
-          Plant Options
+          {t('detail.options.title')}
         </Text>
         <Text
           className="text-sm text-center mt-1 font-regular text-text-muted"
@@ -51,7 +53,7 @@ export function PlantOptionsSheet({
           leftIcon={
             <MaterialIcons name="edit" size={20} color={iconColors.primary} />
           }
-          title="Edit Plant Details"
+          title={t('detail.options.editDetails')}
           showChevron
           onPress={handleAction(onEdit)}
         />
@@ -63,21 +65,25 @@ export function PlantOptionsSheet({
               color={isFavorite ? iconColors.coral : iconColors.primary}
             />
           }
-          title={isFavorite ? 'Remove from Favorites' : 'Set as Favorite'}
+          title={
+            isFavorite
+              ? t('detail.options.removeFromFavorites')
+              : t('detail.options.setAsFavorite')
+          }
           onPress={handleAction(onToggleFavorite)}
         />
         <ListRow
           leftIcon={
             <MaterialIcons name="share" size={20} color={iconColors.primary} />
           }
-          title="Share Plant Profile"
+          title={t('detail.options.shareProfile')}
           onPress={handleAction(onShare)}
         />
         <ListRow
           leftIcon={
             <MaterialIcons name="delete" size={20} color={iconColors.coral} />
           }
-          title="Delete Plant"
+          title={t('detail.options.deletePlant')}
           destructive
           onPress={handleAction(onDelete)}
         />

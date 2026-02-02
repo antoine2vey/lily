@@ -1,4 +1,6 @@
 import { Match, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
 
@@ -13,28 +15,37 @@ interface PlantHeaderProps {
   }
 }
 
-const getHealthBadgeProps = (
-  health: HealthStatus
-): { label: string; variant: 'success' | 'warning' | 'error' } =>
+interface HealthBadgeConfig {
+  labelKey: 'healthy' | 'attention' | 'critical'
+  variant: 'success' | 'warning' | 'error'
+}
+
+const getHealthBadgeConfig = (health: HealthStatus): HealthBadgeConfig =>
   pipe(
     Match.value(health),
     Match.when('healthy', () => ({
-      label: 'HEALTHY',
+      labelKey: 'healthy' as const,
       variant: 'success' as const,
     })),
     Match.when('attention', () => ({
-      label: 'NEEDS ATTENTION',
+      labelKey: 'attention' as const,
       variant: 'warning' as const,
     })),
     Match.when('critical', () => ({
-      label: 'CRITICAL',
+      labelKey: 'critical' as const,
       variant: 'error' as const,
     })),
     Match.exhaustive
   )
 
+const getHealthBadgeLabel = (
+  labelKey: HealthBadgeConfig['labelKey'],
+  t: TFunction
+): string => t(`healthBadge.${labelKey}`)
+
 export function PlantHeader({ plant }: PlantHeaderProps) {
-  const badgeProps = getHealthBadgeProps(plant.health)
+  const { t } = useTranslation('plants')
+  const badgeConfig = getHealthBadgeConfig(plant.health)
 
   const speciesLine =
     plant.category && plant.species
@@ -52,8 +63,8 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
           {plant.name}
         </Text>
         <Badge
-          label={badgeProps.label}
-          variant={badgeProps.variant}
+          label={getHealthBadgeLabel(badgeConfig.labelKey, t)}
+          variant={badgeConfig.variant}
           size="sm"
         />
       </View>

@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CareTaskType } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 import { Badge } from 'src/components/Badge'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -27,7 +29,7 @@ interface CareTaskCardProps {
 interface TaskConfig {
   icon: keyof typeof MaterialIcons.glyphMap
   color: string
-  label: string
+  labelKey: 'water' | 'fertilize'
 }
 
 const getTaskConfig = (
@@ -39,15 +41,20 @@ const getTaskConfig = (
     Match.when('water', () => ({
       icon: 'water-drop' as const,
       color: iconColors.waterBlue,
-      label: 'WATER',
+      labelKey: 'water' as const,
     })),
     Match.when('fertilize', () => ({
       icon: 'eco' as const,
       color: iconColors.fertilizerOrange,
-      label: 'FERTILIZE',
+      labelKey: 'fertilize' as const,
     })),
     Match.exhaustive
   )
+
+const getTaskBadgeLabel = (
+  labelKey: TaskConfig['labelKey'],
+  t: TFunction
+): string => t(`types.${labelKey}.badge`)
 
 export function CareTaskCard({
   task,
@@ -58,6 +65,7 @@ export function CareTaskCard({
   compact = false,
   isPendingCompletion = false,
 }: CareTaskCardProps) {
+  const { t } = useTranslation('care')
   const iconColors = useIconColors()
   const config = getTaskConfig(task.type, iconColors)
 
@@ -112,7 +120,7 @@ export function CareTaskCard({
         </Text>
         <View className="flex-row items-center mt-1">
           <Badge
-            label={config.label}
+            label={getTaskBadgeLabel(config.labelKey, t)}
             variant={overdue ? 'error' : 'info'}
             size="sm"
             icon={

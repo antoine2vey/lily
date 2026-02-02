@@ -15,7 +15,7 @@ describe('StatsRow', () => {
 
     expect(screen.getByText('Total')).toBeTruthy()
     expect(screen.getByText('Healthy')).toBeTruthy()
-    expect(screen.getByText('Attention')).toBeTruthy()
+    expect(screen.getByText('Needs Attention')).toBeTruthy()
   })
 
   it('shows warning icon when attention count is greater than 0', () => {

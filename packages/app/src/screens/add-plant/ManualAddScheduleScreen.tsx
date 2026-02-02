@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Either, Match, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -32,26 +33,27 @@ type CareNeeds = {
   petSafe: boolean
 }
 
-const WATERING_PRESETS = [
-  { days: 7, label: '7 days' },
-  { days: 3, label: '3 days' },
-  { days: 14, label: '14 days' },
-  { days: 30, label: '30 days' },
-]
-
-const FERTILIZING_PRESETS = [
-  { days: 14, label: '14 days' },
-  { days: 30, label: '30 days' },
-  { days: 60, label: '60 days' },
-]
-
 export function ManualAddScheduleScreen() {
+  const { t } = useTranslation(['addPlant', 'common'])
   const params = useLocalSearchParams<{
     basicInfo?: string
     careNeeds?: string
   }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
+
+  const WATERING_PRESETS = [
+    { days: 7, label: t('addPlant:schedule.presets.sevenDays') },
+    { days: 3, label: t('addPlant:schedule.presets.threeDays') },
+    { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
+    { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
+  ]
+
+  const FERTILIZING_PRESETS = [
+    { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
+    { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
+    { days: 60, label: t('addPlant:schedule.presets.sixtyDays') },
+  ]
   const basicInfo: BasicInfo = params.basicInfo
     ? JSON.parse(decodeURIComponent(params.basicInfo))
     : { photo: null, name: '', category: '' }
@@ -94,12 +96,15 @@ export function ManualAddScheduleScreen() {
                 pipe(
                   Match.value(error),
                   Match.when({ _tag: 'LimitExceededError' }, (e) =>
-                    Alert.alert('Plant Limit Reached', e.message)
+                    Alert.alert(
+                      t('addPlant:scanner.plantLimitReached'),
+                      e.message
+                    )
                   ),
                   Match.orElse(() =>
                     Alert.alert(
-                      'Error',
-                      'Failed to create plant. Please try again.'
+                      t('common:errors.generic'),
+                      t('addPlant:errors.createFailed')
                     )
                   )
                 ),
@@ -123,7 +128,7 @@ export function ManualAddScheduleScreen() {
         step={3}
         totalSteps={3}
         onBack={() => router.back()}
-        title="Set Schedule"
+        title={t('addPlant:schedule.title')}
       />
 
       <KeyboardAvoidingView
@@ -139,7 +144,7 @@ export function ManualAddScheduleScreen() {
           {/* Watering Section */}
           <FrequencyPicker
             icon={<MaterialIcons name="water-drop" size={22} color="#60A5FA" />}
-            label="Watering Schedule"
+            label={t('addPlant:schedule.watering')}
             value={wateringDays}
             onValueChange={setWateringDays}
             presets={WATERING_PRESETS}
@@ -148,7 +153,7 @@ export function ManualAddScheduleScreen() {
           {/* Fertilizing Section */}
           <FrequencyPicker
             icon={<MaterialIcons name="spa" size={22} color="#F59E0B" />}
-            label="Fertilizing Schedule"
+            label={t('addPlant:schedule.fertilizing')}
             value={fertilizingDays}
             onValueChange={setFertilizingDays}
             presets={FERTILIZING_PRESETS}
@@ -158,10 +163,10 @@ export function ManualAddScheduleScreen() {
           <View className="bg-white dark:bg-surface-dark p-4 px-5 rounded-xl shadow-sm border border-border dark:border-slate-700 flex-row items-center justify-between">
             <View>
               <Text className="text-base font-bold text-text-primary dark:text-white">
-                Care Reminders
+                {t('addPlant:schedule.careReminders')}
               </Text>
               <Text className="text-xs text-text-muted dark:text-slate-400 mt-1">
-                Get notified when tasks are due
+                {t('addPlant:schedule.careRemindersDescription')}
               </Text>
             </View>
             <Switch
@@ -178,10 +183,10 @@ export function ManualAddScheduleScreen() {
 
           {/* Notes Section */}
           <FormTextArea
-            label="Notes"
+            label={t('addPlant:schedule.notesLabel')}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Add care tips or specific needs..."
+            placeholder={t('addPlant:schedule.notesPlaceholder')}
           />
         </ScrollView>
 
@@ -197,7 +202,7 @@ export function ManualAddScheduleScreen() {
             icon="check"
             iconPosition="left"
           >
-            Finish & Add Plant
+            {t('addPlant:schedule.finishButton')}
           </Button>
         </View>
       </KeyboardAvoidingView>

@@ -45,3 +45,5 @@ export const userStatusEnum = pgEnum('user_status', [
   'suspended',
   'banned',
 ])
+
+export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])

@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useLocalization } from 'src/hooks/useLocalization'
 
 interface AddPlantOptionsSheetProps {
   visible: boolean
@@ -67,13 +68,19 @@ export function AddPlantOptionsSheet({
   onSelectScan,
   onSelectManual,
 }: AddPlantOptionsSheetProps) {
+  const { t } = useLocalization()
+
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Add Plant">
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={t('addPlant:title')}
+    >
       <View className="gap-4">
         <OptionCard
           icon="camera-enhance"
-          title="Identify with AI"
-          subtitle="Snap a photo for instant info"
+          title={t('addPlant:options.identifyAi.title')}
+          subtitle={t('addPlant:options.identifyAi.description')}
           onPress={() => {
             onClose()
             onSelectAI()
@@ -81,8 +88,8 @@ export function AddPlantOptionsSheet({
         />
         <OptionCard
           icon="local-offer"
-          title="Scan nursery card"
-          subtitle="Read the tag from the store"
+          title={t('addPlant:options.scanCard.title')}
+          subtitle={t('addPlant:options.scanCard.description')}
           onPress={() => {
             onClose()
             onSelectScan()
@@ -90,8 +97,8 @@ export function AddPlantOptionsSheet({
         />
         <OptionCard
           icon="edit"
-          title="Add manually"
-          subtitle="Type in the name yourself"
+          title={t('addPlant:options.manual.title')}
+          subtitle={t('addPlant:options.manual.description')}
           onPress={() => {
             onClose()
             onSelectManual()

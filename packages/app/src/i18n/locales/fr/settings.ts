@@ -1,0 +1,127 @@
+export default {
+  title: 'Paramètres',
+  sections: {
+    appearance: 'Apparence',
+    notifications: 'Notifications',
+    privacy: 'Confidentialité',
+    support: 'Assistance',
+    account: 'Compte',
+    about: 'À propos',
+  },
+  appearance: {
+    theme: 'Thème',
+    themeTitle: 'Thème',
+    themeLight: 'Clair',
+    themeDark: 'Sombre',
+    themeSystem: 'Système',
+    themeDone: 'Terminé',
+    language: 'Langue',
+    languageDescription: 'Choisissez votre langue préférée',
+    languageFallback: 'Anglais',
+  },
+  notifications: {
+    title: 'Paramètres de notifications',
+    push: 'Notifications push',
+    pushDescription: 'Recevoir des rappels pour les soins des plantes',
+    careReminders: 'Rappels de soins',
+    careRemindersDescription:
+      "Soyez rappelé quand c'est l'heure d'arroser ou de fertiliser",
+    dailyNotificationTime: 'Heure de notification quotidienne',
+    updatesAlerts: 'Mises à jour et alertes',
+    weeklyDigest: 'Résumé hebdomadaire',
+    weeklyDigestDescription:
+      'Recevoir un résumé hebdomadaire de vos soins de plantes',
+    achievements: 'Succès',
+    achievementsDescription: 'Être notifié quand vous débloquez des succès',
+    plantTips: 'Conseils plantes',
+    plantTipsDescription:
+      'Recevoir des conseils utiles pour le soin des plantes',
+    productUpdates: 'Mises à jour produit',
+    productUpdatesDescription:
+      'Découvrir les nouvelles fonctionnalités et améliorations',
+    doNotDisturb: 'Ne pas déranger',
+    doNotDisturbDescription:
+      'Suspendre toutes les notifications pendant certaines heures',
+    quietHours: 'Heures calmes',
+    quietHoursDescription: 'Suspendre les notifications la nuit',
+    quietHoursInfo: 'Les notifications seront silencieuses pendant ces heures.',
+    start: 'Début',
+    end: 'Fin',
+    from: 'De',
+    to: 'À',
+    timezone: 'Fuseau horaire',
+    autoDetectTimezone: 'Détection automatique du fuseau',
+    selectTimezone: 'Sélectionner le fuseau horaire',
+    searchTimezones: 'Rechercher des fuseaux horaires...',
+    timePicker: {
+      startTime: 'Heure de début',
+      endTime: 'Heure de fin',
+      notificationTime: 'Heure de notification',
+      cancel: 'Annuler',
+      done: 'Terminé',
+    },
+  },
+  privacy: {
+    title: 'Confidentialité',
+    screenTitle: 'Confidentialité et données',
+    description:
+      'Gérez comment vos données sont utilisées pour améliorer votre expérience de jardinage.',
+    publicProfile: 'Profil public',
+    publicProfileDescription:
+      'Permettre aux autres jardiniers de voir votre collection de plantes',
+    shareGrowthData: 'Partager les données de croissance',
+    shareGrowthDataDescription:
+      'Contribuer des statistiques anonymes pour aider la recherche communautaire',
+    personalizedTips: 'Conseils personnalisés',
+    personalizedTipsDescription:
+      'Utiliser mon historique de plantes pour suggérer des améliorations de soins',
+    dataExport: 'Exporter mes données',
+    dataExportDescription: 'Télécharger une copie de vos données',
+    dataExportComingSoon: 'Exporter mes données (Bientôt disponible)',
+    deleteAccount: 'Supprimer le compte',
+    deleteAccountDescription:
+      'Supprimer définitivement votre compte et vos données',
+    requestDeletion: 'Demander la suppression des données',
+    requestDeletionTitle: 'Demander la suppression des données',
+    requestDeletionMessage:
+      'Cela supprimera toutes vos données et fermera votre compte. Êtes-vous sûr ?',
+    requestDeletionEmailSubject: 'Demande de suppression des données',
+    sections: {
+      visibilityPersonalization: 'Visibilité et personnalisation',
+      legalInfo: 'Informations légales',
+      yourData: 'Vos données',
+    },
+  },
+  support: {
+    helpCenter: "Centre d'aide",
+    helpCenterDescription: 'Trouver des réponses aux questions courantes',
+    contactUs: 'Nous contacter',
+    contactUsDescription: "Obtenir de l'aide de notre équipe",
+    feedback: 'Envoyer un commentaire',
+    feedbackDescription: 'Aidez-nous à améliorer Lily',
+    rateApp: 'Noter Lily',
+    rateAppDescription: "Laissez un avis sur l'App Store",
+  },
+  account: {
+    email: 'E-mail',
+    username: "Nom d'utilisateur",
+    changeEmail: "Changer d'e-mail",
+    signOut: 'Se déconnecter',
+    signOutDescription: 'Se déconnecter de votre compte',
+  },
+  about: {
+    version: 'Version',
+    termsOfService: "Conditions d'utilisation",
+    privacyPolicy: 'Politique de confidentialité',
+    licenses: 'Licences open source',
+  },
+  deleteAccount: {
+    title: 'Supprimer le compte',
+    warning:
+      'Cette action est irréversible. Toutes vos données seront définitivement supprimées.',
+    confirmLabel: 'Tapez SUPPRIMER pour confirmer',
+    confirmPlaceholder: 'SUPPRIMER',
+    confirmButton: 'Supprimer mon compte',
+    cancelButton: 'Annuler',
+  },
+} as const

@@ -1,5 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -8,27 +10,37 @@ interface SuggestionChipsProps {
   plantId?: string
 }
 
-interface Suggestion {
-  text: string
+interface SuggestionConfig {
+  key: string
   icon: keyof typeof MaterialIcons.glyphMap
 }
 
-const DEFAULT_SUGGESTIONS: Suggestion[] = [
-  { text: 'Why are my leaves yellowing?', icon: 'help' },
-  { text: 'How often should I water?', icon: 'water-drop' },
-  { text: 'Is this light okay?', icon: 'light-mode' },
-  { text: 'Is it safe for pets?', icon: 'pets' },
+const DEFAULT_SUGGESTION_CONFIGS: SuggestionConfig[] = [
+  { key: 'leavesYellowing', icon: 'help' },
+  { key: 'wateringFrequency', icon: 'water-drop' },
+  { key: 'lightOkay', icon: 'light-mode' },
+  { key: 'petSafe', icon: 'pets' },
 ]
 
-const PLANT_SUGGESTIONS: Suggestion[] = [
-  { text: 'How to care for this plant?', icon: 'eco' },
-  { text: "What's wrong with my plant?", icon: 'help' },
-  { text: 'When to repot?', icon: 'yard' },
-  { text: 'Propagation tips', icon: 'content-cut' },
+const PLANT_SUGGESTION_CONFIGS: SuggestionConfig[] = [
+  { key: 'howToCare', icon: 'eco' },
+  { key: 'whatIsWrong', icon: 'help' },
+  { key: 'whenToRepot', icon: 'yard' },
+  { key: 'propagationTips', icon: 'content-cut' },
 ]
+
+const getSuggestionText = (
+  key: string,
+  isPlant: boolean,
+  t: TFunction
+): string => t(`suggestions.${isPlant ? 'plant' : 'default'}.${key}`)
 
 export function SuggestionChips({ onSelect, plantId }: SuggestionChipsProps) {
-  const suggestions = plantId ? PLANT_SUGGESTIONS : DEFAULT_SUGGESTIONS
+  const { t } = useTranslation('chat')
+  const isPlant = !!plantId
+  const suggestionConfigs = isPlant
+    ? PLANT_SUGGESTION_CONFIGS
+    : DEFAULT_SUGGESTION_CONFIGS
   const iconColors = useIconColors()
 
   return (
@@ -39,23 +51,26 @@ export function SuggestionChips({ onSelect, plantId }: SuggestionChipsProps) {
         contentContainerStyle={{ gap: 8 }}
       >
         {pipe(
-          suggestions,
-          Array.map((suggestion) => (
-            <Pressable
-              key={suggestion.text}
-              onPress={() => onSelect(suggestion.text)}
-              className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
-            >
-              <MaterialIcons
-                name={suggestion.icon}
-                size={18}
-                color={iconColors.textMuted}
-              />
-              <Text className="text-sm font-medium text-text-primary dark:text-white">
-                {suggestion.text}
-              </Text>
-            </Pressable>
-          ))
+          suggestionConfigs,
+          Array.map((config) => {
+            const text = getSuggestionText(config.key, isPlant, t)
+            return (
+              <Pressable
+                key={config.key}
+                onPress={() => onSelect(text)}
+                className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
+              >
+                <MaterialIcons
+                  name={config.icon}
+                  size={18}
+                  color={iconColors.textMuted}
+                />
+                <Text className="text-sm font-medium text-text-primary dark:text-white">
+                  {text}
+                </Text>
+              </Pressable>
+            )
+          })
         )}
       </ScrollView>
     </View>

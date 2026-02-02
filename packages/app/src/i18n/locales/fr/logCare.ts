@@ -1,0 +1,25 @@
+export default {
+  title: 'Enregistrer un soin',
+  careType: 'Type de soin',
+  careTypes: {
+    water: 'Arrosage',
+    fertilize: 'Fertilisation',
+  },
+  selectPlant: 'Sélectionner une plante',
+  selectPlants: 'Sélectionner des plantes',
+  selectAPlant: 'Choisir une plante',
+  plantsSelected: '{count} plantes sélectionnées',
+  dateTime: 'Date et heure',
+  now: 'Maintenant',
+  notesLabel: 'Notes (Optionnel)',
+  notesPlaceholder: 'Comment était le sol ?',
+  addPhoto: 'Ajouter une photo',
+  saveButton: 'Enregistrer',
+  unknownDate: 'Inconnu',
+  datePicker: {
+    selectDate: 'Sélectionner la date',
+    selectTime: "Sélectionner l'heure",
+    done: 'Terminé',
+    cancel: 'Annuler',
+  },
+} as const

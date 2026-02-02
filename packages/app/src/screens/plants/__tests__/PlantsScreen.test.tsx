@@ -38,7 +38,7 @@ describe('PlantsScreen', () => {
 
     expect(screen.getByText('My Plants')).toBeTruthy()
     expect(screen.getByText('No plants yet')).toBeTruthy()
-    expect(screen.getByText('Add Plant')).toBeTruthy()
+    expect(screen.getByText('Add Your First Plant')).toBeTruthy()
   })
 
   it('displays plants list when plants exist', () => {
@@ -163,8 +163,9 @@ describe('PlantsScreen', () => {
 
     render(<PlantsScreen />)
 
-    fireEvent.press(screen.getByText('Add Plant'))
+    fireEvent.press(screen.getByText('Add Your First Plant'))
 
+    // AddPlantOptionsSheet uses translations
     expect(screen.getByText('Identify with AI')).toBeTruthy()
     expect(screen.getByText('Add manually')).toBeTruthy()
   })

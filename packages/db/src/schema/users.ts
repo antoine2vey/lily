@@ -1,6 +1,10 @@
 import { userAchievements } from '@lily/db/schema/achievements'
 import { refreshTokens } from '@lily/db/schema/auth'
-import { userRoleEnum, userStatusEnum } from '@lily/db/schema/enums'
+import {
+  languageCodeEnum,
+  userRoleEnum,
+  userStatusEnum,
+} from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
 import {
@@ -52,6 +56,7 @@ export const users = pgTable('users', {
   publicProfile: boolean('public_profile').notNull().default(true),
   shareGrowthData: boolean('share_growth_data').notNull().default(true),
   personalizedTips: boolean('personalized_tips').notNull().default(true),
+  language: languageCodeEnum('language').notNull().default('en'),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({

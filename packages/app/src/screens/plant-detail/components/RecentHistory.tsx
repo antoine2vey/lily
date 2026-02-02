@@ -1,5 +1,7 @@
-import { type DateInput, formatRelativeTime, parseApiDate } from '@lily/shared'
+import { type DateInput, getRelativeTime, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
+import type { i18n as I18n, TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -25,49 +27,79 @@ interface EventConfig {
 
 const getEventConfig = (
   type: EventType,
-  iconColors: ReturnType<typeof useIconColors>
+  iconColors: ReturnType<typeof useIconColors>,
+  t: TFunction
 ): EventConfig =>
   pipe(
     Match.value(type),
     Match.when('watered', () => ({
       color: iconColors.waterBlue,
-      label: 'Watered',
+      label: t('detail.events.watered'),
     })),
     Match.when('fertilized', () => ({
       color: iconColors.fertilizerOrange,
-      label: 'Fertilized',
+      label: t('detail.events.fertilized'),
     })),
     Match.when('misted', () => ({
       color: iconColors.mistTeal,
-      label: 'Misted',
+      label: t('detail.events.misted'),
     })),
     Match.when('pruned', () => ({
       color: iconColors.pruneRed,
-      label: 'Pruned',
+      label: t('detail.events.pruned'),
     })),
     Match.when('repotted', () => ({
       color: '#9C27B0',
-      label: 'Repotted',
+      label: t('detail.events.repotted'),
     })),
     Match.exhaustive
   )
 
-const formatDate = (date: DateInput): string =>
+const formatRelativeTimeResult = (
+  result: ReturnType<typeof getRelativeTime>,
+  i18n: I18n
+): string =>
+  pipe(
+    Match.value(result),
+    Match.when({ _tag: 'now' }, () => i18n.t('time.justNow', { ns: 'common' })),
+    Match.when({ _tag: 'minutes' }, ({ value }) =>
+      i18n.t('time.minutesAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'hours' }, ({ value }) =>
+      i18n.t('time.hoursAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'days' }, ({ value }) =>
+      value === 1
+        ? i18n.t('time.yesterday', { ns: 'common' })
+        : i18n.t('time.daysAgo', { ns: 'common', count: value })
+    ),
+    Match.when({ _tag: 'date' }, ({ formatted }) => formatted),
+    Match.exhaustive
+  )
+
+const formatRelativeDate = (
+  date: DateInput,
+  t: TFunction,
+  i18n: I18n
+): string =>
   pipe(
     parseApiDate(date),
-    Option.map(formatRelativeTime),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) =>
+      formatRelativeTimeResult(getRelativeTime(dt, i18n.language), i18n)
+    ),
+    Option.getOrElse(() => t('detail.events.unknownTime'))
   )
 
 export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
+  const { t, i18n } = useTranslation('plants')
   const iconColors = useIconColors()
   const recentEvents = Array.take(events, 3)
 
   return (
     <View testID="recent-history">
       <SectionHeader
-        title="Recent History"
-        action={{ label: 'View All', onPress: onViewAll }}
+        title={t('detail.recentHistory')}
+        action={{ label: t('detail.viewAll'), onPress: onViewAll }}
       />
       <View className="mt-4">
         {Array.length(recentEvents) === 0 ? (
@@ -75,11 +107,11 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
             className="text-sm py-4 text-center font-regular text-text-muted dark:text-slate-400"
             testID="no-history"
           >
-            No care history yet
+            {t('detail.noCareHistory')}
           </Text>
         ) : (
           Array.map(recentEvents, (event) => {
-            const config = getEventConfig(event.type, iconColors)
+            const config = getEventConfig(event.type, iconColors, t)
             return (
               <View
                 key={event.id}
@@ -104,7 +136,7 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
                   )}
                 </View>
                 <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
-                  {formatDate(event.date)}
+                  {formatRelativeDate(event.date, t, i18n)}
                 </Text>
               </View>
             )

@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 
 type BillingPeriod = 'monthly' | 'annual'
@@ -18,6 +19,7 @@ export function PricingToggle({
   annualPrice,
   savingsPercent,
 }: PricingToggleProps) {
+  const { t } = useTranslation('subscription')
   const isMonthlySelected = selected === 'monthly'
   const isAnnualSelected = selected === 'annual'
 
@@ -40,7 +42,7 @@ export function PricingToggle({
                 : 'text-text-muted dark:text-slate-400'
             }`}
           >
-            Monthly
+            {t('pricing.monthly')}
           </Text>
           <View
             className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
@@ -65,7 +67,7 @@ export function PricingToggle({
             {monthlyPrice}
           </Text>
           <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
-            /mo
+            {t('pricing.perMonth')}
           </Text>
         </View>
       </Pressable>
@@ -83,7 +85,7 @@ export function PricingToggle({
         {savingsPercent && (
           <View className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary z-10">
             <Text className="text-[10px] font-bold uppercase text-white">
-              Save {savingsPercent}%
+              {t('pricing.save', { percent: savingsPercent })}
             </Text>
           </View>
         )}
@@ -95,7 +97,7 @@ export function PricingToggle({
                 : 'text-text-muted dark:text-slate-400'
             }`}
           >
-            Annual
+            {t('pricing.annual')}
           </Text>
           <View
             className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
@@ -120,7 +122,7 @@ export function PricingToggle({
             {annualPrice}
           </Text>
           <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
-            /yr (billed annually)
+            {t('pricing.perYear')}
           </Text>
         </View>
       </Pressable>

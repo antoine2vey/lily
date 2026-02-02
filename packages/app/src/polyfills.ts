@@ -1,6 +1,12 @@
 // Polyfills for React Native environment
 // These must be imported before any other code that might use Node.js APIs
 
+// Intl.PluralRules polyfill for ICU MessageFormat pluralization
+// This must be imported before i18n initialization
+import '@formatjs/intl-pluralrules/polyfill-force'
+import '@formatjs/intl-pluralrules/locale-data/en'
+import '@formatjs/intl-pluralrules/locale-data/fr'
+
 import { Buffer } from 'buffer'
 
 // Make Buffer globally available

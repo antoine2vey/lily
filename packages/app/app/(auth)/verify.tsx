@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native'
 import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
@@ -13,6 +14,7 @@ type VerifyState =
   | { _tag: 'Error'; message: string }
 
 export default function VerifyScreen() {
+  const { t } = useTranslation('auth')
   // Accept both 'code' (new) and 'token' (legacy) params
   const { code, token } = useLocalSearchParams<{
     code?: string
@@ -30,7 +32,7 @@ export default function VerifyScreen() {
       if (!verificationCode) {
         setVerifyState({
           _tag: 'Error',
-          message: 'No verification code provided',
+          message: t('verify.noCodeProvided'),
         })
         return
       }
@@ -43,13 +45,13 @@ export default function VerifyScreen() {
       } else {
         setVerifyState({
           _tag: 'Error',
-          message: result.error ?? 'Verification failed',
+          message: result.error ?? t('verify.failedToVerify'),
         })
       }
     }
 
     verify()
-  }, [verificationCode, verifyMagicLink])
+  }, [verificationCode, verifyMagicLink, t])
 
   const handleRetry = () => {
     router.replace('/(auth)/login')
@@ -67,10 +69,10 @@ export default function VerifyScreen() {
               </View>
               <View className="items-center gap-2">
                 <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  Verifying...
+                  {t('verify.verifying')}
                 </Text>
                 <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
-                  Please wait while we verify your magic link
+                  {t('verify.verifyingSubtitle')}
                 </Text>
               </View>
             </View>
@@ -86,10 +88,10 @@ export default function VerifyScreen() {
               </View>
               <View className="items-center gap-2">
                 <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  Welcome!
+                  {t('verify.welcomeTitle')}
                 </Text>
                 <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
-                  You've been successfully signed in
+                  {t('verify.welcomeSubtitle')}
                 </Text>
               </View>
             </View>
@@ -105,14 +107,14 @@ export default function VerifyScreen() {
               </View>
               <View className="items-center gap-2">
                 <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  Verification Failed
+                  {t('verify.failedTitle')}
                 </Text>
                 <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
                   {message}
                 </Text>
               </View>
               <View className="w-full mt-4">
-                <Button onPress={handleRetry}>Try Again</Button>
+                <Button onPress={handleRetry}>{t('verify.tryAgain')}</Button>
               </View>
             </View>
           )),

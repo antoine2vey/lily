@@ -17,8 +17,10 @@ import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
+import { LocalizationProvider } from 'src/contexts/LocalizationContext'
 import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
+import 'src/i18n'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
 import { AnimatedSplashScreen } from 'src/screens/splash'
 import * as RevenueCatService from 'src/services/revenuecat'
@@ -133,13 +135,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <AuthProvider>
-            <RevenueCatProvider>
-              <ThemedStatusBar />
-              <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
-              <Toaster />
-            </RevenueCatProvider>
-          </AuthProvider>
+          <LocalizationProvider>
+            <AuthProvider>
+              <RevenueCatProvider>
+                <ThemedStatusBar />
+                <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
+                <Toaster />
+              </RevenueCatProvider>
+            </AuthProvider>
+          </LocalizationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

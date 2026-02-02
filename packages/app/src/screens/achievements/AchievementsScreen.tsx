@@ -3,6 +3,7 @@ import type { AchievementCategory, AchievementWithProgress } from '@lily/shared'
 import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Pressable,
@@ -18,16 +19,17 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { AchievementCard } from './components/AchievementCard'
 import { AchievementDetailModal } from './components/AchievementDetailModal'
 
-const CATEGORY_LABELS: Record<AchievementCategory, string> = {
-  plants: 'Plant Collection',
-  care: 'Plant Care',
-  streaks: 'Streaks',
-  special: 'Special',
-}
-
 export function AchievementsScreen() {
+  const { t } = useTranslation('achievements')
   const iconColors = useIconColors()
   const { data, isLoading } = useAchievements()
+
+  const CATEGORY_LABELS: Record<AchievementCategory, string> = {
+    plants: t('categories.collection'),
+    care: t('categories.care'),
+    streaks: t('categories.streaks'),
+    special: t('categories.special'),
+  }
   const [selectedAchievement, setSelectedAchievement] =
     useState<AchievementWithProgress | null>(null)
 
@@ -76,7 +78,7 @@ export function AchievementsScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
-          Achievements
+          {t('title')}
         </Text>
       </View>
 
@@ -91,10 +93,10 @@ export function AchievementsScreen() {
             />
           </View>
           <Text className="text-2xl font-bold text-text-primary dark:text-white">
-            Level {level}
+            {t('level', { level })}
           </Text>
           <Text className="text-sm mt-1 font-regular text-text-muted dark:text-slate-400">
-            {unlockedCount} of {totalCount} achievements
+            {t('progress', { unlocked: unlockedCount, total: totalCount })}
           </Text>
           <View className="w-full mt-4 px-8">
             <ProgressBar

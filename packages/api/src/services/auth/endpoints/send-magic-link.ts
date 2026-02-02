@@ -17,6 +17,7 @@ const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
  */
 export const sendMagicLink = ({
   email,
+  language,
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
   { message: string },
@@ -77,6 +78,7 @@ export const sendMagicLink = ({
           email: normalizedEmail,
           token,
           callbackUrl,
+          language: language ?? 'en',
         }),
         () => Effect.void
       )

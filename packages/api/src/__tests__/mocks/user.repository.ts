@@ -66,6 +66,7 @@ export const createMockUserRepository = (
         publicProfile: true,
         shareGrowthData: true,
         personalizedTips: true,
+        language: 'en',
       }
       return Effect.succeed(newUser)
     },

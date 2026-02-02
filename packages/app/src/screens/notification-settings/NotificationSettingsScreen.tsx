@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { Array, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Modal,
@@ -60,11 +61,15 @@ function parseTime(timeString: string): Date {
   return makeTimePickerDate(hours, minutes)
 }
 
-const formatTimeDisplay = (date: Date): string =>
+const formatTimeDisplay = (
+  date: Date,
+  fallback: string,
+  locale?: string
+): string =>
   pipe(
     parseApiDate(date),
-    Option.map(formatTime),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) => formatTime(dt, locale)),
+    Option.getOrElse(() => fallback)
   )
 
 function formatTimeString(date: Date): string {
@@ -84,6 +89,7 @@ function getTimezoneLabel(timezone: string): string {
 }
 
 export function NotificationSettingsScreen() {
+  const { t, i18n } = useTranslation(['notifications', 'common'])
   const iconColors = useIconColors()
   const { data: settings, isLoading } = useNotificationSettings()
   const { mutate: updateSettings } = useUpdateNotificationSettings()
@@ -243,7 +249,7 @@ export function NotificationSettingsScreen() {
           />
         </Pressable>
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
-          Notification Settings
+          {t('title')}
         </Text>
       </View>
 
@@ -255,7 +261,7 @@ export function NotificationSettingsScreen() {
         {/* Care Reminders Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
-            Care Reminders
+            {t('sections.careReminders')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
@@ -266,8 +272,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Care Reminders"
-              description="Get reminded when it's time to water or fertilize"
+              label={t('careReminders.title')}
+              description={t('careReminders.description')}
               value={settings.careReminders}
               onValueChange={(value) => handleToggle('careReminders', value)}
               showBorder
@@ -279,11 +285,15 @@ export function NotificationSettingsScreen() {
               className="p-4 bg-surface-tinted/50 dark:bg-slate-800/50"
             >
               <Text className="text-xs font-medium text-text-muted dark:text-slate-400 mb-2 ml-1">
-                Daily notification time
+                {t('careReminders.timeLabel')}
               </Text>
               <View className="flex-row items-center bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 rounded-xl py-3 px-4">
                 <Text className="flex-1 text-base text-text-primary dark:text-white">
-                  {formatTimeDisplay(parseTime(preferredNotificationTime))}
+                  {formatTimeDisplay(
+                    parseTime(preferredNotificationTime),
+                    t('common:unknown'),
+                    i18n.language
+                  )}
                 </Text>
                 <MaterialIcons
                   name="expand-more"
@@ -298,7 +308,7 @@ export function NotificationSettingsScreen() {
         {/* Updates & Alerts Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
-            Updates & Alerts
+            {t('sections.updatesAlerts')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
@@ -309,8 +319,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Weekly Digest"
-              description="Receive a weekly summary of your plant care"
+              label={t('updates.weeklyDigest.title')}
+              description={t('updates.weeklyDigest.description')}
               value={settings.weeklyDigest}
               onValueChange={(value) => handleToggle('weeklyDigest', value)}
               showBorder
@@ -324,8 +334,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Achievements"
-              description="Get notified when you unlock achievements"
+              label={t('updates.achievements.title')}
+              description={t('updates.achievements.description')}
               value={settings.achievements}
               onValueChange={(value) => handleToggle('achievements', value)}
               showBorder
@@ -339,8 +349,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Plant Tips"
-              description="Receive helpful plant care tips"
+              label={t('updates.tips.title')}
+              description={t('updates.tips.description')}
               value={settings.tips}
               onValueChange={(value) => handleToggle('tips', value)}
               showBorder
@@ -354,8 +364,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Product Updates"
-              description="Learn about new features and improvements"
+              label={t('updates.productUpdates.title')}
+              description={t('updates.productUpdates.description')}
               value={settings.productUpdates}
               onValueChange={(value) => handleToggle('productUpdates', value)}
             />
@@ -365,7 +375,7 @@ export function NotificationSettingsScreen() {
         {/* Do Not Disturb Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
-            Do Not Disturb
+            {t('sections.doNotDisturb')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             <ToggleRow
@@ -376,8 +386,8 @@ export function NotificationSettingsScreen() {
                   color={iconColors.primary}
                 />
               }
-              label="Quiet Hours"
-              description="Pause notifications at night"
+              label={t('quietHours.title')}
+              description={t('quietHours.description')}
               value={settings.doNotDisturb}
               onValueChange={(value) => handleToggle('doNotDisturb', value)}
               showBorder={settings.doNotDisturb}
@@ -390,10 +400,14 @@ export function NotificationSettingsScreen() {
                   className="flex-1 p-4 items-center border-r border-border/30 dark:border-slate-700/30 active:bg-surface-tinted dark:active:bg-slate-800"
                 >
                   <Text className="text-xs font-semibold uppercase tracking-wide text-text-muted dark:text-slate-400 mb-1">
-                    Start
+                    {t('quietHours.start')}
                   </Text>
                   <Text className="text-xl font-bold text-text-primary dark:text-white">
-                    {formatTimeDisplay(parseTime(settings.doNotDisturbStart))}
+                    {formatTimeDisplay(
+                      parseTime(settings.doNotDisturbStart),
+                      t('common:unknown'),
+                      i18n.language
+                    )}
                   </Text>
                 </Pressable>
 
@@ -402,10 +416,14 @@ export function NotificationSettingsScreen() {
                   className="flex-1 p-4 items-center active:bg-surface-tinted dark:active:bg-slate-800"
                 >
                   <Text className="text-xs font-semibold uppercase tracking-wide text-text-muted dark:text-slate-400 mb-1">
-                    End
+                    {t('quietHours.end')}
                   </Text>
                   <Text className="text-xl font-bold text-text-primary dark:text-white">
-                    {formatTimeDisplay(parseTime(settings.doNotDisturbEnd))}
+                    {formatTimeDisplay(
+                      parseTime(settings.doNotDisturbEnd),
+                      t('common:unknown'),
+                      i18n.language
+                    )}
                   </Text>
                 </Pressable>
               </View>
@@ -413,7 +431,7 @@ export function NotificationSettingsScreen() {
           </View>
           {settings.doNotDisturb && (
             <Text className="text-xs text-text-muted dark:text-slate-400 mt-2 ml-3">
-              Notifications will be silenced between these times.
+              {t('quietHours.notice')}
             </Text>
           )}
         </View>
@@ -421,7 +439,7 @@ export function NotificationSettingsScreen() {
         {/* Timezone Settings Section */}
         <View className="mb-6">
           <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
-            Timezone
+            {t('timezone.title')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
             {/* Timezone */}
@@ -438,7 +456,7 @@ export function NotificationSettingsScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-base font-medium text-text-primary dark:text-white">
-                  Timezone
+                  {t('timezone.title')}
                 </Text>
                 <Text className="text-xs text-text-muted dark:text-slate-400 mt-0.5">
                   {getTimezoneLabel(timezone)}
@@ -464,7 +482,7 @@ export function NotificationSettingsScreen() {
                 />
               </View>
               <Text className="flex-1 text-base font-medium text-text-primary dark:text-white">
-                Auto-detect Timezone
+                {t('timezone.autoDetect')}
               </Text>
             </Pressable>
           </View>
@@ -487,21 +505,23 @@ export function NotificationSettingsScreen() {
               <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
                 <Pressable onPress={() => setShowTimePicker(null)}>
                   <Text className="text-base text-text-muted dark:text-slate-400">
-                    Cancel
+                    {t('quietHours.cancel')}
                   </Text>
                 </Pressable>
                 <Text className="text-base font-semibold text-text-primary dark:text-white">
                   {pipe(
                     Match.value(showTimePicker),
-                    Match.when('dndStart', () => 'Start Time'),
-                    Match.when('dndEnd', () => 'End Time'),
-                    Match.when('notificationTime', () => 'Notification Time'),
+                    Match.when('dndStart', () => t('quietHours.startTime')),
+                    Match.when('dndEnd', () => t('quietHours.endTime')),
+                    Match.when('notificationTime', () =>
+                      t('quietHours.notificationTime')
+                    ),
                     Match.exhaustive
                   )}
                 </Text>
                 <Pressable onPress={() => setShowTimePicker(null)}>
                   <Text className="text-base font-semibold text-primary">
-                    Done
+                    {t('quietHours.done')}
                   </Text>
                 </Pressable>
               </View>
@@ -601,7 +621,7 @@ export function NotificationSettingsScreen() {
               />
             </Pressable>
             <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
-              Select Timezone
+              {t('timezone.select')}
             </Text>
           </View>
 
@@ -615,7 +635,7 @@ export function NotificationSettingsScreen() {
               />
               <TextInput
                 className="flex-1 py-3 px-2 text-base text-text-primary dark:text-white"
-                placeholder="Search timezones..."
+                placeholder={t('timezone.search')}
                 placeholderTextColor={iconColors.textMuted}
                 value={timezoneSearch}
                 onChangeText={setTimezoneSearch}

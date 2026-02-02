@@ -1,5 +1,6 @@
 import { type DateInput, formatMemberSince, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Image, Text, View } from 'react-native'
 
 interface ProfileHeaderProps {
@@ -15,10 +16,11 @@ export function ProfileHeader({
   username,
   memberSince,
 }: ProfileHeaderProps) {
+  const { t, i18n } = useTranslation('profile')
   const memberSinceFormatted = pipe(
     parseApiDate(memberSince),
-    Option.map(formatMemberSince),
-    Option.getOrElse(() => 'Unknown')
+    Option.map((dt) => formatMemberSince(dt, i18n.language)),
+    Option.getOrElse(() => t('memberSinceUnknown'))
   )
 
   return (
@@ -61,7 +63,7 @@ export function ProfileHeader({
       {/* Member Since Badge */}
       <View className="mt-3 px-3 py-1 bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 rounded-full">
         <Text className="text-xs font-semibold text-text-muted dark:text-slate-400 tracking-wide">
-          Member since {memberSinceFormatted}
+          {t('memberSince', { date: memberSinceFormatted })}
         </Text>
       </View>
     </View>

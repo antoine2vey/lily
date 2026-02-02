@@ -1,0 +1,79 @@
+export default {
+  chatCta: {
+    title: 'Demandez à Lily pour {plantName}',
+    subtitle: "Obtenez des conseils d'entretien avec l'IA",
+  },
+  errors: {
+    loadFailed: 'Échec du chargement de la plante',
+    loadFailedDescription:
+      "Une erreur s'est produite lors du chargement des détails de la plante.",
+    tryAgain: 'Réessayer',
+  },
+  share: {
+    message: 'Découvrez ma plante « {name} » sur Lily !',
+  },
+  delete: {
+    title: 'Supprimer {name} ?',
+    message:
+      "Cela supprimera définitivement tout l'historique des soins et les photos. Cette action est irréversible.",
+    confirm: 'Supprimer la plante',
+    cancel: 'Garder la plante',
+  },
+  toast: {
+    watered: '{name} arrosé !',
+    waterFailed: "Échec de l'arrosage",
+    fertilized: '{name} fertilisé !',
+    fertilizeFailed: 'Échec de la fertilisation',
+    removedFavorite: '{name} retiré des favoris',
+    addedFavorite: '{name} ajouté aux favoris !',
+    favoriteFailed: 'Échec de la mise à jour des favoris',
+    deleted: '{name} supprimé',
+    deleteFailed: 'Échec de la suppression de la plante',
+  },
+  careSchedule: {
+    title: 'Calendrier des soins',
+    edit: 'Modifier',
+    notScheduled: 'Non programmé',
+    setSchedule: 'Définir un calendrier pour le suivi',
+    daysOverdue:
+      '{count, plural, one {# jour de retard} other {# jours de retard}}',
+    today: "Aujourd'hui",
+    tomorrow: 'Demain',
+    inDays: 'Dans {count} jours',
+    watering: 'Arrosage',
+    fertilizing: 'Fertilisation',
+    doNow: 'Faire maintenant',
+  },
+  gallery: {
+    title: 'Galerie photos',
+    photoCount: '{count} photos',
+    addPhoto: 'Ajouter une photo',
+    addFirstPhoto: 'Ajouter une première photo',
+    noPhotosTitle: 'Pas encore de photos',
+    noPhotosDescription:
+      'Commencez à documenter le parcours de votre plante en ajoutant votre première photo',
+  },
+  photoViewer: {
+    photoNotFound: 'Photo introuvable',
+    deleteTitle: 'Supprimer la photo ?',
+    deleteMessage:
+      'Cette photo sera définitivement supprimée. Cette action est irréversible.',
+    deleteConfirm: 'Supprimer la photo',
+    deleteCancel: 'Garder la photo',
+  },
+  edit: {
+    title: 'Modifier la plante',
+    changePhoto: 'Changer la photo',
+    nameLabel: 'Nom',
+    namePlaceholder: 'Nom de la plante',
+    categoryLabel: 'Catégorie',
+    descriptionLabel: 'Description',
+    descriptionPlaceholder: 'Ajouter des notes de soins ou une description...',
+    careNeeds: 'Besoins en soins',
+    careSchedule: 'Calendrier des soins',
+    petSafe: 'Sans danger pour les animaux',
+    petSafeDescription: 'Sans danger pour les chats et les chiens',
+    dangerZone: 'Zone de danger',
+    deletePlant: 'Supprimer la plante',
+  },
+} as const

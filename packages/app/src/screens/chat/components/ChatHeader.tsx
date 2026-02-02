@@ -1,10 +1,12 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { Avatar } from 'src/components/Avatar'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 export function ChatHeader() {
+  const { t } = useTranslation('chat')
   const iconColors = useIconColors()
 
   return (
@@ -24,12 +26,12 @@ export function ChatHeader() {
         <Avatar name="Lily" size="md" />
         <View className="ml-3">
           <Text className="text-base font-semibold text-text-primary dark:text-white">
-            Lily Assistant
+            {t('header.assistantName')}
           </Text>
           <View className="flex-row items-center">
             <View className="w-2 h-2 rounded-full mr-1.5 bg-primary" />
             <Text className="text-xs font-regular text-text-muted dark:text-slate-400">
-              Online
+              {t('header.online')}
             </Text>
           </View>
         </View>

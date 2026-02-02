@@ -30,7 +30,7 @@ describe('PlantSelector', () => {
       />
     )
 
-    expect(screen.getByText('Select Plant')).toBeTruthy()
+    expect(screen.getByText('Which plant?')).toBeTruthy()
   })
 
   it('renders custom label', () => {

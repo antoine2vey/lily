@@ -1,0 +1,77 @@
+export default {
+  chatCta: {
+    title: 'Ask Lily about {plantName}',
+    subtitle: 'Get AI-powered care tips and advice',
+  },
+  errors: {
+    loadFailed: 'Failed to load plant',
+    loadFailedDescription: 'Something went wrong while loading plant details.',
+    tryAgain: 'Try Again',
+  },
+  share: {
+    message: 'Check out my plant "{name}" on Lily!',
+  },
+  delete: {
+    title: 'Delete {name}?',
+    message:
+      'This will permanently remove all care history and photos. This action cannot be undone.',
+    confirm: 'Delete Plant',
+    cancel: 'Keep Plant',
+  },
+  toast: {
+    watered: '{name} watered!',
+    waterFailed: 'Failed to water plant',
+    fertilized: '{name} fertilized!',
+    fertilizeFailed: 'Failed to fertilize plant',
+    removedFavorite: '{name} removed from favorites',
+    addedFavorite: '{name} added to favorites!',
+    favoriteFailed: 'Failed to update favorite',
+    deleted: '{name} deleted',
+    deleteFailed: 'Failed to delete plant',
+  },
+  careSchedule: {
+    title: 'Care Schedule',
+    edit: 'Edit',
+    notScheduled: 'Not scheduled',
+    setSchedule: 'Set a schedule to track',
+    daysOverdue: '{count, plural, one {# day overdue} other {# days overdue}}',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    inDays: 'In {count} days',
+    watering: 'Watering',
+    fertilizing: 'Fertilizing',
+    doNow: 'Do Now',
+  },
+  gallery: {
+    title: 'Photo Gallery',
+    photoCount: '{count} photos',
+    addPhoto: 'Add Photo',
+    addFirstPhoto: 'Add First Photo',
+    noPhotosTitle: 'No photos yet',
+    noPhotosDescription:
+      "Start documenting your plant's journey by adding your first photo",
+  },
+  photoViewer: {
+    photoNotFound: 'Photo not found',
+    deleteTitle: 'Delete Photo?',
+    deleteMessage:
+      'This photo will be permanently removed. This action cannot be undone.',
+    deleteConfirm: 'Delete Photo',
+    deleteCancel: 'Keep Photo',
+  },
+  edit: {
+    title: 'Edit Plant',
+    changePhoto: 'Change Photo',
+    nameLabel: 'Name',
+    namePlaceholder: 'Plant name',
+    categoryLabel: 'Category',
+    descriptionLabel: 'Description',
+    descriptionPlaceholder: 'Add care notes or description...',
+    careNeeds: 'Care Needs',
+    careSchedule: 'Care Schedule',
+    petSafe: 'Pet Safe',
+    petSafeDescription: 'Safe for cats and dogs',
+    dangerZone: 'Danger Zone',
+    deletePlant: 'Delete Plant',
+  },
+} as const

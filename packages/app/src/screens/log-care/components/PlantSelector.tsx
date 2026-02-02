@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -22,13 +23,15 @@ interface PlantSelectorProps {
 export function PlantSelector({
   selectedIds,
   onSelectionChange,
-  label = 'Select Plant',
+  label,
   initialPlants,
 }: PlantSelectorProps) {
+  const { t } = useTranslation('care')
   const [isOpen, setIsOpen] = useState(false)
   const { data: plantsData } = usePlants()
   const iconColors = useIconColors()
   const loadedPlants = plantsData?.items ?? []
+  const displayLabel = label ?? t('log.selectPlant')
 
   // Merge initialPlants with loaded plants, deduplicating by id
   const plants = pipe(
@@ -56,17 +59,17 @@ export function PlantSelector({
 
   const displayText =
     selectedPlants.length === 0
-      ? 'Select a plant'
+      ? t('log.selectAPlant')
       : selectedPlants.length === 1
         ? selectedPlants[0].name
-        : `${selectedPlants.length} plants selected`
+        : t('log.plantsSelected', { count: selectedPlants.length })
 
   return (
     <>
       <View className="mb-6">
-        {label && (
+        {displayLabel && (
           <Text className="text-sm mb-2 font-bold text-text-muted dark:text-slate-400 ml-1">
-            {label}
+            {displayLabel}
           </Text>
         )}
         <Pressable
@@ -139,7 +142,7 @@ export function PlantSelector({
       <BottomSheet
         visible={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Select Plants"
+        title={t('log.selectPlantsTitle')}
         snapPoints={['70%']}
       >
         <ScrollView showsVerticalScrollIndicator={false}>

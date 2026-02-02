@@ -1,0 +1,25 @@
+export default {
+  title: 'Log Care',
+  careType: 'Care Type',
+  careTypes: {
+    water: 'Watering',
+    fertilize: 'Fertilization',
+  },
+  selectPlant: 'Select Plant',
+  selectPlants: 'Select Plants',
+  selectAPlant: 'Select a plant',
+  plantsSelected: '{count} plants selected',
+  dateTime: 'Date & Time',
+  now: 'Now',
+  notesLabel: 'Notes (Optional)',
+  notesPlaceholder: 'How did the soil feel?',
+  addPhoto: 'Add Photo',
+  saveButton: 'Save Log',
+  unknownDate: 'Unknown',
+  datePicker: {
+    selectDate: 'Select Date',
+    selectTime: 'Select Time',
+    done: 'Done',
+    cancel: 'Cancel',
+  },
+} as const

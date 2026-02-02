@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from 'src/assets/images'
 import { Button, IconButton, Input } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useLocalization } from 'src/hooks/useLocalization'
 import { iconColors } from 'src/theme'
 
 export default function LoginScreen() {
@@ -20,24 +21,25 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const { login } = useAuth()
   const router = useRouter()
+  const { t, language } = useLocalization()
 
   const handleSubmit = async () => {
     if (!email.trim()) {
-      setError('Please enter your email')
+      setError(t('auth:login.emailRequired'))
       return
     }
 
     setLoading(true)
     setError(null)
 
-    const result = await login(email.trim())
+    const result = await login(email.trim(), language)
 
     setLoading(false)
 
     if (result.success) {
       router.push('/(auth)/check-email')
     } else {
-      setError(result.error ?? 'Failed to send magic link')
+      setError(result.error ?? t('auth:login.failedToSend'))
     }
   }
 
@@ -69,11 +71,10 @@ export default function LoginScreen() {
             {/* Header Section */}
             <View className="mt-8 mb-10 items-center">
               <Text className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white text-center mb-3">
-                Let's grow together
+                {t('auth:login.title')}
               </Text>
               <Text className="text-base font-medium text-text-muted dark:text-slate-400 text-center leading-relaxed">
-                Enter your email to get started.{'\n'}We'll send you a magic
-                link.
+                {t('auth:login.subtitle')}
               </Text>
             </View>
 
@@ -83,7 +84,7 @@ export default function LoginScreen() {
               <View>
                 <Input
                   icon="eco"
-                  placeholder="you@example.com"
+                  placeholder={t('auth:login.emailPlaceholder')}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text)
@@ -110,7 +111,7 @@ export default function LoginScreen() {
                 onPress={handleSubmit}
                 pill
               >
-                Send Magic Link
+                {t('auth:login.submitButton')}
               </Button>
             </View>
           </View>

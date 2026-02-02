@@ -1,5 +1,6 @@
 import { Array, pipe } from 'effect'
 import { type ReactNode, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -23,6 +24,7 @@ export function FrequencyPicker({
   onValueChange,
   presets,
 }: FrequencyPickerProps) {
+  const { t } = useTranslation('addPlant')
   const [inputText, setInputText] = useState(String(value))
   const iconColors = useIconColors()
 
@@ -45,7 +47,7 @@ export function FrequencyPicker({
         {/* Input Field */}
         <View className="gap-2">
           <Text className="text-sm font-medium text-primary">
-            Frequency (Days)
+            {t('schedule.frequencyLabel')}
           </Text>
           <View className="relative">
             <TextInput
@@ -72,7 +74,9 @@ export function FrequencyPicker({
               placeholderTextColor={iconColors.textMuted}
             />
             <View className="absolute right-4 top-0 bottom-0 justify-center">
-              <Text className="text-sm font-medium text-primary">days</Text>
+              <Text className="text-sm font-medium text-primary">
+                {t('schedule.frequencyUnit')}
+              </Text>
             </View>
           </View>
         </View>

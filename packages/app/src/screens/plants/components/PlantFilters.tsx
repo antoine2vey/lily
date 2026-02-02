@@ -1,18 +1,13 @@
 import { Array } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, TouchableOpacity } from 'react-native'
 
 type FilterOption = 'all' | 'healthy' | 'attention'
 
 interface FilterDefinition {
   key: FilterOption
-  label: string
+  labelKey: 'filterAll' | 'filterHealthy' | 'filterNeedsAttention'
 }
-
-const FILTERS: ReadonlyArray<FilterDefinition> = [
-  { key: 'all', label: 'All' },
-  { key: 'healthy', label: 'Healthy' },
-  { key: 'attention', label: 'Needs Attention' },
-]
 
 interface PlantFiltersProps {
   selectedFilter: FilterOption
@@ -24,11 +19,19 @@ interface PlantFiltersProps {
   }
 }
 
+const FILTERS: ReadonlyArray<FilterDefinition> = [
+  { key: 'all', labelKey: 'filterAll' },
+  { key: 'healthy', labelKey: 'filterHealthy' },
+  { key: 'attention', labelKey: 'filterNeedsAttention' },
+]
+
 export function PlantFilters({
   selectedFilter,
   onFilterChange,
   counts,
 }: PlantFiltersProps) {
+  const { t } = useTranslation('plants')
+
   return (
     <ScrollView
       horizontal
@@ -43,7 +46,7 @@ export function PlantFilters({
       }}
       testID="plant-filters"
     >
-      {Array.map(FILTERS, ({ key, label }) => {
+      {Array.map(FILTERS, ({ key, labelKey }) => {
         const isSelected = selectedFilter === key
         return (
           <TouchableOpacity
@@ -63,7 +66,7 @@ export function PlantFilters({
                   : 'text-text-primary dark:text-white font-medium'
               }`}
             >
-              {`${label} (${counts[key]})`}
+              {`${t(`list.${labelKey}`)} (${counts[key]})`}
             </Text>
           </TouchableOpacity>
         )

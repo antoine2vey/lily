@@ -1,5 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array } from 'effect'
+import { Array, pipe } from 'effect'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ListRow } from 'src/components/ListRow'
@@ -9,15 +11,20 @@ type SortOption = 'name' | 'dateAdded' | 'nextWater' | 'health'
 
 interface SortDefinition {
   key: SortOption
-  label: string
+  labelKey: 'sortName' | 'sortRecent' | 'sortNextCare' | 'sortNeedsAttention'
 }
 
 const SORT_OPTIONS: ReadonlyArray<SortDefinition> = [
-  { key: 'name', label: 'Name (A-Z)' },
-  { key: 'dateAdded', label: 'Recently Added' },
-  { key: 'nextWater', label: 'Needs Water Soon' },
-  { key: 'health', label: 'Needs Attention' },
+  { key: 'name', labelKey: 'sortName' },
+  { key: 'dateAdded', labelKey: 'sortRecent' },
+  { key: 'nextWater', labelKey: 'sortNextCare' },
+  { key: 'health', labelKey: 'sortNeedsAttention' },
 ]
+
+const getSortLabel = (
+  labelKey: SortDefinition['labelKey'],
+  t: TFunction
+): string => t(`list.${labelKey}`)
 
 interface SortOptionsSheetProps {
   visible: boolean
@@ -32,6 +39,7 @@ export function SortOptionsSheet({
   selectedOption,
   onSelect,
 }: SortOptionsSheetProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
 
   const handleSelect = (option: SortOption) => {
@@ -40,24 +48,27 @@ export function SortOptionsSheet({
   }
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="Sort by">
+    <BottomSheet visible={visible} onClose={onClose} title={t('list.sortBy')}>
       <View testID="sort-options-sheet">
-        {Array.map(SORT_OPTIONS, ({ key, label }) => (
-          <ListRow
-            key={key}
-            title={label}
-            rightElement={
-              selectedOption === key ? (
-                <MaterialIcons
-                  name="check"
-                  size={20}
-                  color={iconColors.primary}
-                />
-              ) : undefined
-            }
-            onPress={() => handleSelect(key)}
-          />
-        ))}
+        {pipe(
+          SORT_OPTIONS,
+          Array.map(({ key, labelKey }) => (
+            <ListRow
+              key={key}
+              title={getSortLabel(labelKey, t)}
+              rightElement={
+                selectedOption === key ? (
+                  <MaterialIcons
+                    name="check"
+                    size={20}
+                    color={iconColors.primary}
+                  />
+                ) : undefined
+              }
+              onPress={() => handleSelect(key)}
+            />
+          ))
+        )}
       </View>
     </BottomSheet>
   )

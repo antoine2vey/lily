@@ -43,5 +43,6 @@ export const getUserSettings = (): Effect.Effect<
       },
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
+      language: user.language,
     }
   })

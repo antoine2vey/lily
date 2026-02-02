@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -26,6 +27,7 @@ type ValidationState =
   | { _tag: 'Invalid'; reason: string }
 
 export default function UsernameSetupScreen() {
+  const { t } = useTranslation('auth')
   const [username, setUsername] = useState('')
   const [validation, setValidation] = useState<ValidationState>({
     _tag: 'Idle',
@@ -34,31 +36,34 @@ export default function UsernameSetupScreen() {
   const { setUsername: saveUsername, refreshUser } = useAuth()
   const router = useRouter()
 
-  const validateUsername = useCallback((value: string) => {
-    if (value.length === 0) {
-      setValidation({ _tag: 'Idle' })
-      return
-    }
+  const validateUsername = useCallback(
+    (value: string) => {
+      if (value.length === 0) {
+        setValidation({ _tag: 'Idle' })
+        return
+      }
 
-    if (value.length < MIN_USERNAME_LENGTH) {
-      setValidation({
-        _tag: 'Invalid',
-        reason: `Must be at least ${MIN_USERNAME_LENGTH} characters`,
-      })
-      return
-    }
+      if (value.length < MIN_USERNAME_LENGTH) {
+        setValidation({
+          _tag: 'Invalid',
+          reason: t('username.tooShort', { min: MIN_USERNAME_LENGTH }),
+        })
+        return
+      }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-      setValidation({
-        _tag: 'Invalid',
-        reason: 'Only letters, numbers, and underscores',
-      })
-      return
-    }
+      if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+        setValidation({
+          _tag: 'Invalid',
+          reason: t('username.invalidChars'),
+        })
+        return
+      }
 
-    // For now, assume available if valid format
-    setValidation({ _tag: 'Available' })
-  }, [])
+      // For now, assume available if valid format
+      setValidation({ _tag: 'Available' })
+    },
+    [t]
+  )
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -79,7 +84,7 @@ export default function UsernameSetupScreen() {
     } else {
       setValidation({
         _tag: 'Unavailable',
-        reason: result.error ?? 'Username is not available',
+        reason: result.error ?? t('username.notAvailable'),
       })
     }
   }
@@ -126,7 +131,7 @@ export default function UsernameSetupScreen() {
         <View className="flex-row items-center gap-1.5">
           <View className="w-1.5 h-1.5 rounded-full bg-primary" />
           <Text className="text-xs font-bold text-primary uppercase tracking-wide">
-            Available
+            {t('username.available')}
           </Text>
         </View>
       )),
@@ -172,14 +177,13 @@ export default function UsernameSetupScreen() {
               {/* Headline */}
               <View className="mb-10">
                 <Text className="text-[28px] font-bold text-text-primary">
-                  What should we
+                  {t('username.headlinePartOne')}
                 </Text>
                 <Text className="text-[28px] font-bold text-primary">
-                  call you?
+                  {t('username.headlinePartTwo')}
                 </Text>
                 <Text className="text-base font-regular text-text-secondary mt-3">
-                  This is how you'll appear to other{'\n'}plant parents in the
-                  community.
+                  {t('username.description')}
                 </Text>
               </View>
 
@@ -193,7 +197,7 @@ export default function UsernameSetupScreen() {
                   {/* Input */}
                   <TextInput
                     className="flex-1 text-lg font-semibold text-text-primary"
-                    placeholder="username"
+                    placeholder={t('username.placeholder')}
                     placeholderTextColor={iconColors.textMuted}
                     value={username}
                     onChangeText={setUsername}
@@ -224,13 +228,13 @@ export default function UsernameSetupScreen() {
                 disabled={validation._tag !== 'Available'}
                 onPress={handleSubmit}
               >
-                Continue
+                {t('username.continueButton')}
               </Button>
 
               {/* Secondary Link */}
               <View className="items-center">
                 <TextLink variant="secondary" onPress={handleSkip}>
-                  Skip for now
+                  {t('username.skipForNow')}
                 </TextLink>
               </View>
             </View>

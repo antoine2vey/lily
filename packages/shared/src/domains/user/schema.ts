@@ -1,11 +1,13 @@
 import { Schema } from 'effect'
 
-// Role and status literals
+// Role, status, and language literals
 export const UserRole = Schema.Literal('user', 'admin')
 export const UserStatus = Schema.Literal('active', 'suspended', 'banned')
+export const LanguageCode = Schema.Literal('en', 'fr')
 
 export type UserRole = typeof UserRole.Type
 export type UserStatus = typeof UserStatus.Type
+export type LanguageCode = typeof LanguageCode.Type
 
 export const User = Schema.Struct({
   id: Schema.String,
@@ -33,6 +35,7 @@ export const User = Schema.Struct({
   publicProfile: Schema.Boolean,
   shareGrowthData: Schema.Boolean,
   personalizedTips: Schema.Boolean,
+  language: LanguageCode,
 })
 
 export const UserCreateRequest = Schema.Struct({
@@ -69,6 +72,7 @@ export const UserSettings = Schema.Struct({
   }),
   timezone: Schema.NullOr(Schema.String),
   preferredNotificationTime: Schema.NullOr(Schema.String),
+  language: LanguageCode,
 })
 
 export const UserSettingsUpdateRequest = Schema.Struct({
@@ -97,6 +101,7 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   ),
   timezone: Schema.optional(Schema.String),
   preferredNotificationTime: Schema.optional(Schema.String),
+  language: Schema.optional(LanguageCode),
 })
 
 // Type exports

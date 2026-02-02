@@ -1,0 +1,92 @@
+export default {
+  title: 'Premium Access',
+  headline: 'Unlock Lily Pro',
+  description:
+    'Give your plants the care they deserve with unlimited access to premium features.',
+  features: {
+    unlimitedChats: {
+      title: 'Unlimited AI Chats',
+      description: 'Instant answers for all your plant questions',
+    },
+    expertConsultations: {
+      title: 'Expert Consultations',
+      description: '1-on-1 advice from certified botanists',
+    },
+    noAds: {
+      title: 'No Ads',
+      description: 'Focus on your garden, distraction-free',
+    },
+    prioritySupport: {
+      title: 'Priority Support',
+      description: 'Skip the line whenever you need help',
+    },
+    unlimitedDiagnostics: 'Unlimited AI Diagnostics',
+    detailedGuides: 'Detailed Care Guides',
+    advancedStats: 'Advanced Statistics',
+  },
+  buttons: {
+    subscribe: 'Subscribe for {price}',
+    processing: 'Processing...',
+    restore: 'Restore Purchase',
+    viewPlans: 'View Plans',
+    cancelSubscription: 'Cancel Subscription',
+  },
+  billing: 'Recurring billing, cancel anytime.',
+  badges: {
+    secure: 'Secure',
+    topRated: 'Top Rated',
+  },
+  legal: {
+    terms: 'Terms of Service',
+    privacy: 'Privacy Policy',
+  },
+  messages: {
+    devPurchase:
+      'Purchase simulated! (Dev Mode)\n\nIn production, this would be a real purchase.',
+    thankYou: 'Thank you for subscribing to Lily Pro!',
+    error: 'Error',
+    noPackage: 'No package available. Please try again later.',
+    purchaseFailed: 'Failed to complete purchase. Please try again.',
+    restoreSuccess: 'Purchases restored successfully.',
+    restoreSimulated: 'Restore simulated! (Dev Mode)',
+    restoreFailed: 'Failed to restore purchases. Please try again.',
+    restoring: 'Restoring...',
+    success: 'Success',
+  },
+  usage: {
+    title: 'Subscription',
+    currentPlan: 'Current Plan',
+    upgradeTo: 'Upgrade to Lily Pro',
+    aiChats: 'AI Chats',
+    plantIds: 'Plant IDs',
+    cardScans: 'Card Scans',
+  },
+  status: {
+    active: 'Active',
+    trial: 'Trial',
+    canceled: 'Canceled',
+    expired: 'Expired',
+    pastDue: 'Past Due',
+  },
+  pricing: {
+    monthly: 'Monthly',
+    annual: 'Annual',
+    perMonth: '/mo',
+    perYear: '/yr (billed annually)',
+    save: 'Save {percent}%',
+  },
+  cancel: {
+    title: 'Cancel Subscription',
+    headline: "We're sad to see you go",
+    subtitle: "If you cancel, you'll lose access to these premium features:",
+    info: "You'll retain access to premium features until the end of your current billing period. You can resubscribe anytime.",
+    keepButton: 'Keep My Subscription',
+    continueButton: 'Continue to Cancel',
+    featuresLost: {
+      diagnostics: 'Unlimited AI plant diagnostics',
+      guides: 'Detailed care guides',
+      stats: 'Advanced plant statistics',
+      support: 'Priority support',
+    },
+  },
+} as const

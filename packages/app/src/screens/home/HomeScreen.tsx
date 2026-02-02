@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { getTimeBasedGreeting } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
@@ -10,6 +9,7 @@ import { HomeScreenSkeleton } from 'src/components/skeletons'
 import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useLocalization } from 'src/hooks/useLocalization'
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { useUser } from 'src/hooks/useUser'
 import { useWaterAll } from 'src/hooks/useWaterAll'
@@ -23,6 +23,7 @@ export function HomeScreen() {
   const { state } = useAuth()
   const router = useRouter()
   const iconColors = useIconColors()
+  const { t } = useLocalization()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
   const {
@@ -51,10 +52,17 @@ export function HomeScreen() {
     Match.value(state),
     Match.when(
       { _tag: 'Authenticated' },
-      ({ user }) => user.username ?? user.name ?? 'Gardener'
+      ({ user }) => user.username ?? user.name ?? null
     ),
-    Match.orElse(() => 'Gardener')
+    Match.orElse(() => null)
   )
+
+  const getGreeting = (): string => {
+    const hour = new Date().getHours()
+    if (hour < 12) return t('home:greeting.morning')
+    if (hour < 18) return t('home:greeting.afternoon')
+    return t('home:greeting.evening')
+  }
 
   const { data: userSettings } = useUser()
   const userAvatar = userSettings?.image
@@ -144,15 +152,15 @@ export function HomeScreen() {
           <View className="flex-row items-center justify-between pt-8 pb-4">
             <View className="flex-1">
               <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
-                {getTimeBasedGreeting()},{'\n'}
-                {userName} ☀️
+                {getGreeting()},{'\n'}
+                {userName ?? t('home:greeting.defaultName')} ☀️
               </Text>
             </View>
             <View className="flex-row items-center gap-3">
               <Pressable onPress={() => router.push('/settings')}>
                 <Avatar
                   source={userAvatar ? { uri: userAvatar } : undefined}
-                  name={userName}
+                  name={userName ?? undefined}
                   size="md"
                 />
               </Pressable>
@@ -212,10 +220,10 @@ export function HomeScreen() {
               {/* Typography */}
               <View className="gap-1 mt-4">
                 <Text className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">
-                  Your garden awaits
+                  {t('home:empty.title')}
                 </Text>
                 <Text className="text-base font-medium text-slate-500 dark:text-slate-400 leading-relaxed w-1/2">
-                  Add your first plant to start your care journey
+                  {t('home:empty.subtitle')}
                 </Text>
               </View>
 
@@ -227,7 +235,7 @@ export function HomeScreen() {
                   onPress={() => setShowAddPlant(true)}
                   pill
                 >
-                  Add Your First Plant
+                  {t('home:empty.addButton')}
                 </Button>
               </View>
             </View>

@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import * as SplashScreen from 'expo-splash-screen'
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Animated, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -16,6 +17,7 @@ export function AnimatedSplashScreen({
   children,
   isReady,
 }: AnimatedSplashScreenProps) {
+  const { t } = useTranslation('common')
   const iconColors = useIconColors()
   const [isSplashAnimationComplete, setSplashAnimationComplete] =
     useState(false)
@@ -93,14 +95,16 @@ export function AnimatedSplashScreen({
             </View>
 
             {/* App Name */}
-            <Text className="text-[32px] font-bold text-white mb-2">Lily</Text>
+            <Text className="text-[32px] font-bold text-white mb-2">
+              {t('app.name')}
+            </Text>
 
             {/* Tagline */}
             <Text
               className="text-base font-regular"
               style={{ color: 'rgba(255, 255, 255, 0.85)' }}
             >
-              Your plants, thriving
+              {t('app.tagline')}
             </Text>
           </View>
         </Animated.View>

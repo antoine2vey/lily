@@ -2,6 +2,7 @@ import { Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +19,7 @@ import { useUser } from 'src/hooks/useUser'
 import { AvatarPicker } from './components/AvatarPicker'
 
 export function EditProfileScreen() {
+  const { t } = useTranslation(['profile', 'common'])
   const iconColors = useIconColors()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile()
@@ -63,7 +65,7 @@ export function EditProfileScreen() {
         },
         onError: () => {
           if (mountedRef.current) {
-            Alert.alert('Error', 'Failed to update profile. Please try again.')
+            Alert.alert(t('common:errors.generic'), t('profile:edit.error'))
           }
         },
       }
@@ -76,8 +78,8 @@ export function EditProfileScreen() {
 
     if (!permissionResult.granted) {
       Alert.alert(
-        'Permission Required',
-        'Please allow access to your photo library to change your profile picture.'
+        t('profile:edit.permissionRequired'),
+        t('profile:edit.permissionMessage')
       )
       return
     }
@@ -116,16 +118,20 @@ export function EditProfileScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={handleCancel}>
-          <Text className="text-base font-medium text-text-muted">Cancel</Text>
+          <Text className="text-base font-medium text-text-muted">
+            {t('common:buttons.cancel')}
+          </Text>
         </Pressable>
         <Text className="text-lg font-bold text-text-primary dark:text-white">
-          Edit Profile
+          {t('profile:edit.title')}
         </Text>
         <Pressable onPress={handleSave} disabled={isUpdating}>
           {isUpdating ? (
             <ActivityIndicator size="small" color={iconColors.primary} />
           ) : (
-            <Text className="text-base font-bold text-primary">Save</Text>
+            <Text className="text-base font-bold text-primary">
+              {t('common:buttons.save')}
+            </Text>
           )}
         </Pressable>
       </View>
@@ -141,24 +147,24 @@ export function EditProfileScreen() {
             Option.fromNullable(avatarUri),
             Option.flatMap(Option.fromNullable)
           )}
-          name={name || 'User'}
+          name={name || t('profile:defaultName')}
           onPress={handleChangePhoto}
         />
 
         {/* Form Fields */}
         <View className="px-6 gap-6">
           <FormInput
-            label="Display Name"
+            label={t('profile:edit.displayNameLabel')}
             value={name}
             onChangeText={setName}
-            placeholder="Enter your name"
+            placeholder={t('profile:edit.displayNamePlaceholder')}
           />
 
           <FormTextArea
-            label="Bio"
+            label={t('profile:edit.bioLabel')}
             value={bio}
             onChangeText={setBio}
-            placeholder="Tell us about your plants..."
+            placeholder={t('profile:edit.bioPlaceholder')}
             maxLength={150}
             showCharacterCount
           />

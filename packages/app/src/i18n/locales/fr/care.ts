@@ -1,0 +1,131 @@
+export default {
+  screen: {
+    title: 'Soins',
+    todayDate: "Aujourd'hui, {date}",
+    sections: {
+      overdue: 'En retard',
+      today: "Aujourd'hui",
+      thisWeek: 'Cette semaine',
+    },
+    allCaughtUp: 'Tout est à jour !',
+    noTasksScheduled: 'Aucune tâche de soin programmée',
+    completeEarly: {
+      title: 'Terminer en avance ?',
+      message:
+        'Cette tâche est prévue dans {count, plural, one {# jour} other {# jours}}. Terminer quand même ?',
+      confirm: 'Terminer maintenant',
+      cancel: 'Annuler',
+    },
+  },
+  tasks: {
+    title: 'Tâches de soins',
+    today: "Aujourd'hui",
+    upcoming: 'À venir',
+    overdue: 'En retard',
+    completed: 'Terminées',
+    all: 'Toutes les tâches',
+  },
+  task: {
+    markComplete: 'Marquer comme terminé',
+    undo: 'Annuler',
+    undoPrompt: 'Annuler ?',
+    skip: 'Ignorer',
+    snooze: 'Reporter',
+    snoozeFor: 'Reporter de',
+    snoozed: "Reporté jusqu'au {date}",
+    skipped: 'Ignoré',
+    due: 'Prévu le {date}',
+    dueToday: "Prévu aujourd'hui",
+    dueTomorrow: 'Prévu demain',
+    overdue:
+      '{count, plural, one {En retard de # jour} other {En retard de # jours}}',
+    completedAt: 'Terminé le {date}',
+  },
+  types: {
+    water: {
+      name: 'Arrosage',
+      action: 'Arroser',
+      completed: 'Arrosé',
+      badge: 'ARROSAGE',
+    },
+    fertilize: {
+      name: 'Fertilisation',
+      action: 'Fertiliser',
+      completed: 'Fertilisé',
+      badge: 'FERTILISATION',
+    },
+    repot: {
+      name: 'Rempotage',
+      action: 'Rempoter',
+      completed: 'Rempoté',
+    },
+    prune: {
+      name: 'Taille',
+      action: 'Tailler',
+      completed: 'Taillé',
+    },
+    mist: {
+      name: 'Vaporisation',
+      action: 'Vaporiser',
+      completed: 'Vaporisé',
+    },
+    rotate: {
+      name: 'Rotation',
+      action: 'Tourner',
+      completed: 'Tourné',
+    },
+  },
+  log: {
+    title: 'Enregistrer un soin',
+    selectType: "Qu'avez-vous fait ?",
+    selectPlant: 'Quelle plante ?',
+    selectPlantsTitle: 'Sélectionner des plantes',
+    selectAPlant: 'Sélectionner une plante',
+    plantsSelected: '{count} plantes sélectionnées',
+    addNotes: 'Ajouter des notes (optionnel)',
+    notesPlaceholder: 'Observations...',
+    submitButton: 'Enregistrer le soin',
+    success: 'Soin enregistré avec succès',
+  },
+  history: {
+    title: 'Historique des soins',
+    empty: {
+      title: 'Aucun historique',
+      subtitle: 'Commencez à enregistrer des soins pour les voir ici',
+    },
+    filterAll: 'Tous',
+    filterByType: 'Filtrer par type',
+    filterByPlant: 'Par plante',
+    water: 'Arrosage',
+    fertilize: 'Fertilisation',
+  },
+  reminders: {
+    title: 'Rappels',
+    enabled: 'Rappels activés',
+    disabled: 'Rappels désactivés',
+    time: 'Heure du rappel',
+    frequency: 'Fréquence',
+  },
+  snooze: {
+    oneHour: '1 heure',
+    threeHours: '3 heures',
+    tomorrow: 'Demain',
+    twoDays: '2 jours',
+    oneWeek: '1 semaine',
+  },
+  unknownDay: 'Inconnu',
+  empty: {
+    today: {
+      title: "Aucune tâche pour aujourd'hui",
+      subtitle: 'Profitez de votre journée sans soins !',
+    },
+    upcoming: {
+      title: 'Aucune tâche à venir',
+      subtitle: 'Vos plantes sont bien entretenues',
+    },
+    overdue: {
+      title: 'Aucune tâche en retard',
+      subtitle: 'Bravo pour votre régularité !',
+    },
+  },
+} as const

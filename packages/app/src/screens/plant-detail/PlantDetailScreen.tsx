@@ -4,6 +4,7 @@ import { Array, Match, Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Dimensions,
@@ -88,6 +89,7 @@ interface ErrorStateProps {
 }
 
 function ErrorState({ onRetry }: ErrorStateProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   return (
     <View
@@ -96,16 +98,18 @@ function ErrorState({ onRetry }: ErrorStateProps) {
     >
       <MaterialIcons name="error-outline" size={48} color={iconColors.coral} />
       <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
-        Failed to load plant
+        {t('detail.error.loadFailed')}
       </Text>
       <Text className="text-sm text-center mt-2 font-regular text-text-muted dark:text-slate-400">
-        Something went wrong while loading plant details.
+        {t('detail.error.loadFailedMessage')}
       </Text>
       <Pressable
         onPress={onRetry}
         className="mt-6 px-6 py-3 rounded-full bg-primary"
       >
-        <Text className="font-semibold text-white">Try Again</Text>
+        <Text className="font-semibold text-white">
+          {t('detail.error.tryAgain')}
+        </Text>
       </Pressable>
     </View>
   )
@@ -145,6 +149,7 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
 }
 
 export function PlantDetailScreen() {
+  const { t } = useTranslation('plants')
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -214,22 +219,24 @@ export function PlantDetailScreen() {
     waterPlant.mutate(
       { path: { id: plantId }, payload: {} },
       {
-        onSuccess: () => toast.success(`${plant?.name} watered!`),
-        onError: () => toast.error('Failed to water plant'),
+        onSuccess: () =>
+          toast.success(t('detail.toast.watered', { name: plant?.name })),
+        onError: () => toast.error(t('detail.toast.waterFailed')),
       }
     )
-  }, [plantId, plant?.name, waterPlant])
+  }, [plantId, plant?.name, waterPlant, t])
 
   const handleFertilizeNow = useCallback(() => {
     if (!plantId) return
     fertilizePlant.mutate(
       { path: { id: plantId } },
       {
-        onSuccess: () => toast.success(`${plant?.name} fertilized!`),
-        onError: () => toast.error('Failed to fertilize plant'),
+        onSuccess: () =>
+          toast.success(t('detail.toast.fertilized', { name: plant?.name })),
+        onError: () => toast.error(t('detail.toast.fertilizeFailed')),
       }
     )
-  }, [plantId, plant?.name, fertilizePlant])
+  }, [plantId, plant?.name, fertilizePlant, t])
 
   const handleEditSchedule = useCallback(() => {
     router.push(`/plant/${plantId}/edit`)
@@ -278,21 +285,21 @@ export function PlantDetailScreen() {
         onSuccess: () => {
           toast.success(
             plant.isFavorite
-              ? `${plant.name} removed from favorites`
-              : `${plant.name} added to favorites!`
+              ? t('detail.toast.removedFromFavorites', { name: plant.name })
+              : t('detail.toast.addedToFavorites', { name: plant.name })
           )
         },
-        onError: () => toast.error('Failed to update favorite'),
+        onError: () => toast.error(t('detail.toast.favoriteFailed')),
       }
     )
-  }, [plantId, plant, updatePlant])
+  }, [plantId, plant, updatePlant, t])
 
   const handleShare = useCallback(async () => {
     if (!plant) return
     await Share.share({
-      message: `Check out my plant "${plant.name}" on Lily!`,
+      message: t('detail.toast.shareMessage', { name: plant.name }),
     })
-  }, [plant])
+  }, [plant, t])
 
   const handleDelete = useCallback(() => {
     setShowOptionsSheet(false)
@@ -306,16 +313,16 @@ export function PlantDetailScreen() {
       {
         onSuccess: () => {
           setShowDeleteConfirm(false)
-          toast.success(`${plant?.name} deleted`)
+          toast.success(t('detail.toast.deleted', { name: plant?.name }))
           router.back()
         },
         onError: () => {
           setShowDeleteConfirm(false)
-          toast.error('Failed to delete plant')
+          toast.error(t('detail.toast.deleteFailed'))
         },
       }
     )
-  }, [plantId, plant?.name, deletePlant, router])
+  }, [plantId, plant?.name, deletePlant, router, t])
 
   if (isLoading && !plant) {
     return <PlantDetailSkeleton />
@@ -517,10 +524,10 @@ export function PlantDetailScreen() {
       {/* Delete Confirmation */}
       <ConfirmationModal
         visible={showDeleteConfirm}
-        title={`Delete ${plant.name}?`}
-        message="This will permanently remove all care history and photos. This action cannot be undone."
-        confirmLabel="Delete Plant"
-        cancelLabel="Keep Plant"
+        title={t('detail.delete.title', { name: plant.name })}
+        message={t('detail.delete.message')}
+        confirmLabel={t('detail.delete.confirm')}
+        cancelLabel={t('detail.delete.cancel')}
         destructive
         icon={
           <MaterialIcons name="delete" size={32} color={iconColors.coral} />

@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Slider } from 'src/components/Slider'
@@ -16,6 +17,7 @@ type BasicInfo = {
 }
 
 export function ManualAddCareNeedsScreen() {
+  const { t } = useTranslation('addPlant')
   const params = useLocalSearchParams<{ basicInfo?: string }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
@@ -53,10 +55,10 @@ export function ManualAddCareNeedsScreen() {
         {/* Headline */}
         <View className="gap-1 py-4">
           <Text className="text-2xl font-bold text-text-primary dark:text-white">
-            Care Needs
+            {t('careNeeds.title')}
           </Text>
           <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
-            Define the ideal environment for your plant.
+            {t('careNeeds.description')}
           </Text>
         </View>
 
@@ -65,37 +67,37 @@ export function ManualAddCareNeedsScreen() {
           <Slider
             icon={<MaterialIcons name="water-drop" size={20} color="#2563EB" />}
             iconBgColor="#DBEAFE"
-            label="Watering"
+            label={t('careNeeds.watering.label')}
             value={watering}
             onValueChange={setWatering}
             min={0}
             max={100}
-            minLabel="Drought tolerant"
-            maxLabel="Loves water"
+            minLabel={t('careNeeds.watering.low')}
+            maxLabel={t('careNeeds.watering.high')}
           />
 
           <Slider
             icon={<MaterialIcons name="wb-sunny" size={20} color="#CA8A04" />}
             iconBgColor="#FEF9C3"
-            label="Light"
+            label={t('careNeeds.light.label')}
             value={light}
             onValueChange={setLight}
             min={0}
             max={100}
-            minLabel="Low light"
-            maxLabel="Direct sun"
+            minLabel={t('careNeeds.light.low')}
+            maxLabel={t('careNeeds.light.high')}
           />
 
           <Slider
             icon={<MaterialIcons name="water" size={20} color="#0D9488" />}
             iconBgColor="#CCFBF1"
-            label="Humidity"
+            label={t('careNeeds.humidity.label')}
             value={humidity}
             onValueChange={setHumidity}
             min={0}
             max={100}
-            minLabel="Dry air OK"
-            maxLabel="High humidity"
+            minLabel={t('careNeeds.humidity.low')}
+            maxLabel={t('careNeeds.humidity.high')}
           />
 
           {/* Divider */}
@@ -106,8 +108,8 @@ export function ManualAddCareNeedsScreen() {
             icon={
               <MaterialIcons name="pets" size={20} color={iconColors.primary} />
             }
-            label="Pet Safety"
-            description="Is this plant toxic to pets?"
+            label={t('careNeeds.petSafety.label')}
+            description={t('careNeeds.petSafety.question')}
             value={petSafe}
             onValueChange={setPetSafe}
           />
@@ -121,12 +123,12 @@ export function ManualAddCareNeedsScreen() {
       >
         <View className="flex-1">
           <Button variant="secondary" onPress={() => router.back()} pill>
-            Back
+            {t('buttons.back')}
           </Button>
         </View>
         <View style={{ flex: 2 }}>
           <Button onPress={handleNext} pill>
-            Next Step
+            {t('buttons.nextStep')}
           </Button>
         </View>
       </View>

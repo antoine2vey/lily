@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -11,13 +12,6 @@ interface IdealEnvironmentProps {
   sunlight: SunlightLevel
   water: WaterLevel
   humidity: HumidityLevel
-}
-
-const SUNLIGHT_LABELS: Record<SunlightLevel, string> = {
-  low: 'Low Light',
-  indirect: 'Indirect Bright',
-  bright: 'Bright Light',
-  direct: 'Direct Sun',
 }
 
 const SUNLIGHT_PERCENTAGES: Record<SunlightLevel, number> = {
@@ -39,8 +33,6 @@ const HUMIDITY_PERCENTAGES: Record<HumidityLevel, number> = {
   high: 75,
   tropical: 90,
 }
-
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
 interface EnvironmentRowProps {
   icon: keyof typeof MaterialIcons.glyphMap
@@ -109,8 +101,16 @@ export function IdealEnvironment({
   water,
   humidity,
 }: IdealEnvironmentProps) {
+  const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
+
+  const SUNLIGHT_LABELS: Record<SunlightLevel, string> = {
+    low: t('detail.sunlightLevels.low'),
+    indirect: t('detail.sunlightLevels.indirect'),
+    bright: t('detail.sunlightLevels.bright'),
+    direct: t('detail.sunlightLevels.direct'),
+  }
 
   // Theme-aware colors for environment metrics
   const sunlightColors = {
@@ -143,15 +143,18 @@ export function IdealEnvironment({
     badgeTextColor: isDark ? '#5EEAD4' : '#14B8A6',
   }
 
+  const capitalize = (s: string): string =>
+    s.charAt(0).toUpperCase() + s.slice(1)
+
   return (
     <View testID="ideal-environment">
-      <SectionHeader title="Ideal Environment" />
+      <SectionHeader title={t('detail.idealEnvironment')} />
       <View className="mt-4 bg-surface dark:bg-surface-dark p-6 rounded-3xl shadow-sm border border-border/30 dark:border-slate-700/30 gap-6">
         <EnvironmentRow
           icon="wb-sunny"
           iconBgColor={sunlightColors.iconBgColor}
           iconColor={sunlightColors.iconColor}
-          label="Sunlight"
+          label={t('detail.sunlight')}
           value={SUNLIGHT_LABELS[sunlight]}
           badgeBgColor={sunlightColors.badgeBgColor}
           badgeTextColor={sunlightColors.badgeTextColor}
@@ -162,7 +165,7 @@ export function IdealEnvironment({
           icon="water-drop"
           iconBgColor={waterColors.iconBgColor}
           iconColor={waterColors.iconColor}
-          label="Water"
+          label={t('detail.water')}
           value={capitalize(water)}
           badgeBgColor={waterColors.badgeBgColor}
           badgeTextColor={waterColors.badgeTextColor}
@@ -173,7 +176,7 @@ export function IdealEnvironment({
           icon="cloud"
           iconBgColor={humidityColors.iconBgColor}
           iconColor={humidityColors.iconColor}
-          label="Humidity"
+          label={t('detail.humidity')}
           value={capitalize(humidity)}
           badgeBgColor={humidityColors.badgeBgColor}
           badgeTextColor={humidityColors.badgeTextColor}

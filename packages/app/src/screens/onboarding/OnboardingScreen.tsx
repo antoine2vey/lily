@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import type { ComponentProps } from 'react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, Text, View, type ViewToken } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -17,43 +18,36 @@ interface SlideData {
   iconColor?: string
 }
 
-type IconColors = ReturnType<typeof useIconColors>
-
-function getSlides(iconColors: IconColors): SlideData[] {
-  return [
-    {
-      id: '1',
-      icon: 'nature',
-      title: 'Track your plant family',
-      description: 'Keep all your plants organized in one beautiful place',
-      iconColor: iconColors.primary,
-    },
-    {
-      id: '2',
-      icon: 'notifications-active',
-      title: 'Never miss a watering',
-      description:
-        'Smart reminders help you care for your plants at just the right time',
-      iconColor: iconColors.waterBlue,
-    },
-    {
-      id: '3',
-      icon: 'psychology',
-      title: 'Learn and grow together',
-      description:
-        'Get personalized tips from our AI assistant to help your plants thrive',
-      iconColor: iconColors.achievementGold,
-    },
-  ]
-}
-
 export function OnboardingScreen() {
+  const { t } = useTranslation('onboarding')
   const iconColors = useIconColors()
   const [currentIndex, setCurrentIndex] = useState(0)
   const flatListRef = useRef<FlatList<SlideData>>(null)
   const { completeOnboarding } = useOnboardingComplete()
 
-  const slides = getSlides(iconColors)
+  const slides: SlideData[] = [
+    {
+      id: '1',
+      icon: 'nature',
+      title: t('slides.track.title'),
+      description: t('slides.track.description'),
+      iconColor: iconColors.primary,
+    },
+    {
+      id: '2',
+      icon: 'notifications-active',
+      title: t('slides.reminders.title'),
+      description: t('slides.reminders.description'),
+      iconColor: iconColors.waterBlue,
+    },
+    {
+      id: '3',
+      icon: 'psychology',
+      title: t('slides.learn.title'),
+      description: t('slides.learn.description'),
+      iconColor: iconColors.achievementGold,
+    },
+  ]
   const isLastSlide = currentIndex === slides.length - 1
 
   const handleSkip = async () => {
@@ -91,7 +85,7 @@ export function OnboardingScreen() {
       <View className="flex-row justify-end px-4 py-2">
         <Pressable onPress={handleSkip} className="py-2 px-4">
           <Text className="text-base font-medium text-text-muted dark:text-slate-400">
-            Skip
+            {t('buttons.skip')}
           </Text>
         </Pressable>
       </View>
@@ -133,7 +127,7 @@ export function OnboardingScreen() {
           className="flex-row items-center justify-center py-4 rounded-full bg-primary active:bg-primary-dark"
         >
           <Text className="text-base font-semibold text-white mr-2">
-            {isLastSlide ? 'Get Started' : 'Next'}
+            {isLastSlide ? t('buttons.getStarted') : t('buttons.next')}
           </Text>
           <MaterialIcons
             name={isLastSlide ? 'check' : 'arrow-forward'}
