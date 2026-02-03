@@ -25,4 +25,4 @@ COPY packages/shared/src ./packages/shared/src
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "bun run --cwd packages/db db:migrate:prod && bun run --cwd packages/api src/index.ts"]
+CMD ["sh", "-c", "bun run --cwd packages/db db:migrate:prod && bun run --cwd packages/db db:seed:prod && bun run --cwd packages/api src/index.ts"]
