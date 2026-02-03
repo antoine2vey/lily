@@ -1,38 +1,28 @@
-# Stage 1: Install dependencies
-FROM oven/bun:1.3.8-alpine AS deps
-
+# Single stage build to preserve Bun's workspace symlinks
+FROM oven/bun:1.3.8-alpine
 WORKDIR /app
 
+ENV NODE_ENV=production
+
+# Copy package files first for better caching
 COPY package.json bun.lock ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/app/package.json ./packages/app/
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN bun install --frozen-lockfile --production --ignore-scripts
+RUN bun install --ignore-scripts
 
-# Stage 2: Production runtime
-FROM oven/bun:1.3.8-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
+# Copy tsconfig files for module resolution
+COPY tsconfig.json ./
+COPY packages/api/tsconfig.json ./packages/api/
+COPY packages/shared/tsconfig.json ./packages/shared/
 
 # Copy source code
 COPY packages/api/src ./packages/api/src
-COPY packages/api/package.json ./packages/api/
-COPY packages/db/src ./packages/db/src
-COPY packages/db/scripts ./packages/db/scripts
-COPY packages/db/package.json ./packages/db/
-COPY packages/db/drizzle ./packages/db/drizzle
+COPY packages/db ./packages/db
 COPY packages/shared/src ./packages/shared/src
-COPY packages/shared/package.json ./packages/shared/
-COPY package.json ./
 
 EXPOSE 3000
 
-# Run migrations then start API
-CMD ["sh", "-c", "cd /app/packages/db && bun run db:migrate:prod && cd /app/packages/api && bun run src/index.ts"]
+CMD ["sh", "-c", "bun run --cwd packages/db db:migrate:prod && bun run --cwd packages/api src/index.ts"]
