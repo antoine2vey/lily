@@ -53,36 +53,28 @@ export const sendMagicLink = ({
     yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)
 
     // Build callback URL for email
-    const baseUrl = process.env.API_BASE_URL || 'http://192.168.1.85:3000'
-    const callbackUrl = `${baseUrl}/api/auth/magic-link/callback?token=${token}`
+    const deepLink = `lily://verify?code=${token}`
 
     if (process.env.NODE_ENV === 'development') {
       // In development, print QR code to console for easy testing on physical device
-      const deepLink = `lily://verify?code=${token}`
-
       yield* Console.log(`xcrun simctl openurl booted ${deepLink}`)
-
-      yield* Effect.sync(() => {
-        console.log(`\n${'='.repeat(50)}`)
-        console.log('🔗 Magic Link Deep Link:')
-        console.log(deepLink)
-        console.log('='.repeat(50))
-        console.log('\n📱 Scan this QR code with your device:\n')
-        qrcode.generate(deepLink, { small: true })
-        console.log(`${'='.repeat(50)}\n`)
-      })
-    } else if (process.env.NODE_ENV === 'production') {
-      // In production, send the email
-      yield* Effect.catchAll(
-        sendMagicLinkEmail({
-          email: normalizedEmail,
-          token,
-          callbackUrl,
-          language: language ?? 'en',
-        }),
-        () => Effect.void
-      )
+      yield* Console.log(`\n${'='.repeat(50)}`)
+      yield* Console.log('🔗 Magic Link Deep Link:')
+      yield* Console.log('='.repeat(50))
+      yield* Console.log('📱 Scan this QR code with your device:')
+      qrcode.generate(deepLink, { small: true })
+      yield* Console.log(`${'='.repeat(50)}\n`)
     }
+
+    yield* Effect.catchAll(
+      sendMagicLinkEmail({
+        email: normalizedEmail,
+        token,
+        callbackUrl: `lily://verify?code=${token}`,
+        language: language ?? 'en',
+      }),
+      () => Effect.succeed(undefined)
+    )
 
     // Return generic success message (don't reveal if email exists)
     return { message: 'If an account exists, a magic link has been sent.' }
