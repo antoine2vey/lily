@@ -72,7 +72,12 @@ describe('useWaterAll', () => {
     mockedUseEffectMutation.mockImplementation((_section, _method, options) => {
       // Simulate calling onSuccess
       if (options?.onSuccess) {
-        options.onSuccess(undefined as never, undefined as never, undefined, undefined as never)
+        options.onSuccess(
+          undefined as never,
+          undefined as never,
+          undefined,
+          undefined as never
+        )
       }
       return mockMutationSuccess()
     })
