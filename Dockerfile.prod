@@ -8,7 +8,6 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
 
-ENV BUN_FROZEN_LOCKFILE=0
 RUN bun install --production
 
 # Stage 2: Production runtime
