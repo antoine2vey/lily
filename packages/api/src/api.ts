@@ -6,6 +6,7 @@ import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareTasksApi } from '@lily/api/services/care-tasks/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
+import { HealthApiGroup } from '@lily/api/services/health/api'
 import { NotificationsApi } from '@lily/api/services/notifications/api'
 import { PlantsApi } from '@lily/api/services/plants/api'
 import {
@@ -16,20 +17,22 @@ import { UsersApi } from '@lily/api/services/user/api'
 import { UsernameApi } from '@lily/api/services/username/api'
 
 // Create API that includes all services
+// Health endpoint is at root level (/health)
+// All other endpoints are prefixed with /api
 export const Api = HttpApi.make('Api')
-  .add(AuthApi)
-  .add(UsernameApi)
-  .add(UsersApi)
-  .add(AdminApi)
-  .add(PlantsApi)
-  .add(CareLogsApi)
-  .add(CareTasksApi)
-  .add(NotificationsApi)
-  .add(DeviceTokensApi)
-  .add(AIChatApi)
-  .add(AchievementsApi)
-  .add(SubscriptionsApi)
-  .add(SubscriptionWebhooksApi)
-  .prefix('/api')
+  .add(HealthApiGroup)
+  .add(AuthApi.prefix('/api'))
+  .add(UsernameApi.prefix('/api'))
+  .add(UsersApi.prefix('/api'))
+  .add(AdminApi.prefix('/api'))
+  .add(PlantsApi.prefix('/api'))
+  .add(CareLogsApi.prefix('/api'))
+  .add(CareTasksApi.prefix('/api'))
+  .add(NotificationsApi.prefix('/api'))
+  .add(DeviceTokensApi.prefix('/api'))
+  .add(AIChatApi.prefix('/api'))
+  .add(AchievementsApi.prefix('/api'))
+  .add(SubscriptionsApi.prefix('/api'))
+  .add(SubscriptionWebhooksApi.prefix('/api'))
 
 export type Api = typeof Api

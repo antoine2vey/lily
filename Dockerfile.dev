@@ -1,0 +1,24 @@
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+
+# Install dependencies (all, including dev)
+COPY package.json bun.lock ./
+COPY packages/api/package.json ./packages/api/
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
+RUN bun install
+
+# Source copied via volume mounts in docker-compose
+# This COPY is fallback if running standalone
+COPY packages/api/src ./packages/api/src
+COPY packages/db/src ./packages/db/src
+COPY packages/shared/src ./packages/shared/src
+COPY tsconfig.json ./
+
+ENV NODE_ENV=development
+
+EXPOSE 3000
+
+WORKDIR /app/packages/api
+CMD ["bun", "--watch", "src/index.ts"]
