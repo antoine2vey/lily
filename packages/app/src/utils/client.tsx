@@ -61,8 +61,16 @@ type ExtractError<T> = T extends HttpApi.HttpApi<
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.85:3000'
+const rawApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.85:3000'
+
+// Warn and strip trailing slash to prevent double-slash issues in API calls
+if (rawApiUrl.endsWith('/')) {
+  console.warn(
+    `[API Client] EXPO_PUBLIC_API_URL should not end with a trailing slash: "${rawApiUrl}". Removing it automatically.`
+  )
+}
+
+export const API_BASE_URL = rawApiUrl.replace(/\/+$/, '')
 
 // Callback for auth failure (token refresh failed)
 let onAuthFailure: (() => void) | null = null
