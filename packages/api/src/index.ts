@@ -16,6 +16,7 @@ import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
+import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import {
   RedisClientLive,
@@ -32,7 +33,6 @@ import {
 } from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
-import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
@@ -96,6 +96,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(CareLogsApiLive(Api)),
   Layer.provide(CareTasksApiLive(Api)),
   Layer.provide(DeviceTokensApiLive(Api)),
+  Layer.provide(HealthApiLive(Api)),
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
   Layer.provide(SubscriptionsApiLive(Api)),
@@ -115,7 +116,6 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),
-  Layer.provide(TelemetryLive),
   HttpServer.withLogAddress,
   Layer.provide(BunHttpServer.layer({ port: 3000 }))
 )
