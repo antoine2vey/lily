@@ -117,7 +117,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
-  Layer.provide(BunHttpServer.layer({ port: 3000 }))
+  Layer.provide(BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0' }))
 )
 
 // Launch the server
