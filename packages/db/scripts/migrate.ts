@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Production migration script using drizzle-orm (not drizzle-kit)
- * This script can run in production without devDependencies
+ * Production migration script using Bun's native SQL and raw migration files
+ * This avoids drizzle-orm subpath resolution issues in Bun production builds
  */
 
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import pg from 'pg'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { SQL } from 'bun'
 
 const runMigrations = async () => {
   const databaseUrl = process.env.DATABASE_URL
@@ -18,23 +18,60 @@ const runMigrations = async () => {
 
   console.log('Connecting to database...')
 
-  const client = new pg.Client({
-    connectionString: databaseUrl,
-  })
+  const sql = new SQL(databaseUrl)
 
-  await client.connect()
+  // Create migrations table if not exists
+  await sql`
+    CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
+      id SERIAL PRIMARY KEY,
+      hash TEXT NOT NULL,
+      created_at BIGINT
+    )
+  `
 
-  const db = drizzle(client)
+  // Get already applied migrations
+  const applied = await sql`SELECT hash FROM "__drizzle_migrations"`
+  const appliedHashes = new Set(applied.map((r: { hash: string }) => r.hash))
 
-  console.log('Running migrations...')
+  // Read migration files
+  const migrationsFolder = './drizzle'
+  const files = await readdir(migrationsFolder)
+  const sqlFiles = files.filter((f) => f.endsWith('.sql')).sort()
 
-  await migrate(db, {
-    migrationsFolder: './drizzle',
-  })
+  console.log(`Found ${sqlFiles.length} migration files`)
 
-  console.log('Migrations completed successfully!')
+  let migrationsRun = 0
 
-  await client.end()
+  for (const file of sqlFiles) {
+    const hash = file.replace('.sql', '')
+
+    if (appliedHashes.has(hash)) {
+      console.log(`  Skipping ${file} (already applied)`)
+      continue
+    }
+
+    console.log(`  Applying ${file}...`)
+
+    const filePath = join(migrationsFolder, file)
+    const content = await readFile(filePath, 'utf-8')
+
+    // Execute migration
+    await sql.unsafe(content)
+
+    // Record migration
+    await sql`
+      INSERT INTO "__drizzle_migrations" (hash, created_at)
+      VALUES (${hash}, ${Date.now()})
+    `
+
+    migrationsRun++
+  }
+
+  console.log(
+    `Migrations completed successfully! (${migrationsRun} new migrations applied)`
+  )
+
+  sql.close()
 }
 
 runMigrations()
