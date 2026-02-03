@@ -3,12 +3,12 @@ FROM oven/bun:1-alpine AS deps
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json bun.lock ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/db/package.json ./packages/db/
 COPY packages/shared/package.json ./packages/shared/
 
-RUN bun install --production --ignore-scripts
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # Stage 2: Production runtime
 FROM oven/bun:1-alpine AS runner
