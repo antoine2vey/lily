@@ -27,6 +27,7 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:prod": "bun run scripts/migrate.ts",
+    "db:seed:prod": "bun run scripts/seed-tiers-prod.ts",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "bun run scripts/seed-admin.ts",
     "seed:tiers": "bun run scripts/seed-subscription-tiers.ts",
