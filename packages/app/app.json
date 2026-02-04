@@ -3,6 +3,7 @@
     "name": "Lily",
     "slug": "lily",
     "version": "1.0.0",
+    "owner": "lilyapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +16,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.lily.app",
+      "bundleIdentifier": "com.lilyapp.app",
       "usesIAP": true
     },
     "android": {
@@ -23,7 +24,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f7f7f6"
       },
-      "package": "com.lily.app",
+      "package": "com.lilyapp.app",
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -47,6 +48,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1e455743-41d3-49dc-928c-d176d40875e9"
+      },
+      "router": {}
     }
   }
 }
