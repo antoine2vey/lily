@@ -1,10 +1,16 @@
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
-import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { Effect, Layer, Stream } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const testLayer = Layer.merge(createMockAiService(), createMockPgDrizzle())
+const testLayer = Layer.mergeAll(
+  createMockAiService(),
+  createMockPlantRepository({ plants: mockPlants }),
+  createMockCareLogRepository([])
+)
 
 describe('AiService (mock)', () => {
   describe('plantRecognition', () => {
@@ -81,9 +87,10 @@ describe('AiService (mock)', () => {
           return fullResponse
         }).pipe(
           Effect.provide(
-            Layer.merge(
+            Layer.mergeAll(
               createMockAiService({ plantChatResponse: customResponse }),
-              createMockPgDrizzle()
+              createMockPlantRepository({ plants: mockPlants }),
+              createMockCareLogRepository([])
             )
           )
         )
