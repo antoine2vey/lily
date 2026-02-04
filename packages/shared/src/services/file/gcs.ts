@@ -9,9 +9,25 @@ import {
   Schema,
 } from 'effect'
 
+export const GCSCredentialsSchema = Schema.Struct({
+  type: Schema.String,
+  project_id: Schema.String,
+  private_key_id: Schema.String,
+  private_key: Schema.String,
+  client_email: Schema.String,
+  client_id: Schema.String,
+  auth_uri: Schema.String,
+  token_uri: Schema.String,
+  auth_provider_x509_cert_url: Schema.String,
+  client_x509_cert_url: Schema.String,
+  universe_domain: Schema.optional(Schema.String),
+})
+
+export type GCSCredentials = Schema.Schema.Type<typeof GCSCredentialsSchema>
+
 export const GCSConfigSchema = Schema.Struct({
   projectId: Schema.String,
-  keyFilename: Schema.String, // Optional if using default credentials
+  credentials: GCSCredentialsSchema,
 })
 
 // Upload Request Schema
@@ -55,13 +71,36 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
       const projectIdRedacted = yield* Config.redacted('GCP_PROJECT_ID')
-      const keyFilenameRedacted = yield* Config.redacted(
-        'GOOGLE_APPLICATION_CREDENTIALS'
+      const credentialsJsonRedacted = yield* Config.redacted(
+        'GCS_CREDENTIALS_JSON'
+      )
+
+      const credentialsJson = Redacted.value(credentialsJsonRedacted)
+
+      // Parse the credentials JSON
+      const credentials = yield* Effect.try({
+        try: () => JSON.parse(credentialsJson) as unknown,
+        catch: (error) =>
+          new GCSConfigError({
+            message: `Failed to parse GCS_CREDENTIALS_JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          }),
+      })
+
+      // Validate credentials against schema
+      const validatedCredentials = yield* Schema.decodeUnknown(
+        GCSCredentialsSchema
+      )(credentials).pipe(
+        Effect.mapError(
+          (error) =>
+            new GCSConfigError({
+              message: `Invalid GCS credentials: ${error.message}`,
+            })
+        )
       )
 
       const rawConfig = {
         projectId: Redacted.value(projectIdRedacted),
-        keyFilename: Redacted.value(keyFilenameRedacted),
+        credentials: validatedCredentials,
       }
 
       return yield* Schema.decodeUnknown(GCSConfigSchema)(rawConfig).pipe(
@@ -74,10 +113,14 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
       )
     })
 
-    // Initialize Google Cloud Storage client
+    // Initialize Google Cloud Storage client with credentials object
+    // Cast to required type - we've validated the structure matches service account JSON
     const storage = new Storage({
       projectId: config.projectId,
-      keyFilename: config.keyFilename,
+      credentials: {
+        client_email: config.credentials.client_email,
+        private_key: config.credentials.private_key,
+      },
     })
 
     const buckets = {
