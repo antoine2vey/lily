@@ -197,7 +197,7 @@ describe('streamChatMessage', () => {
         createMockEventBus({ publishedEvents }),
         createMockCurrentUser({ id: 'user-1' }),
         createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
+        createMockCareLogRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )
@@ -223,7 +223,7 @@ describe('streamChatMessage', () => {
         createMockEventBus(),
         createMockCurrentUser({ id: 'user-1' }),
         createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
+        createMockCareLogRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )

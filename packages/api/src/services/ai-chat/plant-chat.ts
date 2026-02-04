@@ -2,16 +2,12 @@ import { openai } from '@ai-sdk/openai'
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import {
-  daysSince,
-  formatDaysUntilHuman,
-  formatIsoDate,
-} from '@lily/shared'
+import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
-  streamText,
   type StreamTextResult,
+  streamText,
   type UIMessage,
 } from 'ai'
 import { Array, Effect, pipe } from 'effect'

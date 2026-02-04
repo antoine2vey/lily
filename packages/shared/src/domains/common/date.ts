@@ -2,10 +2,10 @@ import {
   Array,
   DateTime,
   Duration,
+  String as EffectString,
   Match,
   Option,
   pipe,
-  String as EffectString,
 } from 'effect'
 
 // ============================================================================
