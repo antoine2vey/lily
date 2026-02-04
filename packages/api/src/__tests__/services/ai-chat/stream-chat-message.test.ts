@@ -1,12 +1,14 @@
 import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import {
   createMockLimitChecker,
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
-import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
@@ -25,7 +27,8 @@ describe('streamChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI response text' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       options.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
@@ -51,7 +54,8 @@ describe('streamChatMessage', () => {
       createMockAiService({ plantChatResponse: 'Should not see this' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       createMockLimitChecker({ aiChatLimitReached: true }),
       MockUsageTrackerLive
     )
@@ -79,7 +83,8 @@ describe('streamChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI says hello' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -111,7 +116,8 @@ describe('streamChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI response' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -133,7 +139,8 @@ describe('streamChatMessage', () => {
       createMockAiService({ plantChatResponse: 'Response' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'custom-user-id' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -189,7 +196,8 @@ describe('streamChatMessage', () => {
         createMockAiService({ plantChatResponse: 'AI response' }),
         createMockEventBus({ publishedEvents }),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockPgDrizzle(),
+        createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )
@@ -214,7 +222,8 @@ describe('streamChatMessage', () => {
         createMockAiService({ plantChatResponse: 'Should not see' }),
         createMockEventBus(),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockPgDrizzle(),
+        createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )

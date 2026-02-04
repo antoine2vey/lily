@@ -1,4 +1,12 @@
-import { DateTime, Duration, Option, pipe } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Match,
+  Option,
+  pipe,
+  String as EffectString,
+} from 'effect'
 
 // ============================================================================
 // Effect DateTime Interop Utilities
@@ -828,3 +836,72 @@ export const formatDateHeader = (
   dateTime: DateTime.DateTime,
   locale?: Intl.LocalesArgument
 ): string => formatDateWithWeekday(dateTime, locale).toUpperCase()
+
+/**
+ * Format a date input to ISO date string (YYYY-MM-DD).
+ * Useful for displaying dates in a consistent format.
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: "Never")
+ * @returns ISO date string (YYYY-MM-DD) or defaultValue
+ */
+export const formatIsoDate = (
+  dateInput: DateInput,
+  defaultValue = 'Never'
+): string =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map(toIsoString),
+    Option.flatMap((iso) => Array.head(EffectString.split(iso, 'T'))),
+    Option.getOrElse(() => defaultValue)
+  )
+
+/**
+ * Format days until a date as a human-readable string.
+ * Returns strings like "Today", "Tomorrow", "In 3 days", "2 days overdue".
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: "Not scheduled")
+ * @returns Human-readable string describing days until the date
+ */
+export const formatDaysUntilHuman = (
+  dateInput: DateInput,
+  defaultValue = 'Not scheduled'
+): string =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map(daysUntil),
+    Option.match({
+      onNone: () => defaultValue,
+      onSome: (days) =>
+        pipe(
+          Match.value(days),
+          Match.when(
+            (d) => d < 0,
+            (d) => `${Math.abs(d)} days overdue`
+          ),
+          Match.when(0, () => 'Today'),
+          Match.when(1, () => 'Tomorrow'),
+          Match.orElse((d) => `In ${d} days`)
+        ),
+    })
+  )
+
+/**
+ * Calculate days since a date (days between a past date and now).
+ * Uses floor rounding so same-day returns 0, yesterday returns 1, etc.
+ * Always returns a non-negative number.
+ *
+ * @param dateInput - Date input (Date, string, number, or null/undefined)
+ * @param defaultValue - Value to return if date is invalid (default: 0)
+ * @returns Number of complete days since the date
+ */
+export const daysSince = (dateInput: DateInput, defaultValue = 0): number =>
+  pipe(
+    parseApiDate(dateInput),
+    Option.map((pastDate) => {
+      const distanceMs = DateTime.distance(pastDate, now())
+      return Math.floor(Duration.toDays(Duration.millis(Math.abs(distanceMs))))
+    }),
+    Option.getOrElse(() => defaultValue)
+  )

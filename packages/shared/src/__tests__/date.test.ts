@@ -2,6 +2,7 @@ import { DateTime, Option } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   daysBetween,
+  daysSince,
   daysUntil,
   daysUntilApiDate,
   endOfDay,
@@ -13,6 +14,8 @@ import {
   formatDateWithWeekday,
   formatDayOfWeek,
   formatDayOfWeekShort,
+  formatDaysUntilHuman,
+  formatIsoDate,
   formatLongDate,
   formatMemberSince,
   formatNextDate,
@@ -1249,6 +1252,182 @@ describe('Date Utilities', () => {
       })
       const result = formatLongDate(date)
       expect(result).toBe(expected)
+    })
+  })
+
+  describe('formatIsoDate', () => {
+    it('should format a Date object to ISO date string', () => {
+      const date = new Date('2024-06-15T14:30:00Z')
+      const result = formatIsoDate(date)
+      expect(result).toBe('2024-06-15')
+    })
+
+    it('should format an ISO string to date part only', () => {
+      const result = formatIsoDate('2024-12-25T08:00:00Z')
+      expect(result).toBe('2024-12-25')
+    })
+
+    it('should format epoch milliseconds', () => {
+      const epoch = new Date('2024-03-10T12:00:00Z').getTime()
+      const result = formatIsoDate(epoch)
+      expect(result).toBe('2024-03-10')
+    })
+
+    it('should return default value for null', () => {
+      const result = formatIsoDate(null)
+      expect(result).toBe('Never')
+    })
+
+    it('should return default value for undefined', () => {
+      const result = formatIsoDate(undefined)
+      expect(result).toBe('Never')
+    })
+
+    it('should return custom default value when provided', () => {
+      const result = formatIsoDate(null, 'N/A')
+      expect(result).toBe('N/A')
+    })
+
+    it('should handle leap year date', () => {
+      const result = formatIsoDate('2024-02-29T12:00:00Z')
+      expect(result).toBe('2024-02-29')
+    })
+
+    it('should handle end of year', () => {
+      const result = formatIsoDate('2024-12-31T23:59:59Z')
+      expect(result).toBe('2024-12-31')
+    })
+  })
+
+  describe('formatDaysUntilHuman', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // June 15, 2024 12:00 UTC (Saturday)
+      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return "Today" for same day', () => {
+      const today = new Date('2024-06-15T18:00:00Z')
+      const result = formatDaysUntilHuman(today)
+      expect(result).toBe('Today')
+    })
+
+    it('should return "Tomorrow" for next day', () => {
+      const tomorrow = new Date('2024-06-16T12:00:00Z')
+      const result = formatDaysUntilHuman(tomorrow)
+      expect(result).toBe('Tomorrow')
+    })
+
+    it('should return "In X days" for future dates', () => {
+      const futureDate = new Date('2024-06-20T12:00:00Z')
+      const result = formatDaysUntilHuman(futureDate)
+      expect(result).toBe('In 5 days')
+    })
+
+    it('should return "X days overdue" for past dates', () => {
+      const pastDate = new Date('2024-06-12T12:00:00Z')
+      const result = formatDaysUntilHuman(pastDate)
+      expect(result).toBe('3 days overdue')
+    })
+
+    it('should return "1 days overdue" for yesterday', () => {
+      const yesterday = new Date('2024-06-14T12:00:00Z')
+      const result = formatDaysUntilHuman(yesterday)
+      expect(result).toBe('1 days overdue')
+    })
+
+    it('should return default value for null', () => {
+      const result = formatDaysUntilHuman(null)
+      expect(result).toBe('Not scheduled')
+    })
+
+    it('should return default value for undefined', () => {
+      const result = formatDaysUntilHuman(undefined)
+      expect(result).toBe('Not scheduled')
+    })
+
+    it('should return custom default value when provided', () => {
+      const result = formatDaysUntilHuman(null, 'Not set')
+      expect(result).toBe('Not set')
+    })
+  })
+
+  describe('daysSince', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // June 15, 2024 12:00 UTC (Saturday)
+      vi.setSystemTime(new Date('2024-06-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should return 0 for today', () => {
+      const today = new Date('2024-06-15T08:00:00Z')
+      const result = daysSince(today)
+      expect(result).toBe(0)
+    })
+
+    it('should return 1 for yesterday', () => {
+      const yesterday = new Date('2024-06-14T12:00:00Z')
+      const result = daysSince(yesterday)
+      expect(result).toBe(1)
+    })
+
+    it('should return correct days for older dates', () => {
+      const tenDaysAgo = new Date('2024-06-05T12:00:00Z')
+      const result = daysSince(tenDaysAgo)
+      expect(result).toBe(10)
+    })
+
+    it('should handle month boundaries', () => {
+      const may15 = new Date('2024-05-15T12:00:00Z')
+      const result = daysSince(may15)
+      expect(result).toBe(31) // May has 31 days
+    })
+
+    it('should handle year boundaries', () => {
+      const lastYear = new Date('2023-06-15T12:00:00Z')
+      const result = daysSince(lastYear)
+      expect(result).toBe(366) // 2024 is a leap year
+    })
+
+    it('should return default value for null', () => {
+      const result = daysSince(null)
+      expect(result).toBe(0)
+    })
+
+    it('should return default value for undefined', () => {
+      const result = daysSince(undefined)
+      expect(result).toBe(0)
+    })
+
+    it('should return custom default value when provided', () => {
+      const result = daysSince(null, -1)
+      expect(result).toBe(-1)
+    })
+
+    it('should handle future dates (returns positive value)', () => {
+      const futureDate = new Date('2024-06-20T12:00:00Z')
+      const result = daysSince(futureDate)
+      // daysBetween returns absolute value
+      expect(result).toBe(5)
+    })
+
+    it('should handle ISO string input', () => {
+      const result = daysSince('2024-06-10T12:00:00Z')
+      expect(result).toBe(5)
+    })
+
+    it('should handle epoch milliseconds input', () => {
+      const fiveDaysAgo = new Date('2024-06-10T12:00:00Z').getTime()
+      const result = daysSince(fiveDaysAgo)
+      expect(result).toBe(5)
     })
   })
 })

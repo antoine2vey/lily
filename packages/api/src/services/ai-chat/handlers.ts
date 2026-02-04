@@ -2,7 +2,9 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
@@ -51,5 +53,7 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(LimitCheckerLive),
     Layer.provide(UsageTrackerLive),
     Layer.provide(SubscriptionRepositoryLive),
-    Layer.provide(AchievementRepositoryLive)
+    Layer.provide(AchievementRepositoryLive),
+    Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareLogRepositoryLive)
   )

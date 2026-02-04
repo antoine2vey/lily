@@ -1,9 +1,11 @@
 import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
-import { createMockPgDrizzle } from '@lily/api/__tests__/mocks/pg-drizzle'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
@@ -18,7 +20,8 @@ describe('sendChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI response text' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -55,7 +58,8 @@ describe('sendChatMessage', () => {
       createMockAiService({ plantChatResponse: 'AI says hello' }),
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -80,7 +84,8 @@ describe('sendChatMessage', () => {
       createMockAiService(),
       createMockEventBus({ publishedEvents }),
       createMockCurrentUser({ id: 'user-1' }),
-      createMockPgDrizzle(),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )

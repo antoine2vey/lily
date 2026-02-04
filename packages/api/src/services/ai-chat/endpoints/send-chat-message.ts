@@ -1,13 +1,15 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import type { PgDrizzle } from '@effect/sql-drizzle/Pg'
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError } from '@lily/shared'
 import type { ChatRequest, ChatResponse } from '@lily/shared/ai-chat'
+import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { UIMessage } from 'ai'
 import { Array as Arr, Effect, Option, pipe, Stream } from 'effect'
 
@@ -36,12 +38,13 @@ export const sendChatMessage = (
   request: ChatRequest
 ): Effect.Effect<
   ChatResponse,
-  Error | SqlError | LimitExceededError,
+  Error | SqlError | LimitExceededError | PlantNotFoundError,
   | ChatRepository
   | AiService
   | EventBus
   | CurrentUser
-  | PgDrizzle
+  | PlantRepository
+  | CareLogRepository
   | LimitChecker
   | UsageTracker
 > =>
