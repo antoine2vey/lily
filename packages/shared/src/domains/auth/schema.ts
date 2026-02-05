@@ -47,6 +47,7 @@ export const RefreshTokenResponse = Schema.Struct({
 
 export const MagicLinkSentResponse = Schema.Struct({
   message: Schema.String,
+  instantCode: Schema.optional(Schema.String),
 })
 
 export const LogoutResponse = Schema.Struct({

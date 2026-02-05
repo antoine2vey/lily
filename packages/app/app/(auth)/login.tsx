@@ -16,7 +16,7 @@ import { useLocalization } from 'src/hooks/useLocalization'
 import { iconColors } from 'src/theme'
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('antoine@lily.app')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { login } = useAuth()

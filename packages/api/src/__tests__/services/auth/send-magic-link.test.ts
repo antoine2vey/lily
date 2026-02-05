@@ -6,8 +6,14 @@ import {
 } from '@lily/api/__tests__/mocks/magic-link.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { sendMagicLink } from '@lily/api/services/auth/endpoints/send-magic-link'
-import { Effect, Layer } from 'effect'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
+
+// Config provider for tests - defaults to false (normal magic link flow)
+const testConfigProvider = (disableMagicLink = false) =>
+  ConfigProvider.fromMap(
+    new Map([['DISABLE_MAGIC_LINK_VERIFICATION', String(disableMagicLink)]])
+  )
 
 describe('sendMagicLink', () => {
   afterEach(() => {
@@ -25,8 +31,24 @@ describe('sendMagicLink', () => {
       createMockCommandExecutor()
     )
 
+  const runWithConfig = <A, E>(
+    effect: Effect.Effect<A, E, never>,
+    disableMagicLink = false
+  ) =>
+    Effect.runPromise(
+      effect.pipe(Effect.withConfigProvider(testConfigProvider(disableMagicLink)))
+    )
+
+  const runExitWithConfig = <A, E>(
+    effect: Effect.Effect<A, E, never>,
+    disableMagicLink = false
+  ) =>
+    Effect.runPromiseExit(
+      effect.pipe(Effect.withConfigProvider(testConfigProvider(disableMagicLink)))
+    )
+
   it('should send magic link email successfully', async () => {
-    const result = await Effect.runPromise(
+    const result = await runWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -35,10 +57,11 @@ describe('sendMagicLink', () => {
     expect(result.message).toBe(
       'If an account exists, a magic link has been sent.'
     )
+    expect(result.instantCode).toBeUndefined()
   })
 
   it('should normalize email (lowercase, trim)', async () => {
-    await Effect.runPromise(
+    await runWithConfig(
       sendMagicLink({ email: '  TEST@EXAMPLE.COM  ' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -50,7 +73,7 @@ describe('sendMagicLink', () => {
   })
 
   it('should fail with invalid email format', async () => {
-    const result = await Effect.runPromiseExit(
+    const result = await runExitWithConfig(
       sendMagicLink({ email: 'not-an-email' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -60,7 +83,7 @@ describe('sendMagicLink', () => {
   })
 
   it('should fail with empty email', async () => {
-    const result = await Effect.runPromiseExit(
+    const result = await runExitWithConfig(
       sendMagicLink({ email: '' }).pipe(Effect.provide(createTestLayer()))
     )
 
@@ -68,7 +91,7 @@ describe('sendMagicLink', () => {
   })
 
   it('should fail when rate limit exceeded', async () => {
-    const result = await Effect.runPromiseExit(
+    const result = await runExitWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(createTestLayer({ shouldExceedRateLimit: true }))
       )
@@ -79,7 +102,7 @@ describe('sendMagicLink', () => {
 
   it('should delete existing magic links before creating new', async () => {
     // First request creates a magic link
-    await Effect.runPromise(
+    await runWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -89,7 +112,7 @@ describe('sendMagicLink', () => {
     const firstToken = getMagicLinkStore()[0]?.token
 
     // Second request should delete the first and create new
-    await Effect.runPromise(
+    await runWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -109,7 +132,7 @@ describe('sendMagicLink', () => {
   it('should create magic link with 10-minute expiry', async () => {
     const beforeRequest = Date.now()
 
-    await Effect.runPromise(
+    await runWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -127,7 +150,7 @@ describe('sendMagicLink', () => {
   })
 
   it('should return generic success message (no user enumeration)', async () => {
-    const result = await Effect.runPromise(
+    const result = await runWithConfig(
       sendMagicLink({ email: 'nonexistent@example.com' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -140,7 +163,7 @@ describe('sendMagicLink', () => {
   })
 
   it('should create magic link with valid UUID token', async () => {
-    await Effect.runPromise(
+    await runWithConfig(
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(createTestLayer())
       )
@@ -153,5 +176,48 @@ describe('sendMagicLink', () => {
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     expect(token).toMatch(uuidRegex)
+  })
+
+  describe('when DISABLE_MAGIC_LINK_VERIFICATION is enabled', () => {
+    it('should return instantCode for immediate verification', async () => {
+      const result = await runWithConfig(
+        sendMagicLink({ email: 'test@example.com' }).pipe(
+          Effect.provide(createTestLayer())
+        ),
+        true // disableMagicLink = true
+      )
+
+      expect(result.message).toBe(
+        'If an account exists, a magic link has been sent.'
+      )
+      expect(result.instantCode).toBeDefined()
+
+      // Verify the instantCode matches the stored token
+      const store = getMagicLinkStore()
+      expect(store).toHaveLength(1)
+      expect(result.instantCode).toBe(store[0]?.token)
+    })
+
+    it('should still validate email format when instant login is enabled', async () => {
+      const result = await runExitWithConfig(
+        sendMagicLink({ email: 'not-an-email' }).pipe(
+          Effect.provide(createTestLayer())
+        ),
+        true
+      )
+
+      expect(result._tag).toBe('Failure')
+    })
+
+    it('should still check rate limits when instant login is enabled', async () => {
+      const result = await runExitWithConfig(
+        sendMagicLink({ email: 'test@example.com' }).pipe(
+          Effect.provide(createTestLayer({ shouldExceedRateLimit: true }))
+        ),
+        true
+      )
+
+      expect(result._tag).toBe('Failure')
+    })
   })
 })
