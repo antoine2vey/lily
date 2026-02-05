@@ -3,7 +3,16 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { userSubscriptions } from '@lily/db'
 import { LimitExceededError } from '@lily/shared'
-import { Context, DateTime, Effect, Layer, Match, Option, pipe } from 'effect'
+import {
+  Config,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  pipe,
+} from 'effect'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
@@ -35,7 +44,9 @@ const noopLimitChecker: ILimitChecker = {
   checkPlantIdentifyLimit: () => Effect.void,
 }
 
-const disableLimitChecker = process.env.DISABLE_LIMITS === 'true'
+const DisableLimitsConfig = Config.boolean('DISABLE_LIMITS').pipe(
+  Config.withDefault(false)
+)
 
 // Helper to determine if a subscription grants premium access
 const hasPremiumAccess = (
@@ -59,7 +70,9 @@ const hasPremiumAccess = (
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,
   Effect.gen(function* () {
-    if (disableLimitChecker) {
+    const disableLimits = yield* DisableLimitsConfig
+
+    if (disableLimits) {
       yield* Effect.log('LimitChecker is disabled')
       return noopLimitChecker
     }

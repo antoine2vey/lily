@@ -245,23 +245,25 @@ const seedDemoData = Effect.gen(function* () {
     })
     .returning()
 
-  yield* Console.log(`  Created user: ${demoUser.name} (${demoUser.email})`)
-  yield* Console.log(`  User ID: ${demoUser.id}`)
+  const user = demoUser!
+  yield* Console.log(`  Created user: ${user.name} (${user.email})`)
+  yield* Console.log(`  User ID: ${user.id}`)
 
   // Create plants
   yield* Console.log('Creating 12 demo plants...')
   const createdPlants: Array<{ id: string; name: string }> = []
 
   for (const plantData of DEMO_PLANTS) {
-    const [plant] = yield* db
+    const result = yield* db
       .insert(plants)
       .values({
         ...plantData,
-        userId: demoUser.id,
+        userId: user.id,
         dateAdded: plantData.dateAdded ?? new Date(),
       })
       .returning({ id: plants.id, name: plants.name })
 
+    const plant = result[0]!
     createdPlants.push(plant)
     yield* Console.log(`  Created plant: ${plant.name}`)
   }
@@ -814,7 +816,7 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log('Demo data seeded successfully!')
   yield* Console.log('')
   yield* Console.log('Summary:')
-  yield* Console.log(`  User: ${demoUser.name} (${demoUser.email})`)
+  yield* Console.log(`  User: ${user.name} (${user.email})`)
   yield* Console.log(`  Plants: ${createdPlants.length} total`)
   yield* Console.log('    - 10 healthy')
   yield* Console.log('    - 2 need attention (Orchid, Calathea)')

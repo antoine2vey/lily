@@ -2,13 +2,13 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "noEmit": false,
     "composite": true,
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/**/*", "drizzle.config.ts"],
   "exclude": ["dist", "node_modules"],
   "references": [{ "path": "../shared" }]
 }

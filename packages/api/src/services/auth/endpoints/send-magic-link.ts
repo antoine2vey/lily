@@ -6,8 +6,14 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { nowAsDate } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { Console, Effect } from 'effect'
+import { Config, type ConfigError, Console, Effect } from 'effect'
 import qrcode from 'qrcode-terminal'
+
+// Feature flag - MUST be explicitly set in environment
+// App will fail to start if not configured
+const DisableMagicLinkVerification = Config.boolean(
+  'DISABLE_MAGIC_LINK_VERIFICATION'
+)
 
 // 10 minutes expiry
 const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
@@ -20,12 +26,13 @@ export const sendMagicLink = ({
   language,
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
-  { message: string },
+  { message: string } | ConfigError.ConfigError,
   MagicLinkRepository | RateLimiterService
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
     const rateLimiter = yield* RateLimiterService
+    const disableVerification = yield* DisableMagicLinkVerification
 
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim()
@@ -54,6 +61,18 @@ export const sendMagicLink = ({
 
     // Build callback URL for email
     const deepLink = `lily://verify?code=${token}`
+
+    // If verification is disabled, skip email and return code for instant login
+    // This is used for TestFlight/App Review testing
+    if (disableVerification) {
+      yield* Console.log(
+        '⚠️ Magic link verification disabled - returning instant code'
+      )
+      return {
+        message: 'If an account exists, a magic link has been sent.',
+        instantCode: token,
+      }
+    }
 
     if (process.env.NODE_ENV === 'development') {
       // In development, print QR code to console for easy testing on physical device

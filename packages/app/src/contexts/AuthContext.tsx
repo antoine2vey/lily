@@ -208,31 +208,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     )
   }, [state, segments, router])
 
-  const login = useCallback(
-    async (
-      email: string,
-      language?: LanguageCode
-    ): Promise<{ success: boolean; error?: string }> => {
-      try {
-        await apiEffectRunner('auth', 'sendMagicLink', {
-          payload: { email, language },
-        })
-        await Effect.runPromise(storeUserEmail(email))
-        setPendingEmail(email)
-        return { success: true }
-      } catch (error) {
-        return {
-          success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to send magic link',
-        }
-      }
-    },
-    []
-  )
-
   const verifyMagicLink = useCallback(
     async (code: string): Promise<{ success: boolean; error?: string }> => {
       try {
@@ -273,6 +248,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     },
     []
+  )
+
+  const login = useCallback(
+    async (
+      email: string,
+      language?: LanguageCode
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const response = await apiEffectRunner('auth', 'sendMagicLink', {
+          payload: { email, language },
+        })
+        await Effect.runPromise(storeUserEmail(email))
+        setPendingEmail(email)
+
+        // Check for instant login (testing mode - used for TestFlight/App Review)
+        if (response.instantCode) {
+          return verifyMagicLink(response.instantCode)
+        }
+
+        return { success: true }
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to send magic link',
+        }
+      }
+    },
+    [verifyMagicLink]
   )
 
   const setUsername = useCallback(
