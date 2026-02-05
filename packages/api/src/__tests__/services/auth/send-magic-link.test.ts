@@ -36,7 +36,9 @@ describe('sendMagicLink', () => {
     disableMagicLink = false
   ) =>
     Effect.runPromise(
-      effect.pipe(Effect.withConfigProvider(testConfigProvider(disableMagicLink)))
+      effect.pipe(
+        Effect.withConfigProvider(testConfigProvider(disableMagicLink))
+      )
     )
 
   const runExitWithConfig = <A, E>(
@@ -44,7 +46,9 @@ describe('sendMagicLink', () => {
     disableMagicLink = false
   ) =>
     Effect.runPromiseExit(
-      effect.pipe(Effect.withConfigProvider(testConfigProvider(disableMagicLink)))
+      effect.pipe(
+        Effect.withConfigProvider(testConfigProvider(disableMagicLink))
+      )
     )
 
   it('should send magic link email successfully', async () => {
