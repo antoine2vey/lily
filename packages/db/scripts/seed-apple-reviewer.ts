@@ -28,7 +28,23 @@ import {
   users,
 } from '@lily/db'
 import { eq } from 'drizzle-orm'
-import { Array as A, Console, Effect, pipe } from 'effect'
+import { Array as A, Console, Effect, Option, pipe } from 'effect'
+
+const getFirst = <T>(arr: T[]): T => {
+  const first = A.head(arr)
+  if (Option.isNone(first)) {
+    throw new Error('Expected array to have at least one element')
+  }
+  return first.value
+}
+
+const getAt = <T>(arr: T[], index: number): T => {
+  const item = A.get(arr, index)
+  if (Option.isNone(item)) {
+    throw new Error(`Expected array to have element at index ${index}`)
+  }
+  return item.value
+}
 
 const APPLE_REVIEWER_EMAIL = 'apple-reviewer@lily.app'
 const APPLE_REVIEWER_USERNAME = 'AppleReviewer'
@@ -208,7 +224,7 @@ const seedAppleReviewer = Effect.gen(function* () {
           .where(eq(users.id, existingUser.id))
           .returning()
 
-        return updated[0]!
+        return getFirst(updated)
       })
     : yield* Effect.gen(function* () {
         const created = yield* db
@@ -223,8 +239,9 @@ const seedAppleReviewer = Effect.gen(function* () {
           })
           .returning()
 
-        yield* Console.log(`Created new user: ${created[0]!.email}`)
-        return created[0]!
+        const newUser = getFirst(created)
+        yield* Console.log(`Created new user: ${newUser.email}`)
+        return newUser
       })
 
   // 2. Create magic link
@@ -329,7 +346,7 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* Console.log(`Unlocked ${achievementEntries.length} achievements`)
 
   // 8. Create sample chat messages for first plant
-  const firstPlant = createdPlants[0]!
+  const firstPlant = getFirst(createdPlants)
   const chatEntries = [
     {
       userId: user.id,
@@ -370,7 +387,7 @@ const seedAppleReviewer = Effect.gen(function* () {
   const notificationEntries = [
     {
       userId: user.id,
-      plantId: createdPlants[2]!.id, // Fiddle Leaf Fig (needs attention)
+      plantId: getAt(createdPlants, 2).id, // Fiddle Leaf Fig (needs attention)
       type: 'watering_reminder',
       title: 'Water your Fiddle Leaf Fig',
       body: 'Your Fiddle Leaf Fig is overdue for watering by 3 days.',
@@ -381,7 +398,7 @@ const seedAppleReviewer = Effect.gen(function* () {
     },
     {
       userId: user.id,
-      plantId: createdPlants[0]!.id,
+      plantId: getAt(createdPlants, 0).id,
       type: 'watering_reminder',
       title: 'Water your Monstera Deliciosa',
       body: 'Time to water your Monstera! The soil should be ready.',
@@ -391,7 +408,7 @@ const seedAppleReviewer = Effect.gen(function* () {
     },
     {
       userId: user.id,
-      plantId: createdPlants[5]!.id, // Rubber Plant
+      plantId: getAt(createdPlants, 5).id, // Rubber Plant
       type: 'fertilization_reminder',
       title: 'Fertilize your Rubber Plant',
       body: 'Your Rubber Plant is due for fertilization in 2 days.',

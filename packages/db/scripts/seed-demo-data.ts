@@ -12,7 +12,15 @@
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { careLogs, DrizzleLive, plants, users } from '@lily/db'
-import { Console, Effect } from 'effect'
+import { Array as A, Console, Effect, Option } from 'effect'
+
+const getFirst = <T>(arr: T[]): T => {
+  const first = A.head(arr)
+  if (Option.isNone(first)) {
+    throw new Error('Expected array to have at least one element')
+  }
+  return first.value
+}
 
 // Demo plant data based on design mockup
 const DEMO_PLANTS = [
@@ -220,7 +228,7 @@ const seedDemoData = Effect.gen(function* () {
 
   // Create demo user Alex
   yield* Console.log('Creating demo user Alex...')
-  const [demoUser] = yield* db
+  const demoUserResult = yield* db
     .insert(users)
     .values({
       email: 'antoine@lily.app',
@@ -245,7 +253,7 @@ const seedDemoData = Effect.gen(function* () {
     })
     .returning()
 
-  const user = demoUser!
+  const user = getFirst(demoUserResult)
   yield* Console.log(`  Created user: ${user.name} (${user.email})`)
   yield* Console.log(`  User ID: ${user.id}`)
 
@@ -263,7 +271,7 @@ const seedDemoData = Effect.gen(function* () {
       })
       .returning({ id: plants.id, name: plants.name })
 
-    const plant = result[0]!
+    const plant = getFirst(result)
     createdPlants.push(plant)
     yield* Console.log(`  Created plant: ${plant.name}`)
   }
