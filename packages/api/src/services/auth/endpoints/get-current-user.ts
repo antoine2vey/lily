@@ -25,4 +25,4 @@ export const getCurrentUser = (): Effect.Effect<
       role: user.role,
       status: user.status,
     }
-  })
+  }).pipe(Effect.withSpan('AuthService.getCurrentUser'))

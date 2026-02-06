@@ -148,7 +148,7 @@ export const NotificationRepositoryLive = Layer.effect(
             page,
             limit
           )
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.findByUserId')),
 
       findById: (id: string) =>
         Effect.gen(function* () {
@@ -157,7 +157,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .from(notifications)
             .where(eq(notifications.id, id))
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.findById')),
 
       markAsRead: (id: string) =>
         Effect.gen(function* () {
@@ -167,7 +167,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.markAsRead')),
 
       create: (data: CreateNotificationData) =>
         Effect.gen(function* () {
@@ -183,7 +183,7 @@ export const NotificationRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.create')),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -192,7 +192,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.delete')),
 
       // Scheduler methods
       findPendingToSchedule: (limit: number) =>
@@ -209,7 +209,9 @@ export const NotificationRepositoryLive = Layer.effect(
             .orderBy(notifications.scheduledAt)
             .limit(limit)
           return Array.map(rows, mapToNotification)
-        }),
+        }).pipe(
+          Effect.withSpan('NotificationRepository.findPendingToSchedule')
+        ),
 
       markAsQueued: (id: string) =>
         Effect.gen(function* () {
@@ -219,7 +221,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.markAsQueued')),
 
       markAsSent: (id: string) =>
         Effect.gen(function* () {
@@ -232,7 +234,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.markAsSent')),
 
       markAsFailed: (id: string, error: string) =>
         Effect.gen(function* () {
@@ -245,7 +247,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.markAsFailed')),
 
       incrementRetryCount: (id: string) =>
         Effect.gen(function* () {
@@ -257,7 +259,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.incrementRetryCount')),
 
       deletePendingByPlantAndType: (plantId: string, type: string) =>
         Effect.gen(function* () {
@@ -270,7 +272,9 @@ export const NotificationRepositoryLive = Layer.effect(
                 eq(notifications.status, 'pending')
               )
             )
-        }),
+        }).pipe(
+          Effect.withSpan('NotificationRepository.deletePendingByPlantAndType')
+        ),
 
       hasNotificationToday: (userId: string, plantId: string) =>
         Effect.gen(function* () {
@@ -296,7 +300,7 @@ export const NotificationRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             ) > 0
           )
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.hasNotificationToday')),
 
       findPendingByUserId: (userId: string) =>
         Effect.gen(function* () {
@@ -311,7 +315,7 @@ export const NotificationRepositoryLive = Layer.effect(
             )
             .orderBy(notifications.scheduledAt)
           return Array.map(rows, mapToNotification)
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.findPendingByUserId')),
 
       updateScheduledAt: (id: string, scheduledAt: Date) =>
         Effect.gen(function* () {
@@ -321,7 +325,7 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }),
+        }).pipe(Effect.withSpan('NotificationRepository.updateScheduledAt')),
     }
   })
 )

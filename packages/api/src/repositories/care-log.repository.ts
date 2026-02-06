@@ -119,7 +119,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .orderBy(desc(careLogs.date))
 
           return paginate(Array.map(rows, mapToCareLog), total, page, limit)
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.findByPlantId')),
 
       findById: (id: string, plantId: string) =>
         Effect.gen(function* () {
@@ -128,7 +128,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .from(careLogs)
             .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
           return row ? mapToCareLog(row) : null
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.findById')),
 
       findRecentByUserId: (params: FindRecentParams) =>
         Effect.gen(function* () {
@@ -166,7 +166,7 @@ export const CareLogRepositoryLive = Layer.effect(
           }))
 
           return { items }
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.findRecentByUserId')),
 
       createMany: (data: readonly CreateCareLogData[]) =>
         Effect.gen(function* () {
@@ -183,7 +183,7 @@ export const CareLogRepositoryLive = Layer.effect(
           }))
           const rows = yield* db.insert(careLogs).values(values).returning()
           return Array.map(rows, mapToCareLog)
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.createMany')),
 
       create: (data: CreateCareLogData) =>
         Effect.gen(function* () {
@@ -201,7 +201,7 @@ export const CareLogRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToCareLog(row) : null
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.create')),
 
       update: (id: string, data: UpdateCareLogData) =>
         Effect.gen(function* () {
@@ -216,7 +216,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .where(eq(careLogs.id, id))
             .returning()
           return row ? mapToCareLog(row) : null
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.update')),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -225,7 +225,7 @@ export const CareLogRepositoryLive = Layer.effect(
             .where(eq(careLogs.id, id))
             .returning()
           return row ? mapToCareLog(row) : null
-        }),
+        }).pipe(Effect.withSpan('CareLogRepository.delete')),
     }
   })
 )

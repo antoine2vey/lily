@@ -92,4 +92,4 @@ export const handleRevenueCatWebhook = (
     )
 
     yield* handleEvent
-  })
+  }).pipe(Effect.withSpan('SubscriptionService.handleRevenueCatWebhookEvent'))

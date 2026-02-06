@@ -15,4 +15,8 @@ export const checkUsername = (
       username,
       available: user === null,
     }
-  })
+  }).pipe(
+    Effect.withSpan('UsernameService.checkUsername', {
+      attributes: { 'username.value': username },
+    })
+  )

@@ -40,4 +40,8 @@ export const updateUser = (
     }
 
     return updated
-  })
+  }).pipe(
+    Effect.withSpan('AdminService.updateUser', {
+      attributes: { 'user.id': id },
+    })
+  )

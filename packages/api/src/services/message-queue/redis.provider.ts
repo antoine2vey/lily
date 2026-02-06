@@ -39,7 +39,12 @@ export const RedisMessageQueueLive = Layer.effect(
               message: `Failed to enqueue message to ${topic}`,
               cause: error,
             }),
-        }).pipe(Effect.asVoid),
+        }).pipe(
+          Effect.asVoid,
+          Effect.withSpan('Redis.enqueue', {
+            attributes: { 'queue.topic': topic },
+          })
+        ),
 
       dequeue: (topic) =>
         Effect.tryPromise({
@@ -57,7 +62,11 @@ export const RedisMessageQueueLive = Layer.effect(
               message: `Failed to dequeue message from ${topic}`,
               cause: error,
             }),
-        }),
+        }).pipe(
+          Effect.withSpan('Redis.dequeue', {
+            attributes: { 'queue.topic': topic },
+          })
+        ),
 
       ack: (topic, messageId) =>
         Effect.tryPromise({
@@ -78,7 +87,12 @@ export const RedisMessageQueueLive = Layer.effect(
               message: `Failed to ack message ${messageId}`,
               cause: error,
             }),
-        }).pipe(Effect.asVoid),
+        }).pipe(
+          Effect.asVoid,
+          Effect.withSpan('Redis.ack', {
+            attributes: { 'queue.topic': topic, 'queue.messageId': messageId },
+          })
+        ),
 
       nack: (topic, messageId) =>
         Effect.tryPromise({
@@ -101,7 +115,12 @@ export const RedisMessageQueueLive = Layer.effect(
               message: `Failed to nack message ${messageId}`,
               cause: error,
             }),
-        }).pipe(Effect.asVoid),
+        }).pipe(
+          Effect.asVoid,
+          Effect.withSpan('Redis.nack', {
+            attributes: { 'queue.topic': topic, 'queue.messageId': messageId },
+          })
+        ),
     }
 
     return queue

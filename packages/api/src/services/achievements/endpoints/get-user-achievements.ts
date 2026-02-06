@@ -108,4 +108,4 @@ export const getUserAchievements = (): Effect.Effect<
       unlockedCount,
       totalCount: achievements.length,
     }
-  })
+  }).pipe(Effect.withSpan('AchievementsService.getUserAchievements'))

@@ -9,4 +9,8 @@ export const eventRetryPolicy = Schedule.exponential('100 millis').pipe(
 export const publishWithRetry = <E, R>(
   effect: Effect.Effect<void, E, R>
 ): Effect.Effect<void, never, R> =>
-  effect.pipe(Effect.retry(eventRetryPolicy), Effect.ignore)
+  effect.pipe(
+    Effect.retry(eventRetryPolicy),
+    Effect.ignore,
+    Effect.withSpan('EventBus.publish')
+  )

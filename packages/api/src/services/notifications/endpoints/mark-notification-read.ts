@@ -28,4 +28,8 @@ export const markNotificationRead = (
     const updated = yield* repo.markAsRead(notificationId)
 
     return updated as Notification
-  })
+  }).pipe(
+    Effect.withSpan('NotificationsService.markNotificationRead', {
+      attributes: { 'notification.id': notificationId },
+    })
+  )
