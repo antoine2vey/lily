@@ -23,4 +23,4 @@ export const getNotifications = (params: {
       ...(params.limit !== undefined && { limit: params.limit }),
       ...(params.status !== undefined && { status: params.status }),
     })
-  }).pipe(Effect.withSpan('NotificationsService.getNotifications'))
+  })

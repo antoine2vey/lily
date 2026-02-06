@@ -60,7 +60,6 @@ export const ExpoPushServiceLive = Layer.effect(
     const service: IPushService = {
       send: (message) =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('push.token', message.to)
           // Validate token format
           if (!Expo.isExpoPushToken(message.to)) {
             return yield* Effect.fail(
@@ -106,11 +105,10 @@ export const ExpoPushServiceLive = Layer.effect(
             id: ticket.id,
             status: 'ok' as const,
           } satisfies PushTicket
-        }).pipe(Effect.withSpan('ExpoPush.send')),
+        }),
 
       sendBatch: (messages) =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('push.count', messages.length)
           // Validate all tokens
           const invalidTokens = Array.filter(
             messages,
@@ -147,7 +145,7 @@ export const ExpoPushServiceLive = Layer.effect(
           }
 
           return tickets
-        }).pipe(Effect.withSpan('ExpoPush.sendBatch')),
+        }),
     }
 
     yield* Effect.log('Expo Push service initialized')

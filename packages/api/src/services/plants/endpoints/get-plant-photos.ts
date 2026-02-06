@@ -12,8 +12,4 @@ export const getPlantPhotos = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     return yield* repo.findPhotos(params)
-  }).pipe(
-    Effect.withSpan('PlantsService.getPlantPhotos', {
-      attributes: { 'plant.id': params.plantId },
-    })
-  )
+  })

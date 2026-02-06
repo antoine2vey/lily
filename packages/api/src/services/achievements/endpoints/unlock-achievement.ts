@@ -51,8 +51,4 @@ export const unlockAchievement = (
       unlockedAt: unlocked.unlockedAt,
       userId,
     }
-  }).pipe(
-    Effect.withSpan('AchievementsService.unlockAchievement', {
-      attributes: { 'achievement.key': request.achievement },
-    })
-  )
+  })

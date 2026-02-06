@@ -35,27 +35,18 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
               }
             }
             return new AiGenericError({ message: 'Unknown error' })
-          }),
-          Effect.withSpan('AiService.plantRecognition')
+          })
         ),
       // Returns raw AI SDK StreamTextResult for streaming endpoint
       plantChatStream: (plantId: string, messages: UIMessage[]) =>
-        plantChat(plantId, messages).pipe(
-          Effect.withSpan('AiService.plantChatStream', {
-            attributes: { 'plant.id': plantId },
-          })
-        ),
+        plantChat(plantId, messages),
       // Returns Effect Stream for non-streaming endpoint (backwards compatibility)
       plantChat: (plantId: string, messages: UIMessage[]) =>
         Effect.gen(function* () {
           const stream = yield* plantChat(plantId, messages)
 
           return streamSdk(stream.textStream)
-        }).pipe(
-          Effect.withSpan('AiService.plantChat', {
-            attributes: { 'plant.id': plantId },
-          })
-        ),
+        }),
       plantCardScan: (url: string) =>
         plantCardScan(url).pipe(
           Effect.mapError((error) => {
@@ -67,8 +58,7 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
               }
             }
             return new AiGenericError({ message: 'Unknown error' })
-          }),
-          Effect.withSpan('AiService.plantCardScan')
+          })
         ),
       plantCardScanMultiple: (urls: readonly string[]) =>
         plantCardScanMultiple(urls as string[]).pipe(
@@ -81,9 +71,6 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
               }
             }
             return new AiGenericError({ message: 'Unknown error' })
-          }),
-          Effect.withSpan('AiService.plantCardScanMultiple', {
-            attributes: { 'scan.imageCount': urls.length },
           })
         ),
     }
