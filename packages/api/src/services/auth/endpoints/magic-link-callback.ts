@@ -38,4 +38,4 @@ export const magicLinkCallback = ({
 
     // Return redirect URL - the handler will perform the actual redirect
     return { redirectUrl }
-  }).pipe(Effect.withSpan('AuthService.magicLinkCallback'))
+  })

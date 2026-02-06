@@ -91,7 +91,7 @@ export const JWTServiceLive = Layer.effect(
           })
 
           return token
-        }).pipe(Effect.withSpan('JWTService.signAccessToken')),
+        }),
 
       verifyAccessToken: (token: string) =>
         Effect.gen(function* () {
@@ -144,13 +144,13 @@ export const JWTServiceLive = Layer.effect(
             role: role.value,
             status: status.value,
           }
-        }).pipe(Effect.withSpan('JWTService.verifyAccessToken')),
+        }),
 
       generateRefreshToken: () =>
         Effect.sync(() => {
           // 244 bits of entropy (2 UUIDs concatenated)
           return `${crypto.randomUUID()}${crypto.randomUUID()}`
-        }).pipe(Effect.withSpan('JWTService.generateRefreshToken')),
+        }),
 
       hashRefreshToken: (token: string) =>
         Effect.gen(function* () {
@@ -165,7 +165,7 @@ export const JWTServiceLive = Layer.effect(
             .map((b) => b.toString(16).padStart(2, '0'))
             .join('')
           return hashHex
-        }).pipe(Effect.withSpan('JWTService.hashRefreshToken')),
+        }),
     }
   })
 )

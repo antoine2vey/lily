@@ -69,8 +69,7 @@ export const AchievementRepositoryLive = Layer.effect(
         db
           .select()
           .from(userAchievements)
-          .where(eq(userAchievements.userId, userId))
-          .pipe(Effect.withSpan('AchievementRepository.findByUserId')),
+          .where(eq(userAchievements.userId, userId)),
 
       hasAchievement: (userId: string, key: AchievementKey) =>
         Effect.gen(function* () {
@@ -90,7 +89,7 @@ export const AchievementRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             ) > 0
           )
-        }).pipe(Effect.withSpan('AchievementRepository.hasAchievement')),
+        }),
 
       unlock: (userId: string, key: AchievementKey) =>
         Effect.gen(function* () {
@@ -100,7 +99,7 @@ export const AchievementRepositoryLive = Layer.effect(
             .onConflictDoNothing()
             .returning()
           return Option.getOrNull(Option.fromNullable(achievement))
-        }).pipe(Effect.withSpan('AchievementRepository.unlock')),
+        }),
 
       countCareLogsByType: (
         userId: string,
@@ -117,7 +116,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countCareLogsByType')),
+        }),
 
       countPlants: (userId: string) =>
         Effect.gen(function* () {
@@ -130,7 +129,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countPlants')),
+        }),
 
       countPhotos: (userId: string) =>
         Effect.gen(function* () {
@@ -144,7 +143,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countPhotos')),
+        }),
 
       getCareStreak: (userId: string) =>
         Effect.gen(function* () {
@@ -173,7 +172,7 @@ export const AchievementRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             )
           )
-        }).pipe(Effect.withSpan('AchievementRepository.getCareStreak')),
+        }),
 
       countScans: (userId: string) =>
         Effect.gen(function* () {
@@ -186,7 +185,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countScans')),
+        }),
 
       countPhotosForPlant: (userId: string, plantId: string) =>
         Effect.gen(function* () {
@@ -202,7 +201,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countPhotosForPlant')),
+        }),
 
       incrementHistoryViews: (userId: string) =>
         Effect.gen(function* () {
@@ -218,7 +217,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.incrementHistoryViews')),
+        }),
 
       getHistoryViewCount: (userId: string) =>
         Effect.gen(function* () {
@@ -231,7 +230,7 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('AchievementRepository.getHistoryViewCount')),
+        }),
     }
   })
 )

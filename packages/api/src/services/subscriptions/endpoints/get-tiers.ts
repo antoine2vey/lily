@@ -11,4 +11,4 @@ export const getTiers = (): Effect.Effect<
   Effect.gen(function* () {
     const subRepo = yield* SubscriptionRepository
     return yield* subRepo.getAllTiers()
-  }).pipe(Effect.withSpan('SubscriptionService.getAllTiers'))
+  })

@@ -1,12 +1,3 @@
-import { Config, Effect, Layer, Logger } from 'effect'
+import { Logger } from 'effect'
 
-export const LoggerLive = Layer.unwrapEffect(
-  Effect.gen(function* () {
-    const nodeEnv = yield* Config.withDefault(
-      Config.string('NODE_ENV'),
-      'development'
-    )
-
-    return nodeEnv === 'production' ? Logger.json : Logger.pretty
-  })
-)
+export const LoggerLayer = Logger.add(Logger.prettyLoggerDefault)

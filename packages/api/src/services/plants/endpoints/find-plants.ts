@@ -23,11 +23,4 @@ export const findPlants = (params: {
     const timezone = yield* getUserTimezone(userId)
 
     return yield* repo.findAll({ ...params, userId, timezone })
-  }).pipe(
-    Effect.withSpan('PlantsService.findPlants', {
-      attributes: {
-        'plant.filter': params.filter ?? 'all',
-        'plant.sort': params.sort ?? 'added',
-      },
-    })
-  )
+  })

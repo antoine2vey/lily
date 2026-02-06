@@ -36,4 +36,4 @@ export const listUsers = (
     ])
 
     return paginate(users, total, page, limit)
-  }).pipe(Effect.withSpan('AdminService.listUsers'))
+  })

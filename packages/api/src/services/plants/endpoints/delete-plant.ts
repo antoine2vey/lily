@@ -21,8 +21,4 @@ export const deletePlant = ({
     }
 
     return plant
-  }).pipe(
-    Effect.withSpan('PlantsService.deletePlant', {
-      attributes: { 'plant.id': id },
-    })
-  )
+  })

@@ -24,4 +24,4 @@ export const getRecentActivities = (params: {
       userId,
       limit,
     })
-  }).pipe(Effect.withSpan('CareLogsService.getRecentActivities'))
+  })

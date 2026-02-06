@@ -32,4 +32,4 @@ export const registerDeviceToken = (
     })
 
     return created as DeviceToken
-  }).pipe(Effect.withSpan('DeviceTokensService.registerDeviceToken'))
+  })

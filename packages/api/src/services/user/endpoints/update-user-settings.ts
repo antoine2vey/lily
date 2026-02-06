@@ -134,4 +134,4 @@ export const updateUserSettings = (
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
     }
-  }).pipe(Effect.withSpan('UserService.updateUserSettings'))
+  })

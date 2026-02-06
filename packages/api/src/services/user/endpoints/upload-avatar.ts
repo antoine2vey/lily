@@ -51,4 +51,4 @@ export const uploadAvatar = (
     }
 
     return { url }
-  }).pipe(Effect.withSpan('UserService.uploadAvatar'))
+  })

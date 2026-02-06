@@ -63,4 +63,4 @@ export const setUsername = (
       role: updatedUser.role,
       status: updatedUser.status,
     }
-  }).pipe(Effect.withSpan('AuthService.setUsername'))
+  })

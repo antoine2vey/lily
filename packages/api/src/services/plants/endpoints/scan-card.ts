@@ -86,4 +86,4 @@ export const scanCard = (
     yield* usageTracker.trackCardScan(userId)
 
     return { ...result, imageUrl: url }
-  }).pipe(Effect.withSpan('PlantsService.scanCard'))
+  })

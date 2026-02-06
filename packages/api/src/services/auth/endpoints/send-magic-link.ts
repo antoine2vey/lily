@@ -97,4 +97,4 @@ export const sendMagicLink = ({
 
     // Return generic success message (don't reveal if email exists)
     return { message: 'If an account exists, a magic link has been sent.' }
-  }).pipe(Effect.withSpan('AuthService.sendMagicLink'))
+  })
