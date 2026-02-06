@@ -138,4 +138,4 @@ export const verifyMagicLink = ({
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     }
-  }).pipe(Effect.withSpan('AuthService.verifyMagicLink'))
+  })

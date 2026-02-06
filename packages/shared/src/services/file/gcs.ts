@@ -133,11 +133,6 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
         request: GCSUploadRequest
       ): Effect.Effect<GCSUploadResponse, GCSUploadError> =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('gcs.fileName', request.fileName)
-          yield* Effect.annotateCurrentSpan(
-            'gcs.contentType',
-            request.contentType
-          )
           // Validate request
           const validatedRequest = yield* Schema.decodeUnknown(
             GCSUploadRequestSchema
@@ -182,13 +177,12 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             bucketName: buckets.plant.name,
             uploadedAt: new Date(),
           }
-        }).pipe(Effect.withSpan('GCS.uploadFile')),
+        }),
 
       uploadPrivateFile: (
         request: GCSUploadRequest
       ): Effect.Effect<GCSUploadResponse, GCSUploadError> =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('gcs.fileName', request.fileName)
           // Validate request (same as uploadFile)
           const validatedRequest = yield* Schema.decodeUnknown(
             GCSUploadRequestSchema
@@ -244,7 +238,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             bucketName: buckets.ai.name,
             uploadedAt: new Date(),
           }
-        }).pipe(Effect.withSpan('GCS.uploadPrivateFile')),
+        }),
     }
   }),
 }) {}

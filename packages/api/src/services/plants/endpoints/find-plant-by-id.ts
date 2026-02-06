@@ -31,8 +31,4 @@ export const findPlantById = ({
       ...plant,
       photos: photosResult.items,
     }
-  }).pipe(
-    Effect.withSpan('PlantsService.findPlantById', {
-      attributes: { 'plant.id': id },
-    })
-  )
+  })

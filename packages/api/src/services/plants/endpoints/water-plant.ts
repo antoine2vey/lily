@@ -6,7 +6,7 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { Plant, PlantWaterRequest } from '@lily/shared/plant'
-import { Effect } from 'effect'
+import type { Effect } from 'effect'
 
 export const waterPlant = (
   request: PlantWaterRequest & { id: string }
@@ -19,8 +19,4 @@ export const waterPlant = (
     plantId: request.id,
     careType: 'watering',
     notes: request.notes,
-  }).pipe(
-    Effect.withSpan('PlantsService.waterPlant', {
-      attributes: { 'plant.id': request.id },
-    })
-  )
+  })

@@ -28,7 +28,7 @@ export const checkOverduePlants = Effect.gen(function* () {
       count: markedAsHealthy,
     })
   }
-}).pipe(Effect.withSpan('health-scheduler.check'))
+})
 
 // Start the health status scheduler as a background process
 export const startHealthScheduler = Effect.gen(function* () {

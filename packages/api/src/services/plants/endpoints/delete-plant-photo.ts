@@ -12,9 +12,5 @@ export const deletePlantPhoto = ({
   return Effect.gen(function* () {
     const repo = yield* PlantRepository
     yield* repo.deletePhotoByPlantId(plantId, photoId)
-  }).pipe(
-    Effect.withSpan('PlantsService.deletePlantPhoto', {
-      attributes: { 'plant.id': plantId, 'photo.id': photoId },
-    })
-  )
+  })
 }

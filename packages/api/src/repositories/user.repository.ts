@@ -95,14 +95,13 @@ export const UserRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findAll: () =>
-        db.select().from(users).pipe(Effect.withSpan('UserRepository.findAll')),
+      findAll: () => db.select().from(users),
 
       findById: (id: string) =>
         Effect.gen(function* () {
           const [user] = yield* db.select().from(users).where(eq(users.id, id))
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findById')),
+        }),
 
       findByEmail: (email: string) =>
         Effect.gen(function* () {
@@ -111,7 +110,7 @@ export const UserRepositoryLive = Layer.effect(
             .from(users)
             .where(eq(users.email, email))
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findByEmail')),
+        }),
 
       findByUsername: (username: string) =>
         Effect.gen(function* () {
@@ -120,7 +119,7 @@ export const UserRepositoryLive = Layer.effect(
             .from(users)
             .where(eq(users.name, username))
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findByUsername')),
+        }),
 
       create: (data: CreateUserData) =>
         Effect.gen(function* () {
@@ -135,7 +134,7 @@ export const UserRepositoryLive = Layer.effect(
             })
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.create')),
+        }),
 
       update: (id: string, data: UpdateUserData) =>
         Effect.gen(function* () {
@@ -145,7 +144,7 @@ export const UserRepositoryLive = Layer.effect(
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.update')),
+        }),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -154,7 +153,7 @@ export const UserRepositoryLive = Layer.effect(
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.delete')),
+        }),
 
       findAllPaginated: (filters: FindUsersFilters) =>
         Effect.gen(function* () {
@@ -186,7 +185,7 @@ export const UserRepositoryLive = Layer.effect(
             .offset(offset)
 
           return results
-        }).pipe(Effect.withSpan('UserRepository.findAllPaginated')),
+        }),
 
       countUsers: (filters: Omit<FindUsersFilters, 'page' | 'limit'>) =>
         Effect.gen(function* () {
@@ -218,7 +217,7 @@ export const UserRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.count)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('UserRepository.countUsers')),
+        }),
 
       updateRole: (id: string, role: 'user' | 'admin') =>
         Effect.gen(function* () {
@@ -228,7 +227,7 @@ export const UserRepositoryLive = Layer.effect(
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.updateRole')),
+        }),
 
       updateStatus: (id: string, status: 'active' | 'suspended' | 'banned') =>
         Effect.gen(function* () {
@@ -238,7 +237,7 @@ export const UserRepositoryLive = Layer.effect(
             .where(eq(users.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.updateStatus')),
+        }),
     }
   })
 )

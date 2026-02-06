@@ -56,8 +56,4 @@ export const getCurrentSubscription = (
         : null,
       tierConfig,
     }
-  }).pipe(
-    Effect.withSpan('SubscriptionService.getCurrentSubscription', {
-      attributes: { 'user.id': userId },
-    })
-  )
+  })

@@ -58,7 +58,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .returning()
 
           return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.create')),
+        }),
 
       findByTokenHash: (tokenHash: string) =>
         Effect.gen(function* () {
@@ -68,7 +68,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .where(eq(refreshTokens.tokenHash, tokenHash))
 
           return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.findByTokenHash')),
+        }),
 
       findValidByTokenHash: (tokenHash: string) =>
         Effect.gen(function* () {
@@ -90,7 +90,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             return record
           }
           return null
-        }).pipe(Effect.withSpan('RefreshTokenRepository.findValidByTokenHash')),
+        }),
 
       revoke: (id: string) =>
         Effect.gen(function* () {
@@ -103,7 +103,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .returning()
 
           return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.revoke')),
+        }),
 
       revokeAllForUser: (userId: string) =>
         Effect.gen(function* () {
@@ -121,7 +121,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .returning()
 
           return results.length
-        }).pipe(Effect.withSpan('RefreshTokenRepository.revokeAllForUser')),
+        }),
 
       deleteExpiredAndRevoked: () =>
         Effect.gen(function* () {
@@ -133,9 +133,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .returning()
 
           return result.length
-        }).pipe(
-          Effect.withSpan('RefreshTokenRepository.deleteExpiredAndRevoked')
-        ),
+        }),
     }
   })
 )

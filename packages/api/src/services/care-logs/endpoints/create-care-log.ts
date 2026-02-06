@@ -82,8 +82,4 @@ export const createCareLog = (
     }
 
     return log
-  }).pipe(
-    Effect.withSpan('CareLogsService.createCareLog', {
-      attributes: { 'plant.id': plantId, 'careLog.type': request.type },
-    })
-  )
+  })
