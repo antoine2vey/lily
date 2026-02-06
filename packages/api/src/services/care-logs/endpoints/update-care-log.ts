@@ -30,8 +30,4 @@ export const updateCareLog = (
     }
 
     return log
-  }).pipe(
-    Effect.withSpan('CareLogsService.updateCareLog', {
-      attributes: { 'plant.id': plantId, 'careLog.id': logId },
-    })
-  )
+  })

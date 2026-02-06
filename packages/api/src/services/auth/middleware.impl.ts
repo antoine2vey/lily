@@ -40,7 +40,7 @@ const AuthenticationBase = Layer.effect(
           )
 
           return profile
-        }).pipe(Effect.withSpan('auth.validateToken')),
+        }),
     })
   })
 )

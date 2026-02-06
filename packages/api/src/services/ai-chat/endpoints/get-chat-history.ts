@@ -23,8 +23,4 @@ export const getChatHistory = (params: {
       ...(params.page !== undefined && { page: params.page }),
       ...(params.limit !== undefined && { limit: params.limit }),
     })
-  }).pipe(
-    Effect.withSpan('AIChatService.getChatHistory', {
-      attributes: { 'plant.id': params.plantId },
-    })
-  )
+  })

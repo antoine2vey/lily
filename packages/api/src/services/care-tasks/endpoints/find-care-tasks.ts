@@ -116,4 +116,4 @@ export const findCareTasks = (): Effect.Effect<
       today: Array.sort(today, taskDueDateOrder),
       thisWeek: Array.sort(thisWeek, taskDueDateOrder),
     }
-  }).pipe(Effect.withSpan('CareTasksService.findCareTasks'))
+  })

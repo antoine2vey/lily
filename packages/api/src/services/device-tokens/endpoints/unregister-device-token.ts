@@ -27,8 +27,4 @@ export const unregisterDeviceToken = (
     yield* repo.delete(tokenId)
 
     return { message: 'Device token unregistered successfully' }
-  }).pipe(
-    Effect.withSpan('DeviceTokensService.unregisterDeviceToken', {
-      attributes: { 'deviceToken.id': tokenId },
-    })
-  )
+  })

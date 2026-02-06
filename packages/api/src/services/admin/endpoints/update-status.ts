@@ -30,8 +30,4 @@ export const updateStatus = (
     }
 
     return updated
-  }).pipe(
-    Effect.withSpan('AdminService.updateStatus', {
-      attributes: { 'user.id': id, 'user.status': status },
-    })
-  )
+  })

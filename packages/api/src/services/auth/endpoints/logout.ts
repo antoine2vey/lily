@@ -20,4 +20,4 @@ export const logout = (): Effect.Effect<
     yield* refreshTokenRepo.revokeAllForUser(user.id)
 
     return { message: 'Successfully logged out' }
-  }).pipe(Effect.withSpan('AuthService.logout'))
+  })

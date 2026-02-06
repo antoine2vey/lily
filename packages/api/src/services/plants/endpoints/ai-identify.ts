@@ -71,6 +71,5 @@ export const aiIdentify = (
     Effect.tapErrorCause((cause) => {
       console.error('[ai-identify] FAILED:', cause)
       return Effect.void
-    }),
-    Effect.withSpan('PlantsService.aiIdentify')
+    })
   )

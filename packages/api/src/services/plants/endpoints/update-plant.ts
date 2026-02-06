@@ -9,7 +9,6 @@ export const updatePlant = (
 ): Effect.Effect<Plant, SqlError | PlantNotFoundError, PlantRepository> =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    yield* Effect.annotateCurrentSpan('plant.id', request.id)
 
     // Get current plant to check if we need to set next care dates
     const currentPlant = yield* repo.findById(request.id)
@@ -55,4 +54,4 @@ export const updatePlant = (
       Option.fromNullable(plant),
       Option.getOrElse(() => currentPlant)
     )
-  }).pipe(Effect.withSpan('PlantsService.updatePlant'))
+  })

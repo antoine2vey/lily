@@ -65,4 +65,4 @@ export const refreshToken = ({
       accessToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     }
-  }).pipe(Effect.withSpan('AuthService.refreshToken'))
+  })

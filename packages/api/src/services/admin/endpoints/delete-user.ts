@@ -29,8 +29,4 @@ export const deleteUser = (
     }
 
     return deleted
-  }).pipe(
-    Effect.withSpan('AdminService.deleteUser', {
-      attributes: { 'user.id': id },
-    })
-  )
+  })
