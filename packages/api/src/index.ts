@@ -33,6 +33,7 @@ import {
 } from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
+import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
@@ -120,5 +121,5 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0' }))
 )
 
-// Launch the server
-BunRuntime.runMain(Layer.launch(ServerLive))
+// Launch the server with optional telemetry
+BunRuntime.runMain(Layer.launch(ServerLive).pipe(Effect.provide(TelemetryLive)))
