@@ -13,10 +13,7 @@ const OtelConfig = Config.all({
   // Separate Loki endpoint for logs (Loki OTLP lives at /otlp)
   // When not set, logs go to the main endpoint (works with otel-collector/LGTM)
   lokiEndpoint: Config.option(Config.string('OTEL_LOKI_ENDPOINT')),
-  headers: Config.withDefault(
-    Config.string('OTEL_EXPORTER_OTLP_HEADERS'),
-    ''
-  ),
+  headers: Config.withDefault(Config.string('OTEL_EXPORTER_OTLP_HEADERS'), ''),
   serviceName: Config.withDefault(
     Config.string('OTEL_SERVICE_NAME'),
     'lily-api'
@@ -56,12 +53,8 @@ export const TelemetryLive = Layer.unwrapEffect(
 
     // Logs go to a separate Loki endpoint if configured,
     // otherwise to the main endpoint (for otel-collector/LGTM setups)
-    const logsUrl = pipe(
-      config.lokiEndpoint,
-      (_) =>
-        _._tag === 'Some'
-          ? `${_.value}/v1/logs`
-          : `${config.endpoint}/v1/logs`
+    const logsUrl = pipe(config.lokiEndpoint, (_) =>
+      _._tag === 'Some' ? `${_.value}/v1/logs` : `${config.endpoint}/v1/logs`
     )
 
     yield* Effect.log('OpenTelemetry enabled', {
