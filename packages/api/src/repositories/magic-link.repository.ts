@@ -59,7 +59,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .returning()
 
           return pipe(results, Array.head, Option.getOrNull)
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.create')),
 
       findByToken: (token: string) =>
         Effect.gen(function* () {
@@ -69,7 +69,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .where(eq(magicLinks.token, token))
 
           return pipe(results, Array.head, Option.getOrNull)
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.findByToken')),
 
       findValidByToken: (token: string) =>
         Effect.gen(function* () {
@@ -92,7 +92,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             return record
           }
           return null
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.findValidByToken')),
 
       markUsed: (id: string) =>
         Effect.gen(function* () {
@@ -105,7 +105,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .returning()
 
           return pipe(results, Array.head, Option.getOrNull)
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.markUsed')),
 
       deleteExpired: () =>
         Effect.gen(function* () {
@@ -117,7 +117,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .returning()
 
           return result.length
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.deleteExpired')),
 
       deleteByEmail: (email: string) =>
         Effect.gen(function* () {
@@ -127,7 +127,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .returning()
 
           return result.length
-        }),
+        }).pipe(Effect.withSpan('MagicLinkRepository.deleteByEmail')),
     }
   })
 )

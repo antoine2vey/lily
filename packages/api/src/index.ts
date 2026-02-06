@@ -2,6 +2,7 @@ import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
+import { LoggerLive } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
@@ -33,6 +34,7 @@ import {
 } from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
+import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
@@ -116,6 +118,8 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),
+  Layer.provide(TelemetryLive),
+  Layer.provide(LoggerLive),
   HttpServer.withLogAddress,
   Layer.provide(BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0' }))
 )

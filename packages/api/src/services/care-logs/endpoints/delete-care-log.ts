@@ -24,4 +24,8 @@ export const deleteCareLog = (
     yield* repo.delete(logId)
 
     return { message: `Care log ${logId} deleted successfully` }
-  })
+  }).pipe(
+    Effect.withSpan('CareLogsService.deleteCareLog', {
+      attributes: { 'plant.id': plantId, 'careLog.id': logId },
+    })
+  )

@@ -89,7 +89,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToDeadLetterMessage(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeadLetterRepository.create')),
 
       findByTopic: (topic: string) =>
         Effect.gen(function* () {
@@ -99,7 +99,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             .where(eq(deadLetterMessages.topic, topic))
             .orderBy(desc(deadLetterMessages.failedAt))
           return Array.map(rows, mapToDeadLetterMessage)
-        }),
+        }).pipe(Effect.withSpan('DeadLetterRepository.findByTopic')),
 
       findAll: (limit = 100) =>
         Effect.gen(function* () {
@@ -109,7 +109,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             .orderBy(desc(deadLetterMessages.failedAt))
             .limit(limit)
           return Array.map(rows, mapToDeadLetterMessage)
-        }),
+        }).pipe(Effect.withSpan('DeadLetterRepository.findAll')),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -118,7 +118,7 @@ export const DeadLetterRepositoryLive = Layer.effect(
             .where(eq(deadLetterMessages.id, id))
             .returning()
           return row ? mapToDeadLetterMessage(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeadLetterRepository.delete')),
     }
   })
 )

@@ -103,7 +103,7 @@ export const ChatRepositoryLive = Layer.effect(
             .orderBy(asc(chatMessages.createdAt))
 
           return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
-        }),
+        }).pipe(Effect.withSpan('ChatRepository.findByPlantId')),
 
       create: (data: CreateChatMessageData) =>
         Effect.gen(function* () {
@@ -118,7 +118,7 @@ export const ChatRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToChatMessage(row) : null
-        }),
+        }).pipe(Effect.withSpan('ChatRepository.create')),
 
       getMessagesAsUIMessages: (plantId: string, userId: string) =>
         Effect.gen(function* () {
@@ -151,7 +151,7 @@ export const ChatRepositoryLive = Layer.effect(
               parts: parts as UIMessage['parts'],
             }
           })
-        }),
+        }).pipe(Effect.withSpan('ChatRepository.getMessagesAsUIMessages')),
 
       saveChat: (params: SaveChatParams) =>
         Effect.gen(function* () {
@@ -195,7 +195,7 @@ export const ChatRepositoryLive = Layer.effect(
               }),
             { concurrency: 1 }
           )
-        }),
+        }).pipe(Effect.withSpan('ChatRepository.saveChat')),
 
       deleteByPlantId: (plantId: string, userId: string) =>
         Effect.gen(function* () {
@@ -207,7 +207,7 @@ export const ChatRepositoryLive = Layer.effect(
                 eq(chatMessages.userId, userId)
               )
             )
-        }),
+        }).pipe(Effect.withSpan('ChatRepository.deleteByPlantId')),
     }
   })
 )

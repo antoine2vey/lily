@@ -38,4 +38,8 @@ export const getCareLogs = (
     }
 
     return result
-  })
+  }).pipe(
+    Effect.withSpan('CareLogsService.getCareLogs', {
+      attributes: { 'plant.id': params.plantId },
+    })
+  )

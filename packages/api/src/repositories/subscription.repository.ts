@@ -120,7 +120,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .from(userSubscriptions)
             .where(eq(userSubscriptions.userId, userId))
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.findByUserId')),
 
       findByExternalId: (externalSubscriptionId: string) =>
         Effect.gen(function* () {
@@ -134,7 +134,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
               )
             )
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.findByExternalId')),
 
       create: (data: CreateSubscriptionData) =>
         Effect.gen(function* () {
@@ -197,7 +197,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             })
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.create')),
 
       updateStatus: (userId: string, status: SubscriptionStatus) =>
         Effect.gen(function* () {
@@ -207,7 +207,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .where(eq(userSubscriptions.userId, userId))
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.updateStatus')),
 
       updateFromWebhook: (
         externalSubscriptionId: string,
@@ -227,7 +227,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             )
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.updateFromWebhook')),
 
       updateByUserId: (userId: string, data: Partial<CreateSubscriptionData>) =>
         Effect.gen(function* () {
@@ -239,7 +239,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .where(eq(userSubscriptions.userId, userId))
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.updateByUserId')),
 
       cancel: (userId: string) =>
         Effect.gen(function* () {
@@ -253,7 +253,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .where(eq(userSubscriptions.userId, userId))
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.cancel')),
 
       getTier: (tier: SubscriptionTier) =>
         Effect.gen(function* () {
@@ -286,7 +286,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             maxCardScansMonthly: config.maxCardScansMonthly,
             maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
           } satisfies TierConfig
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.getTier')),
 
       getAllTiers: () =>
         Effect.gen(function* () {
@@ -300,7 +300,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             maxCardScansMonthly: config.maxCardScansMonthly,
             maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
           })) as TierConfig[]
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.getAllTiers')),
 
       getCurrentUsage: (userId: string) =>
         Effect.gen(function* () {
@@ -349,7 +349,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
           }
 
           return usage
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.getCurrentUsage')),
 
       getOrCreateUsage: (userId: string, periodStart: Date, periodEnd: Date) =>
         Effect.gen(function* () {
@@ -406,7 +406,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
               updatedAt: nowAsDate(),
             }))
           )
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.getOrCreateUsage')),
 
       incrementUsage: (userId: string, field: UsageField) =>
         Effect.gen(function* () {
@@ -458,7 +458,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .returning()
 
           return Option.getOrNull(Option.fromNullable(usage))
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.incrementUsage')),
 
       logEvent: (userId: string, eventType: string, metadata?: object) =>
         Effect.gen(function* () {
@@ -468,7 +468,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
               eventType as typeof subscriptionEvents.$inferInsert.eventType,
             metadata: metadata ? JSON.stringify(metadata) : null,
           })
-        }),
+        }).pipe(Effect.withSpan('SubscriptionRepository.logEvent')),
     }
   })
 )

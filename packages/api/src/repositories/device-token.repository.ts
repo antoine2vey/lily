@@ -73,7 +73,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .from(deviceTokens)
             .where(eq(deviceTokens.id, id))
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.findById')),
 
       findByToken: (token: string) =>
         Effect.gen(function* () {
@@ -82,7 +82,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .from(deviceTokens)
             .where(eq(deviceTokens.token, token))
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.findByToken')),
 
       findByUserId: (userId: string) =>
         Effect.gen(function* () {
@@ -91,7 +91,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .from(deviceTokens)
             .where(eq(deviceTokens.userId, userId))
           return Array.map(rows, mapToDeviceToken)
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.findByUserId')),
 
       findByTokenAndUserId: (token: string, userId: string) =>
         Effect.gen(function* () {
@@ -105,7 +105,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
               )
             )
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.findByTokenAndUserId')),
 
       create: (data: CreateDeviceTokenData) =>
         Effect.gen(function* () {
@@ -118,7 +118,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             })
             .returning()
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.create')),
 
       update: (id: string, data: UpdateDeviceTokenData) =>
         Effect.gen(function* () {
@@ -131,7 +131,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .where(eq(deviceTokens.id, id))
             .returning()
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.update')),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -140,7 +140,7 @@ export const DeviceTokenRepositoryLive = Layer.effect(
             .where(eq(deviceTokens.id, id))
             .returning()
           return row ? mapToDeviceToken(row) : null
-        }),
+        }).pipe(Effect.withSpan('DeviceTokenRepository.delete')),
     }
   })
 )
