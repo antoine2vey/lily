@@ -141,8 +141,13 @@ function isKnownError(
 }
 
 /**
- * Extract a readable message from an unknown error
+ * Extract a readable message from an unknown error.
+ * Handles Error instances, ApiFailure objects, strings, and other types.
  */
+export function extractErrorMessage(error: unknown): string {
+  return getErrorMessage(error)
+}
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message

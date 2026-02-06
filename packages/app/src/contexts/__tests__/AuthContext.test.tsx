@@ -47,6 +47,9 @@ jest.mock('src/utils/storage', () => ({
 // Mock client utilities
 jest.mock('src/utils/client', () => ({
   apiEffectRunner: jest.fn(),
+  extractErrorMessage: jest.fn((error: unknown) =>
+    error instanceof Error ? error.message : String(error)
+  ),
   setOnAuthFailure: jest.fn(),
 }))
 
