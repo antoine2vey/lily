@@ -57,4 +57,8 @@ export const uploadPlantPhoto = ({
         })
       )
     )
-  })
+  }).pipe(
+    Effect.withSpan('PlantsService.uploadPlantPhoto', {
+      attributes: { 'plant.id': plantId },
+    })
+  )

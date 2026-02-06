@@ -159,6 +159,10 @@ export const startAchievementSubscriber = Effect.gen(function* () {
       Effect.gen(function* () {
         const event = yield* Queue.take(queue)
         yield* processEvent(event).pipe(
+          Effect.tap(() =>
+            Effect.annotateCurrentSpan('event._tag', event._tag)
+          ),
+          Effect.withSpan('achievement-checker.process'),
           Effect.catchAll((error) =>
             Effect.logError('Achievement check failed', error)
           )
