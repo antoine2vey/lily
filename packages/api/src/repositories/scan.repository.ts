@@ -37,7 +37,7 @@ export const ScanRepositoryLive = Layer.effect(
             )
           }
           return scan
-        }),
+        }).pipe(Effect.withSpan('ScanRepository.create')),
     }
   })
 )

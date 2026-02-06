@@ -103,4 +103,8 @@ export const scanCardMultiple = (
         Option.getOrElse(() => '')
       ),
     }
-  })
+  }).pipe(
+    Effect.withSpan('PlantsService.scanCardMultiple', {
+      attributes: { 'scan.imageCount': images.length },
+    })
+  )

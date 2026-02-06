@@ -114,7 +114,8 @@ export const RateLimiterServiceLive = Layer.effect(
             .where(eq(rateLimits.key, key))
         }).pipe(
           // Convert SQL errors to defects since they are unexpected infrastructure errors
-          Effect.catchTag('SqlError', (e) => Effect.die(e))
+          Effect.catchTag('SqlError', (e) => Effect.die(e)),
+          Effect.withSpan('RateLimiterService.checkRateLimit')
         ),
 
       resetRateLimit: (key: string) =>
@@ -122,7 +123,8 @@ export const RateLimiterServiceLive = Layer.effect(
           yield* db.delete(rateLimits).where(eq(rateLimits.key, key))
         }).pipe(
           // Convert SQL errors to defects
-          Effect.catchTag('SqlError', (e) => Effect.die(e))
+          Effect.catchTag('SqlError', (e) => Effect.die(e)),
+          Effect.withSpan('RateLimiterService.resetRateLimit')
         ),
     }
   })

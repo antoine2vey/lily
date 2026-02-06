@@ -16,4 +16,8 @@ export const getUser = (
     }
 
     return user
-  })
+  }).pipe(
+    Effect.withSpan('AdminService.getUser', {
+      attributes: { 'user.id': id },
+    })
+  )

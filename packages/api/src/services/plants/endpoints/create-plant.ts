@@ -20,6 +20,8 @@ export const createPlant = (
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
 
+    yield* Effect.annotateCurrentSpan('plant.name', request.name)
+
     // Check if user has reached their plant limit
     yield* limitChecker.checkPlantLimit(userId)
 
@@ -57,4 +59,4 @@ export const createPlant = (
     )
 
     return plant
-  })
+  }).pipe(Effect.withSpan('PlantsService.createPlant'))
