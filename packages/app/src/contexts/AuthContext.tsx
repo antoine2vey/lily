@@ -12,7 +12,11 @@ import {
   useState,
 } from 'react'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { apiEffectRunner, setOnAuthFailure } from 'src/utils/client'
+import {
+  apiEffectRunner,
+  extractErrorMessage,
+  setOnAuthFailure,
+} from 'src/utils/client'
 import { getExpoPushToken, getPlatform } from 'src/utils/notifications'
 import {
   clearAuthStorage,
@@ -240,10 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to verify magic link',
+          error: extractErrorMessage(error),
         }
       }
     },
@@ -271,10 +272,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : 'Failed to send magic link',
+          error: extractErrorMessage(error),
         }
       }
     },
@@ -304,8 +302,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         return {
           success: false,
-          error:
-            error instanceof Error ? error.message : 'Failed to set username',
+          error: extractErrorMessage(error),
         }
       }
     },
