@@ -184,7 +184,7 @@ export const PlantRepositoryLive = Layer.effect(
             )
 
           return paginate(items, total, page, limit)
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.findAll')),
 
       findByIds: (ids: readonly string[]) =>
         Effect.gen(function* () {
@@ -194,7 +194,7 @@ export const PlantRepositoryLive = Layer.effect(
             .from(plants)
             .where(inArray(plants.id, ids as string[]))
           return items
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.findByIds')),
 
       findById: (id: string) =>
         Effect.gen(function* () {
@@ -203,7 +203,7 @@ export const PlantRepositoryLive = Layer.effect(
             .from(plants)
             .where(eq(plants.id, id))
           return Option.getOrNull(Option.fromNullable(plant))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.findById')),
 
       findPlantsWithPendingCare: (userId: string, endOfWeek: Date) =>
         Effect.gen(function* () {
@@ -220,13 +220,13 @@ export const PlantRepositoryLive = Layer.effect(
               )
             )
           return items
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.findPlantsWithPendingCare')),
 
       create: (data: CreatePlantData) =>
         Effect.gen(function* () {
           const [plant] = yield* db.insert(plants).values(data).returning()
           return Option.getOrNull(Option.fromNullable(plant))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.create')),
 
       update: (id: string, data: UpdatePlantData) =>
         Effect.gen(function* () {
@@ -236,7 +236,7 @@ export const PlantRepositoryLive = Layer.effect(
             .where(eq(plants.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(plant))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.update')),
 
       delete: (id: string) =>
         Effect.gen(function* () {
@@ -245,7 +245,7 @@ export const PlantRepositoryLive = Layer.effect(
             .where(eq(plants.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(plant))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.delete')),
 
       findPhotos: (params: FindPhotosParams) =>
         Effect.gen(function* () {
@@ -266,7 +266,7 @@ export const PlantRepositoryLive = Layer.effect(
             .orderBy(desc(plantPhotos.takenAt))
 
           return paginate(items, total, page, limit)
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.findPhotos')),
 
       addPhoto: (plantId: string, url: string) =>
         Effect.gen(function* () {
@@ -275,7 +275,7 @@ export const PlantRepositoryLive = Layer.effect(
             .values({ plantId, url })
             .returning()
           return Option.getOrNull(Option.fromNullable(photo))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.addPhoto')),
 
       addPhotos: (
         photos: Array<{ plantId: string; url: string; takenAt: Date }>
@@ -286,7 +286,7 @@ export const PlantRepositoryLive = Layer.effect(
             .values(photos)
             .returning()
           return result
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.addPhotos')),
 
       deletePhoto: (photoId: string) =>
         Effect.gen(function* () {
@@ -295,7 +295,7 @@ export const PlantRepositoryLive = Layer.effect(
             .where(eq(plantPhotos.id, photoId))
             .returning()
           return Option.getOrNull(Option.fromNullable(photo))
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.deletePhoto')),
 
       deletePhotoByPlantId: (plantId: string, photoId: string) =>
         Effect.gen(function* () {
@@ -304,7 +304,7 @@ export const PlantRepositoryLive = Layer.effect(
             .where(
               and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
             )
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.deletePhotoByPlantId')),
 
       markOverduePlantsAsNeedsAttention: () =>
         Effect.gen(function* () {
@@ -333,7 +333,9 @@ export const PlantRepositoryLive = Layer.effect(
             )
             .returning()
           return result.length
-        }),
+        }).pipe(
+          Effect.withSpan('PlantRepository.markOverduePlantsAsNeedsAttention')
+        ),
 
       markHealthyPlantsInOrder: () =>
         Effect.gen(function* () {
@@ -360,7 +362,7 @@ export const PlantRepositoryLive = Layer.effect(
             )
             .returning()
           return result.length
-        }),
+        }).pipe(Effect.withSpan('PlantRepository.markHealthyPlantsInOrder')),
     }
   })
 )

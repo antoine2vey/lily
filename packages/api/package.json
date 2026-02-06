@@ -43,6 +43,13 @@
     "zod": "^4.0.14"
   },
   "devDependencies": {
+    "@effect/opentelemetry": "0.44",
+    "@opentelemetry/api": "^1.6",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.57",
+    "@opentelemetry/resources": "^1.22",
+    "@opentelemetry/sdk-trace-base": "^1.22",
+    "@opentelemetry/sdk-trace-node": "^1.22",
+    "@opentelemetry/semantic-conventions": "^1.24",
     "@types/pg": "^8.16.0",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/supertest": "^6.0.3",

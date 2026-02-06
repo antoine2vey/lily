@@ -149,4 +149,8 @@ export const sendChatMessage = (
       message: savedUserMessage,
       response: responseText,
     }
-  })
+  }).pipe(
+    Effect.withSpan('AIChatService.sendChatMessage', {
+      attributes: { 'plant.id': plantId },
+    })
+  )

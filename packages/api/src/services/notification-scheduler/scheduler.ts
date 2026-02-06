@@ -69,7 +69,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       topic,
     })
   }
-})
+}).pipe(Effect.withSpan('notification-scheduler.poll'))
 
 // Start the notification scheduler as a background process
 export const startNotificationScheduler = Effect.gen(function* () {
