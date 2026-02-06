@@ -45,4 +45,4 @@ export const getUserSettings = (): Effect.Effect<
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
     }
-  })
+  }).pipe(Effect.withSpan('UserService.getUserSettings'))

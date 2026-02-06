@@ -118,4 +118,8 @@ export const waterMultiplePlants = (
         return results
       })
     )
-  })
+  }).pipe(
+    Effect.withSpan('PlantsService.waterMultiplePlants', {
+      attributes: { 'plant.count': request.plantIds.length },
+    })
+  )

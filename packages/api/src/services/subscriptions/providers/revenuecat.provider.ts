@@ -74,6 +74,7 @@ export const RevenueCatProviderLive = Layer.effect(
     const provider: IRevenueCatProvider = {
       constructWebhookEvent: (payload, authorization) =>
         Effect.gen(function* () {
+          yield* Effect.annotateCurrentSpan('revenuecat.webhook', true)
           // Validate authorization header if configured
           if (webhookAuthKey.length > 0) {
             const expectedAuth = `Bearer ${webhookAuthKey}`
@@ -111,10 +112,11 @@ export const RevenueCatProviderLive = Layer.effect(
 
           // Cast to full type (the schema validates structure, type guards the rest)
           return validated as unknown as RevenueCatWebhookEvent
-        }),
+        }).pipe(Effect.withSpan('RevenueCat.constructWebhook')),
 
       getSubscriberInfo: (appUserId) =>
         Effect.gen(function* () {
+          yield* Effect.annotateCurrentSpan('revenuecat.appUserId', appUserId)
           if (apiKey.length === 0) {
             return yield* Effect.fail(
               new PaymentProviderError({
@@ -156,7 +158,7 @@ export const RevenueCatProviderLive = Layer.effect(
                 code: 'revenuecat_api_error',
               }),
           })
-        }),
+        }).pipe(Effect.withSpan('RevenueCat.getSubscriberInfo')),
     }
 
     return provider
