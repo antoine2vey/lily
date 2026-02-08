@@ -57,7 +57,6 @@ export function PhotoPicker({
       <View className="items-center mb-6">
         <Pressable
           onPress={handlePickPhoto}
-          onLongPress={handleTakePhoto}
           className="w-full aspect-[4/3] rounded-xl overflow-hidden active:opacity-90"
         >
           <Image
@@ -66,11 +65,26 @@ export function PhotoPicker({
             resizeMode="cover"
           />
         </Pressable>
-        <Pressable onPress={handlePickPhoto} className="mt-3">
-          <Text className="text-sm font-semibold text-primary dark:text-primary-light">
-            {t('photo.changePhoto')}
-          </Text>
-        </Pressable>
+        <View className="flex-row items-center gap-4 mt-3">
+          <Pressable onPress={handlePickPhoto}>
+            <Text className="text-sm font-semibold text-primary dark:text-primary-light">
+              {t('photo.changePhoto')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleTakePhoto}
+            className="flex-row items-center gap-1"
+          >
+            <MaterialIcons
+              name="camera-alt"
+              size={16}
+              color={iconColors.primary}
+            />
+            <Text className="text-sm font-semibold text-primary dark:text-primary-light">
+              {t('photo.camera')}
+            </Text>
+          </Pressable>
+        </View>
       </View>
     )
   }
@@ -78,7 +92,6 @@ export function PhotoPicker({
   return (
     <Pressable
       onPress={handlePickPhoto}
-      onLongPress={handleTakePhoto}
       className="mb-6 items-center justify-center gap-4 rounded-xl border-2 border-dashed border-primary/30 bg-surface-tinted/30 dark:bg-slate-800/30 px-6 py-12 active:scale-[0.99]"
     >
       <View className="w-16 h-16 rounded-full bg-surface-tinted dark:bg-slate-800 items-center justify-center">
@@ -96,10 +109,25 @@ export function PhotoPicker({
           {displaySubtitle}
         </Text>
       </View>
-      <View className="mt-2 h-10 px-6 rounded-full bg-primary items-center justify-center">
-        <Text className="text-sm font-bold text-white">
-          {t('photo.addPhoto')}
-        </Text>
+      <View className="flex-row items-center gap-3 mt-2">
+        <Pressable
+          onPress={handlePickPhoto}
+          className="flex-row items-center gap-2 h-10 px-5 rounded-full bg-primary"
+        >
+          <MaterialIcons name="photo-library" size={18} color="#FFFFFF" />
+          <Text className="text-sm font-bold text-white">
+            {t('photo.gallery')}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={handleTakePhoto}
+          className="flex-row items-center gap-2 h-10 px-5 rounded-full bg-primary"
+        >
+          <MaterialIcons name="camera-alt" size={18} color="#FFFFFF" />
+          <Text className="text-sm font-bold text-white">
+            {t('photo.camera')}
+          </Text>
+        </Pressable>
       </View>
     </Pressable>
   )

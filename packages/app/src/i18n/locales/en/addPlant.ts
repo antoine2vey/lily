@@ -87,6 +87,8 @@ export default {
     changePhoto: 'Change photo',
     placeholder: 'Tap to add photo',
     subtitle: 'Show off your green friend',
+    gallery: 'Gallery',
+    camera: 'Camera',
   },
   scanner: {
     holdSteady: 'Hold steady...',

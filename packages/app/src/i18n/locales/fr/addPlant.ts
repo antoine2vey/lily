@@ -88,6 +88,8 @@ export default {
     changePhoto: 'Changer la photo',
     placeholder: 'Appuyez pour ajouter une photo',
     subtitle: 'Montrez votre ami vert',
+    gallery: 'Galerie',
+    camera: 'Appareil photo',
   },
   scanner: {
     holdSteady: 'Restez stable...',
