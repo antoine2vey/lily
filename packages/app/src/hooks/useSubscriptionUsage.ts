@@ -10,7 +10,13 @@ interface UsageItem {
 
 interface SubscriptionUsage {
   planName: string
-  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due'
+  status:
+    | 'active'
+    | 'trialing'
+    | 'canceled'
+    | 'expired'
+    | 'past_due'
+    | null
   usage: UsageItem[]
   isPremium: boolean
 }
@@ -27,7 +33,7 @@ export function useSubscriptionUsage() {
     const status: SubscriptionUsage['status'] = pipe(
       Option.fromNullable(data.subscription),
       Option.map((s) => s.status),
-      Option.getOrElse(() => 'active' as const)
+      Option.getOrNull
     )
 
     const usageCounts = data.usage

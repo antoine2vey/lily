@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, IconButton, TextLink } from 'src/components/ui'
+import { Button, IconButton } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
-import { iconColors } from 'src/theme'
+import { useIconColors } from 'src/hooks/useIconColors'
 
 const MAX_USERNAME_LENGTH = 20
 const MIN_USERNAME_LENGTH = 3
@@ -33,8 +33,9 @@ export default function UsernameSetupScreen() {
     _tag: 'Idle',
   })
   const [loading, setLoading] = useState(false)
-  const { setUsername: saveUsername, refreshUser } = useAuth()
+  const { setUsername: saveUsername, logout } = useAuth()
   const router = useRouter()
+  const iconColors = useIconColors()
 
   const validateUsername = useCallback(
     (value: string) => {
@@ -89,9 +90,8 @@ export default function UsernameSetupScreen() {
     }
   }
 
-  const handleSkip = () => {
-    refreshUser()
-    router.replace('/(app)/(tabs)')
+  const handleBack = async () => {
+    await logout()
   }
 
   const getValidationIcon = () =>
@@ -147,11 +147,11 @@ export default function UsernameSetupScreen() {
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      className="flex-1 bg-background"
+      className="flex-1 bg-background dark:bg-background-dark"
     >
       {/* Decorative background elements */}
-      <View className="absolute top-0 right-0 w-[80%] h-[60%] bg-primary/5 rounded-full -translate-y-1/4 translate-x-1/4" />
-      <View className="absolute bottom-0 left-0 w-[50%] h-[40%] bg-primary/5 rounded-full translate-y-1/4 -translate-x-1/4" />
+      <View className="absolute top-0 right-0 w-[80%] h-[60%] bg-primary/5 dark:bg-primary/10 rounded-full -translate-y-1/4 translate-x-1/4" />
+      <View className="absolute bottom-0 left-0 w-[50%] h-[40%] bg-primary/5 dark:bg-primary/10 rounded-full translate-y-1/4 -translate-x-1/4" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -168,7 +168,7 @@ export default function UsernameSetupScreen() {
                 icon="chevron-left"
                 size={24}
                 color={iconColors.textPrimary}
-                onPress={() => router.back()}
+                onPress={handleBack}
               />
             </View>
 
@@ -176,27 +176,27 @@ export default function UsernameSetupScreen() {
             <View className="flex-1 pt-8">
               {/* Headline */}
               <View className="mb-10">
-                <Text className="text-[28px] font-bold text-text-primary">
+                <Text className="text-[28px] font-bold text-text-primary dark:text-white">
                   {t('username.headlinePartOne')}
                 </Text>
                 <Text className="text-[28px] font-bold text-primary">
                   {t('username.headlinePartTwo')}
                 </Text>
-                <Text className="text-base font-regular text-text-secondary mt-3">
+                <Text className="text-base font-regular text-text-secondary dark:text-slate-400 mt-3">
                   {t('username.description')}
                 </Text>
               </View>
 
               {/* Username Input */}
               <View className="w-full">
-                <View className="flex-row items-center w-full h-14 rounded-xl border border-border bg-surface px-5">
+                <View className="flex-row items-center w-full h-14 rounded-xl border border-border dark:border-slate-700 bg-surface dark:bg-surface-dark px-5">
                   {/* Fixed Prefix */}
-                  <Text className="text-lg font-medium text-text-muted mr-1">
+                  <Text className="text-lg font-medium text-text-muted dark:text-slate-400 mr-1">
                     @
                   </Text>
                   {/* Input */}
                   <TextInput
-                    className="flex-1 text-lg font-semibold text-text-primary"
+                    className="flex-1 text-lg font-semibold text-text-primary dark:text-white"
                     placeholder={t('username.placeholder')}
                     placeholderTextColor={iconColors.textMuted}
                     value={username}
@@ -212,7 +212,7 @@ export default function UsernameSetupScreen() {
                 {/* Helper Text & Counter */}
                 <View className="flex-row justify-between items-center px-2 mt-3">
                   {getValidationStatus()}
-                  <Text className="text-sm font-medium text-text-muted">
+                  <Text className="text-sm font-medium text-text-muted dark:text-slate-500">
                     {username.length}/{MAX_USERNAME_LENGTH}
                   </Text>
                 </View>
@@ -231,12 +231,6 @@ export default function UsernameSetupScreen() {
                 {t('username.continueButton')}
               </Button>
 
-              {/* Secondary Link */}
-              <View className="items-center">
-                <TextLink variant="secondary" onPress={handleSkip}>
-                  {t('username.skipForNow')}
-                </TextLink>
-              </View>
             </View>
           </View>
         </ScrollView>
