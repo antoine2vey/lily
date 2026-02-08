@@ -5,7 +5,13 @@ import { Text, View } from 'react-native'
 
 interface PlanCardProps {
   planName: string
-  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due'
+  status:
+    | 'active'
+    | 'trialing'
+    | 'canceled'
+    | 'expired'
+    | 'past_due'
+    | null
   children: ReactNode
 }
 
@@ -14,6 +20,7 @@ export function PlanCard({ planName, status, children }: PlanCardProps) {
 
   const statusBadge = pipe(
     Match.value(status),
+    Match.when(null, () => null),
     Match.when('active', () => (
       <View className="px-3 py-1 rounded-full border border-primary/20 bg-primary-tint">
         <Text className="text-xs font-semibold text-primary">
