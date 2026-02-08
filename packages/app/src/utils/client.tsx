@@ -61,7 +61,15 @@ type ExtractError<T> = T extends HttpApi.HttpApi<
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-const rawApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.85:3000'
+const rawApiUrl =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (__DEV__ ? 'http://192.168.1.85:3000' : undefined)
+
+if (!rawApiUrl) {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL is not set. Ensure it is configured in eas.json or .env'
+  )
+}
 
 // Warn and strip trailing slash to prevent double-slash issues in API calls
 if (rawApiUrl.endsWith('/')) {

@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -9,7 +8,6 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { images } from 'src/assets/images'
 import { Button, IconButton, Input } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useLocalization } from 'src/hooks/useLocalization'
@@ -114,18 +112,6 @@ export default function LoginScreen() {
                 {t('auth:login.submitButton')}
               </Button>
             </View>
-          </View>
-
-          {/* Bottom Illustration */}
-          <View className="w-full h-64 mt-auto overflow-hidden">
-            {/* Gradient overlay */}
-            <View className="absolute inset-0 z-10 bg-gradient-to-t from-primary/10 to-transparent" />
-            <Image
-              source={images.plantsIllustration}
-              className="w-full h-full"
-              resizeMode="cover"
-              style={{ opacity: 0.9 }}
-            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

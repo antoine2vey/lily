@@ -21,11 +21,19 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://extraordinary-embrace-production-85bb.up.railway.app",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_MHtEVSIvAATmoZTHXhdaungdvmg"
+      }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://extraordinary-embrace-production-85bb.up.railway.app",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_MHtEVSIvAATmoZTHXhdaungdvmg"
+      }
     }
   },
   "submit": {
