@@ -230,7 +230,6 @@ export default function UsernameSetupScreen() {
               >
                 {t('username.continueButton')}
               </Button>
-
             </View>
           </View>
         </ScrollView>

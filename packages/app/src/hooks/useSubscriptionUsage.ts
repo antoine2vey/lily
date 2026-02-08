@@ -10,13 +10,7 @@ interface UsageItem {
 
 interface SubscriptionUsage {
   planName: string
-  status:
-    | 'active'
-    | 'trialing'
-    | 'canceled'
-    | 'expired'
-    | 'past_due'
-    | null
+  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due' | null
   usage: UsageItem[]
   isPremium: boolean
 }

@@ -5,13 +5,7 @@ import { Text, View } from 'react-native'
 
 interface PlanCardProps {
   planName: string
-  status:
-    | 'active'
-    | 'trialing'
-    | 'canceled'
-    | 'expired'
-    | 'past_due'
-    | null
+  status: 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due' | null
   children: ReactNode
 }
 
