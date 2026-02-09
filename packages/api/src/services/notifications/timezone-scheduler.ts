@@ -111,6 +111,177 @@ export interface NotificationScheduleUpdate {
   scheduledAt: Date
 }
 
+const DEFAULT_DND_START = '22:00'
+const DEFAULT_DND_END = '07:00'
+
+/**
+ * Parse a HH:mm time string into total minutes since midnight.
+ */
+const timeToMinutes = (time: string): number => {
+  const parts = time.split(':')
+  const h = parseInt(parts[0] ?? '0', 10)
+  const m = parseInt(parts[1] ?? '0', 10)
+  return h * 60 + m
+}
+
+/**
+ * Check if a time (in minutes since midnight) falls within a DND window.
+ * Handles midnight wraparound (e.g. 22:00 → 07:00).
+ */
+const isInDndWindow = (
+  timeMinutes: number,
+  startMinutes: number,
+  endMinutes: number
+): boolean => {
+  // If start equals end, no DND window
+  if (startMinutes === endMinutes) return false
+
+  // Wrapping window (e.g., 22:00 → 07:00)
+  if (startMinutes > endMinutes) {
+    return timeMinutes >= startMinutes || timeMinutes < endMinutes
+  }
+
+  // Non-wrapping window (e.g., 01:00 → 06:00)
+  return timeMinutes >= startMinutes && timeMinutes < endMinutes
+}
+
+/**
+ * Adjusts a scheduled notification time if it falls within the user's
+ * Do Not Disturb window. Delays the notification to the DND end time.
+ *
+ * @param scheduledAt - The originally calculated UTC Date
+ * @param timezone - User's IANA timezone string
+ * @param dndStart - DND start time in HH:mm format (e.g., "22:00")
+ * @param dndEnd - DND end time in HH:mm format (e.g., "07:00")
+ * @returns Adjusted UTC Date (unchanged if outside DND window)
+ */
+export const adjustForDoNotDisturb = (
+  scheduledAt: Date,
+  timezone: string | null,
+  dndStart: string | null,
+  dndEnd: string | null
+): Effect.Effect<Date, never> =>
+  Effect.gen(function* () {
+    const tz = pipe(
+      Option.fromNullable(timezone),
+      Option.getOrElse(() => DEFAULT_TIMEZONE)
+    )
+    const start = pipe(
+      Option.fromNullable(dndStart),
+      Option.getOrElse(() => DEFAULT_DND_START)
+    )
+    const end = pipe(
+      Option.fromNullable(dndEnd),
+      Option.getOrElse(() => DEFAULT_DND_END)
+    )
+
+    // Validate timezone, fallback to UTC
+    const validTimezone = yield* pipe(
+      validateTimezone(tz),
+      Effect.catchTag('InvalidTimezoneError', () =>
+        Effect.succeed(DEFAULT_TIMEZONE)
+      )
+    )
+
+    const zone = pipe(
+      DateTime.zoneMakeNamed(validTimezone),
+      Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+    )
+
+    // Convert scheduledAt to user's timezone
+    const scheduledDateTime = pipe(
+      DateTime.unsafeMake(scheduledAt),
+      DateTime.setZone(zone)
+    )
+
+    // Get local time parts
+    const parts = DateTime.toParts(scheduledDateTime)
+    const scheduledMinutes = parts.hours * 60 + parts.minutes
+
+    const startMinutes = timeToMinutes(start)
+    const endMinutes = timeToMinutes(end)
+
+    if (!isInDndWindow(scheduledMinutes, startMinutes, endMinutes)) {
+      return scheduledAt
+    }
+
+    // Adjust to DND end time
+    const endHours = Math.floor(endMinutes / 60)
+    const endMins = endMinutes % 60
+
+    const adjusted = pipe(
+      scheduledDateTime,
+      DateTime.setParts({
+        hours: endHours,
+        minutes: endMins,
+        seconds: 0,
+        millis: 0,
+      })
+    )
+
+    // If the DND wraps around midnight and the scheduled time is in the
+    // evening portion (>= start), the end time is on the next day
+    const needsNextDay =
+      startMinutes > endMinutes && scheduledMinutes >= startMinutes
+
+    const finalDateTime = needsNextDay
+      ? DateTime.addDuration(adjusted, '1 day')
+      : adjusted
+
+    return DateTime.toDate(finalDateTime)
+  })
+
+/**
+ * Check if a given UTC Date falls within a user's DND window right now.
+ * Used by the scheduler safety net to skip notifications during DND.
+ */
+export const isInDoNotDisturbWindow = (
+  currentTime: Date,
+  timezone: string | null,
+  dndStart: string | null,
+  dndEnd: string | null
+): Effect.Effect<boolean, never> =>
+  Effect.gen(function* () {
+    const tz = pipe(
+      Option.fromNullable(timezone),
+      Option.getOrElse(() => DEFAULT_TIMEZONE)
+    )
+    const start = pipe(
+      Option.fromNullable(dndStart),
+      Option.getOrElse(() => DEFAULT_DND_START)
+    )
+    const end = pipe(
+      Option.fromNullable(dndEnd),
+      Option.getOrElse(() => DEFAULT_DND_END)
+    )
+
+    const validTimezone = yield* pipe(
+      validateTimezone(tz),
+      Effect.catchTag('InvalidTimezoneError', () =>
+        Effect.succeed(DEFAULT_TIMEZONE)
+      )
+    )
+
+    const zone = pipe(
+      DateTime.zoneMakeNamed(validTimezone),
+      Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+    )
+
+    const zonedTime = pipe(
+      DateTime.unsafeMake(currentTime),
+      DateTime.setZone(zone)
+    )
+
+    const parts = DateTime.toParts(zonedTime)
+    const currentMinutes = parts.hours * 60 + parts.minutes
+
+    return isInDndWindow(
+      currentMinutes,
+      timeToMinutes(start),
+      timeToMinutes(end)
+    )
+  })
+
 export const recalculateNotificationSchedules = (
   notifications: NotificationWithBaseDate[],
   newTimezone: string | null,

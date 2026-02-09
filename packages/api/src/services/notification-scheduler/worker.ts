@@ -170,8 +170,8 @@ export const startNotificationWorker = Effect.gen(function* () {
           Effect.catchAll((error) =>
             Effect.logError(`Worker error for topic ${topic}`, error)
           ),
-          // Small delay between polls when queue is empty
-          Effect.zipRight(Effect.sleep('100 millis'))
+          // Delay between polls when queue is empty
+          Effect.zipRight(Effect.sleep('30 seconds'))
         )
       )
     )
