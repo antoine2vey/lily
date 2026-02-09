@@ -76,11 +76,9 @@ export default function UsernameSetupScreen() {
 
       setValidation({ _tag: 'Checking' })
       try {
-        const result = await apiEffectRunner(
-          'username',
-          'checkUsername',
-          { urlParams: { username: value } }
-        )
+        const result = await apiEffectRunner('username', 'checkUsername', {
+          urlParams: { username: value },
+        })
         // Ignore stale responses
         if (checkRequestRef.current !== requestId) return
 
@@ -123,11 +121,9 @@ export default function UsernameSetupScreen() {
     setLoading(true)
     try {
       // Re-check availability right before saving to avoid race conditions
-      const check = await apiEffectRunner(
-        'username',
-        'checkUsername',
-        { urlParams: { username } }
-      )
+      const check = await apiEffectRunner('username', 'checkUsername', {
+        urlParams: { username },
+      })
       if (!check.available) {
         setValidation({
           _tag: 'Unavailable',
