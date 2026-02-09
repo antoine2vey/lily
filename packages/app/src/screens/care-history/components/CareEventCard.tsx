@@ -3,7 +3,8 @@ import { formatApiTime } from '@lily/shared'
 import { Match, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 
 type CareEventType =
   | 'water'
@@ -119,10 +120,9 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
           className="w-full h-32 rounded-xl overflow-hidden shadow-sm"
           style={{ borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.4)' }}
         >
-          <Image
+          <AnimatedImage
             source={{ uri: event.photoUrl }}
             className="w-full h-full"
-            resizeMode="cover"
           />
         </View>
       )}

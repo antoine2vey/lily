@@ -2,7 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Match, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlants } from 'src/hooks/usePlants'
@@ -118,14 +119,14 @@ export function PlantSelector({
                       zIndex: 3 - index,
                     }}
                   >
-                    <Image
+                    <AnimatedImage
                       source={{
                         uri: Option.getOrUndefined(
                           Option.fromNullable(plant.imageUrl)
                         ),
                       }}
                       className="w-full h-full"
-                      resizeMode="cover"
+                      rounded
                     />
                   </View>
                 ))
@@ -179,13 +180,14 @@ export function PlantSelector({
                   onPress={() => togglePlant(plant.id)}
                   className="flex-row items-center py-3 border-b border-border dark:border-slate-700"
                 >
-                  <Image
+                  <AnimatedImage
                     source={{
                       uri: Option.getOrUndefined(
                         Option.fromNullable(plant.imageUrl)
                       ),
                     }}
-                    className="w-12 h-12 rounded-full mr-3 bg-border dark:bg-slate-700"
+                    className="w-12 h-12 mr-3"
+                    rounded
                   />
                   <Text
                     className={`flex-1 text-base text-text-primary dark:text-white ${isSelected ? 'font-bold' : 'font-regular'}`}

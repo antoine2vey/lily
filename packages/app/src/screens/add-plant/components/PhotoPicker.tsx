@@ -2,7 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface PhotoPickerProps {
@@ -65,11 +66,7 @@ export function PhotoPicker({
           onPress={handlePickPhoto}
           className="w-full aspect-[4/3] rounded-xl overflow-hidden active:opacity-90"
         >
-          <Image
-            source={{ uri: photo }}
-            className="w-full h-full"
-            resizeMode="cover"
-          />
+          <AnimatedImage source={{ uri: photo }} className="w-full h-full" />
         </Pressable>
         <View className="flex-row items-center gap-4 mt-3">
           <Pressable onPress={handlePickPhoto}>

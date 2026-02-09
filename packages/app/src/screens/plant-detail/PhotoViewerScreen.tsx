@@ -3,8 +3,9 @@ import { Array, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useDeletePhoto } from 'src/hooks/useDeletePhoto'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -98,11 +99,10 @@ export function PhotoViewerScreen() {
   return (
     <View className="flex-1 bg-black" testID="photo-viewer-screen">
       {/* Full screen image */}
-      <Image
+      <AnimatedImage
         source={{ uri: photo.url }}
         className="flex-1"
-        resizeMode="contain"
-        testID="photo-viewer-image"
+        contentFit="contain"
       />
 
       {/* Header with back and delete buttons */}

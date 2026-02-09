@@ -3,8 +3,9 @@ import { Option, String } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface ChatInputProps {
@@ -58,10 +59,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       {attachedImage && (
         <View className="mb-3 flex-row items-start p-3 bg-surface dark:bg-surface-dark rounded-xl border border-border/50 dark:border-slate-700/50">
           <View className="relative">
-            <Image
+            <AnimatedImage
               source={{ uri: attachedImage }}
               className="w-20 h-20 rounded-lg"
-              resizeMode="cover"
             />
             <Pressable
               onPress={() => setAttachedImage(null)}

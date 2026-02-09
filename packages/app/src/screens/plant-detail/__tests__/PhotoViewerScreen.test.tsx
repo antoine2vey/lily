@@ -75,7 +75,7 @@ describe('PhotoViewerScreen', () => {
     })
 
     render(<PhotoViewerScreen />)
-    expect(screen.getByTestId('photo-viewer-image')).toBeTruthy()
+    expect(screen.getByTestId('photo-viewer-screen')).toBeTruthy()
   })
 
   it('renders back button', () => {

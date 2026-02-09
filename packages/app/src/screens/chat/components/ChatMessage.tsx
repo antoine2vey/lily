@@ -1,5 +1,6 @@
 import { formatApiTime } from '@lily/shared'
-import { Image, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { Avatar } from 'src/components/Avatar'
 import { MarkdownText } from 'src/components/MarkdownText'
 
@@ -42,10 +43,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
           }}
         >
           {message.imageUrl && (
-            <Image
+            <AnimatedImage
               source={{ uri: message.imageUrl }}
               className="w-48 h-36 rounded-lg mb-2"
-              resizeMode="cover"
             />
           )}
           {isUser ? (
