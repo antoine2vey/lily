@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { LoadingOverlay } from 'src/components/LoadingOverlay'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useIconColors } from 'src/hooks/useIconColors'
 import * as RevenueCatService from 'src/services/revenuecat'
@@ -206,14 +207,12 @@ export function SubscriptionPayScreen() {
             <Pressable
               onPress={handleSubscribe}
               disabled={isLoading}
-              className={`py-4 rounded-2xl items-center ${isLoading ? 'bg-primary-dark opacity-70' : 'bg-primary active:bg-primary-dark'}`}
+              className="py-4 rounded-2xl items-center bg-primary active:bg-primary-dark"
             >
               <Text className="text-lg font-bold text-white">
-                {isLoading
-                  ? t('buttons.processing')
-                  : hasFreeTrial
-                    ? t('trial.startTrial')
-                    : t('buttons.subscribe', { price: getPrice() })}
+                {hasFreeTrial
+                  ? t('trial.startTrial')
+                  : t('buttons.subscribe', { price: getPrice() })}
               </Text>
             </Pressable>
 
@@ -277,6 +276,8 @@ export function SubscriptionPayScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <LoadingOverlay visible={isLoading} message={t('buttons.processing')} />
     </SafeAreaView>
   )
 }
