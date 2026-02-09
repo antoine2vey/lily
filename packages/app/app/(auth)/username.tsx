@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { useRouter } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Button, IconButton } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { apiEffectRunner } from 'src/utils/client'
 
 const MAX_USERNAME_LENGTH = 20
 const MIN_USERNAME_LENGTH = 3
@@ -37,56 +38,120 @@ export default function UsernameSetupScreen() {
   const router = useRouter()
   const iconColors = useIconColors()
 
-  const validateUsername = useCallback(
-    (value: string) => {
+  const checkRequestRef = useRef(0)
+
+  const validateFormat = useCallback(
+    (value: string): ValidationState | null => {
       if (value.length === 0) {
-        setValidation({ _tag: 'Idle' })
-        return
+        return { _tag: 'Idle' }
       }
 
       if (value.length < MIN_USERNAME_LENGTH) {
-        setValidation({
+        return {
           _tag: 'Invalid',
           reason: t('username.tooShort', { min: MIN_USERNAME_LENGTH }),
-        })
-        return
+        }
       }
 
       if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-        setValidation({
+        return {
           _tag: 'Invalid',
           reason: t('username.invalidChars'),
-        })
-        return
+        }
       }
 
-      // For now, assume available if valid format
-      setValidation({ _tag: 'Available' })
+      return null
     },
     [t]
   )
 
+  const checkAvailability = useCallback(
+    async (value: string) => {
+      const requestId = ++checkRequestRef.current
+      const formatError = validateFormat(value)
+      if (formatError) {
+        setValidation(formatError)
+        return
+      }
+
+      setValidation({ _tag: 'Checking' })
+      try {
+        const result = await apiEffectRunner(
+          'username',
+          'checkUsername',
+          { urlParams: { username: value } }
+        )
+        // Ignore stale responses
+        if (checkRequestRef.current !== requestId) return
+
+        if (result.available) {
+          setValidation({ _tag: 'Available' })
+        } else {
+          setValidation({
+            _tag: 'Unavailable',
+            reason: t('username.notAvailable'),
+          })
+        }
+      } catch {
+        if (checkRequestRef.current !== requestId) return
+        setValidation({
+          _tag: 'Invalid',
+          reason: t('username.checkFailed'),
+        })
+      }
+    },
+    [validateFormat, t]
+  )
+
   useEffect(() => {
+    const formatError = validateFormat(username)
+    if (formatError) {
+      setValidation(formatError)
+      return
+    }
+
+    setValidation({ _tag: 'Checking' })
     const timer = setTimeout(() => {
-      validateUsername(username)
+      checkAvailability(username)
     }, 300)
     return () => clearTimeout(timer)
-  }, [username, validateUsername])
+  }, [username, validateFormat, checkAvailability])
 
   const handleSubmit = async () => {
     if (validation._tag !== 'Available' || loading) return
 
     setLoading(true)
-    const result = await saveUsername(username)
-    setLoading(false)
+    try {
+      // Re-check availability right before saving to avoid race conditions
+      const check = await apiEffectRunner(
+        'username',
+        'checkUsername',
+        { urlParams: { username } }
+      )
+      if (!check.available) {
+        setValidation({
+          _tag: 'Unavailable',
+          reason: t('username.notAvailable'),
+        })
+        return
+      }
 
-    if (result.success) {
-      router.replace('/(app)/(tabs)')
-    } else {
+      const result = await saveUsername(username)
+      if (result.success) {
+        router.replace('/(app)/(tabs)')
+      } else {
+        setValidation({
+          _tag: 'Unavailable',
+          reason: result.error ?? t('username.notAvailable'),
+        })
+      }
+    } catch {
       setValidation({
-        _tag: 'Unavailable',
-        reason: result.error ?? t('username.notAvailable'),
+        _tag: 'Invalid',
+        reason: t('username.checkFailed'),
       })
+    } finally {
+      setLoading(false)
     }
   }
 

@@ -1,4 +1,7 @@
-import type { ISubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import type {
+  CreateSubscriptionData,
+  ISubscriptionRepository,
+} from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
 import type { SubscriptionTier, TierConfig } from '@lily/shared'
@@ -30,6 +33,11 @@ interface MockSubscriptionOptions {
   subscription?: typeof userSubscriptions.$inferSelect | null | undefined
   usage?: typeof subscriptionUsage.$inferSelect | null | undefined
   tier?: SubscriptionTier | undefined
+  onCreate?: (data: CreateSubscriptionData) => void
+  onUpdateByUserId?: (
+    userId: string,
+    data: Partial<CreateSubscriptionData>
+  ) => void
 }
 
 export const createMockSubscriptionRepository = (
@@ -50,10 +58,20 @@ export const createMockSubscriptionRepository = (
   const repo: ISubscriptionRepository = {
     findByUserId: () => Effect.succeed(subscription),
     findByExternalId: () => Effect.succeed(subscription),
-    create: () => Effect.succeed(subscription),
+    create: (data) => {
+      if (options.onCreate) {
+        options.onCreate(data)
+      }
+      return Effect.succeed(subscription)
+    },
     updateStatus: () => Effect.succeed(subscription),
     updateFromWebhook: () => Effect.succeed(subscription),
-    updateByUserId: () => Effect.succeed(subscription),
+    updateByUserId: (userId, data) => {
+      if (options.onUpdateByUserId) {
+        options.onUpdateByUserId(userId, data)
+      }
+      return Effect.succeed(subscription)
+    },
     cancel: () => Effect.succeed(subscription),
     getTier: () => Effect.succeed(tierConfig),
     getAllTiers: () => Effect.succeed([freeTierConfig, paidTierConfig]),

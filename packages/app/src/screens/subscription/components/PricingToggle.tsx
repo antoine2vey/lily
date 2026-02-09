@@ -10,6 +10,7 @@ interface PricingToggleProps {
   monthlyPrice: string
   annualPrice: string
   savingsPercent?: number
+  trialText?: string
 }
 
 export function PricingToggle({
@@ -18,6 +19,7 @@ export function PricingToggle({
   monthlyPrice,
   annualPrice,
   savingsPercent,
+  trialText,
 }: PricingToggleProps) {
   const { t } = useTranslation('subscription')
   const isMonthlySelected = selected === 'monthly'
@@ -70,6 +72,11 @@ export function PricingToggle({
             {t('pricing.perMonth')}
           </Text>
         </View>
+        {trialText && (
+          <Text className="text-[10px] font-bold text-primary mt-1">
+            {trialText}
+          </Text>
+        )}
       </Pressable>
 
       {/* Annual Option */}
@@ -125,6 +132,11 @@ export function PricingToggle({
             {t('pricing.perYear')}
           </Text>
         </View>
+        {trialText && (
+          <Text className="text-[10px] font-bold text-primary mt-1">
+            {trialText}
+          </Text>
+        )}
       </Pressable>
     </View>
   )

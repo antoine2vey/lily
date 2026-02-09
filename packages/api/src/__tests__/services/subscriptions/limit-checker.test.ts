@@ -6,8 +6,14 @@ import {
 } from '@lily/api/services/subscriptions/limit-checker'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
 import { LimitExceededError } from '@lily/shared'
-import { Effect, Exit, Layer, Option, pipe } from 'effect'
+import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// Helpers to create dates relative to now using DateTime
+const now = DateTime.unsafeNow()
+const dateFromNow = (parts: Partial<DateTime.DateTime.PartsForMath>): Date =>
+  DateTime.toDateUtc(DateTime.add(now, parts))
+const nowAsDate = (): Date => DateTime.toDateUtc(now)
 
 describe('LimitChecker', () => {
   // Helper to create test layers
@@ -84,16 +90,16 @@ describe('LimitChecker', () => {
         status: 'active',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: nowAsDate(),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -118,18 +124,18 @@ describe('LimitChecker', () => {
         userId: 'user-1',
         tier: 'paid',
         status: 'trialing',
-        trialStartsAt: new Date(),
-        trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        trialStartsAt: nowAsDate(),
+        trialEndsAt: dateFromNow({ days: 7 }),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 7 }),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -156,16 +162,16 @@ describe('LimitChecker', () => {
         status: 'expired',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: nowAsDate(),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -185,9 +191,6 @@ describe('LimitChecker', () => {
     })
 
     it('should enforce free limits for cancelled subscription after period ends', async () => {
-      // Period ended 1 day ago - user should lose premium access
-      const pastPeriodEnd = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -195,16 +198,16 @@ describe('LimitChecker', () => {
         status: 'canceled',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        currentPeriodEnd: pastPeriodEnd,
+        currentPeriodStart: dateFromNow({ days: -30 }),
+        currentPeriodEnd: dateFromNow({ days: -1 }),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
-        canceledAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        canceledAt: dateFromNow({ days: -7 }),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -224,9 +227,6 @@ describe('LimitChecker', () => {
     })
 
     it('should allow canceled subscription with future period end', async () => {
-      // User canceled but still has 7 days of paid access remaining
-      const futurePeriodEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -234,16 +234,16 @@ describe('LimitChecker', () => {
         status: 'canceled',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: futurePeriodEnd,
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 7 }),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
-        canceledAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        canceledAt: nowAsDate(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -263,9 +263,6 @@ describe('LimitChecker', () => {
     })
 
     it('should allow past_due subscription with future period end (grace period)', async () => {
-      // Payment failed but user still has access during grace period
-      const futurePeriodEnd = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
-
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -273,16 +270,16 @@ describe('LimitChecker', () => {
         status: 'past_due',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: futurePeriodEnd,
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 5 }),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -302,9 +299,6 @@ describe('LimitChecker', () => {
     })
 
     it('should enforce free limits for past_due subscription after period ends', async () => {
-      // Payment failed and grace period has ended
-      const pastPeriodEnd = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -312,16 +306,16 @@ describe('LimitChecker', () => {
         status: 'past_due',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        currentPeriodEnd: pastPeriodEnd,
+        currentPeriodStart: dateFromNow({ days: -30 }),
+        currentPeriodEnd: dateFromNow({ days: -1 }),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -346,13 +340,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 5, // Under limit of 10
         cardScansCount: 0,
         plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -374,13 +368,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 10, // At limit
         cardScansCount: 0,
         plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -412,28 +406,28 @@ describe('LimitChecker', () => {
         status: 'active',
         trialStartsAt: null,
         trialEndsAt: null,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: nowAsDate(),
         externalSubscriptionId: 'sub_123',
         externalCustomerId: 'cus_123',
         provider: 'revenuecat',
         productId: null,
         store: null,
         canceledAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 1000, // Way over free limit
         cardScansCount: 0,
         plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -458,13 +452,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 0,
         cardScansCount: 3, // Under limit of 5
         plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -486,13 +480,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 0,
         cardScansCount: 5, // At limit
         plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -522,13 +516,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 0,
         cardScansCount: 0,
         plantIdentifiesCount: 2, // Under limit of 3
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -550,13 +544,13 @@ describe('LimitChecker', () => {
       const usage: typeof subscriptionUsage.$inferSelect = {
         id: 'usage-1',
         userId: 'user-1',
-        periodStart: new Date(),
-        periodEnd: new Date(),
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
         aiChatsCount: 0,
         cardScansCount: 0,
         plantIdentifiesCount: 3, // At limit
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
       }
 
       const testLayer = createTestLayers({
@@ -578,6 +572,189 @@ describe('LimitChecker', () => {
         expect(error.limit).toBe(3)
         expect(error.current).toBe(3)
       }
+    })
+  })
+
+  describe('trialing user with expired period', () => {
+    it('should enforce free limits for trialing user with past currentPeriodEnd', async () => {
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'trialing',
+        trialStartsAt: dateFromNow({ days: -8 }),
+        trialEndsAt: dateFromNow({ days: -1 }),
+        currentPeriodStart: dateFromNow({ days: -8 }),
+        currentPeriodEnd: dateFromNow({ days: -1 }),
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: null,
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'free',
+        plantCount: 5,
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isFailure(result)).toBe(true)
+    })
+
+    it('should allow trialing user with valid period for all limit types', async () => {
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'trialing',
+        trialStartsAt: nowAsDate(),
+        trialEndsAt: dateFromNow({ days: 7 }),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 7 }),
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: null,
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const usage: typeof subscriptionUsage.$inferSelect = {
+        id: 'usage-1',
+        userId: 'user-1',
+        periodStart: nowAsDate(),
+        periodEnd: nowAsDate(),
+        aiChatsCount: 100,
+        cardScansCount: 50,
+        plantIdentifiesCount: 20,
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'paid',
+        usage,
+        plantCount: 50,
+      })
+
+      // All limit checks should pass for trialing user with valid period
+      const plantResult = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+      expect(Exit.isSuccess(plantResult)).toBe(true)
+
+      const chatResult = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkAiChatLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+      expect(Exit.isSuccess(chatResult)).toBe(true)
+
+      const scanResult = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkCardScanLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+      expect(Exit.isSuccess(scanResult)).toBe(true)
+
+      const identifyResult = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantIdentifyLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+      expect(Exit.isSuccess(identifyResult)).toBe(true)
+    })
+
+    it('should enforce free limits for canceled-during-trial with expired period', async () => {
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'canceled',
+        trialStartsAt: dateFromNow({ days: -8 }),
+        trialEndsAt: dateFromNow({ days: -1 }),
+        currentPeriodStart: dateFromNow({ days: -8 }),
+        currentPeriodEnd: dateFromNow({ days: -1 }),
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: dateFromNow({ days: -3 }),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'free',
+        plantCount: 5,
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isFailure(result)).toBe(true)
+    })
+
+    it('should allow canceled-during-trial with valid period', async () => {
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'canceled',
+        trialStartsAt: nowAsDate(),
+        trialEndsAt: dateFromNow({ days: 5 }),
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 5 }),
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: nowAsDate(),
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'paid',
+        plantCount: 50,
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isSuccess(result)).toBe(true)
     })
   })
 

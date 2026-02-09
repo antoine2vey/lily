@@ -65,6 +65,7 @@ export default {
     notAvailable: 'Username is not available',
     tooShort: 'Must be at least {min} characters',
     invalidChars: 'Only letters, numbers, and underscores',
+    checkFailed: 'Could not check availability, try again',
     continueButton: 'Continue',
     skipForNow: 'Skip for now',
   },
