@@ -24,6 +24,7 @@ const ACCESS_TOKEN_EXPIRY_SECONDS = 15 * 60
  */
 export const verifyMagicLink = ({
   code,
+  timezone,
 }: MagicLinkVerifyRequest): Effect.Effect<
   AuthResponse,
   { message: string },
@@ -66,12 +67,13 @@ export const verifyMagicLink = ({
     let user = yield* userRepo.findByEmail(magicLink.email)
 
     if (!user) {
-      // Create new user with email verified
+      // Create new user with email verified and device timezone
       const newUsers = yield* db
         .insert(users)
         .values({
           email: magicLink.email,
           emailVerified: true,
+          ...(timezone ? { timezone } : {}),
         })
         .returning()
 
