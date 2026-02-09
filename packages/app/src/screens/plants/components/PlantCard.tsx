@@ -2,7 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 export type HealthStatus = 'healthy' | 'attention' | 'critical'
@@ -200,11 +201,18 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
           className={`absolute top-2 right-2 z-10 w-3 h-3 rounded-full ${healthDotClass} ring-2 ring-white shadow-sm`}
         />
         {plant.imageUrl ? (
-          <Image
+          <AnimatedImage
             source={{ uri: plant.imageUrl }}
             className="w-full h-full"
-            resizeMode="cover"
-            testID="plant-image"
+            fallback={
+              <View className="flex-1 items-center justify-center">
+                <MaterialIcons
+                  name="local-florist"
+                  size={48}
+                  color={iconColors.primary}
+                />
+              </View>
+            }
           />
         ) : (
           <View
