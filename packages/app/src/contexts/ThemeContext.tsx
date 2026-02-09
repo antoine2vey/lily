@@ -91,10 +91,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const isDark = resolvedTheme === 'dark'
 
-  // Sync with NativeWind whenever resolved theme changes
+  // Sync with NativeWind — pass 'system' so NativeWind tracks OS theme
   useEffect(() => {
-    setColorScheme(resolvedTheme)
-  }, [resolvedTheme, setColorScheme])
+    setColorScheme(preference === 'system' ? 'system' : preference)
+  }, [preference, setColorScheme])
 
   const setTheme = useCallback(async (newTheme: ThemePreference) => {
     setPreference(newTheme)
