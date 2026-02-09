@@ -77,7 +77,7 @@ export const calculateScheduledAt = (
     )
 
     // Convert back to UTC for storage
-    const utcDateTime = DateTime.toDate(adjustedDateTime)
+    const utcDateTime = DateTime.toDateUtc(adjustedDateTime)
 
     // If the calculated time is in the past, add 1 day
     const now = DateTime.toDateUtc(DateTime.unsafeNow())
@@ -86,7 +86,7 @@ export const calculateScheduledAt = (
         adjustedDateTime,
         DateTime.addDuration('1 day')
       )
-      return DateTime.toDate(nextDayDateTime)
+      return DateTime.toDateUtc(nextDayDateTime)
     }
 
     return utcDateTime
@@ -228,7 +228,7 @@ export const adjustForDoNotDisturb = (
       ? DateTime.addDuration(adjusted, '1 day')
       : adjusted
 
-    return DateTime.toDate(finalDateTime)
+    return DateTime.toDateUtc(finalDateTime)
   })
 
 /**
