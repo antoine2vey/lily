@@ -8,7 +8,6 @@ import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Pressable,
   Share,
   Text,
@@ -22,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
@@ -138,12 +138,10 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
   }
 
   return (
-    <Image
+    <AnimatedImage
       source={{ uri: imageUrl }}
       style={{ height: HERO_HEIGHT }}
       className="w-full"
-      resizeMode="cover"
-      testID="plant-hero-image"
     />
   )
 }

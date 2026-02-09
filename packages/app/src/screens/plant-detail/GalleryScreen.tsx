@@ -9,12 +9,12 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   Pressable,
   Text,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePhotos } from 'src/hooks/usePhotos'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
@@ -91,10 +91,9 @@ export function GalleryScreen() {
         }}
         testID={`gallery-photo-${item.id}`}
       >
-        <Image
+        <AnimatedImage
           source={{ uri: item.url }}
           style={{ width: '100%', height: '100%' }}
-          resizeMode="cover"
         />
       </Pressable>
     ),
