@@ -9,4 +9,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ Pre-commit checks passed!" 
+# Re-stage files that were modified by lint:fix
+git diff --name-only | xargs -r git add
+
+echo "✅ Pre-commit checks passed!"

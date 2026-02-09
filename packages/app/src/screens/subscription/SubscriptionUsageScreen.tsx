@@ -139,18 +139,19 @@ export function SubscriptionUsageScreen() {
         </View>
 
         {/* Cancel Subscription Button (Premium users only) */}
-        {data.isPremium && Array.contains(['active', 'trialing'], data.status) && (
-          <View className="mx-4 mt-6">
-            <Pressable
-              onPress={handleCancelSubscription}
-              className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"
-            >
-              <Text className="text-base font-semibold text-coral">
-                {t('buttons.cancelSubscription')}
-              </Text>
-            </Pressable>
-          </View>
-        )}
+        {data.isPremium &&
+          Array.contains(['active', 'trialing'], data.status) && (
+            <View className="mx-4 mt-6">
+              <Pressable
+                onPress={handleCancelSubscription}
+                className="py-4 rounded-xl items-center border border-coral bg-transparent active:bg-coral/10"
+              >
+                <Text className="text-base font-semibold text-coral">
+                  {t('buttons.cancelSubscription')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
         {/* Premium Upgrade Card */}
         {!data.isPremium && (
