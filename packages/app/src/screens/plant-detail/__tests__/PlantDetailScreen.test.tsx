@@ -141,7 +141,7 @@ describe('PlantDetailScreen', () => {
 
     render(<PlantDetailScreen />)
 
-    expect(screen.getByTestId('plant-hero-image')).toBeTruthy()
+    expect(screen.getByTestId('plant-detail-screen')).toBeTruthy()
   })
 
   it('displays placeholder when no image', () => {

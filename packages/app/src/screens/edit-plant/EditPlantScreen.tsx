@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from 'src/components'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { Slider } from 'src/components/Slider'
@@ -217,9 +217,9 @@ export function EditPlantScreen() {
           {/* Photo */}
           <View className="items-center py-8">
             <Pressable onPress={handleChangePhoto} className="relative">
-              <Image
+              <AnimatedImage
                 source={{ uri: photo }}
-                className="w-28 h-28 rounded-3xl bg-surface dark:bg-surface-dark"
+                className="w-28 h-28 rounded-3xl"
               />
               <View className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full items-center justify-center bg-primary shadow-md">
                 <MaterialIcons

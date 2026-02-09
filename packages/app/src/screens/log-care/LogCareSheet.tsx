@@ -11,7 +11,6 @@ import * as ImagePicker from 'expo-image-picker'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,6 +21,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { Button } from 'src/components/ui/Button'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -242,10 +242,9 @@ export function LogCareSheet({
           {/* Photo */}
           {photo ? (
             <View className="relative mb-6">
-              <Image
+              <AnimatedImage
                 source={{ uri: photo }}
                 className="w-full h-40 rounded-3xl"
-                resizeMode="cover"
               />
               <Pressable
                 onPress={() => setPhoto(null)}

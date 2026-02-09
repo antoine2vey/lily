@@ -10,13 +10,13 @@ import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
@@ -222,10 +222,9 @@ export function NurseryCardScannerScreen() {
                 >
                   {Arr.map(capturedPhotos, (uri, index) => (
                     <View key={uri} className="relative">
-                      <Image
+                      <AnimatedImage
                         source={{ uri }}
                         className="w-16 h-16 rounded-lg"
-                        resizeMode="cover"
                       />
                       <Pressable
                         onPress={() => removePhoto(index)}
