@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe, String } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface AvatarPickerProps {
@@ -35,10 +36,10 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
                   </View>
                 ),
                 onSome: (url) => (
-                  <Image
+                  <AnimatedImage
                     source={{ uri: url }}
-                    className="w-full h-full rounded-full"
-                    resizeMode="cover"
+                    className="w-full h-full"
+                    rounded
                   />
                 ),
               })

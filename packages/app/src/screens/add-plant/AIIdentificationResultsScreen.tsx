@@ -4,8 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { Chip } from 'src/components/Chip'
 import { Button } from 'src/components/ui/Button'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
@@ -170,10 +171,9 @@ export function AIIdentificationResultsScreen() {
           <View className="rounded-[24px] overflow-hidden bg-white dark:bg-surface-dark shadow-lg shadow-black/20 border border-black/5 dark:border-slate-700">
             {/* Image Container */}
             <View className="relative w-full aspect-[4/3]">
-              <Image
+              <AnimatedImage
                 source={{ uri: photoUri }}
                 className="w-full h-full"
-                resizeMode="cover"
               />
               {/* Gradient Overlay */}
               <LinearGradient

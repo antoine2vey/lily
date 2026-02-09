@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface GallerySectionProps {
@@ -72,10 +73,9 @@ export function GallerySection({
             className="active:opacity-80"
             testID={`photo-${photo.id}`}
           >
-            <Image
+            <AnimatedImage
               source={{ uri: photo.url }}
-              className="w-24 h-24 rounded-2xl bg-surface-tinted dark:bg-surface-dark"
-              resizeMode="cover"
+              className="w-24 h-24 rounded-2xl"
             />
           </Pressable>
         ))}
