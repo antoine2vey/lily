@@ -6,7 +6,7 @@ import {
   PushService,
   type PushTicket,
 } from '@lily/shared/server'
-import { Array, Config, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 import Expo, {
   type ExpoPushMessage,
   type ExpoPushTicket,
@@ -50,12 +50,7 @@ const convertTicket = (ticket: ExpoPushTicket): PushTicket => {
 export const ExpoPushServiceLive = Layer.effect(
   PushService,
   Effect.gen(function* () {
-    const accessToken = yield* Config.string('EXPO_ACCESS_TOKEN').pipe(
-      Config.withDefault('')
-    )
-
-    const expoOptions = accessToken ? { accessToken } : {}
-    const expo = new Expo(expoOptions)
+    const expo = new Expo()
 
     const service: IPushService = {
       send: (message) =>

@@ -20,6 +20,9 @@ export const createMockUserRepository = (
         )
       ),
 
+    findByIds: (ids: ReadonlyArray<string>) =>
+      Effect.succeed(Array.filter(users, (u) => Array.contains(ids, u.id))),
+
     findByEmail: (email: string) =>
       Effect.succeed(
         pipe(

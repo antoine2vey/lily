@@ -1,7 +1,10 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
+import {
+  adjustForDoNotDisturb,
+  calculateScheduledAt,
+} from '@lily/api/services/notifications/timezone-scheduler'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import { Effect } from 'effect'
 
@@ -49,15 +52,29 @@ export const scheduleCareReminder = (
     const notificationRepo = yield* NotificationRepository
 
     // Get user's timezone settings
-    const { timezone, preferredTime } =
-      yield* getUserNotificationSettings(userId)
+    const settings = yield* getUserNotificationSettings(userId)
+
+    // Skip if user has disabled care reminders globally
+    if (!settings.careReminders) {
+      return
+    }
 
     // Calculate the scheduled time in user's timezone
     const scheduledAt = yield* calculateScheduledAt(
       scheduledDate,
-      timezone,
-      preferredTime
+      settings.timezone,
+      settings.preferredTime
     )
+
+    // Adjust for Do Not Disturb window
+    const finalScheduledAt = settings.doNotDisturb
+      ? yield* adjustForDoNotDisturb(
+          scheduledAt,
+          settings.timezone,
+          settings.doNotDisturbStart,
+          settings.doNotDisturbEnd
+        )
+      : scheduledAt
 
     // Remove any existing pending reminder for this plant and type
     yield* notificationRepo.deletePendingByPlantAndType(plantId, type)
@@ -70,7 +87,7 @@ export const scheduleCareReminder = (
       type,
       title,
       body,
-      scheduledAt,
+      scheduledAt: finalScheduledAt,
       userId,
       plantId,
     })

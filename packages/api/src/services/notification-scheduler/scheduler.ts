@@ -1,9 +1,19 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
+import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { DateTime, Effect, Match, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Match, Option, pipe } from 'effect'
 
 const POLL_INTERVAL = '1 minute'
 const BATCH_SIZE = 100
+
+const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
+  'watering_reminder',
+  'fertilization_reminder',
+]
+
+const isCareReminderType = (type: string): boolean =>
+  Array.contains(CARE_REMINDER_TYPES, type)
 
 // Map notification type to queue topic using Match
 const mapNotificationTypeToTopic = (
@@ -23,6 +33,7 @@ const mapNotificationTypeToTopic = (
 // Poll database and enqueue pending notifications
 export const pollAndEnqueue = Effect.gen(function* () {
   const notificationRepo = yield* NotificationRepository
+  const userRepo = yield* UserRepository
   const queue = yield* MessageQueue
 
   const pendingNotifications =
@@ -34,6 +45,20 @@ export const pollAndEnqueue = Effect.gen(function* () {
     count: pendingNotifications.length,
   })
 
+  // Batch-fetch all users in a single query
+  const uniqueUserIds = pipe(
+    Array.map(pendingNotifications, (n) => n.userId),
+    Array.dedupe
+  )
+
+  const fetchedUsers = yield* userRepo.findByIds(uniqueUserIds)
+
+  const userSettingsMap = new Map(
+    Array.map(fetchedUsers, (u) => [u.id, u] as const)
+  )
+
+  const currentTime = DateTime.toDateUtc(DateTime.unsafeNow())
+
   for (const notification of pendingNotifications) {
     const topicOption = mapNotificationTypeToTopic(notification.type)
 
@@ -43,6 +68,35 @@ export const pollAndEnqueue = Effect.gen(function* () {
         id: notification.id,
       })
       continue
+    }
+
+    const user = userSettingsMap.get(notification.userId) ?? null
+
+    // Safety net: skip care reminders if user has disabled them
+    if (isCareReminderType(notification.type) && user && !user.careReminders) {
+      yield* Effect.log('Skipping care reminder - user disabled', {
+        id: notification.id,
+        userId: notification.userId,
+      })
+      continue
+    }
+
+    // Safety net: skip notifications during DND hours
+    if (user?.doNotDisturb) {
+      const inDnd = yield* isInDoNotDisturbWindow(
+        currentTime,
+        user.timezone,
+        user.doNotDisturbStart,
+        user.doNotDisturbEnd
+      )
+
+      if (inDnd) {
+        yield* Effect.log('Skipping notification - user in DND', {
+          id: notification.id,
+          userId: notification.userId,
+        })
+        continue
+      }
     }
 
     const topic = topicOption.value

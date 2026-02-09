@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db'
 import { nowAsDate } from '@lily/shared'
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -50,6 +50,9 @@ export interface IUserRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
+  readonly findByIds: (
+    ids: ReadonlyArray<string>
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
   readonly findByEmail: (
     email: string
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
@@ -103,6 +106,15 @@ export const UserRepositoryLive = Layer.effect(
           const [user] = yield* db.select().from(users).where(eq(users.id, id))
           return Option.getOrNull(Option.fromNullable(user))
         }).pipe(Effect.withSpan('UserRepository.findById')),
+
+      findByIds: (ids: ReadonlyArray<string>) =>
+        Effect.gen(function* () {
+          if (ids.length === 0) return [] as Array<typeof users.$inferSelect>
+          return yield* db
+            .select()
+            .from(users)
+            .where(inArray(users.id, [...ids]))
+        }).pipe(Effect.withSpan('UserRepository.findByIds')),
 
       findByEmail: (email: string) =>
         Effect.gen(function* () {

@@ -5,6 +5,10 @@ import { Effect, Option, pipe } from 'effect'
 export interface UserNotificationSettings {
   timezone: string | null
   preferredTime: string | null
+  careReminders: boolean
+  doNotDisturb: boolean
+  doNotDisturbStart: string | null
+  doNotDisturbEnd: string | null
 }
 
 /**
@@ -17,18 +21,47 @@ export const getUserNotificationSettings = (
     const userRepo = yield* UserRepository
     const user = yield* userRepo.findById(userId)
 
+    const userOption = Option.fromNullable(user)
+
     const timezone = pipe(
-      Option.fromNullable(user),
+      userOption,
       Option.flatMap((u) => Option.fromNullable(u.timezone)),
       Option.getOrNull
     )
     const preferredTime = pipe(
-      Option.fromNullable(user),
+      userOption,
       Option.flatMap((u) => Option.fromNullable(u.preferredNotificationTime)),
       Option.getOrNull
     )
+    const careReminders = pipe(
+      userOption,
+      Option.map((u) => u.careReminders),
+      Option.getOrElse(() => true)
+    )
+    const doNotDisturb = pipe(
+      userOption,
+      Option.map((u) => u.doNotDisturb),
+      Option.getOrElse(() => false)
+    )
+    const doNotDisturbStart = pipe(
+      userOption,
+      Option.flatMap((u) => Option.fromNullable(u.doNotDisturbStart)),
+      Option.getOrNull
+    )
+    const doNotDisturbEnd = pipe(
+      userOption,
+      Option.flatMap((u) => Option.fromNullable(u.doNotDisturbEnd)),
+      Option.getOrNull
+    )
 
-    return { timezone, preferredTime }
+    return {
+      timezone,
+      preferredTime,
+      careReminders,
+      doNotDisturb,
+      doNotDisturbStart,
+      doNotDisturbEnd,
+    }
   })
 
 /**

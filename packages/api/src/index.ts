@@ -8,6 +8,7 @@ import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.rep
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
@@ -63,6 +64,7 @@ const NotificationSchedulerLive = Layer.scopedDiscard(
   })
 ).pipe(
   Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive),
   Layer.provide(RedisMessageQueueLive),
   Layer.provide(RedisClientLive)
 )
