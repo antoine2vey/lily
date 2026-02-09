@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DateTime } from 'effect'
-import { queryKeys } from '@/utils/query-keys'
-import { createFileFromUri, uploadMultipart } from '@/utils/upload'
+import { queryKeys } from 'src/utils/query-keys'
+import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
 interface UploadPhotoParams {
   plantId: string

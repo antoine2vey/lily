@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -30,7 +30,9 @@ export function CareTypeChips({
 }: CareTypeToggleProps) {
   const { t } = useTranslation('logCare')
   const iconColors = useIconColors()
-  const displayLabel = label ?? t('careType')
+  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+    t('careType')
+  )
 
   return (
     <View className="mb-6">

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -46,7 +46,10 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
     chat: 'chat',
     star: 'star',
   }
-  return iconMap[icon] ?? 'star'
+  return Option.getOrElse(
+    Option.fromNullable(iconMap[icon]),
+    () => 'star' as const
+  )
 }
 
 export function AchievementCard({
@@ -59,7 +62,8 @@ export function AchievementCard({
   const hasProgress =
     achievement.progress != null && achievement.maxProgress != null
   const progressValue = hasProgress
-    ? (achievement.progress ?? 0) / (achievement.maxProgress ?? 1)
+    ? Option.getOrElse(Option.fromNullable(achievement.progress), () => 0) /
+      Option.getOrElse(Option.fromNullable(achievement.maxProgress), () => 1)
     : 0
 
   return (

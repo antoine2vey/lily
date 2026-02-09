@@ -1,8 +1,8 @@
 import type { CareTaskType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
-import { apiEffectRunner } from '@/utils/client'
-import { queryKeys } from '@/utils/query-keys'
+import { apiEffectRunner } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 
 interface CompleteTaskParams {
   taskId: string

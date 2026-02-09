@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
@@ -30,22 +30,33 @@ export function PlantSelector({
   const [isOpen, setIsOpen] = useState(false)
   const { data: plantsData } = usePlants()
   const iconColors = useIconColors()
-  const loadedPlants = plantsData?.items ?? []
-  const displayLabel = label ?? t('log.selectPlant')
+  const loadedPlants = Option.getOrElse(
+    Option.fromNullable(plantsData?.items),
+    () => [] as NonNullable<typeof plantsData>['items']
+  )
+  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+    t('log.selectPlant')
+  )
 
   // Merge initialPlants with loaded plants, deduplicating by id
   const plants = pipe(
-    [...(initialPlants ?? []), ...loadedPlants],
+    [
+      ...Option.getOrElse(
+        Option.fromNullable(initialPlants),
+        () => [] as Plant[]
+      ),
+      ...loadedPlants,
+    ],
     Array.dedupeWith((a, b) => a.id === b.id)
   )
 
   const selectedPlants = pipe(
     plants,
-    Array.filter((plant) => selectedIds.includes(plant.id))
+    Array.filter((plant) => Array.contains(selectedIds, plant.id))
   )
 
   const togglePlant = (plantId: string) => {
-    if (selectedIds.includes(plantId)) {
+    if (Array.contains(selectedIds, plantId)) {
       onSelectionChange(
         pipe(
           selectedIds,
@@ -57,12 +68,20 @@ export function PlantSelector({
     }
   }
 
-  const displayText =
-    selectedPlants.length === 0
-      ? t('log.selectAPlant')
-      : selectedPlants.length === 1
-        ? selectedPlants[0].name
-        : t('log.plantsSelected', { count: selectedPlants.length })
+  const displayText = pipe(
+    Match.value(Array.length(selectedPlants)),
+    Match.when(0, () => t('log.selectAPlant')),
+    Match.when(1, () =>
+      pipe(
+        Array.head(selectedPlants),
+        Option.map((p) => p.name),
+        Option.getOrElse(() => t('log.selectAPlant'))
+      )
+    ),
+    Match.orElse(() =>
+      t('log.plantsSelected', { count: Array.length(selectedPlants) })
+    )
+  )
 
   return (
     <>
@@ -78,7 +97,7 @@ export function PlantSelector({
         >
           {/* Plant image(s) on left - stacked when multiple */}
           <View className="absolute left-1.5 top-1.5 bottom-1.5 flex-row">
-            {selectedPlants.length === 0 ? (
+            {Array.isEmptyReadonlyArray(selectedPlants) ? (
               <View className="h-full aspect-square rounded-full bg-white dark:bg-surface-dark shadow-sm overflow-hidden items-center justify-center">
                 <MaterialIcons
                   name="eco"
@@ -100,7 +119,11 @@ export function PlantSelector({
                     }}
                   >
                     <Image
-                      source={{ uri: plant.imageUrl ?? undefined }}
+                      source={{
+                        uri: Option.getOrUndefined(
+                          Option.fromNullable(plant.imageUrl)
+                        ),
+                      }}
                       className="w-full h-full"
                       resizeMode="cover"
                     />
@@ -113,15 +136,15 @@ export function PlantSelector({
           {/* Plant name */}
           <Text
             className={`flex-1 text-base font-bold pr-10 ${
-              selectedPlants.length > 0
+              !Array.isEmptyReadonlyArray(selectedPlants)
                 ? 'text-text-primary dark:text-white'
                 : 'text-text-muted dark:text-slate-400'
             }`}
             style={{
               paddingLeft:
-                selectedPlants.length <= 1
+                Array.length(selectedPlants) <= 1
                   ? 56
-                  : 56 + Math.min(selectedPlants.length - 1, 2) * 24,
+                  : 56 + Math.min(Array.length(selectedPlants) - 1, 2) * 24,
             }}
             numberOfLines={1}
           >
@@ -149,7 +172,7 @@ export function PlantSelector({
           {pipe(
             plants,
             Array.map((plant) => {
-              const isSelected = selectedIds.includes(plant.id)
+              const isSelected = Array.contains(selectedIds, plant.id)
               return (
                 <Pressable
                   key={plant.id}
@@ -157,7 +180,11 @@ export function PlantSelector({
                   className="flex-row items-center py-3 border-b border-border dark:border-slate-700"
                 >
                   <Image
-                    source={{ uri: plant.imageUrl ?? undefined }}
+                    source={{
+                      uri: Option.getOrUndefined(
+                        Option.fromNullable(plant.imageUrl)
+                      ),
+                    }}
                     className="w-12 h-12 rounded-full mr-3 bg-border dark:bg-slate-700"
                   />
                   <Text

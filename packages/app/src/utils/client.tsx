@@ -37,6 +37,7 @@ import {
   Option,
   pipe,
   Ref,
+  String as Str,
 } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 
@@ -61,9 +62,10 @@ type ExtractError<T> = T extends HttpApi.HttpApi<
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
-const rawApiUrl =
-  process.env.EXPO_PUBLIC_API_URL ??
-  (__DEV__ ? 'http://192.168.1.85:3000' : undefined)
+const rawApiUrl = pipe(
+  Option.fromNullable(process.env.EXPO_PUBLIC_API_URL),
+  Option.getOrElse(() => (__DEV__ ? 'http://192.168.1.85:3000' : undefined))
+)
 
 if (!rawApiUrl) {
   throw new Error(
@@ -72,13 +74,13 @@ if (!rawApiUrl) {
 }
 
 // Warn and strip trailing slash to prevent double-slash issues in API calls
-if (rawApiUrl.endsWith('/')) {
+if (pipe(rawApiUrl, Str.endsWith('/'))) {
   console.warn(
     `[API Client] EXPO_PUBLIC_API_URL should not end with a trailing slash: "${rawApiUrl}". Removing it automatically.`
   )
 }
 
-export const API_BASE_URL = rawApiUrl.replace(/\/+$/, '')
+export const API_BASE_URL = pipe(rawApiUrl, Str.replace(/\/+$/, ''))
 
 // Callback for auth failure (token refresh failed)
 let onAuthFailure: (() => void) | null = null

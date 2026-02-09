@@ -1,4 +1,4 @@
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe, String as Str } from 'effect'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import type { Href, Router } from 'expo-router'
@@ -124,8 +124,11 @@ export async function clearBadgeCount(): Promise<void> {
  */
 export function getDeviceTimezone(): string {
   try {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return timezone || 'UTC'
+    return pipe(
+      Option.fromNullable(Intl.DateTimeFormat().resolvedOptions().timeZone),
+      Option.filter(Str.isNonEmpty),
+      Option.getOrElse(() => 'UTC')
+    )
   } catch {
     return 'UTC'
   }

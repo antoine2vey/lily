@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option, String } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,9 +20,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [attachedImage, setAttachedImage] = useState<string | null>(null)
 
   const handleSend = () => {
-    const trimmedMessage = message.trim()
-    if (trimmedMessage || attachedImage) {
-      onSend(trimmedMessage, attachedImage ?? undefined)
+    const trimmedMessage = String.trim(message)
+    if (!String.isEmpty(trimmedMessage) || attachedImage) {
+      onSend(
+        trimmedMessage,
+        Option.getOrUndefined(Option.fromNullable(attachedImage))
+      )
       setMessage('')
       setAttachedImage(null)
     }
@@ -42,7 +46,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }
 
-  const canSend = (message.trim().length > 0 || attachedImage) && !disabled
+  const canSend =
+    (!String.isEmpty(String.trim(message)) || attachedImage) && !disabled
 
   return (
     <View

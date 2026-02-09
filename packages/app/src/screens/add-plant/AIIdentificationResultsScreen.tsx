@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Either, Match, pipe } from 'effect'
+import { Array, Either, Match, Option, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
@@ -36,14 +36,31 @@ export function AIIdentificationResultsScreen() {
       {
         payload: {
           name: result.name,
-          category: result.category ?? undefined,
-          description: result.description ?? result.family ?? undefined,
-          wateringFrequencyDays: result.wateringFrequencyDays ?? 7,
-          fertilizationFrequencyDays:
-            result.fertilizationFrequencyDays ?? undefined,
-          sunlightPreference: result.sunlightPreference ?? 'medium',
-          humidityRating: result.humidityRating ?? 50,
-          petToxicityRating: result.petToxicityRating ?? 50,
+          category: Option.getOrUndefined(Option.fromNullable(result.category)),
+          description: Option.getOrUndefined(
+            Option.orElse(Option.fromNullable(result.description), () =>
+              Option.fromNullable(result.family)
+            )
+          ),
+          wateringFrequencyDays: Option.getOrElse(
+            Option.fromNullable(result.wateringFrequencyDays),
+            () => 7
+          ),
+          fertilizationFrequencyDays: Option.getOrUndefined(
+            Option.fromNullable(result.fertilizationFrequencyDays)
+          ),
+          sunlightPreference: Option.getOrElse(
+            Option.fromNullable(result.sunlightPreference),
+            () => 'medium'
+          ),
+          humidityRating: Option.getOrElse(
+            Option.fromNullable(result.humidityRating),
+            () => 50
+          ),
+          petToxicityRating: Option.getOrElse(
+            Option.fromNullable(result.petToxicityRating),
+            () => 50
+          ),
           imageUrl: result.imageUrl,
           remindersEnabled: true,
         },
@@ -79,7 +96,11 @@ export function AIIdentificationResultsScreen() {
     const prefillData = {
       name: result.name,
       category: result.category,
-      description: result.description ?? result.family,
+      description: Option.getOrUndefined(
+        Option.orElse(Option.fromNullable(result.description), () =>
+          Option.fromNullable(result.family)
+        )
+      ),
       wateringFrequencyDays: result.wateringFrequencyDays,
       sunlightPreference: result.sunlightPreference,
       humidityRating: result.humidityRating,
@@ -213,11 +234,12 @@ export function AIIdentificationResultsScreen() {
                       color={iconColors.primary}
                     />
                     <Text className="text-xs font-semibold text-text-primary dark:text-white">
-                      {result.sunlightPreference === 'high'
-                        ? t('results.highLight')
-                        : result.sunlightPreference === 'medium'
-                          ? t('results.mediumLight')
-                          : t('results.lowLight')}
+                      {pipe(
+                        Match.value(result.sunlightPreference),
+                        Match.when('high', () => t('results.highLight')),
+                        Match.when('medium', () => t('results.mediumLight')),
+                        Match.orElse(() => t('results.lowLight'))
+                      )}
                     </Text>
                   </View>
                 )}
@@ -270,11 +292,12 @@ export function AIIdentificationResultsScreen() {
                       {t('results.light')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
-                      {result.sunlightPreference === 'high'
-                        ? t('results.lightHigh')
-                        : result.sunlightPreference === 'medium'
-                          ? t('results.lightMedium')
-                          : t('results.lightLow')}
+                      {pipe(
+                        Match.value(result.sunlightPreference),
+                        Match.when('high', () => t('results.lightHigh')),
+                        Match.when('medium', () => t('results.lightMedium')),
+                        Match.orElse(() => t('results.lightLow'))
+                      )}
                     </Text>
                   </View>
                 </View>
@@ -293,11 +316,18 @@ export function AIIdentificationResultsScreen() {
                       {t('results.humidity')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
-                      {result.humidityRating >= 60
-                        ? t('results.humidityHigh')
-                        : result.humidityRating >= 40
-                          ? t('results.humidityModerate')
-                          : t('results.humidityLow')}{' '}
+                      {pipe(
+                        Match.value(result.humidityRating),
+                        Match.when(
+                          (r) => r >= 60,
+                          () => t('results.humidityHigh')
+                        ),
+                        Match.when(
+                          (r) => r >= 40,
+                          () => t('results.humidityModerate')
+                        ),
+                        Match.orElse(() => t('results.humidityLow'))
+                      )}{' '}
                       ({result.humidityRating}%)
                     </Text>
                   </View>
@@ -354,20 +384,22 @@ export function AIIdentificationResultsScreen() {
         )}
 
         {/* Other possibilities */}
-        {result.alternatives.length > 0 && (
+        {!Array.isEmptyReadonlyArray(result.alternatives) && (
           <View className="px-5 pb-4">
             <Text className="text-sm font-medium text-text-muted dark:text-slate-400 mb-3">
               {t('results.otherPossibilities')}
             </Text>
             <View className="flex-row flex-wrap gap-2">
-              {result.alternatives
-                .filter((alt) => alt.name)
-                .map((alt, index) => (
+              {pipe(
+                result.alternatives,
+                Array.filter((alt) => !!alt.name),
+                Array.map((alt, index) => (
                   <Chip
                     key={`${alt.name}-${index}`}
                     label={`${alt.name} (${Math.round(alt.confidence * 100)}%)`}
                   />
-                ))}
+                ))
+              )}
             </View>
           </View>
         )}

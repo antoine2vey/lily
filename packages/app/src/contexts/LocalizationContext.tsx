@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Match, Option, pipe } from 'effect'
+import { Array as Arr, Match, Option, pipe } from 'effect'
 import * as Localization from 'expo-localization'
 import {
   createContext,
@@ -17,7 +17,7 @@ import {
   LANGUAGE_STORAGE_KEY,
   type LanguageCode,
   SUPPORTED_LANGUAGES,
-} from '@/i18n/types'
+} from 'src/i18n/types'
 
 interface LocalizationContextValue {
   /** Current language code */
@@ -47,7 +47,11 @@ interface LocalizationProviderProps {
 }
 
 const getDeviceLanguage = (): LanguageCode => {
-  const deviceLocale = Localization.getLocales()[0]?.languageCode ?? 'en'
+  const deviceLocale = pipe(
+    Arr.head(Localization.getLocales()),
+    Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
+    Option.getOrElse(() => 'en')
+  )
 
   return pipe(
     Match.value(deviceLocale),

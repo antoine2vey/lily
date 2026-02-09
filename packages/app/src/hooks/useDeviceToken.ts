@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Effect, Either, Option } from 'effect'
 import * as SecureStore from 'expo-secure-store'
-import { useEffectMutation } from '@/utils/client'
+import { useEffectMutation } from 'src/utils/client'
 import {
   getDeviceTimezone,
   getExpoPushToken,
   getPlatform,
-} from '@/utils/notifications'
+} from 'src/utils/notifications'
 
 const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
 

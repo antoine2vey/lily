@@ -1,4 +1,4 @@
-import { Array, Match, pipe } from 'effect'
+import { Array, String as EffectString, Match, Option, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, type TextStyle, View } from 'react-native'
 
@@ -55,7 +55,9 @@ const parseInlineMarkdown = (text: string): TextSegment[] => {
     })
   }
 
-  return segments.length > 0 ? segments : [{ text, bold: false, italic: false }]
+  return Array.isEmptyReadonlyArray(segments)
+    ? [{ text, bold: false, italic: false }]
+    : segments
 }
 
 // Get font style based on segment formatting
@@ -118,8 +120,8 @@ export function MarkdownText({
   className,
 }: MarkdownTextProps) {
   // Normalize escaped newlines to actual newlines, then split
-  const normalizedText = children.replace(/\\n/g, '\n')
-  const lines = normalizedText.split(/\n/)
+  const normalizedText = pipe(children, EffectString.replaceAll('\\n', '\n'))
+  const lines = pipe(normalizedText, EffectString.split('\n'))
 
   return (
     <View className={className}>
@@ -139,7 +141,14 @@ export function MarkdownText({
         if (isItem) {
           return (
             <View key={lineKey} className="flex-row mb-1">
-              <Text className={`${textClassName ?? ''} w-6`}>{marker}</Text>
+              <Text
+                className={`${pipe(
+                  Option.fromNullable(textClassName),
+                  Option.getOrElse(() => '')
+                )} w-6`}
+              >
+                {marker}
+              </Text>
               <View className="flex-1">
                 {renderLine(content, index, textClassName)}
               </View>

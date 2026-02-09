@@ -1,3 +1,4 @@
+import { Match, Option, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -7,13 +8,13 @@ import {
   View,
 } from 'react-native'
 import { Easing } from 'react-native-reanimated'
-import { SHIMMER_PRESETS } from './const'
+import { SHIMMER_PRESETS } from 'src/components/ui/shimmer/const'
 import type {
   IShimmerEffect,
   IShimmerGroup,
   ShimmerDirection,
   ShimmerPreset,
-} from './Shimmer.types'
+} from 'src/components/ui/shimmer/Shimmer.types'
 
 export const ShimmerEffect: React.FC<IShimmerEffect> &
   React.FunctionComponent<IShimmerEffect> = memo<IShimmerEffect>(
@@ -119,54 +120,50 @@ export const ShimmerEffect: React.FC<IShimmerEffect> &
         return { opacity: pulseAnim }
       }
 
-      switch (direction) {
-        case 'leftToRight':
-          return {
-            transform: [
-              {
-                translateX: shimmerAnim.interpolate<number>({
-                  inputRange: [0, 1],
-                  outputRange: [-waveWidth, layout.width + waveWidth],
-                }),
-              },
-            ],
-          }
-        case 'rightToLeft':
-          return {
-            transform: [
-              {
-                translateX: shimmerAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [layout.width + waveWidth, -waveWidth],
-                }),
-              },
-            ],
-          }
-        case 'topToBottom':
-          return {
-            transform: [
-              {
-                translateY: shimmerAnim.interpolate<number>({
-                  inputRange: [0, 1],
-                  outputRange: [-waveWidth, layout.height + waveWidth],
-                }),
-              },
-            ],
-          }
-        case 'bottomToTop':
-          return {
-            transform: [
-              {
-                translateY: shimmerAnim.interpolate<number>({
-                  inputRange: [0, 1],
-                  outputRange: [layout.height + waveWidth, -waveWidth],
-                }),
-              },
-            ],
-          }
-        default:
-          return {}
-      }
+      return pipe(
+        Match.value(direction),
+        Match.when('leftToRight', () => ({
+          transform: [
+            {
+              translateX: shimmerAnim.interpolate<number>({
+                inputRange: [0, 1],
+                outputRange: [-waveWidth, layout.width + waveWidth],
+              }),
+            },
+          ],
+        })),
+        Match.when('rightToLeft', () => ({
+          transform: [
+            {
+              translateX: shimmerAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [layout.width + waveWidth, -waveWidth],
+              }),
+            },
+          ],
+        })),
+        Match.when('topToBottom', () => ({
+          transform: [
+            {
+              translateY: shimmerAnim.interpolate<number>({
+                inputRange: [0, 1],
+                outputRange: [-waveWidth, layout.height + waveWidth],
+              }),
+            },
+          ],
+        })),
+        Match.when('bottomToTop', () => ({
+          transform: [
+            {
+              translateY: shimmerAnim.interpolate<number>({
+                inputRange: [0, 1],
+                outputRange: [layout.height + waveWidth, -waveWidth],
+              }),
+            },
+          ],
+        })),
+        Match.exhaustive
+      )
     }
 
     return (
@@ -178,8 +175,14 @@ export const ShimmerEffect: React.FC<IShimmerEffect> &
           {
             overflow: 'hidden',
             backgroundColor: isLoading
-              ? backgroundColor || style?.backgroundColor
-              : style?.backgroundColor || 'transparent',
+              ? pipe(
+                  Option.fromNullable(backgroundColor),
+                  Option.getOrElse(() => style?.backgroundColor)
+                )
+              : pipe(
+                  Option.fromNullable(style?.backgroundColor),
+                  Option.getOrElse(() => 'transparent' as string)
+                ),
             opacity,
           },
         ]}
@@ -278,11 +281,26 @@ export const ShimmerGroup: React.FC<IShimmerGroup> &
             child as React.ReactElement<IShimmerEffect>,
             {
               isLoading,
-              preset: (childProps.preset as ShimmerPreset) || preset,
-              duration: (childProps.duration as number) || duration,
-              direction:
-                (childProps.direction as ShimmerDirection) || direction,
-              opacity: (childProps.opacity as number) ?? opacity,
+              preset: pipe(
+                Option.fromNullable(
+                  childProps.preset as ShimmerPreset | undefined
+                ),
+                Option.getOrElse(() => preset)
+              ),
+              duration: pipe(
+                Option.fromNullable(childProps.duration as number | undefined),
+                Option.getOrElse(() => duration)
+              ),
+              direction: pipe(
+                Option.fromNullable(
+                  childProps.direction as ShimmerDirection | undefined
+                ),
+                Option.getOrElse(() => direction)
+              ),
+              opacity: pipe(
+                Option.fromNullable(childProps.opacity as number | undefined),
+                Option.getOrElse(() => opacity)
+              ),
             }
           )
         }

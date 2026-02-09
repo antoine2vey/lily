@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import { useLocalizationContext } from '@/contexts/LocalizationContext'
+import { useLocalizationContext } from 'src/contexts/LocalizationContext'
 
 export function useLocalization() {
   const { t } = useTranslation()

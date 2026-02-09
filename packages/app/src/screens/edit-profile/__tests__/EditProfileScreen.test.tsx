@@ -10,8 +10,8 @@ jest.mock('@/hooks/useUpdateProfile', () => ({
   useUpdateProfile: jest.fn(),
 }))
 
-import { useUpdateProfile } from '@/hooks/useUpdateProfile'
-import { useUser } from '@/hooks/useUser'
+import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
+import { useUser } from 'src/hooks/useUser'
 import { EditProfileScreen } from '../EditProfileScreen'
 
 const mockedUseUser = useUser as jest.Mock

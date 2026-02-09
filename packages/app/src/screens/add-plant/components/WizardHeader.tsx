@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -19,7 +20,9 @@ export function WizardHeader({
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const progress = (step / totalSteps) * 100
-  const displayTitle = title ?? t('wizardTitle')
+  const displayTitle = Option.getOrElse(Option.fromNullable(title), () =>
+    t('wizardTitle')
+  )
 
   return (
     <View className="px-4 pt-2 pb-2 bg-background dark:bg-background-dark">

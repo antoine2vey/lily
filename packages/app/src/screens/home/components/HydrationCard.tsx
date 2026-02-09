@@ -13,7 +13,7 @@ interface Plant {
 }
 
 interface HydrationCardProps {
-  plants: Plant[]
+  plants: ReadonlyArray<Plant>
   onWaterAll: () => void
   onPlantPress: (plantId: string) => void
   isLoading?: boolean
@@ -119,12 +119,12 @@ export function HydrationCard({
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
-  if (plants.length === 0) {
+  if (Array.isEmptyReadonlyArray(plants)) {
     return null
   }
 
   const visiblePlants = pipe(plants, Array.take(MAX_VISIBLE_PLANTS))
-  const remainingCount = plants.length - MAX_VISIBLE_PLANTS
+  const remainingCount = Array.length(plants) - MAX_VISIBLE_PLANTS
 
   // Theme-aware gradient colors
   const gradientColors: [string, string, string] = isDark
@@ -160,7 +160,7 @@ export function HydrationCard({
             className="text-sm font-medium"
             style={{ color: isDark ? '#9CA3AF' : '#475569' }}
           >
-            {t('hydration.plantsNeedWater', { count: plants.length })}
+            {t('hydration.plantsNeedWater', { count: Array.length(plants) })}
           </Text>
         </View>
         {/* Water drop icon */}

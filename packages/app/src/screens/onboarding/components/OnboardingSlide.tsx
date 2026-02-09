@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option } from 'effect'
 import type { ComponentProps } from 'react'
 import { Dimensions, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -19,7 +20,10 @@ export function OnboardingSlide({
   iconColor,
 }: OnboardingSlideProps) {
   const iconColors = useIconColors()
-  const resolvedIconColor = iconColor ?? iconColors.primary
+  const resolvedIconColor = Option.getOrElse(
+    Option.fromNullable(iconColor),
+    () => iconColors.primary
+  )
   return (
     <View style={{ width }} className="flex-1 items-center px-8 pt-16">
       {/* Illustration placeholder */}

@@ -1,8 +1,9 @@
+import { Array as EffectArray } from 'effect'
 import type React from 'react'
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, View } from 'react-native'
 import Svg, { Circle, Defs, FeGaussianBlur, Filter, G } from 'react-native-svg'
-import type { CircularLoaderProps } from './types'
+import type { CircularLoaderProps } from 'src/components/ui/circular-loader/types'
 export const CircularLoader: React.FC<CircularLoaderProps> = ({
   size = 40,
   strokeWidth = 4,
@@ -84,7 +85,7 @@ export const CircularLoader: React.FC<CircularLoaderProps> = ({
             />
 
             {/* Gradient segments - smooth fade using opacity interpolation */}
-            {Array.from({ length: segments }).map((_, index) => {
+            {EffectArray.map(EffectArray.range(0, segments - 1), (index) => {
               // Smooth exponential fade curve
               const progress = index / segments
               const opacity = 1 - progress ** 1.5 // Exponential curve for natural fade
@@ -98,7 +99,6 @@ export const CircularLoader: React.FC<CircularLoaderProps> = ({
 
               return (
                 <Circle
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static gradient segments
                   key={index}
                   cx={size / 2}
                   cy={size / 2}

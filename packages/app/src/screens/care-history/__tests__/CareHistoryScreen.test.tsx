@@ -33,8 +33,8 @@ jest.mock('@/hooks/useSaveCareLog', () => ({
   })),
 }))
 
-import { useCareHistory } from '@/hooks/useCareHistory'
-import { usePlant } from '@/hooks/usePlant'
+import { useCareHistory } from 'src/hooks/useCareHistory'
+import { usePlant } from 'src/hooks/usePlant'
 import { CareHistoryScreen } from '../CareHistoryScreen'
 
 const mockedUsePlant = usePlant as jest.Mock

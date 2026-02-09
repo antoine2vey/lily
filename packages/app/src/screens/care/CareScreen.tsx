@@ -24,7 +24,7 @@ import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { CareTaskCard } from './components/CareTaskCard'
+import { CareTaskCard } from 'src/screens/care/components/CareTaskCard'
 
 type TaskSectionType = 'overdue' | 'today' | 'thisWeek'
 
@@ -223,9 +223,24 @@ export function CareScreen() {
   const isInitialLoading = isLoading && !tasks
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
-  const overdueCount = tasks?.overdue.length ?? 0
-  const todayCount = tasks?.today.length ?? 0
-  const thisWeekCount = tasks?.thisWeek.length ?? 0
+  const overdueCount = Array.length(
+    Option.getOrElse(
+      Option.fromNullable(tasks?.overdue),
+      () => [] as NonNullable<typeof tasks>['overdue']
+    )
+  )
+  const todayCount = Array.length(
+    Option.getOrElse(
+      Option.fromNullable(tasks?.today),
+      () => [] as NonNullable<typeof tasks>['today']
+    )
+  )
+  const thisWeekCount = Array.length(
+    Option.getOrElse(
+      Option.fromNullable(tasks?.thisWeek),
+      () => [] as NonNullable<typeof tasks>['thisWeek']
+    )
+  )
   const totalTasks = overdueCount + todayCount + thisWeekCount
 
   return (
@@ -300,7 +315,10 @@ export function CareScreen() {
                         </View>
                       </View>
                       {pipe(
-                        tasks?.overdue ?? [],
+                        Option.getOrElse(
+                          Option.fromNullable(tasks?.overdue),
+                          () => [] as NonNullable<typeof tasks>['overdue']
+                        ),
                         Array.map((task) => (
                           <CareTaskCard
                             key={task.id}
@@ -323,7 +341,10 @@ export function CareScreen() {
                       <SectionHeader title={t('screen.sections.today')} />
                       <View className="mt-3">
                         {pipe(
-                          tasks?.today ?? [],
+                          Option.getOrElse(
+                            Option.fromNullable(tasks?.today),
+                            () => [] as NonNullable<typeof tasks>['today']
+                          ),
                           Array.map((task) => (
                             <CareTaskCard
                               key={task.id}
@@ -346,7 +367,10 @@ export function CareScreen() {
                       <SectionHeader title={t('screen.sections.thisWeek')} />
                       <View className="mt-3">
                         {pipe(
-                          tasks?.thisWeek ?? [],
+                          Option.getOrElse(
+                            Option.fromNullable(tasks?.thisWeek),
+                            () => [] as NonNullable<typeof tasks>['thisWeek']
+                          ),
                           Array.groupBy((task) =>
                             formatWeekday(
                               task.dueDate,

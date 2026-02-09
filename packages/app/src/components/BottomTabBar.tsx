@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
-import { Array } from 'effect'
+import { Array, Option, pipe, Record } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -12,27 +12,32 @@ export interface CustomBottomTabBarProps
 
 type TabIconName = keyof typeof MaterialIcons.glyphMap
 
-const getTabIcon = (routeName: string, focused: boolean): TabIconName => {
-  const iconMap: Record<
-    string,
-    { active: TabIconName; inactive: TabIconName }
-  > = {
-    // Expo Router uses file names as route names
-    index: { active: 'home', inactive: 'home' },
-    plants: { active: 'local-florist', inactive: 'local-florist' },
-    care: { active: 'water-drop', inactive: 'water-drop' },
-    profile: { active: 'person', inactive: 'person-outline' },
-    // Legacy route names for compatibility
-    Home: { active: 'home', inactive: 'home' },
-    Plants: { active: 'local-florist', inactive: 'local-florist' },
-    Care: { active: 'water-drop', inactive: 'water-drop' },
-    Profile: { active: 'person', inactive: 'person-outline' },
-  }
+const iconMap: Record.ReadonlyRecord<
+  string,
+  { active: TabIconName; inactive: TabIconName }
+> = {
+  // Expo Router uses file names as route names
+  index: { active: 'home', inactive: 'home' },
+  plants: { active: 'local-florist', inactive: 'local-florist' },
+  care: { active: 'water-drop', inactive: 'water-drop' },
+  profile: { active: 'person', inactive: 'person-outline' },
+  // Legacy route names for compatibility
+  Home: { active: 'home', inactive: 'home' },
+  Plants: { active: 'local-florist', inactive: 'local-florist' },
+  Care: { active: 'water-drop', inactive: 'water-drop' },
+  Profile: { active: 'person', inactive: 'person-outline' },
+}
 
-  const icons = iconMap[routeName] || {
-    active: 'help',
-    inactive: 'help-outline',
-  }
+const defaultIcons = {
+  active: 'help' as TabIconName,
+  inactive: 'help-outline' as TabIconName,
+}
+
+const getTabIcon = (routeName: string, focused: boolean): TabIconName => {
+  const icons = pipe(
+    Record.get(iconMap, routeName),
+    Option.getOrElse(() => defaultIcons)
+  )
   return focused ? icons.active : icons.inactive
 }
 
@@ -72,12 +77,12 @@ export function BottomTabBar({
       <View className="flex-row flex-1 items-end">
         {Array.map(state.routes, (route, index) => {
           const { options } = descriptors[route.key]
-          const label =
-            options.tabBarLabel !== undefined
-              ? String(options.tabBarLabel)
-              : options.title !== undefined
-                ? options.title
-                : route.name
+          const label = pipe(
+            Option.fromNullable(options.tabBarLabel),
+            Option.map((v) => String(v)),
+            Option.orElse(() => Option.fromNullable(options.title)),
+            Option.getOrElse(() => route.name)
+          )
 
           const isFocused = state.index === index
           const iconName = getTabIcon(route.name, isFocused)

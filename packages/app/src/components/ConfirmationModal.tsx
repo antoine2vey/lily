@@ -1,7 +1,8 @@
+import { Option, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
-import { Button } from './ui/Button'
+import { Button } from 'src/components/ui/Button'
 
 interface ConfirmationModalProps {
   visible: boolean
@@ -27,8 +28,14 @@ export function ConfirmationModal({
   icon,
 }: ConfirmationModalProps) {
   const { t } = useTranslation('common')
-  const displayConfirmLabel = confirmLabel ?? t('buttons.confirm')
-  const displayCancelLabel = cancelLabel ?? t('buttons.cancel')
+  const displayConfirmLabel = pipe(
+    Option.fromNullable(confirmLabel),
+    Option.getOrElse(() => t('buttons.confirm'))
+  )
+  const displayCancelLabel = pipe(
+    Option.fromNullable(cancelLabel),
+    Option.getOrElse(() => t('buttons.cancel'))
+  )
   const iconBgClass = destructive
     ? 'bg-orange-100 dark:bg-orange-900/20'
     : 'bg-primary-tint dark:bg-primary/20'

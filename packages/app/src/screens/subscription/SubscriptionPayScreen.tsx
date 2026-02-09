@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, Option, pipe } from 'effect'
+import { Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,9 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LoadingOverlay } from 'src/components/LoadingOverlay'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { FeatureList } from 'src/screens/subscription/components/FeatureList'
+import { PricingToggle } from 'src/screens/subscription/components/PricingToggle'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { FeatureList } from './components/FeatureList'
-import { PricingToggle } from './components/PricingToggle'
 
 type BillingPeriod = 'monthly' | 'annual'
 
@@ -78,7 +78,8 @@ export function SubscriptionPayScreen() {
     } catch (error) {
       // User cancelled purchase is not an error
       const isCancelled =
-        error instanceof Error && error.message.includes('cancelled')
+        error instanceof Error &&
+        pipe(error.message, String.includes('cancelled'))
       if (!isCancelled) {
         Alert.alert(t('messages.error'), t('messages.purchaseFailed'))
       }

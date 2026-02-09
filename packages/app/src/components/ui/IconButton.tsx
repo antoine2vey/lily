@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option, pipe } from 'effect'
 import { Pressable, type PressableProps } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -16,7 +17,10 @@ export function IconButton({
   ...props
 }: IconButtonProps) {
   const iconColors = useIconColors()
-  const iconColor = color ?? iconColors.slate900
+  const iconColor = pipe(
+    Option.fromNullable(color),
+    Option.getOrElse(() => iconColors.slate900)
+  )
 
   return (
     <Pressable

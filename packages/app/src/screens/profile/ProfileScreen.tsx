@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import {
@@ -20,9 +20,9 @@ import { useLocalization } from 'src/hooks/useLocalization'
 import { usePlants } from 'src/hooks/usePlants'
 import { useSubscription } from 'src/hooks/useSubscription'
 import { useUser } from 'src/hooks/useUser'
-import { ProfileHeader } from './components/ProfileHeader'
-import { ProfileMenuItem } from './components/ProfileMenuItem'
-import { StatsCard } from './components/StatsCard'
+import { ProfileHeader } from 'src/screens/profile/components/ProfileHeader'
+import { ProfileMenuItem } from 'src/screens/profile/components/ProfileMenuItem'
+import { StatsCard } from 'src/screens/profile/components/StatsCard'
 
 export function ProfileScreen() {
   const iconColors = useIconColors()
@@ -57,7 +57,10 @@ export function ProfileScreen() {
     )
   }
 
-  const plantsCount = plants?.total ?? 0
+  const plantsCount = Option.getOrElse(
+    Option.fromNullable(plants?.total),
+    () => 0
+  )
   // Mock care logs count - in production this would come from an API
   const careLogsCount = 156
   const achievementsProgress = achievements
@@ -124,8 +127,14 @@ export function ProfileScreen() {
             Option.fromNullable(user?.image),
             Option.flatMap(Option.fromNullable)
           )}
-          name={user?.name ?? t('profile:defaultBio')}
-          username={user?.email?.split('@')[0]}
+          name={Option.getOrElse(Option.fromNullable(user?.name), () =>
+            t('profile:defaultBio')
+          )}
+          username={pipe(
+            Option.fromNullable(user?.email),
+            Option.flatMap((email) => Array.head(String.split(email, '@'))),
+            Option.getOrUndefined
+          )}
           memberSince={pipe(
             Match.value(state),
             Match.when({ _tag: 'Authenticated' }, (s) => s.user.createdAt),

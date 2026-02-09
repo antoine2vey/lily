@@ -21,11 +21,11 @@ jest.mock('@/utils/notifications', () => ({
   getPlatform: jest.fn().mockReturnValue('ios'),
 }))
 
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from 'src/contexts/AuthContext'
 import {
   useNotificationSettings,
   useUpdateNotificationSettings,
-} from '@/hooks/useNotificationSettings'
+} from 'src/hooks/useNotificationSettings'
 import { NotificationSettingsScreen } from '../NotificationSettingsScreen'
 
 const mockedUseNotificationSettings = useNotificationSettings as jest.Mock

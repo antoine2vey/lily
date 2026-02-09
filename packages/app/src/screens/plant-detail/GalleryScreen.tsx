@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { nowAsDate } from '@lily/shared'
-import { Array } from 'effect'
+import { Array, Option } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
@@ -40,7 +40,7 @@ export function GalleryScreen() {
 
   const [page, setPage] = useState(1)
   const { data, isLoading, isFetching } = usePhotos({
-    plantId: plantId ?? '',
+    plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
     page,
     limit: 30,
   })
@@ -165,15 +165,18 @@ export function GalleryScreen() {
     )
   }, [isFetching, iconColors.primary])
 
-  const photos = data?.items ?? []
+  const photos = Option.getOrElse(
+    Option.fromNullable(data?.items),
+    () => [] as PhotoItem[]
+  )
   const _allItems = Array.prepend(photos, {
     id: 'add-photo-header',
     url: '',
     takenAt: nowAsDate(),
-    plantId: plantId ?? '',
+    plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
   } as PhotoItem)
 
-  if (isLoading && photos.length === 0) {
+  if (isLoading && Array.isEmptyReadonlyArray(photos)) {
     return (
       <View
         className="flex-1 bg-background items-center justify-center"
@@ -207,7 +210,9 @@ export function GalleryScreen() {
           {t('gallery.title')}
         </Text>
         <Text className="text-sm text-text-muted font-regular">
-          {t('gallery.photoCount', { count: data?.total ?? 0 })}
+          {t('gallery.photoCount', {
+            count: Option.getOrElse(Option.fromNullable(data?.total), () => 0),
+          })}
         </Text>
       </View>
 
@@ -219,9 +224,11 @@ export function GalleryScreen() {
         numColumns={NUM_COLUMNS}
         contentContainerStyle={{
           padding: SPACING / 2,
-          flexGrow: photos.length === 0 ? 1 : undefined,
+          flexGrow: Array.isEmptyReadonlyArray(photos) ? 1 : undefined,
         }}
-        ListHeaderComponent={photos.length > 0 ? renderHeader : null}
+        ListHeaderComponent={
+          !Array.isEmptyReadonlyArray(photos) ? renderHeader : null
+        }
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
         onEndReached={handleLoadMore}

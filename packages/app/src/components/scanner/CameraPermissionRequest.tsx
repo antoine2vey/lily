@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -18,8 +19,14 @@ export function CameraPermissionRequest({
 }: CameraPermissionRequestProps) {
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
-  const displayTitle = title ?? t('scanner.cameraAccessTitle')
-  const displayDescription = description ?? t('scanner.cameraPermission')
+  const displayTitle = pipe(
+    Option.fromNullable(title),
+    Option.getOrElse(() => t('scanner.cameraAccessTitle'))
+  )
+  const displayDescription = pipe(
+    Option.fromNullable(description),
+    Option.getOrElse(() => t('scanner.cameraPermission'))
+  )
 
   return (
     <View className="flex-1 items-center justify-center px-6 bg-black">

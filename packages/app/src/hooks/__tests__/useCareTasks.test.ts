@@ -11,7 +11,7 @@ jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-import { useEffectQuery } from '@/utils/client'
+import { useEffectQuery } from 'src/utils/client'
 import { useCareTasks } from '../useCareTasks'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

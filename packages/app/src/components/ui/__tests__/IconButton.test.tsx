@@ -1,4 +1,5 @@
 import { fireEvent, render } from '@testing-library/react-native'
+import { Array } from 'effect'
 import { IconButton } from '../IconButton'
 
 describe('IconButton', () => {
@@ -47,7 +48,7 @@ describe('IconButton', () => {
 
   it('renders different icon types', () => {
     const icons = ['settings', 'close', 'menu', 'search', 'add'] as const
-    icons.forEach((icon) => {
+    Array.forEach(icons, (icon) => {
       const { toJSON } = render(<IconButton icon={icon} />)
       expect(toJSON()).toBeTruthy()
     })

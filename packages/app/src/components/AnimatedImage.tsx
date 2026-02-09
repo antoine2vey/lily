@@ -14,7 +14,7 @@ interface AnimatedImageProps {
 export const AnimatedImage = memo(function AnimatedImage({
   source,
   style,
-  className,
+  className = '',
   contentFit = 'cover',
   fallback,
   rounded = false,
@@ -25,7 +25,7 @@ export const AnimatedImage = memo(function AnimatedImage({
 
   if (hasError && fallback) {
     return (
-      <View className={`${roundedClass} ${className ?? ''}`} style={style}>
+      <View className={`${roundedClass} ${className}`} style={style}>
         {fallback}
       </View>
     )
@@ -33,7 +33,7 @@ export const AnimatedImage = memo(function AnimatedImage({
 
   return (
     <View
-      className={`overflow-hidden ${roundedClass} ${className ?? ''}`}
+      className={`overflow-hidden ${roundedClass} ${className}`}
       style={style}
     >
       <Image

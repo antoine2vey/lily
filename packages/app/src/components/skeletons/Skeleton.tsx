@@ -1,5 +1,5 @@
 import { type DimensionValue, useColorScheme } from 'react-native'
-import { ShimmerEffect } from '@/components/ui/shimmer/Shimmer'
+import { ShimmerEffect } from 'src/components/ui/shimmer/Shimmer'
 
 const ROUNDED_VALUES: Record<string, number> = {
   none: 0,

@@ -1,11 +1,11 @@
-import { Array, Record } from 'effect'
+import { Array, Option, pipe, Record, String as Str } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 import {
   ACCESS_TOKEN_KEY,
   API_BASE_URL,
   type ApiFailure,
   refreshAccessTokenAsync,
-} from './client'
+} from 'src/utils/client'
 
 /**
  * Error class for upload failures with typed API error support
@@ -90,7 +90,10 @@ export async function uploadMultipart<T>(
           const errorBody = await retryResponse.json()
           if (errorBody._tag) {
             throw new UploadError(
-              errorBody.message ?? 'Request failed',
+              pipe(
+                Option.fromNullable(errorBody.message as string | undefined),
+                Option.getOrElse(() => 'Request failed')
+              ),
               errorBody as ApiFailure
             )
           }
@@ -110,7 +113,10 @@ export async function uploadMultipart<T>(
       const errorBody = await response.json()
       if (errorBody._tag) {
         throw new UploadError(
-          errorBody.message ?? 'Request failed',
+          pipe(
+            Option.fromNullable(errorBody.message as string | undefined),
+            Option.getOrElse(() => 'Request failed')
+          ),
           errorBody as ApiFailure
         )
       }
@@ -123,7 +129,10 @@ export async function uploadMultipart<T>(
 
   // Check if response has content
   const contentType = response.headers.get('content-type')
-  if (contentType?.includes('application/json')) {
+  if (
+    contentType !== null &&
+    pipe(contentType, Str.includes('application/json'))
+  ) {
     return response.json()
   }
 
@@ -141,7 +150,13 @@ export function createFileFromUri(
 ): UploadFile {
   return {
     uri,
-    name: options?.name ?? 'photo.jpg',
-    type: options?.type ?? 'image/jpeg',
+    name: pipe(
+      Option.fromNullable(options?.name),
+      Option.getOrElse(() => 'photo.jpg')
+    ),
+    type: pipe(
+      Option.fromNullable(options?.type),
+      Option.getOrElse(() => 'image/jpeg')
+    ),
   }
 }

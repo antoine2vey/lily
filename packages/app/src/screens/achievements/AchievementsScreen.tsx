@@ -16,8 +16,8 @@ import { ProgressBar } from 'src/components/ProgressBar'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useAchievements } from 'src/hooks/useAchievements'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { AchievementCard } from './components/AchievementCard'
-import { AchievementDetailModal } from './components/AchievementDetailModal'
+import { AchievementCard } from 'src/screens/achievements/components/AchievementCard'
+import { AchievementDetailModal } from 'src/screens/achievements/components/AchievementDetailModal'
 
 export function AchievementsScreen() {
   const { t } = useTranslation('achievements')
@@ -60,7 +60,7 @@ export function AchievementsScreen() {
         Array.filter((a) => a.category === category)
       ),
     })),
-    Array.filter((group) => group.achievements.length > 0)
+    Array.filter((group) => !Array.isEmptyReadonlyArray(group.achievements))
   )
 
   return (

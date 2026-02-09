@@ -7,7 +7,7 @@ import {
   CareEventCard,
   type CareEventType,
   getEventConfig,
-} from './CareEventCard'
+} from 'src/screens/care-history/components/CareEventCard'
 
 interface TimelineGroup {
   date: string
@@ -34,7 +34,7 @@ export function Timeline({ groups, onEventPress, testID }: TimelineProps) {
     groups,
     Array.flatMap((g) => g.events)
   )
-  const totalEvents = allEvents.length
+  const totalEvents = Array.length(allEvents)
 
   let globalEventIndex = 0
 

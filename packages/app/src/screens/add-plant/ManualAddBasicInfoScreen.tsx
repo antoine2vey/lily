@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option, String } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,9 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button } from 'src/components/ui/Button'
 import { Input } from 'src/components/ui/Input'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { CategoryPicker } from './components/CategoryPicker'
-import { PhotoPicker } from './components/PhotoPicker'
-import { WizardHeader } from './components/WizardHeader'
+import { CategoryPicker } from 'src/screens/add-plant/components/CategoryPicker'
+import { PhotoPicker } from 'src/screens/add-plant/components/PhotoPicker'
+import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
 
 export function ManualAddBasicInfoScreen() {
   const { t } = useTranslation('addPlant')
@@ -27,8 +28,12 @@ export function ManualAddBasicInfoScreen() {
   const iconColors = useIconColors()
 
   const [photo, setPhoto] = useState<string | null>(null)
-  const [name, setName] = useState(params.prefillName ?? '')
-  const [category, setCategory] = useState(params.prefillCategory ?? '')
+  const [name, setName] = useState(
+    Option.getOrElse(Option.fromNullable(params.prefillName), () => '')
+  )
+  const [category, setCategory] = useState(
+    Option.getOrElse(Option.fromNullable(params.prefillCategory), () => '')
+  )
 
   const handleNext = () => {
     const basicInfo = encodeURIComponent(
@@ -37,7 +42,7 @@ export function ManualAddBasicInfoScreen() {
     router.push(`/add-plant/manual-care?basicInfo=${basicInfo}`)
   }
 
-  const canProceed = name.trim().length > 0
+  const canProceed = String.isNonEmpty(String.trim(name))
 
   return (
     <View

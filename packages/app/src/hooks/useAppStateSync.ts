@@ -1,8 +1,8 @@
 import { DateTime } from 'effect'
 import { useEffect, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { useSubscriptionSync } from 'src/hooks/useSubscriptionSync'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { useSubscriptionSync } from './useSubscriptionSync'
 
 const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
 
@@ -17,7 +17,8 @@ export function useAppStateSync(isAuthenticated: boolean) {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
       // Detect background → foreground transition
       const isComingToForeground =
-        appStateRef.current.match(/inactive|background/) &&
+        (appStateRef.current === 'inactive' ||
+          appStateRef.current === 'background') &&
         nextAppState === 'active'
 
       if (isComingToForeground) {

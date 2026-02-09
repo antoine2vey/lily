@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
@@ -19,8 +20,13 @@ export function PhotoPicker({
 }: PhotoPickerProps) {
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
-  const displayPlaceholder = placeholder ?? t('photo.placeholder')
-  const displaySubtitle = subtitle ?? t('photo.subtitle')
+  const displayPlaceholder = Option.getOrElse(
+    Option.fromNullable(placeholder),
+    () => t('photo.placeholder')
+  )
+  const displaySubtitle = Option.getOrElse(Option.fromNullable(subtitle), () =>
+    t('photo.subtitle')
+  )
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

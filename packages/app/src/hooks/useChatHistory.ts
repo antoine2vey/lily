@@ -1,6 +1,6 @@
 import type { Message } from '@ai-sdk/react'
 import { parseToNativeDate, StaleTime } from '@lily/shared'
-import { Array, Option, pipe } from 'effect'
+import { Array, DateTime, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
 // Extended message type with imageUrl for display
@@ -27,7 +27,7 @@ const toMessage = (msg: {
       ? msg.createdAt
       : pipe(
           parseToNativeDate(String(msg.createdAt)),
-          Option.getOrElse(() => new Date(0))
+          Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeMake(0)))
         ),
 })
 
@@ -48,7 +48,7 @@ const toDisplayMessage = (msg: {
       ? msg.createdAt
       : pipe(
           parseToNativeDate(String(msg.createdAt)),
-          Option.getOrElse(() => new Date(0))
+          Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeMake(0)))
         ),
 })
 
@@ -57,7 +57,12 @@ export function useChatHistory(plantId?: string) {
     'aiChat',
     'getChatHistory',
     {
-      path: { plantId: plantId ?? '' },
+      path: {
+        plantId: pipe(
+          Option.fromNullable(plantId),
+          Option.getOrElse(() => '')
+        ),
+      },
       urlParams: { page: '1', limit: '50' },
     },
     { enabled: !!plantId, staleTime: StaleTime.default }
