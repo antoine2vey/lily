@@ -1,6 +1,6 @@
 import { Array, Match, Option, pipe, String } from 'effect'
-import { useState } from 'react'
-import { Image, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
@@ -44,10 +44,7 @@ const getInitials = (name: string): string =>
   )
 
 export function Avatar({ source, name, size = 'md' }: AvatarProps) {
-  const [imageError, setImageError] = useState(false)
   const sizeStyles = getSizeStyles(size)
-
-  const showFallback = !source || imageError
 
   const initials = pipe(
     Option.fromNullable(name),
@@ -55,30 +52,35 @@ export function Avatar({ source, name, size = 'md' }: AvatarProps) {
     Option.getOrElse(() => '?')
   )
 
-  const bgClass = showFallback ? 'bg-primary' : 'bg-surface'
+  const fallback = (
+    <View className="w-full h-full items-center justify-center bg-primary rounded-full">
+      <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
+        {initials}
+      </Text>
+    </View>
+  )
 
-  return (
+  return source ? (
+    <AnimatedImage
+      source={source}
+      rounded
+      fallback={fallback}
+      style={{
+        width: sizeStyles.dimension,
+        height: sizeStyles.dimension,
+      }}
+    />
+  ) : (
     <View
-      className={`rounded-full overflow-hidden items-center justify-center ${bgClass}`}
+      className="rounded-full overflow-hidden items-center justify-center bg-primary"
       style={{
         width: sizeStyles.dimension,
         height: sizeStyles.dimension,
       }}
     >
-      {showFallback ? (
-        <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
-          {initials}
-        </Text>
-      ) : (
-        <Image
-          source={source}
-          style={{
-            width: sizeStyles.dimension,
-            height: sizeStyles.dimension,
-          }}
-          onError={() => setImageError(true)}
-        />
-      )}
+      <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
+        {initials}
+      </Text>
     </View>
   )
 }

@@ -2,7 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface Plant {
@@ -52,10 +53,24 @@ function PlantCircle({ plant, onPress, iconColors }: PlantCircleProps) {
           }}
         >
           {plant.imageUrl ? (
-            <Image
+            <AnimatedImage
               source={{ uri: plant.imageUrl }}
               className="w-full h-full"
-              resizeMode="cover"
+              rounded
+              fallback={
+                <View
+                  className="w-full h-full items-center justify-center"
+                  style={{
+                    backgroundColor: isDark ? '#2D3728' : '#E8F5E8',
+                  }}
+                >
+                  <MaterialIcons
+                    name="eco"
+                    size={32}
+                    color={iconColors.primary}
+                  />
+                </View>
+              }
             />
           ) : (
             <View

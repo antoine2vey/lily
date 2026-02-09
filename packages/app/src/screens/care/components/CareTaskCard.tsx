@@ -3,7 +3,8 @@ import type { CareTaskType } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Image, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 import { Badge } from 'src/components/Badge'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { UndoButton } from './UndoButton'
@@ -106,9 +107,10 @@ export function CareTaskCard({
         }}
         hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
       >
-        <Image
+        <AnimatedImage
           source={{ uri: imageUri }}
-          className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-border`}
+          className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} bg-border`}
+          rounded
         />
       </Pressable>
       <View className="flex-1 ml-3">

@@ -1,7 +1,8 @@
 import { type DateInput, formatMemberSince, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Image, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import { AnimatedImage } from 'src/components/AnimatedImage'
 
 interface ProfileHeaderProps {
   avatarUrl: Option.Option<string>
@@ -38,10 +39,10 @@ export function ProfileHeader({
               </View>
             ),
             onSome: (url) => (
-              <Image
+              <AnimatedImage
                 source={{ uri: url }}
-                className="w-full h-full rounded-full"
-                resizeMode="cover"
+                className="w-full h-full"
+                rounded
               />
             ),
           })
