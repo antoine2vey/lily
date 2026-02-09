@@ -1,4 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import {
+  Array as EffectArray,
+  String as EffectString,
+  Option,
+  pipe,
+} from 'effect'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef } from 'react'
 import {
@@ -40,13 +46,19 @@ export function BottomSheet({
       if (typeof snapPoint === 'number') {
         return SCREEN_HEIGHT - snapPoint
       }
-      const percentage = Number.parseInt(snapPoint.replace('%', ''), 10) / 100
+      const percentage =
+        Number.parseInt(pipe(snapPoint, EffectString.replace('%', '')), 10) /
+        100
       return SCREEN_HEIGHT - SCREEN_HEIGHT * percentage
     },
     []
   )
 
-  const sheetHeight = SCREEN_HEIGHT - getSnapPointValue(snapPoints[0])
+  const firstSnapPoint = pipe(
+    EffectArray.head(snapPoints),
+    Option.getOrElse(() => '50%' as string | number)
+  )
+  const sheetHeight = SCREEN_HEIGHT - getSnapPointValue(firstSnapPoint)
 
   const panResponder = useRef(
     PanResponder.create({

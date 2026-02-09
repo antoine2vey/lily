@@ -1,3 +1,4 @@
+import { Option, pipe } from 'effect'
 import { forwardRef } from 'react'
 import { Text, TextInput, type TextInputProps, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -23,7 +24,10 @@ export const FormInput = forwardRef<TextInput, FormInputProps>(
           placeholderTextColor={iconColors.textMuted}
           className={`rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50 text-base text-text-primary dark:text-white font-medium ${
             error ? 'border-error' : ''
-          } ${className ?? ''}`}
+          } ${pipe(
+            Option.fromNullable(className),
+            Option.getOrElse(() => '')
+          )}`}
           {...props}
         />
         {error && (

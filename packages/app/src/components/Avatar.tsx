@@ -30,7 +30,7 @@ const getInitials = (name: string): string =>
     name,
     String.trim,
     String.split(' '),
-    Array.filter((part) => part.length > 0),
+    Array.filter(String.isNonEmpty),
     Array.take(2),
     Array.map((part) =>
       pipe(
@@ -44,7 +44,7 @@ const getInitials = (name: string): string =>
   )
 
 export function Avatar({ source, name, size = 'md' }: AvatarProps) {
-  const sizeStyles = getSizeStyles(size)
+  const { dimension, textClass } = getSizeStyles(size)
 
   const initials = pipe(
     Option.fromNullable(name),
@@ -52,35 +52,30 @@ export function Avatar({ source, name, size = 'md' }: AvatarProps) {
     Option.getOrElse(() => '?')
   )
 
+  const dimensionStyle = { width: dimension, height: dimension }
+
   const fallback = (
     <View className="w-full h-full items-center justify-center bg-primary rounded-full">
-      <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
+      <Text className={`text-white font-semibold ${textClass}`}>
         {initials}
       </Text>
     </View>
   )
 
-  return source ? (
+  if (!source) {
+    return (
+      <View className="rounded-full overflow-hidden" style={dimensionStyle}>
+        {fallback}
+      </View>
+    )
+  }
+
+  return (
     <AnimatedImage
       source={source}
       rounded
       fallback={fallback}
-      style={{
-        width: sizeStyles.dimension,
-        height: sizeStyles.dimension,
-      }}
+      style={dimensionStyle}
     />
-  ) : (
-    <View
-      className="rounded-full overflow-hidden items-center justify-center bg-primary"
-      style={{
-        width: sizeStyles.dimension,
-        height: sizeStyles.dimension,
-      }}
-    >
-      <Text className={`text-white font-semibold ${sizeStyles.textClass}`}>
-        {initials}
-      </Text>
-    </View>
   )
 }

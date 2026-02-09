@@ -23,7 +23,7 @@ export function PhotoViewerScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const { data: plant, isLoading } = useEffectQuery('plants', 'getPlant', {
-    path: { id: plantId ?? '' },
+    path: { id: Option.getOrElse(Option.fromNullable(plantId), () => '') },
   })
 
   const deletePhoto = useDeletePhoto()

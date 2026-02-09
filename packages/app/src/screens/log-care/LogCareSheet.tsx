@@ -6,7 +6,7 @@ import {
   parseApiDate,
 } from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { Option, pipe } from 'effect'
+import { Array, Option, pipe, String } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -26,8 +26,11 @@ import { BottomSheet } from 'src/components/BottomSheet'
 import { Button } from 'src/components/ui/Button'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSaveCareLog } from 'src/hooks/useSaveCareLog'
-import { type CareType, CareTypeChips } from './components/CareTypeChips'
-import { PlantSelector } from './components/PlantSelector'
+import {
+  type CareType,
+  CareTypeChips,
+} from 'src/screens/log-care/components/CareTypeChips'
+import { PlantSelector } from 'src/screens/log-care/components/PlantSelector'
 
 interface Plant {
   id: string
@@ -92,7 +95,7 @@ export function LogCareSheet({
   }
 
   const handleSave = () => {
-    if (plantIds.length === 0) return
+    if (Array.isEmptyReadonlyArray(plantIds)) return
 
     saveCareLog(
       {
@@ -100,8 +103,10 @@ export function LogCareSheet({
         type: careType,
         date,
         time,
-        notes: notes.trim() || undefined,
-        photoUrl: photo ?? undefined,
+        notes: String.isNonEmpty(String.trim(notes))
+          ? String.trim(notes)
+          : undefined,
+        photoUrl: Option.getOrUndefined(Option.fromNullable(photo)),
       },
       {
         onSuccess: () => {
@@ -133,7 +138,7 @@ export function LogCareSheet({
       Option.getOrElse(() => t('unknownDate'))
     )
 
-  const canSave = plantIds.length > 0
+  const canSave = !Array.isEmptyReadonlyArray(plantIds)
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Option, pipe } from 'effect'
+import { Option, pipe, String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -25,7 +25,12 @@ export function AvatarPicker({ avatarUrl, name, onPress }: AvatarPickerProps) {
                 onNone: () => (
                   <View className="w-full h-full rounded-full items-center justify-center bg-primary-tint dark:bg-primary/20">
                     <Text className="text-3xl font-bold text-primary">
-                      {name.charAt(0).toUpperCase()}
+                      {pipe(
+                        name,
+                        String.charAt(0),
+                        Option.map(String.toUpperCase),
+                        Option.getOrElse(() => '')
+                      )}
                     </Text>
                   </View>
                 ),

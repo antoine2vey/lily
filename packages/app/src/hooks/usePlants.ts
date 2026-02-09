@@ -1,5 +1,6 @@
 import { StaleTime } from '@lily/shared'
-import { useEffectQuery } from '@/utils/client'
+import { Option, pipe } from 'effect'
+import { useEffectQuery } from 'src/utils/client'
 
 interface PlantsParams {
   page?: string
@@ -14,10 +15,22 @@ export function usePlants(params?: PlantsParams) {
     'getPlants',
     {
       urlParams: {
-        page: params?.page ?? '1',
-        limit: params?.limit ?? '20',
-        filter: params?.filter ?? 'all',
-        sort: params?.sort ?? 'added',
+        page: pipe(
+          Option.fromNullable(params?.page),
+          Option.getOrElse(() => '1')
+        ),
+        limit: pipe(
+          Option.fromNullable(params?.limit),
+          Option.getOrElse(() => '20')
+        ),
+        filter: pipe(
+          Option.fromNullable(params?.filter),
+          Option.getOrElse(() => 'all')
+        ),
+        sort: pipe(
+          Option.fromNullable(params?.sort),
+          Option.getOrElse(() => 'added')
+        ),
       },
     },
     {

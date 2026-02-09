@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import { Button } from './ui/Button'
+import { Button } from 'src/components/ui/Button'
 
 type IllustrationType = 'plant' | 'notification' | 'achievement' | 'search'
 

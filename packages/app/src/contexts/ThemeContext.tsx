@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Array as Arr } from 'effect'
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind'
 import {
   createContext,
@@ -66,7 +67,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const loadPreference = async () => {
       try {
         const stored = await AsyncStorage.getItem(THEME_STORAGE_KEY)
-        if (stored && ['light', 'dark', 'system'].includes(stored)) {
+        const validThemes: ThemePreference[] = ['light', 'dark', 'system']
+        if (stored && Arr.contains(validThemes, stored as ThemePreference)) {
           setPreference(stored as ThemePreference)
         }
       } catch {

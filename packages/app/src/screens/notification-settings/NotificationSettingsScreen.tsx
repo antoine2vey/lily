@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatTime, makeTimePickerDate, parseApiDate } from '@lily/shared'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -46,7 +46,7 @@ const TIMEZONE_OPTIONS = [
 ]
 
 function parseTime(timeString: string): Date {
-  const parts = timeString.split(':')
+  const parts = String.split(timeString, ':')
   const hours = pipe(
     Array.head(parts),
     Option.map(Number),
@@ -75,8 +75,8 @@ const formatTimeDisplay = (
 function formatTimeString(date: Date): string {
   // Extract hours and minutes for API format (HH:MM)
   // Using Date methods here as this is for DateTimePicker interop
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const hours = `${date.getHours()}`.padStart(2, '0')
+  const minutes = `${date.getMinutes()}`.padStart(2, '0')
   return `${hours}:${minutes}`
 }
 
@@ -110,9 +110,17 @@ export function NotificationSettingsScreen() {
     TIMEZONE_OPTIONS,
     Array.filter(
       (tz) =>
-        timezoneSearch === '' ||
-        tz.label.toLowerCase().includes(timezoneSearch.toLowerCase()) ||
-        tz.value.toLowerCase().includes(timezoneSearch.toLowerCase())
+        String.isEmpty(timezoneSearch) ||
+        pipe(
+          tz.label,
+          String.toLowerCase,
+          String.includes(String.toLowerCase(timezoneSearch))
+        ) ||
+        pipe(
+          tz.value,
+          String.toLowerCase,
+          String.includes(String.toLowerCase(timezoneSearch))
+        )
     )
   )
 
@@ -656,7 +664,7 @@ export function NotificationSettingsScreen() {
                   key={tz.value}
                   onPress={() => handleTimezoneChange(tz.value)}
                   className={`flex-row items-center px-4 py-4 active:bg-surface-tinted dark:active:bg-slate-800 ${
-                    index < filteredTimezones.length - 1
+                    index < Array.length(filteredTimezones) - 1
                       ? 'border-b border-border/50 dark:border-slate-700/50'
                       : ''
                   }`}

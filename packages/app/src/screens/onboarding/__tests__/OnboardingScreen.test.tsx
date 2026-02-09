@@ -5,7 +5,7 @@ jest.mock('@/hooks/useOnboardingComplete', () => ({
   useOnboardingComplete: jest.fn(),
 }))
 
-import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
+import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
 import { OnboardingScreen } from '../OnboardingScreen'
 
 const mockedUseOnboardingComplete = useOnboardingComplete as jest.Mock

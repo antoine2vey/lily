@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
-import { Array, Match, Option, Order, pipe } from 'effect'
+import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,16 +13,22 @@ import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { useEffectQuery } from 'src/utils/client'
-import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
-import { PlantCard } from './components/PlantCard'
-import { type FilterOption, PlantFilters } from './components/PlantFilters'
-import { PlantSearchBar } from './components/PlantSearchBar'
+import { PlantCard } from 'src/screens/plants/components/PlantCard'
+import {
+  type FilterOption,
+  PlantFilters,
+} from 'src/screens/plants/components/PlantFilters'
+import { PlantSearchBar } from 'src/screens/plants/components/PlantSearchBar'
 import {
   type SortOption,
   SortOptionsSheet,
-} from './components/SortOptionsSheet'
-import { type ViewMode, ViewToggle } from './components/ViewToggle'
+} from 'src/screens/plants/components/SortOptionsSheet'
+import {
+  type ViewMode,
+  ViewToggle,
+} from 'src/screens/plants/components/ViewToggle'
+import { useEffectQuery } from 'src/utils/client'
+import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
 
 interface CareStatus {
   daysUntil?: number
@@ -65,8 +71,14 @@ const plantNameOrder: Order.Order<PlantCardData> = Order.mapInput(
 const plantCareOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.number,
   (plant) => {
-    const waterDays = plant.watering.daysUntil ?? 999
-    const fertilizeDays = plant.fertilization.daysUntil ?? 999
+    const waterDays = Option.getOrElse(
+      Option.fromNullable(plant.watering.daysUntil),
+      () => 999
+    )
+    const fertilizeDays = Option.getOrElse(
+      Option.fromNullable(plant.fertilization.daysUntil),
+      () => 999
+    )
     return Math.min(waterDays, fertilizeDays)
   }
 )
@@ -103,7 +115,7 @@ function PlantsGridSkeleton() {
   return (
     <View className="px-3 pt-2">
       <View className="flex-row flex-wrap">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
+        {Array.map([1, 2, 3, 4, 5, 6], (i) => (
           <View key={i} className="w-1/2 p-2">
             <PlantCardSkeleton />
           </View>
@@ -141,11 +153,14 @@ export function PlantsScreen() {
   }, [refetch])
 
   const plants: ReadonlyArray<PlantCardData> = useMemo(() => {
-    const items = plantsData?.items ?? []
+    const items = Option.getOrElse(
+      Option.fromNullable(plantsData?.items),
+      () => [] as NonNullable<typeof plantsData>['items']
+    )
     return Array.map(items, (plant) => ({
       id: plant.id,
       name: plant.name,
-      imageUrl: plant.imageUrl ?? undefined,
+      imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
       health: mapApiHealthToCardHealth(plant.health),
       watering: getCareStatus(plant.nextWateringAt),
       fertilization: getCareStatus(plant.nextFertilizationAt),
@@ -156,10 +171,10 @@ export function PlantsScreen() {
   const filteredPlants = useMemo(() => {
     let result = plants
 
-    if (searchQuery.length > 0) {
-      const query = searchQuery.toLowerCase()
+    if (!String.isEmpty(searchQuery)) {
+      const query = String.toLowerCase(searchQuery)
       result = Array.filter(result, (plant) =>
-        plant.name.toLowerCase().includes(query)
+        pipe(plant.name, String.toLowerCase, String.includes(query))
       )
     }
 
@@ -192,12 +207,16 @@ export function PlantsScreen() {
 
   const counts = useMemo(
     () => ({
-      all: plants.length,
-      healthy: Array.filter(plants, (p) => p.health === 'healthy').length,
-      attention: Array.filter(
-        plants,
-        (p) => p.health === 'attention' || p.health === 'critical'
-      ).length,
+      all: Array.length(plants),
+      healthy: Array.length(
+        Array.filter(plants, (p) => p.health === 'healthy')
+      ),
+      attention: Array.length(
+        Array.filter(
+          plants,
+          (p) => p.health === 'attention' || p.health === 'critical'
+        )
+      ),
     }),
     [plants]
   )
@@ -290,10 +309,13 @@ export function PlantsScreen() {
         <PullToRefresh isRefreshing={isRefetching} onRefresh={handleRefresh}>
           {(scrollHandler) =>
             showSkeleton ? (
-              <Animated.View entering={FadeIn.duration(300)}>
+              <Animated.View
+                testID="plants-screen-skeleton"
+                entering={FadeIn.duration(300)}
+              >
                 <PlantsGridSkeleton />
               </Animated.View>
-            ) : isInitialLoading ? null : plants.length === 0 ? (
+            ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(plants) ? (
               <Animated.View
                 entering={
                   hadInitialData.current ? undefined : FadeIn.duration(300)

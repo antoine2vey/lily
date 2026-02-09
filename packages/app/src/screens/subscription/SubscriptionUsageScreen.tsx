@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, Predicate, pipe } from 'effect'
+import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,9 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
+import { PlanCard } from 'src/screens/subscription/components/PlanCard'
+import { UsageMeter } from 'src/screens/subscription/components/UsageMeter'
 import * as RevenueCatService from 'src/services/revenuecat'
-import { PlanCard } from './components/PlanCard'
-import { UsageMeter } from './components/UsageMeter'
 
 const USAGE_ICONS = {
   ai_chats: 'chat' as const,

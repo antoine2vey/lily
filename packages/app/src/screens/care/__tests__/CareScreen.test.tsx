@@ -22,8 +22,8 @@ jest.mock('@/hooks/useCompleteTask', () => ({
   useCompleteTask: jest.fn(),
 }))
 
-import { useCareTasks } from '@/hooks/useCareTasks'
-import { useCompleteTask } from '@/hooks/useCompleteTask'
+import { useCareTasks } from 'src/hooks/useCareTasks'
+import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { CareScreen } from '../CareScreen'
 
 const mockedUseCareTasks = useCareTasks as jest.Mock

@@ -16,9 +16,9 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
-import { LanguageSelectionModal } from './components/LanguageSelectionModal'
-import { SettingsMenuItem } from './components/SettingsMenuItem'
-import { ThemeSelectionModal } from './components/ThemeSelectionModal'
+import { LanguageSelectionModal } from 'src/screens/settings/components/LanguageSelectionModal'
+import { SettingsMenuItem } from 'src/screens/settings/components/SettingsMenuItem'
+import { ThemeSelectionModal } from 'src/screens/settings/components/ThemeSelectionModal'
 
 type Theme = 'light' | 'dark' | 'system'
 

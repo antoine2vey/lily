@@ -7,7 +7,7 @@ import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { Badge } from 'src/components/Badge'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { UndoButton } from './UndoButton'
+import { UndoButton } from 'src/screens/care/components/UndoButton'
 
 interface CareTaskCardProps {
   task: {

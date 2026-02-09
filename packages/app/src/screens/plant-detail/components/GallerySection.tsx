@@ -28,13 +28,13 @@ export function GallerySection({
     <View testID="gallery-section">
       {/* Header */}
       <Pressable
-        onPress={photos.length > 0 ? onSeeAll : undefined}
+        onPress={!Array.isEmptyReadonlyArray(photos) ? onSeeAll : undefined}
         className="flex-row justify-between items-center mb-4 px-1"
       >
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('detail.gallery')}
         </Text>
-        {photos.length > 0 && (
+        {!Array.isEmptyReadonlyArray(photos) && (
           <MaterialIcons
             name="arrow-forward"
             size={20}

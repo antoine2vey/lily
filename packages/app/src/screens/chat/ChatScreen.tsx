@@ -14,11 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useChatHistory } from 'src/hooks/useChatHistory'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlantChat } from 'src/hooks/usePlantChat'
-import { ChatHeader } from './components/ChatHeader'
-import { ChatInput } from './components/ChatInput'
-import { ChatMessage } from './components/ChatMessage'
-import { SuggestionChips } from './components/SuggestionChips'
-import { TypingIndicator } from './components/TypingIndicator'
+import { ChatHeader } from 'src/screens/chat/components/ChatHeader'
+import { ChatInput } from 'src/screens/chat/components/ChatInput'
+import { ChatMessage } from 'src/screens/chat/components/ChatMessage'
+import { SuggestionChips } from 'src/screens/chat/components/SuggestionChips'
+import { TypingIndicator } from 'src/screens/chat/components/TypingIndicator'
 
 interface ChatMessageData {
   id: string
@@ -44,7 +44,7 @@ export function ChatScreen() {
     append,
     status,
   } = usePlantChat({
-    plantId: plantId ?? '',
+    plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
     initialMessages,
   })
 
@@ -151,7 +151,7 @@ export function ChatScreen() {
           ListHeaderComponent={renderListHeader}
         />
 
-        {displayMessages.length === 0 && !isStreaming && (
+        {Array.isEmptyReadonlyArray(displayMessages) && !isStreaming && (
           <SuggestionChips
             onSelect={handleSuggestionSelect}
             plantId={plantId}

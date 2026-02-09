@@ -5,7 +5,7 @@ jest.mock('@/hooks/useAchievements', () => ({
   useAchievements: jest.fn(),
 }))
 
-import { useAchievements } from '@/hooks/useAchievements'
+import { useAchievements } from 'src/hooks/useAchievements'
 import { AchievementsScreen } from '../AchievementsScreen'
 
 const mockedUseAchievements = useAchievements as jest.Mock

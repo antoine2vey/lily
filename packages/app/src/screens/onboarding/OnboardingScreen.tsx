@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Array } from 'effect'
 import { router } from 'expo-router'
 import type { ComponentProps } from 'react'
 import { useRef, useState } from 'react'
@@ -7,8 +8,8 @@ import { FlatList, Pressable, Text, View, type ViewToken } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
-import { OnboardingSlide } from './components/OnboardingSlide'
-import { PaginationDots } from './components/PaginationDots'
+import { OnboardingSlide } from 'src/screens/onboarding/components/OnboardingSlide'
+import { PaginationDots } from 'src/screens/onboarding/components/PaginationDots'
 
 interface SlideData {
   id: string
@@ -48,7 +49,7 @@ export function OnboardingScreen() {
       iconColor: iconColors.achievementGold,
     },
   ]
-  const isLastSlide = currentIndex === slides.length - 1
+  const isLastSlide = currentIndex === Array.length(slides) - 1
 
   const handleSkip = async () => {
     await completeOnboarding()
@@ -69,7 +70,10 @@ export function OnboardingScreen() {
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+      if (
+        !Array.isEmptyReadonlyArray(viewableItems) &&
+        viewableItems[0].index !== null
+      ) {
         setCurrentIndex(viewableItems[0].index)
       }
     }
@@ -116,7 +120,7 @@ export function OnboardingScreen() {
         <View className="mb-8">
           <PaginationDots
             testID="pagination-dots"
-            total={slides.length}
+            total={Array.length(slides)}
             current={currentIndex}
           />
         </View>

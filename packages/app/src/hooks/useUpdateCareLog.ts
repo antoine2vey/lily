@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffectMutation } from '@/utils/client'
-import { queryKeys } from '@/utils/query-keys'
+import { useEffectMutation } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 
 /**
  * Hook to update an existing care log

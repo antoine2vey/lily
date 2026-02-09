@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
@@ -47,7 +48,7 @@ export function ThemeSelectionModal({
       title={t('appearance.themeTitle')}
     >
       <View className="py-2">
-        {THEME_OPTIONS.map(({ key, labelKey, icon }) => (
+        {Array.map(THEME_OPTIONS, ({ key, labelKey, icon }) => (
           <Pressable
             key={key}
             onPress={() => handleSelect(key)}

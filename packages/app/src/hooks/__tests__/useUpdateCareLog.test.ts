@@ -9,7 +9,7 @@ jest.mock('@/utils/client', () => ({
   useEffectMutation: jest.fn(),
 }))
 
-import { useEffectMutation } from '@/utils/client'
+import { useEffectMutation } from 'src/utils/client'
 import { useUpdateCareLog } from '../useUpdateCareLog'
 
 const mockedUseEffectMutation = useEffectMutation as jest.MockedFunction<

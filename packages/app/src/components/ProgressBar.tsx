@@ -1,4 +1,4 @@
-import { Number as EffectNumber } from 'effect'
+import { Number as EffectNumber, Option, pipe } from 'effect'
 import { Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
@@ -20,7 +20,10 @@ export function ProgressBar({
   testID,
 }: ProgressBarProps) {
   const iconColors = useIconColors()
-  const barColor = color ?? iconColors.primary
+  const barColor = pipe(
+    Option.fromNullable(color),
+    Option.getOrElse(() => iconColors.primary)
+  )
 
   const clampedProgress = EffectNumber.clamp(progress, {
     minimum: 0,

@@ -18,7 +18,7 @@ jest.mock('@/services/revenuecat', () => ({
   isDevModeEnabled: jest.fn().mockReturnValue(false),
 }))
 
-import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
+import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
 import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 
 const mockedUseSubscriptionUsage = useSubscriptionUsage as jest.Mock

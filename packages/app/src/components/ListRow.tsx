@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -25,11 +26,12 @@ export function ListRow({
   disabled = false,
 }: ListRowProps) {
   const iconColors = useIconColors()
-  const titleColorClass = disabled
-    ? 'text-text-muted'
-    : destructive
-      ? 'text-coral'
-      : 'text-text-primary dark:text-white'
+  const titleColorClass = pipe(
+    Match.value({ disabled, destructive }),
+    Match.when({ disabled: true }, () => 'text-text-muted'),
+    Match.when({ destructive: true }, () => 'text-coral'),
+    Match.orElse(() => 'text-text-primary dark:text-white')
+  )
 
   const content = (
     <View className="flex-row items-center min-h-[56px] py-2">

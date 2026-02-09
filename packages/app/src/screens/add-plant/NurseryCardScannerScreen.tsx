@@ -34,7 +34,7 @@ export function NurseryCardScannerScreen() {
   const { mutateAsync: scanCardMultiple, isPending: isScanning } =
     useScanCardMultiple()
 
-  const canCapture = capturedPhotos.length < MAX_SCAN_FILES
+  const canCapture = Arr.length(capturedPhotos) < MAX_SCAN_FILES
 
   const navigateWithResult = (
     photoUri: string,
@@ -54,7 +54,7 @@ export function NurseryCardScannerScreen() {
   }
 
   const handleScanAll = async () => {
-    if (capturedPhotos.length === 0) return
+    if (Arr.isEmptyReadonlyArray(capturedPhotos)) return
 
     const firstPhoto = Arr.unsafeGet(capturedPhotos, 0)
 
@@ -70,7 +70,7 @@ export function NurseryCardScannerScreen() {
     }
 
     // Single photo: use single scan endpoint
-    if (capturedPhotos.length === 1) {
+    if (Arr.length(capturedPhotos) === 1) {
       try {
         const result = await scanCard(firstPhoto)
         navigateWithResult(firstPhoto, result)
@@ -94,10 +94,13 @@ export function NurseryCardScannerScreen() {
       mediaTypes: ['images'],
       quality: 0.8,
       allowsMultipleSelection: true,
-      selectionLimit: MAX_SCAN_FILES - capturedPhotos.length,
+      selectionLimit: MAX_SCAN_FILES - Arr.length(capturedPhotos),
     })
 
-    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+    if (
+      !pickerResult.canceled &&
+      !Arr.isEmptyReadonlyArray(pickerResult.assets)
+    ) {
       setIsCapturing(true)
       try {
         const uris: string[] = []
@@ -112,7 +115,7 @@ export function NurseryCardScannerScreen() {
         }
         setCapturedPhotos((prev) => [
           ...prev,
-          ...uris.slice(0, MAX_SCAN_FILES - prev.length),
+          ...Arr.take(uris, MAX_SCAN_FILES - Arr.length(prev)),
         ])
       } catch {
         Alert.alert(t('scanner.error'), t('scanner.failedToProcess'))
@@ -180,13 +183,13 @@ export function NurseryCardScannerScreen() {
           >
             <MaterialIcons name="close" size={24} color={iconColors.white} />
           </Pressable>
-          {capturedPhotos.length > 0 && (
+          {!Arr.isEmptyReadonlyArray(capturedPhotos) && (
             <View
               className="px-3 py-1.5 rounded-full"
               style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
             >
               <Text className="text-sm font-semibold text-white">
-                {capturedPhotos.length}/{MAX_SCAN_FILES}
+                {Arr.length(capturedPhotos)}/{MAX_SCAN_FILES}
               </Text>
             </View>
           )}
@@ -200,7 +203,7 @@ export function NurseryCardScannerScreen() {
           helperText={
             canCapture
               ? t('scanner.alignTag')
-              : t('scanner.tapToProcess', { count: capturedPhotos.length })
+              : t('scanner.tapToProcess', { count: Arr.length(capturedPhotos) })
           }
         />
 
@@ -210,7 +213,7 @@ export function NurseryCardScannerScreen() {
         >
           <View>
             {/* Thumbnail strip */}
-            {capturedPhotos.length > 0 && (
+            {!Arr.isEmptyReadonlyArray(capturedPhotos) && (
               <View className="px-4 mb-4">
                 <ScrollView
                   horizontal
@@ -261,7 +264,7 @@ export function NurseryCardScannerScreen() {
               />
             </Pressable>
 
-            {capturedPhotos.length > 0 ? (
+            {!Arr.isEmptyReadonlyArray(capturedPhotos) ? (
               <Pressable
                 onPress={handleScanAll}
                 disabled={isScanning}
@@ -272,9 +275,11 @@ export function NurseryCardScannerScreen() {
                   <ActivityIndicator size="small" color={iconColors.white} />
                 ) : (
                   <Text className="text-base font-semibold text-white">
-                    {capturedPhotos.length === 1
+                    {Arr.length(capturedPhotos) === 1
                       ? t('scanner.scanCard')
-                      : t('scanner.scanAll', { count: capturedPhotos.length })}
+                      : t('scanner.scanAll', {
+                          count: Arr.length(capturedPhotos),
+                        })}
                   </Text>
                 )}
               </Pressable>
@@ -294,7 +299,7 @@ export function NurseryCardScannerScreen() {
             )}
 
             {/* Capture button (smaller) when photos exist */}
-            {capturedPhotos.length > 0 && canCapture ? (
+            {!Arr.isEmptyReadonlyArray(capturedPhotos) && canCapture ? (
               <Pressable
                 onPress={handleCapture}
                 disabled={isCapturing || isScanning}

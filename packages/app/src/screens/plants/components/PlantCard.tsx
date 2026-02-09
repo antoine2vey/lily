@@ -98,11 +98,11 @@ type IndicatorPriority = 'overdue' | 'today' | 'soonest' | 'none'
 const classifyIndicators = (
   indicators: ReadonlyArray<CareIndicator>
 ): IndicatorPriority => {
-  const overdueCount = Array.filter(indicators, (i) => i.isOverdue).length
-  const todayCount = Array.filter(indicators, (i) => i.isToday).length
+  const overdueCount = Array.countBy(indicators, (i) => i.isOverdue)
+  const todayCount = Array.countBy(indicators, (i) => i.isToday)
 
   return pipe(
-    Match.value({ overdueCount, todayCount, total: indicators.length }),
+    Match.value({ overdueCount, todayCount, total: Array.length(indicators) }),
     Match.when({ total: 0 }, () => 'none' as const),
     Match.when({ overdueCount: 1 }, () => 'overdue' as const),
     Match.when({ overdueCount: 2 }, () => 'overdue' as const),
@@ -201,19 +201,21 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
           className={`absolute top-2 right-2 z-10 w-3 h-3 rounded-full ${healthDotClass} ring-2 ring-white shadow-sm`}
         />
         {plant.imageUrl ? (
-          <AnimatedImage
-            source={{ uri: plant.imageUrl }}
-            className="w-full h-full"
-            fallback={
-              <View className="flex-1 items-center justify-center">
-                <MaterialIcons
-                  name="local-florist"
-                  size={48}
-                  color={iconColors.primary}
-                />
-              </View>
-            }
-          />
+          <View testID="plant-image" className="w-full h-full">
+            <AnimatedImage
+              source={{ uri: plant.imageUrl }}
+              className="w-full h-full"
+              fallback={
+                <View className="flex-1 items-center justify-center">
+                  <MaterialIcons
+                    name="local-florist"
+                    size={48}
+                    color={iconColors.primary}
+                  />
+                </View>
+              }
+            />
+          </View>
         ) : (
           <View
             testID="plant-placeholder"
@@ -236,7 +238,7 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
         >
           {plant.name}
         </Text>
-        {indicators.length > 0 && (
+        {Array.isNonEmptyReadonlyArray(indicators) && (
           <View className="flex-row items-center gap-3">
             {Array.map(indicators, (indicator) => (
               <View

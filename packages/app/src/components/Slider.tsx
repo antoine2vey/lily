@@ -1,4 +1,5 @@
 import RNSlider from '@react-native-community/slider'
+import { Option, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -31,7 +32,10 @@ export function Slider({
   label,
 }: SliderProps) {
   const iconColors = useIconColors()
-  const resolvedIconBgColor = iconBgColor ?? iconColors.surfaceTinted
+  const resolvedIconBgColor = pipe(
+    Option.fromNullable(iconBgColor),
+    Option.getOrElse(() => iconColors.surfaceTinted)
+  )
 
   return (
     <View className="w-full gap-4">

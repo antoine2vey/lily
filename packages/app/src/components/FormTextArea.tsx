@@ -1,3 +1,4 @@
+import { Option, pipe } from 'effect'
 import { forwardRef } from 'react'
 import { Text, TextInput, type TextInputProps, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -22,7 +23,11 @@ export const FormTextArea = forwardRef<TextInput, FormTextAreaProps>(
     ref
   ) => {
     const iconColors = useIconColors()
-    const characterCount = value?.length ?? 0
+    const characterCount = pipe(
+      Option.fromNullable(value),
+      Option.map((v) => v.length),
+      Option.getOrElse(() => 0)
+    )
     const isAtLimit = maxLength ? characterCount >= maxLength : false
 
     return (
@@ -51,7 +56,10 @@ export const FormTextArea = forwardRef<TextInput, FormTextAreaProps>(
           placeholderTextColor={iconColors.textMuted}
           className={`rounded-2xl px-4 py-3.5 min-h-[120px] bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50 text-base text-text-primary dark:text-white font-medium leading-relaxed ${
             error ? 'border-error' : ''
-          } ${className ?? ''}`}
+          } ${pipe(
+            Option.fromNullable(className),
+            Option.getOrElse(() => '')
+          )}`}
           style={{ textAlignVertical: 'top' }}
           {...props}
         />

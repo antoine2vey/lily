@@ -16,7 +16,7 @@ import { FormInput, FormTextArea } from 'src/components'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
 import { useUser } from 'src/hooks/useUser'
-import { AvatarPicker } from './components/AvatarPicker'
+import { AvatarPicker } from 'src/screens/edit-profile/components/AvatarPicker'
 
 export function EditProfileScreen() {
   const { t } = useTranslation(['profile', 'common'])
@@ -38,8 +38,8 @@ export function EditProfileScreen() {
 
   useEffect(() => {
     if (user) {
-      setName(user.name ?? '')
-      setBio(user.bio ?? '')
+      setName(Option.getOrElse(Option.fromNullable(user.name), () => ''))
+      setBio(Option.getOrElse(Option.fromNullable(user.bio), () => ''))
       setAvatarUri(user.image)
     }
   }, [user])

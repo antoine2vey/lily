@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
@@ -60,7 +61,7 @@ function EnvironmentRow({
   return (
     <View
       className="flex-row items-center gap-4"
-      testID={`environment-row-${label.toLowerCase()}`}
+      testID={`environment-row-${String.toLowerCase(label)}`}
     >
       <View
         className="w-10 h-10 rounded-full items-center justify-center"
@@ -143,8 +144,7 @@ export function IdealEnvironment({
     badgeTextColor: isDark ? '#5EEAD4' : '#14B8A6',
   }
 
-  const capitalize = (s: string): string =>
-    s.charAt(0).toUpperCase() + s.slice(1)
+  const capitalize = (s: string): string => String.capitalize(s)
 
   return (
     <View testID="ideal-environment">

@@ -30,15 +30,15 @@ import { useTheme } from 'src/hooks/useTheme'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
+import { CareSchedule } from 'src/screens/plant-detail/components/CareSchedule'
+import { ChatCTA } from 'src/screens/plant-detail/components/ChatCTA'
+import { GallerySection } from 'src/screens/plant-detail/components/GallerySection'
+import { IdealEnvironment } from 'src/screens/plant-detail/components/IdealEnvironment'
+import { PlantHeader } from 'src/screens/plant-detail/components/PlantHeader'
+import { PlantOptionsSheet } from 'src/screens/plant-detail/components/PlantOptionsSheet'
+import { RecentHistory } from 'src/screens/plant-detail/components/RecentHistory'
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
-import { CareSchedule } from './components/CareSchedule'
-import { ChatCTA } from './components/ChatCTA'
-import { GallerySection } from './components/GallerySection'
-import { IdealEnvironment } from './components/IdealEnvironment'
-import { PlantHeader } from './components/PlantHeader'
-import { PlantOptionsSheet } from './components/PlantOptionsSheet'
-import { RecentHistory } from './components/RecentHistory'
 
 type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'
@@ -188,18 +188,24 @@ export function PlantDetailScreen() {
     error,
     refetch,
   } = useEffectQuery('plants', 'getPlant', {
-    path: { id: plantId ?? '' },
+    path: {
+      id: Option.getOrElse(Option.fromNullable(plantId), () => ''),
+    },
   })
 
   const { data: careLogs } = useEffectQuery('careLogs', 'getCareLogs', {
-    path: { plantId: plantId ?? '' },
+    path: {
+      plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
+    },
     urlParams: { page: '1', limit: '3', type: 'all' },
   })
 
   const uploadPhoto = useUploadPhoto()
   const waterPlant = useWaterPlant()
   const fertilizePlant = useFertilizePlant()
-  const updatePlant = useUpdatePlant(plantId ?? '')
+  const updatePlant = useUpdatePlant(
+    Option.getOrElse(Option.fromNullable(plantId), () => '')
+  )
   const deletePlant = useDeletePlant()
 
   const handleBack = useCallback(() => {
@@ -342,11 +348,14 @@ export function PlantDetailScreen() {
     : null
 
   // Map photos from plant data
-  const photos = Array.map(plant.photos ?? [], (photo) => ({
-    id: photo.id,
-    url: photo.url,
-    createdAt: photo.takenAt,
-  }))
+  const photos = Array.map(
+    Option.getOrElse(Option.fromNullable(plant.photos), () => []),
+    (photo) => ({
+      id: photo.id,
+      url: photo.url,
+      createdAt: photo.takenAt,
+    })
+  )
 
   const historyEvents = pipe(
     Option.fromNullable(careLogs?.items),
@@ -409,7 +418,9 @@ export function PlantDetailScreen() {
           <PlantHeader
             plant={{
               name: plant.name,
-              category: plant.category ?? undefined,
+              category: Option.getOrUndefined(
+                Option.fromNullable(plant.category)
+              ),
               health: healthStatus,
             }}
           />

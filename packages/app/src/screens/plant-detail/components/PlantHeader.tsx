@@ -1,4 +1,4 @@
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
@@ -50,7 +50,11 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
   const speciesLine =
     plant.category && plant.species
       ? `${plant.category} • ${plant.species}`
-      : (plant.species ?? plant.category)
+      : Option.getOrUndefined(
+          Option.orElse(Option.fromNullable(plant.species), () =>
+            Option.fromNullable(plant.category)
+          )
+        )
 
   return (
     <View testID="plant-header">

@@ -1,15 +1,15 @@
 import { useCallback, useRef } from 'react'
 import { PanResponder, View } from 'react-native'
 import Animated, {
-  runOnJS,
   type ScrollHandlerProcessed,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
+import { CircularLoader } from 'src/components/ui/circular-loader'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { CircularLoader } from '@/components/ui/circular-loader'
 
 const MAX_PULL = 100
 const REFRESH_THRESHOLD = 60
@@ -54,7 +54,7 @@ export function PullToRefresh({
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy * 0.5 >= REFRESH_THRESHOLD) {
           pullDistance.value = withTiming(LOADER_HEIGHT)
-          runOnJS(triggerRefresh)()
+          scheduleOnRN(triggerRefresh)
         } else {
           pullDistance.value = withTiming(0)
         }

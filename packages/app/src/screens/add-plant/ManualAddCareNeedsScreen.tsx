@@ -8,7 +8,7 @@ import { Slider } from 'src/components/Slider'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { WizardHeader } from './components/WizardHeader'
+import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
 
 type BasicInfo = {
   photo: string | null

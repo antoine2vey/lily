@@ -10,7 +10,7 @@ jest.mock('@/utils/client', () => ({
 }))
 
 import { useWaterAll } from 'src/hooks/useWaterAll'
-import { useEffectMutation } from '@/utils/client'
+import { useEffectMutation } from 'src/utils/client'
 
 const mockedUseEffectMutation = useEffectMutation as jest.MockedFunction<
   typeof useEffectMutation

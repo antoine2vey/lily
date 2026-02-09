@@ -1,7 +1,16 @@
 import { getApiDateGroupLabel, StaleTime, toIsoString } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
-import { Array, DateTime, Option, Order, pipe, Record } from 'effect'
-import { useEffectQuery } from '@/utils/client'
+import {
+  Array,
+  DateTime,
+  Match,
+  Option,
+  Order,
+  pipe,
+  Record,
+  String as Str,
+} from 'effect'
+import { useEffectQuery } from 'src/utils/client'
 
 type BackendCareType = 'watering' | 'fertilization'
 type AppCareType = 'water' | 'fertilize'
@@ -24,7 +33,12 @@ interface CareHistoryGroup {
  * Map backend care type to app care type
  */
 const mapBackendType = (type: BackendCareType): AppCareType =>
-  type === 'watering' ? 'water' : 'fertilize'
+  pipe(
+    Match.value(type),
+    Match.when('watering', () => 'water' as const),
+    Match.when('fertilization', () => 'fertilize' as const),
+    Match.exhaustive
+  )
 
 /**
  * Get date key for grouping (YYYY-MM-DD format)
@@ -32,8 +46,8 @@ const mapBackendType = (type: BackendCareType): AppCareType =>
 const getDateKey = (date: Date): string => {
   const dt = DateTime.unsafeMake(date)
   const parts = DateTime.toParts(dt)
-  const month = String(parts.month).padStart(2, '0')
-  const day = String(parts.day).padStart(2, '0')
+  const month = pipe(String(parts.month), Str.padStart(2, '0'))
+  const day = pipe(String(parts.day), Str.padStart(2, '0'))
   return `${String(parts.year)}-${month}-${day}`
 }
 
@@ -84,7 +98,12 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
       return {
         date: getApiDateGroupLabel(
           dateKey,
-          Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
+          pipe(
+            Option.fromNullable(
+              Intl.DateTimeFormat().resolvedOptions().timeZone
+            ),
+            Option.getOrElse(() => 'UTC')
+          )
         ),
         dateKey,
         events: sortedEvents,
@@ -139,7 +158,11 @@ export function useCareHistory({
   )
 
   // Transform data to grouped format
-  const groupedData = query.data ? groupByDate(query.data.items) : undefined
+  const groupedData = pipe(
+    Option.fromNullable(query.data),
+    Option.map((d) => groupByDate(d.items)),
+    Option.getOrUndefined
+  )
 
   return {
     ...query,

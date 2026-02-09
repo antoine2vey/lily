@@ -1,8 +1,8 @@
 import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, DateTime, pipe } from 'effect'
-import { apiEffectRunner } from '@/utils/client'
-import { queryKeys } from '@/utils/query-keys'
+import { Array, DateTime, Match, pipe } from 'effect'
+import { apiEffectRunner } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 
 type AppCareType = 'water' | 'fertilize'
 type BackendCareType = 'watering' | 'fertilization'
@@ -20,7 +20,12 @@ interface SaveCareLogInput {
  * Map app care type to backend care type
  */
 const mapAppTypeToBackend = (type: AppCareType): BackendCareType =>
-  type === 'water' ? 'watering' : 'fertilization'
+  pipe(
+    Match.value(type),
+    Match.when('water', () => 'watering' as const),
+    Match.when('fertilize', () => 'fertilization' as const),
+    Match.exhaustive
+  )
 
 /**
  * Combine date and time into a single Date object

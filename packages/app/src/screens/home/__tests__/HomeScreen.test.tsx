@@ -24,8 +24,8 @@ jest.mock('@/hooks/useWaterAll', () => ({
   })),
 }))
 
-import { useAuth } from '@/contexts/AuthContext'
-import { useEffectQuery } from '@/utils/client'
+import { useAuth } from 'src/contexts/AuthContext'
+import { useEffectQuery } from 'src/utils/client'
 import { HomeScreen } from '../HomeScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

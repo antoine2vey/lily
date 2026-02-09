@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, Match, Option, pipe } from 'effect'
+import { now } from '@lily/shared'
+import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -17,10 +18,10 @@ import { useRecentActivities } from 'src/hooks/useRecentActivities'
 import { useUser } from 'src/hooks/useUser'
 import { useWaterAll } from 'src/hooks/useWaterAll'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
+import { HydrationCard } from 'src/screens/home/components/HydrationCard'
+import { RecentActivity } from 'src/screens/home/components/RecentActivity'
+import { StatsRow } from 'src/screens/home/components/StatsRow'
 import { useEffectQuery } from 'src/utils/client'
-import { HydrationCard } from './components/HydrationCard'
-import { RecentActivity } from './components/RecentActivity'
-import { StatsRow } from './components/StatsRow'
 
 function HomeContentSkeleton() {
   return (
@@ -36,7 +37,7 @@ function HomeContentSkeleton() {
             <SkeletonCircle size={40} />
           </View>
           <View className="flex-row items-start gap-5 mb-7">
-            {[1, 2, 3].map((i) => (
+            {Array.map([1, 2, 3], (i) => (
               <View key={i} className="items-center gap-2">
                 <SkeletonCircle size={72} />
                 <SkeletonBox width={48} height={12} rounded="sm" />
@@ -50,7 +51,7 @@ function HomeContentSkeleton() {
       {/* Stats Row */}
       <View className="mb-8">
         <View className="flex-row gap-3">
-          {[1, 2, 3].map((i) => (
+          {Array.map([1, 2, 3], (i) => (
             <View
               key={i}
               className="flex-1 bg-white dark:bg-surface-dark rounded-[20px] py-4 px-2 items-center border border-slate-100 dark:border-slate-700"
@@ -73,7 +74,7 @@ function HomeContentSkeleton() {
         <SkeletonBox width={50} height={14} rounded="sm" />
       </View>
       <View className="gap-3">
-        {[1, 2, 3].map((i) => (
+        {Array.map([1, 2, 3], (i) => (
           <View
             key={i}
             className="flex-row items-center bg-white dark:bg-surface-dark rounded-[20px] p-4 gap-4"
@@ -127,15 +128,18 @@ export function HomeScreen() {
 
   const userName = pipe(
     Match.value(state),
-    Match.when(
-      { _tag: 'Authenticated' },
-      ({ user }) => user.username ?? user.name ?? null
+    Match.when({ _tag: 'Authenticated' }, ({ user }) =>
+      pipe(
+        Option.fromNullable(user.username),
+        Option.orElse(() => Option.fromNullable(user.name)),
+        Option.getOrNull
+      )
     ),
     Match.orElse(() => null)
   )
 
   const getGreeting = (): string => {
-    const hour = new Date().getHours()
+    const hour = DateTime.toParts(now()).hours
     if (hour < 12) return t('home:greeting.morning')
     if (hour < 18) return t('home:greeting.afternoon')
     return t('home:greeting.evening')
@@ -144,21 +148,27 @@ export function HomeScreen() {
   const { data: userSettings } = useUser()
   const userAvatar = userSettings?.image
 
-  const plantList = plants?.items ?? []
-  const hasPlants = plantList.length > 0
+  const plantList = Option.getOrElse(
+    Option.fromNullable(plants?.items),
+    () => [] as NonNullable<typeof plants>['items']
+  )
+  const hasPlants = !Array.isEmptyReadonlyArray(plantList)
 
   const healthyCount = pipe(
     plantList,
     Array.filter((p) => p.health === 'HEALTHY' || p.health === 'THRIVING'),
-    (arr) => arr.length
+    Array.length
   )
   const attentionCount = pipe(
     plantList,
     Array.filter((p) => p.health === 'NEEDS_ATTENTION' || p.health === 'SICK'),
-    (arr) => arr.length
+    Array.length
   )
 
-  const overduePlantList = overduePlantsData?.items ?? []
+  const overduePlantList = Option.getOrElse(
+    Option.fromNullable(overduePlantsData?.items),
+    () => [] as NonNullable<typeof overduePlantsData>['items']
+  )
   const allOverduePlantIds = Array.map(overduePlantList, (p) => p.id)
 
   const plantsNeedingWater = pipe(
@@ -167,7 +177,7 @@ export function HomeScreen() {
     Array.map((plant) => ({
       id: plant.id,
       name: plant.name,
-      imageUrl: plant.imageUrl ?? undefined,
+      imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
     }))
   )
 
@@ -176,7 +186,7 @@ export function HomeScreen() {
   }
 
   const handleWaterAll = () => {
-    if (allOverduePlantIds.length > 0) {
+    if (!Array.isEmptyReadonlyArray(allOverduePlantIds)) {
       waterAll({ payload: { plantIds: allOverduePlantIds } })
     }
   }
@@ -187,7 +197,13 @@ export function HomeScreen() {
 
   const handleActivityPress = (activityId: string) => {
     const activity = pipe(
-      Array.findFirst(recentActivities ?? [], (a) => a.id === activityId)
+      Array.findFirst(
+        Option.getOrElse(
+          Option.fromNullable(recentActivities),
+          () => [] as NonNullable<typeof recentActivities>
+        ),
+        (a) => a.id === activityId
+      )
     )
     pipe(
       activity,
@@ -227,14 +243,19 @@ export function HomeScreen() {
                 <View className="flex-1">
                   <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
                     {getGreeting()},{'\n'}
-                    {userName ?? t('home:greeting.defaultName')} ☀️
+                    {Option.getOrElse(Option.fromNullable(userName), () =>
+                      t('home:greeting.defaultName')
+                    )}{' '}
+                    ☀️
                   </Text>
                 </View>
                 <View className="flex-row items-center gap-3">
                   <Pressable onPress={() => router.push('/settings')}>
                     <Avatar
                       source={userAvatar ? { uri: userAvatar } : undefined}
-                      name={userName ?? undefined}
+                      name={Option.getOrUndefined(
+                        Option.fromNullable(userName)
+                      )}
                       size="md"
                     />
                   </Pressable>
@@ -270,7 +291,7 @@ export function HomeScreen() {
                   }
                   className="pb-6"
                 >
-                  {plantsNeedingWater.length > 0 && (
+                  {!Array.isEmptyReadonlyArray(plantsNeedingWater) && (
                     <View className="mb-8 mt-2">
                       <HydrationCard
                         plants={plantsNeedingWater}
@@ -283,7 +304,7 @@ export function HomeScreen() {
 
                   <View className="mb-8">
                     <StatsRow
-                      total={plantList.length}
+                      total={Array.length(plantList)}
                       healthy={healthyCount}
                       attention={attentionCount}
                     />

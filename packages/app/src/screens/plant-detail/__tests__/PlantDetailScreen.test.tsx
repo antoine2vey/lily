@@ -65,7 +65,7 @@ jest.mock('@/hooks/useUpdatePlant', () => ({
   }),
 }))
 
-import { useEffectQuery } from '@/utils/client'
+import { useEffectQuery } from 'src/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

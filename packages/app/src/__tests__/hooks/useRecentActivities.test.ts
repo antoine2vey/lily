@@ -12,7 +12,7 @@ jest.mock('@/utils/client', () => ({
 }))
 
 import { useRecentActivities } from 'src/hooks/useRecentActivities'
-import { useEffectQuery } from '@/utils/client'
+import { useEffectQuery } from 'src/utils/client'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
 

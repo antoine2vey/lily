@@ -1,6 +1,6 @@
 import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
-import { createFileFromUri, uploadMultipart } from '@/utils/upload'
+import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
 interface PlantAlternative {
   name: string | null

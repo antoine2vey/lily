@@ -17,8 +17,8 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-import { useTheme } from '@/hooks/useTheme'
-import { useUser } from '@/hooks/useUser'
+import { useTheme } from 'src/hooks/useTheme'
+import { useUser } from 'src/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
 const mockedUseUser = useUser as jest.Mock

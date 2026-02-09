@@ -40,7 +40,10 @@ export function useSubscriptionUsage() {
           Option.map((u) => u.aiChatsCount),
           Option.getOrElse(() => 0)
         ),
-        max: tierConfig.maxAiChatsMonthly ?? Infinity,
+        max: pipe(
+          Option.fromNullable(tierConfig.maxAiChatsMonthly),
+          Option.getOrElse(() => Infinity)
+        ),
       },
       {
         type: 'plant_ids',
@@ -49,7 +52,10 @@ export function useSubscriptionUsage() {
           Option.map((u) => u.plantIdentifiesCount),
           Option.getOrElse(() => 0)
         ),
-        max: tierConfig.maxPlantIdentifiesMonthly ?? Infinity,
+        max: pipe(
+          Option.fromNullable(tierConfig.maxPlantIdentifiesMonthly),
+          Option.getOrElse(() => Infinity)
+        ),
       },
       {
         type: 'card_scans',
@@ -58,7 +64,10 @@ export function useSubscriptionUsage() {
           Option.map((u) => u.cardScansCount),
           Option.getOrElse(() => 0)
         ),
-        max: tierConfig.maxCardScansMonthly ?? Infinity,
+        max: pipe(
+          Option.fromNullable(tierConfig.maxCardScansMonthly),
+          Option.getOrElse(() => Infinity)
+        ),
       },
     ]
 

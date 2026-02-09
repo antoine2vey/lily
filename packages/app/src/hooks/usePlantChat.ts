@@ -43,19 +43,24 @@ const extractLastUserMessage = (body: string | undefined): string =>
     Option.getOrElse(() => '')
   )
 
-const getUrl = (input: RequestInfo | URL): string =>
-  typeof input === 'string'
-    ? input
-    : input instanceof Request
-      ? input.url
-      : input.toString()
+const getUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') return input
+  if (input instanceof Request) return input.url
+  return input.toString()
+}
 
 const buildAuthHeaders = async (): Promise<Record<string, string>> => {
   const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
+  return pipe(
+    Option.fromNullable(token),
+    Option.match({
+      onNone: () => ({ 'Content-Type': 'application/json' }),
+      onSome: (t) => ({
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${t}`,
+      }),
+    })
+  )
 }
 
 export function usePlantChat({

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
@@ -46,7 +46,9 @@ export function CategoryPicker({
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const [isOpen, setIsOpen] = useState(false)
-  const displayLabel = label ?? t('basicInfo.categoryLabel')
+  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+    t('basicInfo.categoryLabel')
+  )
 
   const selectedCategory = pipe(
     CATEGORIES,

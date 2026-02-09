@@ -3,11 +3,15 @@ import { mockPlants } from 'src/__tests__/fixtures/plants'
 import { mockIsoString } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
-jest.mock('@/utils/client', () => ({
+jest.mock('src/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-import { useEffectQuery } from '@/utils/client'
+jest.mock('src/hooks/useDelayedLoading', () => ({
+  useDelayedLoading: (isLoading: boolean) => isLoading,
+}))
+
+import { useEffectQuery } from 'src/utils/client'
 import { PlantsScreen } from '../PlantsScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

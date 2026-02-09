@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,8 +17,8 @@ import { EmptyState } from 'src/components/EmptyState'
 import { useCareHistory } from 'src/hooks/useCareHistory'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlant } from 'src/hooks/usePlant'
+import { Timeline } from 'src/screens/care-history/components/Timeline'
 import { LogCareSheet } from 'src/screens/log-care/LogCareSheet'
-import { Timeline } from './components/Timeline'
 
 type CareEventType = 'water' | 'fertilize'
 
@@ -32,7 +32,10 @@ export function CareHistoryScreen() {
       { type: 'fertilize', label: t('history.fertilize') },
     ]
   const params = useLocalSearchParams<{ plantId?: string }>()
-  const plantId = params.plantId ?? ''
+  const plantId = Option.getOrElse(
+    Option.fromNullable(params.plantId),
+    () => ''
+  )
   const insets = useSafeAreaInsets()
 
   const { data: plant } = usePlant(plantId)
@@ -61,7 +64,10 @@ export function CareHistoryScreen() {
     selectedFilter === 'all'
       ? history
       : pipe(
-          history ?? [],
+          Option.getOrElse(
+            Option.fromNullable(history),
+            () => [] as NonNullable<typeof history>
+          ),
           Array.map((group) => ({
             ...group,
             events: pipe(
@@ -69,7 +75,7 @@ export function CareHistoryScreen() {
               Array.filter((event) => event.type === selectedFilter)
             ),
           })),
-          Array.filter((group) => group.events.length > 0)
+          Array.filter((group) => !Array.isEmptyReadonlyArray(group.events))
         )
 
   if (isLoading && !history) {
@@ -144,7 +150,7 @@ export function CareHistoryScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24 }}
       >
-        {!filteredHistory || filteredHistory.length === 0 ? (
+        {!filteredHistory || Array.isEmptyReadonlyArray(filteredHistory) ? (
           <EmptyState
             illustration="notification"
             title={t('history.empty.title')}

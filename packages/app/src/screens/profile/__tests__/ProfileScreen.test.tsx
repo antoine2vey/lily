@@ -24,11 +24,11 @@ jest.mock('@/hooks/useAchievements', () => ({
   useAchievements: jest.fn(),
 }))
 
-import { useAuth } from '@/contexts/AuthContext'
-import { useAchievements } from '@/hooks/useAchievements'
-import { usePlants } from '@/hooks/usePlants'
-import { useSubscription } from '@/hooks/useSubscription'
-import { useUser } from '@/hooks/useUser'
+import { useAuth } from 'src/contexts/AuthContext'
+import { useAchievements } from 'src/hooks/useAchievements'
+import { usePlants } from 'src/hooks/usePlants'
+import { useSubscription } from 'src/hooks/useSubscription'
+import { useUser } from 'src/hooks/useUser'
 import { ProfileScreen } from '../ProfileScreen'
 
 const mockedUseAuth = useAuth as jest.Mock

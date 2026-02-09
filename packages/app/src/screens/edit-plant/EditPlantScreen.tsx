@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Option } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
@@ -23,8 +24,8 @@ import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlant } from 'src/hooks/usePlant'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
-import { CategoryPicker } from '../add-plant/components/CategoryPicker'
-import { FrequencyPicker } from '../add-plant/components/FrequencyPicker'
+import { CategoryPicker } from 'src/screens/add-plant/components/CategoryPicker'
+import { FrequencyPicker } from 'src/screens/add-plant/components/FrequencyPicker'
 
 function LoadingScreen({
   iconColors,
@@ -41,7 +42,10 @@ function LoadingScreen({
 export function EditPlantScreen() {
   const { t } = useTranslation(['plantDetail', 'common', 'addPlant'])
   const params = useLocalSearchParams<{ plantId?: string }>()
-  const plantId = params.plantId ?? ''
+  const plantId = Option.getOrElse(
+    Option.fromNullable(params.plantId),
+    () => ''
+  )
   const iconColors = useIconColors()
 
   const { data: plant, isLoading } = usePlant(plantId)
@@ -66,16 +70,28 @@ export function EditPlantScreen() {
   // Initialize form with plant data
   useEffect(() => {
     if (plant) {
-      setPhoto(plant.imageUrl ?? undefined)
+      setPhoto(Option.getOrUndefined(Option.fromNullable(plant.imageUrl)))
       setName(plant.name)
-      setCategory(plant.category ?? '')
-      setDescription(plant.description ?? '')
-      setWatering(plant.wateringRating ?? 50)
-      setLight(plant.lightingRating ?? 50)
-      setHumidity(plant.humidityRating ?? 50)
+      setCategory(
+        Option.getOrElse(Option.fromNullable(plant.category), () => '')
+      )
+      setDescription(
+        Option.getOrElse(Option.fromNullable(plant.description), () => '')
+      )
+      setWatering(
+        Option.getOrElse(Option.fromNullable(plant.wateringRating), () => 50)
+      )
+      setLight(
+        Option.getOrElse(Option.fromNullable(plant.lightingRating), () => 50)
+      )
+      setHumidity(
+        Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50)
+      )
       setPetSafe(plant.petToxicityRating === 0)
       setWateringFrequencyDays(plant.wateringFrequencyDays)
-      setFertilizationFrequencyDays(plant.fertilizationFrequencyDays ?? null)
+      setFertilizationFrequencyDays(
+        Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays))
+      )
       setFertilizationEnabled(plant.fertilizationFrequencyDays != null)
     }
   }, [plant])
@@ -112,7 +128,9 @@ export function EditPlantScreen() {
             ? fertilizationFrequencyDays
             : null,
           imageUrl:
-            photo !== plant.imageUrl ? photo : (plant.imageUrl ?? undefined),
+            photo !== plant.imageUrl
+              ? photo
+              : Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
         },
       },
       {
@@ -141,16 +159,21 @@ export function EditPlantScreen() {
 
   const hasChanges =
     name !== plant.name ||
-    category !== (plant.category ?? '') ||
-    description !== (plant.description ?? '') ||
-    watering !== (plant.wateringRating ?? 50) ||
-    light !== (plant.lightingRating ?? 50) ||
-    humidity !== (plant.humidityRating ?? 50) ||
+    category !==
+      Option.getOrElse(Option.fromNullable(plant.category), () => '') ||
+    description !==
+      Option.getOrElse(Option.fromNullable(plant.description), () => '') ||
+    watering !==
+      Option.getOrElse(Option.fromNullable(plant.wateringRating), () => 50) ||
+    light !==
+      Option.getOrElse(Option.fromNullable(plant.lightingRating), () => 50) ||
+    humidity !==
+      Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50) ||
     petSafe !== (plant.petToxicityRating === 0) ||
-    photo !== (plant.imageUrl ?? undefined) ||
+    photo !== Option.getOrUndefined(Option.fromNullable(plant.imageUrl)) ||
     wateringFrequencyDays !== plant.wateringFrequencyDays ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
-      (plant.fertilizationFrequencyDays ?? null)
+      Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays))
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
