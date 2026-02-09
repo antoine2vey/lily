@@ -171,9 +171,8 @@ describe('adjustForDoNotDisturb', () => {
         adjustForDoNotDisturb(scheduledAt, 'America/New_York', '22:00', '07:00')
       )
 
-      // DateTime.toDate returns local time values (consistent with calculateScheduledAt)
-      // 07:00 ET local time → getUTCHours() === 7
-      expect(result.getUTCHours()).toBe(7)
+      // 07:00 ET (EDT = UTC-4) → 11:00 UTC
+      expect(result.getUTCHours()).toBe(11)
       expect(result.getUTCMinutes()).toBe(0)
     })
 
@@ -186,9 +185,8 @@ describe('adjustForDoNotDisturb', () => {
         adjustForDoNotDisturb(scheduledAt, 'Asia/Tokyo', '22:00', '07:00')
       )
 
-      // DateTime.toDate returns local time values (consistent with calculateScheduledAt)
-      // 07:00 JST local time → getUTCHours() === 7
-      expect(result.getUTCHours()).toBe(7)
+      // 07:00 JST (UTC+9) → 22:00 UTC (previous day)
+      expect(result.getUTCHours()).toBe(22)
       expect(result.getUTCMinutes()).toBe(0)
     })
 
