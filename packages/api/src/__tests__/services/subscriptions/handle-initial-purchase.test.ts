@@ -130,7 +130,8 @@ describe('handleInitialPurchase', () => {
       )
 
       expect(onCreate).toHaveBeenCalledOnce()
-      const createData: CreateSubscriptionData = onCreate.mock.calls[0]?.[0] as CreateSubscriptionData
+      const createData: CreateSubscriptionData = onCreate.mock
+        .calls[0]?.[0] as CreateSubscriptionData
       expect(createData.status).toBe('trialing')
       expect(createData.trialStartsAt).toEqual(new Date('2024-01-01'))
       expect(createData.trialEndsAt).toEqual(new Date('2024-01-08'))
@@ -148,7 +149,8 @@ describe('handleInitialPurchase', () => {
       )
 
       expect(onCreate).toHaveBeenCalledOnce()
-      const createData: CreateSubscriptionData = onCreate.mock.calls[0]?.[0] as CreateSubscriptionData
+      const createData: CreateSubscriptionData = onCreate.mock
+        .calls[0]?.[0] as CreateSubscriptionData
       expect(createData.status).toBe('active')
       expect(createData.trialStartsAt).toBeNull()
       expect(createData.trialEndsAt).toBeNull()
@@ -174,7 +176,8 @@ describe('handleInitialPurchase', () => {
         )
       )
 
-      const createData: CreateSubscriptionData = onCreate.mock.calls[0]?.[0] as CreateSubscriptionData
+      const createData: CreateSubscriptionData = onCreate.mock
+        .calls[0]?.[0] as CreateSubscriptionData
       expect(createData.trialStartsAt).toEqual(createData.currentPeriodStart)
       expect(createData.trialEndsAt).toEqual(createData.currentPeriodEnd)
     })

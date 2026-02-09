@@ -195,7 +195,9 @@ export function SubscriptionPayScreen() {
               monthlyPrice={monthlyPrice}
               annualPrice={annualPrice}
               savingsPercent={33}
-              trialText={hasFreeTrial ? t('trial.badge', { days: trialDays }) : undefined}
+              trialText={
+                hasFreeTrial ? t('trial.badge', { days: trialDays }) : undefined
+              }
             />
           </View>
 
