@@ -1,13 +1,15 @@
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
+import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
 import { handleBillingIssue } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-billing-issue'
 import { handleCancellation } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-cancellation'
 import { handleExpiration } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-expiration'
+import { handleInitialPurchase } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-initial-purchase'
 import { handleProductChange } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-product-change'
 import { handleRenewal } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-renewal'
 import { handleUncancellation } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-uncancellation'
 import type { WebhookEventContext } from '@lily/api/services/subscriptions/endpoints/webhook/helpers'
 import { Effect } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 // Shared test fixtures
 const baseEventContext: WebhookEventContext = {
@@ -333,6 +335,135 @@ describe('Webhook Handlers', () => {
       )
 
       expect(result._tag).toBe('Success')
+    })
+  })
+
+  describe('Trial lifecycle', () => {
+    it('should create trialing subscription on INITIAL_PURCHASE with TRIAL period_type', async () => {
+      const onCreate = vi.fn()
+      const ctx: WebhookEventContext = {
+        ...baseEventContext,
+        status: 'trialing',
+        purchasedAt: new Date('2024-01-01'),
+        expiresAt: new Date('2024-01-08'),
+        eventData: {
+          ...baseEventContext.eventData,
+          type: 'INITIAL_PURCHASE',
+          period_type: 'TRIAL',
+        },
+      }
+
+      const result = await Effect.runPromiseExit(
+        handleInitialPurchase(ctx).pipe(
+          Effect.provide(createMockSubscriptionRepository({ onCreate }))
+        )
+      )
+
+      expect(result._tag).toBe('Success')
+      expect(onCreate).toHaveBeenCalledOnce()
+      const data = onCreate.mock.calls[0]?.[0] as CreateSubscriptionData
+      expect(data.status).toBe('trialing')
+      expect(data.trialStartsAt).toEqual(new Date('2024-01-01'))
+      expect(data.trialEndsAt).toEqual(new Date('2024-01-08'))
+    })
+
+    it('should cancel trialing subscription and retain currentPeriodEnd', async () => {
+      const trialingSub = {
+        ...mockSubscription,
+        status: 'trialing' as const,
+        trialStartsAt: new Date('2024-01-01'),
+        trialEndsAt: new Date('2024-01-08'),
+        currentPeriodEnd: new Date('2024-01-08'),
+      }
+
+      const ctx: WebhookEventContext = {
+        ...baseEventContext,
+        status: 'canceled',
+        eventData: {
+          ...baseEventContext.eventData,
+          type: 'CANCELLATION',
+          cancel_reason: 'UNSUBSCRIBE',
+        },
+      }
+
+      const result = await Effect.runPromiseExit(
+        handleCancellation(ctx).pipe(
+          Effect.provide(
+            createMockSubscriptionRepository({ subscription: trialingSub })
+          )
+        )
+      )
+
+      expect(result._tag).toBe('Success')
+    })
+
+    it('should expire trial on EXPIRATION event', async () => {
+      const trialingSub = {
+        ...mockSubscription,
+        status: 'trialing' as const,
+        trialStartsAt: new Date('2024-01-01'),
+        trialEndsAt: new Date('2024-01-08'),
+      }
+
+      const ctx: WebhookEventContext = {
+        ...baseEventContext,
+        status: 'expired',
+        eventData: {
+          ...baseEventContext.eventData,
+          type: 'EXPIRATION',
+        },
+      }
+
+      const result = await Effect.runPromiseExit(
+        handleExpiration(ctx).pipe(
+          Effect.provide(
+            createMockSubscriptionRepository({ subscription: trialingSub })
+          )
+        )
+      )
+
+      expect(result._tag).toBe('Success')
+    })
+
+    it('should renew after trial and clear trial dates', async () => {
+      const onUpdateByUserId = vi.fn()
+      const trialingSub = {
+        ...mockSubscription,
+        status: 'trialing' as const,
+        trialStartsAt: new Date('2024-01-01'),
+        trialEndsAt: new Date('2024-01-08'),
+      }
+
+      const ctx: WebhookEventContext = {
+        ...baseEventContext,
+        status: 'active',
+        purchasedAt: new Date('2024-01-08'),
+        expiresAt: new Date('2024-02-08'),
+        eventData: {
+          ...baseEventContext.eventData,
+          type: 'RENEWAL',
+        },
+      }
+
+      const result = await Effect.runPromiseExit(
+        handleRenewal(ctx).pipe(
+          Effect.provide(
+            createMockSubscriptionRepository({
+              subscription: trialingSub,
+              onUpdateByUserId,
+            })
+          )
+        )
+      )
+
+      expect(result._tag).toBe('Success')
+      expect(onUpdateByUserId).toHaveBeenCalledOnce()
+      const updateData = onUpdateByUserId.mock.calls[0]?.[1]
+      expect(updateData.status).toBe('active')
+      expect(updateData.trialStartsAt).toBeNull()
+      expect(updateData.trialEndsAt).toBeNull()
+      expect(updateData.currentPeriodStart).toEqual(new Date('2024-01-08'))
+      expect(updateData.currentPeriodEnd).toEqual(new Date('2024-02-08'))
     })
   })
 })

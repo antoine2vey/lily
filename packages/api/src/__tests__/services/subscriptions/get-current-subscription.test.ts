@@ -2,8 +2,14 @@ import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { SubscriptionService } from '@lily/api/services/subscriptions/service'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db'
-import { Effect, Layer } from 'effect'
+import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// Helpers to create dates relative to now using DateTime
+const now = DateTime.unsafeNow()
+const dateFromNow = (parts: Partial<DateTime.DateTime.PartsForMath>): Date =>
+  DateTime.toDateUtc(DateTime.add(now, parts))
+const nowAsDate = (): Date => DateTime.toDateUtc(now)
 
 describe('getCurrentSubscription', () => {
   it('should return null subscription for user without subscription', async () => {
@@ -74,10 +80,10 @@ describe('getCurrentSubscription', () => {
       userId: 'user-1',
       tier: 'paid',
       status: 'trialing',
-      trialStartsAt: new Date(),
-      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(),
+      trialStartsAt: nowAsDate(),
+      trialEndsAt: dateFromNow({ days: 7 }),
+      currentPeriodStart: nowAsDate(),
+      currentPeriodEnd: nowAsDate(),
       externalSubscriptionId: 'rc_sub_123',
       externalCustomerId: 'rc_user_123',
       provider: 'revenuecat',
@@ -200,5 +206,163 @@ describe('getCurrentSubscription', () => {
     )
 
     expect(result.usage).toBeNull()
+  })
+
+  it('should return paid tier config for canceled user within billing period', async () => {
+    const subscription: typeof userSubscriptions.$inferSelect = {
+      id: 'sub-1',
+      userId: 'user-1',
+      tier: 'paid',
+      status: 'canceled',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      currentPeriodStart: nowAsDate(),
+      currentPeriodEnd: dateFromNow({ days: 7 }),
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
+      canceledAt: nowAsDate(),
+      createdAt: nowAsDate(),
+      updatedAt: nowAsDate(),
+    }
+
+    const testLayer = Layer.mergeAll(
+      createMockSubscriptionRepository({ subscription, tier: 'paid' }),
+      MockRevenueCatProviderLive
+    )
+
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* SubscriptionService
+        return yield* service.getCurrentSubscription('user-1')
+      }).pipe(
+        Effect.provide(SubscriptionService.Default),
+        Effect.provide(testLayer)
+      )
+    )
+
+    expect(result.subscription?.status).toBe('canceled')
+    expect(result.tierConfig.tier).toBe('paid')
+  })
+
+  it('should return free tier config for canceled user past billing period', async () => {
+    const subscription: typeof userSubscriptions.$inferSelect = {
+      id: 'sub-1',
+      userId: 'user-1',
+      tier: 'paid',
+      status: 'canceled',
+      trialStartsAt: null,
+      trialEndsAt: null,
+      currentPeriodStart: dateFromNow({ days: -30 }),
+      currentPeriodEnd: dateFromNow({ days: -1 }),
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
+      canceledAt: dateFromNow({ days: -15 }),
+      createdAt: nowAsDate(),
+      updatedAt: nowAsDate(),
+    }
+
+    const testLayer = Layer.mergeAll(
+      createMockSubscriptionRepository({ subscription, tier: 'free' }),
+      MockRevenueCatProviderLive
+    )
+
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* SubscriptionService
+        return yield* service.getCurrentSubscription('user-1')
+      }).pipe(
+        Effect.provide(SubscriptionService.Default),
+        Effect.provide(testLayer)
+      )
+    )
+
+    expect(result.subscription?.status).toBe('canceled')
+    expect(result.tierConfig.tier).toBe('free')
+  })
+
+  it('should return paid tier config for trialing user with valid period', async () => {
+    const subscription: typeof userSubscriptions.$inferSelect = {
+      id: 'sub-1',
+      userId: 'user-1',
+      tier: 'paid',
+      status: 'trialing',
+      trialStartsAt: nowAsDate(),
+      trialEndsAt: dateFromNow({ days: 7 }),
+      currentPeriodStart: nowAsDate(),
+      currentPeriodEnd: dateFromNow({ days: 7 }),
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
+      canceledAt: null,
+      createdAt: nowAsDate(),
+      updatedAt: nowAsDate(),
+    }
+
+    const testLayer = Layer.mergeAll(
+      createMockSubscriptionRepository({ subscription, tier: 'paid' }),
+      MockRevenueCatProviderLive
+    )
+
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* SubscriptionService
+        return yield* service.getCurrentSubscription('user-1')
+      }).pipe(
+        Effect.provide(SubscriptionService.Default),
+        Effect.provide(testLayer)
+      )
+    )
+
+    expect(result.subscription?.status).toBe('trialing')
+    expect(result.tierConfig.tier).toBe('paid')
+    expect(result.tierConfig.maxPlants).toBeNull()
+  })
+
+  it('should return free tier config for trialing user with expired period', async () => {
+    const subscription: typeof userSubscriptions.$inferSelect = {
+      id: 'sub-1',
+      userId: 'user-1',
+      tier: 'paid',
+      status: 'trialing',
+      trialStartsAt: dateFromNow({ days: -8 }),
+      trialEndsAt: dateFromNow({ days: -1 }),
+      currentPeriodStart: dateFromNow({ days: -8 }),
+      currentPeriodEnd: dateFromNow({ days: -1 }),
+      externalSubscriptionId: 'rc_sub_123',
+      externalCustomerId: 'rc_user_123',
+      provider: 'revenuecat',
+      productId: 'lily_monthly',
+      store: 'APP_STORE',
+      canceledAt: null,
+      createdAt: nowAsDate(),
+      updatedAt: nowAsDate(),
+    }
+
+    const testLayer = Layer.mergeAll(
+      createMockSubscriptionRepository({ subscription, tier: 'free' }),
+      MockRevenueCatProviderLive
+    )
+
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* SubscriptionService
+        return yield* service.getCurrentSubscription('user-1')
+      }).pipe(
+        Effect.provide(SubscriptionService.Default),
+        Effect.provide(testLayer)
+      )
+    )
+
+    expect(result.subscription?.status).toBe('trialing')
+    expect(result.tierConfig.tier).toBe('free')
+    expect(result.tierConfig.maxPlants).toBe(5)
   })
 })

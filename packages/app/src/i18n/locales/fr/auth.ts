@@ -68,6 +68,7 @@ export default {
     notAvailable: "Ce nom d'utilisateur n'est pas disponible",
     tooShort: 'Doit contenir au moins {min} caractères',
     invalidChars: 'Uniquement lettres, chiffres et underscores',
+    checkFailed: 'Impossible de vérifier la disponibilité, réessayez',
     continueButton: 'Continuer',
     skipForNow: 'Passer pour le moment',
   },

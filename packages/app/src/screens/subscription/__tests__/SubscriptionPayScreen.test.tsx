@@ -76,7 +76,7 @@ describe('SubscriptionPayScreen', () => {
   it('shows annual price by default', () => {
     render(<SubscriptionPayScreen />)
 
-    expect(screen.getByText('Subscribe for $39.99/year')).toBeTruthy()
+    expect(screen.getByText('Subscribe for $39.99/yr (billed annually)')).toBeTruthy()
   })
 
   it('shows monthly price when toggled', () => {
@@ -84,7 +84,7 @@ describe('SubscriptionPayScreen', () => {
 
     fireEvent.press(screen.getByText('Monthly'))
 
-    expect(screen.getByText('Subscribe for $4.99/month')).toBeTruthy()
+    expect(screen.getByText('Subscribe for $4.99/mo')).toBeTruthy()
   })
 
   it('displays terms text', () => {

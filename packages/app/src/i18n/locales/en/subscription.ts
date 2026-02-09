@@ -32,6 +32,11 @@ export default {
     cancelSubscription: 'Cancel Subscription',
   },
   billing: 'Recurring billing, cancel anytime.',
+  trial: {
+    badge: '{days} days free',
+    startTrial: 'Start Free Trial',
+    billingInfo: 'Free for {days} days, then {price}',
+  },
   badges: {
     secure: 'Secure',
     topRated: 'Top Rated',

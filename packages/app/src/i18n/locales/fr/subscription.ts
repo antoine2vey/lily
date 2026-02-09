@@ -33,6 +33,11 @@ export default {
     cancelSubscription: "Annuler l'abonnement",
   },
   billing: 'Facturation récurrente, annulez à tout moment.',
+  trial: {
+    badge: '{days} jours gratuits',
+    startTrial: "Commencer l'essai gratuit",
+    billingInfo: 'Gratuit pendant {days} jours, puis {price}',
+  },
   badges: {
     secure: 'Sécurisé',
     topRated: 'Bien noté',
@@ -73,7 +78,7 @@ export default {
     monthly: 'Mensuel',
     annual: 'Annuel',
     perMonth: '/mois',
-    perYear: '/an (facturé annuellement)',
+    perYear: '/an',
     save: 'Économisez {percent}%',
   },
   cancel: {

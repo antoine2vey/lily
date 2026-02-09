@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Option, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -96,10 +96,32 @@ export function SubscriptionPayScreen() {
     Option.getOrElse(() => '€29.99')
   )
 
+  const introPrice = pipe(
+    Option.fromNullable(selectedPackage?.product.introPrice),
+    Option.filter((ip) => ip.price === 0),
+    Option.getOrUndefined
+  )
+
+  const hasFreeTrial = !!introPrice
+
+  const trialDays = pipe(
+    Option.fromNullable(introPrice),
+    Option.map((ip) =>
+      pipe(
+        Match.value(ip.periodUnit),
+        Match.when('WEEK', () => ip.periodNumberOfUnits * 7),
+        Match.when('MONTH', () => ip.periodNumberOfUnits * 30),
+        Match.when('YEAR', () => ip.periodNumberOfUnits * 365),
+        Match.orElse(() => ip.periodNumberOfUnits)
+      )
+    ),
+    Option.getOrElse(() => 7)
+  )
+
   const getPrice = () =>
     billingPeriod === 'monthly'
-      ? `${monthlyPrice}/month`
-      : `${annualPrice}/year`
+      ? `${monthlyPrice}${t('pricing.perMonth')}`
+      : `${annualPrice}${t('pricing.perYear')}`
 
   return (
     <SafeAreaView
@@ -142,6 +164,15 @@ export function SubscriptionPayScreen() {
               </Text>
             </View>
 
+            {/* Trial Badge */}
+            {hasFreeTrial && (
+              <View className="px-3 py-1 rounded-full bg-warning/10 border border-warning/20">
+                <Text className="text-xs font-bold text-warning">
+                  {t('trial.badge', { days: trialDays })}
+                </Text>
+              </View>
+            )}
+
             {/* Title */}
             <Text className="text-3xl text-center font-bold text-text-primary dark:text-white">
               {t('headline')}
@@ -164,6 +195,7 @@ export function SubscriptionPayScreen() {
               monthlyPrice={monthlyPrice}
               annualPrice={annualPrice}
               savingsPercent={33}
+              trialText={hasFreeTrial ? t('trial.badge', { days: trialDays }) : undefined}
             />
           </View>
 
@@ -177,13 +209,20 @@ export function SubscriptionPayScreen() {
               <Text className="text-lg font-bold text-white">
                 {isLoading
                   ? t('buttons.processing')
-                  : t('buttons.subscribe', { price: getPrice() })}
+                  : hasFreeTrial
+                    ? t('trial.startTrial')
+                    : t('buttons.subscribe', { price: getPrice() })}
               </Text>
             </Pressable>
 
             {/* Terms */}
             <Text className="text-xs text-center mt-3 font-medium text-text-muted dark:text-slate-400">
-              {t('billing')}
+              {hasFreeTrial
+                ? t('trial.billingInfo', {
+                    days: trialDays,
+                    price: getPrice(),
+                  })
+                : t('billing')}
             </Text>
           </View>
 

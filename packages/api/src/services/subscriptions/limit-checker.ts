@@ -1,18 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import type { userSubscriptions } from '@lily/db'
+import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import { LimitExceededError } from '@lily/shared'
-import {
-  Config,
-  Context,
-  DateTime,
-  Effect,
-  Layer,
-  Match,
-  Option,
-  pipe,
-} from 'effect'
+import { Config, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
@@ -47,25 +38,6 @@ const noopLimitChecker: ILimitChecker = {
 const DisableLimitsConfig = Config.boolean('DISABLE_LIMITS').pipe(
   Config.withDefault(false)
 )
-
-// Helper to determine if a subscription grants premium access
-const hasPremiumAccess = (
-  subscription: typeof userSubscriptions.$inferSelect
-): boolean => {
-  const periodEnd = DateTime.unsafeMake(subscription.currentPeriodEnd)
-  const now = DateTime.unsafeNow()
-  const isWithinBillingPeriod = DateTime.greaterThan(periodEnd, now)
-
-  return pipe(
-    Match.value(subscription.status),
-    Match.when('active', () => true),
-    Match.when('trialing', () => true),
-    Match.when('canceled', () => isWithinBillingPeriod),
-    Match.when('past_due', () => isWithinBillingPeriod),
-    Match.when('expired', () => false),
-    Match.exhaustive
-  )
-}
 
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,

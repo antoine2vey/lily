@@ -1,11 +1,12 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import type {
   SubscriptionInfo,
   SubscriptionStatus,
   SubscriptionTier,
 } from '@lily/shared'
-import { Effect, Option } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 export const getCurrentSubscription = (
   userId: string
@@ -16,12 +17,13 @@ export const getCurrentSubscription = (
     const subscription = yield* subRepo.findByUserId(userId)
     const usage = yield* subRepo.getCurrentUsage(userId)
 
-    // Get tier config based on effective tier
-    const effectiveTier: SubscriptionTier =
-      subscription &&
-      (subscription.status === 'active' || subscription.status === 'trialing')
-        ? (subscription.tier as SubscriptionTier)
-        : 'free'
+    // Get tier config based on effective tier (aligned with hasPremiumAccess logic)
+    const effectiveTier: SubscriptionTier = pipe(
+      Option.fromNullable(subscription),
+      Option.filter(hasPremiumAccess),
+      Option.map((sub) => sub.tier as SubscriptionTier),
+      Option.getOrElse(() => 'free' as SubscriptionTier)
+    )
 
     const tierConfig = yield* subRepo.getTier(effectiveTier)
 
