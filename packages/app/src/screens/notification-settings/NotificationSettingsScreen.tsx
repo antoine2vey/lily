@@ -13,6 +13,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -90,6 +91,8 @@ function getTimezoneLabel(timezone: string): string {
 
 export function NotificationSettingsScreen() {
   const { t, i18n } = useTranslation(['notifications', 'common'])
+  const colorScheme = useColorScheme()
+  const isDark = colorScheme === 'dark'
   const iconColors = useIconColors()
   const { data: settings, isLoading } = useNotificationSettings()
   const { mutate: updateSettings } = useUpdateNotificationSettings()
@@ -549,7 +552,7 @@ export function NotificationSettingsScreen() {
                 )}
                 mode="time"
                 display="spinner"
-                themeVariant="light"
+                themeVariant={isDark ? 'dark' : 'light'}
                 onChange={(_event: unknown, selectedTime: Date | undefined) => {
                   if (selectedTime) {
                     pipe(

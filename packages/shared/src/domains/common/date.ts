@@ -49,18 +49,14 @@ export const toIsoString = (dt: DateTime.DateTime): string =>
  * @param minutes - Minute (0-59)
  * @returns Native Date object for use with DateTimePicker
  */
-export const makeTimePickerDate = (hours: number, minutes: number): Date =>
-  DateTime.toDateUtc(
-    DateTime.unsafeMake({
-      year: 2024,
-      month: 1,
-      day: 1,
-      hours,
-      minutes,
-      seconds: 0,
-      millis: 0,
-    })
-  )
+export const makeTimePickerDate = (hours: number, minutes: number): Date => {
+  // DateTimePicker displays dates in device local time,
+  // so we create a Date where getHours()/getMinutes() return the desired values.
+  // Using native Date constructor for DateTimePicker interop.
+  const date = DateTime.toDateUtc(DateTime.unsafeNow())
+  date.setHours(hours, minutes, 0, 0)
+  return date
+}
 
 /**
  * Parse a DateTime and convert to native Date.
