@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array, Predicate, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -139,7 +139,7 @@ export function SubscriptionUsageScreen() {
         </View>
 
         {/* Cancel Subscription Button (Premium users only) */}
-        {data.isPremium && data.status === 'active' && (
+        {data.isPremium && Array.contains(['active', 'trialing'], data.status) && (
           <View className="mx-4 mt-6">
             <Pressable
               onPress={handleCancelSubscription}
