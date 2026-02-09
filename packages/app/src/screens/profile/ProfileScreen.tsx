@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from 'src/components/Badge'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useAuth } from 'src/contexts/AuthContext'
@@ -34,6 +34,7 @@ export function ProfileScreen() {
     useSubscription()
   const { data: achievements, isLoading: isLoadingAchievements } =
     useAchievements()
+  const insets = useSafeAreaInsets()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
@@ -45,11 +46,14 @@ export function ProfileScreen() {
 
   if (isLoading && !user && !plants) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
@@ -91,9 +95,9 @@ export function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
@@ -236,6 +240,6 @@ export function ProfileScreen() {
         onConfirm={handleSignOut}
         onCancel={() => setShowSignOutConfirm(false)}
       />
-    </SafeAreaView>
+    </View>
   )
 }

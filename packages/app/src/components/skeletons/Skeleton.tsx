@@ -1,11 +1,34 @@
-import { useEffect } from 'react'
-import { View } from 'react-native'
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated'
+import { type DimensionValue, useColorScheme } from 'react-native'
+import { ShimmerEffect } from '@/components/ui/shimmer/Shimmer'
+
+const ROUNDED_VALUES: Record<string, number> = {
+  none: 0,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  '2xl': 32,
+  full: 9999,
+}
+
+const LIGHT_SHIMMER_COLORS = [
+  'transparent',
+  'rgba(255,255,255,0.4)',
+  'rgba(255,255,255,0.7)',
+  'rgba(255,255,255,0.4)',
+  'transparent',
+]
+
+const DARK_SHIMMER_COLORS = [
+  'transparent',
+  'rgba(100,116,139,0.3)',
+  'rgba(148,163,184,0.4)',
+  'rgba(100,116,139,0.3)',
+  'transparent',
+]
+
+const LIGHT_BG = '#D1D5DB'
+const DARK_BG = '#334155'
 
 interface SkeletonProps {
   className?: string
@@ -15,16 +38,6 @@ interface SkeletonProps {
   children?: React.ReactNode
 }
 
-const roundedMap = {
-  none: '',
-  sm: 'rounded-sm',
-  md: 'rounded-md',
-  lg: 'rounded-lg',
-  xl: 'rounded-xl',
-  '2xl': 'rounded-2xl',
-  full: 'rounded-full',
-}
-
 export function Skeleton({
   className = '',
   width,
@@ -32,58 +45,24 @@ export function Skeleton({
   rounded = 'md',
   children,
 }: SkeletonProps) {
-  const opacity = useSharedValue(0.6)
-
-  useEffect(() => {
-    opacity.value = withRepeat(withTiming(1, { duration: 800 }), -1, true)
-  }, [opacity])
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }))
-
-  const style: Record<string, unknown> = {}
-  if (width !== undefined) style.width = width
-  if (height !== undefined) style.height = height
+  const colorScheme = useColorScheme()
+  const isDark = colorScheme === 'dark'
 
   return (
-    <Animated.View
-      style={[animatedStyle, style]}
-      className={`bg-gray-300 dark:bg-slate-700 ${roundedMap[rounded]} ${className}`}
+    <ShimmerEffect
+      isLoading
+      preset="custom"
+      shimmerColors={isDark ? DARK_SHIMMER_COLORS : LIGHT_SHIMMER_COLORS}
+      className={className}
+      style={{
+        width: width as DimensionValue,
+        height: height as DimensionValue,
+        borderRadius: ROUNDED_VALUES[rounded],
+        backgroundColor: isDark ? DARK_BG : LIGHT_BG,
+      }}
     >
       {children}
-    </Animated.View>
-  )
-}
-
-interface SkeletonTextProps {
-  lines?: number
-  lastLineWidth?: string
-  className?: string
-}
-
-const LINE_KEYS = ['line-a', 'line-b', 'line-c', 'line-d', 'line-e']
-
-export function SkeletonText({
-  lines = 1,
-  lastLineWidth = '75%',
-  className = '',
-}: SkeletonTextProps) {
-  return (
-    <View className={`gap-2 ${className}`}>
-      {LINE_KEYS.slice(0, lines).map((key, index) => {
-        const isLast = index === lines - 1 && lines > 1
-        return (
-          <Skeleton
-            key={key}
-            height={14}
-            rounded="sm"
-            className={isLast ? '' : 'w-full'}
-            width={isLast ? lastLineWidth : undefined}
-          />
-        )
-      })}
-    </View>
+    </ShimmerEffect>
   )
 }
 
