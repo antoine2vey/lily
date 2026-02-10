@@ -39,7 +39,7 @@ describe('AiService (mock)', () => {
       )
 
       expect(result.wateringFrequencyDays).toBe(7)
-      expect(result.sunlightPreference).toBe('medium')
+      expect(result.luxNeeded).toBe(2000)
       expect(result.category).toBe('Tropical')
     })
   })
@@ -180,7 +180,7 @@ describe('AiService (mock)', () => {
 
       expect(result.humidityRating).toBe(50)
       expect(result.petToxicityRating).toBe(20)
-      expect(result.sunlightPreference).toBe('medium')
+      expect(result.luxNeeded).toBe(2000)
       expect(result.wateringFrequencyDays).toBe(7)
       expect(result.fertilizationFrequencyDays).toBe(30)
       expect(result.category).toBe('Tropical')

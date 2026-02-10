@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
 import { Array, Either, Match, Option, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
@@ -50,9 +51,9 @@ export function AIIdentificationResultsScreen() {
           fertilizationFrequencyDays: Option.getOrUndefined(
             Option.fromNullable(result.fertilizationFrequencyDays)
           ),
-          sunlightPreference: Option.getOrElse(
-            Option.fromNullable(result.sunlightPreference),
-            () => 'medium'
+          luxNeeded: Option.getOrElse(
+            Option.fromNullable(result.luxNeeded),
+            () => 2000
           ),
           humidityRating: Option.getOrElse(
             Option.fromNullable(result.humidityRating),
@@ -103,7 +104,7 @@ export function AIIdentificationResultsScreen() {
         )
       ),
       wateringFrequencyDays: result.wateringFrequencyDays,
-      sunlightPreference: result.sunlightPreference,
+      luxNeeded: result.luxNeeded,
       humidityRating: result.humidityRating,
       petToxicityRating: result.petToxicityRating,
       fertilizationFrequencyDays: result.fertilizationFrequencyDays,
@@ -226,7 +227,7 @@ export function AIIdentificationResultsScreen() {
                     </Text>
                   </View>
                 )}
-                {result.sunlightPreference && (
+                {result.luxNeeded != null && (
                   <View className="flex-row items-center h-7 rounded-full bg-surface-tinted dark:bg-slate-700 px-3 gap-1.5 border border-border dark:border-slate-600">
                     <MaterialIcons
                       name="wb-sunny"
@@ -234,12 +235,11 @@ export function AIIdentificationResultsScreen() {
                       color={iconColors.primary}
                     />
                     <Text className="text-xs font-semibold text-text-primary dark:text-white">
-                      {pipe(
-                        Match.value(result.sunlightPreference),
-                        Match.when('high', () => t('results.highLight')),
-                        Match.when('medium', () => t('results.mediumLight')),
-                        Match.orElse(() => t('results.lowLight'))
-                      )}
+                      {
+                        LUMINOSITY_LEVELS[
+                          luxToLuminosityLevel(result.luxNeeded)
+                        ].label
+                      }
                     </Text>
                   </View>
                 )}
@@ -250,7 +250,7 @@ export function AIIdentificationResultsScreen() {
 
         {/* Suggested Care Section */}
         {(result.wateringFrequencyDays ||
-          result.sunlightPreference ||
+          result.luxNeeded != null ||
           result.humidityRating != null) && (
           <View className="px-5 pt-2 pb-4">
             <Text className="text-lg font-bold text-text-primary dark:text-white pb-4">
@@ -278,7 +278,7 @@ export function AIIdentificationResultsScreen() {
                   </View>
                 </View>
               )}
-              {result.sunlightPreference && (
+              {result.luxNeeded != null && (
                 <View className="flex-row items-center gap-3">
                   <View className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 items-center justify-center">
                     <MaterialIcons
@@ -292,12 +292,11 @@ export function AIIdentificationResultsScreen() {
                       {t('results.light')}
                     </Text>
                     <Text className="text-xs text-text-secondary">
-                      {pipe(
-                        Match.value(result.sunlightPreference),
-                        Match.when('high', () => t('results.lightHigh')),
-                        Match.when('medium', () => t('results.lightMedium')),
-                        Match.orElse(() => t('results.lightLow'))
-                      )}
+                      {
+                        LUMINOSITY_LEVELS[
+                          luxToLuminosityLevel(result.luxNeeded)
+                        ].label
+                      }
                     </Text>
                   </View>
                 </View>

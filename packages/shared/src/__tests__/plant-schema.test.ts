@@ -219,14 +219,14 @@ describe('Plant Schemas', () => {
       const request = {
         name: 'Fern',
         wateringFrequencyDays: 3,
-        sunlightPreference: 'indirect',
+        luxNeeded: 2000,
         petToxicityRating: 1,
       }
 
       const result = Schema.decodeSync(EnhancedPlantCreateRequest)(request)
 
       expect(result.name).toBe('Fern')
-      expect(result.sunlightPreference).toBe('indirect')
+      expect(result.luxNeeded).toBe(2000)
     })
 
     it('should decode with all optional fields', () => {
@@ -238,7 +238,7 @@ describe('Plant Schemas', () => {
         plantingDate: '2024-01-01T00:00:00.000Z',
         wateringFrequencyDays: 3,
         fertilizationFrequencyDays: 60,
-        sunlightPreference: 'indirect',
+        luxNeeded: 2000,
         humidityRating: 4,
         petToxicityRating: 1,
         remindersEnabled: true,
@@ -263,7 +263,7 @@ describe('Plant Schemas', () => {
           { name: 'Philodendron', confidence: 0.6 },
         ],
         wateringFrequencyDays: 7,
-        sunlightPreference: 'indirect',
+        luxNeeded: 2000,
         humidityRating: 4,
         petToxicityRating: 3,
         fertilizationFrequencyDays: 30,
@@ -286,7 +286,7 @@ describe('Plant Schemas', () => {
         confidence: 0.2,
         alternatives: [],
         wateringFrequencyDays: null,
-        sunlightPreference: null,
+        luxNeeded: null,
         humidityRating: null,
         petToxicityRating: null,
         fertilizationFrequencyDays: null,
@@ -308,7 +308,7 @@ describe('Plant Schemas', () => {
         confidence: 0.5,
         alternatives: [],
         wateringFrequencyDays: null,
-        sunlightPreference: null,
+        luxNeeded: null,
         humidityRating: null,
         petToxicityRating: null,
         fertilizationFrequencyDays: null,

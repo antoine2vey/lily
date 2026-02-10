@@ -203,6 +203,7 @@ export const PlantRepositoryLive = Layer.effect(
                 id: rooms.id,
                 name: rooms.name,
                 icon: rooms.icon,
+                luminosity: rooms.luminosity,
               },
             })
             .from(plants)
@@ -241,6 +242,7 @@ export const PlantRepositoryLive = Layer.effect(
                 id: rooms.id,
                 name: rooms.name,
                 icon: rooms.icon,
+                luminosity: rooms.luminosity,
               },
             })
             .from(plants)
@@ -263,6 +265,7 @@ export const PlantRepositoryLive = Layer.effect(
                 id: rooms.id,
                 name: rooms.name,
                 icon: rooms.icon,
+                luminosity: rooms.luminosity,
               },
             })
             .from(plants)

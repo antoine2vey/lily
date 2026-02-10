@@ -40,6 +40,20 @@ export default {
   addPlants: 'Ajouter des plantes à cette pièce',
   noUnassignedPlants: 'Toutes les plantes sont déjà assignées à des pièces',
   plantsSelected: '{count} plante(s) sélectionnée(s)',
+  lighting: 'Luminosité',
+  lightingLevels: {
+    1: 'Lumière\nfaible',
+    2: 'Lumière\nmoyenne',
+    3: 'Lumineux\nindirect',
+    4: 'Lumière\ndirecte',
+    5: 'Plein\nsoleil',
+  },
+  detectLighting: 'Détecter depuis une photo',
+  lightingDetected: 'Niveau de luminosité détecté',
+  lightingDetectionFailed:
+    'Impossible de détecter la luminosité depuis la photo',
+  lightingHint:
+    'Prenez une photo de la pièce pour détecter la luminosité, ou sélectionnez manuellement',
   filter: {
     allRooms: 'Toutes les pièces',
     noRoom: 'Sans pièce',

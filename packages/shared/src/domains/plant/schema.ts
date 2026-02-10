@@ -74,7 +74,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   plantingDate: Schema.optional(Schema.Date),
   wateringFrequencyDays: Schema.Number,
   fertilizationFrequencyDays: Schema.optional(Schema.Number),
-  sunlightPreference: Schema.String,
+  luxNeeded: Schema.Number,
   humidityRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.Number,
   remindersEnabled: Schema.optional(Schema.Boolean),
@@ -93,7 +93,7 @@ export const AIIdentifyResponse = Schema.Struct({
     })
   ),
   wateringFrequencyDays: Schema.NullOr(Schema.Number),
-  sunlightPreference: Schema.NullOr(Schema.String),
+  luxNeeded: Schema.NullOr(Schema.Number),
   humidityRating: Schema.NullOr(Schema.Number),
   petToxicityRating: Schema.NullOr(Schema.Number),
   fertilizationFrequencyDays: Schema.NullOr(Schema.Number),

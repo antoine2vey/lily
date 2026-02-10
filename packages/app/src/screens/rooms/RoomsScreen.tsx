@@ -1,5 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { Plant } from '@lily/shared'
+import {
+  LUMINOSITY_LEVELS,
+  type LuminosityLevel,
+  type Plant,
+} from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Either, Option, pipe, String } from 'effect'
 import { useRouter } from 'expo-router'
@@ -13,19 +17,23 @@ import {
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { EmptyState } from 'src/components/EmptyState'
+import { SkeletonBox } from 'src/components/skeletons'
 import { Input } from 'src/components/ui/Input'
 import { useCreateRoom } from 'src/hooks/useCreateRoom'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useDeleteRoom } from 'src/hooks/useDeleteRoom'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlants } from 'src/hooks/usePlants'
 import { useRooms } from 'src/hooks/useRooms'
 import { useUpdateRoom } from 'src/hooks/useUpdateRoom'
 import { EmojiPicker } from 'src/screens/rooms/components/EmojiPicker'
+import { LuminosityPicker } from 'src/screens/rooms/components/LuminosityPicker'
 import { PlantSelector } from 'src/screens/rooms/components/PlantSelector'
 import { apiEffectRunner } from 'src/utils/client'
 import { queryKeys } from 'src/utils/query-keys'
@@ -33,9 +41,37 @@ import { queryKeys } from 'src/utils/query-keys'
 interface RoomFormState {
   name: string
   icon: string
+  luminosity: number | null
 }
 
-const DEFAULT_FORM: RoomFormState = { name: '', icon: '🏠' }
+const DEFAULT_FORM: RoomFormState = { name: '', icon: '🏠', luminosity: null }
+
+function RoomCardSkeleton() {
+  return (
+    <View className="flex-row items-center p-4 mb-2 bg-surface dark:bg-surface-dark rounded-xl">
+      <SkeletonBox width={32} height={32} rounded="sm" />
+      <View className="flex-1 ml-3">
+        <SkeletonBox width="50%" height={16} rounded="sm" />
+        <View className="flex-row items-center gap-2 mt-1.5">
+          <SkeletonBox width={70} height={14} rounded="sm" />
+          <SkeletonBox width={90} height={14} rounded="sm" />
+        </View>
+      </View>
+      <SkeletonBox width={20} height={20} rounded="sm" />
+    </View>
+  )
+}
+
+function RoomsContentSkeleton() {
+  return (
+    <View className="px-4">
+      <RoomCardSkeleton />
+      <RoomCardSkeleton />
+      <RoomCardSkeleton />
+      <RoomCardSkeleton />
+    </View>
+  )
+}
 
 export function RoomsScreen() {
   const { t } = useTranslation('rooms')
@@ -138,9 +174,14 @@ export function RoomsScreen() {
   }, [])
 
   const handleOpenEdit = useCallback(
-    (room: { id: string; name: string; icon: string }) => {
+    (room: {
+      id: string
+      name: string
+      icon: string
+      luminosity: number | null
+    }) => {
       setEditingRoomId(room.id)
-      setForm({ name: room.name, icon: room.icon })
+      setForm({ name: room.name, icon: room.icon, luminosity: room.luminosity })
       const plantsInRoom = Array.filter(allPlants, (p) => p.roomId === room.id)
       const ids = new Set(Array.map(plantsInRoom, (p) => p.id))
       setSelectedPlantIds(ids)
@@ -158,7 +199,13 @@ export function RoomsScreen() {
   const handleCreate = useCallback(() => {
     if (String.isEmpty(String.trim(form.name))) return
     createRoom.mutate(
-      { payload: { name: form.name, icon: form.icon } },
+      {
+        payload: {
+          name: form.name,
+          icon: form.icon,
+          ...(form.luminosity != null ? { luminosity: form.luminosity } : {}),
+        },
+      },
       {
         onSuccess: (result) => {
           setShowCreateSheet(false)
@@ -181,7 +228,11 @@ export function RoomsScreen() {
     updateRoom.mutate(
       {
         path: { id: editingRoomId },
-        payload: { name: form.name, icon: form.icon },
+        payload: {
+          name: form.name,
+          icon: form.icon,
+          luminosity: form.luminosity,
+        },
       },
       {
         onSuccess: () => {
@@ -217,6 +268,9 @@ export function RoomsScreen() {
     )
   }, [deletingRoom, deleteRoom, t])
 
+  const isInitialLoading = isLoading && !rooms
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
   const roomsList = Option.getOrElse(
     Option.fromNullable(rooms),
     () => [] as NonNullable<typeof rooms>
@@ -251,52 +305,70 @@ export function RoomsScreen() {
       </View>
 
       {/* Content */}
-      {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
-        </View>
-      ) : Array.isEmptyReadonlyArray(roomsList) ? (
-        <EmptyState
-          title={t('empty.title')}
-          description={t('empty.description')}
-          action={{
-            label: t('empty.button'),
-            onPress: handleOpenCreate,
-          }}
-        />
+      {showSkeleton ? (
+        <Animated.View entering={FadeIn.duration(300)}>
+          <RoomsContentSkeleton />
+        </Animated.View>
+      ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(roomsList) ? (
+        <Animated.View entering={FadeIn.duration(300)}>
+          <EmptyState
+            title={t('empty.title')}
+            description={t('empty.description')}
+            action={{
+              label: t('empty.button'),
+              onPress: handleOpenCreate,
+            }}
+          />
+        </Animated.View>
       ) : (
-        <FlatList
-          data={roomsList}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => handleOpenEdit(item)}
-              className="flex-row items-center p-4 mb-2 bg-surface dark:bg-surface-dark rounded-xl"
-            >
-              <Text className="text-2xl mr-3">{item.icon}</Text>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-text-primary dark:text-white">
-                  {item.name}
-                </Text>
-                <Text className="text-sm text-text-muted dark:text-slate-400 mt-0.5">
-                  {t('plantCount', { count: item.plantCount })}
-                </Text>
-              </View>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <FlatList
+            data={roomsList}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+            renderItem={({ item }) => (
               <Pressable
-                onPress={() => handleOpenDelete(item)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                className="w-8 h-8 items-center justify-center"
+                onPress={() => handleOpenEdit(item)}
+                className="flex-row items-center p-4 mb-2 bg-surface dark:bg-surface-dark rounded-xl"
               >
-                <MaterialIcons
-                  name="delete-outline"
-                  size={20}
-                  color={iconColors.textMuted}
-                />
+                <Text className="text-2xl mr-3">{item.icon}</Text>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold text-text-primary dark:text-white">
+                    {item.name}
+                  </Text>
+                  <View className="flex-row items-center gap-2 mt-0.5">
+                    <Text className="text-sm text-text-muted dark:text-slate-400">
+                      {t('plantCount', { count: item.plantCount })}
+                    </Text>
+                    {item.luminosity != null && (
+                      <Text className="text-xs text-text-muted dark:text-slate-400">
+                        {
+                          LUMINOSITY_LEVELS[item.luminosity as LuminosityLevel]
+                            .icon
+                        }{' '}
+                        {
+                          LUMINOSITY_LEVELS[item.luminosity as LuminosityLevel]
+                            .label
+                        }
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => handleOpenDelete(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  className="w-8 h-8 items-center justify-center"
+                >
+                  <MaterialIcons
+                    name="delete-outline"
+                    size={20}
+                    color={iconColors.textMuted}
+                  />
+                </Pressable>
               </Pressable>
-            </Pressable>
-          )}
-        />
+            )}
+          />
+        </Animated.View>
       )}
 
       {/* Create Room Sheet */}
@@ -414,6 +486,11 @@ function RoomForm({
             autoFocus
           />
         </View>
+
+        <LuminosityPicker
+          value={form.luminosity}
+          onChange={(luminosity) => onFormChange({ ...form, luminosity })}
+        />
 
         <View className="gap-2">
           <View className="flex-row items-center justify-between pl-1 pr-1">

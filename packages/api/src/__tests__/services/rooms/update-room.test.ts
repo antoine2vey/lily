@@ -43,6 +43,26 @@ describe('updateRoom', () => {
     expect(result.order).toBe(5)
   })
 
+  it('should update room luminosity', async () => {
+    const result = await Effect.runPromise(
+      updateRoom({ id: 'room-1', data: { luminosity: 3 } }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(result.luminosity).toBe(3)
+  })
+
+  it('should set luminosity to null', async () => {
+    const result = await Effect.runPromise(
+      updateRoom({ id: 'room-2', data: { luminosity: null } }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(result.luminosity).toBeNull()
+  })
+
   it('should fail with RoomNotFoundError when room does not exist', async () => {
     const result = await Effect.runPromiseExit(
       updateRoom({ id: 'non-existent', data: { name: 'test' } }).pipe(

@@ -39,6 +39,19 @@ export default {
   addPlants: 'Add plants to this room',
   noUnassignedPlants: 'All plants are already assigned to rooms',
   plantsSelected: '{count} plant(s) selected',
+  lighting: 'Lighting',
+  lightingLevels: {
+    1: 'Low\nlight',
+    2: 'Medium\nlight',
+    3: 'Bright\nindirect',
+    4: 'Direct\nlight',
+    5: 'Full\nsun',
+  },
+  detectLighting: 'Detect from photo',
+  lightingDetected: 'Lighting level detected',
+  lightingDetectionFailed: 'Could not detect lighting from photo',
+  lightingHint:
+    'Take a photo of the room to auto-detect lighting, or select manually',
   filter: {
     allRooms: 'All Rooms',
     noRoom: 'No Room',

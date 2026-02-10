@@ -24,9 +24,9 @@ export const plantSchema = z.object({
     .number()
     .describe('How often to water in days')
     .nullable(),
-  sunlightPreference: z
-    .enum(['low', 'medium', 'high'])
-    .describe('Sunlight preference')
+  luxNeeded: z
+    .number()
+    .describe('Estimated lux needed by the plant')
     .nullable(),
   humidityRating: z
     .number()

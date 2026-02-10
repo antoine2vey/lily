@@ -1,5 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { daysUntilApiDate, formatApiDateAsNextDate } from '@lily/shared'
+import {
+  daysUntilApiDate,
+  formatApiDateAsNextDate,
+  LUMINOSITY_LEVELS,
+  type LuminosityLevel,
+} from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -40,17 +45,14 @@ import { RecentHistory } from 'src/screens/plant-detail/components/RecentHistory
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
 
-type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
-const mapLightingRatingToSunlight = (rating: number): SunlightLevel => {
-  if (rating <= 2) return 'low'
-  if (rating <= 4) return 'indirect'
-  if (rating <= 6) return 'bright'
-  return 'direct'
+const mapLightingRatingToLabel = (rating: number): string => {
+  const level = (rating >= 1 && rating <= 5 ? rating : 1) as LuminosityLevel
+  return LUMINOSITY_LEVELS[level].label
 }
 
 const mapWateringRatingToWater = (rating: number): WaterLevel => {
@@ -456,7 +458,8 @@ export function PlantDetailScreen() {
           {/* Ideal Environment */}
           <View className="mt-10">
             <IdealEnvironment
-              sunlight={mapLightingRatingToSunlight(plant.lightingRating)}
+              sunlightLabel={mapLightingRatingToLabel(plant.lightingRating)}
+              sunlightPercentage={Math.round((plant.lightingRating / 5) * 100)}
               water={mapWateringRatingToWater(plant.wateringRating)}
               humidity={mapHumidityRatingToHumidity(plant.humidityRating)}
             />

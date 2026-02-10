@@ -7,6 +7,7 @@ import { Array, Context, Effect, Layer, Option } from 'effect'
 export interface CreateRoomData {
   name: string
   icon: string
+  luminosity?: number | undefined
   order: number
   userId: string
 }
@@ -15,6 +16,7 @@ export interface UpdateRoomData {
   name?: string | undefined
   icon?: string | undefined
   order?: number | undefined
+  luminosity?: number | null | undefined
 }
 
 export interface IRoomRepository {
@@ -58,6 +60,7 @@ export const RoomRepositoryLive = Layer.effect(
               id: rooms.id,
               name: rooms.name,
               icon: rooms.icon,
+              luminosity: rooms.luminosity,
               order: rooms.order,
               userId: rooms.userId,
               createdAt: rooms.createdAt,

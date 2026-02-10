@@ -51,10 +51,12 @@ export function PhotoPicker({
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
+      exif: true,
       quality: 0.8,
     })
 
     if (!result.canceled && result.assets[0]) {
+      console.log(result.assets[0].exif)
       onPickPhoto(result.assets[0].uri)
     }
   }

@@ -34,6 +34,7 @@ export const createMockRoomRepository = (
         id: `room-${crypto.randomUUID()}`,
         name: data.name,
         icon: data.icon,
+        luminosity: data.luminosity ?? null,
         order: data.order,
         userId: data.userId,
         createdAt: new Date(),
@@ -53,6 +54,9 @@ export const createMockRoomRepository = (
             ...(data.name !== undefined ? { name: data.name } : {}),
             ...(data.icon !== undefined ? { icon: data.icon } : {}),
             ...(data.order !== undefined ? { order: data.order } : {}),
+            ...(data.luminosity !== undefined
+              ? { luminosity: data.luminosity }
+              : {}),
           }
           return Effect.succeed(updated)
         },

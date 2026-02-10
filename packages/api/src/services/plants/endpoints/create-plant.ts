@@ -3,7 +3,7 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import type { LimitExceededError } from '@lily/shared'
+import { type LimitExceededError, luxToLuminosityLevel } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { DateTime, Effect, Option, pipe } from 'effect'
 
@@ -34,7 +34,7 @@ export const createPlant = (
       category: request.category || null,
       imageUrl: request.imageUrl || null,
       humidityRating: request.humidityRating || 0,
-      lightingRating: 0, // Default value
+      lightingRating: luxToLuminosityLevel(request.luxNeeded),
       petToxicityRating: pipe(
         Option.fromNullable(request.petToxicityRating),
         Option.getOrElse(() => 0)
