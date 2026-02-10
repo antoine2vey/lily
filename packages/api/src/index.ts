@@ -64,6 +64,7 @@ const NotificationSchedulerLive = Layer.scopedDiscard(
   })
 ).pipe(
   Layer.provide(NotificationRepositoryLive),
+  Layer.provide(PlantRepositoryLive),
   Layer.provide(UserRepositoryLive),
   Layer.provide(RedisMessageQueueLive),
   Layer.provide(RedisClientLive)

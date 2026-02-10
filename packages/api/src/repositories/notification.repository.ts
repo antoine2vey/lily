@@ -16,7 +16,7 @@ import type {
   NotificationStatus,
   NotificationsListResponse,
 } from '@lily/shared/notification'
-import { and, count, desc, eq, lte, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, lte, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -74,16 +74,6 @@ export interface INotificationRepository {
   readonly findPendingToSchedule: (
     limit: number
   ) => Effect.Effect<Notification[], SqlError>
-  readonly markAsQueued: (
-    id: string
-  ) => Effect.Effect<Notification | null, SqlError>
-  readonly markAsSent: (
-    id: string
-  ) => Effect.Effect<Notification | null, SqlError>
-  readonly markAsFailed: (
-    id: string,
-    error: string
-  ) => Effect.Effect<Notification | null, SqlError>
   readonly incrementRetryCount: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
@@ -102,6 +92,17 @@ export interface INotificationRepository {
     id: string,
     scheduledAt: Date
   ) => Effect.Effect<Notification | null, SqlError>
+  // Batch scheduler methods
+  readonly markManyAsQueued: (
+    ids: readonly string[]
+  ) => Effect.Effect<void, SqlError>
+  readonly markManyAsSent: (
+    ids: readonly string[]
+  ) => Effect.Effect<void, SqlError>
+  readonly markManyAsFailed: (
+    ids: readonly string[],
+    error: string
+  ) => Effect.Effect<void, SqlError>
 }
 
 // Tag for dependency injection
@@ -213,42 +214,6 @@ export const NotificationRepositoryLive = Layer.effect(
           Effect.withSpan('NotificationRepository.findPendingToSchedule')
         ),
 
-      markAsQueued: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(notifications)
-            .set({ status: 'queued' })
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.markAsQueued')),
-
-      markAsSent: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(notifications)
-            .set({
-              status: 'sent',
-              sentAt: nowAsDate(),
-            })
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.markAsSent')),
-
-      markAsFailed: (id: string, error: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(notifications)
-            .set({
-              status: 'failed',
-              lastError: error,
-            })
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.markAsFailed')),
-
       incrementRetryCount: (id: string) =>
         Effect.gen(function* () {
           const [row] = yield* db
@@ -326,6 +291,40 @@ export const NotificationRepositoryLive = Layer.effect(
             .returning()
           return row ? mapToNotification(row) : null
         }).pipe(Effect.withSpan('NotificationRepository.updateScheduledAt')),
+
+      // Batch scheduler methods
+      markManyAsQueued: (ids: readonly string[]) =>
+        Effect.gen(function* () {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({ status: 'queued' })
+            .where(inArray(notifications.id, ids as string[]))
+        }).pipe(Effect.withSpan('NotificationRepository.markManyAsQueued')),
+
+      markManyAsSent: (ids: readonly string[]) =>
+        Effect.gen(function* () {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({
+              status: 'sent',
+              sentAt: nowAsDate(),
+            })
+            .where(inArray(notifications.id, ids as string[]))
+        }).pipe(Effect.withSpan('NotificationRepository.markManyAsSent')),
+
+      markManyAsFailed: (ids: readonly string[], error: string) =>
+        Effect.gen(function* () {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({
+              status: 'failed',
+              lastError: error,
+            })
+            .where(inArray(notifications.id, ids as string[]))
+        }).pipe(Effect.withSpan('NotificationRepository.markManyAsFailed')),
     }
   })
 )

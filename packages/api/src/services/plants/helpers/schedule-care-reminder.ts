@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { buildSinglePlantContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   adjustForDoNotDisturb,
   calculateScheduledAt,
@@ -79,8 +80,12 @@ export const scheduleCareReminder = (
     // Remove any existing pending reminder for this plant and type
     yield* notificationRepo.deletePendingByPlantAndType(plantId, type)
 
-    // Generate notification content based on type
-    const { title, body } = getCareReminderContent(type, plantName)
+    // Generate notification content based on type and language
+    const { title, body } = buildSinglePlantContent(
+      type,
+      plantName,
+      settings.language
+    )
 
     // Create new reminder with timezone-aware scheduling
     yield* notificationRepo.create({
@@ -110,22 +115,3 @@ export const scheduleCareReminders = (
       { concurrency: 'unbounded' }
     )
   })
-
-/**
- * Get notification title and body for a care reminder type.
- */
-const getCareReminderContent = (
-  type: CareReminderType,
-  plantName: string
-): { title: string; body: string } => {
-  if (type === 'watering_reminder') {
-    return {
-      title: `Time to water your ${plantName}`,
-      body: `Your ${plantName} needs watering today.`,
-    }
-  }
-  return {
-    title: `Time to fertilize your ${plantName}`,
-    body: `Your ${plantName} needs fertilizing today.`,
-  }
-}

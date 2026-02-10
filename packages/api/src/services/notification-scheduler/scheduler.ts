@@ -1,6 +1,9 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
+import type { Notification } from '@lily/shared/notification'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
 import { Array, DateTime, Effect, Match, Option, pipe } from 'effect'
 
@@ -33,6 +36,7 @@ const mapNotificationTypeToTopic = (
 // Poll database and enqueue pending notifications
 export const pollAndEnqueue = Effect.gen(function* () {
   const notificationRepo = yield* NotificationRepository
+  const plantRepo = yield* PlantRepository
   const userRepo = yield* UserRepository
   const queue = yield* MessageQueue
 
@@ -58,6 +62,9 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   const currentTime = DateTime.toDateUtc(DateTime.unsafeNow())
+
+  // Phase 1: Filter valid notifications
+  const validNotifications: Notification[] = []
 
   for (const notification of pendingNotifications) {
     const topicOption = mapNotificationTypeToTopic(notification.type)
@@ -99,28 +106,78 @@ export const pollAndEnqueue = Effect.gen(function* () {
       }
     }
 
+    validNotifications.push(notification)
+  }
+
+  if (validNotifications.length === 0) return
+
+  // Phase 2: Group by (userId, type)
+  const grouped = Array.groupBy(
+    validNotifications,
+    (n) => `${n.userId}::${n.type}`
+  )
+
+  // Phase 3: Resolve plant names
+  const allPlantIds = pipe(
+    Array.filterMap(validNotifications, (n) => Option.fromNullable(n.plantId)),
+    Array.dedupe
+  )
+
+  const plants = yield* plantRepo.findByIds(allPlantIds)
+
+  const plantNameMap = new Map(
+    Array.map(plants, (p) => [p.id, p.name] as const)
+  )
+
+  // Phase 4: Enqueue one message per group
+  for (const [_key, group] of Object.entries(grouped)) {
+    const first = Array.head(group)
+    if (Option.isNone(first)) continue
+
+    const notificationIds = Array.map(group, (n) => n.id)
+    const userId = first.value.userId
+    const type = first.value.type
+
+    const topicOption = mapNotificationTypeToTopic(type)
+    if (Option.isNone(topicOption)) continue
     const topic = topicOption.value
+
+    const plantIds = Array.filterMap(group, (n) =>
+      Option.fromNullable(n.plantId)
+    )
+    const plantNames = Array.filterMap(plantIds, (id) =>
+      Option.fromNullable(plantNameMap.get(id))
+    )
+
+    const user = userSettingsMap.get(userId)
+    const language = Option.getOrElse(
+      Option.fromNullable(user?.language),
+      () => 'en' as const
+    )
+
+    const { title, body } = buildNotificationContent(type, plantNames, language)
 
     yield* queue.enqueue(topic, {
       id: crypto.randomUUID(),
       topic,
       payload: {
-        notificationId: notification.id,
-        userId: notification.userId,
-        plantId: notification.plantId,
-        title: notification.title,
-        body: notification.body,
+        userId,
+        title,
+        body,
+        notificationIds,
+        plantIds,
       },
       retryCount: 0,
       createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
-      scheduledAt: notification.scheduledAt,
+      scheduledAt: first.value.scheduledAt,
     })
 
-    yield* notificationRepo.markAsQueued(notification.id)
+    yield* notificationRepo.markManyAsQueued(notificationIds)
 
-    yield* Effect.log('Enqueued notification', {
-      id: notification.id,
+    yield* Effect.log('Enqueued grouped notification', {
+      notificationIds,
       topic,
+      count: group.length,
     })
   }
 }).pipe(Effect.withSpan('notification-scheduler.poll'))
