@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Either, Match, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Alert,
@@ -19,12 +19,12 @@ import { useCreatePlant } from 'src/hooks/useCreatePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { FrequencyPicker } from 'src/screens/add-plant/components/FrequencyPicker'
 import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
+import { RoomPicker } from 'src/screens/rooms/components/RoomPicker'
 
 type BasicInfo = {
   photo: string | null
   name: string
   category: string
-  roomId: string | null
 }
 
 type CareNeeds = {
@@ -57,11 +57,12 @@ export function ManualAddScheduleScreen() {
   ]
   const basicInfo: BasicInfo = params.basicInfo
     ? JSON.parse(decodeURIComponent(params.basicInfo))
-    : { photo: null, name: '', category: '', roomId: null }
+    : { photo: null, name: '', category: '' }
   const careNeeds: CareNeeds = params.careNeeds
     ? JSON.parse(decodeURIComponent(params.careNeeds))
     : { watering: 50, light: 50, humidity: 50, petSafe: false }
 
+  const [roomId, setRoomId] = useState<string | null>(null)
   const [wateringDays, setWateringDays] = useState(7)
   const [fertilizingDays, setFertilizingDays] = useState(30)
   const [careReminders, setCareReminders] = useState(true)
@@ -69,29 +70,33 @@ export function ManualAddScheduleScreen() {
 
   const { mutate: createPlant, isPending } = useCreatePlant()
 
-  const handleFinish = () => {
-    // Convert light slider value (0-100) to estimated lux
-    const luxNeeded = pipe(
-      Match.value(careNeeds.light),
-      Match.when(
-        (v) => v < 20,
-        () => 100
+  // Convert light slider value (0-100) to estimated lux
+  const luxNeeded = useMemo(
+    () =>
+      pipe(
+        Match.value(careNeeds.light),
+        Match.when(
+          (v) => v < 20,
+          () => 100
+        ),
+        Match.when(
+          (v) => v < 40,
+          () => 500
+        ),
+        Match.when(
+          (v) => v < 60,
+          () => 2000
+        ),
+        Match.when(
+          (v) => v < 80,
+          () => 10000
+        ),
+        Match.orElse(() => 40000)
       ),
-      Match.when(
-        (v) => v < 40,
-        () => 500
-      ),
-      Match.when(
-        (v) => v < 60,
-        () => 2000
-      ),
-      Match.when(
-        (v) => v < 80,
-        () => 10000
-      ),
-      Match.orElse(() => 40000)
-    )
+    [careNeeds.light]
+  )
 
+  const handleFinish = () => {
     createPlant(
       {
         payload: {
@@ -104,7 +109,7 @@ export function ManualAddScheduleScreen() {
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
           remindersEnabled: careReminders,
-          roomId: basicInfo.roomId || undefined,
+          roomId: roomId || undefined,
         },
       },
       {
@@ -198,6 +203,18 @@ export function ManualAddScheduleScreen() {
               }}
               thumbColor={iconColors.white}
               ios_backgroundColor={iconColors.border}
+            />
+          </View>
+
+          {/* Room Selection */}
+          <View className="gap-2">
+            <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
+              {t('addPlant:schedule.roomLabel')}
+            </Text>
+            <RoomPicker
+              value={roomId}
+              onSelect={setRoomId}
+              plantLuxNeeded={luxNeeded}
             />
           </View>
 

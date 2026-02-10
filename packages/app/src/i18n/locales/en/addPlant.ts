@@ -82,6 +82,7 @@ export default {
       quarterly: 'Quarterly',
     },
     enableFertilizing: 'Enable to set a fertilizing schedule',
+    roomLabel: 'Room (optional)',
   },
   photo: {
     addPhoto: 'Add Photo',

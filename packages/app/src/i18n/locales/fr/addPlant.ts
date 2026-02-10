@@ -83,6 +83,7 @@ export default {
       quarterly: 'Trimestriel',
     },
     enableFertilizing: 'Activer pour définir un calendrier de fertilisation',
+    roomLabel: 'Pièce (optionnel)',
   },
   photo: {
     addPhoto: 'Ajouter une photo',
