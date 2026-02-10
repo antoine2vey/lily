@@ -26,6 +26,7 @@ import { usePlant } from 'src/hooks/usePlant'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { CategoryPicker } from 'src/screens/add-plant/components/CategoryPicker'
 import { FrequencyPicker } from 'src/screens/add-plant/components/FrequencyPicker'
+import { RoomPicker } from 'src/screens/rooms/components/RoomPicker'
 
 function LoadingScreen({
   iconColors,
@@ -65,6 +66,7 @@ export function EditPlantScreen() {
     number | null
   >(null)
   const [fertilizationEnabled, setFertilizationEnabled] = useState(false)
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Initialize form with plant data
@@ -93,6 +95,7 @@ export function EditPlantScreen() {
         Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays))
       )
       setFertilizationEnabled(plant.fertilizationFrequencyDays != null)
+      setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
     }
   }, [plant])
 
@@ -127,6 +130,7 @@ export function EditPlantScreen() {
           fertilizationFrequencyDays: fertilizationEnabled
             ? fertilizationFrequencyDays
             : null,
+          roomId: selectedRoomId,
           imageUrl:
             photo !== plant.imageUrl
               ? photo
@@ -173,7 +177,8 @@ export function EditPlantScreen() {
     photo !== Option.getOrUndefined(Option.fromNullable(plant.imageUrl)) ||
     wateringFrequencyDays !== plant.wateringFrequencyDays ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
-      Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays))
+      Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays)) ||
+    selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
@@ -257,6 +262,14 @@ export function EditPlantScreen() {
               onChangeText={setDescription}
               placeholder={t('plantDetail:edit.descriptionPlaceholder')}
             />
+
+            {/* Room Assignment */}
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-text-primary dark:text-white pl-1">
+                {t('plantDetail:edit.roomLabel')}
+              </Text>
+              <RoomPicker value={selectedRoomId} onSelect={setSelectedRoomId} />
+            </View>
           </View>
 
           {/* Care Needs Section */}

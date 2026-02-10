@@ -13,6 +13,7 @@ export default {
   actions: {
     editProfile: 'Modifier le profil',
     subscription: 'Abonnement',
+    rooms: 'Pièces',
     achievements: 'Mes succès',
     helpSupport: 'Aide et support',
     settings: 'Paramètres',

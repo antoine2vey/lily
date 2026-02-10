@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { plantPhotos, plants } from '@lily/db'
+import { plantPhotos, plants, rooms } from '@lily/db'
 import { endOfDay, type PaginatedResponse, paginate } from '@lily/shared'
 import {
   and,
@@ -19,7 +19,16 @@ import {
   lte,
   or,
 } from 'drizzle-orm'
-import { Context, DateTime, Effect, Layer, Match, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  pipe,
+} from 'effect'
 
 // Types for repository methods
 export interface FindPlantsParams {
@@ -27,11 +36,16 @@ export interface FindPlantsParams {
   limit?: number
   filter?: 'needsAttention' | 'overdue' | 'all'
   sort?: 'added' | 'name'
+  roomId?: string
   userId: string
   timezone: string
 }
 
-export type FindPlantsResult = PaginatedResponse<typeof plants.$inferSelect>
+export type RoomRef = { id: string; name: string; icon: string } | null
+
+export type PlantWithRoom = typeof plants.$inferSelect & { room: RoomRef }
+
+export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
 
 export interface CreatePlantData {
   name: string
@@ -48,6 +62,7 @@ export interface CreatePlantData {
   nextFertilizationAt?: Date | null
   health: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
   userId: string
+  roomId?: string | null
 }
 
 export interface UpdatePlantData {
@@ -66,6 +81,7 @@ export interface UpdatePlantData {
   lastFertilizedAt?: Date
   nextFertilizationAt?: Date
   health?: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
+  roomId?: string | null
 }
 
 export interface FindPhotosParams {
@@ -88,11 +104,11 @@ export interface IPlantRepository {
   ) => Effect.Effect<Array<typeof plants.$inferSelect>, SqlError>
   readonly findById: (
     id: string
-  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  ) => Effect.Effect<PlantWithRoom | null, SqlError>
   readonly findPlantsWithPendingCare: (
     userId: string,
     endOfWeek: Date
-  ) => Effect.Effect<Array<typeof plants.$inferSelect>, SqlError>
+  ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly create: (
     data: CreatePlantData
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
@@ -145,7 +161,8 @@ export const PlantRepositoryLive = Layer.effect(
           const { page, limit, offset } = getPaginationParams(params)
 
           // Build filter conditions
-          const userCondition = eq(plants.userId, params.userId)
+          const conditions = [eq(plants.userId, params.userId)]
+
           const extraCondition = pipe(
             Match.value(params.filter),
             Match.when('needsAttention', () =>
@@ -163,9 +180,15 @@ export const PlantRepositoryLive = Layer.effect(
             Match.orElse(() => undefined)
           )
 
-          const filterConditions = extraCondition
-            ? and(userCondition, extraCondition)
-            : userCondition
+          if (extraCondition) {
+            conditions.push(extraCondition)
+          }
+
+          if (params.roomId) {
+            conditions.push(eq(plants.roomId, params.roomId))
+          }
+
+          const filterConditions = and(...conditions)
 
           const countResult = yield* db
             .select({ value: count() })
@@ -173,15 +196,28 @@ export const PlantRepositoryLive = Layer.effect(
             .where(filterConditions)
           const total = extractCount(countResult)
 
-          const items = yield* db
-            .select()
+          const rows = yield* db
+            .select({
+              plant: plants,
+              room: {
+                id: rooms.id,
+                name: rooms.name,
+                icon: rooms.icon,
+              },
+            })
             .from(plants)
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(filterConditions)
             .offset(offset)
             .limit(limit)
             .orderBy(
               params.sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
             )
+
+          const items = Array.map(rows, (row) => ({
+            ...row.plant,
+            room: row.room,
+          }))
 
           return paginate(items, total, page, limit)
         }).pipe(Effect.withSpan('PlantRepository.findAll')),
@@ -198,18 +234,39 @@ export const PlantRepositoryLive = Layer.effect(
 
       findById: (id: string) =>
         Effect.gen(function* () {
-          const [plant] = yield* db
-            .select()
+          const [row] = yield* db
+            .select({
+              plant: plants,
+              room: {
+                id: rooms.id,
+                name: rooms.name,
+                icon: rooms.icon,
+              },
+            })
             .from(plants)
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(eq(plants.id, id))
-          return Option.getOrNull(Option.fromNullable(plant))
+
+          return pipe(
+            Option.fromNullable(row),
+            Option.map((r) => ({ ...r.plant, room: r.room })),
+            Option.getOrNull
+          )
         }).pipe(Effect.withSpan('PlantRepository.findById')),
 
       findPlantsWithPendingCare: (userId: string, endOfWeek: Date) =>
         Effect.gen(function* () {
-          const items = yield* db
-            .select()
+          const rows = yield* db
+            .select({
+              plant: plants,
+              room: {
+                id: rooms.id,
+                name: rooms.name,
+                icon: rooms.icon,
+              },
+            })
             .from(plants)
+            .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(
               and(
                 eq(plants.userId, userId),
@@ -219,7 +276,10 @@ export const PlantRepositoryLive = Layer.effect(
                 )
               )
             )
-          return items
+          return Array.map(rows, (row) => ({
+            ...row.plant,
+            room: row.room,
+          }))
         }).pipe(Effect.withSpan('PlantRepository.findPlantsWithPendingCare')),
 
       create: (data: CreatePlantData) =>

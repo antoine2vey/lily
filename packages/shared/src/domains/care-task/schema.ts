@@ -10,6 +10,8 @@ export const CareTask = Schema.Struct({
   plantId: Schema.String,
   plantName: Schema.String,
   plantImageUrl: Schema.NullOr(Schema.String),
+  roomName: Schema.NullOr(Schema.String),
+  roomIcon: Schema.NullOr(Schema.String),
   type: CareTaskType,
   dueDate: Schema.Date,
   completed: Schema.Boolean,

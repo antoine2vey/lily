@@ -15,6 +15,7 @@ import {
   type NotificationNotFoundError,
   type PaymentProviderError,
   type PlantNotFoundError,
+  type RoomNotFoundError,
   type SessionNotFoundError,
   type SubscriptionNotFoundError,
   UnauthorizedError,
@@ -101,6 +102,7 @@ export type ApiFailure =
   | SessionNotFoundError
   | LimitExceededError
   | PlantNotFoundError
+  | RoomNotFoundError
   | UserNotFoundError
   | PaymentProviderError
   | CareLogNotFoundError
@@ -119,6 +121,7 @@ const KNOWN_ERROR_TAGS = [
   'SessionNotFoundError',
   'LimitExceededError',
   'PlantNotFoundError',
+  'RoomNotFoundError',
   'UserNotFoundError',
   'PaymentProviderError',
   'CareLogNotFoundError',

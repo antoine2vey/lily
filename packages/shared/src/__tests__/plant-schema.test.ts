@@ -37,6 +37,8 @@ const validPlant = {
   remindersEnabled: true,
   isFavorite: false,
   userId: 'user-456',
+  roomId: null,
+  room: null,
 }
 
 describe('Plant Schemas', () => {

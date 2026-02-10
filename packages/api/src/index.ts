@@ -28,6 +28,7 @@ import { startNotificationWorker } from '@lily/api/services/notification-schedul
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
+import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import {
   SubscriptionsApiLive,
   SubscriptionWebhooksApiLive,
@@ -103,6 +104,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(HealthApiLive(Api)),
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
+  Layer.provide(RoomsApiLive(Api)),
   Layer.provide(SubscriptionsApiLive(Api)),
   Layer.provide(SubscriptionWebhooksApiLive(Api)),
   Layer.provide(UsernameApiLive(Api)),

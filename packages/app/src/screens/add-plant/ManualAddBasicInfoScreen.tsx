@@ -17,6 +17,7 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { CategoryPicker } from 'src/screens/add-plant/components/CategoryPicker'
 import { PhotoPicker } from 'src/screens/add-plant/components/PhotoPicker'
 import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
+import { RoomPicker } from 'src/screens/rooms/components/RoomPicker'
 
 export function ManualAddBasicInfoScreen() {
   const { t } = useTranslation('addPlant')
@@ -34,10 +35,11 @@ export function ManualAddBasicInfoScreen() {
   const [category, setCategory] = useState(
     Option.getOrElse(Option.fromNullable(params.prefillCategory), () => '')
   )
+  const [roomId, setRoomId] = useState<string | null>(null)
 
   const handleNext = () => {
     const basicInfo = encodeURIComponent(
-      JSON.stringify({ photo, name, category })
+      JSON.stringify({ photo, name, category, roomId })
     )
     router.push(`/add-plant/manual-care?basicInfo=${basicInfo}`)
   }
@@ -94,6 +96,14 @@ export function ManualAddBasicInfoScreen() {
               onSelect={setCategory}
               label={t('basicInfo.categoryLabel')}
             />
+
+            {/* Room */}
+            <View className="gap-2">
+              <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
+                {t('basicInfo.roomLabel')}
+              </Text>
+              <RoomPicker value={roomId} onSelect={setRoomId} />
+            </View>
           </View>
         </ScrollView>
 

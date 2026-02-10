@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
+import { RoomRef } from '../room/schema'
 
 export const Plant = Schema.Struct({
   id: Schema.String,
@@ -29,6 +30,8 @@ export const Plant = Schema.Struct({
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
   userId: Schema.String,
+  roomId: Schema.NullOr(Schema.String),
+  room: Schema.NullOr(RoomRef),
 })
 
 export const PlantCreateRequest = Schema.Struct({
@@ -55,6 +58,7 @@ export const PlantUpdateRequest = Schema.Struct({
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
   isFavorite: Schema.optional(Schema.Boolean),
+  roomId: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
 export const PlantWaterRequest = Schema.Struct({
@@ -74,6 +78,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   humidityRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.Number,
   remindersEnabled: Schema.optional(Schema.Boolean),
+  roomId: Schema.optional(Schema.String),
 })
 
 // AI identify response (shared by both AI identify and nursery card scan)

@@ -24,6 +24,7 @@ type BasicInfo = {
   photo: string | null
   name: string
   category: string
+  roomId: string | null
 }
 
 type CareNeeds = {
@@ -56,7 +57,7 @@ export function ManualAddScheduleScreen() {
   ]
   const basicInfo: BasicInfo = params.basicInfo
     ? JSON.parse(decodeURIComponent(params.basicInfo))
-    : { photo: null, name: '', category: '' }
+    : { photo: null, name: '', category: '', roomId: null }
   const careNeeds: CareNeeds = params.careNeeds
     ? JSON.parse(decodeURIComponent(params.careNeeds))
     : { watering: 50, light: 50, humidity: 50, petSafe: false }
@@ -95,6 +96,7 @@ export function ManualAddScheduleScreen() {
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
           remindersEnabled: careReminders,
+          roomId: basicInfo.roomId || undefined,
         },
       },
       {

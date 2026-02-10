@@ -18,6 +18,8 @@ interface CareTaskCardProps {
     type: CareTaskType
     completed: boolean
     dueDate: Date
+    roomName?: string | null
+    roomIcon?: string | null
   }
   onCardPress: () => void
   onPlantPhotoPress: () => void
@@ -114,12 +116,22 @@ export function CareTaskCard({
         />
       </Pressable>
       <View className="flex-1 ml-3">
-        <Text
-          className={`${compact ? 'text-sm' : 'text-base'} font-medium text-text-primary dark:text-white`}
-          numberOfLines={1}
-        >
-          {task.plantName}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text
+            className={`${compact ? 'text-sm' : 'text-base'} font-medium text-text-primary dark:text-white`}
+            numberOfLines={1}
+          >
+            {task.plantName}
+          </Text>
+          {task.roomName && (
+            <View className="flex-row items-center gap-0.5">
+              <Text className="text-xs">{task.roomIcon}</Text>
+              <Text className="text-xs text-text-muted dark:text-slate-400">
+                {task.roomName}
+              </Text>
+            </View>
+          )}
+        </View>
         <View className="flex-row items-center mt-1">
           <Badge
             label={getTaskBadgeLabel(config.labelKey, t)}

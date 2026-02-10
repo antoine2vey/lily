@@ -30,6 +30,7 @@ export const PlantsQueryParams = Schema.Struct({
   ...PaginationParams.fields,
   filter: Schema.optionalWith(Schema.String, { default: () => 'all' }),
   sort: Schema.optionalWith(Schema.String, { default: () => 'added' }),
+  roomId: Schema.optional(Schema.String),
 })
 
 export type PlantsQueryParams = typeof PlantsQueryParams.Type

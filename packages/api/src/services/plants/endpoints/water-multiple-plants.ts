@@ -71,11 +71,14 @@ export const waterMultiplePlants = (
                         ? { health: 'HEALTHY' as const }
                         : {}
 
-                    const updatedPlant = yield* repo.update(plantId, {
+                    yield* repo.update(plantId, {
                       lastWateredAt: now,
                       nextWateringAt,
                       ...healthUpdate,
                     })
+
+                    // Re-fetch to include room data
+                    const updatedPlant = yield* repo.findById(plantId)
 
                     // Schedule reminder using shared helper
                     yield* scheduleCareReminder({

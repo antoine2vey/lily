@@ -1,14 +1,21 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import type { PlantByIdRequest } from '@lily/api/services/plants/utils'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { PlantDetail } from '@lily/shared/plant'
+import type { PlantPhoto } from '@lily/shared/plant'
 import { Effect } from 'effect'
+
+type PlantDetailResult = PlantWithRoom & {
+  photos: readonly PlantPhoto[]
+}
 
 export const findPlantById = ({
   id,
 }: PlantByIdRequest): Effect.Effect<
-  PlantDetail,
+  PlantDetailResult,
   SqlError | PlantNotFoundError,
   PlantRepository
 > =>

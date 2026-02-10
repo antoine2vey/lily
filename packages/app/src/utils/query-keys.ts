@@ -61,6 +61,12 @@ export const queryKeys = {
     list: () => [...queryKeys.achievements.all, 'getAchievements'] as const,
   },
 
+  // Rooms domain
+  rooms: {
+    all: ['rooms'] as const,
+    list: () => [...queryKeys.rooms.all, 'getRooms'] as const,
+  },
+
   // Auth domain
   auth: {
     all: ['auth'] as const,
@@ -85,6 +91,7 @@ export const invalidateKeys = {
   subscriptions: queryKeys.subscriptions.all,
   users: queryKeys.users.all,
   notifications: queryKeys.notifications.all,
+  rooms: queryKeys.rooms.all,
   achievements: queryKeys.achievements.all,
   auth: queryKeys.auth.all,
   chat: queryKeys.chat.all,

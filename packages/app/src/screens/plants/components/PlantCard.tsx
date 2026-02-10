@@ -22,6 +22,8 @@ interface PlantCardProps {
     watering: CareStatus
     fertilization: CareStatus
     isFavorite?: boolean
+    roomName?: string
+    roomIcon?: string
   }
   onPress: (plantId: string) => void
 }
@@ -238,6 +240,14 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
         >
           {plant.name}
         </Text>
+        {plant.roomName && (
+          <View className="flex-row items-center gap-1 mb-1">
+            <Text className="text-xs">{plant.roomIcon}</Text>
+            <Text className="text-xs text-text-muted dark:text-slate-400">
+              {plant.roomName}
+            </Text>
+          </View>
+        )}
         {Array.isNonEmptyReadonlyArray(indicators) && (
           <View className="flex-row items-center gap-3">
             {Array.map(indicators, (indicator) => (

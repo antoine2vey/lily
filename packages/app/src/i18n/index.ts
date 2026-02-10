@@ -29,6 +29,7 @@ i18n
       'care',
       'settings',
       'profile',
+      'rooms',
       'about',
       'onboarding',
       'achievements',

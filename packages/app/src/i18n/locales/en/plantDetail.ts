@@ -67,6 +67,7 @@ export default {
     categoryLabel: 'Category',
     descriptionLabel: 'Description',
     descriptionPlaceholder: 'Add care notes or description...',
+    roomLabel: 'Room',
     careNeeds: 'Care Needs',
     careSchedule: 'Care Schedule',
     petSafe: 'Pet Safe',
