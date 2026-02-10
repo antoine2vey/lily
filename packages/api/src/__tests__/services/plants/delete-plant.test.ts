@@ -22,7 +22,7 @@ describe('deletePlant', () => {
       )
     )
 
-    expect(result).toEqual(mockPlants[0])
+    expect(result).toEqual({ ...mockPlants[0], room: null })
   })
 
   it('should fail with PlantNotFoundError when plant not found', async () => {

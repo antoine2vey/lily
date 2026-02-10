@@ -4,7 +4,7 @@ import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from 'src/components/EmptyState'
@@ -12,6 +12,7 @@ import { PullToRefresh } from 'src/components/PullToRefresh'
 import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useRooms } from 'src/hooks/useRooms'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
 import { PlantCard } from 'src/screens/plants/components/PlantCard'
 import {
@@ -43,6 +44,9 @@ interface PlantCardData {
   watering: CareStatus
   fertilization: CareStatus
   isFavorite?: boolean
+  roomId?: string
+  roomName?: string
+  roomIcon?: string
 }
 
 const getDaysUntil = (date: DateInput): Option.Option<number> =>
@@ -136,6 +140,9 @@ export function PlantsScreen() {
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showAddPlant, setShowAddPlant] = useState(false)
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
+
+  const { data: roomsData } = useRooms()
 
   const insets = useSafeAreaInsets()
 
@@ -165,6 +172,9 @@ export function PlantsScreen() {
       watering: getCareStatus(plant.nextWateringAt),
       fertilization: getCareStatus(plant.nextFertilizationAt),
       isFavorite: plant.isFavorite,
+      roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),
+      roomName: Option.getOrUndefined(Option.fromNullable(plant.room?.name)),
+      roomIcon: Option.getOrUndefined(Option.fromNullable(plant.room?.icon)),
     }))
   }, [plantsData])
 
@@ -176,6 +186,13 @@ export function PlantsScreen() {
       result = Array.filter(result, (plant) =>
         pipe(plant.name, String.toLowerCase, String.includes(query))
       )
+    }
+
+    // Room filter
+    if (selectedRoomId === 'no-room') {
+      result = Array.filter(result, (plant) => !plant.roomId)
+    } else if (selectedRoomId !== null) {
+      result = Array.filter(result, (plant) => plant.roomId === selectedRoomId)
     }
 
     result = pipe(
@@ -203,7 +220,7 @@ export function PlantsScreen() {
     )
 
     return result
-  }, [plants, searchQuery, selectedFilter, sortOption])
+  }, [plants, searchQuery, selectedFilter, selectedRoomId, sortOption])
 
   const counts = useMemo(
     () => ({
@@ -304,6 +321,64 @@ export function PlantsScreen() {
           onFilterChange={setSelectedFilter}
           counts={counts}
         />
+
+        {/* Room Filter */}
+        {roomsData && !Array.isEmptyReadonlyArray(roomsData) && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ flexGrow: 0, flexShrink: 0 }}
+            contentContainerStyle={{
+              gap: 8,
+              paddingHorizontal: 20,
+              paddingBottom: 8,
+            }}
+          >
+            <Pressable
+              onPress={() => setSelectedRoomId(null)}
+              className={`h-8 px-3 rounded-full flex-row items-center ${
+                selectedRoomId === null
+                  ? 'bg-primary'
+                  : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
+              }`}
+            >
+              <Text
+                className={`text-xs font-medium ${
+                  selectedRoomId === null
+                    ? 'text-white'
+                    : 'text-text-primary dark:text-white'
+                }`}
+              >
+                {t('list.filterAll')}
+              </Text>
+            </Pressable>
+            {Array.map(roomsData, (room) => {
+              const isSelected = selectedRoomId === room.id
+              return (
+                <Pressable
+                  key={room.id}
+                  onPress={() => setSelectedRoomId(isSelected ? null : room.id)}
+                  className={`h-8 px-3 rounded-full flex-row items-center gap-1 ${
+                    isSelected
+                      ? 'bg-primary'
+                      : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
+                  }`}
+                >
+                  <Text className="text-xs">{room.icon}</Text>
+                  <Text
+                    className={`text-xs font-medium ${
+                      isSelected
+                        ? 'text-white'
+                        : 'text-text-primary dark:text-white'
+                    }`}
+                  >
+                    {room.name}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        )}
 
         {/* Content */}
         <PullToRefresh isRefreshing={isRefetching} onRefresh={handleRefresh}>

@@ -7,6 +7,7 @@ import {
 } from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
+import { rooms } from '@lily/db/schema/rooms'
 import {
   subscriptionEvents,
   subscriptionUsage,
@@ -61,6 +62,7 @@ export const users = pgTable('users', {
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   plants: many(plants),
+  rooms: many(rooms),
   notifications: many(notifications),
   deviceTokens: many(deviceTokens),
   refreshTokens: many(refreshTokens),

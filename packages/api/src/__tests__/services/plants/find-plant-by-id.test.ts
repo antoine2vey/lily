@@ -12,9 +12,10 @@ describe('findPlantById', () => {
       )
     )
 
-    // Result includes plant data plus photos array
+    // Result includes plant data plus photos array and room
     expect(result).toEqual({
       ...mockPlants[0],
+      room: null,
       photos: [],
     })
   })

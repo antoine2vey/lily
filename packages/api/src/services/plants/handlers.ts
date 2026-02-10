@@ -38,6 +38,9 @@ export const PlantsApiLive = (api: Api) =>
                 Match.orElse(() => 'all' as const)
               ),
               sort: urlParams.sort === 'name' ? 'name' : 'added',
+              ...(urlParams.roomId !== undefined
+                ? { roomId: urlParams.roomId }
+                : {}),
             })
             .pipe(withInfraErrorsAsDefect)
         )

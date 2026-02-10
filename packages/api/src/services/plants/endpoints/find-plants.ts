@@ -1,9 +1,11 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  type FindPlantsResult,
+  PlantRepository,
+} from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { getUserTimezone } from '@lily/api/services/plants/helpers/user-settings'
-import type { PlantsListResponse } from '@lily/shared/plant'
 import { Effect } from 'effect'
 
 // Get plants with pagination and filtering
@@ -12,8 +14,9 @@ export const findPlants = (params: {
   limit?: number
   filter?: 'needsAttention' | 'overdue' | 'all'
   sort?: 'added' | 'name'
+  roomId?: string
 }): Effect.Effect<
-  PlantsListResponse,
+  FindPlantsResult,
   SqlError,
   PlantRepository | UserRepository | CurrentUser
 > =>

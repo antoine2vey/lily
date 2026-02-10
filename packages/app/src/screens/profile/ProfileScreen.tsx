@@ -172,6 +172,18 @@ export function ProfileScreen() {
           <ProfileMenuItem
             icon={
               <MaterialIcons
+                name="meeting-room"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+            title={t('profile:actions.rooms')}
+            onPress={() => router.push('/rooms')}
+          />
+
+          <ProfileMenuItem
+            icon={
+              <MaterialIcons
                 name="emoji-events"
                 size={20}
                 color={iconColors.primary}

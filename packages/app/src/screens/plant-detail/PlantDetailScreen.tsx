@@ -423,6 +423,16 @@ export function PlantDetailScreen() {
             }}
           />
 
+          {/* Room Badge */}
+          {plant.room && (
+            <View className="flex-row items-center gap-1.5 mt-2 px-3 py-1.5 self-start bg-surface-tinted dark:bg-slate-800 rounded-full">
+              <Text className="text-sm">{plant.room.icon}</Text>
+              <Text className="text-sm font-medium text-text-secondary dark:text-slate-300">
+                {plant.room.name}
+              </Text>
+            </View>
+          )}
+
           {/* Chat CTA */}
           <View className="mt-8">
             <ChatCTA plantName={plant.name} onPress={handleChat} />

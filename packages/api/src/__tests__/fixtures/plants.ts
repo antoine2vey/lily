@@ -25,6 +25,7 @@ export const mockPlants: PlantRecord[] = [
     lastFertilizedAt: new Date('2024-01-01'),
     nextFertilizationAt: new Date('2024-01-31'),
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -48,6 +49,7 @@ export const mockPlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -71,6 +73,7 @@ export const mockPlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-2',
   },
 ]
@@ -117,6 +120,7 @@ export const mockOverduePlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -140,6 +144,7 @@ export const mockOverduePlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -163,6 +168,7 @@ export const mockOverduePlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -186,6 +192,7 @@ export const mockOverduePlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-1',
   },
   {
@@ -209,6 +216,7 @@ export const mockOverduePlants: PlantRecord[] = [
     lastFertilizedAt: null,
     nextFertilizationAt: null,
     isFavorite: false,
+    roomId: null,
     userId: 'user-2',
   },
 ]
@@ -236,6 +244,7 @@ export const createTestPlant = (
   lastFertilizedAt: null,
   nextFertilizationAt: null,
   isFavorite: false,
+  roomId: null,
   userId: 'user-1',
   ...overrides,
 })

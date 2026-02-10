@@ -20,6 +20,7 @@ export default {
     nameLabel: 'Nickname or Plant Name',
     namePlaceholder: 'e.g. Monstera Deliciosa',
     categoryLabel: 'Category',
+    roomLabel: 'Room (optional)',
     selectCategory: 'Select category',
     selectCategoryTitle: 'Select Category',
     categories: {

@@ -1,11 +1,13 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { Plant } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
 export type CareType = 'watering' | 'fertilization'
@@ -50,7 +52,7 @@ const getCareTypeConfig = (careType: CareType): CareTypeConfig =>
 export const executePlantCare = (
   params: ExecutePlantCareParams
 ): Effect.Effect<
-  Plant,
+  PlantWithRoom,
   SqlError | PlantNotFoundError,
   PlantRepository | CareLogRepository | NotificationRepository | UserRepository
 > =>
@@ -93,7 +95,10 @@ export const executePlantCare = (
     }
 
     // Update the plant
-    const updatedPlant = yield* repo.update(params.plantId, updatePayload)
+    yield* repo.update(params.plantId, updatePayload)
+
+    // Re-fetch to include room data
+    const updatedPlant = yield* repo.findById(params.plantId)
 
     if (!updatedPlant) {
       return yield* Effect.fail(new PlantNotFoundError())

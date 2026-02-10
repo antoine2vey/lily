@@ -11,6 +11,10 @@ jest.mock('src/hooks/useDelayedLoading', () => ({
   useDelayedLoading: (isLoading: boolean) => isLoading,
 }))
 
+jest.mock('src/hooks/useRooms', () => ({
+  useRooms: () => ({ data: undefined, isLoading: false }),
+}))
+
 import { useEffectQuery } from 'src/utils/client'
 import { PlantsScreen } from '../PlantsScreen'
 

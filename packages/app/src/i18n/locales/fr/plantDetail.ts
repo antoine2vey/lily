@@ -69,6 +69,7 @@ export default {
     categoryLabel: 'Catégorie',
     descriptionLabel: 'Description',
     descriptionPlaceholder: 'Ajouter des notes de soins ou une description...',
+    roomLabel: 'Pièce',
     careNeeds: 'Besoins en soins',
     careSchedule: 'Calendrier des soins',
     petSafe: 'Sans danger pour les animaux',

@@ -19,7 +19,11 @@ interface MockPlantRepositoryData {
 export const createMockPlantRepository = (
   data: MockPlantRepositoryData
 ): Layer.Layer<PlantRepository> => {
-  const { plants: plantsData, photos = [] } = data
+  // Shallow copy each plant so mutations don't leak between tests
+  const plantsData: PlantRecord[] = Array.map(data.plants, (p) => ({ ...p }))
+  // Keep a reference to the original array for health scheduler mutations
+  const originalPlantsData = data.plants
+  const photos = data.photos ?? []
 
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
@@ -63,8 +67,13 @@ export const createMockPlantRepository = (
       const items = filtered.slice(offset, offset + limit)
       const total = filtered.length
 
+      const itemsWithRoom = Array.map(items, (p) => ({
+        ...p,
+        room: null,
+      }))
+
       return Effect.succeed({
-        items,
+        items: itemsWithRoom,
         total,
         page,
         limit,
@@ -81,6 +90,7 @@ export const createMockPlantRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(plantsData, (p) => p.id === id),
+          Option.map((p) => ({ ...p, room: null })),
           Option.getOrNull
         )
       ),
@@ -104,7 +114,7 @@ export const createMockPlantRepository = (
         return wateringDue || fertilizationDue
       })
 
-      return Effect.succeed(filtered)
+      return Effect.succeed(Array.map(filtered, (p) => ({ ...p, room: null })))
     },
 
     create: (createData) => {
@@ -130,18 +140,24 @@ export const createMockPlantRepository = (
         lastFertilizedAt: null,
         nextFertilizationAt: null,
         isFavorite: false,
+        roomId: createData.roomId ?? null,
         userId: createData.userId,
       }
       return Effect.succeed(newPlant)
     },
 
     update: (id, updateData) => {
-      const plantOption = Array.findFirst(plantsData, (p) => p.id === id)
-      return Option.match(plantOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (plant) =>
-          Effect.succeed({ ...plant, ...updateData, updatedAt: new Date() }),
-      })
+      const idx = plantsData.findIndex((p) => p.id === id)
+      if (idx === -1) return Effect.succeed(null)
+      const existing = plantsData[idx]
+      if (!existing) return Effect.succeed(null)
+      const updated = {
+        ...existing,
+        ...updateData,
+        updatedAt: new Date(),
+      }
+      plantsData[idx] = updated
+      return Effect.succeed(updated)
     },
 
     delete: (id) =>
@@ -219,6 +235,22 @@ export const createMockPlantRepository = (
           count++
         }
       }
+      // Also mutate original array for tests that check it directly
+      for (const plant of originalPlantsData) {
+        const wateringOverdue =
+          plant.nextWateringAt !== null &&
+          plant.nextWateringAt.getTime() <= now.getTime()
+        const fertilizationOverdue =
+          plant.nextFertilizationAt !== null &&
+          plant.nextFertilizationAt.getTime() <= now.getTime()
+
+        if (
+          (wateringOverdue || fertilizationOverdue) &&
+          (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
+        ) {
+          plant.health = 'NEEDS_ATTENTION'
+        }
+      }
       return Effect.succeed(count)
     },
 
@@ -240,6 +272,23 @@ export const createMockPlantRepository = (
         ) {
           plant.health = 'HEALTHY'
           count++
+        }
+      }
+      // Also mutate original array for tests that check it directly
+      for (const plant of originalPlantsData) {
+        const wateringOk =
+          plant.nextWateringAt === null ||
+          plant.nextWateringAt.getTime() > now.getTime()
+        const fertilizationOk =
+          plant.nextFertilizationAt === null ||
+          plant.nextFertilizationAt.getTime() > now.getTime()
+
+        if (
+          plant.health === 'NEEDS_ATTENTION' &&
+          wateringOk &&
+          fertilizationOk
+        ) {
+          plant.health = 'HEALTHY'
         }
       }
       return Effect.succeed(count)

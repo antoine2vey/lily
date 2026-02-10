@@ -1,12 +1,19 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import {
+  PlantRepository,
+  type PlantWithRoom,
+} from '@lily/api/repositories/plant.repository'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import type { Plant, PlantUpdateRequest } from '@lily/shared/plant'
+import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { DateTime, Effect, Option, pipe, Record, Struct } from 'effect'
 
 export const updatePlant = (
   request: PlantUpdateRequest & { id: string }
-): Effect.Effect<Plant, SqlError | PlantNotFoundError, PlantRepository> =>
+): Effect.Effect<
+  PlantWithRoom,
+  SqlError | PlantNotFoundError,
+  PlantRepository
+> =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
@@ -49,10 +56,11 @@ export const updatePlant = (
       }
     }
 
-    const plant = yield* repo.update(request.id, data)
+    yield* repo.update(request.id, data)
 
+    const updated = yield* repo.findById(request.id)
     return pipe(
-      Option.fromNullable(plant),
+      Option.fromNullable(updated),
       Option.getOrElse(() => currentPlant)
     )
   }).pipe(Effect.withSpan('PlantsService.updatePlant'))

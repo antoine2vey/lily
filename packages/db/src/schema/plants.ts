@@ -1,6 +1,7 @@
 import { plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
+import { rooms } from '@lily/db/schema/rooms'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
@@ -42,10 +43,12 @@ export const plants = pgTable('plants', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
 })
 
 export const plantsRelations = relations(plants, ({ one, many }) => ({
   user: one(users, { fields: [plants.userId], references: [users.id] }),
+  room: one(rooms, { fields: [plants.roomId], references: [rooms.id] }),
   notifications: many(notifications),
   careLogs: many(careLogs),
   photos: many(plantPhotos),

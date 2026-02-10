@@ -46,6 +46,7 @@ export const createPlant = (
       nextFertilizationAt: request.fertilizationFrequencyDays ? now : null,
       health: 'HEALTHY', // Default value
       userId,
+      roomId: request.roomId ?? null,
     })
 
     if (!plantOrNull) {
@@ -58,5 +59,5 @@ export const createPlant = (
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
     )
 
-    return plant
+    return { ...plant, room: null }
   }).pipe(Effect.withSpan('PlantsService.createPlant'))

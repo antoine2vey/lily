@@ -18,6 +18,7 @@ interface PlantWithSchedule {
   imageUrl: string | null
   nextWateringAt: Date | null
   nextFertilizationAt: Date | null
+  room: { id: string; name: string; icon: string } | null
 }
 
 /**
@@ -32,6 +33,8 @@ const createTask = (
   plantId: plant.id,
   plantName: plant.name,
   plantImageUrl: plant.imageUrl,
+  roomName: plant.room?.name ?? null,
+  roomIcon: plant.room?.icon ?? null,
   type,
   dueDate,
   completed: false,

@@ -29,6 +29,7 @@ const createTestPlant = (
   lastFertilizedAt: null,
   nextFertilizationAt: null,
   isFavorite: false,
+  roomId: null,
   userId: 'user-1',
   ...overrides,
 })

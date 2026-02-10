@@ -12,6 +12,7 @@ import onboarding from './onboarding'
 import plantDetail from './plantDetail'
 import plants from './plants'
 import profile from './profile'
+import rooms from './rooms'
 import settings from './settings'
 import subscription from './subscription'
 
@@ -24,6 +25,7 @@ export default {
   chat,
   settings,
   profile,
+  rooms,
   about,
   onboarding,
   achievements,
