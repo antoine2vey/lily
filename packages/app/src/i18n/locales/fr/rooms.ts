@@ -58,4 +58,8 @@ export default {
     allRooms: 'Toutes les pièces',
     noRoom: 'Sans pièce',
   },
+  lightWarning:
+    'Cette pièce à une luminosité « {roomLight} » mais votre plante a besoin de « {plantLight} »',
+  lightUnknown:
+    "Cette pièce n'a pas d'info de luminosité. Ajoutez-la dans les paramètres pour de meilleures recommandations.",
 } as const

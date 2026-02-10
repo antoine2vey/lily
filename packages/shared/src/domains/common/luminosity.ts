@@ -1,4 +1,4 @@
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 
 export type LuminosityLevel = 1 | 2 | 3 | 4 | 5
 
@@ -9,6 +9,18 @@ export const LUMINOSITY_LEVELS = {
   4: { label: 'Direct light', icon: '☀️' },
   5: { label: 'Full sun', icon: '🔆' },
 } as const
+
+export const isRoomCompatibleWithPlant = (
+  roomLuminosity: number | null,
+  plantLuxNeeded: number
+): Option.Option<boolean> =>
+  pipe(
+    Option.fromNullable(roomLuminosity),
+    Option.map(
+      (roomLux) =>
+        luxToLuminosityLevel(roomLux) >= luxToLuminosityLevel(plantLuxNeeded)
+    )
+  )
 
 export const luxToLuminosityLevel = (lux: number): LuminosityLevel =>
   pipe(

@@ -56,4 +56,7 @@ export default {
     allRooms: 'All Rooms',
     noRoom: 'No Room',
   },
+  lightWarning: 'This room has {roomLight} but your plant needs {plantLight}',
+  lightUnknown:
+    'This room has no lighting info. Add it in room settings for better recommendations.',
 } as const
