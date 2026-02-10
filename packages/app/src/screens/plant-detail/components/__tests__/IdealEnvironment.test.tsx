@@ -5,7 +5,8 @@ describe('IdealEnvironment', () => {
   it('renders ideal environment section', () => {
     render(
       <IdealEnvironment
-        sunlight="indirect"
+        sunlightLabel="Bright indirect"
+        sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
       />
@@ -17,7 +18,8 @@ describe('IdealEnvironment', () => {
   it('displays section header', () => {
     render(
       <IdealEnvironment
-        sunlight="indirect"
+        sunlightLabel="Bright indirect"
+        sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
       />
@@ -29,19 +31,25 @@ describe('IdealEnvironment', () => {
   it('displays sunlight level', () => {
     render(
       <IdealEnvironment
-        sunlight="bright"
+        sunlightLabel="Bright indirect"
+        sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
       />
     )
 
     expect(screen.getByText('Sunlight')).toBeTruthy()
-    expect(screen.getByText('Bright Light')).toBeTruthy()
+    expect(screen.getByText('Bright indirect')).toBeTruthy()
   })
 
   it('displays water level', () => {
     render(
-      <IdealEnvironment sunlight="indirect" water="high" humidity="moderate" />
+      <IdealEnvironment
+        sunlightLabel="Bright indirect"
+        sunlightPercentage={60}
+        water="high"
+        humidity="moderate"
+      />
     )
 
     expect(screen.getByText('Water')).toBeTruthy()
@@ -51,7 +59,8 @@ describe('IdealEnvironment', () => {
   it('displays humidity level', () => {
     render(
       <IdealEnvironment
-        sunlight="indirect"
+        sunlightLabel="Bright indirect"
+        sunlightPercentage={60}
         water="moderate"
         humidity="tropical"
       />
@@ -62,7 +71,14 @@ describe('IdealEnvironment', () => {
   })
 
   it('displays all environment rows', () => {
-    render(<IdealEnvironment sunlight="low" water="low" humidity="low" />)
+    render(
+      <IdealEnvironment
+        sunlightLabel="Low light"
+        sunlightPercentage={20}
+        water="low"
+        humidity="low"
+      />
+    )
 
     expect(screen.getByTestId('environment-row-sunlight')).toBeTruthy()
     expect(screen.getByTestId('environment-row-water')).toBeTruthy()

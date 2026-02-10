@@ -41,7 +41,12 @@ export interface FindPlantsParams {
   timezone: string
 }
 
-export type RoomRef = { id: string; name: string; icon: string } | null
+export type RoomRef = {
+  id: string
+  name: string
+  icon: string
+  luminosity: number | null
+} | null
 
 export type PlantWithRoom = typeof plants.$inferSelect & { room: RoomRef }
 
