@@ -1,4 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import {
+  LUMINOSITY_LEVELS,
+  LUMINOSITY_LUX_VALUES,
+  type LuminosityLevel,
+  luxToLuminosityLevel,
+} from '@lily/shared'
+import { Array, Match, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +24,7 @@ type BasicInfo = {
 }
 
 export function ManualAddCareNeedsScreen() {
-  const { t } = useTranslation('addPlant')
+  const { t } = useTranslation(['addPlant', 'rooms'])
   const params = useLocalSearchParams<{ basicInfo?: string }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
@@ -30,9 +37,60 @@ export function ManualAddCareNeedsScreen() {
   const [humidity, setHumidity] = useState(50)
   const [petSafe, setPetSafe] = useState(false)
 
+  const sliderToLux = (v: number): number =>
+    pipe(
+      Match.value(v),
+      Match.when(
+        (s) => s < 20,
+        () => LUMINOSITY_LUX_VALUES[1]
+      ),
+      Match.when(
+        (s) => s < 40,
+        () => LUMINOSITY_LUX_VALUES[2]
+      ),
+      Match.when(
+        (s) => s < 60,
+        () => LUMINOSITY_LUX_VALUES[3]
+      ),
+      Match.when(
+        (s) => s < 80,
+        () => LUMINOSITY_LUX_VALUES[4]
+      ),
+      Match.orElse(() => LUMINOSITY_LUX_VALUES[5])
+    )
+
+  const STEPS: LuminosityLevel[] = [1, 2, 3, 4, 5]
+
+  const sliderToStep = (v: number): LuminosityLevel =>
+    pipe(
+      Match.value(v),
+      Match.when(
+        (s) => s < 20,
+        () => 1 as const
+      ),
+      Match.when(
+        (s) => s < 40,
+        () => 2 as const
+      ),
+      Match.when(
+        (s) => s < 60,
+        () => 3 as const
+      ),
+      Match.when(
+        (s) => s < 80,
+        () => 4 as const
+      ),
+      Match.orElse(() => 5 as const)
+    )
+
+  const activeWateringLevel = sliderToStep(watering)
+  const activeLevel = luxToLuminosityLevel(sliderToLux(light))
+  const activeHumidityLevel = sliderToStep(humidity)
+
   const handleNext = () => {
+    const luxNeeded = sliderToLux(light)
     const careNeeds = encodeURIComponent(
-      JSON.stringify({ watering, light, humidity, petSafe })
+      JSON.stringify({ watering, luxNeeded, humidity, petSafe })
     )
     const basicInfoParam = encodeURIComponent(JSON.stringify(basicInfo))
     router.push(
@@ -64,41 +122,119 @@ export function ManualAddCareNeedsScreen() {
 
         {/* Sliders */}
         <View className="gap-8">
-          <Slider
-            icon={<MaterialIcons name="water-drop" size={20} color="#2563EB" />}
-            iconBgColor="#DBEAFE"
-            label={t('careNeeds.watering.label')}
-            value={watering}
-            onValueChange={setWatering}
-            min={0}
-            max={100}
-            minLabel={t('careNeeds.watering.low')}
-            maxLabel={t('careNeeds.watering.high')}
-          />
+          <View className="gap-2">
+            <Slider
+              icon={
+                <MaterialIcons name="water-drop" size={20} color="#2563EB" />
+              }
+              iconBgColor="#DBEAFE"
+              label={t('addPlant:careNeeds.watering.label')}
+              value={watering}
+              onValueChange={setWatering}
+              min={0}
+              max={100}
+            />
+            <View className="flex-row justify-between">
+              {Array.map(STEPS, (step) => {
+                const isActive = step === activeWateringLevel
+                const parts = t(
+                  `addPlant:careNeeds.watering.levels.${step}`
+                ).split('\n')
+                return (
+                  <View key={step} className="items-center flex-1">
+                    <Text
+                      className={`text-base ${isActive ? '' : 'opacity-30'}`}
+                    >
+                      {parts[0]}
+                    </Text>
+                    <Text
+                      className={`text-[9px] text-center mt-0.5 ${
+                        isActive
+                          ? 'text-primary font-semibold'
+                          : 'text-text-muted dark:text-slate-400'
+                      }`}
+                    >
+                      {parts[1]}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
 
-          <Slider
-            icon={<MaterialIcons name="wb-sunny" size={20} color="#CA8A04" />}
-            iconBgColor="#FEF9C3"
-            label={t('careNeeds.light.label')}
-            value={light}
-            onValueChange={setLight}
-            min={0}
-            max={100}
-            minLabel={t('careNeeds.light.low')}
-            maxLabel={t('careNeeds.light.high')}
-          />
+          <View className="gap-2">
+            <Slider
+              icon={<MaterialIcons name="wb-sunny" size={20} color="#CA8A04" />}
+              iconBgColor="#FEF9C3"
+              label={t('addPlant:careNeeds.light.label')}
+              value={light}
+              onValueChange={setLight}
+              min={0}
+              max={100}
+            />
+            <View className="flex-row justify-between">
+              {Array.map(STEPS, (level) => {
+                const isActive = level === activeLevel
+                const info = LUMINOSITY_LEVELS[level]
+                return (
+                  <View key={level} className="items-center flex-1">
+                    <Text
+                      className={`text-base ${isActive ? '' : 'opacity-30'}`}
+                    >
+                      {info.icon}
+                    </Text>
+                    <Text
+                      className={`text-[9px] text-center mt-0.5 ${
+                        isActive
+                          ? 'text-primary font-semibold'
+                          : 'text-text-muted dark:text-slate-400'
+                      }`}
+                    >
+                      {t(`rooms:lightingLevels.${level}`)}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
 
-          <Slider
-            icon={<MaterialIcons name="water" size={20} color="#0D9488" />}
-            iconBgColor="#CCFBF1"
-            label={t('careNeeds.humidity.label')}
-            value={humidity}
-            onValueChange={setHumidity}
-            min={0}
-            max={100}
-            minLabel={t('careNeeds.humidity.low')}
-            maxLabel={t('careNeeds.humidity.high')}
-          />
+          <View className="gap-2">
+            <Slider
+              icon={<MaterialIcons name="water" size={20} color="#0D9488" />}
+              iconBgColor="#CCFBF1"
+              label={t('addPlant:careNeeds.humidity.label')}
+              value={humidity}
+              onValueChange={setHumidity}
+              min={0}
+              max={100}
+            />
+            <View className="flex-row justify-between">
+              {Array.map(STEPS, (step) => {
+                const isActive = step === activeHumidityLevel
+                const parts = t(
+                  `addPlant:careNeeds.humidity.levels.${step}`
+                ).split('\n')
+                return (
+                  <View key={step} className="items-center flex-1">
+                    <Text
+                      className={`text-base ${isActive ? '' : 'opacity-30'}`}
+                    >
+                      {parts[0]}
+                    </Text>
+                    <Text
+                      className={`text-[9px] text-center mt-0.5 ${
+                        isActive
+                          ? 'text-primary font-semibold'
+                          : 'text-text-muted dark:text-slate-400'
+                      }`}
+                    >
+                      {parts[1]}
+                    </Text>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
 
           {/* Divider */}
           <View className="h-px w-full bg-surface-tinted dark:bg-slate-700" />

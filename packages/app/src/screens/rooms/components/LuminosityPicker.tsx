@@ -1,15 +1,17 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { LUMINOSITY_LEVELS, type LuminosityLevel } from '@lily/shared'
+import {
+  LUMINOSITY_LEVELS,
+  LUMINOSITY_LUX_VALUES,
+  type LuminosityLevel,
+  luxToLuminosityLevel,
+} from '@lily/shared'
 import { Array, Option } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { toast } from 'sonner-native'
 import { useIconColors } from 'src/hooks/useIconColors'
-import {
-  calculateLuxFromExif,
-  detectLuminosityFromExif,
-} from 'src/utils/luminosity'
+import { calculateLuxFromExif } from 'src/utils/luminosity'
 
 const LEVELS: LuminosityLevel[] = [1, 2, 3, 4, 5]
 
@@ -41,21 +43,11 @@ export function LuminosityPicker({ value, onChange }: LuminosityPickerProps) {
       return
     }
 
-    console.log('[LuminosityPicker] EXIF data:', {
-      BrightnessValue: exif.BrightnessValue,
-      FNumber: exif.FNumber,
-      ExposureTime: exif.ExposureTime,
-      ISOSpeedRatings: exif.ISOSpeedRatings,
-    })
-
-    const lux = calculateLuxFromExif(exif)
-    console.log('[LuminosityPicker] Calculated lux:', Option.getOrNull(lux))
-
-    Option.match(detectLuminosityFromExif(exif), {
+    Option.match(calculateLuxFromExif(exif), {
       onNone: () => toast.error(t('lightingDetectionFailed')),
-      onSome: (level) => {
-        console.log('[LuminosityPicker] Detected level:', level)
-        onChange(level)
+      onSome: (lux) => {
+        const level = luxToLuminosityLevel(lux)
+        onChange(LUMINOSITY_LUX_VALUES[level])
         toast.success(t('lightingDetected'))
       },
     })
@@ -68,12 +60,13 @@ export function LuminosityPicker({ value, onChange }: LuminosityPickerProps) {
       </Text>
       <View className="flex-row gap-2">
         {Array.map(LEVELS, (level) => {
-          const isSelected = value === level
+          const luxValue = LUMINOSITY_LUX_VALUES[level]
+          const isSelected = value === luxValue
           const info = LUMINOSITY_LEVELS[level]
           return (
             <Pressable
               key={level}
-              onPress={() => onChange(isSelected ? null : level)}
+              onPress={() => onChange(isSelected ? null : luxValue)}
               className={`flex-1 items-center py-2.5 rounded-xl ${
                 isSelected
                   ? 'bg-primary/15 border-2 border-primary'

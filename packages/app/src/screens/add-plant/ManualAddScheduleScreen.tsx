@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Either, Match, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Alert,
@@ -29,7 +29,7 @@ type BasicInfo = {
 
 type CareNeeds = {
   watering: number
-  light: number
+  luxNeeded: number
   humidity: number
   petSafe: boolean
 }
@@ -60,7 +60,7 @@ export function ManualAddScheduleScreen() {
     : { photo: null, name: '', category: '' }
   const careNeeds: CareNeeds = params.careNeeds
     ? JSON.parse(decodeURIComponent(params.careNeeds))
-    : { watering: 50, light: 50, humidity: 50, petSafe: false }
+    : { watering: 50, luxNeeded: 2000, humidity: 50, petSafe: false }
 
   const [roomId, setRoomId] = useState<string | null>(null)
   const [wateringDays, setWateringDays] = useState(7)
@@ -69,32 +69,6 @@ export function ManualAddScheduleScreen() {
   const [notes, setNotes] = useState('')
 
   const { mutate: createPlant, isPending } = useCreatePlant()
-
-  // Convert light slider value (0-100) to estimated lux
-  const luxNeeded = useMemo(
-    () =>
-      pipe(
-        Match.value(careNeeds.light),
-        Match.when(
-          (v) => v < 20,
-          () => 100
-        ),
-        Match.when(
-          (v) => v < 40,
-          () => 500
-        ),
-        Match.when(
-          (v) => v < 60,
-          () => 2000
-        ),
-        Match.when(
-          (v) => v < 80,
-          () => 10000
-        ),
-        Match.orElse(() => 40000)
-      ),
-    [careNeeds.light]
-  )
 
   const handleFinish = () => {
     createPlant(
@@ -105,7 +79,7 @@ export function ManualAddScheduleScreen() {
           description: notes || undefined,
           wateringFrequencyDays: wateringDays,
           fertilizationFrequencyDays: fertilizingDays,
-          luxNeeded,
+          luxNeeded: careNeeds.luxNeeded,
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
           remindersEnabled: careReminders,
@@ -214,7 +188,7 @@ export function ManualAddScheduleScreen() {
             <RoomPicker
               value={roomId}
               onSelect={setRoomId}
-              plantLuxNeeded={luxNeeded}
+              plantLuxNeeded={careNeeds.luxNeeded}
             />
           </View>
 
