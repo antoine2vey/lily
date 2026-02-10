@@ -211,6 +211,82 @@ const styles = StyleSheet.create({
 
 ---
 
+## Loading States (MANDATORY)
+
+**NEVER use a bare `ActivityIndicator` for initial screen loading.** Always use the shimmer skeleton pattern with delayed loading.
+
+### Pattern
+
+```tsx
+import Animated, { FadeIn } from 'react-native-reanimated'
+import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
+
+// 1. Distinguish initial load from refetch
+const isInitialLoading = isLoading && !data
+
+// 2. Delay skeleton to avoid flash on fast responses (300ms)
+const showSkeleton = useDelayedLoading(isInitialLoading)
+
+// 3. Render: skeleton → null (brief gap) → real content
+{showSkeleton ? (
+  <Animated.View entering={FadeIn.duration(300)}>
+    <ContentSkeleton />
+  </Animated.View>
+) : isInitialLoading ? null : (
+  <Animated.View entering={FadeIn.duration(300)}>
+    {/* Real content or empty state */}
+  </Animated.View>
+)}
+```
+
+### Rules
+
+1. **`isInitialLoading = isLoading && !data`** — only show skeletons on the first load, never on refetches
+2. **`useDelayedLoading(isInitialLoading)`** — prevents skeleton flash when data loads in < 300ms
+3. **Wrap both skeleton and content in `Animated.View` with `FadeIn.duration(300)`** for smooth transitions
+4. **Build skeleton components that mirror the real layout** — use `SkeletonBox` and `SkeletonCircle` with matching dimensions
+
+### Skeleton Components
+
+- `SkeletonBox` — rectangular placeholder (`width`, `height`, `rounded`)
+- `SkeletonCircle` — circular placeholder (`size`)
+- Both are theme-aware (light/dark shimmer colors) via `src/components/skeletons`
+
+```tsx
+// Example: card skeleton matching real card layout
+function CardSkeleton() {
+  return (
+    <View className="flex-row items-center p-4 bg-surface dark:bg-surface-dark rounded-xl">
+      <SkeletonCircle size={48} />
+      <View className="flex-1 ml-3">
+        <SkeletonBox width="60%" height={16} rounded="sm" />
+        <View className="mt-1">
+          <SkeletonBox width={70} height={14} rounded="sm" />
+        </View>
+      </View>
+    </View>
+  )
+}
+```
+
+### What NOT to Do
+
+```tsx
+// ❌ FORBIDDEN - Bare spinner for initial load
+{isLoading && <ActivityIndicator size="large" />}
+
+// ❌ FORBIDDEN - No delayed loading (causes skeleton flash)
+{isLoading && <ContentSkeleton />}
+
+// ❌ FORBIDDEN - Showing skeleton on refetches
+const showSkeleton = useDelayedLoading(isLoading) // missing !data check
+```
+
+`ActivityIndicator` is only acceptable inside buttons or inline actions (e.g. submit button pending state), never as a full-screen loading state.
+
+---
+
 ## Quick Reference Patterns
 
 **Card:**

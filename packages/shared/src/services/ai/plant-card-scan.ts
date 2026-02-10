@@ -28,7 +28,7 @@ export const plantCardScan = (
 
         Also extract or infer care recommendations:
         - wateringFrequencyDays: how often to water in days (e.g. 7 for weekly)
-        - sunlightPreference: one of "low", "medium", "high"
+        - luxNeeded: estimated lux the plant needs (e.g. 300 for shade plants, 2000 for indirect, 10000+ for full sun)
         - humidityRating: 0-100 scale (0 = very dry, 100 = very humid)
         - petToxicityRating: 0-100 scale (0 = safe for pets, 100 = highly toxic)
         - fertilizationFrequencyDays: how often to fertilize in days (e.g. 30 for monthly)
@@ -87,7 +87,7 @@ export const plantCardScanMultiple = (
 
         Also extract or infer care recommendations:
         - wateringFrequencyDays: how often to water in days (e.g. 7 for weekly)
-        - sunlightPreference: one of "low", "medium", "high"
+        - luxNeeded: estimated lux the plant needs (e.g. 300 for shade plants, 2000 for indirect, 10000+ for full sun)
         - humidityRating: 0-100 scale (0 = very dry, 100 = very humid)
         - petToxicityRating: 0-100 scale (0 = safe for pets, 100 = highly toxic)
         - fertilizationFrequencyDays: how often to fertilize in days (e.g. 30 for monthly)

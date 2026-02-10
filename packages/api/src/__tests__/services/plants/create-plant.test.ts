@@ -14,7 +14,7 @@ describe('createPlant', () => {
     description: 'A new plant description',
     category: 'tropical',
     wateringFrequencyDays: 7,
-    sunlightPreference: 'indirect',
+    luxNeeded: 2000,
     humidityRating: 3,
     petToxicityRating: 1,
   }
@@ -112,6 +112,27 @@ describe('createPlant', () => {
     )
 
     expect(result.fertilizationFrequencyDays).toBeNull()
+  })
+
+  it('should convert luxNeeded to lightingRating', async () => {
+    const result = await Effect.runPromise(
+      createPlant({ ...validRequest, luxNeeded: 5000 }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    // 5000 lux → level 4 (direct light)
+    expect(result.lightingRating).toBe(4)
+  })
+
+  it('should set lightingRating 1 for low lux', async () => {
+    const result = await Effect.runPromise(
+      createPlant({ ...validRequest, luxNeeded: 200 }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(result.lightingRating).toBe(1)
   })
 
   it('should publish PlantCreated event', async () => {

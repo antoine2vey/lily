@@ -134,6 +134,13 @@
       "when": 1770724561326,
       "tag": "0018_funny_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1770737040936,
+      "tag": "0019_broken_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

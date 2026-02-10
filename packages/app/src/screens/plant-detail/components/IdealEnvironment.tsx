@@ -5,21 +5,14 @@ import { Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
 
-type SunlightLevel = 'low' | 'indirect' | 'bright' | 'direct'
 type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
 
 interface IdealEnvironmentProps {
-  sunlight: SunlightLevel
+  sunlightLabel: string
+  sunlightPercentage: number
   water: WaterLevel
   humidity: HumidityLevel
-}
-
-const SUNLIGHT_PERCENTAGES: Record<SunlightLevel, number> = {
-  low: 25,
-  indirect: 50,
-  bright: 75,
-  direct: 100,
 }
 
 const WATER_PERCENTAGES: Record<WaterLevel, number> = {
@@ -98,20 +91,14 @@ function EnvironmentRow({
 }
 
 export function IdealEnvironment({
-  sunlight,
+  sunlightLabel,
+  sunlightPercentage,
   water,
   humidity,
 }: IdealEnvironmentProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
-
-  const SUNLIGHT_LABELS: Record<SunlightLevel, string> = {
-    low: t('detail.sunlightLevels.low'),
-    indirect: t('detail.sunlightLevels.indirect'),
-    bright: t('detail.sunlightLevels.bright'),
-    direct: t('detail.sunlightLevels.direct'),
-  }
 
   // Theme-aware colors for environment metrics
   const sunlightColors = {
@@ -155,11 +142,11 @@ export function IdealEnvironment({
           iconBgColor={sunlightColors.iconBgColor}
           iconColor={sunlightColors.iconColor}
           label={t('detail.sunlight')}
-          value={SUNLIGHT_LABELS[sunlight]}
+          value={sunlightLabel}
           badgeBgColor={sunlightColors.badgeBgColor}
           badgeTextColor={sunlightColors.badgeTextColor}
           barColor={sunlightColors.barColor}
-          percentage={SUNLIGHT_PERCENTAGES[sunlight]}
+          percentage={sunlightPercentage}
         />
         <EnvironmentRow
           icon="water-drop"

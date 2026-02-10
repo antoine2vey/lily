@@ -83,7 +83,7 @@ describe('scanCard', () => {
 
     expect(result.humidityRating).toBe(50)
     expect(result.petToxicityRating).toBe(20)
-    expect(result.sunlightPreference).toBe('medium')
+    expect(result.luxNeeded).toBe(2000)
     expect(result.confidence).toBe(0.85)
     expect(result.imageUrl).toBeDefined()
   })

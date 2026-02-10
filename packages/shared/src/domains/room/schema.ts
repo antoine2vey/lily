@@ -4,6 +4,7 @@ export const Room = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   icon: Schema.String,
+  luminosity: Schema.NullOr(Schema.Number),
   order: Schema.Number,
   userId: Schema.String,
   createdAt: Schema.Date,
@@ -14,17 +15,20 @@ export const RoomRef = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   icon: Schema.String,
+  luminosity: Schema.NullOr(Schema.Number),
 })
 
 export const RoomCreateRequest = Schema.Struct({
   name: Schema.String,
   icon: Schema.optionalWith(Schema.String, { default: () => '🏠' }),
+  luminosity: Schema.optional(Schema.Number),
 })
 
 export const RoomUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
   icon: Schema.optional(Schema.String),
   order: Schema.optional(Schema.Number),
+  luminosity: Schema.optional(Schema.NullOr(Schema.Number)),
 })
 
 export const RoomWithCount = Schema.Struct({

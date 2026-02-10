@@ -16,6 +16,7 @@ export const createRoom = (
     const room = yield* repo.create({
       name: request.name,
       icon: request.icon,
+      luminosity: request.luminosity,
       order: maxOrder + 1,
       userId,
     })

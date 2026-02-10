@@ -13,7 +13,7 @@ interface PlantIdentificationResult {
   confidence: number
   alternatives: PlantAlternative[]
   wateringFrequencyDays: number | null
-  sunlightPreference: string | null
+  luxNeeded: number | null
   humidityRating: number | null
   petToxicityRating: number | null
   fertilizationFrequencyDays: number | null

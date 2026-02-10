@@ -7,6 +7,7 @@ export const rooms = pgTable('rooms', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   icon: text('icon').notNull().default('🏠'),
+  luminosity: integer('luminosity'),
   order: integer('order').notNull().default(0),
   userId: uuid('user_id')
     .notNull()

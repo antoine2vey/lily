@@ -70,18 +70,26 @@ export function ManualAddScheduleScreen() {
   const { mutate: createPlant, isPending } = useCreatePlant()
 
   const handleFinish = () => {
-    // Convert light slider value (0-100) to sunlight preference string
-    const sunlightPreference = pipe(
+    // Convert light slider value (0-100) to estimated lux
+    const luxNeeded = pipe(
       Match.value(careNeeds.light),
       Match.when(
-        (v) => v < 33,
-        () => 'low' as const
+        (v) => v < 20,
+        () => 100
       ),
       Match.when(
-        (v) => v < 66,
-        () => 'medium' as const
+        (v) => v < 40,
+        () => 500
       ),
-      Match.orElse(() => 'high' as const)
+      Match.when(
+        (v) => v < 60,
+        () => 2000
+      ),
+      Match.when(
+        (v) => v < 80,
+        () => 10000
+      ),
+      Match.orElse(() => 40000)
     )
 
     createPlant(
@@ -92,7 +100,7 @@ export function ManualAddScheduleScreen() {
           description: notes || undefined,
           wateringFrequencyDays: wateringDays,
           fertilizationFrequencyDays: fertilizingDays,
-          sunlightPreference,
+          luxNeeded,
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
           remindersEnabled: careReminders,
