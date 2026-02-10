@@ -43,26 +43,18 @@ describe('isRoomCompatibleWithPlant', () => {
     expect(Option.isNone(isRoomCompatibleWithPlant(null, 500))).toBe(true)
   })
 
-  it('should return Some(true) when room level >= plant level', () => {
-    // Room: 5000 lux (level 3), Plant: 500 lux (level 2)
-    expect(isRoomCompatibleWithPlant(5000, 500)).toEqual(Option.some(true))
+  it('should return Some(true) when room and plant are same level', () => {
+    // Room: 500 lux (level 2), Plant: 500 lux (level 2)
+    expect(isRoomCompatibleWithPlant(500, 500)).toEqual(Option.some(true))
+    // Room: 40000 lux (level 5), Plant: 40000 lux (level 5)
+    expect(isRoomCompatibleWithPlant(40000, 40000)).toEqual(Option.some(true))
   })
 
-  it('should return Some(true) when room level equals plant level', () => {
-    // Both at level 3
-    expect(isRoomCompatibleWithPlant(2000, 1000)).toEqual(Option.some(true))
-  })
-
-  it('should return Some(false) when room level < plant level', () => {
-    // Room: 100 lux (level 1), Plant: 10000 lux (level 4)
+  it('should return Some(false) when room level differs from plant level', () => {
+    // Room: 100 lux (level 1), Plant: 10000 lux (level 4) — too little light
     expect(isRoomCompatibleWithPlant(100, 10000)).toEqual(Option.some(false))
-  })
-
-  it('should handle edge cases at level boundaries', () => {
-    // Room: 249 lux (level 1), Plant: 250 lux (level 2)
-    expect(isRoomCompatibleWithPlant(249, 250)).toEqual(Option.some(false))
-    // Room: 250 lux (level 2), Plant: 249 lux (level 1)
-    expect(isRoomCompatibleWithPlant(250, 249)).toEqual(Option.some(true))
+    // Room: 40000 lux (level 5), Plant: 10000 lux (level 4) — too much light
+    expect(isRoomCompatibleWithPlant(40000, 10000)).toEqual(Option.some(false))
   })
 })
 

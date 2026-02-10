@@ -1,4 +1,3 @@
-import { type LuminosityLevel, luxToLuminosityLevel } from '@lily/shared'
 import { Option, pipe } from 'effect'
 
 interface ExifData {
@@ -35,8 +34,3 @@ const luxFromExposure = (exif: ExifData): Option.Option<number> =>
 
 export const calculateLuxFromExif = (exif: ExifData): Option.Option<number> =>
   Option.orElse(luxFromBrightness(exif), () => luxFromExposure(exif))
-
-export const detectLuminosityFromExif = (
-  exif: ExifData
-): Option.Option<LuminosityLevel> =>
-  Option.map(calculateLuxFromExif(exif), luxToLuminosityLevel)

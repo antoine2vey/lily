@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
   LUMINOSITY_LEVELS,
-  type LuminosityLevel,
+  luxToLuminosityLevel,
   type Plant,
 } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
@@ -343,12 +343,14 @@ export function RoomsScreen() {
                     {item.luminosity != null && (
                       <Text className="text-xs text-text-muted dark:text-slate-400">
                         {
-                          LUMINOSITY_LEVELS[item.luminosity as LuminosityLevel]
-                            .icon
+                          LUMINOSITY_LEVELS[
+                            luxToLuminosityLevel(item.luminosity)
+                          ].icon
                         }{' '}
                         {
-                          LUMINOSITY_LEVELS[item.luminosity as LuminosityLevel]
-                            .label
+                          LUMINOSITY_LEVELS[
+                            luxToLuminosityLevel(item.luminosity)
+                          ].label
                         }
                       </Text>
                     )}

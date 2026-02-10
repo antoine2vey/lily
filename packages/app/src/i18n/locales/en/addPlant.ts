@@ -41,6 +41,13 @@ export default {
       label: 'Watering',
       low: 'Drought tolerant',
       high: 'Loves water',
+      levels: {
+        1: '🏜️\nVery low',
+        2: '💧\nLow',
+        3: '💧💧\nModerate',
+        4: '💧💧💧\nHigh',
+        5: '🌊\nVery high',
+      },
     },
     light: {
       label: 'Light',
@@ -51,6 +58,13 @@ export default {
       label: 'Humidity',
       low: 'Dry air OK',
       high: 'High humidity',
+      levels: {
+        1: '🌵\nVery dry',
+        2: '💨\nDry',
+        3: '🌤️\nModerate',
+        4: '💦\nHumid',
+        5: '🌿\nVery humid',
+      },
     },
     petSafety: {
       label: 'Pet Safety',

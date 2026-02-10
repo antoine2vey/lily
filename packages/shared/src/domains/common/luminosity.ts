@@ -10,6 +10,14 @@ export const LUMINOSITY_LEVELS = {
   5: { label: 'Full sun', icon: '🔆' },
 } as const
 
+export const LUMINOSITY_LUX_VALUES: Record<LuminosityLevel, number> = {
+  1: 100,
+  2: 500,
+  3: 2_000,
+  4: 10_000,
+  5: 40_000,
+} as const
+
 export const isRoomCompatibleWithPlant = (
   roomLuminosity: number | null,
   plantLuxNeeded: number
@@ -18,7 +26,7 @@ export const isRoomCompatibleWithPlant = (
     Option.fromNullable(roomLuminosity),
     Option.map(
       (roomLux) =>
-        luxToLuminosityLevel(roomLux) >= luxToLuminosityLevel(plantLuxNeeded)
+        luxToLuminosityLevel(roomLux) === luxToLuminosityLevel(plantLuxNeeded)
     )
   )
 

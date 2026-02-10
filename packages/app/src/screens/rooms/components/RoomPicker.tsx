@@ -118,11 +118,12 @@ export function RoomPicker({
                   Match.value(compatible),
                   Match.when(true, () => null),
                   Match.when(false, () => {
-                    const roomLux = Option.getOrElse(
-                      Option.fromNullable(room.luminosity),
-                      () => 0
+                    const roomLevel = luxToLuminosityLevel(
+                      Option.getOrElse(
+                        Option.fromNullable(room.luminosity),
+                        () => 0
+                      )
                     )
-                    const roomLevel = luxToLuminosityLevel(roomLux)
                     const plantLevel = luxToLuminosityLevel(lux)
                     const roomLabel = t(`lightingLevels.${roomLevel}`).replace(
                       '\n',

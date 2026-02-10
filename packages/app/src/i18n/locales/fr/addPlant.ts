@@ -41,6 +41,13 @@ export default {
       label: 'Arrosage',
       low: 'Résiste à la sécheresse',
       high: "Aime l'eau",
+      levels: {
+        1: '🏜️\nTrès peu',
+        2: '💧\nPeu',
+        3: '💧💧\nModéré',
+        4: '💧💧💧\nBeaucoup',
+        5: '🌊\nÉnormément',
+      },
     },
     light: {
       label: 'Lumière',
@@ -51,6 +58,13 @@ export default {
       label: 'Humidité',
       low: 'Air sec OK',
       high: 'Haute humidité',
+      levels: {
+        1: '🌵\nTrès sec',
+        2: '💨\nSec',
+        3: '🌤️\nModéré',
+        4: '💦\nHumide',
+        5: '🌿\nTrès humide',
+      },
     },
     petSafety: {
       label: 'Sécurité animaux',
