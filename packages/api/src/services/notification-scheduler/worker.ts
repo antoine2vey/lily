@@ -8,7 +8,7 @@ import {
   PushService,
   type QueueMessage,
 } from '@lily/shared/server'
-import { Array, Effect, Match, Schedule } from 'effect'
+import { Array, Effect, Match, Option, pipe, Schedule } from 'effect'
 
 const MAX_RETRIES = 3
 
@@ -20,10 +20,8 @@ const workerRetryPolicy = Schedule.exponential('1 second').pipe(
 // Process a single message - send push notification
 export const processMessage = (message: QueueMessage) =>
   Effect.gen(function* () {
-    yield* Effect.annotateCurrentSpan(
-      'notification.id',
-      message.payload.notificationId
-    )
+    const { notificationIds } = message.payload
+    yield* Effect.annotateCurrentSpan('notification.ids', notificationIds)
     yield* Effect.annotateCurrentSpan('userId', message.payload.userId)
     const pushService = yield* PushService
     const deviceTokenRepo = yield* DeviceTokenRepository
@@ -36,10 +34,10 @@ export const processMessage = (message: QueueMessage) =>
     if (activeTokens.length === 0) {
       yield* Effect.logWarning('No active device tokens for user', {
         userId: message.payload.userId,
-        notificationId: message.payload.notificationId,
+        notificationIds,
       })
       // Still mark as sent since there's no device to send to
-      yield* notificationRepo.markAsSent(message.payload.notificationId)
+      yield* notificationRepo.markManyAsSent(notificationIds)
       return
     }
 
@@ -48,7 +46,6 @@ export const processMessage = (message: QueueMessage) =>
       to: token.token,
       title: message.payload.title,
       body: message.payload.body,
-      data: message.payload.data,
       sound: 'default' as const,
     }))
 
@@ -63,11 +60,11 @@ export const processMessage = (message: QueueMessage) =>
       })
     }
 
-    // Mark notification as sent
-    yield* notificationRepo.markAsSent(message.payload.notificationId)
+    // Mark all notifications as sent
+    yield* notificationRepo.markManyAsSent(notificationIds)
 
     yield* Effect.log('Push notification sent', {
-      notificationId: message.payload.notificationId,
+      notificationIds,
       devices: activeTokens.length,
     })
   }).pipe(Effect.withSpan('notification-worker.process'))
@@ -75,10 +72,16 @@ export const processMessage = (message: QueueMessage) =>
 // Handle a message that failed after all retries
 export const handleFailedMessage = (message: QueueMessage, error: unknown) =>
   Effect.gen(function* () {
+    const { notificationIds } = message.payload
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
 
     // Add to dead letter queue
+    const firstPlantId = pipe(
+      Array.head(message.payload.plantIds),
+      Option.getOrUndefined
+    )
+
     yield* deadLetterRepo.create({
       originalMessageId: message.id,
       topic: message.topic,
@@ -86,18 +89,15 @@ export const handleFailedMessage = (message: QueueMessage, error: unknown) =>
       error: String(error),
       retryCount: message.retryCount,
       userId: message.payload.userId,
-      ...(message.payload.plantId ? { plantId: message.payload.plantId } : {}),
+      ...(firstPlantId ? { plantId: firstPlantId } : {}),
     })
 
-    // Mark notification as failed
-    yield* notificationRepo.markAsFailed(
-      message.payload.notificationId,
-      String(error)
-    )
+    // Mark all notifications as failed
+    yield* notificationRepo.markManyAsFailed(notificationIds, String(error))
 
     yield* Effect.logError('Message moved to dead letter queue', {
       messageId: message.id,
-      notificationId: message.payload.notificationId,
+      notificationIds,
       error: String(error),
     })
   }).pipe(Effect.withSpan('notification-worker.deadLetter'))
@@ -132,8 +132,8 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
               ...message,
               retryCount: message.retryCount + 1,
             })
-            yield* notificationRepo.incrementRetryCount(
-              message.payload.notificationId
+            yield* Effect.forEach(message.payload.notificationIds, (id) =>
+              notificationRepo.incrementRetryCount(id)
             )
             yield* Effect.logWarning('Retrying notification', {
               messageId: message.id,

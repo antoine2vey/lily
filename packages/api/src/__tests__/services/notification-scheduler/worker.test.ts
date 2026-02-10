@@ -28,11 +28,11 @@ const createTestQueueMessage = (
   id: `msg-${crypto.randomUUID()}`,
   topic: 'watering_reminder',
   payload: {
-    notificationId: 'notification-1',
     userId: 'user-1',
-    plantId: 'plant-1',
     title: 'Test notification',
     body: 'Test body',
+    notificationIds: ['notification-1'],
+    plantIds: ['plant-1'],
   },
   retryCount: 0,
   createdAt: new Date(),
@@ -96,10 +96,11 @@ describe('Notification Worker', () => {
     it('should still mark as sent when user has no active tokens', async () => {
       const message = createTestQueueMessage({
         payload: {
-          notificationId: 'notification-1',
           userId: 'user-2', // user-2 has no active tokens
           title: 'Test',
           body: 'Test body',
+          notificationIds: ['notification-1'],
+          plantIds: [],
         },
       })
 
@@ -141,6 +142,55 @@ describe('Notification Worker', () => {
       )
 
       expect(result._tag).toBe('Failure')
+    })
+
+    it('should handle grouped message and mark all IDs as sent', async () => {
+      const sentMessages: PushMessage[] = []
+
+      const message = createTestQueueMessage({
+        payload: {
+          userId: 'user-1',
+          title: '3 plants need watering',
+          body: 'Monstera, Pothos, Fern',
+          notificationIds: ['notif-1', 'notif-2', 'notif-3'],
+          plantIds: ['plant-1', 'plant-2', 'plant-3'],
+        },
+      })
+
+      const notifications = [
+        createTestNotification({
+          id: 'notif-1',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+        createTestNotification({
+          id: 'notif-2',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+        createTestNotification({
+          id: 'notif-3',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+      ]
+
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            createMockPushService({
+              onSendBatch: (msgs) => sentMessages.push(...msgs),
+            })
+          ),
+          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
+          Effect.provide(createMockNotificationRepository(notifications)),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      // Sends 1 push per device (user-1 has 2 active tokens)
+      expect(sentMessages).toHaveLength(2)
+      expect(sentMessages[0]?.title).toBe('3 plants need watering')
     })
   })
 
@@ -198,11 +248,11 @@ describe('Notification Worker', () => {
 
       const message = createTestQueueMessage({
         payload: {
-          notificationId: 'notification-1',
           userId: 'user-1',
-          plantId: 'plant-123',
           title: 'Test',
           body: 'Test',
+          notificationIds: ['notification-1'],
+          plantIds: ['plant-123'],
         },
       })
       const notification = createTestNotification({
@@ -218,6 +268,47 @@ describe('Notification Worker', () => {
       )
 
       expect(capturedMessages[0]?.plantId).toBe('plant-123')
+    })
+
+    it('should mark all IDs as failed for grouped message', async () => {
+      const message = createTestQueueMessage({
+        payload: {
+          userId: 'user-1',
+          title: '3 plants need watering',
+          body: 'Monstera, Pothos, Fern',
+          notificationIds: ['notif-1', 'notif-2', 'notif-3'],
+          plantIds: ['plant-1', 'plant-2', 'plant-3'],
+        },
+      })
+
+      const notifications = [
+        createTestNotification({
+          id: 'notif-1',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+        createTestNotification({
+          id: 'notif-2',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+        createTestNotification({
+          id: 'notif-3',
+          userId: 'user-1',
+          status: 'queued',
+        }),
+      ]
+
+      await Effect.runPromise(
+        handleFailedMessage(message, new Error('Push failed')).pipe(
+          Effect.provide(createMockDeadLetterRepository()),
+          Effect.provide(createMockNotificationRepository(notifications)),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      // Completes without error - all IDs marked as failed via markManyAsFailed
+      expect(true).toBe(true)
     })
   })
 

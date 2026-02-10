@@ -113,50 +113,6 @@ export const createMockNotificationRepository = (
         )
       ),
 
-    markAsQueued: (id: string) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) => {
-          notification.status = 'queued'
-          return Effect.succeed(notification)
-        },
-      })
-    },
-
-    markAsSent: (id: string) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) => {
-          notification.status = 'sent'
-          notification.sentAt = new Date()
-          return Effect.succeed(notification)
-        },
-      })
-    },
-
-    markAsFailed: (id: string, error: string) => {
-      const notificationOption = Array.findFirst(
-        notificationsState,
-        (n) => n.id === id
-      )
-      return Option.match(notificationOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (notification) => {
-          notification.status = 'failed'
-          notification.lastError = error
-          return Effect.succeed(notification)
-        },
-      })
-    },
-
     incrementRetryCount: (id: string) => {
       const notificationOption = Array.findFirst(
         notificationsState,
@@ -210,6 +166,39 @@ export const createMockNotificationRepository = (
         },
       })
     },
+
+    // Batch scheduler methods
+    markManyAsQueued: (ids: readonly string[]) =>
+      Effect.sync(() => {
+        Array.forEach(ids, (id) => {
+          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          Option.map(n, (notification) => {
+            notification.status = 'queued'
+          })
+        })
+      }),
+
+    markManyAsSent: (ids: readonly string[]) =>
+      Effect.sync(() => {
+        Array.forEach(ids, (id) => {
+          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          Option.map(n, (notification) => {
+            notification.status = 'sent'
+            notification.sentAt = new Date()
+          })
+        })
+      }),
+
+    markManyAsFailed: (ids: readonly string[], error: string) =>
+      Effect.sync(() => {
+        Array.forEach(ids, (id) => {
+          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          Option.map(n, (notification) => {
+            notification.status = 'failed'
+            notification.lastError = error
+          })
+        })
+      }),
   }
 
   return Layer.succeed(NotificationRepository, repo)

@@ -14,14 +14,11 @@ export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({
-  notificationId: Schema.String,
   userId: Schema.String,
-  plantId: Schema.optional(Schema.String),
   title: Schema.String,
   body: Schema.String,
-  data: Schema.optional(
-    Schema.Record({ key: Schema.String, value: Schema.Unknown })
-  ),
+  notificationIds: Schema.Array(Schema.String),
+  plantIds: Schema.Array(Schema.String),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 

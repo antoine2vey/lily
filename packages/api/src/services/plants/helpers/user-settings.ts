@@ -9,6 +9,7 @@ export interface UserNotificationSettings {
   doNotDisturb: boolean
   doNotDisturbStart: string | null
   doNotDisturbEnd: string | null
+  language: 'en' | 'fr'
 }
 
 /**
@@ -54,6 +55,12 @@ export const getUserNotificationSettings = (
       Option.getOrNull
     )
 
+    const language = pipe(
+      userOption,
+      Option.flatMap((u) => Option.fromNullable(u.language)),
+      Option.getOrElse(() => 'en' as const)
+    )
+
     return {
       timezone,
       preferredTime,
@@ -61,6 +68,7 @@ export const getUserNotificationSettings = (
       doNotDisturb,
       doNotDisturbStart,
       doNotDisturbEnd,
+      language,
     }
   })
 
