@@ -1,0 +1,1 @@
+ALTER TABLE "rooms" ADD COLUMN "is_outdoor" boolean DEFAULT false NOT NULL;

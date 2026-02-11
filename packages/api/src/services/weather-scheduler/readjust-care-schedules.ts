@@ -134,6 +134,13 @@ const readjustPlantSchedule = (
     fertilizationFrequencyDays: number | null
     remindersEnabled: boolean
     userId: string
+    room: {
+      id: string
+      name: string
+      icon: string
+      luminosity: number | null
+      isOutdoor: boolean
+    } | null
   },
   user: {
     id: string
@@ -167,6 +174,7 @@ const readjustPlantSchedule = (
         category: plant.category,
         wateringFrequencyDays: plant.wateringFrequencyDays,
         wateringRating: plant.wateringRating,
+        isOutdoor: plant.room?.isOutdoor ?? false,
       },
       weatherCtx.currentWeather,
       weatherCtx.recentHistory,

@@ -107,6 +107,7 @@ export const getCareAdjustments = (): Effect.Effect<
           category: plant.category,
           wateringFrequencyDays: plant.wateringFrequencyDays,
           wateringRating: plant.wateringRating,
+          isOutdoor: plant.room?.isOutdoor ?? false,
         },
         currentWeather,
         recentHistory,

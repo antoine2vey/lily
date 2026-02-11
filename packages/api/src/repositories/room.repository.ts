@@ -8,6 +8,7 @@ export interface CreateRoomData {
   name: string
   icon: string
   luminosity?: number | undefined
+  isOutdoor?: boolean | undefined
   order: number
   userId: string
 }
@@ -17,6 +18,7 @@ export interface UpdateRoomData {
   icon?: string | undefined
   order?: number | undefined
   luminosity?: number | null | undefined
+  isOutdoor?: boolean | undefined
 }
 
 export interface IRoomRepository {
@@ -61,6 +63,7 @@ export const RoomRepositoryLive = Layer.effect(
               name: rooms.name,
               icon: rooms.icon,
               luminosity: rooms.luminosity,
+              isOutdoor: rooms.isOutdoor,
               order: rooms.order,
               userId: rooms.userId,
               createdAt: rooms.createdAt,

@@ -1,13 +1,21 @@
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
-import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 export const rooms = pgTable('rooms', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   icon: text('icon').notNull().default('🏠'),
   luminosity: integer('luminosity'),
+  isOutdoor: boolean('is_outdoor').notNull().default(false),
   order: integer('order').notNull().default(0),
   userId: uuid('user_id')
     .notNull()

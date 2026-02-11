@@ -35,6 +35,9 @@ export default {
     updateFailed: 'Failed to update room',
     deleteFailed: 'Failed to delete room',
   },
+  outdoor: 'Outdoor',
+  outdoorDescription:
+    'Weather like rain and wind will affect plant care schedules',
   plants: 'Plants',
   addPlants: 'Add plants to this room',
   noUnassignedPlants: 'All plants are already assigned to rooms',

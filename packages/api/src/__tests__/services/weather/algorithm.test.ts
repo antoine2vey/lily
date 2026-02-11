@@ -19,12 +19,19 @@ import {
 } from '@lily/api/services/weather/algorithm'
 import { describe, expect, it } from 'vitest'
 
-// Standard plant for testing
+// Standard plant for testing (indoor by default — preserves existing behavior)
 const defaultPlant: PlantForAdjustment = {
   id: 'plant-1',
   category: 'Foliage',
   wateringFrequencyDays: 7,
   wateringRating: 3,
+  isOutdoor: false,
+}
+
+// Outdoor plant for testing weather effects
+const outdoorPlant: PlantForAdjustment = {
+  ...defaultPlant,
+  isOutdoor: true,
 }
 
 describe('calculatePlantAdjustment', () => {
@@ -153,28 +160,37 @@ describe('calculatePlantAdjustment', () => {
   // ─── Wind Factor Tests ─────────────────────────────────────────────────
 
   describe('wind factor', () => {
-    it('should return factor 1.1 for high wind (>5 m/s)', () => {
+    it('should return factor 1.1 for outdoor plant in high wind (>5 m/s)', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataWindy,
         []
       )
       expect(result.factors.wind).toBe(1.1)
     })
 
-    it('should return factor 0.9 for low wind (<2 m/s)', () => {
+    it('should return factor 0.9 for outdoor plant in low wind (<2 m/s)', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataCalm,
         []
       )
       expect(result.factors.wind).toBe(0.9)
     })
 
-    it('should return factor 1.0 for moderate wind', () => {
+    it('should return factor 1.0 for outdoor plant in moderate wind', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataModerate,
+        []
+      )
+      expect(result.factors.wind).toBe(1.0)
+    })
+
+    it('should return factor 1.0 for indoor plant regardless of wind', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
-        mockWeatherDataModerate,
+        mockWeatherDataWindy,
         []
       )
       expect(result.factors.wind).toBe(1.0)
@@ -184,9 +200,9 @@ describe('calculatePlantAdjustment', () => {
   // ─── Precipitation Skip Tests ──────────────────────────────────────────
 
   describe('precipitation skip', () => {
-    it('should skip watering when current precipitation > 6mm', () => {
+    it('should skip watering for outdoor plant when current precipitation > 6mm', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataRainy,
         []
       )
@@ -194,9 +210,9 @@ describe('calculatePlantAdjustment', () => {
       expect(result.skipWateringReason).toBeDefined()
     })
 
-    it('should skip watering when tomorrow forecast has > 6mm rain', () => {
+    it('should skip watering for outdoor plant when tomorrow forecast has > 6mm rain', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataModerate,
         [],
         mockForecastWithRain.daily
@@ -204,13 +220,13 @@ describe('calculatePlantAdjustment', () => {
       expect(result.skipWatering).toBe(true)
     })
 
-    it('should not skip watering with light rain (<6mm)', () => {
+    it('should not skip watering for outdoor plant with light rain (<6mm)', () => {
       const lightRain = {
         ...mockWeatherDataModerate,
         precipitation: 3,
       }
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         lightRain,
         [],
         mockForecast.daily
@@ -218,12 +234,31 @@ describe('calculatePlantAdjustment', () => {
       expect(result.skipWatering).toBe(false)
     })
 
-    it('should not skip watering with no precipitation', () => {
+    it('should not skip watering for outdoor plant with no precipitation', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataModerate,
+        [],
+        mockForecast.daily
+      )
+      expect(result.skipWatering).toBe(false)
+    })
+
+    it('should NOT skip watering for indoor plant even with heavy rain', () => {
+      const result = calculatePlantAdjustment(
+        defaultPlant,
+        mockWeatherDataRainy,
+        []
+      )
+      expect(result.skipWatering).toBe(false)
+    })
+
+    it('should NOT skip watering for indoor plant even with rain forecast', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
         mockWeatherDataModerate,
         [],
-        mockForecast.daily
+        mockForecastWithRain.daily
       )
       expect(result.skipWatering).toBe(false)
     })
@@ -265,14 +300,14 @@ describe('calculatePlantAdjustment', () => {
   // ─── Combined Multiplier & Clamping Tests ──────────────────────────────
 
   describe('combined multiplier and clamping', () => {
-    it('should combine factors multiplicatively', () => {
-      // Hot + dry + windy = compounding effect
+    it('should combine factors multiplicatively for outdoor plant', () => {
+      // Hot + dry + windy = compounding effect (outdoor plant gets wind factor)
       const hotDryWindy = {
         ...mockWeatherDataHot,
         humidity: 35,
         windSpeed: 8,
       }
-      const result = calculatePlantAdjustment(defaultPlant, hotDryWindy, [])
+      const result = calculatePlantAdjustment(outdoorPlant, hotDryWindy, [])
       // 1.2 (hot) × 1.15 (dry) × 1.1 (windy) = 1.518
       expect(result.wateringMultiplier).toBeCloseTo(1.52, 1)
     })
