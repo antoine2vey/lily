@@ -9,6 +9,7 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
@@ -35,6 +36,10 @@ import {
 } from '@lily/api/services/subscriptions/handlers'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
+import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
+import { WeatherApiLive } from '@lily/api/services/weather/handlers'
+import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
+import { startWeatherScheduler } from '@lily/api/services/weather-scheduler/scheduler'
 import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
@@ -85,6 +90,22 @@ const NotificationWorkerLive = Layer.scopedDiscard(
   Layer.provide(ExpoPushServiceLive)
 )
 
+// Weather scheduler layer - fetches weather data for users with weather enabled
+// Also readjusts plant care schedules based on latest weather
+const WeatherSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startWeatherScheduler
+  })
+).pipe(
+  Layer.provide(WeatherCacheLive),
+  Layer.provide(WeatherProviderLive),
+  Layer.provide(WeatherRepositoryLive),
+  Layer.provide(UserRepositoryLive),
+  Layer.provide(PlantRepositoryLive),
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(RedisClientLive)
+)
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -108,7 +129,8 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(SubscriptionsApiLive(Api)),
   Layer.provide(SubscriptionWebhooksApiLive(Api)),
   Layer.provide(UsernameApiLive(Api)),
-  Layer.provide(UsersApiLive(Api))
+  Layer.provide(UsersApiLive(Api)),
+  Layer.provide(WeatherApiLive(Api))
 )
 
 // Set up the server using BunHttpServer on port 3000
@@ -119,6 +141,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(ApiLive),
   Layer.provide(AchievementSubscriberLive),
   Layer.provide(HealthSchedulerLive),
+  Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),

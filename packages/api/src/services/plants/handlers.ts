@@ -8,6 +8,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
@@ -15,6 +16,8 @@ import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider
 import { PlantsService } from '@lily/api/services/plants/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
+import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
+import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer, Match, pipe } from 'effect'
@@ -111,10 +114,13 @@ export const PlantsApiLive = (api: Api) =>
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default),
     Layer.provide(RedisEventBusLive),
-    Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive),
     Layer.provide(LimitCheckerLive),
     Layer.provide(UsageTrackerLive),
     Layer.provide(SubscriptionRepositoryLive),
-    Layer.provide(AchievementRepositoryLive)
+    Layer.provide(AchievementRepositoryLive),
+    Layer.provide(WeatherProviderLive),
+    Layer.provide(WeatherCacheLive),
+    Layer.provide(WeatherRepositoryLive),
+    Layer.provide(RedisClientLive)
   )

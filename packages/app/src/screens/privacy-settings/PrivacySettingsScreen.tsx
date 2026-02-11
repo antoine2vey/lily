@@ -20,12 +20,18 @@ import {
   usePrivacySettings,
   useUpdatePrivacySettings,
 } from 'src/hooks/usePrivacySettings'
+import {
+  useToggleWeather,
+  useWeatherSettings,
+} from 'src/hooks/useWeatherSettings'
 
 export function PrivacySettingsScreen() {
   const { t } = useTranslation(['settings', 'common'])
   const iconColors = useIconColors()
   const { data: settings, isLoading } = usePrivacySettings()
   const { mutate: updateSettings } = useUpdatePrivacySettings()
+  const { data: weatherSettings } = useWeatherSettings()
+  const { mutate: toggleWeather } = useToggleWeather()
 
   const handleToggle = (
     key: 'publicProfile' | 'shareGrowthData' | 'personalizedTips',
@@ -138,6 +144,35 @@ export function PrivacySettingsScreen() {
               description={t('settings:privacy.personalizedTipsDescription')}
               value={settings.personalizedTips}
               onValueChange={(value) => handleToggle('personalizedTips', value)}
+            />
+          </View>
+        </View>
+
+        {/* Weather & Location Section */}
+        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
+          <SectionHeader
+            title={t(
+              'settings:privacy.sections.weatherLocation',
+              'Weather & Location'
+            )}
+          />
+          <View className="mt-3">
+            <ToggleRow
+              testID="toggle-weather"
+              icon={
+                <MaterialIcons
+                  name="cloud"
+                  size={18}
+                  color={iconColors.primary}
+                />
+              }
+              label={t('settings:privacy.weatherEnabled', 'Weather-based care')}
+              description={t(
+                'settings:privacy.weatherEnabledDescription',
+                'Use your location to adjust care schedules based on local weather conditions'
+              )}
+              value={weatherSettings?.enabled ?? false}
+              onValueChange={(value) => toggleWeather(value)}
             />
           </View>
         </View>

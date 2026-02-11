@@ -28,6 +28,9 @@ export const mockUser1: User = {
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 export const mockUser2: User = {
@@ -57,6 +60,9 @@ export const mockUser2: User = {
   shareGrowthData: true,
   personalizedTips: false,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 export const mockUsers: User[] = [mockUser1, mockUser2]
@@ -88,6 +94,9 @@ export const mockAdminUser: User = {
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 export const mockSuspendedUser: User = {
@@ -117,6 +126,9 @@ export const mockSuspendedUser: User = {
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
@@ -146,5 +158,8 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
   ...overrides,
 })

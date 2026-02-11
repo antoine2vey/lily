@@ -73,6 +73,13 @@ export const queryKeys = {
     currentUser: () => [...queryKeys.auth.all, 'getCurrentUser'] as const,
   },
 
+  // Weather domain
+  weather: {
+    all: ['weather'] as const,
+    current: () => [...queryKeys.weather.all, 'current'] as const,
+    adjustments: () => [...queryKeys.weather.all, 'adjustments'] as const,
+  },
+
   // Chat domain
   chat: {
     all: ['chat'] as const,
@@ -94,5 +101,6 @@ export const invalidateKeys = {
   rooms: queryKeys.rooms.all,
   achievements: queryKeys.achievements.all,
   auth: queryKeys.auth.all,
+  weather: queryKeys.weather.all,
   chat: queryKeys.chat.all,
 } as const

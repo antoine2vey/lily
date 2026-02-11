@@ -40,6 +40,9 @@ const validUser = {
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en' as const,
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 describe('User Schemas', () => {
@@ -232,6 +235,11 @@ describe('User Schemas', () => {
         timezone: 'America/New_York',
         preferredNotificationTime: '09:00',
         language: 'en' as const,
+        weather: {
+          enabled: false,
+          latitude: null,
+          longitude: null,
+        },
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)
@@ -264,6 +272,11 @@ describe('User Schemas', () => {
         timezone: null,
         preferredNotificationTime: null,
         language: 'en' as const,
+        weather: {
+          enabled: false,
+          latitude: null,
+          longitude: null,
+        },
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)
@@ -297,6 +310,11 @@ describe('User Schemas', () => {
         timezone: null,
         preferredNotificationTime: null,
         language: 'fr' as const,
+        weather: {
+          enabled: false,
+          latitude: null,
+          longitude: null,
+        },
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)

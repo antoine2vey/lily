@@ -45,6 +45,9 @@ export const updateUserSettings = (
       publicProfile: data.privacy?.publicProfile,
       shareGrowthData: data.privacy?.shareGrowthData,
       personalizedTips: data.privacy?.personalizedTips,
+      weatherEnabled: data.weather?.enabled,
+      latitude: data.weather?.latitude,
+      longitude: data.weather?.longitude,
       timezone: data.timezone,
       preferredNotificationTime: data.preferredNotificationTime,
       language: data.language,
@@ -133,5 +136,10 @@ export const updateUserSettings = (
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
+      weather: {
+        enabled: user.weatherEnabled,
+        latitude: user.latitude ?? null,
+        longitude: user.longitude ?? null,
+      },
     }
   }).pipe(Effect.withSpan('UserService.updateUserSettings'))

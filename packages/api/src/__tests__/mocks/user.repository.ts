@@ -70,6 +70,9 @@ export const createMockUserRepository = (
         shareGrowthData: true,
         personalizedTips: true,
         language: 'en',
+        weatherEnabled: false,
+        latitude: null,
+        longitude: null,
       }
       return Effect.succeed(newUser)
     },
@@ -165,6 +168,17 @@ export const createMockUserRepository = (
           Effect.succeed({ ...user, status, updatedAt: new Date() }),
       })
     },
+
+    findWeatherEnabled: () =>
+      Effect.succeed(
+        Array.filter(
+          users,
+          (u) =>
+            u.weatherEnabled === true &&
+            u.latitude !== null &&
+            u.longitude !== null
+        )
+      ),
   }
 
   return Layer.succeed(UserRepository, repo)

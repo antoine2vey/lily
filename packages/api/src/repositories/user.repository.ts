@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db'
 import { nowAsDate } from '@lily/shared'
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -31,6 +31,9 @@ export interface UpdateUserData {
   status?: 'active' | 'suspended' | 'banned'
   timezone?: string | null
   preferredNotificationTime?: string | null
+  weatherEnabled?: boolean
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface FindUsersFilters {
@@ -83,6 +86,10 @@ export interface IUserRepository {
     id: string,
     status: 'active' | 'suspended' | 'banned'
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
+  readonly findWeatherEnabled: () => Effect.Effect<
+    Array<typeof users.$inferSelect>,
+    SqlError
+  >
 }
 
 // Tag for dependency injection
@@ -251,6 +258,19 @@ export const UserRepositoryLive = Layer.effect(
             .returning()
           return Option.getOrNull(Option.fromNullable(user))
         }).pipe(Effect.withSpan('UserRepository.updateStatus')),
+
+      findWeatherEnabled: () =>
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.weatherEnabled, true),
+              isNotNull(users.latitude),
+              isNotNull(users.longitude)
+            )
+          )
+          .pipe(Effect.withSpan('UserRepository.findWeatherEnabled')),
     }
   })
 )

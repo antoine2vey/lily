@@ -36,6 +36,9 @@ export const User = Schema.Struct({
   shareGrowthData: Schema.Boolean,
   personalizedTips: Schema.Boolean,
   language: LanguageCode,
+  weatherEnabled: Schema.Boolean,
+  latitude: Schema.NullOr(Schema.Number),
+  longitude: Schema.NullOr(Schema.Number),
 })
 
 export const UserCreateRequest = Schema.Struct({
@@ -73,6 +76,11 @@ export const UserSettings = Schema.Struct({
   timezone: Schema.NullOr(Schema.String),
   preferredNotificationTime: Schema.NullOr(Schema.String),
   language: LanguageCode,
+  weather: Schema.Struct({
+    enabled: Schema.Boolean,
+    latitude: Schema.NullOr(Schema.Number),
+    longitude: Schema.NullOr(Schema.Number),
+  }),
 })
 
 export const UserSettingsUpdateRequest = Schema.Struct({
@@ -102,6 +110,13 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   timezone: Schema.optional(Schema.String),
   preferredNotificationTime: Schema.optional(Schema.String),
   language: Schema.optional(LanguageCode),
+  weather: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean),
+      latitude: Schema.optional(Schema.Number),
+      longitude: Schema.optional(Schema.Number),
+    })
+  ),
 })
 
 // Type exports

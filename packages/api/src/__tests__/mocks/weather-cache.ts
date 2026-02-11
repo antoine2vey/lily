@@ -1,0 +1,25 @@
+import {
+  type IWeatherCache,
+  WeatherCache,
+} from '@lily/api/services/weather/cache'
+import type { WeatherForecast } from '@lily/shared'
+import { Effect, Layer, Option } from 'effect'
+
+export const createMockWeatherCache = (
+  cachedForecast?: WeatherForecast
+): Layer.Layer<WeatherCache> => {
+  const cache: IWeatherCache = {
+    findNearest: () =>
+      Effect.succeed(
+        cachedForecast ? Option.some(cachedForecast) : Option.none()
+      ),
+
+    store: () => Effect.succeed(undefined),
+
+    getAllLocations: () => Effect.succeed([]),
+
+    removeLocation: () => Effect.succeed(undefined),
+  }
+
+  return Layer.succeed(WeatherCache, cache)
+}
