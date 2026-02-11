@@ -44,5 +44,10 @@ export const getUserSettings = (): Effect.Effect<
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
+      weather: {
+        enabled: user.weatherEnabled,
+        latitude: user.latitude ?? null,
+        longitude: user.longitude ?? null,
+      },
     }
   }).pipe(Effect.withSpan('UserService.getUserSettings'))

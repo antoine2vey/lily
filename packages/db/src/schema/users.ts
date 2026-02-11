@@ -16,6 +16,7 @@ import {
 import { relations } from 'drizzle-orm'
 import {
   boolean,
+  doublePrecision,
   integer,
   pgTable,
   text,
@@ -58,6 +59,9 @@ export const users = pgTable('users', {
   shareGrowthData: boolean('share_growth_data').notNull().default(true),
   personalizedTips: boolean('personalized_tips').notNull().default(true),
   language: languageCodeEnum('language').notNull().default('en'),
+  latitude: doublePrecision('latitude'),
+  longitude: doublePrecision('longitude'),
+  weatherEnabled: boolean('weather_enabled').notNull().default(false),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({

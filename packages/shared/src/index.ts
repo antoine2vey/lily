@@ -8,6 +8,7 @@ export * from './domains/care-log/schema'
 export * from './domains/care-task/constants'
 export * from './domains/care-task/schema'
 export * from './domains/common/date'
+export * from './domains/common/geo'
 export * from './domains/common/luminosity'
 export * from './domains/common/pagination'
 export * from './domains/common/query'
@@ -30,6 +31,9 @@ export * from './domains/subscriptions/schema'
 export * from './domains/user/errors'
 export * from './domains/user/schema'
 export * from './domains/username/schema'
+export * from './domains/weather/constants'
+export * from './domains/weather/errors'
+export * from './domains/weather/schema'
 
 // Note: Server-only services (GCS, Email, Push, MessageQueue, EventBus)
 // are exported from '@lily/shared/server' to avoid bundling Node.js

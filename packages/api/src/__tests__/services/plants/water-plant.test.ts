@@ -8,6 +8,9 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
+import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
+import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
 import { Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -18,7 +21,10 @@ describe('waterPlant', () => {
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository(mockCareLogs),
       createMockNotificationRepository([]),
-      createMockUserRepository(mockUsers)
+      createMockUserRepository(mockUsers),
+      createMockWeatherCache(),
+      createMockWeatherProvider(),
+      createMockWeatherRepository()
     )
 
   it('should update lastWateredAt and nextWateringAt', async () => {
@@ -113,7 +119,10 @@ describe('waterPlant', () => {
             createMockPlantRepository({ plants: plantsWithAttention }),
             createMockCareLogRepository(mockCareLogs),
             createMockNotificationRepository([]),
-            createMockUserRepository(mockUsers)
+            createMockUserRepository(mockUsers),
+            createMockWeatherCache(),
+            createMockWeatherProvider(),
+            createMockWeatherRepository()
           )
         )
       )

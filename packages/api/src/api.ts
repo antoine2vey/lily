@@ -16,6 +16,7 @@ import {
 } from '@lily/api/services/subscriptions/api'
 import { UsersApi } from '@lily/api/services/user/api'
 import { UsernameApi } from '@lily/api/services/username/api'
+import { WeatherApi } from '@lily/api/services/weather/api'
 
 // Create API that includes all services
 // Health endpoint is at root level (/health)
@@ -36,5 +37,6 @@ export const Api = HttpApi.make('Api')
   .add(AchievementsApi.prefix('/api'))
   .add(SubscriptionsApi.prefix('/api'))
   .add(SubscriptionWebhooksApi.prefix('/api'))
+  .add(WeatherApi.prefix('/api'))
 
 export type Api = typeof Api

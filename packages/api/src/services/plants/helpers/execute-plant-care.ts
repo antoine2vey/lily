@@ -5,8 +5,14 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
+import type { WeatherCache } from '@lily/api/services/weather/cache'
+import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
+import type { WeatherProvider } from '@lily/api/services/weather/provider'
+import { roundCoord } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
@@ -49,12 +55,86 @@ const getCareTypeConfig = (careType: CareType): CareTypeConfig =>
     Match.exhaustive
   )
 
+// Apply weather adjustment to the next care date if user has weather enabled
+const applyWeatherAdjustment = (
+  userId: string,
+  plant: {
+    id: string
+    category: string | null
+    wateringFrequencyDays: number
+    wateringRating: number
+  },
+  careType: CareType,
+  nextCareAt: Date | undefined,
+  nowDt: DateTime.Utc
+): Effect.Effect<
+  Date | undefined,
+  never,
+  UserRepository | WeatherProvider | WeatherCache | WeatherRepository
+> =>
+  Effect.gen(function* () {
+    if (!nextCareAt) return nextCareAt
+
+    const userRepo = yield* UserRepository
+    const user = yield* userRepo.findById(userId)
+
+    if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
+      return nextCareAt
+    }
+
+    const rlat = roundCoord(user.latitude)
+    const rlng = roundCoord(user.longitude)
+
+    // Attempt to get weather context — if it fails, silently return original date
+    const weatherResult = yield* getWeatherContext(rlat, rlng).pipe(
+      Effect.option
+    )
+
+    if (Option.isNone(weatherResult)) {
+      return nextCareAt
+    }
+
+    const { currentWeather, recentHistory, forecast } = weatherResult.value
+
+    const adjustment = calculatePlantAdjustment(
+      plant,
+      currentWeather,
+      recentHistory,
+      forecast
+    )
+
+    // For manual care, skip flags don't apply — the user just performed the action,
+    // so we always use adjustedWateringDays to schedule the next one.
+    return pipe(
+      Match.value(careType),
+      Match.when('watering', () =>
+        DateTime.toDateUtc(
+          DateTime.addDuration(
+            nowDt,
+            Duration.days(adjustment.adjustedWateringDays)
+          )
+        )
+      ),
+      Match.when('fertilization', () => nextCareAt),
+      Match.exhaustive
+    )
+  }).pipe(
+    // If anything fails in weather adjustment, silently return original date
+    Effect.catchAll(() => Effect.succeed(nextCareAt))
+  )
+
 export const executePlantCare = (
   params: ExecutePlantCareParams
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError,
-  PlantRepository | CareLogRepository | NotificationRepository | UserRepository
+  | PlantRepository
+  | CareLogRepository
+  | NotificationRepository
+  | UserRepository
+  | WeatherProvider
+  | WeatherCache
+  | WeatherRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
@@ -83,6 +163,20 @@ export const executePlantCare = (
       Option.getOrUndefined
     )
 
+    // Apply weather-based adjustment to next care date
+    const adjustedNextCareAt = yield* applyWeatherAdjustment(
+      plant.userId,
+      {
+        id: plant.id,
+        category: plant.category,
+        wateringFrequencyDays: plant.wateringFrequencyDays,
+        wateringRating: plant.wateringRating,
+      },
+      params.careType,
+      nextCareAt,
+      nowDt
+    )
+
     // Build update payload dynamically
     // Reset health to HEALTHY if plant was NEEDS_ATTENTION
     const healthUpdate =
@@ -90,7 +184,9 @@ export const executePlantCare = (
 
     const updatePayload = {
       [config.lastCareField]: now,
-      ...(nextCareAt && { [config.nextCareField]: nextCareAt }),
+      ...(adjustedNextCareAt && {
+        [config.nextCareField]: adjustedNextCareAt,
+      }),
       ...healthUpdate,
     }
 
@@ -113,13 +209,13 @@ export const executePlantCare = (
     })
 
     // Schedule next reminder if we have a next care date
-    if (nextCareAt) {
+    if (adjustedNextCareAt) {
       yield* scheduleCareReminder({
         plantId: params.plantId,
         plantName: plant.name,
         userId: plant.userId,
         type: config.reminderType,
-        scheduledDate: nextCareAt,
+        scheduledDate: adjustedNextCareAt,
         remindersEnabled: plant.remindersEnabled,
       })
     }

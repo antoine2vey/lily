@@ -33,6 +33,9 @@ const mockUser: User = {
   shareGrowthData: true,
   personalizedTips: true,
   language: 'en',
+  weatherEnabled: false,
+  latitude: null,
+  longitude: null,
 }
 
 const adminUser: User = {
