@@ -24,6 +24,7 @@ import { BottomSheet } from 'src/components/BottomSheet'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { EmptyState } from 'src/components/EmptyState'
 import { SkeletonBox } from 'src/components/skeletons'
+import { ToggleRow } from 'src/components/ToggleRow'
 import { Input } from 'src/components/ui/Input'
 import { useCreateRoom } from 'src/hooks/useCreateRoom'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
@@ -42,9 +43,15 @@ interface RoomFormState {
   name: string
   icon: string
   luminosity: number | null
+  isOutdoor: boolean
 }
 
-const DEFAULT_FORM: RoomFormState = { name: '', icon: '🏠', luminosity: null }
+const DEFAULT_FORM: RoomFormState = {
+  name: '',
+  icon: '🏠',
+  luminosity: null,
+  isOutdoor: false,
+}
 
 function RoomCardSkeleton() {
   return (
@@ -179,9 +186,15 @@ export function RoomsScreen() {
       name: string
       icon: string
       luminosity: number | null
+      isOutdoor: boolean
     }) => {
       setEditingRoomId(room.id)
-      setForm({ name: room.name, icon: room.icon, luminosity: room.luminosity })
+      setForm({
+        name: room.name,
+        icon: room.icon,
+        luminosity: room.luminosity,
+        isOutdoor: room.isOutdoor,
+      })
       const plantsInRoom = Array.filter(allPlants, (p) => p.roomId === room.id)
       const ids = new Set(Array.map(plantsInRoom, (p) => p.id))
       setSelectedPlantIds(ids)
@@ -203,6 +216,7 @@ export function RoomsScreen() {
         payload: {
           name: form.name,
           icon: form.icon,
+          isOutdoor: form.isOutdoor,
           ...(form.luminosity != null ? { luminosity: form.luminosity } : {}),
         },
       },
@@ -232,6 +246,7 @@ export function RoomsScreen() {
           name: form.name,
           icon: form.icon,
           luminosity: form.luminosity,
+          isOutdoor: form.isOutdoor,
         },
       },
       {
@@ -353,6 +368,18 @@ export function RoomsScreen() {
                           ].label
                         }
                       </Text>
+                    )}
+                    {item.isOutdoor && (
+                      <View className="flex-row items-center gap-0.5">
+                        <MaterialIcons
+                          name="wb-sunny"
+                          size={12}
+                          color={iconColors.textMuted}
+                        />
+                        <Text className="text-xs text-text-muted dark:text-slate-400">
+                          {t('outdoor')}
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -493,6 +520,22 @@ function RoomForm({
           value={form.luminosity}
           onChange={(luminosity) => onFormChange({ ...form, luminosity })}
         />
+
+        <View className="bg-surface dark:bg-surface-dark rounded-xl overflow-hidden">
+          <ToggleRow
+            label={t('outdoor')}
+            description={t('outdoorDescription')}
+            value={form.isOutdoor}
+            onValueChange={(isOutdoor) => onFormChange({ ...form, isOutdoor })}
+            icon={
+              <MaterialIcons
+                name="wb-sunny"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+          />
+        </View>
 
         <View className="gap-2">
           <View className="flex-row items-center justify-between pl-1 pr-1">

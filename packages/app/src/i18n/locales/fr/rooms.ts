@@ -36,6 +36,9 @@ export default {
     updateFailed: 'Échec de la mise à jour de la pièce',
     deleteFailed: 'Échec de la suppression de la pièce',
   },
+  outdoor: 'Extérieur',
+  outdoorDescription:
+    "La pluie et le vent influenceront les plannings d'arrosage",
   plants: 'Plantes',
   addPlants: 'Ajouter des plantes à cette pièce',
   noUnassignedPlants: 'Toutes les plantes sont déjà assignées à des pièces',

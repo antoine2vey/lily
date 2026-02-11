@@ -246,6 +246,39 @@ describe('readjustCareSchedules', () => {
     )
   })
 
+  it('should not skip watering for indoor plant (room: null) even with rain', async () => {
+    const now = new Date()
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000)
+    const pastDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
+
+    const rainyCtx = buildWeatherContext([
+      mockWeatherDataRainy,
+      { ...mockWeatherDataModerate, date: '2026-02-11' },
+    ])
+
+    // Plant with room: null (indoor by default) — rain should NOT skip watering
+    const plant = createTestPlant({
+      id: 'plant-indoor-rain',
+      name: 'Indoor Plant In Rain',
+      category: 'tropical',
+      wateringFrequencyDays: 7,
+      wateringRating: 3,
+      lastWateredAt: fiveDaysAgo,
+      nextWateringAt: pastDate,
+      remindersEnabled: true,
+      userId: weatherUser.id,
+    })
+
+    const layers = buildLayers({ plants: [plant] })
+
+    // Should complete without error — the indoor plant won't have skipWatering=true
+    await Effect.runPromise(
+      readjustCareSchedules([weatherUser], buildContextMap(rainyCtx)).pipe(
+        Effect.provide(layers)
+      )
+    )
+  })
+
   it('should skip when no weather-enabled users exist', async () => {
     const layers = buildLayers()
 

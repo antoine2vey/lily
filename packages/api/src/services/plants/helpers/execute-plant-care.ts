@@ -63,6 +63,7 @@ const applyWeatherAdjustment = (
     category: string | null
     wateringFrequencyDays: number
     wateringRating: number
+    isOutdoor: boolean
   },
   careType: CareType,
   nextCareAt: Date | undefined,
@@ -171,6 +172,7 @@ export const executePlantCare = (
         category: plant.category,
         wateringFrequencyDays: plant.wateringFrequencyDays,
         wateringRating: plant.wateringRating,
+        isOutdoor: plant.room?.isOutdoor ?? false,
       },
       params.careType,
       nextCareAt,

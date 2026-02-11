@@ -43,6 +43,7 @@ export interface PlantForAdjustment {
   readonly category: string | null
   readonly wateringFrequencyDays: number
   readonly wateringRating: number
+  readonly isOutdoor: boolean
 }
 
 // ─── Step 1: Crop Coefficient (Kc) ──────────────────────────────────────────
@@ -278,7 +279,13 @@ const calculateHumidityFactor = (currentWeather: WeatherData): number => {
  *
  * Source: FAO-56 equation parameterization, wind speed at 2m height
  */
-const calculateWindFactor = (currentWeather: WeatherData): number => {
+const calculateWindFactor = (
+  currentWeather: WeatherData,
+  isOutdoor: boolean
+): number => {
+  // Indoor plants are sheltered from wind — no adjustment needed
+  if (!isOutdoor) return 1.0
+
   const windSpeed = pipe(
     Option.fromNullable(currentWeather.windSpeed),
     Option.getOrElse(() => 3) // Assume moderate if missing
@@ -325,18 +332,21 @@ const calculateWindFactor = (currentWeather: WeatherData): number => {
  *   Weathermatic ET-based systems). We only look 1 day ahead because
  *   forecast accuracy decreases significantly beyond 24-48 hours.
  *
- * LIMITATION:
- *   This check applies equally to all plants, but indoor plants may not
- *   benefit from precipitation data. A future enhancement could check the
- *   plant's indoor/outdoor status.
+ * INDOOR vs OUTDOOR:
+ *   Indoor plants don't benefit from rainfall, so this check is skipped
+ *   for plants in rooms marked as indoor (isOutdoor = false).
  *
  * Source: Colorado State Extension — "Irrigation scheduling: the water
  *   balance approach"
  */
 const checkPrecipitationSkip = (
   currentWeather: WeatherData,
-  forecast: ReadonlyArray<WeatherData>
+  forecast: ReadonlyArray<WeatherData>,
+  isOutdoor: boolean
 ): { skip: boolean; reason?: string } => {
+  // Indoor plants don't benefit from rainfall — never skip watering
+  if (!isOutdoor) return { skip: false }
+
   const currentPrecip = pipe(
     Option.fromNullable(currentWeather.precipitation),
     Option.getOrElse(() => 0)
@@ -506,11 +516,15 @@ export const calculatePlantAdjustment = (
   // Step 4: Humidity factor
   const humidityFactor = calculateHumidityFactor(currentWeather)
 
-  // Step 5: Wind factor
-  const windFactor = calculateWindFactor(currentWeather)
+  // Step 5: Wind factor (skipped for indoor plants)
+  const windFactor = calculateWindFactor(currentWeather, plant.isOutdoor)
 
-  // Step 6: Precipitation check
-  const precipCheck = checkPrecipitationSkip(currentWeather, forecast)
+  // Step 6: Precipitation check (skipped for indoor plants)
+  const precipCheck = checkPrecipitationSkip(
+    currentWeather,
+    forecast,
+    plant.isOutdoor
+  )
 
   // Step 7: Combined multiplier and adjusted frequency
   const combinedMultiplier = temperatureFactor * humidityFactor * windFactor

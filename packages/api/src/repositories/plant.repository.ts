@@ -46,6 +46,7 @@ export type RoomRef = {
   name: string
   icon: string
   luminosity: number | null
+  isOutdoor: boolean
 } | null
 
 export type PlantWithRoom = typeof plants.$inferSelect & { room: RoomRef }
@@ -209,6 +210,7 @@ export const PlantRepositoryLive = Layer.effect(
                 name: rooms.name,
                 icon: rooms.icon,
                 luminosity: rooms.luminosity,
+                isOutdoor: rooms.isOutdoor,
               },
             })
             .from(plants)
@@ -248,6 +250,7 @@ export const PlantRepositoryLive = Layer.effect(
                 name: rooms.name,
                 icon: rooms.icon,
                 luminosity: rooms.luminosity,
+                isOutdoor: rooms.isOutdoor,
               },
             })
             .from(plants)
@@ -271,6 +274,7 @@ export const PlantRepositoryLive = Layer.effect(
                 name: rooms.name,
                 icon: rooms.icon,
                 luminosity: rooms.luminosity,
+                isOutdoor: rooms.isOutdoor,
               },
             })
             .from(plants)
