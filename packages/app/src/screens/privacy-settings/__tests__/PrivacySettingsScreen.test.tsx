@@ -6,6 +6,11 @@ jest.mock('@/hooks/usePrivacySettings', () => ({
   useUpdatePrivacySettings: jest.fn(),
 }))
 
+jest.mock('@/hooks/useWeatherSettings', () => ({
+  useWeatherSettings: jest.fn(() => ({ data: undefined })),
+  useToggleWeather: jest.fn(() => ({ mutate: jest.fn() })),
+}))
+
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
