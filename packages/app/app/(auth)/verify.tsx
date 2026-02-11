@@ -1,13 +1,14 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
+import { BlurView } from 'expo-blur'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { MeshBackground } from 'src/components'
 import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
-import { iconColors } from 'src/theme'
+import { useThemeContext } from 'src/contexts/ThemeContext'
 
 type VerifyState =
   | { _tag: 'Verifying' }
@@ -28,6 +29,7 @@ export default function VerifyScreen() {
   })
   const { verifyMagicLink } = useAuth()
   const router = useRouter()
+  const { isDark } = useThemeContext()
 
   useEffect(() => {
     const verify = async () => {
@@ -59,73 +61,75 @@ export default function VerifyScreen() {
     router.replace('/(auth)/login')
   }
 
+  const heroContent = pipe(
+    Match.value(verifyState),
+    Match.when({ _tag: 'Verifying' }, () => ({
+      emoji: '🔐',
+      title: t('verify.verifying'),
+      subtitle: t('verify.verifyingSubtitle'),
+    })),
+    Match.when({ _tag: 'Success' }, () => ({
+      emoji: '🎉',
+      title: t('verify.welcomeTitle'),
+      subtitle: t('verify.welcomeSubtitle'),
+    })),
+    Match.when({ _tag: 'Error' }, ({ message }) => ({
+      emoji: '😔',
+      title: t('verify.failedTitle'),
+      subtitle: message,
+    })),
+    Match.exhaustive
+  )
+
   return (
-    <View
-      className="flex-1 bg-background-light dark:bg-background-dark"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
-      <View className="flex-1 items-center justify-center p-6">
-        {pipe(
-          Match.value(verifyState),
-          Match.when({ _tag: 'Verifying' }, () => (
-            <View className="items-center gap-6">
-              <View className="w-24 h-24 rounded-full bg-primary/10 items-center justify-center">
-                <ActivityIndicator size="large" color={iconColors.primary} />
-              </View>
-              <View className="items-center gap-2">
-                <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  {t('verify.verifying')}
-                </Text>
-                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
-                  {t('verify.verifyingSubtitle')}
-                </Text>
-              </View>
-            </View>
-          )),
-          Match.when({ _tag: 'Success' }, () => (
-            <View className="items-center gap-6">
-              <View className="w-24 h-24 rounded-full bg-primary/10 items-center justify-center">
-                <MaterialIcons
-                  name="check-circle"
-                  size={48}
-                  color={iconColors.primary}
-                />
-              </View>
-              <View className="items-center gap-2">
-                <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  {t('verify.welcomeTitle')}
-                </Text>
-                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
-                  {t('verify.welcomeSubtitle')}
-                </Text>
-              </View>
-            </View>
-          )),
-          Match.when({ _tag: 'Error' }, ({ message }) => (
-            <View className="items-center gap-6 w-full max-w-sm">
-              <View className="w-24 h-24 rounded-full bg-red-500/10 items-center justify-center">
-                <MaterialIcons
-                  name="error-outline"
-                  size={48}
-                  color={iconColors.error}
-                />
-              </View>
-              <View className="items-center gap-2">
-                <Text className="text-2xl font-bold text-text-main dark:text-white">
-                  {t('verify.failedTitle')}
-                </Text>
-                <Text className="text-base font-regular text-text-secondary dark:text-zinc-400 text-center">
-                  {message}
-                </Text>
-              </View>
-              <View className="w-full mt-4">
-                <Button onPress={handleRetry}>{t('verify.tryAgain')}</Button>
-              </View>
-            </View>
-          )),
-          Match.exhaustive
+    <MeshBackground>
+      <View
+        className="flex-1"
+        style={{
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
+      >
+        {/* Hero Section */}
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-6xl mb-4">{heroContent.emoji}</Text>
+          <Text
+            className="text-4xl text-white text-center mb-3"
+            style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+          >
+            {heroContent.title}
+          </Text>
+          <Text
+            className="text-base text-white/70 text-center leading-relaxed max-w-[280px]"
+            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+          >
+            {heroContent.subtitle}
+          </Text>
+
+          {verifyState._tag === 'Verifying' && (
+            <ActivityIndicator size="large" color="#FFFFFF" className="mt-8" />
+          )}
+        </View>
+
+        {/* Glassmorphism Card — only show on error */}
+        {verifyState._tag === 'Error' && (
+          <View
+            className="mx-4 rounded-3xl overflow-hidden"
+            style={{ marginBottom: insets.bottom + 16 }}
+          >
+            <BlurView
+              intensity={40}
+              tint={isDark ? 'dark' : 'light'}
+              className="p-6"
+            >
+              <Button onPress={handleRetry} pill>
+                {t('verify.tryAgain')}
+              </Button>
+            </BlurView>
+          </View>
         )}
       </View>
-    </View>
+    </MeshBackground>
   )
 }

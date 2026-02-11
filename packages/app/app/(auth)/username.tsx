@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
+import { BlurView } from 'expo-blur'
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,8 +13,10 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, IconButton } from 'src/components/ui'
+import { MeshBackground } from 'src/components'
+import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useThemeContext } from 'src/contexts/ThemeContext'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { apiEffectRunner } from 'src/utils/client'
 
@@ -38,6 +41,7 @@ export default function UsernameSetupScreen() {
   const { setUsername: saveUsername, logout } = useAuth()
   const router = useRouter()
   const iconColors = useIconColors()
+  const { isDark } = useThemeContext()
 
   const checkRequestRef = useRef(0)
 
@@ -152,35 +156,27 @@ export default function UsernameSetupScreen() {
     }
   }
 
-  const handleBack = async () => {
-    await logout()
-  }
-
   const getValidationIcon = () =>
     pipe(
       Match.value(validation),
       Match.when({ _tag: 'Available' }, () => (
-        <View className="w-8 h-8 rounded-full bg-primary/10 items-center justify-center">
+        <View className="w-8 h-8 rounded-full bg-primary/20 items-center justify-center">
           <MaterialIcons name="check" size={20} color={iconColors.primary} />
         </View>
       )),
       Match.when({ _tag: 'Invalid' }, () => (
-        <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
+        <View className="w-8 h-8 rounded-full bg-error/20 items-center justify-center">
           <MaterialIcons name="close" size={20} color={iconColors.error} />
         </View>
       )),
       Match.when({ _tag: 'Unavailable' }, () => (
-        <View className="w-8 h-8 rounded-full bg-error/10 items-center justify-center">
+        <View className="w-8 h-8 rounded-full bg-error/20 items-center justify-center">
           <MaterialIcons name="close" size={20} color={iconColors.error} />
         </View>
       )),
       Match.when({ _tag: 'Checking' }, () => (
-        <View className="w-8 h-8 rounded-full bg-border items-center justify-center">
-          <MaterialIcons
-            name="more-horiz"
-            size={20}
-            color={iconColors.textMuted}
-          />
+        <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center">
+          <MaterialIcons name="more-horiz" size={20} color="#FFFFFF" />
         </View>
       )),
       Match.orElse(() => null)
@@ -207,99 +203,102 @@ export default function UsernameSetupScreen() {
     )
 
   return (
-    <View
-      className="flex-1 bg-background dark:bg-background-dark"
-      style={{
-        paddingTop: insets.top,
-        paddingLeft: insets.left,
-        paddingRight: insets.right,
-      }}
-    >
-      {/* Decorative background elements */}
-      <View className="absolute top-0 right-0 w-[80%] h-[60%] bg-primary/5 dark:bg-primary/10 rounded-full -translate-y-1/4 translate-x-1/4" />
-      <View className="absolute bottom-0 left-0 w-[50%] h-[40%] bg-primary/5 dark:bg-primary/10 rounded-full translate-y-1/4 -translate-x-1/4" />
-
+    <MeshBackground>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
+        style={{
+          paddingTop: insets.top,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        }}
       >
         <ScrollView
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-1 px-6 pt-4 pb-8 justify-between">
-            {/* Top Navigation */}
-            <View className="flex-row items-center py-2">
-              <IconButton
-                icon="chevron-left"
-                size={24}
-                color={iconColors.textPrimary}
-                onPress={handleBack}
-              />
-            </View>
+          {/* Hero Section */}
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-6xl mb-4">👋</Text>
+            <Text
+              className="text-4xl text-white text-center mb-1"
+              style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+            >
+              {t('username.headlinePartOne')}
+            </Text>
+            <Text
+              className="text-4xl text-white text-center mb-3"
+              style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+            >
+              {t('username.headlinePartTwo')}
+            </Text>
+            <Text
+              className="text-base text-white/70 text-center leading-relaxed max-w-[300px]"
+              style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+            >
+              {t('username.description')}
+            </Text>
+          </View>
 
-            {/* Main Content */}
-            <View className="flex-1 pt-8">
-              {/* Headline */}
-              <View className="mb-10">
-                <Text className="text-[28px] font-bold text-text-primary dark:text-white">
-                  {t('username.headlinePartOne')}
-                </Text>
-                <Text className="text-[28px] font-bold text-primary">
-                  {t('username.headlinePartTwo')}
-                </Text>
-                <Text className="text-base font-regular text-text-secondary dark:text-slate-400 mt-3">
-                  {t('username.description')}
-                </Text>
-              </View>
+          {/* Glassmorphism Card — bottom */}
+          <View
+            className="mx-4 rounded-3xl overflow-hidden"
+            style={{ marginBottom: insets.bottom + 16 }}
+          >
+            <BlurView
+              intensity={40}
+              tint={isDark ? 'dark' : 'light'}
+              className="p-6"
+            >
+              <View className="gap-4">
+                {/* Username Input */}
+                <View>
+                  <View className="flex-row items-center w-full h-14 rounded-full bg-white/20 px-5">
+                    <Text
+                      className="text-lg text-white/60 mr-1"
+                      style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                    >
+                      @
+                    </Text>
+                    <TextInput
+                      className="flex-1 text-lg text-white"
+                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                      placeholder={t('username.placeholder')}
+                      placeholderTextColor="rgba(255,255,255,0.4)"
+                      value={username}
+                      onChangeText={setUsername}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      maxLength={MAX_USERNAME_LENGTH}
+                    />
+                    {getValidationIcon()}
+                  </View>
 
-              {/* Username Input */}
-              <View className="w-full">
-                <View className="flex-row items-center w-full h-14 rounded-xl border border-border dark:border-slate-700 bg-surface dark:bg-surface-dark px-5">
-                  {/* Fixed Prefix */}
-                  <Text className="text-lg font-medium text-text-muted dark:text-slate-400 mr-1">
-                    @
-                  </Text>
-                  {/* Input */}
-                  <TextInput
-                    className="flex-1 text-lg font-semibold text-text-primary dark:text-white"
-                    placeholder={t('username.placeholder')}
-                    placeholderTextColor={iconColors.textMuted}
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={MAX_USERNAME_LENGTH}
-                  />
-                  {/* Status Icon */}
-                  {getValidationIcon()}
+                  <View className="flex-row justify-between items-center px-4 mt-2">
+                    {getValidationStatus()}
+                    <Text
+                      className="text-sm text-white/40"
+                      style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                    >
+                      {username.length}/{MAX_USERNAME_LENGTH}
+                    </Text>
+                  </View>
                 </View>
 
-                {/* Helper Text & Counter */}
-                <View className="flex-row justify-between items-center px-2 mt-3">
-                  {getValidationStatus()}
-                  <Text className="text-sm font-medium text-text-muted dark:text-slate-500">
-                    {username.length}/{MAX_USERNAME_LENGTH}
-                  </Text>
-                </View>
+                <Button
+                  icon="arrow-forward"
+                  loading={loading}
+                  disabled={validation._tag !== 'Available'}
+                  onPress={handleSubmit}
+                  pill
+                >
+                  {t('username.continueButton')}
+                </Button>
               </View>
-            </View>
-
-            {/* Bottom Actions */}
-            <View className="gap-5 pt-10">
-              {/* Primary Button */}
-              <Button
-                icon="arrow-forward"
-                loading={loading}
-                disabled={validation._tag !== 'Available'}
-                onPress={handleSubmit}
-              >
-                {t('username.continueButton')}
-              </Button>
-            </View>
+            </BlurView>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </MeshBackground>
   )
 }
