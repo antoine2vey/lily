@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
@@ -23,6 +23,7 @@ import { ThemeSelectionModal } from 'src/screens/settings/components/ThemeSelect
 type Theme = 'light' | 'dark' | 'system'
 
 export function SettingsScreen() {
+  const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const { isLoading: isLoadingUser } = useUser()
   const { logout } = useAuth()
@@ -51,7 +52,10 @@ export function SettingsScreen() {
 
   if (isLoadingUser) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -59,14 +63,14 @@ export function SettingsScreen() {
             color={iconColors.primary}
           />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
@@ -265,6 +269,6 @@ export function SettingsScreen() {
         visible={showLanguageModal}
         onClose={() => setShowLanguageModal(false)}
       />
-    </SafeAreaView>
+    </View>
   )
 }

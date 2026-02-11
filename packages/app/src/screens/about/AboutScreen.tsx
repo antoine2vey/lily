@@ -2,16 +2,20 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 export function AboutScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('about')
   const iconColors = useIconColors()
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
@@ -115,6 +119,6 @@ export function AboutScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from 'src/components'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
@@ -19,6 +19,7 @@ import { useUser } from 'src/hooks/useUser'
 import { AvatarPicker } from 'src/screens/edit-profile/components/AvatarPicker'
 
 export function EditProfileScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation(['profile', 'common'])
   const iconColors = useIconColors()
   const { data: user, isLoading: isLoadingUser } = useUser()
@@ -98,7 +99,10 @@ export function EditProfileScreen() {
 
   if (isLoadingUser) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -106,14 +110,14 @@ export function EditProfileScreen() {
             color={iconColors.primary}
           />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/30 dark:border-slate-700/30">
@@ -173,6 +177,6 @@ export function EditProfileScreen() {
         {/* Bottom spacer */}
         <View className="h-12" />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

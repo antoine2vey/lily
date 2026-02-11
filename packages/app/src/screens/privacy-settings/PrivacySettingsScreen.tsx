@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { ToggleRow } from 'src/components/ToggleRow'
@@ -26,6 +26,7 @@ import {
 } from 'src/hooks/useWeatherSettings'
 
 export function PrivacySettingsScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation(['settings', 'common'])
   const iconColors = useIconColors()
   const { data: settings, isLoading } = usePrivacySettings()
@@ -60,7 +61,10 @@ export function PrivacySettingsScreen() {
 
   if (isLoading || !settings) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -68,12 +72,15 @@ export function PrivacySettingsScreen() {
             color={iconColors.primary}
           />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
@@ -228,6 +235,6 @@ export function PrivacySettingsScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

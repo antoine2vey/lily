@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LoadingOverlay } from 'src/components/LoadingOverlay'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -15,6 +15,7 @@ import * as RevenueCatService from 'src/services/revenuecat'
 type BillingPeriod = 'monthly' | 'annual'
 
 export function SubscriptionPayScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation(['subscription', 'common'])
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
@@ -126,9 +127,9 @@ export function SubscriptionPayScreen() {
       : `${annualPrice}${t('pricing.perYear')}`
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Close Button */}
       <View className="absolute top-14 left-4 z-50">
@@ -279,6 +280,6 @@ export function SubscriptionPayScreen() {
       </ScrollView>
 
       <LoadingOverlay visible={isLoading} message={t('buttons.processing')} />
-    </SafeAreaView>
+    </View>
   )
 }

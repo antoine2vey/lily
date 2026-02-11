@@ -3,12 +3,13 @@ import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Image, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { images } from 'src/assets/images'
 import { Button, TextLink } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 
 export default function CheckEmailScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('auth')
   const { pendingEmail, login } = useAuth()
   const router = useRouter()
@@ -35,9 +36,13 @@ export default function CheckEmailScreen() {
   }
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
+      style={{
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       <View className="flex-1 px-6 justify-between">
         {/* Top Spacer */}
@@ -104,6 +109,6 @@ export default function CheckEmailScreen() {
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   )
 }

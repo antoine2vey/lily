@@ -3,7 +3,7 @@ import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Linking, Platform, Pressable, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 const getSubscriptionManagementUrl = (): string => {
@@ -15,6 +15,7 @@ const getSubscriptionManagementUrl = (): string => {
 }
 
 export function SubscriptionCancelScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('subscription')
   const iconColors = useIconColors()
 
@@ -35,9 +36,9 @@ export function SubscriptionCancelScreen() {
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
@@ -138,6 +139,6 @@ export function SubscriptionCancelScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   )
 }
