@@ -14,7 +14,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from 'src/components'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
@@ -41,6 +41,7 @@ function LoadingScreen({
 }
 
 export function EditPlantScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation(['plantDetail', 'common', 'addPlant'])
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = Option.getOrElse(
@@ -181,7 +182,10 @@ export function EditPlantScreen() {
     selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={() => router.back()} className="py-2">
@@ -465,6 +469,6 @@ export function EditPlantScreen() {
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
-    </SafeAreaView>
+    </View>
   )
 }

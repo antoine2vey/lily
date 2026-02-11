@@ -16,7 +16,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -90,6 +90,7 @@ function getTimezoneLabel(timezone: string): string {
 }
 
 export function NotificationSettingsScreen() {
+  const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation(['notifications', 'common'])
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
@@ -234,18 +235,21 @@ export function NotificationSettingsScreen() {
 
   if (isLoading || !settings || isLoadingTimezone) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
@@ -618,7 +622,10 @@ export function NotificationSettingsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowTimezonePicker(false)}
       >
-        <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+        <View
+          className="flex-1 bg-background dark:bg-background-dark"
+          style={{ paddingTop: insets.top }}
+        >
           {/* Modal Header */}
           <View className="flex-row items-center px-4 py-3">
             <Pressable
@@ -690,8 +697,8 @@ export function NotificationSettingsScreen() {
             </View>
             <View className="h-8" />
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   )
 }

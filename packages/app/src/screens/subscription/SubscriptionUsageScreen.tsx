@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
@@ -26,6 +26,7 @@ const USAGE_ICONS = {
 }
 
 export function SubscriptionUsageScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation(['subscription', 'common'])
   const { data, isLoading } = useSubscriptionUsage()
   const { restore } = useRevenueCat()
@@ -78,7 +79,10 @@ export function SubscriptionUsageScreen() {
 
   if (isLoading || !data) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -86,14 +90,14 @@ export function SubscriptionUsageScreen() {
             color={iconColors.primary}
           />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
@@ -214,6 +218,6 @@ export function SubscriptionUsageScreen() {
         {/* Bottom spacer */}
         <View className="h-8" />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   )
 }

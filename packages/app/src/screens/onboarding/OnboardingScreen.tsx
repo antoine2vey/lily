@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, Text, View, type ViewToken } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
 import { OnboardingSlide } from 'src/screens/onboarding/components/OnboardingSlide'
@@ -20,6 +20,7 @@ interface SlideData {
 }
 
 export function OnboardingScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('onboarding')
   const iconColors = useIconColors()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -84,7 +85,10 @@ export function OnboardingScreen() {
   }).current
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       {/* Skip Button */}
       <View className="flex-row justify-end px-4 py-2">
         <Pressable onPress={handleSkip} className="py-2 px-4">
@@ -140,6 +144,6 @@ export function OnboardingScreen() {
           />
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   )
 }

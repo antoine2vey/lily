@@ -3,7 +3,8 @@ import { Match, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, SafeAreaView, Text, View } from 'react-native'
+import { ActivityIndicator, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { iconColors } from 'src/theme'
@@ -14,6 +15,7 @@ type VerifyState =
   | { _tag: 'Error'; message: string }
 
 export default function VerifyScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('auth')
   // Accept both 'code' (new) and 'token' (legacy) params
   const { code, token } = useLocalSearchParams<{
@@ -58,7 +60,10 @@ export default function VerifyScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background-light dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background-light dark:bg-background-dark"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
       <View className="flex-1 items-center justify-center p-6">
         {pipe(
           Match.value(verifyState),
@@ -121,6 +126,6 @@ export default function VerifyScreen() {
           Match.exhaustive
         )}
       </View>
-    </SafeAreaView>
+    </View>
   )
 }

@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { Slot, SplashScreen, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
@@ -22,7 +22,6 @@ import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
 import 'src/i18n'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
-import { AnimatedSplashScreen } from 'src/screens/splash'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
@@ -66,7 +65,6 @@ interface RootLayoutNavProps {
 function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   const { state } = useAuth()
   const router = useRouter()
-  const [isReady, setIsReady] = useState(false)
 
   // Show loading state while checking auth or fonts
   const isLoading = pipe(
@@ -96,25 +94,20 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
     }
   }, [state, router, isAuthenticated])
 
+  // Hide native splash screen once content is ready
   useEffect(() => {
     if (showContent) {
-      // Small delay to ensure smooth transition
-      const timeout = setTimeout(() => setIsReady(true), 100)
-      return () => clearTimeout(timeout)
+      SplashScreen.hideAsync()
     }
   }, [showContent])
 
-  return (
-    <AnimatedSplashScreen isReady={isReady}>
-      {showContent ? (
-        <Slot />
-      ) : (
-        <View className="flex-1 bg-background-light dark:bg-background-dark items-center justify-center">
-          {/* Loading indicator could go here */}
-        </View>
-      )}
-    </AnimatedSplashScreen>
-  )
+  if (!showContent) {
+    return (
+      <View className="flex-1 bg-background-light dark:bg-background-dark" />
+    )
+  }
+
+  return <Slot />
 }
 
 export default function RootLayout() {
@@ -124,12 +117,6 @@ export default function RootLayout() {
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,
   })
-
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      // Don't hide splash screen here - AnimatedSplashScreen handles it
-    }
-  }, [fontsLoaded, fontError])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

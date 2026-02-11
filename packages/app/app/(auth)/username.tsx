@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, IconButton } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -28,6 +28,7 @@ type ValidationState =
   | { _tag: 'Invalid'; reason: string }
 
 export default function UsernameSetupScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('auth')
   const [username, setUsername] = useState('')
   const [validation, setValidation] = useState<ValidationState>({
@@ -206,9 +207,13 @@ export default function UsernameSetupScreen() {
     )
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
+      style={{
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       {/* Decorative background elements */}
       <View className="absolute top-0 right-0 w-[80%] h-[60%] bg-primary/5 dark:bg-primary/10 rounded-full -translate-y-1/4 translate-x-1/4" />
@@ -295,6 +300,6 @@ export default function UsernameSetupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }

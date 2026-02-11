@@ -7,13 +7,14 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, IconButton, Input } from 'src/components/ui'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useLocalization } from 'src/hooks/useLocalization'
 import { iconColors } from 'src/theme'
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,9 +43,13 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
+      style={{
+        paddingTop: insets.top,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -115,6 +120,6 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }

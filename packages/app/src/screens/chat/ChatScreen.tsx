@@ -10,7 +10,7 @@ import {
   Platform,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useChatHistory } from 'src/hooks/useChatHistory'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlantChat } from 'src/hooks/usePlantChat'
@@ -29,6 +29,7 @@ interface ChatMessageData {
 }
 
 export function ChatScreen() {
+  const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const flatListRef = useRef<FlatList<ChatMessageData>>(null)
@@ -119,19 +120,22 @@ export function ChatScreen() {
 
   if (isLoadingHistory) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <ChatHeader />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={iconColors.primary} />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
-    <SafeAreaView
+    <View
       className="flex-1 bg-background dark:bg-background-dark"
-      edges={['top']}
+      style={{ paddingTop: insets.top }}
     >
       <ChatHeader />
 
@@ -160,6 +164,6 @@ export function ChatScreen() {
 
         <ChatInput onSend={handleSend} disabled={isStreaming} />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   )
 }

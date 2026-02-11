@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useAchievements } from 'src/hooks/useAchievements'
@@ -20,6 +20,7 @@ import { AchievementCard } from 'src/screens/achievements/components/Achievement
 import { AchievementDetailModal } from 'src/screens/achievements/components/AchievementDetailModal'
 
 export function AchievementsScreen() {
+  const insets = useSafeAreaInsets()
   const { t } = useTranslation('achievements')
   const iconColors = useIconColors()
   const { data, isLoading } = useAchievements()
@@ -35,7 +36,10 @@ export function AchievementsScreen() {
 
   if (isLoading || !data) {
     return (
-      <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator
             testID="activity-indicator"
@@ -43,7 +47,7 @@ export function AchievementsScreen() {
             color={iconColors.primary}
           />
         </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
@@ -64,7 +68,10 @@ export function AchievementsScreen() {
   )
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
         <Pressable
@@ -142,6 +149,6 @@ export function AchievementsScreen() {
         onClose={() => setSelectedAchievement(null)}
         achievement={selectedAchievement}
       />
-    </SafeAreaView>
+    </View>
   )
 }
