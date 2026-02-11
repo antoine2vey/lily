@@ -34,6 +34,7 @@ const mockPlant = {
   updatedAt: new Date(),
   remindersEnabled: true,
   isFavorite: false,
+  roomId: null,
 }
 
 describe('getCareAdjustments', () => {

@@ -35,6 +35,7 @@ export const createMockRoomRepository = (
         name: data.name,
         icon: data.icon,
         luminosity: data.luminosity ?? null,
+        isOutdoor: data.isOutdoor ?? false,
         order: data.order,
         userId: data.userId,
         createdAt: new Date(),

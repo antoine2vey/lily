@@ -14,7 +14,7 @@ const createTestLayer = (userId = 'user-1') =>
 describe('createRoom', () => {
   it('should create a room with name and default icon', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'Office', icon: '🏠' }).pipe(
+      createRoom({ name: 'Office', icon: '🏠', isOutdoor: false }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -25,7 +25,7 @@ describe('createRoom', () => {
 
   it('should create a room with custom icon', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'Bathroom', icon: '🚿' }).pipe(
+      createRoom({ name: 'Bathroom', icon: '🚿', isOutdoor: false }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -36,7 +36,7 @@ describe('createRoom', () => {
 
   it('should set order to maxOrder + 1', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'New Room', icon: '🏠' }).pipe(
+      createRoom({ name: 'New Room', icon: '🏠', isOutdoor: false }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -47,9 +47,12 @@ describe('createRoom', () => {
 
   it('should create a room with luminosity', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'Sunroom', icon: '☀️', luminosity: 4 }).pipe(
-        Effect.provide(createTestLayer())
-      )
+      createRoom({
+        name: 'Sunroom',
+        icon: '☀️',
+        luminosity: 4,
+        isOutdoor: false,
+      }).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.name).toBe('Sunroom')
@@ -58,7 +61,7 @@ describe('createRoom', () => {
 
   it('should default luminosity to null when not provided', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'Office', icon: '🏠' }).pipe(
+      createRoom({ name: 'Office', icon: '🏠', isOutdoor: false }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -68,7 +71,7 @@ describe('createRoom', () => {
 
   it('should set order to 1 when user has no rooms', async () => {
     const result = await Effect.runPromise(
-      createRoom({ name: 'First Room', icon: '🏠' }).pipe(
+      createRoom({ name: 'First Room', icon: '🏠', isOutdoor: false }).pipe(
         Effect.provide(createTestLayer('new-user'))
       )
     )
