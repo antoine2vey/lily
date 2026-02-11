@@ -3,10 +3,10 @@ import type { NotificationRepository } from '@lily/api/repositories/notification
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
+import { calculateScheduleDelta } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import { roundCoord } from '@lily/shared'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 interface WeatherEnabledUser {
   readonly id: string
@@ -19,6 +19,10 @@ interface WeatherEnabledUser {
 /**
  * Readjust care schedules for the given weather-enabled users based on
  * pre-built weather contexts (one per distinct location).
+ *
+ * Uses the forecast-averaged delta model: instead of recalculating
+ * nextWateringAt from scratch, we compute a stable delta (in days) and
+ * apply it. Re-running with the same weather produces delta = 0.
  *
  * The caller (scheduler) is responsible for:
  * 1. Fetching the user list (avoids a duplicate DB query)
@@ -165,89 +169,53 @@ const readjustPlantSchedule = (
       `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${plant.wateringFrequencyDays}d, lastWatered=${plant.lastWateredAt.toISOString()}, nextWatering=${plant.nextWateringAt.toISOString()}`
     )
 
-    const plantRepo = yield* PlantRepository
+    const nowDt = DateTime.unsafeNow()
+    const nowMs = Number(DateTime.toEpochMillis(nowDt))
 
-    // Run the weather adjustment algorithm
-    const adjustment = calculatePlantAdjustment(
+    // Compute the schedule delta using forecast-averaged gate model
+    const delta = calculateScheduleDelta(
       {
         id: plant.id,
         category: plant.category,
         wateringFrequencyDays: plant.wateringFrequencyDays,
         wateringRating: plant.wateringRating,
         isOutdoor: plant.room?.isOutdoor ?? false,
+        lastWateredAt: plant.lastWateredAt,
+        nextWateringAt: plant.nextWateringAt,
+        nextFertilizationAt: plant.nextFertilizationAt,
+        fertilizationFrequencyDays: plant.fertilizationFrequencyDays,
       },
-      weatherCtx.currentWeather,
-      weatherCtx.recentHistory,
-      weatherCtx.forecast
+      weatherCtx,
+      nowMs
     )
 
     yield* Effect.log(
-      `[Readjust] Adjustment result for "${plant.name}": adjustedDays=${adjustment.adjustedWateringDays}, multiplier=${adjustment.wateringMultiplier}, skipWatering=${adjustment.skipWatering}, skipFertilization=${adjustment.skipFertilization}`
+      `[Readjust] Delta for "${plant.name}": watering=${delta.wateringDaysDelta}d${delta.wateringReason ? ` (${delta.wateringReason})` : ''}, fertilization=${delta.fertilizationDaysDelta}d`
     )
 
-    const nowDt = DateTime.unsafeNow()
-    const nowMs = DateTime.toEpochMillis(nowDt)
+    const plantRepo = yield* PlantRepository
+    const oneDayMs = 24 * 60 * 60 * 1000
 
     let wateringChanged = false
     let fertilizationChanged = false
     let newNextWateringAt: Date | undefined
     let newNextFertilizationAt: Date | undefined
 
-    // --- Watering readjustment ---
-    const lastWateredDt = DateTime.unsafeMake(plant.lastWateredAt)
-
-    if (adjustment.skipWatering) {
-      // If skip watering, push to tomorrow if the current next date is today or past
-      const currentNextDt = DateTime.unsafeMake(plant.nextWateringAt)
-      const currentNextMs = DateTime.toEpochMillis(currentNextDt)
-      if (currentNextMs <= nowMs) {
-        const tomorrowDt = DateTime.addDuration(nowDt, Duration.days(1))
-        newNextWateringAt = DateTime.toDateUtc(tomorrowDt)
-      } else {
-        // Already in the future, keep it
-        newNextWateringAt = plant.nextWateringAt
-      }
-    } else {
-      // Recalculate from lastWateredAt + adjustedWateringDays
-      const adjustedDt = DateTime.addDuration(
-        lastWateredDt,
-        Duration.days(adjustment.adjustedWateringDays)
+    // --- Apply watering delta ---
+    if (delta.wateringDaysDelta !== 0) {
+      newNextWateringAt = new Date(
+        plant.nextWateringAt.getTime() + delta.wateringDaysDelta * oneDayMs
       )
-      newNextWateringAt = DateTime.toDateUtc(adjustedDt)
-    }
-
-    // Only update if the date actually changed (1-minute tolerance)
-    const currentNextWateringDt = DateTime.unsafeMake(plant.nextWateringAt)
-    const distanceMs = DateTime.distance(
-      currentNextWateringDt,
-      DateTime.unsafeMake(newNextWateringAt)
-    )
-    if (Number(Duration.toMillis(distanceMs)) > 60_000) {
       wateringChanged = true
     }
 
-    // --- Fertilization readjustment ---
-    if (
-      plant.fertilizationFrequencyDays &&
-      plant.lastFertilizedAt &&
-      plant.nextFertilizationAt &&
-      adjustment.skipFertilization
-    ) {
-      const currentFertDt = DateTime.unsafeMake(plant.nextFertilizationAt)
-      const currentFertMs = DateTime.toEpochMillis(currentFertDt)
-      if (currentFertMs <= nowMs) {
-        // Push fertilization by 1 day from now
-        const tomorrowDt = DateTime.addDuration(nowDt, Duration.days(1))
-        newNextFertilizationAt = DateTime.toDateUtc(tomorrowDt)
-
-        const fertDistanceMs = DateTime.distance(
-          currentFertDt,
-          DateTime.unsafeMake(newNextFertilizationAt)
-        )
-        if (Number(Duration.toMillis(fertDistanceMs)) > 60_000) {
-          fertilizationChanged = true
-        }
-      }
+    // --- Apply fertilization delta ---
+    if (delta.fertilizationDaysDelta !== 0 && plant.nextFertilizationAt) {
+      newNextFertilizationAt = new Date(
+        plant.nextFertilizationAt.getTime() +
+          delta.fertilizationDaysDelta * oneDayMs
+      )
+      fertilizationChanged = true
     }
 
     // Apply updates if anything changed
@@ -264,7 +232,7 @@ const readjustPlantSchedule = (
       yield* plantRepo.update(plant.id, updateData)
 
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${wateringChanged}${wateringChanged && newNextWateringAt ? ` (${plant.nextWateringAt?.toISOString()} → ${newNextWateringAt.toISOString()})` : ''}, fertilization=${fertilizationChanged}${fertilizationChanged && newNextFertilizationAt ? ` (${plant.nextFertilizationAt?.toISOString()} → ${newNextFertilizationAt.toISOString()})` : ''}`
+        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${wateringChanged}${wateringChanged && newNextWateringAt ? ` (${plant.nextWateringAt.toISOString()} → ${newNextWateringAt.toISOString()})` : ''}, fertilization=${fertilizationChanged}${fertilizationChanged && newNextFertilizationAt ? ` (${plant.nextFertilizationAt?.toISOString()} → ${newNextFertilizationAt.toISOString()})` : ''}`
       )
 
       // Reschedule notifications

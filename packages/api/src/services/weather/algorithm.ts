@@ -20,6 +20,7 @@
  *   - NC Climate Office: "Four weather factors for plant growth"
  */
 
+import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { CareAdjustment, WeatherData } from '@lily/shared'
 import {
   CROP_COEFFICIENTS,
@@ -44,6 +45,25 @@ export interface PlantForAdjustment {
   readonly wateringFrequencyDays: number
   readonly wateringRating: number
   readonly isOutdoor: boolean
+}
+
+export interface PlantForScheduleDelta {
+  readonly id: string
+  readonly category: string | null
+  readonly wateringFrequencyDays: number
+  readonly wateringRating: number
+  readonly isOutdoor: boolean
+  readonly lastWateredAt: Date
+  readonly nextWateringAt: Date
+  readonly nextFertilizationAt: Date | null
+  readonly fertilizationFrequencyDays: number | null
+}
+
+export interface ScheduleDelta {
+  readonly wateringDaysDelta: number
+  readonly wateringReason?: string
+  readonly fertilizationDaysDelta: number
+  readonly fertilizationReason?: string
 }
 
 // ─── Step 1: Crop Coefficient (Kc) ──────────────────────────────────────────
@@ -166,7 +186,8 @@ const calculateETc = (et0: number, kc: number): number => et0 * kc
  */
 const calculateTemperatureFactor = (
   currentWeather: WeatherData,
-  recentHistory: ReadonlyArray<WeatherData>
+  recentHistory: ReadonlyArray<WeatherData>,
+  isOutdoor: boolean = true
 ): number => {
   // Count consecutive hot days in recent history (most recent first)
   const consecutiveHotDays = pipe(
@@ -182,7 +203,7 @@ const calculateTemperatureFactor = (
     Option.getOrElse(() => 20) // Assume moderate if missing
   )
 
-  return pipe(
+  const outdoorFactor = pipe(
     Match.value({ consecutiveHotDays, currentMean }),
     // 3+ consecutive hot days → heat wave, 50% more water needed
     Match.when({ consecutiveHotDays: (d: number) => d >= 3 }, () => 1.5),
@@ -193,6 +214,32 @@ const calculateTemperatureFactor = (
     // Normal temperature range
     Match.orElse(() => 1.0)
   )
+
+  // Indoor plants are sheltered — dampen temperature effects
+  if (!isOutdoor) {
+    return pipe(
+      Match.value(outdoorFactor),
+      // Heat wave 1.5 → 1.15 (indoor still gets some heat stress via ambient temp)
+      Match.when(
+        (f: number) => f >= 1.5,
+        () => 1.15
+      ),
+      // Hot day 1.2 → 1.1
+      Match.when(
+        (f: number) => f > 1.0,
+        () => 1.1
+      ),
+      // Cold day 0.5 → 0.85 (indoor stays much warmer)
+      Match.when(
+        (f: number) => f < 1.0,
+        () => 0.85
+      ),
+      // Normal → 1.0
+      Match.orElse(() => 1.0)
+    )
+  }
+
+  return outdoorFactor
 }
 
 // ─── Step 4: Humidity Factor ────────────────────────────────────────────────
@@ -227,7 +274,13 @@ const calculateTemperatureFactor = (
  *
  * Source: FAO-56 Chapter 3 on meteorological factors affecting ET
  */
-const calculateHumidityFactor = (currentWeather: WeatherData): number => {
+const calculateHumidityFactor = (
+  currentWeather: WeatherData,
+  isOutdoor: boolean = true
+): number => {
+  // Indoor plants live in controlled climate — humidity has no effect
+  if (!isOutdoor) return 1.0
+
   const humidity = pipe(
     Option.fromNullable(currentWeather.humidity),
     Option.getOrElse(() => 60) // Assume moderate if missing
@@ -507,14 +560,18 @@ export const calculatePlantAdjustment = (
   )
   const _etc = calculateETc(et0Value, kc)
 
-  // Step 3: Temperature factor
+  // Step 3: Temperature factor (dampened for indoor plants)
   const temperatureFactor = calculateTemperatureFactor(
     currentWeather,
-    recentHistory
+    recentHistory,
+    plant.isOutdoor
   )
 
-  // Step 4: Humidity factor
-  const humidityFactor = calculateHumidityFactor(currentWeather)
+  // Step 4: Humidity factor (neutral for indoor plants)
+  const humidityFactor = calculateHumidityFactor(
+    currentWeather,
+    plant.isOutdoor
+  )
 
   // Step 5: Wind factor (skipped for indoor plants)
   const windFactor = calculateWindFactor(currentWeather, plant.isOutdoor)
@@ -554,5 +611,167 @@ export const calculatePlantAdjustment = (
       ),
       et0: et0Value,
     },
+  }
+}
+
+// ─── Schedule Delta (Forecast-Averaged Gate Model) ──────────────────────────
+
+/**
+ * Calculate the per-day weather multiplier for a single forecast day.
+ *
+ * For outdoor plants, all factors apply at full strength, plus precipitation
+ * dampening (heavy rain day → plant was watered by nature).
+ *
+ * For indoor plants, temperature is dampened, humidity and wind are neutral,
+ * and precipitation is excluded entirely.
+ */
+const calculateDayMultiplier = (
+  day: WeatherData,
+  recentHistory: ReadonlyArray<WeatherData>,
+  isOutdoor: boolean
+): number => {
+  const tempFactor = calculateTemperatureFactor(day, recentHistory, isOutdoor)
+  const humFactor = calculateHumidityFactor(day, isOutdoor)
+  const windFactor = calculateWindFactor(day, isOutdoor)
+
+  let multiplier = tempFactor * humFactor * windFactor
+
+  // Precipitation dampening for outdoor plants only
+  if (isOutdoor) {
+    const precip = pipe(
+      Option.fromNullable(day.precipitation),
+      Option.getOrElse(() => 0)
+    )
+    // Heavy rain (>6mm): plant was watered by nature — only 30% of normal demand
+    if (precip > PRECIP_SKIP_MM) {
+      multiplier = multiplier * 0.3
+    }
+  }
+
+  return multiplier
+}
+
+/**
+ * Calculate how many days to shift a plant's watering and fertilization
+ * schedule based on the full weather forecast.
+ *
+ * This is the core scheduler function. Instead of recalculating
+ * `nextWateringAt = lastWateredAt + adjustedDays` from scratch each run
+ * (which causes jitter and runaway delays), it computes a stable DELTA:
+ *
+ *   1. Average per-day multipliers across the entire forecast
+ *   2. Compute ideal adjusted frequency from that average
+ *   3. Derive `idealNext = lastWateredAt + adjustedDays`
+ *   4. Delta = round((idealNext - currentNext) / oneDay)
+ *   5. Cap the delta to prevent extreme swings
+ *
+ * The result is a small integer (+2, -1, 0, etc.) that the scheduler adds
+ * to the current `nextWateringAt`. Re-running with the same weather produces
+ * delta = 0 (no jitter).
+ */
+export const calculateScheduleDelta = (
+  plant: PlantForScheduleDelta,
+  weatherCtx: WeatherContext,
+  nowMs: number
+): ScheduleDelta => {
+  const { forecast, recentHistory } = weatherCtx
+
+  // Empty forecast → no data to act on → no change
+  if (Array.isEmptyReadonlyArray(forecast)) {
+    return { wateringDaysDelta: 0, fertilizationDaysDelta: 0 }
+  }
+
+  // Compute per-day multipliers and average them
+  const dayMultipliers = Array.map(forecast, (day) =>
+    calculateDayMultiplier(day, recentHistory, plant.isOutdoor)
+  )
+
+  const avgMultiplier = pipe(
+    Array.reduce(dayMultipliers, 0, (acc, m) => acc + m),
+    (sum) => sum / Array.length(dayMultipliers)
+  )
+
+  // Compute adjusted frequency from the averaged multiplier
+  const adjustedDays = computeAdjustedFrequency(
+    plant.wateringFrequencyDays,
+    avgMultiplier
+  )
+
+  // idealNext = lastWateredAt + adjustedDays
+  const lastWateredMs = plant.lastWateredAt.getTime()
+  const oneDayMs = 24 * 60 * 60 * 1000
+  const idealNextMs = lastWateredMs + adjustedDays * oneDayMs
+
+  // currentNext = plant.nextWateringAt
+  const currentNextMs = plant.nextWateringAt.getTime()
+
+  // Raw delta in days
+  const rawDelta = Math.round((idealNextMs - currentNextMs) / oneDayMs)
+
+  // Cap: max delay = ceil(baseFrequency / 2)
+  const maxDelay = Math.ceil(plant.wateringFrequencyDays / 2)
+  // Cap: max acceleration = -(baseFrequency / 2), but newNext must not be before
+  // now or lastWateredAt + 1 day
+  const maxAcceleration = -maxDelay
+
+  let cappedDelta = Math.max(maxAcceleration, Math.min(rawDelta, maxDelay))
+
+  // Ensure newNextWateringAt is not before now or lastWateredAt + 1 day
+  const newNextMs = currentNextMs + cappedDelta * oneDayMs
+  const minNextMs = Math.max(nowMs, lastWateredMs + oneDayMs)
+  if (newNextMs < minNextMs) {
+    cappedDelta = Math.round((minNextMs - currentNextMs) / oneDayMs)
+    // If the cap pushes us to zero or positive, just use 0
+    if (cappedDelta >= 0 && rawDelta < 0) {
+      cappedDelta = 0
+    }
+  }
+
+  // Only apply if |delta| >= 1
+  const wateringDaysDelta = Math.abs(cappedDelta) >= 1 ? cappedDelta : 0
+
+  // Build reason string
+  const wateringReason = pipe(
+    Match.value(wateringDaysDelta),
+    Match.when(
+      (d: number) => d > 0,
+      (d) =>
+        `Forecast avg multiplier ${avgMultiplier.toFixed(2)} → delay ${d}d (adjusted ${adjustedDays}d vs base ${plant.wateringFrequencyDays}d)`
+    ),
+    Match.when(
+      (d: number) => d < 0,
+      (d) =>
+        `Forecast avg multiplier ${avgMultiplier.toFixed(2)} → accelerate ${d}d (adjusted ${adjustedDays}d vs base ${plant.wateringFrequencyDays}d)`
+    ),
+    Match.orElse(() => undefined)
+  )
+
+  // --- Fertilization delta ---
+  // Only push by +1 day if fertilization is due/overdue AND conditions are extreme
+  const fertCheck = pipe(
+    Array.head(forecast),
+    Option.map((day) => checkFertilizationSkip(day)),
+    Option.getOrElse(
+      () => ({ skip: false }) as { skip: boolean; reason?: string }
+    )
+  )
+
+  let fertilizationDaysDelta = 0
+  let fertilizationReason: string | undefined
+
+  if (
+    plant.nextFertilizationAt &&
+    plant.nextFertilizationAt.getTime() <= nowMs &&
+    fertCheck.skip
+  ) {
+    fertilizationDaysDelta = 1
+    fertilizationReason = fertCheck.reason
+  }
+
+  return {
+    wateringDaysDelta,
+    ...(wateringReason ? { wateringReason } : {}),
+    fertilizationDaysDelta,
+    ...(fertilizationReason ? { fertilizationReason } : {}),
   }
 }

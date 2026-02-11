@@ -19,7 +19,7 @@ import {
 } from '@lily/api/services/weather/algorithm'
 import { describe, expect, it } from 'vitest'
 
-// Standard plant for testing (indoor by default — preserves existing behavior)
+// Standard indoor plant for testing
 const defaultPlant: PlantForAdjustment = {
   id: 'plant-1',
   category: 'Foliage',
@@ -44,8 +44,6 @@ describe('calculatePlantAdjustment', () => {
         mockWeatherDataModerate,
         []
       )
-      // Succulent Kc = 0.2, rating 3 modifier = 1.0, so effective Kc = 0.2
-      // This affects the overall algorithm but we can verify through factors
       expect(result.plantId).toBe('plant-1')
     })
 
@@ -68,7 +66,6 @@ describe('calculatePlantAdjustment', () => {
     })
 
     it('should modify Kc based on wateringRating', () => {
-      // Rating 1 should result in lower water needs than rating 5
       const lowRating = calculatePlantAdjustment(
         { ...defaultPlant, wateringRating: 1 },
         mockWeatherDataModerate,
@@ -79,16 +76,55 @@ describe('calculatePlantAdjustment', () => {
         mockWeatherDataModerate,
         []
       )
-      // Higher rating = more water needed = higher multiplier = fewer days
       expect(highRating.adjustedWateringDays).toBeLessThanOrEqual(
         lowRating.adjustedWateringDays
       )
     })
   })
 
-  // ─── Temperature Factor Tests ──────────────────────────────────────────
+  // ─── Temperature Factor Tests (Outdoor — full strength) ───────────────
 
-  describe('temperature factor', () => {
+  describe('temperature factor (outdoor)', () => {
+    it('should return factor 1.0 for moderate temperature', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataModerate,
+        []
+      )
+      expect(result.factors.temperature).toBe(1.0)
+    })
+
+    it('should return factor 1.2 for a single hot day', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataHot,
+        []
+      )
+      expect(result.factors.temperature).toBe(1.2)
+    })
+
+    it('should return factor 1.5 for 3+ consecutive hot days (heat wave)', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataHot,
+        mockHeatWaveHistory
+      )
+      expect(result.factors.temperature).toBe(1.5)
+    })
+
+    it('should return factor 0.5 for cold day', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataCold,
+        []
+      )
+      expect(result.factors.temperature).toBe(0.5)
+    })
+  })
+
+  // ─── Temperature Factor Tests (Indoor — dampened) ─────────────────────
+
+  describe('temperature factor (indoor dampening)', () => {
     it('should return factor 1.0 for moderate temperature', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
@@ -98,40 +134,50 @@ describe('calculatePlantAdjustment', () => {
       expect(result.factors.temperature).toBe(1.0)
     })
 
-    it('should return factor 1.2 for a single hot day', () => {
+    it('should return dampened factor 1.1 for indoor hot day (not 1.2)', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
         mockWeatherDataHot,
         []
       )
-      expect(result.factors.temperature).toBe(1.2)
+      expect(result.factors.temperature).toBe(1.1)
     })
 
-    it('should return factor 1.5 for 3+ consecutive hot days (heat wave)', () => {
+    it('should return dampened factor 1.15 for indoor heat wave (not 1.5)', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
         mockWeatherDataHot,
         mockHeatWaveHistory
       )
-      expect(result.factors.temperature).toBe(1.5)
+      expect(result.factors.temperature).toBe(1.15)
     })
 
-    it('should return factor 0.5 for cold day', () => {
+    it('should return dampened factor 0.85 for indoor cold day (not 0.5)', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
         mockWeatherDataCold,
         []
       )
-      expect(result.factors.temperature).toBe(0.5)
+      expect(result.factors.temperature).toBe(0.85)
+    })
+
+    it('Indoor 7d + cold → adjustedDays ~8 (not 14)', () => {
+      const result = calculatePlantAdjustment(
+        defaultPlant,
+        mockWeatherDataCold,
+        []
+      )
+      // 7 / 0.85 ≈ 8.2 → rounds to 8
+      expect(result.adjustedWateringDays).toBe(8)
     })
   })
 
   // ─── Humidity Factor Tests ─────────────────────────────────────────────
 
-  describe('humidity factor', () => {
+  describe('humidity factor (outdoor)', () => {
     it('should return factor 0.85 for high humidity (>80%)', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataHumid,
         []
       )
@@ -140,7 +186,7 @@ describe('calculatePlantAdjustment', () => {
 
     it('should return factor 1.15 for low humidity (<50%)', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataDry,
         []
       )
@@ -148,6 +194,35 @@ describe('calculatePlantAdjustment', () => {
     })
 
     it('should return factor 1.0 for normal humidity', () => {
+      const result = calculatePlantAdjustment(
+        outdoorPlant,
+        mockWeatherDataModerate,
+        []
+      )
+      expect(result.factors.humidity).toBe(1.0)
+    })
+  })
+
+  describe('humidity factor (indoor — always 1.0)', () => {
+    it('should return factor 1.0 for indoor plant even with high humidity', () => {
+      const result = calculatePlantAdjustment(
+        defaultPlant,
+        mockWeatherDataHumid,
+        []
+      )
+      expect(result.factors.humidity).toBe(1.0)
+    })
+
+    it('should return factor 1.0 for indoor plant even with low humidity', () => {
+      const result = calculatePlantAdjustment(
+        defaultPlant,
+        mockWeatherDataDry,
+        []
+      )
+      expect(result.factors.humidity).toBe(1.0)
+    })
+
+    it('should return factor 1.0 for indoor plant with normal humidity', () => {
       const result = calculatePlantAdjustment(
         defaultPlant,
         mockWeatherDataModerate,
@@ -301,7 +376,6 @@ describe('calculatePlantAdjustment', () => {
 
   describe('combined multiplier and clamping', () => {
     it('should combine factors multiplicatively for outdoor plant', () => {
-      // Hot + dry + windy = compounding effect (outdoor plant gets wind factor)
       const hotDryWindy = {
         ...mockWeatherDataHot,
         humidity: 35,
@@ -312,9 +386,9 @@ describe('calculatePlantAdjustment', () => {
       expect(result.wateringMultiplier).toBeCloseTo(1.52, 1)
     })
 
-    it('should reduce watering days when multiplier > 1', () => {
+    it('should reduce watering days for outdoor hot plant', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataHot,
         []
       )
@@ -322,19 +396,21 @@ describe('calculatePlantAdjustment', () => {
       expect(result.adjustedWateringDays).toBeLessThan(7)
     })
 
-    it('should increase watering days when multiplier < 1', () => {
+    it('should increase watering days for outdoor cold plant', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataCold,
         []
       )
-      // 7 / 0.5 = 14 days, but clamped to 2× original = 14
+      // 7 / 0.5 = 14 days, clamped to 2× original = 14
       expect(result.adjustedWateringDays).toBeGreaterThan(7)
     })
 
     it('should clamp minimum to 1 day', () => {
-      // Plant with 1-day frequency + extreme multiplier
-      const shortFreqPlant = { ...defaultPlant, wateringFrequencyDays: 1 }
+      const shortFreqPlant: PlantForAdjustment = {
+        ...outdoorPlant,
+        wateringFrequencyDays: 1,
+      }
       const result = calculatePlantAdjustment(
         shortFreqPlant,
         mockWeatherDataHot,
@@ -345,11 +421,10 @@ describe('calculatePlantAdjustment', () => {
 
     it('should clamp maximum to 2x original frequency', () => {
       const result = calculatePlantAdjustment(
-        defaultPlant,
+        outdoorPlant,
         mockWeatherDataCold,
         []
       )
-      // With cold factor 0.5: 7 / 0.5 = 14 = 2 × 7 (exactly at max)
       expect(result.adjustedWateringDays).toBeLessThanOrEqual(14)
     })
   })
@@ -372,7 +447,6 @@ describe('calculatePlantAdjustment', () => {
         soilTemperature: null,
       }
       const result = calculatePlantAdjustment(defaultPlant, nullWeather, [])
-      // Should use moderate defaults, resulting in factor 1.0 across the board
       expect(result.factors.temperature).toBe(1.0)
       expect(result.factors.humidity).toBe(1.0)
       expect(result.factors.wind).toBe(1.0)
