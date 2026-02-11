@@ -11,9 +11,18 @@ import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
 
+interface MockRoom {
+  id: string
+  name: string
+  icon: string
+  luminosity: number | null
+  isOutdoor: boolean
+}
+
 interface MockPlantRepositoryData {
   plants: PlantRecord[]
   photos?: PlantPhoto[]
+  rooms?: MockRoom[]
 }
 
 export const createMockPlantRepository = (
@@ -24,6 +33,14 @@ export const createMockPlantRepository = (
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
   const photos = data.photos ?? []
+  const rooms = data.rooms ?? []
+
+  const resolveRoom = (roomId: string | null) =>
+    pipe(
+      Option.fromNullable(roomId),
+      Option.flatMap((id) => Array.findFirst(rooms, (r) => r.id === id)),
+      Option.getOrNull
+    )
 
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
@@ -69,7 +86,7 @@ export const createMockPlantRepository = (
 
       const itemsWithRoom = Array.map(items, (p) => ({
         ...p,
-        room: null,
+        room: resolveRoom(p.roomId),
       }))
 
       return Effect.succeed({
@@ -90,7 +107,7 @@ export const createMockPlantRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(plantsData, (p) => p.id === id),
-          Option.map((p) => ({ ...p, room: null })),
+          Option.map((p) => ({ ...p, room: resolveRoom(p.roomId) })),
           Option.getOrNull
         )
       ),
@@ -114,7 +131,9 @@ export const createMockPlantRepository = (
         return wateringDue || fertilizationDue
       })
 
-      return Effect.succeed(Array.map(filtered, (p) => ({ ...p, room: null })))
+      return Effect.succeed(
+        Array.map(filtered, (p) => ({ ...p, room: resolveRoom(p.roomId) }))
+      )
     },
 
     create: (createData) => {
@@ -157,6 +176,11 @@ export const createMockPlantRepository = (
         updatedAt: new Date(),
       }
       plantsData[idx] = updated
+      // Also propagate to original data so callers can observe the change
+      const origIdx = originalPlantsData.findIndex((p) => p.id === id)
+      if (origIdx !== -1) {
+        Object.assign(originalPlantsData[origIdx]!, updateData)
+      }
       return Effect.succeed(updated)
     },
 

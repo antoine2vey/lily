@@ -15,13 +15,8 @@ type MutableNotification = {
 export const createMockNotificationRepository = (
   notifications: Notification[]
 ): Layer.Layer<NotificationRepository> => {
-  // Create a mutable copy for status updates
-  const notificationsState: MutableNotification[] = Array.map(
-    notifications,
-    (n) => ({
-      ...n,
-    })
-  )
+  // Use the passed array directly so callers can observe mutations
+  const notificationsState = notifications as MutableNotification[]
 
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
