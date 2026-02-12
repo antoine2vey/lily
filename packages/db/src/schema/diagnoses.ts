@@ -32,7 +32,7 @@ export const diagnoses = pgTable('diagnoses', {
   symptoms: jsonb('symptoms').notNull().$type<string[]>(),
   treatmentSteps: jsonb('treatment_steps').notNull().$type<string[]>(),
   preventionTips: jsonb('prevention_tips').$type<string[]>(),
-  imageUrl: text('image_url'),
+  imageKey: text('image_key'),
   status: diagnosisStatusEnum('status').notNull().default('ACTIVE'),
   resolvedAt: timestamp('resolved_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })

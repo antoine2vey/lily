@@ -1,6 +1,6 @@
 import type { GCSUploadRequest, GCSUploadResponse } from '@lily/shared/server'
 import { GCSService } from '@lily/shared/server'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 
 export const createMockGCSService = (): Layer.Layer<GCSService> => {
   const mockService = {
@@ -11,6 +11,23 @@ export const createMockGCSService = (): Layer.Layer<GCSService> => {
         bucketName: 'mock-bucket',
         uploadedAt: new Date(),
       }),
+
+    getSignedUrl: (key: string): Effect.Effect<string> =>
+      Effect.succeed(
+        `https://storage.googleapis.com/mock-private-bucket/${key}?signed=true&expires=3600`
+      ),
+
+    getSignedUrls: (
+      keys: readonly string[]
+    ): Effect.Effect<Map<string, string>> =>
+      Effect.succeed(
+        new Map(
+          Array.map(Array.dedupe(keys), (key) => [
+            key,
+            `https://storage.googleapis.com/mock-private-bucket/${key}?signed=true&expires=3600`,
+          ])
+        )
+      ),
 
     uploadPrivateFile: (
       request: GCSUploadRequest

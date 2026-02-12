@@ -27,7 +27,7 @@ export interface CreateDiagnosisData {
   symptoms: string[]
   treatmentSteps: string[]
   preventionTips?: string[]
-  imageUrl?: string
+  imageKey?: string
 }
 
 const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({
@@ -43,7 +43,7 @@ const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({
   preventionTips: Option.getOrUndefined(
     Option.fromNullable(row.preventionTips)
   ),
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageUrl)),
+  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
   status: row.status,
   resolvedAt: Option.getOrUndefined(Option.fromNullable(row.resolvedAt)),
   createdAt: row.createdAt,
@@ -97,7 +97,7 @@ export const DiagnosisRepositoryLive = Layer.effect(
               preventionTips: Option.getOrNull(
                 Option.fromNullable(data.preventionTips)
               ),
-              imageUrl: Option.getOrNull(Option.fromNullable(data.imageUrl)),
+              imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
             })
             .returning()
 

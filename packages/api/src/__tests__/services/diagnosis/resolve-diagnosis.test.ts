@@ -1,5 +1,6 @@
 import { mockDiagnoses } from '@lily/api/__tests__/fixtures/diagnoses'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { resolveDiagnosis } from '@lily/api/services/diagnosis/endpoints/resolve-diagnosis'
 import { Effect, Layer } from 'effect'
@@ -9,7 +10,8 @@ describe('resolveDiagnosis', () => {
   const createTestLayer = (userId = 'user-1') =>
     Layer.mergeAll(
       createMockDiagnosisRepository(mockDiagnoses),
-      createMockCurrentUser({ id: userId })
+      createMockCurrentUser({ id: userId }),
+      createMockGCSService()
     )
 
   it('should mark an active diagnosis as resolved', async () => {

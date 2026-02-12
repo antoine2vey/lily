@@ -44,16 +44,19 @@ export function usePlantChat({
           return pipe(
             Option.fromNullable(token),
             Option.match({
-              onNone: () => ({}) as Record<string, string>,
-              onSome: (t) =>
-                ({ Authorization: `Bearer ${t}` }) as Record<string, string>,
+              onNone: (): Record<string, string> => ({}),
+              onSome: (t): Record<string, string> => ({
+                Authorization: `Bearer ${t}`,
+              }),
             })
           )
         },
         prepareSendMessagesRequest: async ({
           messages,
+          body,
         }: {
           messages: UIMessage[]
+          body?: Record<string, unknown>
         }) => {
           const message = pipe(
             messages,
@@ -63,14 +66,16 @@ export function usePlantChat({
             Option.getOrElse(() => '')
           )
 
-          const imageUrl = pendingImageUrl.current
-          pendingImageUrl.current = undefined
+          const imageKey = body?.imageKey as string | undefined
 
           return {
-            body: {
-              message,
-              ...(imageUrl ? { imageUrl } : {}),
-            },
+            body: pipe(
+              Option.fromNullable(imageKey),
+              Option.match({
+                onNone: () => ({ message }),
+                onSome: (key) => ({ message, imageKey: key }),
+              })
+            ),
           }
         },
       }),
@@ -90,7 +95,7 @@ export function usePlantChat({
   useEffect(() => {
     if (
       initialMessages &&
-      initialMessages.length > 0 &&
+      Array.isNonEmptyReadonlyArray(initialMessages) &&
       !hasSyncedRef.current
     ) {
       chat.setMessages(initialMessages)

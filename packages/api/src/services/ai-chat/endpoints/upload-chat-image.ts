@@ -20,7 +20,7 @@ export const uploadChatImage = ({
   plantId: string
   files: readonly PersistedFile[]
 }): Effect.Effect<
-  { imageUrl: string },
+  { imageUrl: string; imageKey: string },
   | GCSUploadError
   | GCSConfigError
   | PlatformError
@@ -56,13 +56,16 @@ export const uploadChatImage = ({
     const safeName = yield* name
     const fileName = `chat/${plantId}/${timestamp}-${safeName}`
 
-    const { url } = yield* gcs.uploadFile({
+    const { key } = yield* gcs.uploadPrivateFile({
       fileBuffer: Buffer.from(buffer),
       fileName,
       contentType: file.contentType,
     })
 
-    return { imageUrl: url }
+    // Generate a signed URL for immediate use (AI processing + preview)
+    const signedUrl = yield* gcs.getSignedUrl(key)
+
+    return { imageUrl: signedUrl, imageKey: key }
   }).pipe(
     Effect.withSpan('AIChatService.uploadChatImage', {
       attributes: { 'plant.id': plantId },

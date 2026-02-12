@@ -3,6 +3,7 @@ import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
 interface UploadChatImageResult {
   imageUrl: string
+  imageKey: string
 }
 
 export function useUploadChatImage(plantId: string) {

@@ -5,6 +5,7 @@ import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import {
   createMockLimitChecker,
   MockLimitCheckerLive,
@@ -34,7 +35,8 @@ describe('streamChatMessage', () => {
       options.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      createMockGCSService()
     )
 
   it('should return a streaming response', async () => {
@@ -60,7 +62,8 @@ describe('streamChatMessage', () => {
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
       createMockLimitChecker({ aiChatLimitReached: true }),
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      createMockGCSService()
     )
 
     const result = await Effect.runPromise(
@@ -90,7 +93,8 @@ describe('streamChatMessage', () => {
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      createMockGCSService()
     )
 
     await Effect.runPromise(
@@ -124,7 +128,8 @@ describe('streamChatMessage', () => {
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      createMockGCSService()
     )
 
     const result = await Effect.runPromise(
@@ -148,7 +153,8 @@ describe('streamChatMessage', () => {
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      createMockGCSService()
     )
 
     await Effect.runPromise(
@@ -206,7 +212,8 @@ describe('streamChatMessage', () => {
         createMockCareLogRepository([]),
         createMockDiagnosisRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
-        MockUsageTrackerLive
+        MockUsageTrackerLive,
+        createMockGCSService()
       )
 
       await Effect.runPromise(
@@ -233,7 +240,8 @@ describe('streamChatMessage', () => {
         createMockCareLogRepository([]),
         createMockDiagnosisRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
-        MockUsageTrackerLive
+        MockUsageTrackerLive,
+        createMockGCSService()
       )
 
       await Effect.runPromise(

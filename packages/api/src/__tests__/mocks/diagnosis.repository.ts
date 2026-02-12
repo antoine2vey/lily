@@ -23,7 +23,7 @@ const mapToDiagnosis = (row: DiagnosisRecord): Diagnosis => ({
   preventionTips: Option.getOrUndefined(
     Option.fromNullable(row.preventionTips)
   ),
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageUrl)),
+  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
   status: row.status,
   resolvedAt: Option.getOrUndefined(Option.fromNullable(row.resolvedAt)),
   createdAt: row.createdAt,
@@ -48,7 +48,7 @@ export const createMockDiagnosisRepository = (
         symptoms: createData.symptoms,
         treatmentSteps: createData.treatmentSteps,
         preventionTips: createData.preventionTips ?? null,
-        imageUrl: createData.imageUrl ?? null,
+        imageKey: createData.imageKey ?? null,
         status: 'ACTIVE',
         resolvedAt: null,
         createdAt: new Date(),

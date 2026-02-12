@@ -4,6 +4,7 @@ import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.reposi
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { DiagnosisService } from '@lily/api/services/diagnosis/service'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer } from 'effect'
 
 export const DiagnosisApiLive = (api: Api) =>
@@ -28,5 +29,6 @@ export const DiagnosisApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(DiagnosisService.Default),
     Layer.provide(DiagnosisRepositoryLive),
-    Layer.provide(AuthenticationLive)
+    Layer.provide(AuthenticationLive),
+    Layer.provide(GCSService.Default)
   )

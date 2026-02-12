@@ -1,5 +1,6 @@
 import { mockDiagnoses } from '@lily/api/__tests__/fixtures/diagnoses'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
+import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { getDiagnoses } from '@lily/api/services/diagnosis/endpoints/get-diagnoses'
 import { Array, Effect, Layer } from 'effect'
@@ -9,7 +10,8 @@ describe('getDiagnoses', () => {
   const createTestLayer = (userId = 'user-1') =>
     Layer.mergeAll(
       createMockDiagnosisRepository(mockDiagnoses),
-      createMockCurrentUser({ id: userId })
+      createMockCurrentUser({ id: userId }),
+      createMockGCSService()
     )
 
   it('should return diagnoses for a plant with pagination info', async () => {

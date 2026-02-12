@@ -22,12 +22,29 @@ import { ChatMessage } from 'src/screens/chat/components/ChatMessage'
 import { SuggestionChips } from 'src/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from 'src/screens/chat/components/TypingIndicator'
 
+/**
+ * Returns true when an assistant message has only empty text parts
+ * (i.e. the placeholder that appears before streaming content arrives).
+ */
+function hasOnlyEmptyTextParts(msg: UIMessage): boolean {
+  return pipe(
+    msg.parts,
+    Array.filter(
+      (p): p is Extract<UIMessage['parts'][number], { type: 'text' }> =>
+        p.type === 'text'
+    ),
+    Array.every((p) => p.text === '')
+  )
+}
+
 export function ChatScreen() {
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const flatListRef = useRef<FlatList<UIMessage>>(null)
   const queryClient = useQueryClient()
+
+  const safePlantId = Option.getOrElse(Option.fromNullable(plantId), () => '')
 
   // Load chat history from server for initialMessages
   const { isLoading: isLoadingHistory, initialMessages } =
@@ -40,39 +57,24 @@ export function ChatScreen() {
     status,
     pendingImageUrl,
   } = usePlantChat({
-    plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
+    plantId: safePlantId,
     initialMessages,
   })
 
   // Image upload mutation
-  const uploadImage = useUploadChatImage(
-    Option.getOrElse(Option.fromNullable(plantId), () => '')
-  )
+  const uploadImage = useUploadChatImage(safePlantId)
 
   // Derive loading states from status
   const isStreaming = status === 'submitted' || status === 'streaming'
 
-  // Use UIMessage directly, reversed for inverted FlatList.
-  // Filter out the empty assistant placeholder that appears while streaming.
+  // Reversed for inverted FlatList, filtering out the empty assistant
+  // placeholder that appears before streaming content arrives.
   const displayMessages: UIMessage[] = pipe(
     chatMessages,
-    Array.filter((msg: UIMessage) => {
-      if (
-        isStreaming &&
-        msg.role === 'assistant' &&
-        pipe(
-          msg.parts,
-          Array.filter(
-            (p): p is Extract<UIMessage['parts'][number], { type: 'text' }> =>
-              p.type === 'text'
-          ),
-          Array.every((p) => p.text === '')
-        )
-      ) {
-        return false
-      }
-      return true
-    }),
+    Array.filter(
+      (msg: UIMessage) =>
+        !(isStreaming && msg.role === 'assistant' && hasOnlyEmptyTextParts(msg))
+    ),
     Array.reverse
   )
 
@@ -80,32 +82,47 @@ export function ChatScreen() {
     async (content: string, imageUri?: string) => {
       if (!plantId || isStreaming) return
 
-      // If image is attached, upload first then set pendingImageUrl
+      let uploadedImageKey: string | undefined
+      let uploadedImageUrl: string | undefined
+
+      // If image is attached, upload first
       if (imageUri) {
         try {
           const result = await uploadImage.mutateAsync(imageUri)
-          pendingImageUrl.current = result.imageUrl
+          uploadedImageUrl = result.imageUrl
+          uploadedImageKey = result.imageKey
+          pendingImageUrl.current = uploadedImageUrl
         } catch {
           // Upload failed, send without image
         }
       }
 
-      // Build file parts for local display of uploaded image
-      const files = pendingImageUrl.current
-        ? [
-            {
-              type: 'file' as const,
-              mediaType: 'image/jpeg',
-              url: pendingImageUrl.current,
-            },
-          ]
-        : undefined
+      // Build message payload with optional file parts for local display
+      const imageOption = Option.fromNullable(uploadedImageUrl)
+      const messagePayload = pipe(
+        imageOption,
+        Option.match({
+          onNone: () => ({ text: content }),
+          onSome: (url) => ({
+            text: content,
+            files: [{ type: 'file' as const, mediaType: 'image/jpeg', url }],
+          }),
+        })
+      )
 
-      // Use sendMessage to add user message and trigger streaming response
-      await sendMessage({
-        text: content,
-        ...(files ? { files } : {}),
-      })
+      // Pass imageKey through sendMessage body option so it reaches
+      // prepareSendMessagesRequest without relying on refs
+      const body = pipe(
+        Option.fromNullable(uploadedImageKey),
+        Option.match({
+          onNone: () => undefined,
+          onSome: (key) => ({ imageKey: key }),
+        })
+      )
+
+      await sendMessage(messagePayload, { body })
+
+      pendingImageUrl.current = undefined
 
       // Invalidate history after sending to sync with server
       queryClient.invalidateQueries({
@@ -146,9 +163,8 @@ export function ChatScreen() {
     [plantId]
   )
 
-  // Show typing indicator when:
-  // 1. Status is 'submitted' (waiting for AI response to start)
-  // 2. Status is 'streaming' but assistant message has no content yet
+  // Show typing indicator when waiting for AI response to start,
+  // or streaming but the assistant message has no content yet.
   const showTypingIndicator = pipe(
     Array.last(chatMessages),
     Option.match({
@@ -157,14 +173,7 @@ export function ChatScreen() {
         status === 'submitted' ||
         (status === 'streaming' &&
           msg.role === 'assistant' &&
-          pipe(
-            msg.parts,
-            Array.filter(
-              (p): p is Extract<UIMessage['parts'][number], { type: 'text' }> =>
-                p.type === 'text'
-            ),
-            Array.every((p) => p.text === '')
-          )),
+          hasOnlyEmptyTextParts(msg)),
     })
   )
 
