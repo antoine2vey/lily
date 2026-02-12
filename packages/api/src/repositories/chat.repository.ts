@@ -47,6 +47,13 @@ export interface SaveChatParams {
   messages: UIMessage[]
 }
 
+// Result of a saved chat message (DB row ID + AI SDK message ID)
+export interface SavedChatMessage {
+  id: string
+  messageId: string
+  role: string
+}
+
 // Repository service interface
 export interface IChatRepository {
   readonly findByPlantId: (
@@ -59,7 +66,9 @@ export interface IChatRepository {
   readonly create: (
     data: CreateChatMessageData
   ) => Effect.Effect<ChatMessage | null, SqlError>
-  readonly saveChat: (params: SaveChatParams) => Effect.Effect<void, SqlError>
+  readonly saveChat: (
+    params: SaveChatParams
+  ) => Effect.Effect<SavedChatMessage[], SqlError>
   readonly deleteByPlantId: (
     plantId: string,
     userId: string
@@ -146,7 +155,10 @@ export const ChatRepositoryLive = Layer.effect(
             )
 
             return {
-              id: row.messageId ?? row.id,
+              id: pipe(
+                Option.fromNullable(row.messageId),
+                Option.getOrElse(() => row.id)
+              ),
               role: row.role as 'user' | 'assistant',
               parts: parts as UIMessage['parts'],
             }
@@ -156,7 +168,7 @@ export const ChatRepositoryLive = Layer.effect(
       saveChat: (params: SaveChatParams) =>
         Effect.gen(function* () {
           // Process each message, upserting by messageId
-          yield* Effect.forEach(
+          const saved = yield* Effect.forEach(
             params.messages,
             (msg) =>
               Effect.gen(function* () {
@@ -181,20 +193,74 @@ export const ChatRepositoryLive = Layer.effect(
                   )
 
                 if (Array.isEmptyArray(existing)) {
-                  // Insert new message
-                  yield* db.insert(chatMessages).values({
+                  // Extract imageUrl from file parts
+                  const imageUrl = pipe(
+                    msg.parts,
+                    Array.findFirst(
+                      (
+                        p
+                      ): p is {
+                        type: 'file'
+                        mediaType: string
+                        url: string
+                      } =>
+                        p.type === 'file' &&
+                        'mediaType' in p &&
+                        typeof (p as { mediaType?: string }).mediaType ===
+                          'string' &&
+                        (p as { mediaType: string }).mediaType.startsWith(
+                          'image/'
+                        )
+                    ),
+                    Option.map((p) => p.url),
+                    Option.getOrUndefined
+                  )
+
+                  // Insert new message and return DB row
+                  const [row] = yield* db
+                    .insert(chatMessages)
+                    .values({
+                      messageId: msg.id,
+                      role: msg.role,
+                      content: textContent,
+                      parts: msg.parts as unknown as Record<string, unknown>,
+                      imageUrl,
+                      plantId: params.plantId,
+                      userId: params.userId,
+                    })
+                    .returning({
+                      id: chatMessages.id,
+                      messageId: chatMessages.messageId,
+                      role: chatMessages.role,
+                    })
+
+                  return pipe(
+                    Option.fromNullable(row),
+                    Option.map((r) => ({
+                      id: r.id,
+                      messageId: pipe(
+                        Option.fromNullable(r.messageId),
+                        Option.getOrElse(() => msg.id)
+                      ),
+                      role: r.role,
+                    }))
+                  )
+                }
+
+                // Already exists — return existing row info
+                return pipe(
+                  Array.head(existing),
+                  Option.map((row) => ({
+                    id: row.id,
                     messageId: msg.id,
                     role: msg.role,
-                    content: textContent,
-                    parts: msg.parts as unknown as Record<string, unknown>,
-                    plantId: params.plantId,
-                    userId: params.userId,
-                  })
-                }
-                // If exists, skip (messages are immutable once created)
+                  }))
+                )
               }),
             { concurrency: 1 }
           )
+
+          return Array.getSomes(saved)
         }).pipe(Effect.withSpan('ChatRepository.saveChat')),
 
       deleteByPlantId: (plantId: string, userId: string) =>

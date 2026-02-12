@@ -178,8 +178,9 @@ export const createMockPlantRepository = (
       plantsData[idx] = updated
       // Also propagate to original data so callers can observe the change
       const origIdx = originalPlantsData.findIndex((p) => p.id === id)
-      if (origIdx !== -1) {
-        Object.assign(originalPlantsData[origIdx]!, updateData)
+      const origPlant = originalPlantsData[origIdx]
+      if (origIdx !== -1 && origPlant) {
+        Object.assign(origPlant, updateData)
       }
       return Effect.succeed(updated)
     },

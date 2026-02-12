@@ -36,6 +36,10 @@
       "types": "./src/domains/common/schema.ts",
       "default": "./src/domains/common/schema.ts"
     },
+    "./diagnosis": {
+      "types": "./src/domains/diagnosis/schema.ts",
+      "default": "./src/domains/diagnosis/schema.ts"
+    },
     "./device-token": {
       "types": "./src/domains/device-token/schema.ts",
       "default": "./src/domains/device-token/schema.ts"
@@ -59,6 +63,10 @@
     "./errors/care-log": {
       "types": "./src/domains/care-log/errors.ts",
       "default": "./src/domains/care-log/errors.ts"
+    },
+    "./errors/diagnosis": {
+      "types": "./src/domains/diagnosis/errors.ts",
+      "default": "./src/domains/diagnosis/errors.ts"
     },
     "./errors/database": {
       "types": "./src/domains/common/errors.ts",

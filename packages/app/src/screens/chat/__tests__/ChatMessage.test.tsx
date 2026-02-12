@@ -1,14 +1,13 @@
 import { render, screen } from '@testing-library/react-native'
-import { mockIsoString } from 'src/__tests__/utils/dates'
+import type { UIMessage } from 'ai'
 import { ChatMessage } from '../components/ChatMessage'
 
 describe('ChatMessage', () => {
   it('renders user message content', () => {
-    const message = {
+    const message: UIMessage = {
       id: 'msg-1',
-      role: 'user' as const,
-      content: 'How do I water my monstera?',
-      createdAt: mockIsoString(),
+      role: 'user',
+      parts: [{ type: 'text', text: 'How do I water my monstera?' }],
     }
 
     render(<ChatMessage message={message} />)
@@ -17,11 +16,15 @@ describe('ChatMessage', () => {
   })
 
   it('renders assistant message content', () => {
-    const message = {
+    const message: UIMessage = {
       id: 'msg-2',
-      role: 'assistant' as const,
-      content: 'Water your monstera when the top inch of soil is dry.',
-      createdAt: mockIsoString(),
+      role: 'assistant',
+      parts: [
+        {
+          type: 'text',
+          text: 'Water your monstera when the top inch of soil is dry.',
+        },
+      ],
     }
 
     render(<ChatMessage message={message} />)
@@ -32,12 +35,17 @@ describe('ChatMessage', () => {
   })
 
   it('renders with image', () => {
-    const message = {
+    const message: UIMessage = {
       id: 'msg-1',
-      role: 'user' as const,
-      content: 'What plant is this?',
-      imageUrl: 'https://example.com/plant.jpg',
-      createdAt: mockIsoString(),
+      role: 'user',
+      parts: [
+        { type: 'text', text: 'What plant is this?' },
+        {
+          type: 'file',
+          mediaType: 'image/jpeg',
+          url: 'https://example.com/plant.jpg',
+        },
+      ],
     }
 
     const { toJSON } = render(<ChatMessage message={message} />)

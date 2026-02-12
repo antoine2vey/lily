@@ -46,4 +46,16 @@ export const userStatusEnum = pgEnum('user_status', [
   'banned',
 ])
 
+export const diagnosisSeverityEnum = pgEnum('diagnosis_severity', [
+  'LOW',
+  'MODERATE',
+  'HIGH',
+  'CRITICAL',
+])
+
+export const diagnosisStatusEnum = pgEnum('diagnosis_status', [
+  'ACTIVE',
+  'RESOLVED',
+])
+
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])

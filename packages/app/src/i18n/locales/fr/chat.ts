@@ -8,6 +8,9 @@ export default {
     imageAttached: 'Image jointe',
     analysisReady: 'Analyse prête',
   },
+  quotaExceeded:
+    "J'aimerais vous aider, mais vous avez atteint votre limite mensuelle de conversations IA. Passez à Premium pour des conversations illimitées sur vos plantes ! 🌱",
+  analyzing: 'Analyse en cours...',
   suggestions: {
     default: {
       leavesYellowing: 'Pourquoi mes feuilles jaunissent-elles ?',

@@ -1,3 +1,4 @@
+import { diagnoses } from '@lily/db/schema/diagnoses'
 import { plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
@@ -52,4 +53,5 @@ export const plantsRelations = relations(plants, ({ one, many }) => ({
   notifications: many(notifications),
   careLogs: many(careLogs),
   photos: many(plantPhotos),
+  diagnoses: many(diagnoses),
 }))

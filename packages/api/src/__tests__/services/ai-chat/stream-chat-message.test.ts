@@ -3,6 +3,7 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
+import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import {
   createMockLimitChecker,
@@ -29,6 +30,7 @@ describe('streamChatMessage', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
+      createMockDiagnosisRepository([]),
       options.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
@@ -56,6 +58,7 @@ describe('streamChatMessage', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
+      createMockDiagnosisRepository([]),
       createMockLimitChecker({ aiChatLimitReached: true }),
       MockUsageTrackerLive
     )
@@ -73,7 +76,7 @@ describe('streamChatMessage', () => {
     expect(messages.length).toBe(2)
     expect(messages[0]?.role).toBe('user')
     expect(messages[1]?.role).toBe('assistant')
-    expect(messages[1]?.content).toContain('monthly AI chat limit')
+    expect(messages[1]?.content).toBe('__QUOTA_EXCEEDED__')
   })
 
   it('should save user message when under quota', async () => {
@@ -85,6 +88,7 @@ describe('streamChatMessage', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
+      createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -118,6 +122,7 @@ describe('streamChatMessage', () => {
       createMockCurrentUser({ id: 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
+      createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -141,6 +146,7 @@ describe('streamChatMessage', () => {
       createMockCurrentUser({ id: 'custom-user-id' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
+      createMockDiagnosisRepository([]),
       MockLimitCheckerLive,
       MockUsageTrackerLive
     )
@@ -198,6 +204,7 @@ describe('streamChatMessage', () => {
         createMockCurrentUser({ id: 'user-1' }),
         createMockPlantRepository({ plants: mockPlants }),
         createMockCareLogRepository([]),
+        createMockDiagnosisRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )
@@ -224,6 +231,7 @@ describe('streamChatMessage', () => {
         createMockCurrentUser({ id: 'user-1' }),
         createMockPlantRepository({ plants: mockPlants }),
         createMockCareLogRepository([]),
+        createMockDiagnosisRepository([]),
         createMockLimitChecker({ aiChatLimitReached: true }),
         MockUsageTrackerLive
       )
@@ -236,7 +244,7 @@ describe('streamChatMessage', () => {
 
       // Find the assistant message
       const assistantMessage = messages[1]
-      expect(assistantMessage?.content).toContain('Premium')
+      expect(assistantMessage?.content).toBe('__QUOTA_EXCEEDED__')
     })
   })
 })

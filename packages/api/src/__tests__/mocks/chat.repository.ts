@@ -3,6 +3,7 @@ import {
   type FindChatHistoryParams,
   type IChatRepository,
   type SaveChatParams,
+  type SavedChatMessage,
 } from '@lily/api/repositories/chat.repository'
 import { paginate } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
@@ -83,6 +84,8 @@ export const createMockChatRepository = (
     },
 
     saveChat: (params: SaveChatParams) => {
+      const saved: SavedChatMessage[] = []
+
       // Extract text content from parts and save as ChatMessage
       Array.forEach(params.messages, (msg) => {
         const textContent = pipe(
@@ -93,7 +96,7 @@ export const createMockChatRepository = (
         )
 
         // Check if message already exists
-        const exists = Array.some(
+        const existing = Array.findFirst(
           data.messages,
           (m) =>
             m.id === msg.id &&
@@ -101,9 +104,10 @@ export const createMockChatRepository = (
             m.userId === params.userId
         )
 
-        if (!exists) {
+        if (Option.isNone(existing)) {
+          const dbId = crypto.randomUUID()
           const newMessage: ChatMessage = {
-            id: msg.id,
+            id: dbId,
             role: msg.role as 'user' | 'assistant',
             content: textContent,
             plantId: params.plantId,
@@ -111,10 +115,14 @@ export const createMockChatRepository = (
             createdAt: new Date(),
           }
           data.messages.push(newMessage)
+          saved.push({ id: dbId, messageId: msg.id, role: msg.role })
+        } else {
+          const ex = Option.getOrThrow(existing)
+          saved.push({ id: ex.id, messageId: msg.id, role: msg.role })
         }
       })
 
-      return Effect.void
+      return Effect.succeed(saved)
     },
 
     deleteByPlantId: (plantId: string, userId: string) => {
