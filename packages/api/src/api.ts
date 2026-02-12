@@ -6,6 +6,7 @@ import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareTasksApi } from '@lily/api/services/care-tasks/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
+import { DiagnosisApi } from '@lily/api/services/diagnosis/api'
 import { HealthApiGroup } from '@lily/api/services/health/api'
 import { NotificationsApi } from '@lily/api/services/notifications/api'
 import { PlantsApi } from '@lily/api/services/plants/api'
@@ -34,6 +35,7 @@ export const Api = HttpApi.make('Api')
   .add(NotificationsApi.prefix('/api'))
   .add(DeviceTokensApi.prefix('/api'))
   .add(AIChatApi.prefix('/api'))
+  .add(DiagnosisApi.prefix('/api'))
   .add(AchievementsApi.prefix('/api'))
   .add(SubscriptionsApi.prefix('/api'))
   .add(SubscriptionWebhooksApi.prefix('/api'))

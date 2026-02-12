@@ -1,5 +1,4 @@
 import { renderHook } from '@testing-library/react-native'
-import { mockNow } from 'src/__tests__/utils/dates'
 
 // Mock dependencies - must be before importing the module under test
 jest.mock('expo/fetch', () => ({
@@ -9,18 +8,27 @@ jest.mock('expo/fetch', () => ({
   }),
 }))
 
+jest.mock('ai', () => ({
+  DefaultChatTransport: jest.fn().mockImplementation(() => ({
+    api: 'mock-api',
+  })),
+}))
+
 jest.mock('@ai-sdk/react', () => ({
   useChat: jest.fn(() => ({
     messages: [],
-    input: '',
-    handleInputChange: jest.fn(),
-    handleSubmit: jest.fn(),
-    isLoading: false,
-    setInput: jest.fn(),
-    append: jest.fn(),
-    reload: jest.fn(),
-    stop: jest.fn(),
+    sendMessage: jest.fn(),
+    status: 'ready',
     setMessages: jest.fn(),
+    id: 'test-chat-id',
+    error: undefined,
+    stop: jest.fn(),
+    regenerate: jest.fn(),
+    resumeStream: jest.fn(),
+    addToolResult: jest.fn(),
+    addToolOutput: jest.fn(),
+    addToolApprovalResponse: jest.fn(),
+    clearError: jest.fn(),
   })),
 }))
 
@@ -29,6 +37,7 @@ jest.mock('expo-secure-store', () => ({
 }))
 
 import { useChat } from '@ai-sdk/react'
+import type { UIMessage } from 'ai'
 import { usePlantChat } from '../usePlantChat'
 
 const mockedUseChat = useChat as jest.MockedFunction<typeof useChat>
@@ -37,22 +46,18 @@ const mockedUseChat = useChat as jest.MockedFunction<typeof useChat>
 const createMockUseChatReturn = (overrides = {}) =>
   ({
     messages: [],
-    input: '',
-    handleInputChange: jest.fn(),
-    handleSubmit: jest.fn(),
-    isLoading: false,
-    setInput: jest.fn(),
-    append: jest.fn(),
-    reload: jest.fn(),
-    stop: jest.fn(),
-    setMessages: jest.fn(),
-    error: undefined,
+    sendMessage: jest.fn(),
     status: 'ready',
+    setMessages: jest.fn(),
     id: 'test-chat-id',
-    setData: jest.fn(),
-    data: undefined,
+    error: undefined,
+    stop: jest.fn(),
+    regenerate: jest.fn(),
+    resumeStream: jest.fn(),
     addToolResult: jest.fn(),
-    experimental_resume: jest.fn(),
+    addToolOutput: jest.fn(),
+    addToolApprovalResponse: jest.fn(),
+    clearError: jest.fn(),
     ...overrides,
   }) as unknown as ReturnType<typeof useChat>
 
@@ -74,40 +79,43 @@ describe('usePlantChat', () => {
     )
   })
 
-  it('passes initialMessages to useChat', () => {
-    const initialMessages = [
+  it('syncs initialMessages via setMessages when they load', () => {
+    const mockSetMessages = jest.fn()
+    mockedUseChat.mockReturnValue(
+      createMockUseChatReturn({ setMessages: mockSetMessages })
+    )
+
+    const initialMessages: UIMessage[] = [
       {
         id: 'msg-1',
         role: 'user' as const,
-        content: 'Hello',
-        createdAt: mockNow(),
+        parts: [{ type: 'text' as const, text: 'Hello' }],
       },
     ]
 
     renderHook(() => usePlantChat({ plantId: 'plant-123', initialMessages }))
 
-    expect(mockedUseChat).toHaveBeenCalledWith(
-      expect.objectContaining({
-        initialMessages,
-      })
-    )
+    expect(mockSetMessages).toHaveBeenCalledWith(initialMessages)
   })
 
-  it('configures text stream protocol', () => {
+  it('configures transport instead of streamProtocol', () => {
     renderHook(() =>
       usePlantChat({ plantId: 'plant-123', initialMessages: [] })
     )
 
     expect(mockedUseChat).toHaveBeenCalledWith(
       expect.objectContaining({
-        streamProtocol: 'text',
+        transport: expect.any(Object),
       })
     )
+
+    // Should NOT have streamProtocol (v1 API)
+    const callArgs = mockedUseChat.mock.calls[0]?.[0]
+    expect(callArgs).not.toHaveProperty('streamProtocol')
   })
 
-  it('returns useChat hook result', () => {
-    const mockHandleSubmit = jest.fn()
-    const mockSetInput = jest.fn()
+  it('returns useChat hook result with pendingImageUrl ref', () => {
+    const mockSendMessage = jest.fn()
 
     mockedUseChat.mockReturnValue(
       createMockUseChatReturn({
@@ -115,15 +123,11 @@ describe('usePlantChat', () => {
           {
             id: 'msg-1',
             role: 'assistant',
-            content: 'Hello!',
-            createdAt: mockNow(),
             parts: [{ type: 'text', text: 'Hello!' }],
           },
         ],
-        input: 'test',
-        handleSubmit: mockHandleSubmit,
-        isLoading: true,
-        setInput: mockSetInput,
+        sendMessage: mockSendMessage,
+        status: 'ready',
       })
     )
 
@@ -132,8 +136,9 @@ describe('usePlantChat', () => {
     )
 
     expect(result.current.messages).toHaveLength(1)
-    expect(result.current.isLoading).toBe(true)
-    expect(result.current.handleSubmit).toBe(mockHandleSubmit)
-    expect(result.current.setInput).toBe(mockSetInput)
+    expect(result.current.status).toBe('ready')
+    expect(result.current.sendMessage).toBe(mockSendMessage)
+    expect(result.current.pendingImageUrl).toBeDefined()
+    expect(result.current.pendingImageUrl.current).toBeUndefined()
   })
 })

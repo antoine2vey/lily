@@ -165,12 +165,12 @@ describe('useChatHistory', () => {
     expect(displayMsg).toHaveProperty('content')
     expect(displayMsg).toHaveProperty('createdAt')
 
-    // Check initialMessage format (for AI SDK)
+    // Check initialMessage format (for AI SDK v6 UIMessage)
     const aiMsg = result.current.initialMessages[0]
     expect(aiMsg).toHaveProperty('id')
     expect(aiMsg).toHaveProperty('role')
-    expect(aiMsg).toHaveProperty('content')
-    expect(aiMsg).toHaveProperty('createdAt')
+    expect(aiMsg).toHaveProperty('parts')
+    expect(aiMsg).toHaveProperty('metadata.createdAt')
   })
 
   it('handles loading state', () => {

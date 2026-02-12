@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { mockNow } from 'src/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
@@ -14,6 +13,13 @@ jest.mock('src/hooks/useChatHistory', () => ({
 
 jest.mock('src/hooks/usePlantChat', () => ({
   usePlantChat: jest.fn(),
+}))
+
+jest.mock('src/hooks/useUploadChatImage', () => ({
+  useUploadChatImage: jest.fn(() => ({
+    mutateAsync: jest.fn(),
+    isPending: false,
+  })),
 }))
 
 import { useChatHistory } from 'src/hooks/useChatHistory'
@@ -39,14 +45,16 @@ const renderWithProviders = (ui: ReactNode) => {
 }
 
 describe('ChatScreen', () => {
-  const mockAppend = jest.fn()
+  const mockSendMessage = jest.fn()
+  const mockPendingImageUrl = { current: undefined }
 
   beforeEach(() => {
     jest.clearAllMocks()
     mockedUsePlantChat.mockReturnValue({
       messages: [],
-      append: mockAppend,
+      sendMessage: mockSendMessage,
       status: 'ready',
+      pendingImageUrl: mockPendingImageUrl,
     })
   })
 
@@ -85,18 +93,22 @@ describe('ChatScreen', () => {
         {
           id: 'msg-1',
           role: 'user',
-          content: 'Hello',
-          createdAt: mockNow(),
+          parts: [{ type: 'text', text: 'Hello' }],
         },
         {
           id: 'msg-2',
           role: 'assistant',
-          content: 'Hi! How can I help with your plants?',
-          createdAt: mockNow(),
+          parts: [
+            {
+              type: 'text',
+              text: 'Hi! How can I help with your plants?',
+            },
+          ],
         },
       ],
-      append: mockAppend,
+      sendMessage: mockSendMessage,
       status: 'ready',
+      pendingImageUrl: mockPendingImageUrl,
     })
 
     renderWithProviders(<ChatScreen />)
@@ -119,18 +131,17 @@ describe('ChatScreen', () => {
         {
           id: 'msg-1',
           role: 'user',
-          content: 'Hello',
-          createdAt: mockNow(),
+          parts: [{ type: 'text', text: 'Hello' }],
         },
         {
           id: 'msg-2',
           role: 'assistant',
-          content: '',
-          createdAt: mockNow(),
+          parts: [{ type: 'text', text: '' }],
         },
       ],
-      append: mockAppend,
+      sendMessage: mockSendMessage,
       status: 'streaming',
+      pendingImageUrl: mockPendingImageUrl,
     })
 
     const { toJSON } = renderWithProviders(<ChatScreen />)

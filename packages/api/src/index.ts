@@ -18,6 +18,7 @@ import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
+import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import {
@@ -121,6 +122,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AuthApiLive(Api)),
   Layer.provide(CareLogsApiLive(Api)),
   Layer.provide(CareTasksApiLive(Api)),
+  Layer.provide(DiagnosisApiLive(Api)),
   Layer.provide(DeviceTokensApiLive(Api)),
   Layer.provide(HealthApiLive(Api)),
   Layer.provide(NotificationsApiLive(Api)),
@@ -146,7 +148,9 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(NotificationWorkerLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
-  Layer.provide(BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0' }))
+  Layer.provide(
+    BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0', idleTimeout: 120 })
+  )
 )
 
 // Launch the server with optional telemetry

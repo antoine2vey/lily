@@ -1,6 +1,6 @@
-import type { Message } from '@ai-sdk/react'
 import { parseToNativeDate, StaleTime } from '@lily/shared'
-import { Array, DateTime, Option, pipe } from 'effect'
+import type { UIMessage } from 'ai'
+import { Array, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
 // Extended message type with imageUrl for display
@@ -12,23 +12,43 @@ export interface ChatMessageDisplay {
   createdAt: Date
 }
 
-// Transform API message to Message format for AI SDK
-const toMessage = (msg: {
+// Transform API message to UIMessage format for AI SDK
+const toUIMessage = (msg: {
   id: string
   role: 'user' | 'assistant'
   content: string
+  imageUrl?: string
   createdAt: Date | string
-}): Message => ({
+}): UIMessage => ({
   id: msg.id,
   role: msg.role,
-  content: msg.content,
-  createdAt:
-    msg.createdAt instanceof Date
-      ? msg.createdAt
-      : pipe(
-          parseToNativeDate(String(msg.createdAt)),
-          Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeMake(0)))
-        ),
+  parts: [
+    ...pipe(
+      Option.fromNullable(msg.imageUrl),
+      Option.match({
+        onNone: () => [] as UIMessage['parts'],
+        onSome: (url) =>
+          [
+            {
+              type: 'file' as const,
+              mediaType: 'image/jpeg',
+              url,
+            },
+          ] as UIMessage['parts'],
+      })
+    ),
+    { type: 'text' as const, text: msg.content },
+  ],
+  metadata: {
+    createdAt:
+      msg.createdAt instanceof Date
+        ? msg.createdAt.toISOString()
+        : pipe(
+            parseToNativeDate(String(msg.createdAt)),
+            Option.map((d) => d.toISOString()),
+            Option.getOrElse(() => String(msg.createdAt))
+          ),
+  },
 })
 
 // Transform API message to display format for ChatMessage component
@@ -48,7 +68,7 @@ const toDisplayMessage = (msg: {
       ? msg.createdAt
       : pipe(
           parseToNativeDate(String(msg.createdAt)),
-          Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeMake(0)))
+          Option.getOrElse(() => new Date(0))
         ),
 })
 
@@ -68,11 +88,11 @@ export function useChatHistory(plantId?: string) {
     { enabled: !!plantId, staleTime: StaleTime.default }
   )
 
-  // Transform to Message format for AI SDK initialMessages (chronological order)
-  const initialMessages: Message[] = pipe(
+  // Transform to UIMessage format for AI SDK initialMessages (chronological order)
+  const initialMessages: UIMessage[] = pipe(
     Option.fromNullable(query.data?.items),
-    Option.map(Array.map(toMessage)),
-    Option.getOrElse(() => [] as Message[])
+    Option.map(Array.map(toUIMessage)),
+    Option.getOrElse(() => [] as UIMessage[])
   )
 
   // Transform and reverse for inverted FlatList display
