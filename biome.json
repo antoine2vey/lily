@@ -13,8 +13,7 @@
       "!**/.expo/**",
       "!**/ios/Pods/**",
       "!**/android/.gradle/**",
-      "!**/android/build/**",
-      "!**/.next/**"
+      "!**/android/build/**"
     ]
   },
   "formatter": {
