@@ -1,15 +1,19 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { AiService } from '@lily/api/services/ai/service'
-import { Effect, Layer, Stream } from 'effect'
+import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const testLayer = Layer.mergeAll(
   createMockAiService(),
   createMockPlantRepository({ plants: mockPlants }),
-  createMockCareLogRepository([])
+  createMockCareLogRepository([]),
+  createMockDiagnosisRepository([]),
+  createMockCurrentUser({ id: 'user-1' })
 )
 
 describe('AiService (mock)', () => {
@@ -41,114 +45,6 @@ describe('AiService (mock)', () => {
       expect(result.wateringFrequencyDays).toBe(7)
       expect(result.luxNeeded).toBe(2000)
       expect(result.category).toBe('Tropical')
-    })
-  })
-
-  describe('plantChat', () => {
-    it('should return stream for plant chat', async () => {
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const aiService = yield* AiService
-          const stream = yield* aiService.plantChat('plant-1', [
-            {
-              id: '1',
-              role: 'user',
-              parts: [{ type: 'text', text: 'How often should I water this?' }],
-            },
-          ])
-          const chunks = yield* Stream.runCollect(stream)
-          return chunks
-        }).pipe(Effect.provide(testLayer))
-      )
-
-      expect(result.length).toBeGreaterThan(0)
-    })
-
-    it('should use custom response when provided', async () => {
-      const customResponse = 'Water your Monstera every 7-10 days'
-
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const aiService = yield* AiService
-          const stream = yield* aiService.plantChat('plant-1', [
-            {
-              id: '1',
-              role: 'user',
-              parts: [{ type: 'text', text: 'How often should I water?' }],
-            },
-          ])
-          const chunks = yield* Stream.runCollect(stream)
-          // Decode the chunks
-          const decoder = new TextDecoder()
-          let fullResponse = ''
-          for (const chunk of chunks) {
-            fullResponse += decoder.decode(chunk)
-          }
-          return fullResponse
-        }).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              createMockAiService({ plantChatResponse: customResponse }),
-              createMockPlantRepository({ plants: mockPlants }),
-              createMockCareLogRepository([])
-            )
-          )
-        )
-      )
-
-      expect(result).toBe(customResponse)
-    })
-
-    it('should handle conversation history', async () => {
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const aiService = yield* AiService
-          const stream = yield* aiService.plantChat('plant-1', [
-            {
-              id: '1',
-              role: 'user',
-              parts: [{ type: 'text', text: 'What plant is this?' }],
-            },
-            {
-              id: '2',
-              role: 'assistant',
-              parts: [{ type: 'text', text: 'This appears to be a Monstera.' }],
-            },
-            {
-              id: '3',
-              role: 'user',
-              parts: [{ type: 'text', text: 'How do I care for it?' }],
-            },
-          ])
-          return stream
-        }).pipe(Effect.provide(testLayer))
-      )
-
-      expect(result).toBeDefined()
-    })
-
-    it('should return default response when not customized', async () => {
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const aiService = yield* AiService
-          const stream = yield* aiService.plantChat('plant-1', [
-            {
-              id: '1',
-              role: 'user',
-              parts: [{ type: 'text', text: 'Hello' }],
-            },
-          ])
-          const chunks = yield* Stream.runCollect(stream)
-          const decoder = new TextDecoder()
-          let fullResponse = ''
-          for (const chunk of chunks) {
-            fullResponse += decoder.decode(chunk)
-          }
-          return fullResponse
-        }).pipe(Effect.provide(testLayer))
-      )
-
-      expect(result).toBe('Mock AI response')
     })
   })
 

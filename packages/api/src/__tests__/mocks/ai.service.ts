@@ -1,6 +1,6 @@
 import { AiService } from '@lily/api/services/ai/service'
 import type { UIMessage } from 'ai'
-import { Effect, Layer, Option, pipe, Stream } from 'effect'
+import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockAiServiceData {
   plantChatResponse?: string
@@ -11,6 +11,13 @@ async function* createTextStream(text: string): AsyncIterable<string> {
   yield text
 }
 
+// Create a mock UI message stream (async iterable of chunks)
+async function* createMockUIMessageStream(text: string) {
+  yield { type: 'text-start' as const, id: 'mock-msg' }
+  yield { type: 'text-delta' as const, delta: text, id: 'mock-msg' }
+  yield { type: 'text-end' as const, id: 'mock-msg' }
+}
+
 export const createMockAiService = (
   data: MockAiServiceData = {}
 ): Layer.Layer<AiService> => {
@@ -18,7 +25,6 @@ export const createMockAiService = (
     Option.fromNullable(data.plantChatResponse),
     Option.getOrElse(() => 'Mock AI response')
   )
-  const responseBytes = new TextEncoder().encode(response)
 
   const mockService = {
     plantRecognition: (_url: string) =>
@@ -35,13 +41,27 @@ export const createMockAiService = (
         category: 'Tropical',
         description: 'A mock plant for testing',
       }),
-    plantChat: (_plantId: string, _messages: UIMessage[]) =>
-      Effect.succeed(Stream.make(responseBytes)),
-    // Returns a mock StreamTextResult-like object for streaming endpoint
-    plantChatStream: (_plantId: string, _messages: UIMessage[]) =>
+    plantChatStream: (
+      _plantId: string,
+      _messages: UIMessage[],
+      _options?: { imageUrl?: string }
+    ) =>
       Effect.succeed({
-        textStream: createTextStream(response),
-        text: Promise.resolve(response),
+        stream: {
+          textStream: createTextStream(response),
+          text: Promise.resolve(response),
+          toolResults: Promise.resolve([]),
+          toUIMessageStream: () => createMockUIMessageStream(response),
+          response: Promise.resolve({
+            messages: [
+              {
+                role: 'assistant' as const,
+                content: [{ type: 'text' as const, text: response }],
+              },
+            ],
+          }),
+        },
+        createdDiagnoses: [],
       }),
     plantCardScan: (_url: string) =>
       Effect.succeed({

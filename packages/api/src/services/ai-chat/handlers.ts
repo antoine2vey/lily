@@ -4,16 +4,20 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
+import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
+import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
 import { AIChatService } from '@lily/api/services/ai-chat/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
+import { FileService } from '@lily/shared/services/file/fileservice'
+import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer } from 'effect'
 
 // Implement the AI Chat API group
@@ -23,15 +27,18 @@ export const AIChatApiLive = (api: Api) =>
       const aiChatService = yield* AIChatService
 
       return handlers
-        .handle('sendChatMessage', ({ path: { plantId }, payload }) =>
-          aiChatService
-            .sendChatMessage(plantId, payload)
-            .pipe(withInfraErrorsAsDefect)
-        )
         .handle('streamChatMessage', ({ path: { plantId }, payload }) =>
-          streamChatMessage(plantId, { message: payload.message }).pipe(
-            withInfraErrorsAsDefect
-          )
+          streamChatMessage(plantId, {
+            message: payload.message,
+            ...(payload.imageUrl !== undefined
+              ? { imageUrl: payload.imageUrl }
+              : {}),
+          }).pipe(withInfraErrorsAsDefect)
+        )
+        .handle(
+          'uploadChatImage',
+          ({ path: { plantId }, payload: { files } }) =>
+            uploadChatImage({ plantId, files }).pipe(withInfraErrorsAsDefect)
         )
         .handle('getChatHistory', ({ path: { plantId }, urlParams }) =>
           aiChatService
@@ -55,5 +62,8 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(AchievementRepositoryLive),
     Layer.provide(PlantRepositoryLive),
-    Layer.provide(CareLogRepositoryLive)
+    Layer.provide(CareLogRepositoryLive),
+    Layer.provide(DiagnosisRepositoryLive),
+    Layer.provide(GCSService.Default),
+    Layer.provide(FileService.Default)
   )

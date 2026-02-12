@@ -1,0 +1,70 @@
+import type { PlatformError } from '@effect/platform/Error'
+import { FileSystem } from '@effect/platform/FileSystem'
+import type { PersistedFile } from '@effect/platform/Multipart'
+import type { SqlError } from '@effect/sql/SqlError'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { nowAsEpochMillis } from '@lily/shared'
+import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  type GCSConfigError,
+  GCSService,
+  type GCSUploadError,
+} from '@lily/shared/services/file/gcs'
+import { Array, Effect, pipe, String } from 'effect'
+
+export const uploadChatImage = ({
+  plantId,
+  files,
+}: {
+  plantId: string
+  files: readonly PersistedFile[]
+}): Effect.Effect<
+  { imageUrl: string },
+  | GCSUploadError
+  | GCSConfigError
+  | PlatformError
+  | PlantNotFoundError
+  | SqlError,
+  GCSService | FileSystem | CurrentUser | PlantRepository
+> =>
+  Effect.gen(function* () {
+    const fileSystem = yield* FileSystem
+    const gcs = yield* GCSService
+    const { id: userId } = yield* CurrentUser
+    const plantRepo = yield* PlantRepository
+
+    const plant = yield* plantRepo.findById(plantId)
+    yield* pipe(
+      Effect.succeed(plant),
+      Effect.filterOrFail(
+        (p) => p !== null && p.userId === userId,
+        () => new PlantNotFoundError({ plantId })
+      )
+    )
+
+    const file = yield* Array.head(files)
+    const buffer = yield* fileSystem.readFile(file.path)
+
+    const timestamp = nowAsEpochMillis()
+    const name = pipe(
+      file.name,
+      String.replaceAll('..', ''),
+      String.split('/'),
+      Array.last
+    )
+    const safeName = yield* name
+    const fileName = `chat/${plantId}/${timestamp}-${safeName}`
+
+    const { url } = yield* gcs.uploadFile({
+      fileBuffer: Buffer.from(buffer),
+      fileName,
+      contentType: file.contentType,
+    })
+
+    return { imageUrl: url }
+  }).pipe(
+    Effect.withSpan('AIChatService.uploadChatImage', {
+      attributes: { 'plant.id': plantId },
+    })
+  )
