@@ -31,6 +31,7 @@
   "references": [
     { "path": "./packages/shared" },
     { "path": "./packages/db" },
-    { "path": "./packages/api" }
+    { "path": "./packages/api" },
+    { "path": "./packages/web" }
   ]
 }
