@@ -42,6 +42,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     nextFertilizationAt: tomorrow, // This week
     isFavorite: false,
     userId: 'user-1',
+    roomId: null,
+    room: null,
   },
   {
     id: 'plant-2',
@@ -65,6 +67,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
+    roomId: null,
+    room: null,
   },
   {
     id: 'plant-3',
@@ -88,6 +92,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     nextFertilizationAt: inThreeDays, // This week
     isFavorite: false,
     userId: 'user-1',
+    roomId: null,
+    room: null,
   },
   {
     id: 'plant-4',
@@ -111,6 +117,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
+    roomId: null,
+    room: null,
   },
   {
     id: 'plant-5',
@@ -134,6 +142,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-2',
+    roomId: null,
+    room: null,
   },
 ]
 
@@ -161,5 +171,7 @@ export const mockPlantsNoCare: Plant[] = [
     nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
+    roomId: null,
+    room: null,
   },
 ]

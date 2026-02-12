@@ -3,49 +3,39 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { AiService, streamSdk } from '@lily/api/services/ai/service'
+import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { UIMessage } from 'ai'
-import { Array, Effect, Stream } from 'effect'
+import { Array, Effect, Option, pipe, Stream } from 'effect'
 
-const QUOTA_EXCEEDED_MESSAGE =
-  "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱"
+const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
 export interface StreamChatRequest {
   message: string
+  imageUrl?: string
 }
 
-const DISEASE_KEYWORDS = [
-  'disease',
-  'infection',
-  'fungus',
-  'pest',
-  'rot',
-  'blight',
-  'mold',
-  'wilting',
-  'mildew',
-  'bacterial',
-] as const
+const encoder = new TextEncoder()
 
-const RARITY_KEYWORDS = [
-  'rare',
-  'uncommon',
-  'exotic',
-  'endangered',
-  'unusual',
-] as const
+/**
+ * Encode an async iterable of UI message chunks as SSE events
+ * that the AI SDK client (DefaultChatTransport) can parse.
+ */
+const uiStreamToSse = (
+  stream: AsyncIterable<unknown>
+): Stream.Stream<Uint8Array, Error> => {
+  const sseChunks = Stream.fromAsyncIterable(stream, (e) => e as Error).pipe(
+    Stream.map((chunk) => encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
+  )
 
-const containsKeyword = (
-  text: string,
-  keywords: readonly string[]
-): boolean => {
-  const lowerText = text.toLowerCase()
-  return Array.some(keywords, (keyword) => lowerText.includes(keyword))
+  const done = Stream.make(encoder.encode('data: [DONE]\n\n'))
+
+  return pipe(sseChunks, Stream.concat(done))
 }
 
 export const streamChatMessage = (
@@ -60,6 +50,7 @@ export const streamChatMessage = (
   | CurrentUser
   | PlantRepository
   | CareLogRepository
+  | DiagnosisRepository
   | LimitChecker
   | UsageTracker
 > =>
@@ -67,15 +58,27 @@ export const streamChatMessage = (
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
     const eventBus = yield* EventBus
+    const diagnosisRepo = yield* DiagnosisRepository
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
 
-    // Create the new user message
+    // Create the new user message (include image part if present)
     const userMessage: UIMessage = {
       id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       role: 'user',
-      parts: [{ type: 'text', text: request.message }],
+      parts: [
+        ...(request.imageUrl
+          ? [
+              {
+                type: 'file' as const,
+                mediaType: 'image/jpeg',
+                url: request.imageUrl,
+              },
+            ]
+          : []),
+        { type: 'text', text: request.message },
+      ],
     }
 
     // Check if user has reached their AI chat limit
@@ -85,11 +88,10 @@ export const streamChatMessage = (
     )
 
     if (limitExceeded) {
-      // Save user message and quota exceeded response
       const assistantUIMessage: UIMessage = {
         id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
         role: 'assistant',
-        parts: [{ type: 'text', text: QUOTA_EXCEEDED_MESSAGE }],
+        parts: [{ type: 'text', text: QUOTA_EXCEEDED_KEY }],
       }
 
       yield* chatRepo.saveChat({
@@ -98,13 +100,19 @@ export const streamChatMessage = (
         messages: [userMessage, assistantUIMessage],
       })
 
-      // Return a stream with the quota exceeded message
-      const quotaStream = Stream.make(
-        new TextEncoder().encode(QUOTA_EXCEEDED_MESSAGE)
-      )
+      // Stream quota message as SSE
+      async function* quotaChunks() {
+        yield { type: 'text-start', id: 'quota-msg' }
+        yield {
+          type: 'text-delta',
+          delta: QUOTA_EXCEEDED_KEY,
+          id: 'quota-msg',
+        }
+        yield { type: 'text-end', id: 'quota-msg' }
+      }
 
-      return HttpServerResponse.stream(quotaStream, {
-        contentType: 'text/plain; charset=utf-8',
+      return HttpServerResponse.stream(uiStreamToSse(quotaChunks()), {
+        contentType: 'text/event-stream; charset=utf-8',
       })
     }
 
@@ -117,68 +125,80 @@ export const streamChatMessage = (
     // Combine history with new user message
     const allMessages = [...previousMessages, userMessage]
 
-    // Get the raw AI SDK stream result
-    const streamResult = yield* aiService.plantChatStream(plantId, allMessages)
+    const { stream: streamResult, createdDiagnoses } =
+      yield* aiService.plantChatStream(
+        plantId,
+        allMessages,
+        request.imageUrl ? { imageUrl: request.imageUrl } : undefined
+      )
 
     // Handle post-stream operations in background
-    // Note: text promise resolves after the stream completes
-    streamResult.text.then(async (responseText) => {
-      // Save both user and assistant messages
-      const assistantUIMessage: UIMessage = {
-        id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-        role: 'assistant',
-        parts: [{ type: 'text', text: responseText }],
-      }
+    Promise.resolve(streamResult.text)
+      .then(async (fullText) => {
+        await Effect.runPromise(
+          Effect.gen(function* () {
+            // Build assistant UIMessage
+            const assistantUIMessage: UIMessage = {
+              id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+              role: 'assistant',
+              parts: [{ type: 'text', text: fullText }],
+            }
 
-      // Save messages to database
-      await Effect.runPromise(
-        chatRepo.saveChat({
-          plantId,
-          userId,
-          messages: [userMessage, assistantUIMessage],
-        })
-      )
-
-      // Publish events
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          yield* publishWithRetry(
-            eventBus.publish({
-              _tag: 'ChatMessageSent',
-              userId,
+            // Save messages to database
+            const savedMessages = yield* chatRepo.saveChat({
               plantId,
-              messageId: assistantUIMessage.id,
+              userId,
+              messages: [userMessage, assistantUIMessage],
             })
-          )
 
-          if (containsKeyword(responseText, DISEASE_KEYWORDS)) {
+            // Find the user message's DB row ID for diagnosis linking
+            const userMessageDbId = pipe(
+              Array.findFirst(
+                savedMessages,
+                (m) => m.messageId === userMessage.id && m.role === 'user'
+              ),
+              Option.map((m) => m.id),
+              Option.getOrUndefined
+            )
+
             yield* publishWithRetry(
               eventBus.publish({
-                _tag: 'DiseaseIdentified',
+                _tag: 'ChatMessageSent',
                 userId,
                 plantId,
+                messageId: assistantUIMessage.id,
               })
             )
-          }
 
-          if (containsKeyword(responseText, RARITY_KEYWORDS)) {
-            yield* publishWithRetry(
-              eventBus.publish({
-                _tag: 'RarePlantIdentified',
-                userId,
-                plantId,
-              })
-            )
-          }
+            // Link diagnoses to the user message that triggered them
+            if (userMessageDbId) {
+              for (const diagnosis of createdDiagnoses) {
+                yield* diagnosisRepo.linkChatMessage(
+                  diagnosis.diagnosisId,
+                  userMessageDbId
+                )
 
-          // Track usage after successful chat
-          yield* usageTracker.trackAiChat(userId)
-        })
-      )
-    })
+                yield* publishWithRetry(
+                  eventBus.publish({
+                    _tag: 'DiseaseIdentified',
+                    userId,
+                    plantId,
+                  })
+                )
+              }
+            }
 
-    // Return the streaming response using Effect Stream
-    return HttpServerResponse.stream(streamSdk(streamResult.textStream), {
-      contentType: 'text/plain; charset=utf-8',
+            // Track usage after successful chat
+            yield* usageTracker.trackAiChat(userId)
+          })
+        )
+      })
+      .catch(() => {})
+
+    // Stream UI message chunks as SSE events
+    const uiStream = streamResult.toUIMessageStream()
+
+    return HttpServerResponse.stream(uiStreamToSse(uiStream), {
+      contentType: 'text/event-stream; charset=utf-8',
     })
   })

@@ -1,86 +1,105 @@
-import { type Message, useChat } from '@ai-sdk/react'
+import { useChat } from '@ai-sdk/react'
+import type { UIMessage } from 'ai'
+import { DefaultChatTransport } from 'ai'
 import { Array, Option, pipe } from 'effect'
 import { fetch as expoFetch } from 'expo/fetch'
 import * as SecureStore from 'expo-secure-store'
+import type React from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { ACCESS_TOKEN_KEY, API_BASE_URL } from 'src/utils/client'
 
-export type { Message }
+export type { UIMessage }
 
 interface UsePlantChatOptions {
   plantId: string
-  initialMessages?: Message[]
+  initialMessages?: UIMessage[]
 }
 
-interface AISdkRequestBody {
-  messages?: Array<{ role: string; content: string }>
-}
-
-const safeParseJson = (body: string): Option.Option<AISdkRequestBody> => {
-  try {
-    return Option.some(JSON.parse(body) as AISdkRequestBody)
-  } catch {
-    return Option.none()
-  }
-}
-
-/**
- * Extract the last user message from AI SDK's request format.
- * AI SDK sends { messages: [...] }, but our backend expects { message: string }
- */
-const extractLastUserMessage = (body: string | undefined): string =>
+const getMessageText = (msg: UIMessage): string =>
   pipe(
-    Option.fromNullable(body),
-    Option.flatMap(safeParseJson),
-    Option.flatMap((parsed) => Option.fromNullable(parsed.messages)),
-    Option.flatMap((msgs) =>
-      pipe(
-        msgs,
-        Array.filter((m) => m.role === 'user'),
-        Array.last
-      )
+    msg.parts,
+    Array.findFirst(
+      (p): p is Extract<(typeof msg.parts)[number], { type: 'text' }> =>
+        p.type === 'text'
     ),
-    Option.map((m) => m.content),
+    Option.map((p) => p.text),
     Option.getOrElse(() => '')
   )
-
-const getUrl = (input: RequestInfo | URL): string => {
-  if (typeof input === 'string') return input
-  if (input instanceof Request) return input.url
-  return input.toString()
-}
-
-const buildAuthHeaders = async (): Promise<Record<string, string>> => {
-  const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-  return pipe(
-    Option.fromNullable(token),
-    Option.match({
-      onNone: () => ({ 'Content-Type': 'application/json' }),
-      onSome: (t) => ({
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${t}`,
-      }),
-    })
-  )
-}
 
 export function usePlantChat({
   plantId,
   initialMessages,
-}: UsePlantChatOptions) {
-  return useChat({
-    id: `plant-chat-${plantId}`,
-    initialMessages,
-    streamProtocol: 'text',
-    api: `${API_BASE_URL}/api/plants/${plantId}/chat/stream`,
-    fetch: async (input, init) => {
-      const headers = await buildAuthHeaders()
-      const message = extractLastUserMessage(init?.body as string | undefined)
+}: UsePlantChatOptions): ReturnType<typeof useChat> & {
+  pendingImageUrl: React.RefObject<string | undefined>
+} {
+  const pendingImageUrl = useRef<string | undefined>(undefined)
 
-      return expoFetch(getUrl(input), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ message }),
-      })
-    },
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${API_BASE_URL}/api/plants/${plantId}/chat/stream`,
+        fetch: expoFetch as typeof globalThis.fetch,
+        headers: async () => {
+          const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
+          return pipe(
+            Option.fromNullable(token),
+            Option.match({
+              onNone: () => ({}) as Record<string, string>,
+              onSome: (t) =>
+                ({ Authorization: `Bearer ${t}` }) as Record<string, string>,
+            })
+          )
+        },
+        prepareSendMessagesRequest: async ({
+          messages,
+        }: {
+          messages: UIMessage[]
+        }) => {
+          const message = pipe(
+            messages,
+            Array.filter((m: UIMessage) => m.role === 'user'),
+            Array.last,
+            Option.map(getMessageText),
+            Option.getOrElse(() => '')
+          )
+
+          const imageUrl = pendingImageUrl.current
+          pendingImageUrl.current = undefined
+
+          return {
+            body: {
+              message,
+              ...(imageUrl ? { imageUrl } : {}),
+            },
+          }
+        },
+      }),
+    [plantId]
+  )
+
+  const chat = useChat({
+    id: `plant-chat-${plantId}`,
+    transport,
   })
+
+  // Sync initial messages from server history into the chat.
+  // useChat creates the Chat instance once on mount (with empty messages
+  // since history is still loading). When initialMessages resolves,
+  // we push them in via setMessages.
+  const hasSyncedRef = useRef(false)
+  useEffect(() => {
+    if (
+      initialMessages &&
+      initialMessages.length > 0 &&
+      !hasSyncedRef.current
+    ) {
+      chat.setMessages(initialMessages)
+      hasSyncedRef.current = true
+    }
+  }, [initialMessages, chat.setMessages])
+
+  return {
+    ...chat,
+    pendingImageUrl,
+  }
 }

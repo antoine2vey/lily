@@ -3,13 +3,10 @@ import {
   plantCardScanMultiple,
 } from '@lily/shared/services/ai/plant-card-scan'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
-import { streamSdk } from '@lily/shared/services/ai/stream'
 import { AISDKError, type UIMessage } from 'ai'
 import { Effect, Schema } from 'effect'
 
-import { plantChat } from '../ai-chat/plant-chat'
-
-export { streamSdk }
+import { type PlantChatOptions, plantChat } from '../ai-chat/plant-chat'
 
 export class AiApiCallError extends Schema.Class<AiApiCallError>(
   'AiApiCallError'
@@ -21,67 +18,40 @@ export class AiGenericError extends Schema.Class<AiGenericError>(
   'AiGenericError'
 )({ message: Schema.String }) {}
 
+function mapAiSdkError(error: unknown): AiApiCallError | AiGenericError {
+  if (AISDKError.isInstance(error) && error.name === 'AI_APICallError') {
+    return new AiApiCallError({ message: 'OpenAI API call error' })
+  }
+  return new AiGenericError({ message: 'Unknown error' })
+}
+
 export class AiService extends Effect.Service<AiService>()('AiService', {
   effect: Effect.gen(function* () {
     return {
       plantRecognition: (url: string) =>
         plantRecognition(url).pipe(
-          Effect.mapError((error) => {
-            if (AISDKError.isInstance(error)) {
-              if (error.name === 'AI_APICallError') {
-                return new AiApiCallError({
-                  message: 'OpenAI API call error',
-                })
-              }
-            }
-            return new AiGenericError({ message: 'Unknown error' })
-          }),
+          Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantRecognition')
         ),
       // Returns raw AI SDK StreamTextResult for streaming endpoint
-      plantChatStream: (plantId: string, messages: UIMessage[]) =>
-        plantChat(plantId, messages).pipe(
+      plantChatStream: (
+        plantId: string,
+        messages: UIMessage[],
+        options?: PlantChatOptions
+      ) =>
+        plantChat(plantId, messages, options).pipe(
           Effect.withSpan('AiService.plantChatStream', {
-            attributes: { 'plant.id': plantId },
-          })
-        ),
-      // Returns Effect Stream for non-streaming endpoint (backwards compatibility)
-      plantChat: (plantId: string, messages: UIMessage[]) =>
-        Effect.gen(function* () {
-          const stream = yield* plantChat(plantId, messages)
-
-          return streamSdk(stream.textStream)
-        }).pipe(
-          Effect.withSpan('AiService.plantChat', {
             attributes: { 'plant.id': plantId },
           })
         ),
       plantCardScan: (url: string) =>
         plantCardScan(url).pipe(
-          Effect.mapError((error) => {
-            if (AISDKError.isInstance(error)) {
-              if (error.name === 'AI_APICallError') {
-                return new AiApiCallError({
-                  message: 'OpenAI API call error',
-                })
-              }
-            }
-            return new AiGenericError({ message: 'Unknown error' })
-          }),
+          Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantCardScan')
         ),
       plantCardScanMultiple: (urls: readonly string[]) =>
         plantCardScanMultiple(urls as string[]).pipe(
-          Effect.mapError((error) => {
-            if (AISDKError.isInstance(error)) {
-              if (error.name === 'AI_APICallError') {
-                return new AiApiCallError({
-                  message: 'OpenAI API call error',
-                })
-              }
-            }
-            return new AiGenericError({ message: 'Unknown error' })
-          }),
+          Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantCardScanMultiple', {
             attributes: { 'scan.imageCount': urls.length },
           })
