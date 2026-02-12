@@ -10,7 +10,7 @@ export const chatMessages = pgTable('chat_messages', {
   role: text('role').notNull(),
   content: text('content').notNull(),
   parts: jsonb('parts'), // UIMessage.parts array (text, tool-call, etc.)
-  imageUrl: text('image_url'),
+  imageKey: text('image_key'),
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),

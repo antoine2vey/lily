@@ -35,7 +35,8 @@ export interface PlantChatResult {
 }
 
 export interface PlantChatOptions {
-  imageUrl?: string
+  imageUrl?: string | undefined
+  imageKey?: string | undefined
 }
 
 export const plantChat = (
@@ -196,8 +197,8 @@ export const plantChat = (
           ...(params.preventionTips !== undefined
             ? { preventionTips: params.preventionTips }
             : {}),
-          ...(options?.imageUrl !== undefined
-            ? { imageUrl: options.imageUrl }
+          ...(options?.imageKey !== undefined
+            ? { imageKey: options.imageKey }
             : {}),
         }
 

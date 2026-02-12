@@ -22,7 +22,7 @@ export interface FindChatHistoryParams {
 export interface CreateChatMessageData {
   role: 'user' | 'assistant'
   content: string
-  imageUrl?: string | undefined
+  imageKey?: string | undefined
   plantId: string
   userId: string
 }
@@ -34,7 +34,7 @@ const mapToChatMessage = (
   id: row.id,
   role: row.role as 'user' | 'assistant',
   content: row.content,
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageUrl)),
+  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
   plantId: row.plantId,
   userId: row.userId,
   createdAt: row.createdAt,
@@ -121,7 +121,7 @@ export const ChatRepositoryLive = Layer.effect(
             .values({
               role: data.role,
               content: data.content,
-              imageUrl: Option.getOrNull(Option.fromNullable(data.imageUrl)),
+              imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
               plantId: data.plantId,
               userId: data.userId,
             })
@@ -193,8 +193,8 @@ export const ChatRepositoryLive = Layer.effect(
                   )
 
                 if (Array.isEmptyArray(existing)) {
-                  // Extract imageUrl from file parts
-                  const imageUrl = pipe(
+                  // Extract imageKey from file parts (stored as raw GCS key)
+                  const imageKey = pipe(
                     msg.parts,
                     Array.findFirst(
                       (
@@ -224,7 +224,7 @@ export const ChatRepositoryLive = Layer.effect(
                       role: msg.role,
                       content: textContent,
                       parts: msg.parts as unknown as Record<string, unknown>,
-                      imageUrl,
+                      imageKey,
                       plantId: params.plantId,
                       userId: params.userId,
                     })

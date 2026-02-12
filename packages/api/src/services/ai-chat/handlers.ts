@@ -33,6 +33,9 @@ export const AIChatApiLive = (api: Api) =>
             ...(payload.imageUrl !== undefined
               ? { imageUrl: payload.imageUrl }
               : {}),
+            ...(payload.imageKey !== undefined
+              ? { imageKey: payload.imageKey }
+              : {}),
           }).pipe(withInfraErrorsAsDefect)
         )
         .handle(

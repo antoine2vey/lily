@@ -74,7 +74,7 @@ export const createMockChatRepository = (
         id: `msg-${crypto.randomUUID()}`,
         role: createData.role,
         content: createData.content,
-        imageUrl: createData.imageUrl,
+        imageUrl: createData.imageKey,
         plantId: createData.plantId,
         userId: createData.userId,
         createdAt: new Date(),

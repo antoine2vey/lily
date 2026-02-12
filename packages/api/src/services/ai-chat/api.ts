@@ -17,6 +17,7 @@ const plantIdParam = HttpApiSchema.param('plantId', Schema.String)
 const StreamChatRequest = Schema.Struct({
   message: Schema.String,
   imageUrl: Schema.optional(Schema.String),
+  imageKey: Schema.optional(Schema.String),
 })
 
 // Define the AI Chat API group - nested under plants
@@ -42,7 +43,12 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
           })
         )
       )
-      .addSuccess(Schema.Struct({ imageUrl: Schema.String }))
+      .addSuccess(
+        Schema.Struct({
+          imageUrl: Schema.String,
+          imageKey: Schema.String,
+        })
+      )
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

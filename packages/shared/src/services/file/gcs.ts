@@ -1,5 +1,6 @@
 import { Storage } from '@google-cloud/storage'
 import {
+  Array,
   Config,
   Duration,
   Effect,
@@ -183,6 +184,64 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             uploadedAt: new Date(),
           }
         }).pipe(Effect.withSpan('GCS.uploadFile')),
+
+      getSignedUrl: (
+        key: string,
+        expiryHours = 1
+      ): Effect.Effect<string, GCSUploadError> =>
+        Effect.gen(function* () {
+          const file = buckets.ai.file(key)
+
+          const [url] = yield* Effect.tryPromise({
+            try: () =>
+              file.getSignedUrl({
+                action: 'read',
+                expires:
+                  Date.now() + Duration.toMillis(Duration.hours(expiryHours)),
+              }),
+            catch: (error) =>
+              new GCSUploadError({
+                message: `Failed to generate signed URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              }),
+          })
+
+          return url
+        }).pipe(Effect.withSpan('GCS.getSignedUrl')),
+
+      getSignedUrls: (
+        keys: readonly string[],
+        expiryHours = 1
+      ): Effect.Effect<Map<string, string>, GCSUploadError> =>
+        Effect.gen(function* () {
+          const uniqueKeys = Array.dedupe(keys)
+
+          if (Array.isEmptyArray(uniqueKeys)) return new Map<string, string>()
+
+          const expiry =
+            Date.now() + Duration.toMillis(Duration.hours(expiryHours))
+
+          const pairs = yield* Effect.forEach(
+            uniqueKeys,
+            (key) =>
+              Effect.tryPromise({
+                try: () =>
+                  buckets.ai
+                    .file(key)
+                    .getSignedUrl({ action: 'read', expires: expiry }),
+                catch: (error) =>
+                  new GCSUploadError({
+                    message: `Failed to generate signed URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                  }),
+              }).pipe(Effect.map(([url]) => [key, url] as const)),
+            { concurrency: 'unbounded' }
+          )
+
+          return new Map(pairs)
+        }).pipe(
+          Effect.withSpan('GCS.getSignedUrls', {
+            attributes: { 'gcs.keyCount': keys.length },
+          })
+        ),
 
       uploadPrivateFile: (
         request: GCSUploadRequest

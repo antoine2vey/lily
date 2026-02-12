@@ -6,18 +6,30 @@ import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
+import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import { nowAsEpochMillis } from '@lily/shared'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
+import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
 import type { UIMessage } from 'ai'
-import { Array, Effect, Option, pipe, Stream } from 'effect'
+import { Array, Effect, Option, pipe, Schedule, Stream } from 'effect'
+
+// Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
+const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(
+  Schedule.compose(Schedule.recurs(3))
+)
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
+
+const generateMessageId = (role: 'user' | 'assistant'): string =>
+  `${role}-${nowAsEpochMillis()}-${Math.random().toString(36).slice(2, 11)}`
 
 export interface StreamChatRequest {
   message: string
   imageUrl?: string
+  imageKey?: string
 }
 
 const encoder = new TextEncoder()
@@ -43,7 +55,7 @@ export const streamChatMessage = (
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
-  PlantNotFoundError | SqlError,
+  PlantNotFoundError | SqlError | GCSUploadError,
   | ChatRepository
   | AiService
   | EventBus
@@ -53,6 +65,7 @@ export const streamChatMessage = (
   | DiagnosisRepository
   | LimitChecker
   | UsageTracker
+  | GCSService
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
@@ -62,23 +75,35 @@ export const streamChatMessage = (
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
+    const gcs = yield* GCSService
 
-    // Create the new user message (include image part if present)
+    // If imageKey is provided, generate a fresh signed URL for AI processing
+    const imageSignedUrl: string | undefined = yield* pipe(
+      Option.fromNullable(request.imageKey),
+      Option.match({
+        onNone: () => Effect.succeed(request.imageUrl),
+        onSome: (key: string) => gcs.getSignedUrl(key),
+      })
+    )
+
+    // Build the file part for DB persistence.
+    // Store raw GCS key (not the expiring signed URL) so we can
+    // regenerate signed URLs later when loading history.
+    const fileParts: UIMessage['parts'] = pipe(
+      Option.fromNullable(request.imageKey),
+      Option.match({
+        onNone: (): UIMessage['parts'] => [],
+        onSome: (key): UIMessage['parts'] => [
+          { type: 'file' as const, mediaType: 'image/jpeg', url: key },
+        ],
+      })
+    )
+
+    // Create the new user message
     const userMessage: UIMessage = {
-      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      id: generateMessageId('user'),
       role: 'user',
-      parts: [
-        ...(request.imageUrl
-          ? [
-              {
-                type: 'file' as const,
-                mediaType: 'image/jpeg',
-                url: request.imageUrl,
-              },
-            ]
-          : []),
-        { type: 'text', text: request.message },
-      ],
+      parts: [...fileParts, { type: 'text', text: request.message }],
     }
 
     // Check if user has reached their AI chat limit
@@ -89,7 +114,7 @@ export const streamChatMessage = (
 
     if (limitExceeded) {
       const assistantUIMessage: UIMessage = {
-        id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        id: generateMessageId('assistant'),
         role: 'assistant',
         parts: [{ type: 'text', text: QUOTA_EXCEEDED_KEY }],
       }
@@ -122,36 +147,53 @@ export const streamChatMessage = (
       userId
     )
 
-    // Combine history with new user message
-    const allMessages = [...previousMessages, userMessage]
+    // Resolve raw GCS key references in historical messages to signed URLs
+    // so the AI can access images from previous conversations
+    const resolvedPreviousMessages =
+      yield* resolveMessageImageUrls(previousMessages)
+
+    // Combine history with new user message (use signed URL for AI, not raw key)
+    const aiFileParts: UIMessage['parts'] = pipe(
+      Option.fromNullable(imageSignedUrl),
+      Option.match({
+        onNone: (): UIMessage['parts'] => [],
+        onSome: (url): UIMessage['parts'] => [
+          { type: 'file' as const, mediaType: 'image/jpeg', url },
+        ],
+      })
+    )
+    const userMessageForAi: UIMessage = {
+      ...userMessage,
+      parts: [...aiFileParts, { type: 'text' as const, text: request.message }],
+    }
+    const allMessages = [...resolvedPreviousMessages, userMessageForAi]
+
+    const imageContext = pipe(
+      Option.fromNullable(imageSignedUrl),
+      Option.map((url) => ({ imageUrl: url, imageKey: request.imageKey })),
+      Option.getOrUndefined
+    )
 
     const { stream: streamResult, createdDiagnoses } =
-      yield* aiService.plantChatStream(
-        plantId,
-        allMessages,
-        request.imageUrl ? { imageUrl: request.imageUrl } : undefined
-      )
+      yield* aiService.plantChatStream(plantId, allMessages, imageContext)
 
-    // Handle post-stream operations in background
+    // Handle post-stream operations in background with retries
     Promise.resolve(streamResult.text)
-      .then(async (fullText) => {
-        await Effect.runPromise(
+      .then((fullText) =>
+        Effect.runPromise(
           Effect.gen(function* () {
-            // Build assistant UIMessage
             const assistantUIMessage: UIMessage = {
-              id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+              id: generateMessageId('assistant'),
               role: 'assistant',
               parts: [{ type: 'text', text: fullText }],
             }
 
-            // Save messages to database
             const savedMessages = yield* chatRepo.saveChat({
               plantId,
               userId,
               messages: [userMessage, assistantUIMessage],
             })
 
-            // Find the user message's DB row ID for diagnosis linking
             const userMessageDbId = pipe(
               Array.findFirst(
                 savedMessages,
@@ -170,29 +212,37 @@ export const streamChatMessage = (
               })
             )
 
-            // Link diagnoses to the user message that triggered them
             if (userMessageDbId) {
-              for (const diagnosis of createdDiagnoses) {
-                yield* diagnosisRepo.linkChatMessage(
-                  diagnosis.diagnosisId,
-                  userMessageDbId
-                )
-
-                yield* publishWithRetry(
-                  eventBus.publish({
-                    _tag: 'DiseaseIdentified',
-                    userId,
-                    plantId,
-                  })
-                )
-              }
+              yield* Effect.forEach(createdDiagnoses, (diagnosis) =>
+                Effect.gen(function* () {
+                  yield* diagnosisRepo.linkChatMessage(
+                    diagnosis.diagnosisId,
+                    userMessageDbId
+                  )
+                  yield* publishWithRetry(
+                    eventBus.publish({
+                      _tag: 'DiseaseIdentified',
+                      userId,
+                      plantId,
+                    })
+                  )
+                })
+              )
             }
 
-            // Track usage after successful chat
             yield* usageTracker.trackAiChat(userId)
-          })
+          }).pipe(
+            Effect.retry(postStreamRetryPolicy),
+            Effect.catchAll((error) =>
+              Effect.logError('Failed to save chat message after stream', {
+                error: String(error),
+                plantId,
+                userId,
+              })
+            )
+          )
         )
-      })
+      )
       .catch(() => {})
 
     // Stream UI message chunks as SSE events
