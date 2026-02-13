@@ -58,14 +58,14 @@ export interface IDiagnosisRepository {
     params: FindDiagnosesParams
   ) => Effect.Effect<DiagnosisListResponse, SqlError>
   readonly findById: (id: string) => Effect.Effect<Diagnosis | null, SqlError>
-  readonly markResolved: (
-    id: string,
-    userId: string
-  ) => Effect.Effect<Diagnosis | null, SqlError>
   readonly linkChatMessage: (
     diagnosisId: string,
     chatMessageId: string
   ) => Effect.Effect<void, SqlError>
+  readonly markResolved: (
+    id: string,
+    userId: string
+  ) => Effect.Effect<Diagnosis | null, SqlError>
 }
 
 export class DiagnosisRepository extends Context.Tag('DiagnosisRepository')<

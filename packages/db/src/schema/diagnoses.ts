@@ -53,8 +53,4 @@ export const diagnosesRelations = relations(diagnoses, ({ one }) => ({
     fields: [diagnoses.userId],
     references: [users.id],
   }),
-  chatMessage: one(chatMessages, {
-    fields: [diagnoses.chatMessageId],
-    references: [chatMessages.id],
-  }),
 }))
