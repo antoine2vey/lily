@@ -22,6 +22,7 @@ import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
 import 'src/i18n'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
+import { useOTAUpdates } from 'src/hooks/useOTAUpdates'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
 import 'src/global.css'
@@ -84,6 +85,9 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
   // Add app state sync for subscription (syncs when app returns to foreground)
   useAppStateSync(isAuthenticated)
+
+  // Check for OTA updates on mount and foreground
+  useOTAUpdates()
 
   // Set up notification listeners and RevenueCat identity when authenticated
   useEffect(() => {
