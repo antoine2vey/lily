@@ -7,6 +7,7 @@ export const ChatMessage = Schema.Struct({
   role: Schema.Union(Schema.Literal('user'), Schema.Literal('assistant')),
   content: Schema.String,
   imageUrl: Schema.optional(Schema.String),
+  parts: Schema.optional(Schema.Array(Schema.Unknown)),
   plantId: Schema.String,
   userId: Schema.String,
   createdAt: Schema.Date,

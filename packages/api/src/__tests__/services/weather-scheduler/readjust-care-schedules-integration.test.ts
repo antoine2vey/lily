@@ -109,7 +109,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       // currentNext = now + 4d → delta = 1
       // Verify: change is small (0-2 days)
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThanOrEqual(0)
       expect(shiftDays).toBeLessThanOrEqual(2)
@@ -140,7 +140,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Outdoor plant: full cold factor 0.5 → adjustedDays 14 → big positive delta (capped at 4)
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThan(0)
       expect(shiftDays).toBeLessThanOrEqual(4) // capped at ceil(7/2) = 4
@@ -171,7 +171,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // No room → isOutdoor = false → indoor dampening
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThanOrEqual(0)
       expect(shiftDays).toBeLessThanOrEqual(2)
@@ -256,7 +256,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       // idealNext = twoDaysAgo + 4d = now + 2d
       // currentNext = now + 5d → delta = -3
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeLessThan(0)
     })
@@ -285,7 +285,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Indoor: dampened temp 1.15, humidity 1.0, wind 1.0 → small effect
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(Math.abs(shiftDays)).toBeLessThanOrEqual(1)
     })
@@ -320,7 +320,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Rain (>6mm each day) × 0.3 dampening → very low multiplier → adjustedDays > 7
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThan(0) // delay because rain waters the plant
     })
@@ -349,7 +349,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Indoor: no rain effect, temp ~29°C is below hot threshold → delta ≈ 0
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(Math.abs(shiftDays)).toBeLessThanOrEqual(1)
     })
@@ -387,7 +387,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         )
 
         const shift = Math.round(
-          (plant.nextWateringAt?.getTime() - prevNext) / oneDayMs
+          (plant.nextWateringAt!.getTime() - prevNext) / oneDayMs
         )
         deltas.push(shift)
       }
@@ -437,7 +437,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         )
 
         const shift = Math.round(
-          (plant.nextWateringAt?.getTime() - prevNext) / oneDayMs
+          (plant.nextWateringAt!.getTime() - prevNext) / oneDayMs
         )
         deltas.push(shift)
       }
@@ -450,7 +450,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Total shift should be exactly -1 day
       const totalShift = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(totalShift).toBe(-1)
     })
@@ -485,7 +485,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Indoor: dampened cold → total shift should be tiny
       const totalShift = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(totalShift).toBeGreaterThanOrEqual(0)
       expect(totalShift).toBeLessThanOrEqual(2)
@@ -623,7 +623,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       )
 
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       // Cap for 14d plant is ceil(14/2) = 7
       expect(Math.abs(shiftDays)).toBeLessThanOrEqual(7)
@@ -659,7 +659,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Hot weather wants to accelerate (negative delta), but plant is already
       // overdue — newNextWateringAt must not go before now or lastWateredAt + 1d
-      expect(plant.nextWateringAt?.getTime()).toBeGreaterThanOrEqual(
+      expect(plant.nextWateringAt!.getTime()).toBeGreaterThanOrEqual(
         plant.lastWateredAt!.getTime() + oneDayMs
       )
     })
@@ -766,7 +766,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       )
 
       const hotShift = Math.round(
-        (plant.nextWateringAt?.getTime() - afterColdNext) / oneDayMs
+        (plant.nextWateringAt!.getTime() - afterColdNext) / oneDayMs
       )
       expect(hotShift).toBeLessThan(0) // pulled back
     })
@@ -803,7 +803,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       // currentNext ≈ now + 7d → delta ≈ -3
       // BUT: this is valid acceleration (plant genuinely needs water sooner in desert)
       // The key: newNextWateringAt must never go before lastWateredAt + 1d
-      expect(plant.nextWateringAt?.getTime()).toBeGreaterThanOrEqual(
+      expect(plant.nextWateringAt!.getTime()).toBeGreaterThanOrEqual(
         plant.lastWateredAt!.getTime() + oneDayMs
       )
     })
@@ -879,7 +879,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Outdoor + cold → positive delta → date shifted → notification created
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThan(0)
 
@@ -1052,7 +1052,7 @@ describe('readjustCareSchedules — full pipeline integration', () => {
 
       // Date still shifts (delta applies regardless)
       const shiftDays = Math.round(
-        (plant.nextWateringAt?.getTime() - originalNext.getTime()) / oneDayMs
+        (plant.nextWateringAt!.getTime() - originalNext.getTime()) / oneDayMs
       )
       expect(shiftDays).toBeGreaterThan(0)
 

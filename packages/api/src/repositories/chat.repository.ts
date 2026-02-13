@@ -35,6 +35,11 @@ const mapToChatMessage = (
   role: row.role as 'user' | 'assistant',
   content: row.content,
   imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
+  parts: pipe(
+    Option.fromNullable(row.parts),
+    Option.filter((p): p is unknown[] => globalThis.Array.isArray(p)),
+    Option.getOrUndefined
+  ),
   plantId: row.plantId,
   userId: row.userId,
   createdAt: row.createdAt,

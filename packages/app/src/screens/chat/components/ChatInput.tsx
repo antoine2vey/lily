@@ -32,6 +32,18 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   }
 
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    })
+
+    if (!result.canceled && result.assets[0]) {
+      setAttachedImage(result.assets[0].uri)
+    }
+  }
+
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     if (status !== 'granted') return
@@ -89,6 +101,18 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       )}
 
       <View className="flex-row items-end gap-2">
+        {/* Gallery Button */}
+        <Pressable
+          onPress={handlePickImage}
+          className="w-12 h-12 items-center justify-center rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700 mb-0.5"
+        >
+          <MaterialIcons
+            name="photo-library"
+            size={24}
+            color={iconColors.textMuted}
+          />
+        </Pressable>
+
         {/* Camera Button */}
         <Pressable
           onPress={handleTakePhoto}
