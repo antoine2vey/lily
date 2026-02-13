@@ -1,4 +1,3 @@
-import { diagnoses } from '@lily/db/schema/diagnoses'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
@@ -22,17 +21,13 @@ export const chatMessages = pgTable('chat_messages', {
     .defaultNow(),
 })
 
-export const chatMessagesRelations = relations(
-  chatMessages,
-  ({ one, many }) => ({
-    user: one(users, {
-      fields: [chatMessages.userId],
-      references: [users.id],
-    }),
-    plant: one(plants, {
-      fields: [chatMessages.plantId],
-      references: [plants.id],
-    }),
-    diagnoses: many(diagnoses),
-  })
-)
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  user: one(users, {
+    fields: [chatMessages.userId],
+    references: [users.id],
+  }),
+  plant: one(plants, {
+    fields: [chatMessages.plantId],
+    references: [plants.id],
+  }),
+}))
