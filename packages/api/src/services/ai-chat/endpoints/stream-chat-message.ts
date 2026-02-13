@@ -178,14 +178,36 @@ export const streamChatMessage = (
       yield* aiService.plantChatStream(plantId, allMessages, imageContext)
 
     // Handle post-stream operations in background with retries
-    Promise.resolve(streamResult.text)
-      .then((fullText) =>
+    Promise.resolve(streamResult.steps)
+      .then((steps) =>
         Effect.runPromise(
           Effect.gen(function* () {
+            // Collect text from all steps
+            const fullText = pipe(
+              steps,
+              Array.map((step) => step.text),
+              Array.join('')
+            )
+
+            // Collect tool result parts from all steps so they persist
+            // in the DB and show up in chat history (e.g. DiagnosisCard)
+            const toolParts: UIMessage['parts'] = pipe(
+              steps,
+              Array.flatMap((step) =>
+                Array.map(step.toolResults, (tr) => ({
+                  type: `tool-${tr.toolName}` as const,
+                  toolCallId: tr.toolCallId,
+                  state: 'output-available' as const,
+                  input: tr.input,
+                  output: tr.output,
+                }))
+              )
+            ) as UIMessage['parts']
+
             const assistantUIMessage: UIMessage = {
               id: generateMessageId('assistant'),
               role: 'assistant',
-              parts: [{ type: 'text', text: fullText }],
+              parts: [{ type: 'text', text: fullText }, ...toolParts],
             }
 
             const savedMessages = yield* chatRepo.saveChat({

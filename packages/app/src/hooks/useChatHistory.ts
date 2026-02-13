@@ -18,38 +18,63 @@ const toUIMessage = (msg: {
   role: 'user' | 'assistant'
   content: string
   imageUrl?: string
+  parts?: readonly unknown[]
   createdAt: Date | string
-}): UIMessage => ({
-  id: msg.id,
-  role: msg.role,
-  parts: [
-    ...pipe(
-      Option.fromNullable(msg.imageUrl),
-      Option.match({
-        onNone: () => [] as UIMessage['parts'],
-        onSome: (url) =>
-          [
-            {
-              type: 'file' as const,
-              mediaType: 'image/jpeg',
-              url,
-            },
-          ] as UIMessage['parts'],
-      })
-    ),
-    { type: 'text' as const, text: msg.content },
-  ],
-  metadata: {
-    createdAt:
-      msg.createdAt instanceof Date
-        ? msg.createdAt.toISOString()
-        : pipe(
-            parseToNativeDate(String(msg.createdAt)),
-            Option.map((d) => d.toISOString()),
-            Option.getOrElse(() => String(msg.createdAt))
+}): UIMessage => {
+  // Build image file part from freshly resolved imageUrl
+  const fileParts: UIMessage['parts'] = pipe(
+    Option.fromNullable(msg.imageUrl),
+    Option.match({
+      onNone: () => [] as UIMessage['parts'],
+      onSome: (url) =>
+        [
+          {
+            type: 'file' as const,
+            mediaType: 'image/jpeg',
+            url,
+          },
+        ] as UIMessage['parts'],
+    })
+  )
+
+  // When stored parts exist (preserves tool calls, diagnosis cards, etc.),
+  // use them but replace file parts with freshly signed imageUrl
+  const parts: UIMessage['parts'] = pipe(
+    Option.fromNullable(msg.parts),
+    Option.filter(Array.isNonEmptyReadonlyArray),
+    Option.match({
+      onNone: () =>
+        [
+          ...fileParts,
+          { type: 'text' as const, text: msg.content },
+        ] as UIMessage['parts'],
+      onSome: (storedParts) =>
+        [
+          ...fileParts,
+          ...pipe(
+            storedParts as UIMessage['parts'],
+            Array.filter((p) => p.type !== 'file')
           ),
-  },
-})
+        ] as UIMessage['parts'],
+    })
+  )
+
+  return {
+    id: msg.id,
+    role: msg.role,
+    parts,
+    metadata: {
+      createdAt:
+        msg.createdAt instanceof Date
+          ? msg.createdAt.toISOString()
+          : pipe(
+              parseToNativeDate(String(msg.createdAt)),
+              Option.map((d) => d.toISOString()),
+              Option.getOrElse(() => String(msg.createdAt))
+            ),
+    },
+  }
+}
 
 // Transform API message to display format for ChatMessage component
 const toDisplayMessage = (msg: {

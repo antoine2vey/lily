@@ -25,15 +25,12 @@ import { TypingIndicator } from 'src/screens/chat/components/TypingIndicator'
 /**
  * Returns true when an assistant message has only empty text parts
  * (i.e. the placeholder that appears before streaming content arrives).
+ * Returns false if any non-text part exists (e.g. tool invocation).
  */
 function hasOnlyEmptyTextParts(msg: UIMessage): boolean {
   return pipe(
     msg.parts,
-    Array.filter(
-      (p): p is Extract<UIMessage['parts'][number], { type: 'text' }> =>
-        p.type === 'text'
-    ),
-    Array.every((p) => p.text === '')
+    Array.every((p) => p.type === 'text' && p.text === '')
   )
 }
 
