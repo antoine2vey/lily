@@ -147,13 +147,21 @@ export const ChatRepositoryLive = Layer.effect(
             )
             .orderBy(asc(chatMessages.createdAt))
 
+          // Only text and file parts are safe for convertToModelMessages.
+          // Tool UI parts (e.g. "tool-createDiagnosis") are for frontend
+          // rendering only — the assistant text already captures tool output.
+          const modelPartTypes = new Set(['text', 'file'])
+
           return Array.map(rows, (row): UIMessage => {
-            // If parts are stored, use them; otherwise construct from content
+            // If parts are stored, keep only model-compatible parts;
+            // otherwise construct from content
             const parts = pipe(
               Option.fromNullable(row.parts as unknown),
               Option.filter((p): p is Array<{ type: string; text?: string }> =>
                 globalThis.Array.isArray(p)
               ),
+              Option.map(Array.filter((p) => modelPartTypes.has(p.type))),
+              Option.filter(Array.isNonEmptyArray),
               Option.getOrElse(() => [
                 { type: 'text' as const, text: row.content },
               ])

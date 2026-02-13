@@ -9,6 +9,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Text,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -52,6 +53,7 @@ export function ChatScreen() {
     messages: chatMessages,
     sendMessage,
     status,
+    error: chatError,
     pendingImageUrl,
   } = usePlantChat({
     plantId: safePlantId,
@@ -223,6 +225,17 @@ export function ChatScreen() {
             onSelect={handleSuggestionSelect}
             plantId={plantId}
           />
+        )}
+
+        {chatError && (
+          <View className="mx-4 mb-2 rounded-md bg-error/10 px-4 py-3">
+            <Text
+              className="text-sm text-error"
+              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+            >
+              Something went wrong. Please try again.
+            </Text>
+          </View>
         )}
 
         <ChatInput

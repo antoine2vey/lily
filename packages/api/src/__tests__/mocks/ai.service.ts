@@ -1,9 +1,11 @@
 import { AiService } from '@lily/api/services/ai/service'
+import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
 import type { UIMessage } from 'ai'
-import { Effect, Layer, Option, pipe } from 'effect'
+import { Deferred, Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockAiServiceData {
   plantChatResponse?: string
+  mockSteps?: readonly StepData[]
 }
 
 // Create an async generator to simulate the text stream
@@ -26,6 +28,13 @@ export const createMockAiService = (
     Option.getOrElse(() => 'Mock AI response')
   )
 
+  const steps: readonly StepData[] = pipe(
+    Option.fromNullable(data.mockSteps),
+    Option.getOrElse((): readonly StepData[] => [
+      { text: response, toolResults: [] },
+    ])
+  )
+
   const mockService = {
     plantRecognition: (_url: string) =>
       Effect.succeed({
@@ -46,22 +55,29 @@ export const createMockAiService = (
       _messages: UIMessage[],
       _options?: { imageUrl?: string }
     ) =>
-      Effect.succeed({
-        stream: {
-          textStream: createTextStream(response),
-          text: Promise.resolve(response),
-          toolResults: Promise.resolve([]),
-          toUIMessageStream: () => createMockUIMessageStream(response),
-          response: Promise.resolve({
-            messages: [
-              {
-                role: 'assistant' as const,
-                content: [{ type: 'text' as const, text: response }],
-              },
-            ],
-          }),
-        },
-        createdDiagnoses: [],
+      Effect.gen(function* () {
+        const completionDeferred = yield* Deferred.make<readonly StepData[]>()
+
+        // Immediately resolve the deferred with mock steps
+        yield* Deferred.succeed(completionDeferred, steps)
+
+        return {
+          stream: {
+            textStream: createTextStream(response),
+            text: Promise.resolve(response),
+            toolResults: Promise.resolve([]),
+            toUIMessageStream: () => createMockUIMessageStream(response),
+            response: Promise.resolve({
+              messages: [
+                {
+                  role: 'assistant' as const,
+                  content: [{ type: 'text' as const, text: response }],
+                },
+              ],
+            }),
+          },
+          completionDeferred,
+        }
       }),
     plantCardScan: (_url: string) =>
       Effect.succeed({
