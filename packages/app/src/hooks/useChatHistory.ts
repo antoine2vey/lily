@@ -1,4 +1,4 @@
-import { parseToNativeDate, StaleTime } from '@lily/shared'
+import { parseToNativeDate } from '@lily/shared'
 import type { UIMessage } from 'ai'
 import { Array, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
@@ -52,7 +52,7 @@ const toUIMessage = (msg: {
         [
           ...fileParts,
           ...pipe(
-            storedParts as UIMessage['parts'],
+            storedParts as unknown as UIMessage['parts'],
             Array.filter((p) => p.type !== 'file')
           ),
         ] as UIMessage['parts'],
@@ -110,7 +110,7 @@ export function useChatHistory(plantId?: string) {
       },
       urlParams: { page: '1', limit: '50' },
     },
-    { enabled: !!plantId, staleTime: StaleTime.default }
+    { enabled: !!plantId, staleTime: 0 }
   )
 
   // Transform to UIMessage format for AI SDK initialMessages (chronological order)

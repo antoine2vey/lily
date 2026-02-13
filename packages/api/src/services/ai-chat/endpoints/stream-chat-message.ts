@@ -1,11 +1,12 @@
 import { HttpServerResponse } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
-import { EventBus, publishWithRetry } from '@lily/api/events'
+import { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
+import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -14,7 +15,9 @@ import { nowAsEpochMillis } from '@lily/shared'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
 import type { UIMessage } from 'ai'
-import { Array, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
+
+import type { StepData } from '../plant-chat'
 
 // Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
 const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(
@@ -35,19 +38,30 @@ export interface StreamChatRequest {
 const encoder = new TextEncoder()
 
 /**
- * Encode an async iterable of UI message chunks as SSE events
- * that the AI SDK client (DefaultChatTransport) can parse.
+ * Encode an async iterable of UI message chunks as SSE events.
+ *
+ * When `onComplete` is provided it runs after the stream chunks but
+ * **before** the `[DONE]` sentinel, so the client receives `[DONE]`
+ * only once persistence has succeeded (or exhausted retries).
  */
 const uiStreamToSse = (
-  stream: AsyncIterable<unknown>
+  stream: AsyncIterable<unknown>,
+  onComplete?: () => Promise<void>
 ): Stream.Stream<Uint8Array, Error> => {
   const sseChunks = Stream.fromAsyncIterable(stream, (e) => e as Error).pipe(
     Stream.map((chunk) => encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
   )
 
-  const done = Stream.make(encoder.encode('data: [DONE]\n\n'))
+  const afterStream = Stream.fromEffect(
+    Effect.promise(async () => {
+      if (onComplete) {
+        await onComplete()
+      }
+      return encoder.encode('data: [DONE]\n\n')
+    })
+  )
 
-  return pipe(sseChunks, Stream.concat(done))
+  return pipe(sseChunks, Stream.concat(afterStream))
 }
 
 export const streamChatMessage = (
@@ -174,103 +188,37 @@ export const streamChatMessage = (
       Option.getOrUndefined
     )
 
-    const { stream: streamResult, createdDiagnoses } =
+    const { stream: streamResult, completionDeferred } =
       yield* aiService.plantChatStream(plantId, allMessages, imageContext)
 
-    // Handle post-stream operations in background with retries
-    Promise.resolve(streamResult.steps)
-      .then((steps) =>
-        Effect.runPromise(
-          Effect.gen(function* () {
-            // Collect text from all steps
-            const fullText = pipe(
-              steps,
-              Array.map((step) => step.text),
-              Array.join('')
-            )
+    // Stream UI message chunks as SSE events.
+    // Persistence runs after the stream ends but before [DONE],
+    // so the client knows data is saved when it receives the sentinel.
+    const uiStream = streamResult.toUIMessageStream()
 
-            // Collect tool result parts from all steps so they persist
-            // in the DB and show up in chat history (e.g. DiagnosisCard)
-            const toolParts: UIMessage['parts'] = pipe(
-              steps,
-              Array.flatMap((step) =>
-                Array.map(step.toolResults, (tr) => ({
-                  type: `tool-${tr.toolName}` as const,
-                  toolCallId: tr.toolCallId,
-                  state: 'output-available' as const,
-                  input: tr.input,
-                  output: tr.output,
-                }))
-              )
-            ) as UIMessage['parts']
+    const onComplete = async () => {
+      const steps: readonly StepData[] = await Effect.runPromise(
+        Deferred.await(completionDeferred)
+      )
 
-            const assistantUIMessage: UIMessage = {
-              id: generateMessageId('assistant'),
-              role: 'assistant',
-              parts: [{ type: 'text', text: fullText }, ...toolParts],
-            }
-
-            const savedMessages = yield* chatRepo.saveChat({
+      await Effect.runPromise(
+        persistChatCompletion(
+          { chatRepo, diagnosisRepo, eventBus, usageTracker },
+          { plantId, userId, userMessage, steps }
+        ).pipe(
+          Effect.retry(postStreamRetryPolicy),
+          Effect.catchAll((error) =>
+            Effect.logError('Failed to save chat message after stream', {
+              error: String(error),
               plantId,
               userId,
-              messages: [userMessage, assistantUIMessage],
             })
-
-            const userMessageDbId = pipe(
-              Array.findFirst(
-                savedMessages,
-                (m) => m.messageId === userMessage.id && m.role === 'user'
-              ),
-              Option.map((m) => m.id),
-              Option.getOrUndefined
-            )
-
-            yield* publishWithRetry(
-              eventBus.publish({
-                _tag: 'ChatMessageSent',
-                userId,
-                plantId,
-                messageId: assistantUIMessage.id,
-              })
-            )
-
-            if (userMessageDbId) {
-              yield* Effect.forEach(createdDiagnoses, (diagnosis) =>
-                Effect.gen(function* () {
-                  yield* diagnosisRepo.linkChatMessage(
-                    diagnosis.diagnosisId,
-                    userMessageDbId
-                  )
-                  yield* publishWithRetry(
-                    eventBus.publish({
-                      _tag: 'DiseaseIdentified',
-                      userId,
-                      plantId,
-                    })
-                  )
-                })
-              )
-            }
-
-            yield* usageTracker.trackAiChat(userId)
-          }).pipe(
-            Effect.retry(postStreamRetryPolicy),
-            Effect.catchAll((error) =>
-              Effect.logError('Failed to save chat message after stream', {
-                error: String(error),
-                plantId,
-                userId,
-              })
-            )
           )
         )
       )
-      .catch(() => {})
+    }
 
-    // Stream UI message chunks as SSE events
-    const uiStream = streamResult.toUIMessageStream()
-
-    return HttpServerResponse.stream(uiStreamToSse(uiStream), {
+    return HttpServerResponse.stream(uiStreamToSse(uiStream, onComplete), {
       contentType: 'text/event-stream; charset=utf-8',
     })
   })
