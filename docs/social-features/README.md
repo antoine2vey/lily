@@ -15,13 +15,13 @@ Social features for Lily in two phases:
 - [x] `v1-follow-profiles-search/02-shared-social-types.md` — Shared schemas + errors for social
 - [x] `v1-follow-profiles-search/03-follow-repository.md` — FollowRepository + Live impl
 - [x] `v1-follow-profiles-search/04-social-api-definition.md` — HttpApiGroup + endpoint signatures
-- [ ] `v1-follow-profiles-search/05-follow-user-endpoint.md` — followUser + test
-- [ ] `v1-follow-profiles-search/06-unfollow-user-endpoint.md` — unfollowUser + test
-- [ ] `v1-follow-profiles-search/07-get-followers-endpoint.md` — getFollowers + test
-- [ ] `v1-follow-profiles-search/08-get-following-endpoint.md` — getFollowing + test
-- [ ] `v1-follow-profiles-search/09-public-profile-endpoint.md` — getPublicProfile + test
-- [ ] `v1-follow-profiles-search/10-search-users-endpoint.md` — searchUsers + test
-- [ ] `v1-follow-profiles-search/11-suggested-users-endpoint.md` — getSuggestedUsers + test
+- [x] `v1-follow-profiles-search/05-follow-user-endpoint.md` — followUser + test
+- [x] `v1-follow-profiles-search/06-unfollow-user-endpoint.md` — unfollowUser + test
+- [x] `v1-follow-profiles-search/07-get-followers-endpoint.md` — getFollowers + test
+- [x] `v1-follow-profiles-search/08-get-following-endpoint.md` — getFollowing + test
+- [x] `v1-follow-profiles-search/09-public-profile-endpoint.md` — getPublicProfile + test
+- [x] `v1-follow-profiles-search/10-search-users-endpoint.md` — searchUsers + test
+- [x] `v1-follow-profiles-search/11-suggested-users-endpoint.md` — getSuggestedUsers + test
 - [ ] `v1-follow-profiles-search/12-social-handlers-wiring.md` — Wire handlers + register in api/index
 - [ ] `v1-follow-profiles-search/13-follow-notification.md` — Event + push for new follower
 - [ ] `v1-follow-profiles-search/14-nudge-endpoint.md` — sendNudge endpoint + push notification + test

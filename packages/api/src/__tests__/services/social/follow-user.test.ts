@@ -1,0 +1,115 @@
+import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { followUser } from '@lily/api/services/social/endpoints/follow-user'
+import { Effect, Exit, Layer } from 'effect'
+import { describe, expect, it } from 'vitest'
+
+const currentUserId = 'current-user'
+const publicUser = createTestUser({
+  id: 'public-user',
+  name: 'Public User',
+  publicProfile: true,
+})
+const privateUser = createTestUser({
+  id: 'private-user',
+  name: 'Private User',
+  publicProfile: false,
+})
+
+const mockFollowUsers = [
+  {
+    id: publicUser.id,
+    name: publicUser.name,
+    image: publicUser.image,
+    bio: publicUser.bio,
+    plantCount: 5,
+    publicProfile: true,
+    shareGrowthData: true,
+    createdAt: publicUser.createdAt,
+  },
+  {
+    id: privateUser.id,
+    name: privateUser.name,
+    image: privateUser.image,
+    bio: privateUser.bio,
+    plantCount: 0,
+    publicProfile: false,
+    shareGrowthData: false,
+    createdAt: privateUser.createdAt,
+  },
+]
+
+const buildLayer = (
+  follows: Array<{
+    followerId: string
+    followingId: string
+    createdAt: Date
+  }> = []
+) =>
+  Layer.mergeAll(
+    createMockCurrentUser({ id: currentUserId }),
+    createMockFollowRepository({
+      follows,
+      users: mockFollowUsers,
+    }),
+    createMockUserRepository([publicUser, privateUser])
+  )
+
+describe('followUser', () => {
+  it('should follow a public user successfully', async () => {
+    const result = await Effect.runPromise(
+      followUser(publicUser.id).pipe(Effect.provide(buildLayer()))
+    )
+    expect(result).toEqual({ success: true })
+  })
+
+  it('should fail with CannotFollowSelfError when following self', async () => {
+    const exit = await Effect.runPromiseExit(
+      followUser(currentUserId).pipe(Effect.provide(buildLayer()))
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain('CannotFollowSelfError')
+    }
+  })
+
+  it('should fail with UserNotFoundError when target does not exist', async () => {
+    const exit = await Effect.runPromiseExit(
+      followUser('non-existent').pipe(Effect.provide(buildLayer()))
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain('UserNotFoundError')
+    }
+  })
+
+  it('should fail with UserNotPublicError when target profile is private', async () => {
+    const exit = await Effect.runPromiseExit(
+      followUser(privateUser.id).pipe(Effect.provide(buildLayer()))
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain('UserNotPublicError')
+    }
+  })
+
+  it('should fail with AlreadyFollowingError when already following', async () => {
+    const layer = buildLayer([
+      {
+        followerId: currentUserId,
+        followingId: publicUser.id,
+        createdAt: new Date(),
+      },
+    ])
+
+    const exit = await Effect.runPromiseExit(
+      followUser(publicUser.id).pipe(Effect.provide(layer))
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit)) {
+      expect(String(exit.cause)).toContain('AlreadyFollowingError')
+    }
+  })
+})
