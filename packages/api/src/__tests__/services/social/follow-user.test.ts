@@ -1,8 +1,12 @@
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
+import type { Notification } from '@lily/shared/notification'
+import type { AppEvent } from '@lily/shared/server'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -46,7 +50,9 @@ const buildLayer = (
     followerId: string
     followingId: string
     createdAt: Date
-  }> = []
+  }> = [],
+  eventData: { publishedEvents: AppEvent[] } = { publishedEvents: [] },
+  notifications: Notification[] = []
 ) =>
   Layer.mergeAll(
     createMockCurrentUser({ id: currentUserId }),
@@ -54,7 +60,9 @@ const buildLayer = (
       follows,
       users: mockFollowUsers,
     }),
-    createMockUserRepository([publicUser, privateUser])
+    createMockUserRepository([publicUser, privateUser]),
+    createMockEventBus(eventData),
+    createMockNotificationRepository(notifications)
   )
 
 describe('followUser', () => {
@@ -111,5 +119,28 @@ describe('followUser', () => {
     if (Exit.isFailure(exit)) {
       expect(String(exit.cause)).toContain('AlreadyFollowingError')
     }
+  })
+
+  it('should publish UserFollowed event on successful follow', async () => {
+    const eventData = { publishedEvents: [] as AppEvent[] }
+    const layer = buildLayer([], eventData)
+
+    await Effect.runPromise(
+      followUser(publicUser.id).pipe(Effect.provide(layer))
+    )
+    expect(eventData.publishedEvents).toHaveLength(1)
+    expect(eventData.publishedEvents[0]!._tag).toBe('UserFollowed')
+  })
+
+  it('should create a notification for the followed user', async () => {
+    const notifications: Notification[] = []
+    const layer = buildLayer([], { publishedEvents: [] }, notifications)
+
+    await Effect.runPromise(
+      followUser(publicUser.id).pipe(Effect.provide(layer))
+    )
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]!.type).toBe('new_follower')
+    expect(notifications[0]!.userId).toBe(publicUser.id)
   })
 })

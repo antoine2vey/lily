@@ -145,6 +145,7 @@ export const processEvent = (event: AppEvent) =>
     Match.tag('RarePlantIdentified', onRarePlantIdentified),
     Match.tag('ReminderResponded', onReminderResponded),
     Match.tag('PlantShared', onPlantShared),
+    Match.tag('UserFollowed', () => Effect.void),
     Match.exhaustive
   )
 

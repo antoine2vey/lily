@@ -42,7 +42,7 @@ describe('getFollowers', () => {
     ])
 
     const result = await Effect.runPromise(
-      getFollowers({}).pipe(Effect.provide(layer))
+      getFollowers({ page: '1', limit: '20' }).pipe(Effect.provide(layer))
     )
     expect(result.items).toHaveLength(2)
     expect(result.total).toBe(2)
@@ -51,7 +51,9 @@ describe('getFollowers', () => {
 
   it('should return empty list when no followers', async () => {
     const result = await Effect.runPromise(
-      getFollowers({}).pipe(Effect.provide(buildLayer()))
+      getFollowers({ page: '1', limit: '20' }).pipe(
+        Effect.provide(buildLayer())
+      )
     )
     expect(result.items).toHaveLength(0)
     expect(result.total).toBe(0)
@@ -72,9 +74,9 @@ describe('getFollowers', () => {
     ])
 
     const result = await Effect.runPromise(
-      getFollowers({}).pipe(Effect.provide(layer))
+      getFollowers({ page: '1', limit: '20' }).pipe(Effect.provide(layer))
     )
     expect(result.items).toHaveLength(1)
-    expect(result.items[0].isFollowing).toBe(true)
+    expect(result.items[0]!.isFollowing).toBe(true)
   })
 })

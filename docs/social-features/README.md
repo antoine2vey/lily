@@ -22,9 +22,9 @@ Social features for Lily in two phases:
 - [x] `v1-follow-profiles-search/09-public-profile-endpoint.md` — getPublicProfile + test
 - [x] `v1-follow-profiles-search/10-search-users-endpoint.md` — searchUsers + test
 - [x] `v1-follow-profiles-search/11-suggested-users-endpoint.md` — getSuggestedUsers + test
-- [ ] `v1-follow-profiles-search/12-social-handlers-wiring.md` — Wire handlers + register in api/index
-- [ ] `v1-follow-profiles-search/13-follow-notification.md` — Event + push for new follower
-- [ ] `v1-follow-profiles-search/14-nudge-endpoint.md` — sendNudge endpoint + push notification + test
+- [x] `v1-follow-profiles-search/12-social-handlers-wiring.md` — Wire handlers + register in api/index
+- [x] `v1-follow-profiles-search/13-follow-notification.md` — Event + push for new follower
+- [x] `v1-follow-profiles-search/14-nudge-endpoint.md` — sendNudge endpoint + push notification + test
 - [ ] `v1-follow-profiles-search/15-app-social-hooks.md` — All social hooks + query keys + error tags
 - [ ] `v1-follow-profiles-search/16-user-search-screen.md` — UserSearchScreen
 - [ ] `v1-follow-profiles-search/17-public-profile-screen.md` — PublicProfileScreen

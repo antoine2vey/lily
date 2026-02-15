@@ -31,6 +31,7 @@ import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
+import { SocialApiLive } from '@lily/api/services/social/handlers'
 import {
   SubscriptionsApiLive,
   SubscriptionWebhooksApiLive,
@@ -128,6 +129,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
   Layer.provide(RoomsApiLive(Api)),
+  Layer.provide(SocialApiLive(Api)),
   Layer.provide(SubscriptionsApiLive(Api)),
   Layer.provide(SubscriptionWebhooksApiLive(Api)),
   Layer.provide(UsernameApiLive(Api)),

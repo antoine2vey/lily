@@ -46,7 +46,9 @@ describe('getUserFollowing', () => {
     ])
 
     const result = await Effect.runPromise(
-      getUserFollowing(publicUser.id, {}).pipe(Effect.provide(layer))
+      getUserFollowing(publicUser.id, { page: '1', limit: '20' }).pipe(
+        Effect.provide(layer)
+      )
     )
     expect(result.items).toBeDefined()
     expect(result.total).toBeDefined()
@@ -55,7 +57,9 @@ describe('getUserFollowing', () => {
 
   it('should fail with UserNotFoundError for non-existent user', async () => {
     const exit = await Effect.runPromiseExit(
-      getUserFollowing('non-existent', {}).pipe(Effect.provide(buildLayer()))
+      getUserFollowing('non-existent', { page: '1', limit: '20' }).pipe(
+        Effect.provide(buildLayer())
+      )
     )
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
@@ -65,7 +69,9 @@ describe('getUserFollowing', () => {
 
   it('should fail with UserNotPublicError for private user', async () => {
     const exit = await Effect.runPromiseExit(
-      getUserFollowing(privateUser.id, {}).pipe(Effect.provide(buildLayer()))
+      getUserFollowing(privateUser.id, { page: '1', limit: '20' }).pipe(
+        Effect.provide(buildLayer())
+      )
     )
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
