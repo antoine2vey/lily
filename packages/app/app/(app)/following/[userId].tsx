@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { Text, View } from 'react-native'
+import { FollowingScreen } from 'src/screens/following'
 
 export default function Following() {
   const { userId } = useLocalSearchParams<{ userId: string }>()
@@ -7,11 +7,7 @@ export default function Following() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <View className="flex-1 bg-background dark:bg-background-dark items-center justify-center">
-        <Text className="text-text-primary dark:text-white">
-          Following: {userId}
-        </Text>
-      </View>
+      <FollowingScreen userId={userId} />
     </>
   )
 }
