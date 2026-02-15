@@ -2,7 +2,7 @@ import { mockFollowUsers } from '@lily/api/__tests__/fixtures/follows'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { searchUsers } from '@lily/api/services/social/endpoints/search-users'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'user-1'
@@ -30,7 +30,7 @@ describe('searchUsers', () => {
       )
     )
     expect(result.items).toHaveLength(1)
-    expect(result.items[0].name).toBe('Alice')
+    expect(result.items[0]!.name).toBe('Alice')
   })
 
   it('should return empty list for no match', async () => {
@@ -58,7 +58,7 @@ describe('searchUsers', () => {
         Effect.provide(buildLayer())
       )
     )
-    const ids = result.items.map((i: { id: string }) => i.id)
+    const ids = Array.map(result.items, (i) => i.id)
     expect(ids).not.toContain(currentUserId)
   })
 
@@ -76,6 +76,6 @@ describe('searchUsers', () => {
         Effect.provide(layer)
       )
     )
-    expect(result.items[0].isFollowing).toBe(true)
+    expect(result.items[0]!.isFollowing).toBe(true)
   })
 })

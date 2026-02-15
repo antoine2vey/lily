@@ -73,6 +73,12 @@ export const PlantSharedEvent = Schema.Struct({
   plantId: Schema.String,
 })
 
+export const UserFollowedEvent = Schema.Struct({
+  _tag: Schema.Literal('UserFollowed'),
+  followerId: Schema.String,
+  followingId: Schema.String,
+})
+
 // Union of all events
 export const AppEvent = Schema.Union(
   PlantCreatedEvent,
@@ -85,7 +91,8 @@ export const AppEvent = Schema.Union(
   DiseaseIdentifiedEvent,
   RarePlantIdentifiedEvent,
   ReminderRespondedEvent,
-  PlantSharedEvent
+  PlantSharedEvent,
+  UserFollowedEvent
 )
 
 export type AppEvent = typeof AppEvent.Type
@@ -100,6 +107,7 @@ export type DiseaseIdentifiedEvent = typeof DiseaseIdentifiedEvent.Type
 export type RarePlantIdentifiedEvent = typeof RarePlantIdentifiedEvent.Type
 export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
 export type PlantSharedEvent = typeof PlantSharedEvent.Type
+export type UserFollowedEvent = typeof UserFollowedEvent.Type
 
 // Error types
 export class EventBusConnectionError extends Data.TaggedError(

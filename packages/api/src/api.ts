@@ -11,6 +11,7 @@ import { HealthApiGroup } from '@lily/api/services/health/api'
 import { NotificationsApi } from '@lily/api/services/notifications/api'
 import { PlantsApi } from '@lily/api/services/plants/api'
 import { RoomsApi } from '@lily/api/services/rooms/api'
+import { SocialApi } from '@lily/api/services/social/api'
 import {
   SubscriptionsApi,
   SubscriptionWebhooksApi,
@@ -39,6 +40,7 @@ export const Api = HttpApi.make('Api')
   .add(AchievementsApi.prefix('/api'))
   .add(SubscriptionsApi.prefix('/api'))
   .add(SubscriptionWebhooksApi.prefix('/api'))
+  .add(SocialApi.prefix('/api'))
   .add(WeatherApi.prefix('/api'))
 
 export type Api = typeof Api
