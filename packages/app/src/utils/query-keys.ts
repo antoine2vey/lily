@@ -80,6 +80,21 @@ export const queryKeys = {
     adjustments: () => [...queryKeys.weather.all, 'adjustments'] as const,
   },
 
+  // Social domain
+  social: {
+    all: ['social'] as const,
+    search: (query: string) =>
+      [...queryKeys.social.all, 'searchUsers', query] as const,
+    profiles: () => [...queryKeys.social.all, 'getPublicProfile'] as const,
+    profile: (userId: string) =>
+      [...queryKeys.social.profiles(), userId] as const,
+    followers: (userId?: string) =>
+      [...queryKeys.social.all, 'getFollowers', userId] as const,
+    following: (userId?: string) =>
+      [...queryKeys.social.all, 'getFollowing', userId] as const,
+    suggested: () => [...queryKeys.social.all, 'getSuggestedUsers'] as const,
+  },
+
   // Chat domain
   chat: {
     all: ['chat'] as const,
@@ -102,5 +117,6 @@ export const invalidateKeys = {
   achievements: queryKeys.achievements.all,
   auth: queryKeys.auth.all,
   weather: queryKeys.weather.all,
+  social: queryKeys.social.all,
   chat: queryKeys.chat.all,
 } as const
