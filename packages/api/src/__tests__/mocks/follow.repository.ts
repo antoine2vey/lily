@@ -4,7 +4,6 @@ import {
   type PublicProfileRow,
   type UserCardRow,
 } from '@lily/api/repositories/follow.repository'
-import { paginate } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface FollowRecord {
