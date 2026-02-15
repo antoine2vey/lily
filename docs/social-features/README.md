@@ -13,7 +13,7 @@ Social features for Lily in two phases:
 
 - [x] `v1-follow-profiles-search/01-db-follows-schema.md` — user_follows table + migration
 - [x] `v1-follow-profiles-search/02-shared-social-types.md` — Shared schemas + errors for social
-- [ ] `v1-follow-profiles-search/03-follow-repository.md` — FollowRepository + Live impl
+- [x] `v1-follow-profiles-search/03-follow-repository.md` — FollowRepository + Live impl
 - [ ] `v1-follow-profiles-search/04-social-api-definition.md` — HttpApiGroup + endpoint signatures
 - [ ] `v1-follow-profiles-search/05-follow-user-endpoint.md` — followUser + test
 - [ ] `v1-follow-profiles-search/06-unfollow-user-endpoint.md` — unfollowUser + test
