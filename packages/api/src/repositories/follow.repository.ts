@@ -163,7 +163,7 @@ export const FollowRepositoryLive = Layer.effect(
 
       getFollowers: (params) =>
         Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+          const { limit, offset } = getPaginationParams(params)
 
           const countResult = yield* db
             .select({ value: count() })
@@ -202,7 +202,7 @@ export const FollowRepositoryLive = Layer.effect(
 
       getFollowing: (params) =>
         Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+          const { limit, offset } = getPaginationParams(params)
 
           const countResult = yield* db
             .select({ value: count() })
@@ -264,7 +264,7 @@ export const FollowRepositoryLive = Layer.effect(
 
       searchUsers: (params) =>
         Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+          const { limit, offset } = getPaginationParams(params)
           const searchPattern = `%${params.query}%`
 
           const whereClause = and(
