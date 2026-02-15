@@ -8,6 +8,7 @@ import {
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { plants } from '@lily/db/schema/plants'
 import { rooms } from '@lily/db/schema/rooms'
+import { userFollows, userNudges } from '@lily/db/schema/social'
 import {
   subscriptionEvents,
   subscriptionUsage,
@@ -74,4 +75,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   subscription: one(userSubscriptions),
   subscriptionUsage: many(subscriptionUsage),
   subscriptionEvents: many(subscriptionEvents),
+  following: many(userFollows, { relationName: 'follower' }),
+  followers: many(userFollows, { relationName: 'following' }),
+  nudgesSent: many(userNudges, { relationName: 'nudgesSent' }),
+  nudgesReceived: many(userNudges, { relationName: 'nudgesReceived' }),
 }))
