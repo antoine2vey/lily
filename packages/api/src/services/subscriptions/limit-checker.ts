@@ -21,6 +21,10 @@ export interface ILimitChecker {
   readonly checkPlantIdentifyLimit: (
     userId: string
   ) => Effect.Effect<void, LimitExceededError | SqlError>
+
+  readonly checkDelegationAccess: (
+    userId: string
+  ) => Effect.Effect<void, LimitExceededError | SqlError>
 }
 
 export class LimitChecker extends Context.Tag('LimitChecker')<
@@ -33,6 +37,7 @@ const noopLimitChecker: ILimitChecker = {
   checkAiChatLimit: () => Effect.void,
   checkCardScanLimit: () => Effect.void,
   checkPlantIdentifyLimit: () => Effect.void,
+  checkDelegationAccess: () => Effect.void,
 }
 
 const DisableLimitsConfig = Config.boolean('DISABLE_LIMITS').pipe(
@@ -176,6 +181,23 @@ export const LimitCheckerLive = Layer.effect(
             )
           }
         }),
+
+      checkDelegationAccess: (userId: string) =>
+        Effect.gen(function* () {
+          const { tierConfig } = yield* getUserTierAndLimits(userId)
+
+          if (tierConfig.tier === 'free') {
+            return yield* Effect.fail(
+              new LimitExceededError({
+                feature: 'care_delegation',
+                limit: 0,
+                current: 0,
+                message:
+                  'Care delegation is a premium feature. Upgrade to create delegations.',
+              })
+            )
+          }
+        }).pipe(Effect.withSpan('LimitChecker.checkDelegationAccess')),
     }
   })
 )
