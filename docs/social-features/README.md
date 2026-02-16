@@ -38,7 +38,7 @@ Social features for Lily in two phases:
 - [x] `v2-care-delegation/02-shared-delegation-types.md` — Shared schemas + errors
 - [x] `v2-care-delegation/03-delegation-repository.md` — DelegationRepository + Live impl
 - [x] `v2-care-delegation/04-delegation-api-definition.md` — HttpApiGroup + endpoint signatures
-- [ ] `v2-care-delegation/05-create-delegation-endpoint.md` — createDelegation + test
+- [x] `v2-care-delegation/05-create-delegation-endpoint.md` — createDelegation + test
 - [ ] `v2-care-delegation/06-respond-delegation-endpoint.md` — respondToDelegation + test
 - [ ] `v2-care-delegation/07-cancel-delegation-endpoint.md` — cancelDelegation + test
 - [ ] `v2-care-delegation/08-complete-delegation-endpoint.md` — completeDelegation + test
