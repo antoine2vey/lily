@@ -5,6 +5,7 @@ import auth from './auth'
 import care from './care'
 import chat from './chat'
 import common from './common'
+import delegations from './delegations'
 import home from './home'
 import logCare from './logCare'
 import notifications from './notifications'
@@ -18,6 +19,7 @@ import subscription from './subscription'
 
 export default {
   common,
+  delegations,
   auth,
   home,
   plants,

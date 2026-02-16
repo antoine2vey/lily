@@ -281,6 +281,26 @@ describe('Translation files', () => {
     })
   })
 
+  describe('Key parity - delegations', () => {
+    it('FR has all keys from EN', () => {
+      const enKeys = getNestedKeys(en.delegations)
+      const frKeys = getNestedKeys(fr.delegations)
+
+      for (const key of enKeys) {
+        expect(frKeys).toContain(key)
+      }
+    })
+
+    it('EN has all keys from FR', () => {
+      const enKeys = getNestedKeys(en.delegations)
+      const frKeys = getNestedKeys(fr.delegations)
+
+      for (const key of frKeys) {
+        expect(enKeys).toContain(key)
+      }
+    })
+  })
+
   describe('No empty strings', () => {
     it('EN common has no empty strings', () => {
       const keys = getNestedKeys(en.common)

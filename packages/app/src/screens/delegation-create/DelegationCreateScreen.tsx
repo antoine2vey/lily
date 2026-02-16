@@ -3,6 +3,7 @@ import { nowAsIsoString } from '@lily/shared'
 import { Array as Arr, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -31,6 +32,7 @@ interface SelectedUser {
 type FormError = string | null
 
 export function DelegationCreateScreen() {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const { mutate: createDelegation, isPending } = useCreateDelegation()
@@ -98,7 +100,7 @@ export function DelegationCreateScreen() {
 
     createDelegation(payload, {
       onSuccess: () => {
-        toast.success('Delegation request sent!')
+        toast.success(t('toast.created'))
         router.back()
       },
       onError: (error: unknown) => {
@@ -110,27 +112,18 @@ export function DelegationCreateScreen() {
               Option.getOrElse(() => 'Unknown')
             )
           ),
-          Match.when(
-            'LimitExceededError',
-            () =>
-              'You have reached the delegation limit for your plan. Upgrade to create more.'
-          ),
-          Match.when(
-            'DelegationOverlapError',
-            () =>
-              'Some plants already have an active delegation for this period.'
-          ),
+          Match.when('LimitExceededError', () => t('errors.limitExceeded')),
+          Match.when('DelegationOverlapError', () => t('errors.overlap')),
           Match.when('DelegationDateError', () =>
             pipe(
               Option.fromNullable(err.message),
-              Option.getOrElse(() => 'Invalid date range.')
+              Option.getOrElse(() => t('errors.invalidDate'))
             )
           ),
-          Match.when(
-            'CannotDelegateSelfError',
-            () => 'You cannot delegate plants to yourself.'
+          Match.when('CannotDelegateSelfError', () =>
+            t('errors.cannotDelegateSelf')
           ),
-          Match.orElse(() => 'Failed to create delegation. Please try again.')
+          Match.orElse(() => t('errors.createFailed'))
         )
         setFormError(errorMessage)
       },
@@ -158,7 +151,7 @@ export function DelegationCreateScreen() {
           className="flex-1 text-lg text-center font-bold text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
         >
-          New Delegation
+          {t('create.title')}
         </Text>
         <View className="w-10" />
       </View>
@@ -199,8 +192,8 @@ export function DelegationCreateScreen() {
 
             {/* Message */}
             <FormTextArea
-              label="Message (optional)"
-              placeholder="Add a note for the caretaker..."
+              label={t('create.messageLabel')}
+              placeholder={t('create.messagePlaceholder')}
               value={message}
               onChangeText={setMessage}
               maxLength={500}
@@ -238,7 +231,7 @@ export function DelegationCreateScreen() {
                   className="text-white text-base text-center font-semibold"
                   style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
                 >
-                  Create Delegation
+                  {t('create.submit')}
                 </Text>
               )}
             </Pressable>
