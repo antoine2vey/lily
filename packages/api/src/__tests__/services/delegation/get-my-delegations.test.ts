@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { getMyDelegations } from '@lily/api/services/delegation/endpoints/get-my-delegations'
 import { Effect, Layer } from 'effect'
@@ -35,12 +36,16 @@ const delegationAsCaretaker = {
   id: 'delegation-ct',
   ownerId: mockUser3.id,
   caretakerId: mockUser1.id,
-  status: 'active',
+  status: 'active' as const,
 }
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations = [mockDelegation1, mockDelegation2, delegationAsCaretaker]
+  delegations: DelegationRow[] = [
+    mockDelegation1,
+    mockDelegation2,
+    delegationAsCaretaker,
+  ]
 ) =>
   Layer.mergeAll(
     currentUser,

@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { getDelegatedTasks } from '@lily/api/services/delegation/endpoints/get-delegated-tasks'
 import { Effect, Layer } from 'effect'
@@ -19,14 +20,14 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const activeDelegation = {
   ...mockDelegation1,
-  status: 'active',
+  status: 'active' as const,
   caretakerId: mockUser2.id,
 }
 
 const completedDelegation = {
   ...mockDelegation2,
   id: 'delegation-completed',
-  status: 'completed',
+  status: 'completed' as const,
   caretakerId: mockUser2.id,
 }
 
@@ -37,7 +38,7 @@ const plantsWithFertilization = mockDelegationPlants.map((p) => ({
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations = [activeDelegation],
+  delegations: DelegationRow[] = [activeDelegation],
   delegationPlants = [
     { delegationId: activeDelegation.id, plantId: 'plant-1' },
     { delegationId: activeDelegation.id, plantId: 'plant-2' },

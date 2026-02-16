@@ -5,6 +5,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import { careDelegations, delegationPlants, plants, users } from '@lily/db'
+import type { DelegationStatus } from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Match, pipe } from 'effect'
 
@@ -13,14 +14,14 @@ export interface CreateDelegationData {
   caretakerId: string
   startDate: Date
   endDate: Date
-  message?: string
+  message?: string | undefined
 }
 
 export interface DelegationRow {
   id: string
   ownerId: string
   caretakerId: string
-  status: string
+  status: DelegationStatus
   message: string | null
   startDate: Date
   endDate: Date
@@ -47,7 +48,7 @@ export interface DelegationListRow {
   caretakerId: string
   caretakerName: string | null
   caretakerImage: string | null
-  status: string
+  status: DelegationStatus
   startDate: Date
   endDate: Date
   plantCount: number
@@ -84,18 +85,18 @@ export interface IDelegationRepository {
 
   readonly updateStatus: (
     id: string,
-    status: string,
+    status: DelegationStatus,
     timestamps?: {
-      respondedAt?: Date
-      canceledAt?: Date
-      completedAt?: Date
+      respondedAt?: Date | undefined
+      canceledAt?: Date | undefined
+      completedAt?: Date | undefined
     }
   ) => Effect.Effect<void, SqlError>
 
   readonly findByUser: (params: {
     userId: string
     role: 'owner' | 'caretaker' | 'both'
-    status?: string[]
+    status?: string[] | undefined
     page: number
     limit: number
   }) => Effect.Effect<{ items: DelegationListRow[]; total: number }, SqlError>
@@ -105,10 +106,10 @@ export interface IDelegationRepository {
   ) => Effect.Effect<DelegatedTaskRow[], SqlError>
 
   readonly findOverlappingDelegations: (params: {
-    plantIds: string[]
+    plantIds: readonly string[]
     startDate: Date
     endDate: Date
-    excludeDelegationId?: string
+    excludeDelegationId?: string | undefined
   }) => Effect.Effect<string[], SqlError>
 
   readonly findAcceptedReadyToActivate: (
@@ -121,7 +122,7 @@ export interface IDelegationRepository {
 
   readonly addPlants: (
     delegationId: string,
-    plantIds: string[]
+    plantIds: readonly string[]
   ) => Effect.Effect<void, SqlError>
 
   readonly getPlantsByDelegation: (
@@ -352,7 +353,7 @@ export const DelegationRepositoryLive = Layer.effect(
           if (params.plantIds.length === 0) return []
 
           const conditions = [
-            inArray(delegationPlants.plantId, params.plantIds),
+            inArray(delegationPlants.plantId, [...params.plantIds]),
             inArray(careDelegations.status, ['pending', 'accepted', 'active']),
             sql`${careDelegations.startDate} < ${params.endDate}`,
             sql`${careDelegations.endDate} > ${params.startDate}`,

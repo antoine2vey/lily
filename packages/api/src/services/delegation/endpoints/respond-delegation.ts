@@ -4,6 +4,7 @@ import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
+  type DelegationStatus,
 } from '@lily/shared'
 import { Effect } from 'effect'
 
@@ -38,7 +39,7 @@ export const respondToDelegation = (
       )
     }
 
-    const newStatus = params.accept ? 'accepted' : 'rejected'
+    const newStatus: DelegationStatus = params.accept ? 'accepted' : 'rejected'
     yield* delegationRepo.updateStatus(delegationId, newStatus, {
       respondedAt: new Date(),
     })

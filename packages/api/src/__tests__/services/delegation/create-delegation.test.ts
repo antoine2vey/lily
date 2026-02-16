@@ -6,6 +6,7 @@ import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createDelegation } from '@lily/api/services/delegation/endpoints/create-delegation'
 import {
@@ -37,9 +38,9 @@ const validRequest = {
 }
 
 const createLayer = (options?: {
-  delegationAccessDenied?: boolean
-  delegations?: (typeof mockDelegation1)[]
-  delegationPlants?: { delegationId: string; plantId: string }[]
+  delegationAccessDenied?: boolean | undefined
+  delegations?: DelegationRow[] | undefined
+  delegationPlants?: { delegationId: string; plantId: string }[] | undefined
 }) =>
   Layer.mergeAll(
     mockCurrentUser,
@@ -194,7 +195,7 @@ describe('createDelegation', () => {
       ...mockDelegation1,
       startDate: futureStart,
       endDate: futureEnd,
-      status: 'active',
+      status: 'active' as const,
     }
 
     const layer = createLayer({

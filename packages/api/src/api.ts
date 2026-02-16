@@ -5,6 +5,7 @@ import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
 import { CareTasksApi } from '@lily/api/services/care-tasks/api'
+import { DelegationApi } from '@lily/api/services/delegation/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
 import { DiagnosisApi } from '@lily/api/services/diagnosis/api'
 import { HealthApiGroup } from '@lily/api/services/health/api'
@@ -41,6 +42,7 @@ export const Api = HttpApi.make('Api')
   .add(SubscriptionsApi.prefix('/api'))
   .add(SubscriptionWebhooksApi.prefix('/api'))
   .add(SocialApi.prefix('/api'))
+  .add(DelegationApi.prefix('/api'))
   .add(WeatherApi.prefix('/api'))
 
 export type Api = typeof Api

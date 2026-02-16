@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
 import {
@@ -30,7 +31,9 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations = [{ ...mockDelegation1, status: 'pending' }]
+  delegations: DelegationRow[] = [
+    { ...mockDelegation1, status: 'pending' as const },
+  ]
 ) =>
   Layer.mergeAll(
     currentUser,
@@ -47,7 +50,7 @@ const createLayer = (
 describe('cancelDelegation', () => {
   it('should cancel a pending delegation', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'pending' },
+      { ...mockDelegation1, status: 'pending' as const },
     ])
 
     const result = await Effect.runPromise(
@@ -59,7 +62,7 @@ describe('cancelDelegation', () => {
 
   it('should cancel an accepted delegation', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'accepted' },
+      { ...mockDelegation1, status: 'accepted' as const },
     ])
 
     const result = await Effect.runPromise(
@@ -71,7 +74,7 @@ describe('cancelDelegation', () => {
 
   it('should cancel an active delegation', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'active' },
+      { ...mockDelegation1, status: 'active' as const },
     ])
 
     const result = await Effect.runPromise(
@@ -83,7 +86,7 @@ describe('cancelDelegation', () => {
 
   it('should set canceledAt timestamp', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'pending' },
+      { ...mockDelegation1, status: 'pending' as const },
     ])
 
     const result = await Effect.runPromise(
@@ -96,7 +99,7 @@ describe('cancelDelegation', () => {
 
   it('should fail when delegation is already completed', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'completed' },
+      { ...mockDelegation1, status: 'completed' as const },
     ])
 
     const result = await Effect.runPromiseExit(
@@ -111,7 +114,7 @@ describe('cancelDelegation', () => {
 
   it('should fail when delegation is already canceled', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'canceled' },
+      { ...mockDelegation1, status: 'canceled' as const },
     ])
 
     const result = await Effect.runPromiseExit(
@@ -126,7 +129,7 @@ describe('cancelDelegation', () => {
 
   it('should fail when delegation is rejected', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'rejected' },
+      { ...mockDelegation1, status: 'rejected' as const },
     ])
 
     const result = await Effect.runPromiseExit(
@@ -141,7 +144,7 @@ describe('cancelDelegation', () => {
 
   it('should fail when not the owner', async () => {
     const layer = createLayer(caretakerCurrentUser, [
-      { ...mockDelegation1, status: 'pending' },
+      { ...mockDelegation1, status: 'pending' as const },
     ])
 
     const result = await Effect.runPromiseExit(

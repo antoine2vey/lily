@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
 import {
@@ -30,12 +31,12 @@ const ownerCurrentUser = Layer.succeed(CurrentUser, {
 
 const pendingDelegation = {
   ...mockDelegation1,
-  status: 'pending',
+  status: 'pending' as const,
 }
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations = [pendingDelegation]
+  delegations: DelegationRow[] = [pendingDelegation]
 ) =>
   Layer.mergeAll(
     currentUser,
@@ -118,7 +119,7 @@ describe('respondToDelegation', () => {
   })
 
   it('should fail with DelegationInvalidStatusError when not pending', async () => {
-    const activeDelegation = { ...pendingDelegation, status: 'active' }
+    const activeDelegation = { ...pendingDelegation, status: 'active' as const }
     const layer = createLayer(caretakerCurrentUser, [activeDelegation])
 
     const result = await Effect.runPromiseExit(

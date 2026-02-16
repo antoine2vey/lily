@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { completeDelegation } from '@lily/api/services/delegation/endpoints/complete-delegation'
 import {
@@ -28,11 +29,11 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   image: mockUser2.image,
 } as any)
 
-const activeDelegation = { ...mockDelegation1, status: 'active' }
+const activeDelegation = { ...mockDelegation1, status: 'active' as const }
 
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
-  delegations = [activeDelegation]
+  delegations: DelegationRow[] = [activeDelegation]
 ) =>
   Layer.mergeAll(
     currentUser,
@@ -83,7 +84,7 @@ describe('completeDelegation', () => {
 
   it('should fail when delegation is pending', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'pending' },
+      { ...mockDelegation1, status: 'pending' as const },
     ])
 
     const result = await Effect.runPromiseExit(
@@ -98,7 +99,7 @@ describe('completeDelegation', () => {
 
   it('should fail when delegation is accepted (not yet active)', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'accepted' },
+      { ...mockDelegation1, status: 'accepted' as const },
     ])
 
     const result = await Effect.runPromiseExit(
@@ -113,7 +114,7 @@ describe('completeDelegation', () => {
 
   it('should fail when already completed', async () => {
     const layer = createLayer(ownerCurrentUser, [
-      { ...mockDelegation1, status: 'completed' },
+      { ...mockDelegation1, status: 'completed' as const },
     ])
 
     const result = await Effect.runPromiseExit(
