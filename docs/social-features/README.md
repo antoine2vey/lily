@@ -39,9 +39,9 @@ Social features for Lily in two phases:
 - [x] `v2-care-delegation/03-delegation-repository.md` — DelegationRepository + Live impl
 - [x] `v2-care-delegation/04-delegation-api-definition.md` — HttpApiGroup + endpoint signatures
 - [x] `v2-care-delegation/05-create-delegation-endpoint.md` — createDelegation + test
-- [ ] `v2-care-delegation/06-respond-delegation-endpoint.md` — respondToDelegation + test
-- [ ] `v2-care-delegation/07-cancel-delegation-endpoint.md` — cancelDelegation + test
-- [ ] `v2-care-delegation/08-complete-delegation-endpoint.md` — completeDelegation + test
+- [x] `v2-care-delegation/06-respond-delegation-endpoint.md` — respondToDelegation + test
+- [x] `v2-care-delegation/07-cancel-delegation-endpoint.md` — cancelDelegation + test
+- [x] `v2-care-delegation/08-complete-delegation-endpoint.md` — completeDelegation + test
 - [ ] `v2-care-delegation/09-get-delegation-endpoint.md` — getDelegation + test
 - [ ] `v2-care-delegation/10-get-my-delegations-endpoint.md` — getMyDelegations + test
 - [ ] `v2-care-delegation/11-delegated-tasks-endpoint.md` — getDelegatedTasks + test
