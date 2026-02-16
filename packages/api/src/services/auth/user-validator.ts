@@ -4,7 +4,7 @@ import type { JWTError } from '@lily/api/services/jwt/errors'
 import { JWTService } from '@lily/api/services/jwt/service'
 import type { users } from '@lily/db'
 import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Redacted } from 'effect'
+import { Effect, Option, pipe, Redacted } from 'effect'
 
 export interface ValidatedUserResult {
   user: typeof users.$inferSelect
@@ -42,31 +42,36 @@ export const validateUserFromToken = <E>(
     // Verify JWT token
     const payload = yield* jwtService.verifyAccessToken(tokenValue)
 
-    // Check user status from JWT payload
+    // Check user status from JWT payload (early exit before DB hit)
     if (payload.status !== 'active') {
-      return yield* Effect.fail(createError(`Account is ${payload.status}`))
+      return yield* Effect.fail(createError('Account is not active'))
     }
 
-    // Check admin role if required
+    // Check admin role if required (early exit before DB hit)
     if (requireAdmin && payload.role !== 'admin') {
-      return yield* Effect.fail(createError('Admin access required'))
+      return yield* Effect.fail(createError('Insufficient permissions'))
     }
 
     // Fetch user from database
-    const user = yield* userRepo.findById(payload.sub)
-
-    if (!user) {
-      return yield* Effect.fail(createError('User not found'))
-    }
+    const user = yield* pipe(
+      userRepo.findById(payload.sub),
+      Effect.map(Option.fromNullable),
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.fail(createError('Authentication failed')),
+          onSome: Effect.succeed,
+        })
+      )
+    )
 
     // Double-check user status from DB (in case it changed after token was issued)
     if (user.status !== 'active') {
-      return yield* Effect.fail(createError(`Account is ${user.status}`))
+      return yield* Effect.fail(createError('Account is not active'))
     }
 
     // Check admin role from DB if required
     if (requireAdmin && user.role !== 'admin') {
-      return yield* Effect.fail(createError('Admin access required'))
+      return yield* Effect.fail(createError('Insufficient permissions'))
     }
 
     // Build user profile
@@ -74,7 +79,7 @@ export const validateUserFromToken = <E>(
       id: user.id,
       email: user.email,
       name: user.name,
-      username: user.name || undefined,
+      username: pipe(Option.fromNullable(user.name), Option.getOrUndefined),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       role: user.role,

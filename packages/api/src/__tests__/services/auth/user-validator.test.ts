@@ -207,7 +207,7 @@ describe('validateUserFromToken', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('suspended')
+        expect(result.cause.error.message).toContain('Account is not active')
       }
     })
 
@@ -233,7 +233,7 @@ describe('validateUserFromToken', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('suspended')
+        expect(result.cause.error.message).toContain('Account is not active')
       }
     })
   })
@@ -261,7 +261,7 @@ describe('validateUserFromToken', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('User not found')
+        expect(result.cause.error.message).toContain('Authentication failed')
       }
     })
   })
@@ -290,7 +290,7 @@ describe('validateUserFromToken', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Admin access required')
+        expect(result.cause.error.message).toContain('Insufficient permissions')
       }
     })
 
@@ -317,7 +317,7 @@ describe('validateUserFromToken', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Admin access required')
+        expect(result.cause.error.message).toContain('Insufficient permissions')
       }
     })
   })
