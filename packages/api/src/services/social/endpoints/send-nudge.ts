@@ -2,6 +2,7 @@ import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import type { NudgeRequest } from '@lily/shared'
 import {
   NudgeNotAllowedError,
@@ -64,11 +65,17 @@ export const sendNudge = (params: NudgeRequest) =>
       Option.getOrElse(() => 'A friend')
     )
 
+    const { title, body } = buildSimpleContent(
+      'nudge_to_water',
+      { senderName: nudgerName },
+      targetUser.language
+    )
+
     yield* notificationRepo.create({
       userId: targetUserId,
       type: 'nudge_to_water',
-      title: 'Nudge from a friend',
-      body: `${nudgerName} is reminding you to check on your plants!`,
+      title,
+      body,
       scheduledAt: new Date(),
     })
 

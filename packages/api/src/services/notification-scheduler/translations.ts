@@ -3,6 +3,123 @@ import { Array, Match, Option, pipe } from 'effect'
 
 const MAX_PLANT_NAMES_IN_BODY = 5
 
+// Simple (non-care) notification translations
+type SimpleTranslation = {
+  readonly title: (params: SimpleNotificationParams) => string
+  readonly body: (params: SimpleNotificationParams) => string
+}
+
+export type SimpleNotificationType =
+  | 'new_follower'
+  | 'nudge_to_water'
+  | 'delegation_request'
+  | 'delegation_accepted'
+  | 'delegation_rejected'
+  | 'delegation_canceled'
+  | 'delegation_activated'
+  | 'delegation_completed'
+
+export type SimpleNotificationParams = {
+  readonly senderName?: string
+  readonly plantCount?: number
+}
+
+type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
+
+const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
+  en: {
+    new_follower: {
+      title: () => 'New follower',
+      body: (p) => `${p.senderName ?? 'Someone'} started following you`,
+    },
+    nudge_to_water: {
+      title: () => 'Nudge from a friend',
+      body: (p) =>
+        `${p.senderName ?? 'A friend'} is reminding you to check on your plants!`,
+    },
+    delegation_request: {
+      title: () => 'Care request',
+      body: (p) =>
+        `${p.senderName ?? 'Someone'} wants you to care for their plants`,
+    },
+    delegation_accepted: {
+      title: () => 'Request accepted',
+      body: (p) => `${p.senderName ?? 'Someone'} accepted your care delegation`,
+    },
+    delegation_rejected: {
+      title: () => 'Request declined',
+      body: (p) => `${p.senderName ?? 'Someone'} declined your care delegation`,
+    },
+    delegation_canceled: {
+      title: () => 'Delegation canceled',
+      body: (p) => `${p.senderName ?? 'Someone'} canceled the care delegation`,
+    },
+    delegation_activated: {
+      title: () => 'Delegation started',
+      body: (p) =>
+        `Care delegation for ${p.plantCount ?? 0} plants has started`,
+    },
+    delegation_completed: {
+      title: () => 'Delegation ended',
+      body: (p) => `Care delegation for ${p.plantCount ?? 0} plants has ended`,
+    },
+  },
+  fr: {
+    new_follower: {
+      title: () => 'Nouveau follower',
+      body: (p) => `${p.senderName ?? "Quelqu'un"} a commencé à vous suivre`,
+    },
+    nudge_to_water: {
+      title: () => "Rappel d'un ami",
+      body: (p) =>
+        `${p.senderName ?? 'Un ami'} vous rappelle de vous occuper de vos plantes !`,
+    },
+    delegation_request: {
+      title: () => 'Demande de garde',
+      body: (p) =>
+        `${p.senderName ?? "Quelqu'un"} souhaite que vous gardiez ses plantes`,
+    },
+    delegation_accepted: {
+      title: () => 'Demande acceptée',
+      body: (p) =>
+        `${p.senderName ?? "Quelqu'un"} a accepté votre délégation de soins`,
+    },
+    delegation_rejected: {
+      title: () => 'Demande refusée',
+      body: (p) =>
+        `${p.senderName ?? "Quelqu'un"} a refusé votre délégation de soins`,
+    },
+    delegation_canceled: {
+      title: () => 'Délégation annulée',
+      body: (p) =>
+        `${p.senderName ?? "Quelqu'un"} a annulé la délégation de soins`,
+    },
+    delegation_activated: {
+      title: () => 'Délégation commencée',
+      body: (p) =>
+        `La délégation de soins pour ${p.plantCount ?? 0} plantes a commencé`,
+    },
+    delegation_completed: {
+      title: () => 'Délégation terminée',
+      body: (p) =>
+        `La délégation de soins pour ${p.plantCount ?? 0} plantes est terminée`,
+    },
+  },
+}
+
+export const buildSimpleContent = (
+  type: SimpleNotificationType,
+  params: SimpleNotificationParams,
+  language: LanguageCode
+): { title: string; body: string } => {
+  const t = simpleTranslations[language][type]
+  return {
+    title: t.title(params),
+    body: t.body(params),
+  }
+}
+
+// Care reminder translations
 type CareTranslations = {
   readonly singleTitle: (plantName: string) => string
   readonly singleBody: (plantName: string) => string

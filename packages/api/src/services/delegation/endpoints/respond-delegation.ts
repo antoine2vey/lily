@@ -1,6 +1,8 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
@@ -17,6 +19,7 @@ export const respondToDelegation = (
     const { id: currentUserId } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
     const notificationRepo = yield* NotificationRepository
+    const userRepo = yield* UserRepository
 
     const delegation = yield* delegationRepo.findById(delegationId)
     if (!delegation) {
@@ -51,18 +54,20 @@ export const respondToDelegation = (
       Option.getOrElse(() => 'Someone')
     )
 
-    const { type, title, body } = pipe(
-      Match.value(params.accept),
-      Match.when(true, () => ({
-        type: 'delegation_accepted' as const,
-        title: 'Request accepted',
-        body: `${caretakerName} accepted your care delegation`,
-      })),
-      Match.orElse(() => ({
-        type: 'delegation_rejected' as const,
-        title: 'Request declined',
-        body: `${caretakerName} declined your care delegation`,
-      }))
+    const owner = yield* userRepo.findById(delegation.ownerId)
+    const ownerLanguage = Option.getOrElse(
+      Option.fromNullable(owner?.language),
+      () => 'en' as const
+    )
+
+    const type = params.accept
+      ? ('delegation_accepted' as const)
+      : ('delegation_rejected' as const)
+
+    const { title, body } = buildSimpleContent(
+      type,
+      { senderName: caretakerName },
+      ownerLanguage
     )
 
     yield* notificationRepo.create({

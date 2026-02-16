@@ -1,6 +1,8 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
@@ -15,6 +17,7 @@ export const cancelDelegation = (delegationId: string) =>
     const { id: currentUserId } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
     const notificationRepo = yield* NotificationRepository
+    const userRepo = yield* UserRepository
 
     const delegation = yield* delegationRepo.findById(delegationId)
     if (!delegation) {
@@ -48,11 +51,23 @@ export const cancelDelegation = (delegationId: string) =>
       Option.getOrElse(() => 'Someone')
     )
 
+    const caretaker = yield* userRepo.findById(delegation.caretakerId)
+    const caretakerLanguage = Option.getOrElse(
+      Option.fromNullable(caretaker?.language),
+      () => 'en' as const
+    )
+
+    const { title, body } = buildSimpleContent(
+      'delegation_canceled',
+      { senderName: ownerName },
+      caretakerLanguage
+    )
+
     yield* notificationRepo.create({
       userId: delegation.caretakerId,
       type: 'delegation_canceled',
-      title: 'Delegation canceled',
-      body: `${ownerName} canceled the care delegation`,
+      title,
+      body,
       scheduledAt: new Date(),
     })
 
