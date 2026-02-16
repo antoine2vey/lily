@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
@@ -13,6 +14,7 @@ import { AiService } from '@lily/api/services/ai/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
+import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { PlantsService } from '@lily/api/services/plants/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
@@ -65,10 +67,12 @@ export const PlantsApiLive = (api: Api) =>
         .handle('updatePlant', ({ path: { id }, payload }) =>
           plantsService
             .updatePlant({ ...payload, id })
-            .pipe(withInfraErrorsAsDefect)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('deletePlant', ({ path: { id } }) =>
-          plantsService.deletePlant({ id }).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .deletePlant({ id })
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('getPlantPhotos', ({ path: { id }, urlParams }) =>
           plantsService
@@ -82,17 +86,17 @@ export const PlantsApiLive = (api: Api) =>
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
           plantsService
             .uploadPlantPhoto({ plantId: id, files })
-            .pipe(withInfraErrorsAsDefect)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
           plantsService
             .deletePlantPhoto({ plantId: id, photoId })
-            .pipe(withInfraErrorsAsDefect)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('waterPlant', ({ path: { id }, payload }) =>
           plantsService
             .waterPlant({ ...payload, id })
-            .pipe(withInfraErrorsAsDefect)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('waterMultiplePlants', ({ payload }) =>
           plantsService
@@ -100,12 +104,15 @@ export const PlantsApiLive = (api: Api) =>
             .pipe(withInfraErrorsAsDefect)
         )
         .handle('fertilizePlant', ({ path: { id } }) =>
-          plantsService.fertilizePlant({ id }).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .fertilizePlant({ id })
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
     })
   ).pipe(
     Layer.provide(PlantsService.Default),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(DelegationRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
     Layer.provide(UserRepositoryLive),

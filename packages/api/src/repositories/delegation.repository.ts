@@ -128,6 +128,11 @@ export interface IDelegationRepository {
   readonly getPlantsByDelegation: (
     delegationId: string
   ) => Effect.Effect<DelegationPlantRow[], SqlError>
+
+  readonly hasActiveDelegationForPlant: (
+    userId: string,
+    plantId: string
+  ) => Effect.Effect<boolean, SqlError>
 }
 
 export class DelegationRepository extends Context.Tag('DelegationRepository')<
@@ -288,7 +293,7 @@ export const DelegationRepositoryLive = Layer.effect(
               startDate: careDelegations.startDate,
               endDate: careDelegations.endDate,
               plantCount:
-                sql<number>`(SELECT COUNT(*) FROM delegation_plants WHERE delegation_id = ${careDelegations.id})`.as(
+                sql<number>`(SELECT COUNT(*)::int FROM delegation_plants WHERE delegation_id = ${careDelegations.id})`.as(
                   'plant_count'
                 ),
               createdAt: careDelegations.createdAt,
@@ -437,6 +442,29 @@ export const DelegationRepositoryLive = Layer.effect(
 
           return rows as DelegationPlantRow[]
         }).pipe(Effect.withSpan('DelegationRepository.getPlantsByDelegation')),
+
+      hasActiveDelegationForPlant: (userId, plantId) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select({ id: careDelegations.id })
+            .from(careDelegations)
+            .innerJoin(
+              delegationPlants,
+              eq(careDelegations.id, delegationPlants.delegationId)
+            )
+            .where(
+              and(
+                eq(careDelegations.caretakerId, userId),
+                eq(delegationPlants.plantId, plantId),
+                eq(careDelegations.status, 'active')
+              )
+            )
+            .limit(1)
+
+          return rows.length > 0
+        }).pipe(
+          Effect.withSpan('DelegationRepository.hasActiveDelegationForPlant')
+        ),
     }
   })
 )
