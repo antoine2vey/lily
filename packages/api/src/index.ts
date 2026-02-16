@@ -17,6 +17,7 @@ import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
+import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
@@ -129,6 +130,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(NotificationsApiLive(Api)),
   Layer.provide(PlantsApiLive(Api)),
   Layer.provide(RoomsApiLive(Api)),
+  Layer.provide(DelegationApiLive(Api)),
   Layer.provide(SocialApiLive(Api)),
   Layer.provide(SubscriptionsApiLive(Api)),
   Layer.provide(SubscriptionWebhooksApiLive(Api)),

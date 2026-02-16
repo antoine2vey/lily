@@ -57,7 +57,8 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       )
     }
 
-    if (Array.isEmptyArray(request.plantIds)) {
+    const plantIds = request.plantIds as string[]
+    if (Array.isEmptyArray(plantIds)) {
       return yield* Effect.fail(
         new DelegationDateError({
           message: 'At least one plant must be selected',
@@ -66,7 +67,7 @@ export const createDelegation = (request: CreateDelegationRequest) =>
     }
 
     const overlapping = yield* delegationRepo.findOverlappingDelegations({
-      plantIds: request.plantIds,
+      plantIds,
       startDate,
       endDate,
     })
@@ -85,7 +86,7 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       message: request.message,
     })
 
-    yield* delegationRepo.addPlants(delegation.id, request.plantIds)
+    yield* delegationRepo.addPlants(delegation.id, plantIds)
 
     const detail = yield* delegationRepo.findById(delegation.id)
 

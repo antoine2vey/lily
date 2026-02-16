@@ -4,11 +4,11 @@ import { LimitExceededError } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 
 interface MockLimitCheckerOptions {
-  plantLimitReached?: boolean
-  aiChatLimitReached?: boolean
-  cardScanLimitReached?: boolean
-  plantIdentifyLimitReached?: boolean
-  delegationAccessDenied?: boolean
+  plantLimitReached?: boolean | undefined
+  aiChatLimitReached?: boolean | undefined
+  cardScanLimitReached?: boolean | undefined
+  plantIdentifyLimitReached?: boolean | undefined
+  delegationAccessDenied?: boolean | undefined
 }
 
 export const createMockLimitChecker = (

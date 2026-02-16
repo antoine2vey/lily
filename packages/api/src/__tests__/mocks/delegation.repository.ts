@@ -30,10 +30,10 @@ interface MockDelegationPlantLink {
 }
 
 interface MockDelegationRepositoryData {
-  delegations?: DelegationRow[]
-  delegationPlants?: MockDelegationPlantLink[]
-  users?: MockUser[]
-  plants?: MockPlant[]
+  delegations?: DelegationRow[] | undefined
+  delegationPlants?: MockDelegationPlantLink[] | undefined
+  users?: MockUser[] | undefined
+  plants?: MockPlant[] | undefined
 }
 
 export const createMockDelegationRepository = (

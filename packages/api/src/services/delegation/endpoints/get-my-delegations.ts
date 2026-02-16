@@ -4,10 +4,10 @@ import { paginate, parsePaginationParams } from '@lily/shared'
 import { Array, Effect, pipe, String } from 'effect'
 
 export const getMyDelegations = (params: {
-  page?: string
-  limit?: string
-  role?: string
-  status?: string
+  page?: string | undefined
+  limit?: string | undefined
+  role?: string | undefined
+  status?: string | undefined
 }) =>
   Effect.gen(function* () {
     const { id: currentUserId } = yield* CurrentUser
