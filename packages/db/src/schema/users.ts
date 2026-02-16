@@ -1,5 +1,6 @@
 import { userAchievements } from '@lily/db/schema/achievements'
 import { refreshTokens } from '@lily/db/schema/auth'
+import { careDelegations } from '@lily/db/schema/delegation'
 import {
   languageCodeEnum,
   userRoleEnum,
@@ -79,4 +80,10 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   followers: many(userFollows, { relationName: 'following' }),
   nudgesSent: many(userNudges, { relationName: 'nudgesSent' }),
   nudgesReceived: many(userNudges, { relationName: 'nudgesReceived' }),
+  delegationsAsOwner: many(careDelegations, {
+    relationName: 'delegationsAsOwner',
+  }),
+  delegationsAsCaretaker: many(careDelegations, {
+    relationName: 'delegationsAsCaretaker',
+  }),
 }))

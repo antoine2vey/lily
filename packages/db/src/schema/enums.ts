@@ -58,4 +58,13 @@ export const diagnosisStatusEnum = pgEnum('diagnosis_status', [
   'RESOLVED',
 ])
 
+export const delegationStatusEnum = pgEnum('delegation_status', [
+  'pending',
+  'accepted',
+  'rejected',
+  'active',
+  'completed',
+  'canceled',
+])
+
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
