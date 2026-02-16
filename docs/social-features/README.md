@@ -47,7 +47,7 @@ Social features for Lily in two phases:
 - [x] `v2-care-delegation/11-delegated-tasks-endpoint.md` — getDelegatedTasks + test
 - [x] `v2-care-delegation/12-limit-checker-gating.md` — checkDelegationAccess
 - [x] `v2-care-delegation/13-delegation-handlers-wiring.md` — Wire handlers + register
-- [ ] `v2-care-delegation/14-delegation-scheduler.md` — Auto-transitions background job
+- [x] `v2-care-delegation/14-delegation-scheduler.md` — Auto-transitions background job
 - [ ] `v2-care-delegation/15-delegation-notifications.md` — 5 event types + push messages
 - [ ] `v2-care-delegation/16-app-delegation-hooks.md` — All delegation hooks + query keys
 - [ ] `v2-care-delegation/17-delegation-create-screen.md` — DelegationCreateScreen + pickers
