@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
@@ -136,6 +137,7 @@ export const executePlantCare = (
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository

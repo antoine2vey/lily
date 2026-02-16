@@ -5,6 +5,7 @@ import {
   mockWeatherDataModerate,
   mockWeatherDataRainy,
 } from '@lily/api/__tests__/fixtures/weather'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -53,7 +54,8 @@ const buildLayers = ({
   Layer.mergeAll(
     createMockUserRepository([weatherUser]),
     createMockPlantRepository({ plants }),
-    createMockNotificationRepository(notifications)
+    createMockNotificationRepository(notifications),
+    createMockDelegationRepository()
   )
 
 describe('readjustCareSchedules', () => {

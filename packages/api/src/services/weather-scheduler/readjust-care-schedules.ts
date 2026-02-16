@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
@@ -35,7 +36,10 @@ export const readjustCareSchedules = (
 ): Effect.Effect<
   void,
   never,
-  PlantRepository | NotificationRepository | UserRepository
+  | PlantRepository
+  | NotificationRepository
+  | UserRepository
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     if (Array.isEmptyReadonlyArray(weatherUsers)) {
@@ -68,7 +72,10 @@ const readjustUserPlants = (
 ): Effect.Effect<
   void,
   SqlError,
-  PlantRepository | NotificationRepository | UserRepository
+  | PlantRepository
+  | NotificationRepository
+  | UserRepository
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     const latOption = Option.fromNullable(user.latitude)
@@ -154,7 +161,10 @@ const readjustPlantSchedule = (
 ): Effect.Effect<
   void,
   SqlError,
-  PlantRepository | NotificationRepository | UserRepository
+  | PlantRepository
+  | NotificationRepository
+  | UserRepository
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     // Skip plants without a last watering date or next watering date
