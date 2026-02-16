@@ -3,6 +3,7 @@ import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -59,11 +60,17 @@ export const followUser = (targetUserId: string) =>
       Option.getOrElse(() => 'Someone')
     )
 
+    const { title, body } = buildSimpleContent(
+      'new_follower',
+      { senderName: followerName },
+      targetUser.language
+    )
+
     yield* notificationRepo.create({
       userId: targetUserId,
       type: 'new_follower',
-      title: 'New follower',
-      body: `${followerName} started following you`,
+      title,
+      body,
       scheduledAt: new Date(),
     })
 

@@ -30,6 +30,26 @@ const mapNotificationTypeToTopic = (
     Match.when('fertilization_reminder', () =>
       Option.some('fertilization_reminder' as const)
     ),
+    Match.when('new_follower', () => Option.some('new_follower' as const)),
+    Match.when('nudge_to_water', () => Option.some('nudge_to_water' as const)),
+    Match.when('delegation_request', () =>
+      Option.some('delegation_request' as const)
+    ),
+    Match.when('delegation_accepted', () =>
+      Option.some('delegation_accepted' as const)
+    ),
+    Match.when('delegation_rejected', () =>
+      Option.some('delegation_rejected' as const)
+    ),
+    Match.when('delegation_canceled', () =>
+      Option.some('delegation_canceled' as const)
+    ),
+    Match.when('delegation_activated', () =>
+      Option.some('delegation_activated' as const)
+    ),
+    Match.when('delegation_completed', () =>
+      Option.some('delegation_completed' as const)
+    ),
     Match.orElse(() => Option.none())
   )
 
@@ -145,9 +165,6 @@ export const pollAndEnqueue = Effect.gen(function* () {
     const plantIds = Array.filterMap(group, (n) =>
       Option.fromNullable(n.plantId)
     )
-    const plantNames = Array.filterMap(plantIds, (id) =>
-      Option.fromNullable(plantNameMap.get(id))
-    )
 
     const user = userSettingsMap.get(userId)
     const language = Option.getOrElse(
@@ -155,7 +172,17 @@ export const pollAndEnqueue = Effect.gen(function* () {
       () => 'en' as const
     )
 
-    const { title, body } = buildNotificationContent(type, plantNames, language)
+    // Care reminders: resolve plant names and build translated content
+    // Simple notifications: use pre-built title/body from the DB record
+    const { title, body } = isCareReminderType(type)
+      ? buildNotificationContent(
+          type,
+          Array.filterMap(plantIds, (id) =>
+            Option.fromNullable(plantNameMap.get(id))
+          ),
+          language
+        )
+      : { title: first.value.title, body: first.value.body }
 
     yield* queue.enqueue(topic, {
       id: crypto.randomUUID(),

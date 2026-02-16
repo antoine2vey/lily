@@ -152,6 +152,14 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
 const validateTopic = Match.type<NotificationTopic>().pipe(
   Match.when('watering_reminder', () => true),
   Match.when('fertilization_reminder', () => true),
+  Match.when('new_follower', () => true),
+  Match.when('nudge_to_water', () => true),
+  Match.when('delegation_request', () => true),
+  Match.when('delegation_accepted', () => true),
+  Match.when('delegation_rejected', () => true),
+  Match.when('delegation_canceled', () => true),
+  Match.when('delegation_activated', () => true),
+  Match.when('delegation_completed', () => true),
   Match.exhaustive
 )
 

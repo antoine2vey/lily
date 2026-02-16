@@ -1,12 +1,27 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { Array, Effect } from 'effect'
+import { UserRepository } from '@lily/api/repositories/user.repository'
+import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { Array, Effect, Option } from 'effect'
 
 const POLL_INTERVAL = '5 minutes'
+
+const getUserLanguage = (
+  userRepo: { findById: (id: string) => Effect.Effect<any, any> },
+  userId: string
+) =>
+  Effect.gen(function* () {
+    const user = yield* userRepo.findById(userId)
+    return Option.getOrElse(
+      Option.fromNullable(user?.language),
+      () => 'en' as const
+    )
+  })
 
 export const pollAndTransition = Effect.gen(function* () {
   const delegationRepo = yield* DelegationRepository
   const notificationRepo = yield* NotificationRepository
+  const userRepo = yield* UserRepository
   const now = new Date()
 
   const toActivate = yield* delegationRepo.findAcceptedReadyToActivate(now)
@@ -14,18 +29,32 @@ export const pollAndTransition = Effect.gen(function* () {
     Effect.gen(function* () {
       yield* delegationRepo.updateStatus(d.id, 'active')
       const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+      const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
+      const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
+
+      const ownerContent = buildSimpleContent(
+        'delegation_activated',
+        { plantCount: plants.length },
+        ownerLang
+      )
+      const caretakerContent = buildSimpleContent(
+        'delegation_activated',
+        { plantCount: plants.length },
+        caretakerLang
+      )
+
       yield* notificationRepo.create({
         userId: d.ownerId,
         type: 'delegation_activated',
-        title: 'Delegation started',
-        body: `Care delegation for ${plants.length} plants has started`,
+        title: ownerContent.title,
+        body: ownerContent.body,
         scheduledAt: now,
       })
       yield* notificationRepo.create({
         userId: d.caretakerId,
         type: 'delegation_activated',
-        title: 'Delegation started',
-        body: `Care delegation for ${plants.length} plants has started`,
+        title: caretakerContent.title,
+        body: caretakerContent.body,
         scheduledAt: now,
       })
     })
@@ -42,18 +71,32 @@ export const pollAndTransition = Effect.gen(function* () {
         completedAt: now,
       })
       const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+      const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
+      const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
+
+      const ownerContent = buildSimpleContent(
+        'delegation_completed',
+        { plantCount: plants.length },
+        ownerLang
+      )
+      const caretakerContent = buildSimpleContent(
+        'delegation_completed',
+        { plantCount: plants.length },
+        caretakerLang
+      )
+
       yield* notificationRepo.create({
         userId: d.ownerId,
         type: 'delegation_completed',
-        title: 'Delegation ended',
-        body: `Care delegation for ${plants.length} plants has ended`,
+        title: ownerContent.title,
+        body: ownerContent.body,
         scheduledAt: now,
       })
       yield* notificationRepo.create({
         userId: d.caretakerId,
         type: 'delegation_completed',
-        title: 'Delegation ended',
-        body: `Care delegation for ${plants.length} plants has ended`,
+        title: caretakerContent.title,
+        body: caretakerContent.body,
         scheduledAt: now,
       })
     })

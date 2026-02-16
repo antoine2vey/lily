@@ -119,7 +119,8 @@ const DelegationSchedulerLive = Layer.scopedDiscard(
   })
 ).pipe(
   Layer.provide(DelegationRepositoryLive),
-  Layer.provide(NotificationRepositoryLive)
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive)
 )
 
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION

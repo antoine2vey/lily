@@ -3,8 +3,10 @@ import {
   mockDelegation2,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
+import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
@@ -29,7 +31,8 @@ const createLayer = (delegations: DelegationRow[]) =>
             ]
           : [],
     }),
-    createMockNotificationRepository(notifications)
+    createMockNotificationRepository(notifications),
+    createMockUserRepository([mockUser1, mockUser2])
   )
 
 describe('DelegationScheduler', () => {
@@ -126,7 +129,8 @@ describe('DelegationScheduler', () => {
             { delegationId: 'to-complete', plantId: 'plant-2' },
           ],
         }),
-        createMockNotificationRepository(notifications)
+        createMockNotificationRepository(notifications),
+        createMockUserRepository([mockUser1, mockUser2])
       )
 
       notifications.length = 0

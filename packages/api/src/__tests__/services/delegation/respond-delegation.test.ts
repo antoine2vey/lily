@@ -5,6 +5,7 @@ import {
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
@@ -45,6 +46,7 @@ const createLayer = (
   Layer.mergeAll(
     currentUser,
     createMockNotificationRepository(notifications),
+    createMockUserRepository([mockUser1, mockUser2]),
     createMockDelegationRepository({
       delegations,
       users: [
