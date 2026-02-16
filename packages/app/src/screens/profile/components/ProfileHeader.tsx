@@ -1,7 +1,8 @@
 import { type DateInput, formatMemberSince, parseApiDate } from '@lily/shared'
 import { Option, pipe, String } from 'effect'
+import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 
 interface ProfileHeaderProps {
@@ -9,6 +10,8 @@ interface ProfileHeaderProps {
   name: string
   username?: string
   memberSince: DateInput
+  followerCount: number
+  followingCount: number
 }
 
 export function ProfileHeader({
@@ -16,6 +19,8 @@ export function ProfileHeader({
   name,
   username,
   memberSince,
+  followerCount,
+  followingCount,
 }: ProfileHeaderProps) {
   const { t, i18n } = useTranslation('profile')
   const memberSinceFormatted = pipe(
@@ -67,6 +72,38 @@ export function ProfileHeader({
         <Text className="text-xs font-semibold text-text-muted dark:text-slate-400 tracking-wide">
           {t('memberSince', { date: memberSinceFormatted })}
         </Text>
+      </View>
+
+      <View className="flex-row justify-center gap-8 mt-4">
+        <Pressable
+          onPress={() => router.push('/followers/me' as const)}
+          className="items-center"
+        >
+          <Text
+            className="text-lg text-text-primary dark:text-white"
+            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+          >
+            {followerCount}
+          </Text>
+          <Text className="text-xs text-text-secondary dark:text-slate-400">
+            {t('followers')}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push('/following/me' as const)}
+          className="items-center"
+        >
+          <Text
+            className="text-lg text-text-primary dark:text-white"
+            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+          >
+            {followingCount}
+          </Text>
+          <Text className="text-xs text-text-secondary dark:text-slate-400">
+            {t('following')}
+          </Text>
+        </Pressable>
       </View>
     </View>
   )
