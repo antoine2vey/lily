@@ -6,7 +6,10 @@ import {
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import {
   AIIdentifyResponse,
   EnhancedPlantCreateRequest,
@@ -117,6 +120,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .setPayload(PlantUpdateRequest)
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -124,6 +128,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.del('deletePlant')`/${plantIdParam}`
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -146,6 +151,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       )
       .addSuccess(Schema.Void, { status: 201 })
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -156,6 +162,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     )`/${plantIdParam}/photos/${photoIdParam}`
       .addSuccess(Schema.Void)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -165,6 +172,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .setPayload(PlantWaterRequest)
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -172,6 +180,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.post('fertilizePlant')`/${plantIdParam}/fertilize`
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/plants')

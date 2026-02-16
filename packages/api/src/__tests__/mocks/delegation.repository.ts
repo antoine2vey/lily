@@ -281,6 +281,26 @@ export const createMockDelegationRepository = (
             )
         )
       ),
+
+    hasActiveDelegationForPlant: (userId, plantId) =>
+      Effect.succeed(
+        pipe(
+          dpLinks,
+          Array.some((link) => {
+            if (link.plantId !== plantId) return false
+            return pipe(
+              Array.findFirst(
+                delegations,
+                (d) =>
+                  d.id === link.delegationId &&
+                  d.caretakerId === userId &&
+                  d.status === 'active'
+              ),
+              Option.isSome
+            )
+          })
+        )
+      ),
   }
 
   return Layer.succeed(DelegationRepository, repo)

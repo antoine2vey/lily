@@ -1,9 +1,12 @@
 import * as SqlClient from '@effect/sql/SqlClient'
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { canAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
@@ -22,6 +25,8 @@ export const waterMultiplePlants = (
   | NotificationRepository
   | UserRepository
   | SqlClient.SqlClient
+  | CurrentUser
+  | DelegationRepository
 > =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
@@ -59,6 +64,19 @@ export const waterMultiplePlants = (
                   }),
                 onSome: (plant) =>
                   Effect.gen(function* () {
+                    const hasAccess = yield* canAccessPlant(
+                      plant.userId,
+                      plant.id
+                    )
+
+                    if (!hasAccess) {
+                      return {
+                        plantId,
+                        success: false,
+                        plant: undefined,
+                      }
+                    }
+
                     const nextWateringDt = DateTime.addDuration(
                       nowDt,
                       Duration.days(plant.wateringFrequencyDays)
