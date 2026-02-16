@@ -1,6 +1,8 @@
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { Effect, Logger, LogLevel } from 'effect'
@@ -17,19 +19,32 @@ const createFutureDate = (daysFromNow: number, hours = 12): Date => {
 // Helper to run scheduleCareReminder and check created notifications
 const runAndGetPendingNotifications = (
   params: Parameters<typeof scheduleCareReminder>[0],
-  user: ReturnType<typeof createTestUser>
-) =>
-  Effect.runPromise(
+  user: ReturnType<typeof createTestUser>,
+  options?: {
+    delegations?: DelegationRow[]
+    delegationPlants?: { delegationId: string; plantId: string }[]
+    extraUsers?: ReturnType<typeof createTestUser>[]
+  }
+) => {
+  const allUsers = [user, ...(options?.extraUsers ?? [])]
+  return Effect.runPromise(
     Effect.gen(function* () {
       yield* scheduleCareReminder(params)
       const repo = yield* NotificationRepository
       return yield* repo.findPendingByUserId(user.id)
     }).pipe(
       Effect.provide(createMockNotificationRepository([])),
-      Effect.provide(createMockUserRepository([user])),
+      Effect.provide(createMockUserRepository(allUsers)),
+      Effect.provide(
+        createMockDelegationRepository({
+          delegations: options?.delegations ?? [],
+          delegationPlants: options?.delegationPlants ?? [],
+        })
+      ),
       Logger.withMinimumLogLevel(LogLevel.None)
     )
   )
+}
 
 describe('scheduleCareReminder', () => {
   describe('careReminders enforcement', () => {
@@ -319,6 +334,252 @@ describe('scheduleCareReminder', () => {
       expect(pending).toHaveLength(1)
       // DND disabled, time stays at 23:00 even though it would be in DND window
       expect(pending[0]?.scheduledAt.getUTCHours()).toBe(23)
+    })
+  })
+
+  describe('delegation routing', () => {
+    const createActiveDelegation = (
+      ownerId: string,
+      caretakerId: string
+    ): DelegationRow => ({
+      id: 'delegation-1',
+      ownerId,
+      caretakerId,
+      status: 'active',
+      message: null,
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-12-31'),
+      respondedAt: null,
+      canceledAt: null,
+      completedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    it('should send notification to owner when no active delegation exists', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+
+      const pending = await runAndGetPendingNotifications(
+        {
+          plantId: 'plant-1',
+          plantName: 'Monstera',
+          userId: owner.id,
+          type: 'watering_reminder',
+          scheduledDate: createFutureDate(7),
+          remindersEnabled: true,
+        },
+        owner
+      )
+
+      expect(pending).toHaveLength(1)
+      expect(pending[0]?.userId).toBe(owner.id)
+    })
+
+    it('should send notification to caretaker when active delegation exists', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '10:00',
+        doNotDisturb: false,
+      })
+
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      // Run and check notifications for the caretaker
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(caretaker.id)
+        }).pipe(
+          Effect.provide(createMockNotificationRepository([])),
+          Effect.provide(createMockUserRepository([owner, caretaker])),
+          Effect.provide(
+            createMockDelegationRepository({
+              delegations: [delegation],
+              delegationPlants: [
+                { delegationId: delegation.id, plantId: 'plant-1' },
+              ],
+            })
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(pending).toHaveLength(1)
+      expect(pending[0]?.userId).toBe(caretaker.id)
+    })
+
+    it('should not send notification to owner when active delegation exists', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '10:00',
+        doNotDisturb: false,
+      })
+
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      // Check that owner has no pending notifications
+      const ownerPending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(owner.id)
+        }).pipe(
+          Effect.provide(createMockNotificationRepository([])),
+          Effect.provide(createMockUserRepository([owner, caretaker])),
+          Effect.provide(
+            createMockDelegationRepository({
+              delegations: [delegation],
+              delegationPlants: [
+                { delegationId: delegation.id, plantId: 'plant-1' },
+              ],
+            })
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(ownerPending).toHaveLength(0)
+    })
+
+    it('should respect caretaker DND settings when delegation is active', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '23:00',
+        doNotDisturb: true,
+        doNotDisturbStart: '22:00',
+        doNotDisturbEnd: '07:00',
+      })
+
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(caretaker.id)
+        }).pipe(
+          Effect.provide(createMockNotificationRepository([])),
+          Effect.provide(createMockUserRepository([owner, caretaker])),
+          Effect.provide(
+            createMockDelegationRepository({
+              delegations: [delegation],
+              delegationPlants: [
+                { delegationId: delegation.id, plantId: 'plant-1' },
+              ],
+            })
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(pending).toHaveLength(1)
+      // Caretaker's preferred time 23:00 is in DND window (22:00-07:00), adjusted to 07:00
+      expect(pending[0]?.scheduledAt.getUTCHours()).toBe(7)
+    })
+
+    it('should skip notification when caretaker has careReminders disabled', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        timezone: 'UTC',
+        preferredNotificationTime: '09:00',
+      })
+
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: false,
+        timezone: 'UTC',
+      })
+
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(caretaker.id)
+        }).pipe(
+          Effect.provide(createMockNotificationRepository([])),
+          Effect.provide(createMockUserRepository([owner, caretaker])),
+          Effect.provide(
+            createMockDelegationRepository({
+              delegations: [delegation],
+              delegationPlants: [
+                { delegationId: delegation.id, plantId: 'plant-1' },
+              ],
+            })
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      // Caretaker has careReminders disabled, no notification created
+      expect(pending).toHaveLength(0)
     })
   })
 })

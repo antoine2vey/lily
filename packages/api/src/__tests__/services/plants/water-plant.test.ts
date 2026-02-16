@@ -5,6 +5,7 @@ import {
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -22,6 +23,7 @@ describe('waterPlant', () => {
       createMockCareLogRepository(mockCareLogs),
       createMockNotificationRepository([]),
       createMockUserRepository(mockUsers),
+      createMockDelegationRepository(),
       createMockWeatherCache(),
       createMockWeatherProvider(),
       createMockWeatherRepository()
@@ -120,6 +122,7 @@ describe('waterPlant', () => {
             createMockCareLogRepository(mockCareLogs),
             createMockNotificationRepository([]),
             createMockUserRepository(mockUsers),
+            createMockDelegationRepository(),
             createMockWeatherCache(),
             createMockWeatherProvider(),
             createMockWeatherRepository()

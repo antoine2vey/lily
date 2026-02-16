@@ -301,6 +301,24 @@ export const createMockDelegationRepository = (
           })
         )
       ),
+
+    findActiveCaretakerForPlant: (plantId) =>
+      Effect.succeed(
+        pipe(
+          dpLinks,
+          Array.findFirst((link) => link.plantId === plantId),
+          Option.flatMap((link) =>
+            pipe(
+              Array.findFirst(
+                delegations,
+                (d) => d.id === link.delegationId && d.status === 'active'
+              ),
+              Option.map((d) => d.caretakerId)
+            )
+          ),
+          Option.getOrNull
+        )
+      ),
   }
 
   return Layer.succeed(DelegationRepository, repo)

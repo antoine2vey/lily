@@ -108,6 +108,7 @@ const WeatherSchedulerLive = Layer.scopedDiscard(
   Layer.provide(UserRepositoryLive),
   Layer.provide(PlantRepositoryLive),
   Layer.provide(NotificationRepositoryLive),
+  Layer.provide(DelegationRepositoryLive),
   Layer.provide(RedisClientLive)
 )
 

@@ -133,6 +133,10 @@ export interface IDelegationRepository {
     userId: string,
     plantId: string
   ) => Effect.Effect<boolean, SqlError>
+
+  readonly findActiveCaretakerForPlant: (
+    plantId: string
+  ) => Effect.Effect<string | null, SqlError>
 }
 
 export class DelegationRepository extends Context.Tag('DelegationRepository')<
@@ -464,6 +468,28 @@ export const DelegationRepositoryLive = Layer.effect(
           return rows.length > 0
         }).pipe(
           Effect.withSpan('DelegationRepository.hasActiveDelegationForPlant')
+        ),
+
+      findActiveCaretakerForPlant: (plantId) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select({ caretakerId: careDelegations.caretakerId })
+            .from(careDelegations)
+            .innerJoin(
+              delegationPlants,
+              eq(careDelegations.id, delegationPlants.delegationId)
+            )
+            .where(
+              and(
+                eq(delegationPlants.plantId, plantId),
+                eq(careDelegations.status, 'active')
+              )
+            )
+            .limit(1)
+
+          return rows.length > 0 ? rows[0]!.caretakerId : null
+        }).pipe(
+          Effect.withSpan('DelegationRepository.findActiveCaretakerForPlant')
         ),
     }
   })

@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { buildSinglePlantContent } from '@lily/api/services/notification-scheduler/translations'
@@ -7,7 +8,7 @@ import {
   calculateScheduledAt,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
-import { Effect } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 export type CareReminderType = 'watering_reminder' | 'fertilization_reminder'
 
@@ -34,7 +35,11 @@ export interface ScheduleCareReminderParams {
  */
 export const scheduleCareReminder = (
   params: ScheduleCareReminderParams
-): Effect.Effect<void, SqlError, NotificationRepository | UserRepository> =>
+): Effect.Effect<
+  void,
+  SqlError,
+  NotificationRepository | UserRepository | DelegationRepository
+> =>
   Effect.gen(function* () {
     const {
       plantId,
@@ -50,10 +55,19 @@ export const scheduleCareReminder = (
       return
     }
 
+    // Resolve the notification recipient: caretaker if delegated, owner otherwise
+    const delegationRepo = yield* DelegationRepository
+    const caretakerId =
+      yield* delegationRepo.findActiveCaretakerForPlant(plantId)
+    const recipientId = pipe(
+      Option.fromNullable(caretakerId),
+      Option.getOrElse(() => userId)
+    )
+
     const notificationRepo = yield* NotificationRepository
 
-    // Get user's timezone settings
-    const settings = yield* getUserNotificationSettings(userId)
+    // Get recipient's timezone settings
+    const settings = yield* getUserNotificationSettings(recipientId)
 
     // Skip if user has disabled care reminders globally
     if (!settings.careReminders) {
@@ -93,7 +107,7 @@ export const scheduleCareReminder = (
       title,
       body,
       scheduledAt: finalScheduledAt,
-      userId,
+      userId: recipientId,
       plantId,
     })
   })
@@ -107,7 +121,11 @@ export const scheduleCareReminder = (
  */
 export const scheduleCareReminders = (
   reminders: readonly ScheduleCareReminderParams[]
-): Effect.Effect<void, SqlError, NotificationRepository | UserRepository> =>
+): Effect.Effect<
+  void,
+  SqlError,
+  NotificationRepository | UserRepository | DelegationRepository
+> =>
   Effect.gen(function* () {
     yield* Effect.forEach(
       reminders,
