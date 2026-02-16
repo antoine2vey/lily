@@ -758,6 +758,63 @@ describe('LimitChecker', () => {
     })
   })
 
+  describe('checkDelegationAccess', () => {
+    it('should allow paid tier users to create delegations', async () => {
+      const subscription: typeof userSubscriptions.$inferSelect = {
+        id: 'sub-1',
+        userId: 'user-1',
+        tier: 'paid',
+        status: 'active',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: nowAsDate(),
+        currentPeriodEnd: dateFromNow({ days: 30 }),
+        externalSubscriptionId: 'sub_123',
+        externalCustomerId: 'cus_123',
+        provider: 'revenuecat',
+        productId: null,
+        store: null,
+        canceledAt: null,
+        createdAt: nowAsDate(),
+        updatedAt: nowAsDate(),
+      }
+
+      const testLayer = createTestLayers({
+        subscription,
+        tier: 'paid',
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkDelegationAccess('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isSuccess(result)).toBe(true)
+    })
+
+    it('should reject free tier users from creating delegations', async () => {
+      const testLayer = createTestLayers({
+        tier: 'free',
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkDelegationAccess('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+      )
+
+      expect(Exit.isFailure(result)).toBe(true)
+      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+        const error = result.cause.error as LimitExceededError
+        expect(error.feature).toBe('care_delegation')
+        expect(error.message).toContain('premium feature')
+      }
+    })
+  })
+
   describe('error message content', () => {
     it('should include helpful upgrade message', async () => {
       const testLayer = createTestLayers({

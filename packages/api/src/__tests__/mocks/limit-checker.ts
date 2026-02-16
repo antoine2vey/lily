@@ -8,6 +8,7 @@ interface MockLimitCheckerOptions {
   aiChatLimitReached?: boolean
   cardScanLimitReached?: boolean
   plantIdentifyLimitReached?: boolean
+  delegationAccessDenied?: boolean
 }
 
 export const createMockLimitChecker = (
@@ -18,6 +19,7 @@ export const createMockLimitChecker = (
     aiChatLimitReached = false,
     cardScanLimitReached = false,
     plantIdentifyLimitReached = false,
+    delegationAccessDenied = false,
   } = options
 
   const checker: ILimitChecker = {
@@ -65,6 +67,19 @@ export const createMockLimitChecker = (
               limit: 3,
               current: 3,
               message: 'Plant identify limit reached',
+            })
+          )
+        : Effect.void,
+
+    checkDelegationAccess: () =>
+      delegationAccessDenied
+        ? Effect.fail(
+            new LimitExceededError({
+              feature: 'care_delegation',
+              limit: 0,
+              current: 0,
+              message:
+                'Care delegation is a premium feature. Upgrade to create delegations.',
             })
           )
         : Effect.void,
