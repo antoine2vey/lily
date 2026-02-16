@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Option, pipe } from 'effect'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from 'src/components/Avatar'
@@ -40,6 +41,7 @@ export function CaretakerPicker({
   onSelect,
   onClear,
 }: CaretakerPickerProps) {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const [query, setQuery] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -71,7 +73,7 @@ export function CaretakerPicker({
           className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
         >
-          Caretaker
+          {t('caretakerPicker.label')}
         </Text>
         <View className="flex-row items-center rounded-2xl px-4 py-3 bg-surface dark:bg-surface-dark border-2 border-primary/50">
           <Avatar
@@ -92,7 +94,7 @@ export function CaretakerPicker({
           >
             {pipe(
               Option.fromNullable(selectedUser.name),
-              Option.getOrElse(() => 'Unknown')
+              Option.getOrElse(() => t('caretakerPicker.unknown'))
             )}
           </Text>
           <Pressable
@@ -151,7 +153,7 @@ export function CaretakerPicker({
         className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300"
         style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
       >
-        Caretaker
+        {t('caretakerPicker.label')}
       </Text>
       <View className="relative">
         <View className="flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50">
@@ -161,7 +163,7 @@ export function CaretakerPicker({
             onChangeText={setQuery}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-            placeholder="Search for a caretaker..."
+            placeholder={t('caretakerPicker.placeholder')}
             placeholderTextColor={iconColors.textMuted}
             className="flex-1 ml-2 text-base text-text-primary dark:text-white"
             autoCapitalize="none"
@@ -181,7 +183,7 @@ export function CaretakerPicker({
             ) : Arr.isEmptyArray(users) ? (
               <View className="p-4 items-center">
                 <Text className="text-sm text-text-muted dark:text-slate-400">
-                  No users found
+                  {t('caretakerPicker.noResults')}
                 </Text>
               </View>
             ) : (
@@ -207,7 +209,7 @@ export function CaretakerPicker({
                     <Text className="text-sm font-medium text-text-primary dark:text-white">
                       {pipe(
                         Option.fromNullable(user.name),
-                        Option.getOrElse(() => 'Unknown')
+                        Option.getOrElse(() => t('caretakerPicker.unknown'))
                       )}
                     </Text>
                   </View>
@@ -223,7 +225,7 @@ export function CaretakerPicker({
             className="absolute top-14 left-0 right-0 z-10 rounded-xl bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 shadow-lg max-h-60 overflow-hidden"
           >
             <Text className="text-xs uppercase px-3 pt-3 pb-1 font-medium text-text-muted dark:text-slate-400">
-              Suggested
+              {t('caretakerPicker.suggested')}
             </Text>
             {Arr.map(suggestedUsers, (user) => (
               <Pressable
@@ -247,7 +249,7 @@ export function CaretakerPicker({
                   <Text className="text-sm font-medium text-text-primary dark:text-white">
                     {pipe(
                       Option.fromNullable(user.name),
-                      Option.getOrElse(() => 'Unknown')
+                      Option.getOrElse(() => t('caretakerPicker.unknown'))
                     )}
                   </Text>
                 </View>

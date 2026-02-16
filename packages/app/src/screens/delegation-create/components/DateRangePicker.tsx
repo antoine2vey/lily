@@ -3,6 +3,7 @@ import { formatShortDate, nowAsDate, parseApiDate } from '@lily/shared'
 import { Calendar, toDateId } from '@marceloterreiro/flash-calendar'
 import { Option, pipe } from 'effect'
 import { useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -22,6 +23,7 @@ export function DateRangePicker({
   onEndDateChange,
   error,
 }: DateRangePickerProps) {
+  const { t, i18n } = useTranslation('delegations')
   const iconColors = useIconColors()
   const calendarTheme = useCalendarTheme()
   const isSelectingEnd = useRef(false)
@@ -60,7 +62,7 @@ export function DateRangePicker({
       Option.fromNullable(dateId),
       Option.flatMap((id) => parseApiDate(id)),
       Option.map((dt) => formatShortDate(dt)),
-      Option.getOrElse(() => 'Select date')
+      Option.getOrElse(() => t('dateRange.selectDate'))
     )
 
   return (
@@ -69,7 +71,7 @@ export function DateRangePicker({
         className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300"
         style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
       >
-        Date Range
+        {t('dateRange.label')}
       </Text>
 
       {/* Selected range summary */}
@@ -82,7 +84,7 @@ export function DateRangePicker({
           />
           <View className="flex-1 ml-2">
             <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-              Start
+              {t('dateRange.start')}
             </Text>
             <Text
               className={`text-sm font-medium ${
@@ -100,7 +102,7 @@ export function DateRangePicker({
           <MaterialIcons name="event" size={18} color={iconColors.primary} />
           <View className="flex-1 ml-2">
             <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-              End
+              {t('dateRange.end')}
             </Text>
             <Text
               className={`text-sm font-medium ${
@@ -129,6 +131,7 @@ export function DateRangePicker({
           onCalendarDayPress={handleDayPress}
           calendarMinDateId={tomorrowId}
           calendarInitialMonthId={tomorrowId}
+          calendarFormatLocale={i18n.language}
           theme={calendarTheme}
         />
       </View>

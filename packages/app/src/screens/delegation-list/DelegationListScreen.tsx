@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -15,41 +16,17 @@ import { DelegationListSkeleton } from 'src/screens/delegation-list/components/D
 
 type FilterRole = 'both' | 'owner' | 'caretaker'
 
-interface FilterOption {
-  key: FilterRole
-  label: string
-}
-
-const filterOptions: ReadonlyArray<FilterOption> = [
-  { key: 'both', label: 'All' },
-  { key: 'owner', label: 'My Plants' },
-  { key: 'caretaker', label: 'Caring For' },
-]
-
-const getEmptyStateConfig = (filter: FilterRole) =>
-  pipe(
-    Match.value(filter),
-    Match.when('both', () => ({
-      title: 'No delegations yet',
-      description:
-        'Delegate your plant care to friends when you travel, or help them care for theirs.',
-    })),
-    Match.when('owner', () => ({
-      title: 'No plant delegations',
-      description:
-        'You have not delegated any of your plants to someone else yet.',
-    })),
-    Match.when('caretaker', () => ({
-      title: 'Not caring for any plants',
-      description: 'No one has asked you to care for their plants yet.',
-    })),
-    Match.exhaustive
-  )
-
 export function DelegationListScreen() {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const [activeFilter, setActiveFilter] = useState<FilterRole>('both')
+
+  const filterOptions: ReadonlyArray<{ key: FilterRole; label: string }> = [
+    { key: 'both', label: t('filter.all') },
+    { key: 'owner', label: t('filter.myPlants') },
+    { key: 'caretaker', label: t('filter.caringFor') },
+  ]
 
   const { data, isLoading, isRefetching, refetch } = useMyDelegations({
     role: activeFilter,
@@ -69,7 +46,22 @@ export function DelegationListScreen() {
     router.push(`/delegation/${delegationId}`)
   }, [])
 
-  const emptyConfig = getEmptyStateConfig(activeFilter)
+  const emptyConfig = pipe(
+    Match.value(activeFilter),
+    Match.when('both', () => ({
+      title: t('empty.both.title'),
+      description: t('empty.both.description'),
+    })),
+    Match.when('owner', () => ({
+      title: t('empty.owner.title'),
+      description: t('empty.owner.description'),
+    })),
+    Match.when('caretaker', () => ({
+      title: t('empty.caretaker.title'),
+      description: t('empty.caretaker.description'),
+    })),
+    Match.exhaustive
+  )
 
   const renderItem = useCallback(
     ({ item }: { item: (typeof delegations)[number] }) => (
@@ -104,7 +96,7 @@ export function DelegationListScreen() {
           className="text-lg font-bold text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
         >
-          Delegations
+          {t('title')}
         </Text>
         <Pressable
           onPress={() => router.push('/delegation-create')}
@@ -149,7 +141,7 @@ export function DelegationListScreen() {
                 title={emptyConfig.title}
                 description={emptyConfig.description}
                 action={{
-                  label: 'Create Delegation',
+                  label: t('createDelegation'),
                   onPress: () => router.push('/delegation-create'),
                 }}
               />

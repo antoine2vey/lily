@@ -349,6 +349,7 @@ export function LogCareSheet({
                 ]}
                 onCalendarDayPress={handleCalendarDayPress}
                 calendarMaxDateId={todayId}
+                calendarFormatLocale={i18n.language}
                 theme={calendarTheme}
               />
             </View>

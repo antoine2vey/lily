@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,6 +21,7 @@ import { DelegationPlantList } from 'src/screens/delegation-detail/components/De
 import { DelegationStatusBadge } from 'src/screens/delegation-detail/components/DelegationStatusBadge'
 
 export function DelegationDetailScreen() {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const { delegationId } = useLocalSearchParams<{ delegationId: string }>()
@@ -48,8 +50,8 @@ export function DelegationDetailScreen() {
     respond(
       { path: { delegationId }, payload: { accept: true } },
       {
-        onSuccess: () => toast.success('Delegation accepted!'),
-        onError: () => toast.error('Failed to accept delegation'),
+        onSuccess: () => toast.success(t('toast.accepted')),
+        onError: () => toast.error(t('toast.acceptFailed')),
       }
     )
   }
@@ -60,10 +62,10 @@ export function DelegationDetailScreen() {
       { path: { delegationId }, payload: { accept: false } },
       {
         onSuccess: () => {
-          toast.success('Delegation declined')
+          toast.success(t('toast.declined'))
           router.back()
         },
-        onError: () => toast.error('Failed to decline delegation'),
+        onError: () => toast.error(t('toast.declineFailed')),
       }
     )
   }
@@ -74,10 +76,10 @@ export function DelegationDetailScreen() {
       { path: { delegationId } },
       {
         onSuccess: () => {
-          toast.success('Delegation canceled')
+          toast.success(t('toast.canceled'))
           router.back()
         },
-        onError: () => toast.error('Failed to cancel delegation'),
+        onError: () => toast.error(t('toast.cancelFailed')),
       }
     )
   }
@@ -87,8 +89,8 @@ export function DelegationDetailScreen() {
     complete(
       { path: { delegationId } },
       {
-        onSuccess: () => toast.success('Delegation completed!'),
-        onError: () => toast.error('Failed to complete delegation'),
+        onSuccess: () => toast.success(t('toast.completed')),
+        onError: () => toast.error(t('toast.completeFailed')),
       }
     )
   }
@@ -101,7 +103,7 @@ export function DelegationDetailScreen() {
     pipe(
       parseApiDate(date),
       Option.map(formatShortDate),
-      Option.getOrElse(() => 'Unknown')
+      Option.getOrElse(() => t('detail.unknownDate'))
     )
 
   return (
@@ -125,7 +127,7 @@ export function DelegationDetailScreen() {
           className="flex-1 text-lg text-center font-bold text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
         >
-          Delegation Details
+          {t('detail.title')}
         </Text>
         <View className="w-10" />
       </View>
@@ -157,13 +159,13 @@ export function DelegationDetailScreen() {
                     )}
                     name={pipe(
                       Option.fromNullable(delegation.ownerName),
-                      Option.getOrElse(() => 'Owner')
+                      Option.getOrElse(() => t('detail.plantOwner'))
                     )}
                     size="lg"
                   />
                   <View className="flex-1 ml-3">
                     <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-                      Plant Owner
+                      {t('detail.plantOwner')}
                     </Text>
                     <Text
                       className="text-base font-semibold text-text-primary dark:text-white"
@@ -171,10 +173,13 @@ export function DelegationDetailScreen() {
                     >
                       {pipe(
                         Option.fromNullable(delegation.ownerName),
-                        Option.getOrElse(() => 'Unknown')
+                        Option.getOrElse(() => t('card.unknown'))
                       )}
                       {delegation.ownerId === currentUserId && (
-                        <Text className="text-sm text-text-muted"> (You)</Text>
+                        <Text className="text-sm text-text-muted">
+                          {' '}
+                          {t('detail.you')}
+                        </Text>
                       )}
                     </Text>
                   </View>
@@ -199,13 +204,13 @@ export function DelegationDetailScreen() {
                     )}
                     name={pipe(
                       Option.fromNullable(delegation.caretakerName),
-                      Option.getOrElse(() => 'Caretaker')
+                      Option.getOrElse(() => t('detail.caretaker'))
                     )}
                     size="lg"
                   />
                   <View className="flex-1 ml-3">
                     <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-                      Caretaker
+                      {t('detail.caretaker')}
                     </Text>
                     <Text
                       className="text-base font-semibold text-text-primary dark:text-white"
@@ -213,10 +218,13 @@ export function DelegationDetailScreen() {
                     >
                       {pipe(
                         Option.fromNullable(delegation.caretakerName),
-                        Option.getOrElse(() => 'Unknown')
+                        Option.getOrElse(() => t('card.unknown'))
                       )}
                       {delegation.caretakerId === currentUserId && (
-                        <Text className="text-sm text-text-muted"> (You)</Text>
+                        <Text className="text-sm text-text-muted">
+                          {' '}
+                          {t('detail.you')}
+                        </Text>
                       )}
                     </Text>
                   </View>
@@ -227,7 +235,7 @@ export function DelegationDetailScreen() {
               <View className="flex-row gap-3">
                 <View className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-                    Start Date
+                    {t('detail.startDate')}
                   </Text>
                   <Text
                     className="text-sm mt-1 font-semibold text-text-primary dark:text-white"
@@ -238,7 +246,7 @@ export function DelegationDetailScreen() {
                 </View>
                 <View className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-                    End Date
+                    {t('detail.endDate')}
                   </Text>
                   <Text
                     className="text-sm mt-1 font-semibold text-text-primary dark:text-white"
@@ -253,7 +261,7 @@ export function DelegationDetailScreen() {
               {delegation.message && (
                 <View className="p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
-                    Message
+                    {t('detail.message')}
                   </Text>
                   <Text className="text-sm mt-1 text-text-primary dark:text-white leading-relaxed">
                     {delegation.message}
@@ -291,7 +299,7 @@ export function DelegationDetailScreen() {
             color={iconColors.textMuted}
           />
           <Text className="text-base mt-4 text-text-muted dark:text-slate-400">
-            Delegation not found
+            {t('detail.notFound')}
           </Text>
         </View>
       )}

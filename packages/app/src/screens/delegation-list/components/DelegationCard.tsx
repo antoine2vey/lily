@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { Avatar } from 'src/components/Avatar'
 import { useAuth } from 'src/contexts/AuthContext'
@@ -34,6 +35,7 @@ interface DelegationCardProps {
 }
 
 export function DelegationCard({ delegation, onPress }: DelegationCardProps) {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const { state: authState } = useAuth()
 
@@ -45,29 +47,29 @@ export function DelegationCard({ delegation, onPress }: DelegationCardProps) {
   const otherPersonName = isOwner
     ? pipe(
         Option.fromNullable(delegation.caretakerName),
-        Option.getOrElse(() => 'Unknown')
+        Option.getOrElse(() => t('card.unknown'))
       )
     : pipe(
         Option.fromNullable(delegation.ownerName),
-        Option.getOrElse(() => 'Unknown')
+        Option.getOrElse(() => t('card.unknown'))
       )
 
   const otherPersonImage = isOwner
     ? delegation.caretakerImage
     : delegation.ownerImage
 
-  const roleLabel = isOwner ? 'Caretaker' : 'Owner'
+  const roleLabel = isOwner ? t('card.caretaker') : t('card.owner')
 
   const startDateFormatted = pipe(
     parseApiDate(delegation.startDate),
     Option.map(formatShortDate),
-    Option.getOrElse(() => 'Unknown')
+    Option.getOrElse(() => t('detail.unknownDate'))
   )
 
   const endDateFormatted = pipe(
     parseApiDate(delegation.endDate),
     Option.map(formatShortDate),
-    Option.getOrElse(() => 'Unknown')
+    Option.getOrElse(() => t('detail.unknownDate'))
   )
 
   return (
@@ -122,8 +124,7 @@ export function DelegationCard({ delegation, onPress }: DelegationCardProps) {
         <View className="flex-row items-center">
           <MaterialIcons name="eco" size={14} color={iconColors.primary} />
           <Text className="text-xs ml-1 text-text-muted dark:text-slate-400">
-            {delegation.plantCount}{' '}
-            {delegation.plantCount === 1 ? 'plant' : 'plants'}
+            {t('card.plantCount', { count: delegation.plantCount })}
           </Text>
         </View>
       </View>

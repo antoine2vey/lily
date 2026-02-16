@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Array as Arr, Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from 'src/components/Avatar'
@@ -23,13 +24,14 @@ export function DelegationPlantList({
   plants,
   onPlantPress,
 }: DelegationPlantListProps) {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
 
   if (Arr.isEmptyArray([...plants])) {
     return (
       <View className="items-center py-6">
         <Text className="text-sm text-text-muted dark:text-slate-400">
-          No plants in this delegation
+          {t('plants.empty')}
         </Text>
       </View>
     )
@@ -41,7 +43,7 @@ export function DelegationPlantList({
         className="text-sm ml-1 font-semibold text-text-secondary dark:text-slate-300"
         style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
       >
-        Plants ({plants.length})
+        {t('plants.titleWithCount', { count: plants.length })}
       </Text>
       <Animated.View entering={FadeIn.duration(300)} className="gap-2">
         {Arr.map(plants, (plant) => {
@@ -49,7 +51,7 @@ export function DelegationPlantList({
             Option.fromNullable(plant.nextWateringAt),
             Option.flatMap(parseApiDate),
             Option.map(formatShortDate),
-            Option.getOrElse(() => 'No schedule')
+            Option.getOrElse(() => t('plants.noSchedule'))
           )
 
           return (

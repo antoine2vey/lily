@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from 'src/components/Avatar'
@@ -43,6 +44,7 @@ export function PlantSelector({
   onSelectAll,
   onDeselectAll,
 }: PlantSelectorProps) {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const { data: plantsData, isLoading } = usePlants({ limit: '100' })
 
@@ -78,14 +80,17 @@ export function PlantSelector({
           className="text-sm font-semibold text-text-secondary dark:text-slate-300"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
         >
-          Plants ({selectedPlantIds.length}/{plants.length})
+          {t('plants.selectCount', {
+            selected: selectedPlantIds.length,
+            total: plants.length,
+          })}
         </Text>
         <Pressable
           onPress={allSelected ? onDeselectAll : onSelectAll}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text className="text-sm text-primary font-medium">
-            {allSelected ? 'Deselect All' : 'Select All'}
+            {allSelected ? t('plants.deselectAll') : t('plants.selectAll')}
           </Text>
         </Pressable>
       </View>
@@ -94,7 +99,7 @@ export function PlantSelector({
         <View className="p-6 items-center rounded-2xl bg-surface dark:bg-surface-dark">
           <MaterialIcons name="eco" size={32} color={iconColors.textMuted} />
           <Text className="text-sm mt-2 text-text-muted dark:text-slate-400">
-            No plants to delegate
+            {t('plants.noPlants')}
           </Text>
         </View>
       ) : (

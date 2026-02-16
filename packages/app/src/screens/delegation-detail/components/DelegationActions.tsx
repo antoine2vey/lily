@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -58,16 +59,16 @@ export function DelegationActions({
   isCanceling,
   isCompleting,
 }: DelegationActionsProps) {
+  const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
   const [modal, setModal] = useState<ModalConfig>(defaultModal)
 
   const showCancelModal = () =>
     setModal({
       visible: true,
-      title: 'Cancel Delegation',
-      message:
-        'Are you sure you want to cancel this delegation? This action cannot be undone.',
-      confirmLabel: 'Cancel Delegation',
+      title: t('modals.cancel.title'),
+      message: t('modals.cancel.message'),
+      confirmLabel: t('modals.cancel.confirm'),
       destructive: true,
       onConfirm: () => {
         onCancel()
@@ -78,9 +79,9 @@ export function DelegationActions({
   const showRejectModal = () =>
     setModal({
       visible: true,
-      title: 'Decline Request',
-      message: 'Are you sure you want to decline this care request?',
-      confirmLabel: 'Decline',
+      title: t('modals.decline.title'),
+      message: t('modals.decline.message'),
+      confirmLabel: t('modals.decline.confirm'),
       destructive: true,
       onConfirm: () => {
         onReject()
@@ -91,10 +92,9 @@ export function DelegationActions({
   const showCompleteModal = () =>
     setModal({
       visible: true,
-      title: 'Complete Delegation',
-      message:
-        'Mark this delegation as completed? The caretaker will be notified.',
-      confirmLabel: 'Complete',
+      title: t('modals.complete.title'),
+      message: t('modals.complete.message'),
+      confirmLabel: t('modals.complete.confirm'),
       destructive: false,
       onConfirm: () => {
         onComplete()
@@ -118,7 +118,7 @@ export function DelegationActions({
               className="text-white text-base text-center font-semibold"
               style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
             >
-              Accept Request
+              {t('actions.acceptRequest')}
             </Text>
           )}
         </Pressable>
@@ -134,7 +134,7 @@ export function DelegationActions({
               className="text-coral text-base text-center font-semibold"
               style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
             >
-              Decline
+              {t('actions.decline')}
             </Text>
           )}
         </Pressable>
@@ -153,7 +153,7 @@ export function DelegationActions({
             className="text-coral text-base text-center font-semibold"
             style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           >
-            Cancel Request
+            {t('actions.cancelRequest')}
           </Text>
         )}
       </Pressable>
@@ -171,7 +171,7 @@ export function DelegationActions({
             className="text-coral text-base text-center font-semibold"
             style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           >
-            Cancel Delegation
+            {t('actions.cancelDelegation')}
           </Text>
         )}
       </Pressable>
@@ -190,7 +190,7 @@ export function DelegationActions({
               className="text-white text-base text-center font-semibold"
               style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
             >
-              Complete Delegation
+              {t('actions.completeDelegation')}
             </Text>
           )}
         </Pressable>
@@ -206,7 +206,7 @@ export function DelegationActions({
               className="text-coral text-base text-center font-semibold"
               style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
             >
-              Cancel Delegation
+              {t('actions.cancelDelegation')}
             </Text>
           )}
         </Pressable>
@@ -217,7 +217,7 @@ export function DelegationActions({
         <View className="flex-row items-center">
           <MaterialIcons name="eco" size={20} color={iconColors.primary} />
           <Text className="flex-1 ml-2 text-sm text-primary dark:text-primary-light font-medium">
-            You are currently caring for these plants
+            {t('actions.caringMessage')}
           </Text>
         </View>
       </View>
@@ -233,7 +233,7 @@ export function DelegationActions({
         title={modal.title}
         message={modal.message}
         confirmLabel={modal.confirmLabel}
-        cancelLabel="Go Back"
+        cancelLabel={t('actions.goBack')}
         destructive={modal.destructive}
         onConfirm={modal.onConfirm}
         onCancel={() => setModal(defaultModal)}
