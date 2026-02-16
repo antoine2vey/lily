@@ -168,13 +168,7 @@ export const FollowRepositoryLive = Layer.effect(
           const countResult = yield* db
             .select({ value: count() })
             .from(userFollows)
-            .innerJoin(users, eq(userFollows.followerId, users.id))
-            .where(
-              and(
-                eq(userFollows.followingId, params.userId),
-                eq(users.publicProfile, true)
-              )
-            )
+            .where(eq(userFollows.followingId, params.userId))
           const total = extractCount(countResult)
 
           const rows = yield* db
@@ -338,25 +332,29 @@ export const FollowRepositoryLive = Layer.effect(
 
       getPublicProfile: (params) =>
         Effect.gen(function* () {
-          const followerCountSql = sql<number>`(
-            SELECT count(*)::int FROM user_follows
-            WHERE following_id = ${users.id}
-          )`
-          const followingCountSql = sql<number>`(
-            SELECT count(*)::int FROM user_follows
-            WHERE follower_id = ${users.id}
-          )`
-
           const [row] = yield* db
             .select({
               id: users.id,
               name: users.name,
               image: users.image,
               bio: users.bio,
-              plantCount: plantCountSubquery(),
-              followerCount: followerCountSql,
-              followingCount: followingCountSql,
-              isFollowing: isFollowingSubquery(params.currentUserId),
+              plantCount: sql<number>`(
+                SELECT count(*)::int FROM plants
+                WHERE plants.user_id = ${params.targetUserId}
+              )`,
+              followerCount: sql<number>`(
+                SELECT count(*)::int FROM user_follows
+                WHERE following_id = ${params.targetUserId}
+              )`,
+              followingCount: sql<number>`(
+                SELECT count(*)::int FROM user_follows
+                WHERE follower_id = ${params.targetUserId}
+              )`,
+              isFollowing: sql<boolean>`EXISTS (
+                SELECT 1 FROM user_follows
+                WHERE follower_id = ${params.currentUserId}
+                AND following_id = ${params.targetUserId}
+              )`,
               shareGrowthData: users.shareGrowthData,
               publicProfile: users.publicProfile,
               createdAt: users.createdAt,

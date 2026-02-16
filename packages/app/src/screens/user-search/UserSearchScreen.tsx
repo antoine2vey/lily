@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe, String } from 'effect'
+import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
@@ -15,6 +16,7 @@ import { UserSearchSkeleton } from './components/UserSearchSkeleton'
 
 export function UserSearchScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const iconColors = useIconColors()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
@@ -100,12 +102,24 @@ export function UserSearchScreen() {
       style={{ paddingTop: insets.top }}
     >
       <View className="px-4 pt-2 pb-3">
-        <Text
-          className="text-2xl text-text-primary dark:text-white mb-3"
-          style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-        >
-          Find Friends
-        </Text>
+        <View className="flex-row items-center mb-3">
+          <Pressable
+            onPress={() => router.back()}
+            className="w-10 h-10 items-center justify-center rounded-full"
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={24}
+              color={iconColors.textPrimary}
+            />
+          </Pressable>
+          <Text
+            className="flex-1 text-lg text-text-primary dark:text-white text-center mr-10"
+            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+          >
+            Find Friends
+          </Text>
+        </View>
 
         <View className="flex-row items-center gap-2 px-4 py-3 bg-input-bg dark:bg-slate-800 rounded-xl">
           <MaterialIcons name="search" size={20} color={iconColors.textMuted} />
@@ -133,7 +147,7 @@ export function UserSearchScreen() {
         </View>
       </View>
 
-      {!isSearching && (
+      {!isSearching && !Array.isEmptyArray(currentData as unknown[]) && (
         <View className="px-4 pt-2 pb-1">
           <Text
             className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide"
@@ -171,7 +185,13 @@ export function UserSearchScreen() {
                   title="No users found"
                   description="Try searching with a different name"
                 />
-              ) : null
+              ) : (
+                <EmptyState
+                  illustration="search"
+                  title="No suggestions yet"
+                  description="Search for people by name to find and follow other plant lovers"
+                />
+              )
             }
           />
         </Animated.View>

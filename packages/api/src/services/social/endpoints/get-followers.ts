@@ -2,7 +2,7 @@ import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { PaginationParams } from '@lily/shared'
 import { parsePaginationParams } from '@lily/shared'
-import { Effect } from 'effect'
+import { Array, Effect } from 'effect'
 
 export const getFollowers = (params: PaginationParams) =>
   Effect.gen(function* () {
@@ -22,6 +22,6 @@ export const getFollowers = (params: PaginationParams) =>
       total,
       page,
       limit,
-      hasMore: page * limit < total,
+      hasMore: Array.length(items) === limit,
     }
   }).pipe(Effect.withSpan('SocialService.getFollowers'))
