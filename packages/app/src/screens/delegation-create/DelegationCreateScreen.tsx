@@ -41,8 +41,8 @@ export function DelegationCreateScreen() {
   const [selectedPlantIds, setSelectedPlantIds] = useState<
     ReadonlyArray<string>
   >([])
-  const [startDate, setStartDate] = useState<Date | null>(null)
-  const [endDate, setEndDate] = useState<Date | null>(null)
+  const [startDate, setStartDate] = useState<string | null>(null)
+  const [endDate, setEndDate] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [formError, setFormError] = useState<FormError>(null)
 
@@ -84,12 +84,12 @@ export function DelegationCreateScreen() {
         plantIds: [...selectedPlantIds] as string[],
         startDate: pipe(
           Option.fromNullable(startDate),
-          Option.map((d) => d.toISOString()),
+          Option.map((d) => `${d}T00:00:00.000Z`),
           Option.getOrElse(() => nowAsIsoString())
         ),
         endDate: pipe(
           Option.fromNullable(endDate),
-          Option.map((d) => d.toISOString()),
+          Option.map((d) => `${d}T00:00:00.000Z`),
           Option.getOrElse(() => nowAsIsoString())
         ),
         ...(message.length > 0 ? { message } : {}),

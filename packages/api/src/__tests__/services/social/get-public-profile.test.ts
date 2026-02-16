@@ -1,5 +1,6 @@
 import {
   mockFollowUser1,
+  mockFollowUser1Plants,
   mockFollowUsers,
   mockPrivateUser,
 } from '@lily/api/__tests__/fixtures/follows'
@@ -85,5 +86,19 @@ describe('getPublicProfile', () => {
       getPublicProfile(mockFollowUser1.id).pipe(Effect.provide(buildLayer()))
     )
     expect(result.shareGrowthData).toBe(mockFollowUser1.shareGrowthData)
+  })
+
+  it('should include recentPlants from the user', async () => {
+    const result = await Effect.runPromise(
+      getPublicProfile(mockFollowUser1.id).pipe(Effect.provide(buildLayer()))
+    )
+    expect(result.recentPlants).toEqual(mockFollowUser1Plants)
+  })
+
+  it('should return empty recentPlants for user with no plants', async () => {
+    const result = await Effect.runPromise(
+      getPublicProfile('follow-user-3').pipe(Effect.provide(buildLayer()))
+    )
+    expect(result.recentPlants).toEqual([])
   })
 })

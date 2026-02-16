@@ -19,6 +19,7 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { usePublicProfile } from 'src/hooks/usePublicProfile'
 import { useSendNudge } from 'src/hooks/useSendNudge'
 import { useUnfollowUser } from 'src/hooks/useUnfollowUser'
+import { PlantGrid } from './components/PlantGrid'
 import { ProfileStats } from './components/ProfileStats'
 import { PublicProfileSkeleton } from './components/PublicProfileSkeleton'
 
@@ -182,6 +183,10 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
                   },
                 ]}
               />
+            </View>
+
+            <View className="mt-6">
+              <PlantGrid plants={profile.recentPlants ?? []} />
             </View>
 
             <View className="mt-6 px-4 gap-3">

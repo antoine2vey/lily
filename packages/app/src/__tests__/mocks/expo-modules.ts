@@ -122,6 +122,45 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 // @react-native-community/datetimepicker
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker')
 
+// @marceloterreiro/flash-calendar
+jest.mock('@marceloterreiro/flash-calendar', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  const Calendar = (props: Record<string, unknown>) =>
+    React.createElement(View, { testID: 'flash-calendar', ...props })
+  Calendar.List = (props: Record<string, unknown>) =>
+    React.createElement(View, { testID: 'flash-calendar-list', ...props })
+
+  return {
+    Calendar,
+    toDateId: (date: Date) => date.toISOString().split('T')[0],
+    fromDateId: (id: string) => new Date(`${id}T00:00:00.000Z`),
+    useDateRange: ({
+      startId,
+      endId,
+      onCalendarDayPress,
+    }: Record<string, unknown>) => ({
+      calendarActiveDateRanges: startId
+        ? [{ startId, endId: endId ?? startId }]
+        : [],
+      onCalendarDayPress: onCalendarDayPress ?? jest.fn(),
+      dateRange: { startId: startId ?? undefined, endId: endId ?? undefined },
+      isDateRangeValid: Boolean(startId && endId),
+      onClearDateRange: jest.fn(),
+    }),
+  }
+})
+
+// @shopify/flash-list
+jest.mock('@shopify/flash-list', () => {
+  const { FlatList } = require('react-native')
+  return {
+    FlashList: FlatList,
+    MasonryFlashList: FlatList,
+  }
+})
+
 // expo-linking
 jest.mock('expo-linking', () => ({
   openURL: jest.fn().mockResolvedValue(undefined),

@@ -34,5 +34,6 @@ export const getPublicProfile = (targetUserId: string) =>
       isFollowing: profile.isFollowing,
       shareGrowthData: profile.shareGrowthData,
       createdAt: profile.createdAt,
+      recentPlants: profile.recentPlants,
     }
   }).pipe(Effect.withSpan('SocialService.getPublicProfile'))

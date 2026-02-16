@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { userFollows, userNudges, users } from '@lily/db'
+import { plants, userFollows, userNudges, users } from '@lily/db'
 import { and, count, desc, eq, ilike, ne, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -14,6 +14,12 @@ export interface UserCardRow {
   image: string | null
   plantCount: number
   isFollowing: boolean
+}
+
+export interface PublicPlantPreviewRow {
+  id: string
+  name: string
+  imageUrl: string | null
 }
 
 export interface PublicProfileRow {
@@ -28,6 +34,7 @@ export interface PublicProfileRow {
   shareGrowthData: boolean
   publicProfile: boolean
   createdAt: Date
+  recentPlants: ReadonlyArray<PublicPlantPreviewRow>
 }
 
 export interface IFollowRepository {
@@ -362,7 +369,20 @@ export const FollowRepositoryLive = Layer.effect(
             .from(users)
             .where(eq(users.id, params.targetUserId))
 
-          return pipe(Option.fromNullable(row), Option.getOrNull)
+          if (!row) return null
+
+          const recentPlants = yield* db
+            .select({
+              id: plants.id,
+              name: plants.name,
+              imageUrl: plants.imageUrl,
+            })
+            .from(plants)
+            .where(eq(plants.userId, params.targetUserId))
+            .orderBy(desc(plants.dateAdded))
+            .limit(9)
+
+          return { ...row, recentPlants }
         }).pipe(Effect.withSpan('FollowRepository.getPublicProfile')),
 
       getLastNudge: (fromUserId, toUserId) =>

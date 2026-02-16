@@ -5,6 +5,7 @@ import {
   nowAsDate,
   parseApiDate,
 } from '@lily/shared'
+import { Calendar, toDateId } from '@marceloterreiro/flash-calendar'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Array, Option, pipe, String } from 'effect'
 import * as ImagePicker from 'expo-image-picker'
@@ -18,12 +19,12 @@ import {
   ScrollView,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { Button } from 'src/components/ui/Button'
+import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSaveCareLog } from 'src/hooks/useSaveCareLog'
 import {
@@ -67,6 +68,8 @@ export function LogCareSheet({
   const { t, i18n } = useTranslation('logCare')
   const { mutate: saveCareLog, isPending } = useSaveCareLog()
   const iconColors = useIconColors()
+  const calendarTheme = useCalendarTheme()
+  const todayId = toDateId(nowAsDate())
 
   // Update plant selection when defaultPlantId changes or sheet opens
   useEffect(() => {
@@ -87,6 +90,21 @@ export function LogCareSheet({
       setPhoto(result.assets[0].uri)
     }
   }
+
+  const handleCalendarDayPress = (dateId: string) => {
+    const [year, month, day] = dateId.split('-')
+    const newDate = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      date.getHours(),
+      date.getMinutes()
+    )
+    setDate(newDate)
+    setShowDatePicker(false)
+  }
+
+  const selectedDateId = toDateId(date)
 
   const handleSetNow = () => {
     const now = nowAsDate()
@@ -139,8 +157,7 @@ export function LogCareSheet({
     )
 
   const canSave = !Array.isEmptyReadonlyArray(plantIds)
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
+  const isDark = iconColors.isDark
 
   return (
     <BottomSheet
@@ -293,67 +310,51 @@ export function LogCareSheet({
       </KeyboardAvoidingView>
 
       {/* Date Picker Modal */}
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={showDatePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <View className="flex-1 justify-end">
-            <Pressable
-              className="flex-1"
-              onPress={() => setShowDatePicker(false)}
-            />
-            <View
-              className={`${isDark ? 'bg-neutral-800' : 'bg-white'} rounded-t-md`}
-            >
-              <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
-                <Pressable onPress={() => setShowDatePicker(false)}>
-                  <Text className="text-base font-medium text-text-muted">
-                    {t('datePicker.cancel')}
-                  </Text>
-                </Pressable>
-                <Text
-                  className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
-                >
-                  {t('datePicker.selectDate')}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View className="flex-1 justify-end">
+          <Pressable
+            className="flex-1"
+            onPress={() => setShowDatePicker(false)}
+          />
+          <View
+            className={`${isDark ? 'bg-neutral-800' : 'bg-white'} rounded-t-2xl`}
+          >
+            <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <Text className="text-base font-medium text-text-muted">
+                  {t('datePicker.cancel')}
                 </Text>
-                <Pressable onPress={() => setShowDatePicker(false)}>
-                  <Text className="text-base font-bold text-primary">
-                    {t('datePicker.done')}
-                  </Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="spinner"
-                themeVariant={isDark ? 'dark' : 'light'}
-                onChange={(_event: unknown, selectedDate: Date | undefined) => {
-                  if (selectedDate) {
-                    setDate(selectedDate)
-                  }
-                }}
+              </Pressable>
+              <Text
+                className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
+              >
+                {t('datePicker.selectDate')}
+              </Text>
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <Text className="text-base font-bold text-primary">
+                  {t('datePicker.done')}
+                </Text>
+              </Pressable>
+            </View>
+            <View className="px-3 py-4">
+              <Calendar
+                calendarMonthId={selectedDateId.slice(0, 7)}
+                calendarActiveDateRanges={[
+                  { startId: selectedDateId, endId: selectedDateId },
+                ]}
+                onCalendarDayPress={handleCalendarDayPress}
+                calendarMaxDateId={todayId}
+                theme={calendarTheme}
               />
             </View>
           </View>
-        </Modal>
-      ) : (
-        showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={(_event: unknown, selectedDate: Date | undefined) => {
-              setShowDatePicker(false)
-              if (selectedDate) {
-                setDate(selectedDate)
-              }
-            }}
-          />
-        )
-      )}
+        </View>
+      </Modal>
 
       {/* Time Picker Modal */}
       {Platform.OS === 'ios' ? (

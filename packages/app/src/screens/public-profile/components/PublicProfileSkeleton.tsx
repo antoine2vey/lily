@@ -1,7 +1,14 @@
-import { View } from 'react-native'
+import { Array } from 'effect'
+import { useWindowDimensions, View } from 'react-native'
 import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 
 export function PublicProfileSkeleton() {
+  const { width } = useWindowDimensions()
+  const padding = 16
+  const gap = 8
+  const columns = 3
+  const cellSize = (width - padding * 2 - gap * (columns - 1)) / columns
+
   return (
     <View className="flex-1 items-center pt-8 px-4">
       <SkeletonCircle size={80} />
@@ -24,6 +31,17 @@ export function PublicProfileSkeleton() {
         <View className="items-center gap-1">
           <SkeletonBox width={30} height={18} rounded="sm" />
           <SkeletonBox width={60} height={12} rounded="sm" />
+        </View>
+      </View>
+
+      <View className="mt-6 w-full">
+        <SkeletonBox width={80} height={12} rounded="sm" />
+        <View className="mt-3 flex-row flex-wrap" style={{ gap }}>
+          {Array.map(Array.range(0, 5), (i) => (
+            <View key={i}>
+              <SkeletonBox width={cellSize} height={cellSize} rounded="xl" />
+            </View>
+          ))}
         </View>
       </View>
 
