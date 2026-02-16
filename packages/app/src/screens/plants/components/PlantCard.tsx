@@ -24,6 +24,8 @@ interface PlantCardProps {
     isFavorite?: boolean
     roomName?: string
     roomIcon?: string
+    ownership?: 'owned' | 'caretaking'
+    ownerName?: string
   }
   onPress: (plantId: string) => void
 }
@@ -240,6 +242,18 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
         >
           {plant.name}
         </Text>
+        {plant.ownership === 'caretaking' && plant.ownerName && (
+          <View className="flex-row items-center gap-1 mb-0.5">
+            <MaterialIcons
+              name="person"
+              size={12}
+              color={iconColors.textMuted}
+            />
+            <Text className="text-xs text-text-muted dark:text-slate-400">
+              {plant.ownerName}
+            </Text>
+          </View>
+        )}
         {plant.roomName && (
           <View className="flex-row items-center gap-1 mb-1">
             <Text className="text-xs">{plant.roomIcon}</Text>

@@ -47,6 +47,8 @@ interface PlantCardData {
   roomId?: string
   roomName?: string
   roomIcon?: string
+  ownership: 'owned' | 'caretaking'
+  ownerName?: string
 }
 
 const getDaysUntil = (date: DateInput): Option.Option<number> =>
@@ -152,7 +154,13 @@ export function PlantsScreen() {
     refetch,
     isRefetching,
   } = useEffectQuery('plants', 'getPlants', {
-    urlParams: { page: '1', limit: '50', filter: 'all', sort: 'added' },
+    urlParams: {
+      page: '1',
+      limit: '50',
+      filter: 'all',
+      sort: 'added',
+      includeCaretaking: 'true',
+    },
   })
 
   const handleRefresh = useCallback(() => {
@@ -175,6 +183,11 @@ export function PlantsScreen() {
       roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),
       roomName: Option.getOrUndefined(Option.fromNullable(plant.room?.name)),
       roomIcon: Option.getOrUndefined(Option.fromNullable(plant.room?.icon)),
+      ownership: Option.getOrElse(
+        Option.fromNullable(plant.ownership),
+        () => 'owned' as const
+      ),
+      ownerName: Option.getOrUndefined(Option.fromNullable(plant.ownerName)),
     }))
   }, [plantsData])
 
