@@ -2,6 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
@@ -53,6 +54,7 @@ export const DelegationApiLive = (api: Api) =>
   ).pipe(
     Layer.provide(DelegationService.Default),
     Layer.provide(DelegationRepositoryLive),
+    Layer.provide(NotificationRepositoryLive),
     Layer.provide(UserRepositoryLive),
     Layer.provide(LimitCheckerLive),
     Layer.provide(SubscriptionRepositoryLive),

@@ -1,0 +1,300 @@
+import { MaterialIcons } from '@expo/vector-icons'
+import { formatShortDate, parseApiDate } from '@lily/shared'
+import { Option, pipe } from 'effect'
+import { router, useLocalSearchParams } from 'expo-router'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
+import { Avatar } from 'src/components/Avatar'
+import { useAuth } from 'src/contexts/AuthContext'
+import { useCancelDelegation } from 'src/hooks/useCancelDelegation'
+import { useCompleteDelegation } from 'src/hooks/useCompleteDelegation'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
+import { useDelegation } from 'src/hooks/useDelegation'
+import { useIconColors } from 'src/hooks/useIconColors'
+import { useRespondDelegation } from 'src/hooks/useRespondDelegation'
+import { DelegationActions } from 'src/screens/delegation-detail/components/DelegationActions'
+import { DelegationDetailSkeleton } from 'src/screens/delegation-detail/components/DelegationDetailSkeleton'
+import { DelegationPlantList } from 'src/screens/delegation-detail/components/DelegationPlantList'
+import { DelegationStatusBadge } from 'src/screens/delegation-detail/components/DelegationStatusBadge'
+
+export function DelegationDetailScreen() {
+  const iconColors = useIconColors()
+  const insets = useSafeAreaInsets()
+  const { delegationId } = useLocalSearchParams<{ delegationId: string }>()
+  const { state: authState } = useAuth()
+
+  const { data: delegation, isLoading } = useDelegation(delegationId ?? '')
+
+  const { mutate: respond, isPending: isResponding } = useRespondDelegation()
+  const { mutate: cancel, isPending: isCanceling } = useCancelDelegation()
+  const { mutate: complete, isPending: isCompleting } = useCompleteDelegation()
+
+  const isInitialLoading = isLoading && !delegation
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  const currentUserId =
+    authState._tag === 'Authenticated' ? authState.user.id : ''
+
+  const userRole = pipe(
+    Option.fromNullable(delegation),
+    Option.map((d) => (d.ownerId === currentUserId ? 'owner' : 'caretaker')),
+    Option.getOrElse(() => 'owner' as const)
+  )
+
+  const handleAccept = () => {
+    if (!delegationId) return
+    respond(
+      { path: { delegationId }, payload: { accept: true } },
+      {
+        onSuccess: () => toast.success('Delegation accepted!'),
+        onError: () => toast.error('Failed to accept delegation'),
+      }
+    )
+  }
+
+  const handleReject = () => {
+    if (!delegationId) return
+    respond(
+      { path: { delegationId }, payload: { accept: false } },
+      {
+        onSuccess: () => {
+          toast.success('Delegation declined')
+          router.back()
+        },
+        onError: () => toast.error('Failed to decline delegation'),
+      }
+    )
+  }
+
+  const handleCancel = () => {
+    if (!delegationId) return
+    cancel(
+      { path: { delegationId } },
+      {
+        onSuccess: () => {
+          toast.success('Delegation canceled')
+          router.back()
+        },
+        onError: () => toast.error('Failed to cancel delegation'),
+      }
+    )
+  }
+
+  const handleComplete = () => {
+    if (!delegationId) return
+    complete(
+      { path: { delegationId } },
+      {
+        onSuccess: () => toast.success('Delegation completed!'),
+        onError: () => toast.error('Failed to complete delegation'),
+      }
+    )
+  }
+
+  const handlePlantPress = (plantId: string) => {
+    router.push(`/plant/${plantId}`)
+  }
+
+  const formatDate = (date: Date): string =>
+    pipe(
+      parseApiDate(date),
+      Option.map(formatShortDate),
+      Option.getOrElse(() => 'Unknown')
+    )
+
+  return (
+    <View
+      className="flex-1 bg-background dark:bg-background-dark"
+      style={{ paddingTop: insets.top }}
+    >
+      {/* Header */}
+      <View className="flex-row items-center px-4 pt-2 pb-4">
+        <Pressable
+          onPress={() => router.back()}
+          className="w-10 h-10 items-center justify-center rounded-full"
+        >
+          <MaterialIcons
+            name="arrow-back"
+            size={24}
+            color={iconColors.textPrimary}
+          />
+        </Pressable>
+        <Text
+          className="flex-1 text-lg text-center font-bold text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+        >
+          Delegation Details
+        </Text>
+        <View className="w-10" />
+      </View>
+
+      {showSkeleton ? (
+        <Animated.View entering={FadeIn.duration(300)}>
+          <DelegationDetailSkeleton />
+        </Animated.View>
+      ) : isInitialLoading ? null : delegation ? (
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <ScrollView
+            className="flex-1 px-6"
+            contentContainerStyle={{ paddingBottom: 32 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View className="gap-6 mt-2">
+              {/* Status Badge */}
+              <DelegationStatusBadge status={delegation.status} />
+
+              {/* People */}
+              <View className="gap-3">
+                {/* Owner */}
+                <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
+                  <Avatar
+                    source={pipe(
+                      Option.fromNullable(delegation.ownerImage),
+                      Option.map((uri) => ({ uri })),
+                      Option.getOrUndefined
+                    )}
+                    name={pipe(
+                      Option.fromNullable(delegation.ownerName),
+                      Option.getOrElse(() => 'Owner')
+                    )}
+                    size="lg"
+                  />
+                  <View className="flex-1 ml-3">
+                    <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
+                      Plant Owner
+                    </Text>
+                    <Text
+                      className="text-base font-semibold text-text-primary dark:text-white"
+                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                    >
+                      {pipe(
+                        Option.fromNullable(delegation.ownerName),
+                        Option.getOrElse(() => 'Unknown')
+                      )}
+                      {delegation.ownerId === currentUserId && (
+                        <Text className="text-sm text-text-muted"> (You)</Text>
+                      )}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Arrow */}
+                <View className="items-center">
+                  <MaterialIcons
+                    name="arrow-downward"
+                    size={20}
+                    color={iconColors.textMuted}
+                  />
+                </View>
+
+                {/* Caretaker */}
+                <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
+                  <Avatar
+                    source={pipe(
+                      Option.fromNullable(delegation.caretakerImage),
+                      Option.map((uri) => ({ uri })),
+                      Option.getOrUndefined
+                    )}
+                    name={pipe(
+                      Option.fromNullable(delegation.caretakerName),
+                      Option.getOrElse(() => 'Caretaker')
+                    )}
+                    size="lg"
+                  />
+                  <View className="flex-1 ml-3">
+                    <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
+                      Caretaker
+                    </Text>
+                    <Text
+                      className="text-base font-semibold text-text-primary dark:text-white"
+                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                    >
+                      {pipe(
+                        Option.fromNullable(delegation.caretakerName),
+                        Option.getOrElse(() => 'Unknown')
+                      )}
+                      {delegation.caretakerId === currentUserId && (
+                        <Text className="text-sm text-text-muted"> (You)</Text>
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Date Range */}
+              <View className="flex-row gap-3">
+                <View className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark">
+                  <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
+                    Start Date
+                  </Text>
+                  <Text
+                    className="text-sm mt-1 font-semibold text-text-primary dark:text-white"
+                    style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                  >
+                    {formatDate(delegation.startDate)}
+                  </Text>
+                </View>
+                <View className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark">
+                  <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
+                    End Date
+                  </Text>
+                  <Text
+                    className="text-sm mt-1 font-semibold text-text-primary dark:text-white"
+                    style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                  >
+                    {formatDate(delegation.endDate)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Message */}
+              {delegation.message && (
+                <View className="p-4 rounded-xl bg-surface dark:bg-surface-dark">
+                  <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
+                    Message
+                  </Text>
+                  <Text className="text-sm mt-1 text-text-primary dark:text-white leading-relaxed">
+                    {delegation.message}
+                  </Text>
+                </View>
+              )}
+
+              {/* Plant List */}
+              <DelegationPlantList
+                plants={delegation.plants}
+                onPlantPress={handlePlantPress}
+              />
+
+              {/* Actions */}
+              <DelegationActions
+                status={delegation.status}
+                role={userRole}
+                onAccept={handleAccept}
+                onReject={handleReject}
+                onCancel={handleCancel}
+                onComplete={handleComplete}
+                isAccepting={isResponding}
+                isRejecting={isResponding}
+                isCanceling={isCanceling}
+                isCompleting={isCompleting}
+              />
+            </View>
+          </ScrollView>
+        </Animated.View>
+      ) : (
+        <View className="flex-1 items-center justify-center px-6">
+          <MaterialIcons
+            name="error-outline"
+            size={48}
+            color={iconColors.textMuted}
+          />
+          <Text className="text-base mt-4 text-text-muted dark:text-slate-400">
+            Delegation not found
+          </Text>
+        </View>
+      )}
+    </View>
+  )
+}

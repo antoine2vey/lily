@@ -1,15 +1,34 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Array, Effect } from 'effect'
 
 const POLL_INTERVAL = '5 minutes'
 
 export const pollAndTransition = Effect.gen(function* () {
   const delegationRepo = yield* DelegationRepository
+  const notificationRepo = yield* NotificationRepository
   const now = new Date()
 
   const toActivate = yield* delegationRepo.findAcceptedReadyToActivate(now)
   yield* Effect.forEach(toActivate, (d) =>
-    delegationRepo.updateStatus(d.id, 'active')
+    Effect.gen(function* () {
+      yield* delegationRepo.updateStatus(d.id, 'active')
+      const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+      yield* notificationRepo.create({
+        userId: d.ownerId,
+        type: 'delegation_activated',
+        title: 'Delegation started',
+        body: `Care delegation for ${plants.length} plants has started`,
+        scheduledAt: now,
+      })
+      yield* notificationRepo.create({
+        userId: d.caretakerId,
+        type: 'delegation_activated',
+        title: 'Delegation started',
+        body: `Care delegation for ${plants.length} plants has started`,
+        scheduledAt: now,
+      })
+    })
   )
 
   if (Array.isNonEmptyArray(toActivate)) {
@@ -18,8 +37,25 @@ export const pollAndTransition = Effect.gen(function* () {
 
   const toComplete = yield* delegationRepo.findActiveReadyToComplete(now)
   yield* Effect.forEach(toComplete, (d) =>
-    delegationRepo.updateStatus(d.id, 'completed', {
-      completedAt: now,
+    Effect.gen(function* () {
+      yield* delegationRepo.updateStatus(d.id, 'completed', {
+        completedAt: now,
+      })
+      const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+      yield* notificationRepo.create({
+        userId: d.ownerId,
+        type: 'delegation_completed',
+        title: 'Delegation ended',
+        body: `Care delegation for ${plants.length} plants has ended`,
+        scheduledAt: now,
+      })
+      yield* notificationRepo.create({
+        userId: d.caretakerId,
+        type: 'delegation_completed',
+        title: 'Delegation ended',
+        body: `Care delegation for ${plants.length} plants has ended`,
+        scheduledAt: now,
+      })
     })
   )
 

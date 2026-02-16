@@ -101,6 +101,17 @@ export const queryKeys = {
     history: (plantId: string) =>
       [...queryKeys.chat.all, 'getChatHistory', plantId] as const,
   },
+
+  // Delegations domain
+  delegations: {
+    all: ['delegations'] as const,
+    lists: () => [...queryKeys.delegations.all, 'getMyDelegations'] as const,
+    list: (params?: { role?: string; status?: string }) =>
+      [...queryKeys.delegations.lists(), params] as const,
+    detail: (id: string) =>
+      [...queryKeys.delegations.all, 'getDelegation', id] as const,
+    tasks: () => [...queryKeys.delegations.all, 'getDelegatedTasks'] as const,
+  },
 } as const
 
 /**
@@ -119,4 +130,5 @@ export const invalidateKeys = {
   weather: queryKeys.weather.all,
   social: queryKeys.social.all,
   chat: queryKeys.chat.all,
+  delegations: queryKeys.delegations.all,
 } as const

@@ -48,14 +48,14 @@ Social features for Lily in two phases:
 - [x] `v2-care-delegation/12-limit-checker-gating.md` — checkDelegationAccess
 - [x] `v2-care-delegation/13-delegation-handlers-wiring.md` — Wire handlers + register
 - [x] `v2-care-delegation/14-delegation-scheduler.md` — Auto-transitions background job
-- [ ] `v2-care-delegation/15-delegation-notifications.md` — 5 event types + push messages
-- [ ] `v2-care-delegation/16-app-delegation-hooks.md` — All delegation hooks + query keys
-- [ ] `v2-care-delegation/17-delegation-create-screen.md` — DelegationCreateScreen + pickers
-- [ ] `v2-care-delegation/18-delegation-detail-screen.md` — DelegationDetailScreen
-- [ ] `v2-care-delegation/19-delegation-list-screen.md` — DelegationListScreen
-- [ ] `v2-care-delegation/20-care-screen-updates.md` — Delegated tasks section
-- [ ] `v2-care-delegation/21-profile-delegation-entry.md` — Delegations menu item
-- [ ] `v2-care-delegation/22-v2-smoke-test.md` — E2E verification
+- [x] `v2-care-delegation/15-delegation-notifications.md` — 5 event types + push messages
+- [x] `v2-care-delegation/16-app-delegation-hooks.md` — All delegation hooks + query keys
+- [x] `v2-care-delegation/17-delegation-create-screen.md` — DelegationCreateScreen + pickers
+- [x] `v2-care-delegation/18-delegation-detail-screen.md` — DelegationDetailScreen
+- [x] `v2-care-delegation/19-delegation-list-screen.md` — DelegationListScreen
+- [x] `v2-care-delegation/20-care-screen-updates.md` — Delegated tasks section
+- [x] `v2-care-delegation/21-profile-delegation-entry.md` — Delegations menu item
+- [x] `v2-care-delegation/22-v2-smoke-test.md` — E2E verification
 
 ## Key Design Decisions
 

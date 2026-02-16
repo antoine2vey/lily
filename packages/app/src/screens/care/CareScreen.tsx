@@ -25,6 +25,7 @@ import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { CareTaskCard } from 'src/screens/care/components/CareTaskCard'
+import { DelegatedTasksSection } from 'src/screens/care/components/DelegatedTasksSection'
 
 type TaskSectionType = 'overdue' | 'today' | 'thisWeek'
 
@@ -407,6 +408,9 @@ export function CareScreen() {
                     </View>
                   )}
                 </View>
+
+                {/* Delegated Plants Section */}
+                <DelegatedTasksSection />
               </Animated.View>
             )}
           </Animated.ScrollView>

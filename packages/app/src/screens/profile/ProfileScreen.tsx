@@ -17,6 +17,7 @@ import { useAuth } from 'src/contexts/AuthContext'
 import { useAchievements } from 'src/hooks/useAchievements'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
+import { useMyDelegations } from 'src/hooks/useMyDelegations'
 import { usePlants } from 'src/hooks/usePlants'
 import { useSocialStats } from 'src/hooks/useSocialStats'
 import { useSubscription } from 'src/hooks/useSubscription'
@@ -36,6 +37,10 @@ export function ProfileScreen() {
   const { data: achievements, isLoading: isLoadingAchievements } =
     useAchievements()
   const { followerCount, followingCount } = useSocialStats()
+  const { data: delegationsData } = useMyDelegations({
+    role: 'both',
+    status: 'active',
+  })
   const insets = useSafeAreaInsets()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -58,6 +63,11 @@ export function ProfileScreen() {
       </View>
     )
   }
+
+  const activeDelegationCount = pipe(
+    Option.fromNullable(delegationsData?.total),
+    Option.getOrElse(() => 0)
+  )
 
   const plantsCount = Option.getOrElse(
     Option.fromNullable(plants?.total),
@@ -170,6 +180,27 @@ export function ProfileScreen() {
             }
             title={t('profile:actions.findFriends')}
             onPress={() => router.push('/user-search')}
+          />
+
+          <ProfileMenuItem
+            icon={
+              <MaterialIcons
+                name="volunteer-activism"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+            title="Delegations"
+            badge={
+              activeDelegationCount > 0 ? (
+                <Badge
+                  label={`${activeDelegationCount}`}
+                  variant="success"
+                  size="sm"
+                />
+              ) : undefined
+            }
+            onPress={() => router.push('/delegations')}
           />
 
           <ProfileMenuItem
