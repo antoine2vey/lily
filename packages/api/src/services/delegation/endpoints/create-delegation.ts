@@ -1,4 +1,5 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -9,12 +10,13 @@ import {
   DelegationOverlapError,
   UserNotFoundError,
 } from '@lily/shared'
-import { Array, Effect } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
 export const createDelegation = (request: CreateDelegationRequest) =>
   Effect.gen(function* () {
-    const { id: currentUserId } = yield* CurrentUser
+    const { id: currentUserId, name: currentUserName } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
+    const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
     const limitChecker = yield* LimitChecker
 
@@ -89,6 +91,19 @@ export const createDelegation = (request: CreateDelegationRequest) =>
     yield* delegationRepo.addPlants(delegation.id, plantIds)
 
     const detail = yield* delegationRepo.findById(delegation.id)
+
+    const ownerName = pipe(
+      Option.fromNullable(currentUserName),
+      Option.getOrElse(() => 'Someone')
+    )
+
+    yield* notificationRepo.create({
+      userId: request.caretakerId,
+      type: 'delegation_request',
+      title: 'Care request',
+      body: `${ownerName} wants you to care for their plants`,
+      scheduledAt: new Date(),
+    })
 
     return detail!
   }).pipe(Effect.withSpan('DelegationService.createDelegation'))

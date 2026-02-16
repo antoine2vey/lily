@@ -5,6 +5,7 @@ import {
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -16,6 +17,7 @@ import {
   LimitExceededError,
   UserNotFoundError,
 } from '@lily/shared'
+import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -28,6 +30,8 @@ const mockCurrentUser = Layer.succeed(CurrentUser, {
   email: mockUser1.email,
   image: mockUser1.image,
 } as any)
+
+const notifications: Notification[] = []
 
 const validRequest = {
   caretakerId: mockUser2.id,
@@ -48,6 +52,7 @@ const createLayer = (options?: {
       delegationAccessDenied: options?.delegationAccessDenied,
     }),
     createMockUserRepository([mockUser1, mockUser2]),
+    createMockNotificationRepository(notifications),
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],
       delegationPlants: options?.delegationPlants ?? [],
@@ -213,5 +218,22 @@ describe('createDelegation', () => {
     if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
       expect(result.cause.error).toBeInstanceOf(DelegationOverlapError)
     }
+  })
+
+  it('should create delegation_request notification for caretaker on creation', async () => {
+    notifications.length = 0
+    const layer = createLayer()
+
+    await Effect.runPromise(
+      createDelegation(validRequest).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: mockUser2.id,
+      type: 'delegation_request',
+      title: 'Care request',
+    })
+    expect(notifications[0]?.body).toContain(mockUser1.name)
   })
 })

@@ -116,7 +116,10 @@ const DelegationSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startDelegationScheduler
   })
-).pipe(Layer.provide(DelegationRepositoryLive))
+).pipe(
+  Layer.provide(DelegationRepositoryLive),
+  Layer.provide(NotificationRepositoryLive)
+)
 
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(

@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
@@ -12,6 +13,7 @@ import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
 } from '@lily/shared'
+import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -29,6 +31,8 @@ const ownerCurrentUser = Layer.succeed(CurrentUser, {
   image: mockUser1.image,
 } as any)
 
+const notifications: Notification[] = []
+
 const pendingDelegation = {
   ...mockDelegation1,
   status: 'pending' as const,
@@ -40,6 +44,7 @@ const createLayer = (
 ) =>
   Layer.mergeAll(
     currentUser,
+    createMockNotificationRepository(notifications),
     createMockDelegationRepository({
       delegations,
       users: [
@@ -132,5 +137,43 @@ describe('respondToDelegation', () => {
     if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
       expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
     }
+  })
+
+  it('should create delegation_accepted notification for owner on accept', async () => {
+    notifications.length = 0
+    const layer = createLayer(caretakerCurrentUser)
+
+    await Effect.runPromise(
+      respondToDelegation(pendingDelegation.id, { accept: true }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: mockUser1.id,
+      type: 'delegation_accepted',
+      title: 'Request accepted',
+    })
+    expect(notifications[0]?.body).toContain(mockUser2.name)
+  })
+
+  it('should create delegation_rejected notification for owner on reject', async () => {
+    notifications.length = 0
+    const layer = createLayer(caretakerCurrentUser)
+
+    await Effect.runPromise(
+      respondToDelegation(pendingDelegation.id, { accept: false }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: mockUser1.id,
+      type: 'delegation_rejected',
+      title: 'Request declined',
+    })
+    expect(notifications[0]?.body).toContain(mockUser2.name)
   })
 })

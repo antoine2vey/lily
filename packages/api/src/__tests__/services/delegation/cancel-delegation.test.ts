@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/delegations'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { cancelDelegation } from '@lily/api/services/delegation/endpoints/cancel-delegation'
@@ -12,6 +13,7 @@ import {
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
 } from '@lily/shared'
+import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -29,6 +31,8 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   image: mockUser2.image,
 } as any)
 
+const notifications: Notification[] = []
+
 const createLayer = (
   currentUser: Layer.Layer<CurrentUser>,
   delegations: DelegationRow[] = [
@@ -37,6 +41,7 @@ const createLayer = (
 ) =>
   Layer.mergeAll(
     currentUser,
+    createMockNotificationRepository(notifications),
     createMockDelegationRepository({
       delegations,
       users: [
@@ -168,5 +173,24 @@ describe('cancelDelegation', () => {
     if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
       expect(result.cause.error).toBeInstanceOf(DelegationNotFoundError)
     }
+  })
+
+  it('should create delegation_canceled notification for caretaker on cancel', async () => {
+    notifications.length = 0
+    const layer = createLayer(ownerCurrentUser, [
+      { ...mockDelegation1, status: 'pending' as const },
+    ])
+
+    await Effect.runPromise(
+      cancelDelegation(mockDelegation1.id).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(1)
+    expect(notifications[0]).toMatchObject({
+      userId: mockUser2.id,
+      type: 'delegation_canceled',
+      title: 'Delegation canceled',
+    })
+    expect(notifications[0]?.body).toContain(mockUser1.name)
   })
 })
