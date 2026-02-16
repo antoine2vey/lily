@@ -16,6 +16,8 @@ describe('findPlantById', () => {
     expect(result).toEqual({
       ...mockPlants[0],
       room: null,
+      ownership: 'owned',
+      ownerName: null,
       photos: [],
     })
   })

@@ -3,11 +3,12 @@ import {
   type FindPlantsParams,
   type IPlantRepository,
   PlantRepository,
+  type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db'
 import { endOfDay, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
-import { Array, DateTime, Effect, Layer, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
 type PlantRecord = typeof plants.$inferSelect
 
@@ -19,10 +20,16 @@ interface MockRoom {
   isOutdoor: boolean
 }
 
+export interface MockCaretakingPlant {
+  plant: PlantRecord
+  ownerName: string | null
+}
+
 interface MockPlantRepositoryData {
   plants: PlantRecord[]
   photos?: PlantPhoto[]
   rooms?: MockRoom[]
+  caretakingPlants?: MockCaretakingPlant[]
 }
 
 export const createMockPlantRepository = (
@@ -32,8 +39,18 @@ export const createMockPlantRepository = (
   const plantsData: PlantRecord[] = Array.map(data.plants, (p) => ({ ...p }))
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
-  const photos = data.photos ?? []
-  const rooms = data.rooms ?? []
+  const photos = Option.getOrElse(
+    Option.fromNullable(data.photos),
+    () => [] as PlantPhoto[]
+  )
+  const rooms = Option.getOrElse(
+    Option.fromNullable(data.rooms),
+    () => [] as MockRoom[]
+  )
+  const caretakingPlants = Option.getOrElse(
+    Option.fromNullable(data.caretakingPlants),
+    () => [] as MockCaretakingPlant[]
+  )
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
@@ -41,6 +58,30 @@ export const createMockPlantRepository = (
       Option.flatMap((id) => Array.findFirst(rooms, (r) => r.id === id)),
       Option.getOrNull
     )
+
+  const applyFilters = (
+    items: PlantRecord[],
+    params: FindPlantsParams
+  ): PlantRecord[] => {
+    let filtered = items
+
+    if (params.filter === 'needsAttention') {
+      filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
+    }
+
+    if (params.filter === 'overdue') {
+      const endOfTodayDt = endOfDay(DateTime.unsafeNow(), params.timezone)
+      const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
+      filtered = Array.filter(
+        filtered,
+        (p) =>
+          p.nextWateringAt !== null &&
+          p.nextWateringAt.getTime() <= Number(endOfTodayMs)
+      )
+    }
+
+    return filtered
+  }
 
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
@@ -60,37 +101,53 @@ export const createMockPlantRepository = (
         filtered = Array.filter(filtered, (p) => p.userId === params.userId)
       }
 
-      if (params.filter === 'needsAttention') {
-        filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
-      }
+      filtered = applyFilters(filtered, params)
 
-      if (params.filter === 'overdue') {
-        const endOfTodayDt = endOfDay(DateTime.unsafeNow(), params.timezone)
-        const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
-        filtered = Array.filter(
-          filtered,
-          (p) =>
-            p.nextWateringAt !== null &&
-            p.nextWateringAt.getTime() <= Number(endOfTodayMs)
-        )
-      }
-
-      if (params.sort === 'name') {
-        filtered.sort((a, b) => a.name.localeCompare(b.name))
-      } else {
-        filtered.sort((a, b) => b.dateAdded.getTime() - a.dateAdded.getTime())
-      }
-
-      const items = filtered.slice(offset, offset + limit)
-      const total = filtered.length
-
-      const itemsWithRoom = Array.map(items, (p) => ({
+      const ownedItems: PlantWithRoom[] = Array.map(filtered, (p) => ({
         ...p,
         room: resolveRoom(p.roomId),
+        ownership: 'owned' as const,
+        ownerName: null,
       }))
 
+      // Add caretaking plants when requested
+      const caretakingItems: PlantWithRoom[] =
+        params.includeCaretaking &&
+        Array.isNonEmptyReadonlyArray(caretakingPlants)
+          ? pipe(
+              Array.map(caretakingPlants, (cp) => cp.plant),
+              (plants) => applyFilters(plants, params),
+              Array.map((p) => ({
+                ...p,
+                room: resolveRoom(p.roomId),
+                ownership: 'caretaking' as const,
+                ownerName: pipe(
+                  Array.findFirst(
+                    caretakingPlants,
+                    (cp) => cp.plant.id === p.id
+                  ),
+                  Option.map((cp) => cp.ownerName),
+                  Option.getOrNull
+                ),
+              }))
+            )
+          : []
+
+      const allItems = Array.appendAll(ownedItems, caretakingItems)
+
+      const sortOrder =
+        params.sort === 'name'
+          ? Order.mapInput(Order.string, (p: PlantWithRoom) => p.name)
+          : Order.mapInput(Order.reverse(Order.number), (p: PlantWithRoom) =>
+              p.dateAdded.getTime()
+            )
+      const sorted = Array.sort(allItems, sortOrder)
+
+      const total = Array.length(sorted)
+      const items = pipe(sorted, Array.drop(offset), Array.take(limit))
+
       return Effect.succeed({
-        items: itemsWithRoom,
+        items,
         total,
         page,
         limit,
@@ -107,7 +164,12 @@ export const createMockPlantRepository = (
       Effect.succeed(
         pipe(
           Array.findFirst(plantsData, (p) => p.id === id),
-          Option.map((p) => ({ ...p, room: resolveRoom(p.roomId) })),
+          Option.map((p) => ({
+            ...p,
+            room: resolveRoom(p.roomId),
+            ownership: 'owned' as const,
+            ownerName: null,
+          })),
           Option.getOrNull
         )
       ),
@@ -132,7 +194,12 @@ export const createMockPlantRepository = (
       })
 
       return Effect.succeed(
-        Array.map(filtered, (p) => ({ ...p, room: resolveRoom(p.roomId) }))
+        Array.map(filtered, (p) => ({
+          ...p,
+          room: resolveRoom(p.roomId),
+          ownership: 'owned' as const,
+          ownerName: null,
+        }))
       )
     },
 
@@ -141,7 +208,7 @@ export const createMockPlantRepository = (
         id: `plant-${crypto.randomUUID()}`,
         name: createData.name,
         description: createData.description,
-        imageUrl: createData.imageUrl ?? null,
+        imageUrl: Option.getOrNull(Option.fromNullable(createData.imageUrl)),
         category: createData.category,
         dateAdded: new Date(),
         updatedAt: new Date(),
@@ -154,20 +221,22 @@ export const createMockPlantRepository = (
         lastWateredAt: null,
         nextWateringAt: null,
         remindersEnabled: true,
-        fertilizationFrequencyDays:
-          createData.fertilizationFrequencyDays ?? null,
+        fertilizationFrequencyDays: Option.getOrNull(
+          Option.fromNullable(createData.fertilizationFrequencyDays)
+        ),
         lastFertilizedAt: null,
         nextFertilizationAt: null,
         isFavorite: false,
-        roomId: createData.roomId ?? null,
+        roomId: Option.getOrNull(Option.fromNullable(createData.roomId)),
         userId: createData.userId,
       }
       return Effect.succeed(newPlant)
     },
 
     update: (id, updateData) => {
-      const idx = plantsData.findIndex((p) => p.id === id)
-      if (idx === -1) return Effect.succeed(null)
+      const idxOption = Array.findFirstIndex(plantsData, (p) => p.id === id)
+      if (Option.isNone(idxOption)) return Effect.succeed(null)
+      const idx = idxOption.value
       const existing = plantsData[idx]
       if (!existing) return Effect.succeed(null)
       const updated = {
@@ -177,10 +246,15 @@ export const createMockPlantRepository = (
       }
       plantsData[idx] = updated
       // Also propagate to original data so callers can observe the change
-      const origIdx = originalPlantsData.findIndex((p) => p.id === id)
-      const origPlant = originalPlantsData[origIdx]
-      if (origIdx !== -1 && origPlant) {
-        Object.assign(origPlant, updateData)
+      const origIdxOption = Array.findFirstIndex(
+        originalPlantsData,
+        (p) => p.id === id
+      )
+      if (Option.isSome(origIdxOption)) {
+        const origPlant = originalPlantsData[origIdxOption.value]
+        if (origPlant) {
+          Object.assign(origPlant, updateData)
+        }
       }
       return Effect.succeed(updated)
     },
@@ -205,8 +279,8 @@ export const createMockPlantRepository = (
       const offset = (page - 1) * limit
 
       const filtered = Array.filter(photos, (p) => p.plantId === params.plantId)
-      const total = filtered.length
-      const items = filtered.slice(offset, offset + limit)
+      const total = Array.length(filtered)
+      const items = pipe(filtered, Array.drop(offset), Array.take(limit))
 
       return Effect.succeed(paginate(items, total, page, limit))
     },

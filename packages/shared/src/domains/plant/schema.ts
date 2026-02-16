@@ -32,6 +32,13 @@ export const Plant = Schema.Struct({
   userId: Schema.String,
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
+  ownership: Schema.optionalWith(
+    Schema.Union(Schema.Literal('owned'), Schema.Literal('caretaking')),
+    { default: () => 'owned' as const }
+  ),
+  ownerName: Schema.optionalWith(Schema.NullOr(Schema.String), {
+    default: () => null,
+  }),
 })
 
 export const PlantCreateRequest = Schema.Struct({

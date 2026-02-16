@@ -22,7 +22,7 @@ import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
 import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Effect, Layer, Match, pipe } from 'effect'
+import { Effect, Layer, Match, Option, pipe } from 'effect'
 
 // Implement the Plants API group
 export const PlantsApiLive = (api: Api) =>
@@ -43,9 +43,14 @@ export const PlantsApiLive = (api: Api) =>
                 Match.orElse(() => 'all' as const)
               ),
               sort: urlParams.sort === 'name' ? 'name' : 'added',
-              ...(urlParams.roomId !== undefined
-                ? { roomId: urlParams.roomId }
-                : {}),
+              ...pipe(
+                Option.fromNullable(urlParams.roomId),
+                Option.match({
+                  onNone: () => ({}),
+                  onSome: (roomId) => ({ roomId }),
+                })
+              ),
+              includeCaretaking: urlParams.includeCaretaking === 'true',
             })
             .pipe(withInfraErrorsAsDefect)
         )

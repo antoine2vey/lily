@@ -6,7 +6,7 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { getUserTimezone } from '@lily/api/services/plants/helpers/user-settings'
-import { Effect } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 // Get plants with pagination and filtering
 export const findPlants = (params: {
@@ -15,6 +15,7 @@ export const findPlants = (params: {
   filter?: 'needsAttention' | 'overdue' | 'all'
   sort?: 'added' | 'name'
   roomId?: string
+  includeCaretaking?: boolean
 }): Effect.Effect<
   FindPlantsResult,
   SqlError,
@@ -29,8 +30,14 @@ export const findPlants = (params: {
   }).pipe(
     Effect.withSpan('PlantsService.findPlants', {
       attributes: {
-        'plant.filter': params.filter ?? 'all',
-        'plant.sort': params.sort ?? 'added',
+        'plant.filter': pipe(
+          Option.fromNullable(params.filter),
+          Option.getOrElse(() => 'all')
+        ),
+        'plant.sort': pipe(
+          Option.fromNullable(params.sort),
+          Option.getOrElse(() => 'added')
+        ),
       },
     })
   )
