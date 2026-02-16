@@ -5,6 +5,7 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
@@ -18,6 +19,7 @@ import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
+import { startDelegationScheduler } from '@lily/api/services/delegation-scheduler/scheduler'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
@@ -109,6 +111,13 @@ const WeatherSchedulerLive = Layer.scopedDiscard(
   Layer.provide(RedisClientLive)
 )
 
+// Delegation scheduler layer - auto-transitions accepted→active and active→completed
+const DelegationSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startDelegationScheduler
+  })
+).pipe(Layer.provide(DelegationRepositoryLive))
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -146,6 +155,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
   Layer.provide(AchievementSubscriberLive),
+  Layer.provide(DelegationSchedulerLive),
   Layer.provide(HealthSchedulerLive),
   Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
