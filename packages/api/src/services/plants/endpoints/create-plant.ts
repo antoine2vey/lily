@@ -59,5 +59,10 @@ export const createPlant = (
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
     )
 
-    return { ...plant, room: null }
+    return {
+      ...plant,
+      room: null,
+      ownership: 'owned' as const,
+      ownerName: null,
+    }
   }).pipe(Effect.withSpan('PlantsService.createPlant'))

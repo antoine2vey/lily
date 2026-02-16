@@ -22,7 +22,12 @@ describe('deletePlant', () => {
       )
     )
 
-    expect(result).toEqual({ ...mockPlants[0], room: null })
+    expect(result).toEqual({
+      ...mockPlants[0],
+      room: null,
+      ownership: 'owned',
+      ownerName: null,
+    })
   })
 
   it('should fail with PlantNotFoundError when plant not found', async () => {
