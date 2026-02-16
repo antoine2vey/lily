@@ -1,6 +1,14 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
+// Plant preview for public profile grid
+export const PublicPlantPreview = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  imageUrl: Schema.NullOr(Schema.String),
+})
+export type PublicPlantPreview = typeof PublicPlantPreview.Type
+
 // Public user profile (what others see)
 export const PublicUserProfile = Schema.Struct({
   id: Schema.String,
@@ -13,6 +21,7 @@ export const PublicUserProfile = Schema.Struct({
   isFollowing: Schema.Boolean,
   shareGrowthData: Schema.Boolean,
   createdAt: Schema.Date,
+  recentPlants: Schema.Array(PublicPlantPreview),
 })
 export type PublicUserProfile = typeof PublicUserProfile.Type
 

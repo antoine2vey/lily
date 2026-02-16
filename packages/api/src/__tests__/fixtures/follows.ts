@@ -1,3 +1,17 @@
+export const mockFollowUser1Plants = [
+  {
+    id: 'plant-1',
+    name: 'Monstera',
+    imageUrl: 'https://example.com/monstera.png',
+  },
+  { id: 'plant-2', name: 'Ficus', imageUrl: null },
+  {
+    id: 'plant-3',
+    name: 'Snake Plant',
+    imageUrl: 'https://example.com/snake.png',
+  },
+]
+
 export const mockFollowUser1 = {
   id: 'follow-user-1',
   name: 'Alice',
@@ -7,6 +21,7 @@ export const mockFollowUser1 = {
   publicProfile: true,
   shareGrowthData: true,
   createdAt: new Date('2024-01-01'),
+  plants: mockFollowUser1Plants,
 }
 
 export const mockFollowUser2 = {

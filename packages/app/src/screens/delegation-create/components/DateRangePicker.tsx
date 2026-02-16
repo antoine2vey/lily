@@ -1,20 +1,19 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatShortDate, nowAsDate, parseApiDate } from '@lily/shared'
-import DateTimePicker from '@react-native-community/datetimepicker'
+import { Calendar, toDateId } from '@marceloterreiro/flash-calendar'
 import { Option, pipe } from 'effect'
-import { useState } from 'react'
-import { Platform, Pressable, Text, View } from 'react-native'
+import { useCallback, useRef } from 'react'
+import { Text, View } from 'react-native'
+import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface DateRangePickerProps {
-  startDate: Date | null
-  endDate: Date | null
-  onStartDateChange: (date: Date) => void
-  onEndDateChange: (date: Date) => void
+  startDate: string | null
+  endDate: string | null
+  onStartDateChange: (dateId: string) => void
+  onEndDateChange: (dateId: string) => void
   error?: string
 }
-
-type PickerMode = 'start' | 'end' | null
 
 export function DateRangePicker({
   startDate,
@@ -24,45 +23,45 @@ export function DateRangePicker({
   error,
 }: DateRangePickerProps) {
   const iconColors = useIconColors()
-  const [showPicker, setShowPicker] = useState<PickerMode>(null)
+  const calendarTheme = useCalendarTheme()
+  const isSelectingEnd = useRef(false)
 
   const today = nowAsDate()
   const tomorrow = new Date(today.getTime() + 86400000)
+  const tomorrowId = toDateId(tomorrow)
 
-  const handleDateChange = (_event: unknown, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowPicker(null)
-    }
+  const calendarActiveDateRanges = pipe(
+    Option.fromNullable(startDate),
+    Option.map((start) => [{ startId: start, endId: endDate ?? start }]),
+    Option.getOrElse(() => [] as { startId: string; endId: string }[])
+  )
 
-    if (!selectedDate) return
-
-    if (showPicker === 'start') {
-      onStartDateChange(selectedDate)
-      if (endDate && selectedDate >= endDate) {
-        onEndDateChange(new Date(selectedDate.getTime() + 86400000))
+  const handleDayPress = useCallback(
+    (dateId: string) => {
+      if (!isSelectingEnd.current || !startDate) {
+        onStartDateChange(dateId)
+        onEndDateChange(dateId)
+        isSelectingEnd.current = true
+      } else {
+        if (dateId < startDate) {
+          onStartDateChange(dateId)
+          onEndDateChange(dateId)
+        } else {
+          onEndDateChange(dateId)
+        }
+        isSelectingEnd.current = false
       }
-    } else if (showPicker === 'end') {
-      onEndDateChange(selectedDate)
-    }
-  }
+    },
+    [startDate, onStartDateChange, onEndDateChange]
+  )
 
-  const handleDismiss = () => {
-    setShowPicker(null)
-  }
-
-  const formatDate = (date: Date | null): string =>
+  const formatDate = (dateId: string | null): string =>
     pipe(
-      Option.fromNullable(date),
-      Option.flatMap((d) => parseApiDate(d)),
+      Option.fromNullable(dateId),
+      Option.flatMap((id) => parseApiDate(id)),
       Option.map((dt) => formatShortDate(dt)),
       Option.getOrElse(() => 'Select date')
     )
-
-  const minimumEndDate = pipe(
-    Option.fromNullable(startDate),
-    Option.map((d) => new Date(d.getTime() + 86400000)),
-    Option.getOrElse(() => tomorrow)
-  )
 
   return (
     <View className="gap-2">
@@ -73,11 +72,9 @@ export function DateRangePicker({
         Date Range
       </Text>
 
+      {/* Selected range summary */}
       <View className="flex-row gap-3">
-        <Pressable
-          onPress={() => setShowPicker('start')}
-          className="flex-1 flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50"
-        >
+        <View className="flex-1 flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50">
           <MaterialIcons
             name="calendar-today"
             size={18}
@@ -97,12 +94,9 @@ export function DateRangePicker({
               {formatDate(startDate)}
             </Text>
           </View>
-        </Pressable>
+        </View>
 
-        <Pressable
-          onPress={() => setShowPicker('end')}
-          className="flex-1 flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50"
-        >
+        <View className="flex-1 flex-row items-center rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50">
           <MaterialIcons name="event" size={18} color={iconColors.primary} />
           <View className="flex-1 ml-2">
             <Text className="text-[10px] uppercase font-medium text-text-muted dark:text-slate-400">
@@ -118,42 +112,26 @@ export function DateRangePicker({
               {formatDate(endDate)}
             </Text>
           </View>
-        </Pressable>
+        </View>
       </View>
 
       {error && (
         <Text className="text-xs ml-1 font-medium text-error">{error}</Text>
       )}
 
-      {showPicker !== null && (
-        <View className="mt-2 rounded-2xl overflow-hidden bg-surface dark:bg-surface-dark">
-          <DateTimePicker
-            value={
-              showPicker === 'start'
-                ? pipe(
-                    Option.fromNullable(startDate),
-                    Option.getOrElse(() => tomorrow)
-                  )
-                : pipe(
-                    Option.fromNullable(endDate),
-                    Option.getOrElse(() => minimumEndDate)
-                  )
-            }
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            minimumDate={showPicker === 'start' ? tomorrow : minimumEndDate}
-            onChange={handleDateChange}
-          />
-          {Platform.OS === 'ios' && (
-            <Pressable
-              onPress={handleDismiss}
-              className="items-center py-3 border-t border-border/30 dark:border-slate-700/30"
-            >
-              <Text className="text-sm font-semibold text-primary">Done</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
+      {/* Flash Calendar */}
+      <View
+        className="mt-2 rounded-2xl overflow-hidden bg-surface dark:bg-surface-dark px-2 py-3"
+        style={{ height: 350 }}
+      >
+        <Calendar.List
+          calendarActiveDateRanges={calendarActiveDateRanges}
+          onCalendarDayPress={handleDayPress}
+          calendarMinDateId={tomorrowId}
+          calendarInitialMonthId={tomorrowId}
+          theme={calendarTheme}
+        />
+      </View>
     </View>
   )
 }

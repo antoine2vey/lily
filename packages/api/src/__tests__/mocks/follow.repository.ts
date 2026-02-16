@@ -1,6 +1,7 @@
 import {
   FollowRepository,
   type IFollowRepository,
+  type PublicPlantPreviewRow,
   type PublicProfileRow,
   type UserCardRow,
 } from '@lily/api/repositories/follow.repository'
@@ -27,6 +28,7 @@ interface MockUser {
   publicProfile: boolean
   shareGrowthData: boolean
   createdAt: Date
+  plants?: ReadonlyArray<PublicPlantPreviewRow>
 }
 
 interface MockFollowRepositoryData {
@@ -213,6 +215,7 @@ export const createMockFollowRepository = (
               shareGrowthData: u.shareGrowthData,
               publicProfile: u.publicProfile,
               createdAt: u.createdAt,
+              recentPlants: u.plants ?? [],
             })
           ),
           Option.getOrNull
