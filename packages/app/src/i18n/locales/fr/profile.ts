@@ -5,12 +5,15 @@ export default {
   premiumBadge: 'PREMIUM',
   memberSince: 'Membre depuis {date}',
   memberSinceUnknown: 'Inconnu',
+  followers: 'Abonnés',
+  following: 'Abonnements',
   stats: {
     plants: 'Plantes',
     careLogs: 'Soins',
     achievements: 'Succès',
   },
   actions: {
+    findFriends: 'Trouver des amis',
     editProfile: 'Modifier le profil',
     subscription: 'Abonnement',
     rooms: 'Pièces',

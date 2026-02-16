@@ -5,12 +5,15 @@ export default {
   premiumBadge: 'PREMIUM',
   memberSince: 'Member since {date}',
   memberSinceUnknown: 'Unknown',
+  followers: 'Followers',
+  following: 'Following',
   stats: {
     plants: 'Plants',
     careLogs: 'Care Logs',
     achievements: 'Achievements',
   },
   actions: {
+    findFriends: 'Find Friends',
     editProfile: 'Edit Profile',
     subscription: 'Subscription',
     rooms: 'Rooms',

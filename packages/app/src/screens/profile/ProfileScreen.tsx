@@ -18,6 +18,7 @@ import { useAchievements } from 'src/hooks/useAchievements'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
 import { usePlants } from 'src/hooks/usePlants'
+import { useSocialStats } from 'src/hooks/useSocialStats'
 import { useSubscription } from 'src/hooks/useSubscription'
 import { useUser } from 'src/hooks/useUser'
 import { ProfileHeader } from 'src/screens/profile/components/ProfileHeader'
@@ -34,6 +35,7 @@ export function ProfileScreen() {
     useSubscription()
   const { data: achievements, isLoading: isLoadingAchievements } =
     useAchievements()
+  const { followerCount, followingCount } = useSocialStats()
   const insets = useSafeAreaInsets()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
@@ -141,6 +143,8 @@ export function ProfileScreen() {
             Match.when({ _tag: 'NeedsUsername' }, (s) => s.user.createdAt),
             Match.orElse(() => undefined)
           )}
+          followerCount={followerCount}
+          followingCount={followingCount}
         />
 
         {/* Stats Card */}
@@ -154,6 +158,18 @@ export function ProfileScreen() {
             }
             title={t('profile:actions.editProfile')}
             onPress={() => router.push('/profile/edit')}
+          />
+
+          <ProfileMenuItem
+            icon={
+              <MaterialIcons
+                name="search"
+                size={20}
+                color={iconColors.primary}
+              />
+            }
+            title={t('profile:actions.findFriends')}
+            onPress={() => router.push('/user-search')}
           />
 
           <ProfileMenuItem

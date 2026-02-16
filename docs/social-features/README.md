@@ -29,7 +29,7 @@ Social features for Lily in two phases:
 - [x] `v1-follow-profiles-search/16-user-search-screen.md` — UserSearchScreen
 - [x] `v1-follow-profiles-search/17-public-profile-screen.md` — PublicProfileScreen
 - [x] `v1-follow-profiles-search/18-followers-following-screens.md` — FollowersScreen + FollowingScreen
-- [ ] `v1-follow-profiles-search/19-profile-screen-updates.md` — Add counts + Find Friends + nudge button
+- [x] `v1-follow-profiles-search/19-profile-screen-updates.md` — Add counts + Find Friends + nudge button
 - [ ] `v1-follow-profiles-search/20-v1-smoke-test.md` — E2E verification
 
 ### V2 — Care Delegation

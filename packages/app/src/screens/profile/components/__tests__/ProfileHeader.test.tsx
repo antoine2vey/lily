@@ -9,6 +9,8 @@ describe('ProfileHeader', () => {
         avatarUrl={Option.none()}
         name="John Doe"
         memberSince="2024-01-15T00:00:00Z"
+        followerCount={0}
+        followingCount={0}
       />
     )
 
@@ -22,6 +24,8 @@ describe('ProfileHeader', () => {
         name="John Doe"
         username="johndoe"
         memberSince="2024-01-15T00:00:00Z"
+        followerCount={0}
+        followingCount={0}
       />
     )
 
@@ -34,6 +38,8 @@ describe('ProfileHeader', () => {
         avatarUrl={Option.none()}
         name="John Doe"
         memberSince="2024-01-15T00:00:00Z"
+        followerCount={0}
+        followingCount={0}
       />
     )
 
@@ -46,6 +52,8 @@ describe('ProfileHeader', () => {
         avatarUrl={Option.some('https://example.com/avatar.jpg')}
         name="John Doe"
         memberSince="2024-01-15T00:00:00Z"
+        followerCount={0}
+        followingCount={0}
       />
     )
 
@@ -59,6 +67,8 @@ describe('ProfileHeader', () => {
         avatarUrl={Option.none()}
         name="John Doe"
         memberSince="2024-01-15T00:00:00Z"
+        followerCount={0}
+        followingCount={0}
       />
     )
 
