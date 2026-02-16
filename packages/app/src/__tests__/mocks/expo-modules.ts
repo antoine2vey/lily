@@ -179,3 +179,22 @@ jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn().mockResolvedValue(undefined),
   hideAsync: jest.fn().mockResolvedValue(undefined),
 }))
+
+// @shopify/react-native-skia
+jest.mock('@shopify/react-native-skia', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  return {
+    Canvas: (props: Record<string, unknown>) =>
+      React.createElement(View, { testID: 'skia-canvas', ...props }),
+    Fill: () => null,
+    Shader: () => null,
+    Skia: {
+      RuntimeEffect: {
+        Make: jest.fn(() => ({})),
+      },
+    },
+    vec: (x: number, y: number) => ({ x, y }),
+  }
+})

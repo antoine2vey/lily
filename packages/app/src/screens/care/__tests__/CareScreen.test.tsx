@@ -22,6 +22,10 @@ jest.mock('@/hooks/useCompleteTask', () => ({
   useCompleteTask: jest.fn(),
 }))
 
+jest.mock('@/hooks/useDelegatedTasks', () => ({
+  useDelegatedTasks: jest.fn().mockReturnValue({ data: undefined }),
+}))
+
 import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { CareScreen } from '../CareScreen'
