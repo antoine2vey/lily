@@ -24,9 +24,19 @@ jest.mock('@/hooks/useAchievements', () => ({
   useAchievements: jest.fn(),
 }))
 
+jest.mock('@/hooks/useSocialStats', () => ({
+  useSocialStats: jest.fn(),
+}))
+
+jest.mock('@/hooks/useMyDelegations', () => ({
+  useMyDelegations: jest.fn(),
+}))
+
 import { useAuth } from 'src/contexts/AuthContext'
 import { useAchievements } from 'src/hooks/useAchievements'
+import { useMyDelegations } from 'src/hooks/useMyDelegations'
 import { usePlants } from 'src/hooks/usePlants'
+import { useSocialStats } from 'src/hooks/useSocialStats'
 import { useSubscription } from 'src/hooks/useSubscription'
 import { useUser } from 'src/hooks/useUser'
 import { ProfileScreen } from '../ProfileScreen'
@@ -36,6 +46,8 @@ const mockedUseUser = useUser as jest.Mock
 const mockedUsePlants = usePlants as jest.Mock
 const mockedUseSubscription = useSubscription as jest.Mock
 const mockedUseAchievements = useAchievements as jest.Mock
+const mockedUseSocialStats = useSocialStats as jest.Mock
+const mockedUseMyDelegations = useMyDelegations as jest.Mock
 
 describe('ProfileScreen', () => {
   const mockLogout = jest.fn()
@@ -44,6 +56,13 @@ describe('ProfileScreen', () => {
     jest.clearAllMocks()
     mockedUseAuth.mockReturnValue({
       logout: mockLogout,
+    })
+    mockedUseSocialStats.mockReturnValue({
+      followerCount: 0,
+      followingCount: 0,
+    })
+    mockedUseMyDelegations.mockReturnValue({
+      data: undefined,
     })
   })
 
