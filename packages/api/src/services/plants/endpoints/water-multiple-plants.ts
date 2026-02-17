@@ -55,66 +55,59 @@ export const waterMultiplePlants = (
                 (p) => p.id === plantId
               )
 
-              return yield* Option.match(plantOption, {
-                onNone: () =>
-                  Effect.succeed({
-                    plantId,
-                    success: false,
-                    plant: undefined,
-                  }),
-                onSome: (plant) =>
-                  Effect.gen(function* () {
-                    const hasAccess = yield* canAccessPlant(
-                      plant.userId,
-                      plant.id
-                    )
-
-                    if (!hasAccess) {
-                      return {
-                        plantId,
-                        success: false,
-                        plant: undefined,
-                      }
-                    }
-
-                    const nextWateringDt = DateTime.addDuration(
-                      nowDt,
-                      Duration.days(plant.wateringFrequencyDays)
-                    )
-                    const nextWateringAt = DateTime.toDateUtc(nextWateringDt)
-
-                    // Reset health to HEALTHY if plant was NEEDS_ATTENTION
-                    const healthUpdate =
-                      plant.health === 'NEEDS_ATTENTION'
-                        ? { health: 'HEALTHY' as const }
-                        : {}
-
-                    yield* repo.update(plantId, {
-                      lastWateredAt: now,
-                      nextWateringAt,
-                      ...healthUpdate,
-                    })
-
-                    // Re-fetch to include room data
-                    const updatedPlant = yield* repo.findById(plantId)
-
-                    // Schedule reminder using shared helper
-                    yield* scheduleCareReminder({
-                      plantId,
-                      plantName: plant.name,
-                      userId: plant.userId,
-                      type: 'watering_reminder',
-                      scheduledDate: nextWateringAt,
-                      remindersEnabled: plant.remindersEnabled,
-                    })
-
-                    return {
-                      plantId,
-                      success: true,
-                      plant: updatedPlant ?? undefined,
-                    }
-                  }),
+              // Treat "not found" and "not authorized" identically
+              // to avoid leaking plant existence information
+              const hasAccess = yield* Option.match(plantOption, {
+                onNone: () => Effect.succeed(false),
+                onSome: (plant) => canAccessPlant(plant.userId, plant.id),
               })
+
+              if (!hasAccess || Option.isNone(plantOption)) {
+                return {
+                  plantId,
+                  success: false,
+                  plant: undefined,
+                }
+              }
+
+              const plant = plantOption.value
+
+              const nextWateringDt = DateTime.addDuration(
+                nowDt,
+                Duration.days(plant.wateringFrequencyDays)
+              )
+              const nextWateringAt = DateTime.toDateUtc(nextWateringDt)
+
+              // Reset health to HEALTHY if plant was NEEDS_ATTENTION
+              const healthUpdate =
+                plant.health === 'NEEDS_ATTENTION'
+                  ? { health: 'HEALTHY' as const }
+                  : {}
+
+              yield* repo.update(plantId, {
+                lastWateredAt: now,
+                nextWateringAt,
+                ...healthUpdate,
+              })
+
+              // Re-fetch to include room data
+              const updatedPlant = yield* repo.findById(plantId)
+
+              // Schedule reminder using shared helper
+              yield* scheduleCareReminder({
+                plantId,
+                plantName: plant.name,
+                userId: plant.userId,
+                type: 'watering_reminder',
+                scheduledDate: nextWateringAt,
+                remindersEnabled: plant.remindersEnabled,
+              })
+
+              return {
+                plantId,
+                success: true,
+                plant: updatedPlant ?? undefined,
+              }
             }),
           { concurrency: 'unbounded' }
         )

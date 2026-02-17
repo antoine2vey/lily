@@ -26,10 +26,7 @@ export const refreshToken = ({
 }: RefreshTokenRequest): Effect.Effect<
   RefreshTokenResponse,
   { message: string },
-  | RefreshTokenRepository
-  | UserRepository
-  | JWTService
-  | RateLimiterService
+  RefreshTokenRepository | UserRepository | JWTService | RateLimiterService
 > =>
   Effect.gen(function* () {
     const refreshTokenRepo = yield* RefreshTokenRepository
@@ -49,13 +46,12 @@ export const refreshToken = ({
 
     // Rate limit per user to prevent abuse
     yield* rateLimiter
-      .checkRateLimit(
-        `refresh:${storedToken.userId}`,
-        RATE_LIMITS.REFRESH
-      )
+      .checkRateLimit(`refresh:${storedToken.userId}`, RATE_LIMITS.REFRESH)
       .pipe(
         Effect.catchTag('RateLimitExceededError', () =>
-          Effect.fail({ message: 'Too many refresh attempts. Try again later.' })
+          Effect.fail({
+            message: 'Too many refresh attempts. Try again later.',
+          })
         )
       )
 

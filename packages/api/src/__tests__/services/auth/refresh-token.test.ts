@@ -9,6 +9,7 @@ import {
   mockUsers,
 } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import {
   clearRefreshTokenStore,
   createMockRefreshTokenRepository,
@@ -35,7 +36,8 @@ describe('refreshToken', () => {
         tokens: options.tokens ?? [mockRefreshToken],
       }),
       createMockUserRepository(options.users ?? mockUsers),
-      createMockJWTService(options.jwtOptions ?? {})
+      createMockJWTService(options.jwtOptions ?? {}),
+      createMockRateLimiterService()
     )
 
   it('should return new access token for valid refresh token', async () => {

@@ -119,15 +119,16 @@ export const createMockDelegationRepository = (
       Effect.sync(() => {
         const idx = Array.findFirstIndex(delegations, (d) => d.id === id)
         Option.map(idx, (i) => {
-          const d = delegations[i]!
-          delegations[i] = {
-            ...d,
-            status,
-            respondedAt: timestamps?.respondedAt ?? d.respondedAt,
-            canceledAt: timestamps?.canceledAt ?? d.canceledAt,
-            completedAt: timestamps?.completedAt ?? d.completedAt,
-            updatedAt: new Date(),
-          }
+          Option.map(Option.fromNullable(delegations[i]), (d) => {
+            delegations[i] = {
+              ...d,
+              status,
+              respondedAt: timestamps?.respondedAt ?? d.respondedAt,
+              canceledAt: timestamps?.canceledAt ?? d.canceledAt,
+              completedAt: timestamps?.completedAt ?? d.completedAt,
+              updatedAt: new Date(),
+            }
+          })
         })
       }),
 

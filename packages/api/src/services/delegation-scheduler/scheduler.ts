@@ -3,20 +3,24 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { SimpleNotificationType } from '@lily/api/services/notification-scheduler/translations'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
-import type { DelegationStatus } from '@lily/shared'
+import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 
 const POLL_INTERVAL = '5 minutes'
 
 const getUserLanguage = (
-  userRepo: { findById: (id: string) => Effect.Effect<any, any> },
+  userRepo: {
+    findById: (
+      id: string
+    ) => Effect.Effect<{ language: string | null } | null, unknown>
+  },
   userId: string
-) =>
+): Effect.Effect<LanguageCode, unknown> =>
   Effect.gen(function* () {
     const user = yield* userRepo.findById(userId)
     return Option.getOrElse(
-      Option.fromNullable(user?.language),
+      Option.fromNullable(user?.language as LanguageCode | null),
       () => 'en' as const
     )
   })

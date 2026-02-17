@@ -72,6 +72,6 @@ describe('getFollowing', () => {
       getFollowing({ page: '1', limit: '20' }).pipe(Effect.provide(layer))
     )
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]!.isFollowing).toBe(true)
+    expect(result.items[0]?.isFollowing).toBe(true)
   })
 })

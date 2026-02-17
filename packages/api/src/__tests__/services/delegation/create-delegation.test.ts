@@ -2,10 +2,12 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
+import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -28,8 +30,11 @@ const mockCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser1.id,
   name: mockUser1.name,
   email: mockUser1.email,
-  image: mockUser1.image,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const notifications: Notification[] = []
 
@@ -52,6 +57,7 @@ const createLayer = (options?: {
       delegationAccessDenied: options?.delegationAccessDenied,
     }),
     createMockUserRepository([mockUser1, mockUser2]),
+    createMockPlantRepository({ plants: mockPlants }),
     createMockNotificationRepository(notifications),
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],

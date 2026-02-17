@@ -3,8 +3,8 @@ import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
@@ -20,6 +20,7 @@ import { buildPlantChatTools } from './tools'
 
 // Type alias to avoid TS4023: bun's module resolution prevents TS
 // from naming the 'Output' generic in declaration files
+// biome-ignore lint/suspicious/noExplicitAny: required by StreamTextResult generic
 export type PlantChatStreamResult = StreamTextResult<ToolSet, any>
 
 export interface StepData {

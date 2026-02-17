@@ -4,6 +4,7 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
+import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
@@ -43,24 +44,48 @@ const drainSseStream = async (
   return chunks
 }
 
+const emptyDelegationMock = createMockDelegationRepository({
+  delegations: [],
+  delegationPlants: [],
+  users: [],
+  plants: [],
+})
+
 describe('streamChatMessage', () => {
   const createTestLayer = (
-    messages: ChatMessage[] = [...mockChatMessages],
-    options: { aiChatLimitReached?: boolean } = {}
+    opts: {
+      messages?: ChatMessage[]
+      publishedEvents?: AppEvent[]
+      aiChatLimitReached?: boolean
+      plantChatResponse?: string
+      userId?: string
+      mockSteps?: readonly import('@lily/api/services/ai-chat/plant-chat').StepData[]
+    } = {}
   ) =>
     Layer.mergeAll(
-      createMockChatRepository({ messages }),
-      createMockAiService({ plantChatResponse: 'AI response text' }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
+      createMockChatRepository({
+        messages: opts.messages ?? [...mockChatMessages],
+      }),
+      createMockAiService({
+        plantChatResponse: opts.plantChatResponse ?? 'AI response text',
+        ...(opts.mockSteps ? { mockSteps: opts.mockSteps } : {}),
+      }),
+      createMockEventBus(
+        opts.publishedEvents
+          ? { publishedEvents: opts.publishedEvents }
+          : undefined
+      ),
+      createMockCurrentUser({ id: opts.userId ?? 'user-1' }),
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
-      options.aiChatLimitReached
+      opts.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
-      MockUsageTrackerLive,
-      createMockGCSService()
+      MockUsageTrackerLive
+    ).pipe(
+      Layer.merge(createMockGCSService()),
+      Layer.merge(emptyDelegationMock)
     )
 
   it('should return a streaming response', async () => {
@@ -77,22 +102,16 @@ describe('streamChatMessage', () => {
 
   it('should return quota exceeded message when limit reached', async () => {
     const messages: ChatMessage[] = []
-    const layer = Layer.mergeAll(
-      createMockChatRepository({ messages }),
-      createMockAiService({ plantChatResponse: 'Should not see this' }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockDiagnosisRepository([]),
-      createMockLimitChecker({ aiChatLimitReached: true }),
-      MockUsageTrackerLive,
-      createMockGCSService()
-    )
 
     const result = await Effect.runPromise(
       streamChatMessage('plant-1', { message: 'Test' }).pipe(
-        Effect.provide(layer)
+        Effect.provide(
+          createTestLayer({
+            messages,
+            aiChatLimitReached: true,
+            plantChatResponse: 'Should not see this',
+          })
+        )
       )
     )
 
@@ -109,22 +128,16 @@ describe('streamChatMessage', () => {
   it('should persist messages after consuming the stream', async () => {
     const messages: ChatMessage[] = []
     const publishedEvents: AppEvent[] = []
-    const layer = Layer.mergeAll(
-      createMockChatRepository({ messages }),
-      createMockAiService({ plantChatResponse: 'AI says hello' }),
-      createMockEventBus({ publishedEvents }),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockDiagnosisRepository([]),
-      MockLimitCheckerLive,
-      MockUsageTrackerLive,
-      createMockGCSService()
-    )
 
     const result = await Effect.runPromise(
       streamChatMessage('plant-1', { message: 'User says hi' }).pipe(
-        Effect.provide(layer)
+        Effect.provide(
+          createTestLayer({
+            messages,
+            publishedEvents,
+            plantChatResponse: 'AI says hello',
+          })
+        )
       )
     )
 
@@ -153,22 +166,15 @@ describe('streamChatMessage', () => {
         createdAt: new Date(),
       },
     ]
-    const layer = Layer.mergeAll(
-      createMockChatRepository({ messages: existingMessages }),
-      createMockAiService({ plantChatResponse: 'AI response' }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockDiagnosisRepository([]),
-      MockLimitCheckerLive,
-      MockUsageTrackerLive,
-      createMockGCSService()
-    )
 
     const result = await Effect.runPromise(
       streamChatMessage('plant-1', { message: 'New message' }).pipe(
-        Effect.provide(layer)
+        Effect.provide(
+          createTestLayer({
+            messages: existingMessages,
+            plantChatResponse: 'AI response',
+          })
+        )
       )
     )
 
@@ -178,22 +184,16 @@ describe('streamChatMessage', () => {
 
   it('should use userId from CurrentUser context', async () => {
     const messages: ChatMessage[] = []
-    const layer = Layer.mergeAll(
-      createMockChatRepository({ messages }),
-      createMockAiService({ plantChatResponse: 'Response' }),
-      createMockEventBus(),
-      createMockCurrentUser({ id: 'custom-user-id' }),
-      createMockPlantRepository({ plants: mockPlants }),
-      createMockCareLogRepository([]),
-      createMockDiagnosisRepository([]),
-      MockLimitCheckerLive,
-      MockUsageTrackerLive,
-      createMockGCSService()
-    )
 
     const result = await Effect.runPromise(
       streamChatMessage('plant-1', { message: 'Test' }).pipe(
-        Effect.provide(layer)
+        Effect.provide(
+          createTestLayer({
+            messages,
+            userId: 'custom-user-id',
+            plantChatResponse: 'Response',
+          })
+        )
       )
     )
 
@@ -240,22 +240,17 @@ describe('streamChatMessage', () => {
   describe('event publishing (quota exceeded path)', () => {
     it('should not publish events when quota is exceeded', async () => {
       const publishedEvents: AppEvent[] = []
-      const layer = Layer.mergeAll(
-        createMockChatRepository({ messages: [] }),
-        createMockAiService({ plantChatResponse: 'AI response' }),
-        createMockEventBus({ publishedEvents }),
-        createMockCurrentUser({ id: 'user-1' }),
-        createMockPlantRepository({ plants: mockPlants }),
-        createMockCareLogRepository([]),
-        createMockDiagnosisRepository([]),
-        createMockLimitChecker({ aiChatLimitReached: true }),
-        MockUsageTrackerLive,
-        createMockGCSService()
-      )
 
       await Effect.runPromise(
         streamChatMessage('plant-1', { message: 'Test' }).pipe(
-          Effect.provide(layer)
+          Effect.provide(
+            createTestLayer({
+              messages: [],
+              publishedEvents,
+              aiChatLimitReached: true,
+              plantChatResponse: 'AI response',
+            })
+          )
         )
       )
 
@@ -268,22 +263,16 @@ describe('streamChatMessage', () => {
   describe('quota exceeded message content', () => {
     it('should include upgrade suggestion in quota exceeded message', async () => {
       const messages: ChatMessage[] = []
-      const layer = Layer.mergeAll(
-        createMockChatRepository({ messages }),
-        createMockAiService({ plantChatResponse: 'Should not see' }),
-        createMockEventBus(),
-        createMockCurrentUser({ id: 'user-1' }),
-        createMockPlantRepository({ plants: mockPlants }),
-        createMockCareLogRepository([]),
-        createMockDiagnosisRepository([]),
-        createMockLimitChecker({ aiChatLimitReached: true }),
-        MockUsageTrackerLive,
-        createMockGCSService()
-      )
 
       await Effect.runPromise(
         streamChatMessage('plant-1', { message: 'Test' }).pipe(
-          Effect.provide(layer)
+          Effect.provide(
+            createTestLayer({
+              messages,
+              aiChatLimitReached: true,
+              plantChatResponse: 'Should not see',
+            })
+          )
         )
       )
 
@@ -297,43 +286,37 @@ describe('streamChatMessage', () => {
     it('should link diagnoses to chat messages after stream', async () => {
       const messages: ChatMessage[] = []
       const publishedEvents: AppEvent[] = []
-      const layer = Layer.mergeAll(
-        createMockChatRepository({ messages }),
-        createMockAiService({
-          plantChatResponse: 'I see some issues.',
-          mockSteps: [
-            {
-              text: 'I see some issues.',
-              toolResults: [
-                {
-                  toolName: 'createDiagnosis',
-                  toolCallId: 'call-1',
-                  input: {
-                    diseaseName: 'Powdery Mildew',
-                    severity: 'MODERATE',
-                    confidence: 85,
-                    symptoms: ['White spots'],
-                    treatmentSteps: ['Apply fungicide'],
-                  },
-                  output: { diagnosisId: 'diag-123' },
-                },
-              ],
-            },
-          ],
-        }),
-        createMockEventBus({ publishedEvents }),
-        createMockCurrentUser({ id: 'user-1' }),
-        createMockPlantRepository({ plants: mockPlants }),
-        createMockCareLogRepository([]),
-        createMockDiagnosisRepository([]),
-        MockLimitCheckerLive,
-        MockUsageTrackerLive,
-        createMockGCSService()
-      )
 
       const result = await Effect.runPromise(
-        streamChatMessage('plant-1', { message: 'My plant looks sick' }).pipe(
-          Effect.provide(layer)
+        streamChatMessage('plant-1', {
+          message: 'My plant looks sick',
+        }).pipe(
+          Effect.provide(
+            createTestLayer({
+              messages,
+              publishedEvents,
+              plantChatResponse: 'I see some issues.',
+              mockSteps: [
+                {
+                  text: 'I see some issues.',
+                  toolResults: [
+                    {
+                      toolName: 'createDiagnosis',
+                      toolCallId: 'call-1',
+                      input: {
+                        diseaseName: 'Powdery Mildew',
+                        severity: 'MODERATE',
+                        confidence: 85,
+                        symptoms: ['White spots'],
+                        treatmentSteps: ['Apply fungicide'],
+                      },
+                      output: { diagnosisId: 'diag-123' },
+                    },
+                  ],
+                },
+              ],
+            })
+          )
         )
       )
 

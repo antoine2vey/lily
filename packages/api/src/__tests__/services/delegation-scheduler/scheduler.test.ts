@@ -10,7 +10,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const pastDate = new Date('2024-01-01')
@@ -23,13 +23,16 @@ const createLayer = (delegations: DelegationRow[]) =>
     createMockDelegationRepository({
       delegations,
       plants: mockDelegationPlants,
-      delegationPlants:
-        delegations.length > 0
-          ? [
-              { delegationId: delegations[0]!.id, plantId: 'plant-1' },
-              { delegationId: delegations[0]!.id, plantId: 'plant-2' },
-            ]
-          : [],
+      delegationPlants: pipe(
+        Array.head(delegations),
+        Option.match({
+          onNone: () => [],
+          onSome: (d) => [
+            { delegationId: d.id, plantId: 'plant-1' },
+            { delegationId: d.id, plantId: 'plant-2' },
+          ],
+        })
+      ),
     }),
     createMockNotificationRepository(notifications),
     createMockUserRepository([mockUser1, mockUser2])

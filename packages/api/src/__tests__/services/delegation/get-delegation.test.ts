@@ -17,22 +17,31 @@ const ownerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser1.id,
   name: mockUser1.name,
   email: mockUser1.email,
-  image: mockUser1.image,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser2.id,
   name: mockUser2.name,
   email: mockUser2.email,
-  image: mockUser2.image,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const thirdPartyCurrentUser = Layer.succeed(CurrentUser, {
   id: 'user-3',
   name: 'Third Party',
   email: 'third@example.com',
-  image: null,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const createLayer = (currentUser: Layer.Layer<CurrentUser>) =>
   Layer.mergeAll(

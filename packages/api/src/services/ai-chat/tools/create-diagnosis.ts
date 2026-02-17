@@ -1,7 +1,4 @@
-import type {
-  CreateDiagnosisData,
-  IDiagnosisRepository,
-} from '@lily/api/repositories/diagnosis.repository'
+import type { CreateDiagnosisData } from '@lily/api/repositories/diagnosis.repository'
 import { tool } from 'ai'
 import { Effect, Option } from 'effect'
 import { z } from 'zod'

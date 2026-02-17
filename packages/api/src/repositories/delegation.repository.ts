@@ -7,7 +7,7 @@ import {
 import { careDelegations, delegationPlants, plants, users } from '@lily/db'
 import type { DelegationStatus } from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Match, pipe } from 'effect'
+import { Array, Context, Effect, Layer, Match, Option, pipe } from 'effect'
 
 export interface CreateDelegationData {
   ownerId: string
@@ -487,7 +487,12 @@ export const DelegationRepositoryLive = Layer.effect(
             )
             .limit(1)
 
-          return rows.length > 0 ? rows[0]!.caretakerId : null
+          return pipe(
+            rows,
+            Array.head,
+            Option.map((r) => r.caretakerId),
+            Option.getOrNull
+          )
         }).pipe(
           Effect.withSpan('DelegationRepository.findActiveCaretakerForPlant')
         ),

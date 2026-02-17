@@ -30,7 +30,7 @@ describe('searchUsers', () => {
       )
     )
     expect(result.items).toHaveLength(1)
-    expect(result.items[0]!.name).toBe('Alice')
+    expect(result.items[0]?.name).toBe('Alice')
   })
 
   it('should return empty list for no match', async () => {
@@ -76,6 +76,6 @@ describe('searchUsers', () => {
         Effect.provide(layer)
       )
     )
-    expect(result.items[0]!.isFollowing).toBe(true)
+    expect(result.items[0]?.isFollowing).toBe(true)
   })
 })

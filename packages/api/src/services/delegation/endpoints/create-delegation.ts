@@ -77,14 +77,8 @@ export const createDelegation = (request: CreateDelegationRequest) =>
 
     // Verify all plants belong to the current user
     const plants = yield* plantRepo.findByIds(plantIds)
-    const allOwned = Array.every(
-      plants,
-      (p) => p.userId === currentUserId
-    )
-    if (
-      plants.length !== plantIds.length ||
-      !allOwned
-    ) {
+    const allOwned = Array.every(plants, (p) => p.userId === currentUserId)
+    if (plants.length !== plantIds.length || !allOwned) {
       return yield* Effect.fail(new PlantNotAuthorizedError())
     }
 

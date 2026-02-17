@@ -3,6 +3,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
+import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
@@ -12,10 +13,13 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import { nowAsEpochMillis } from '@lily/shared'
-import type { PlantNotFoundError } from '@lily/shared/errors/plant'
+import type {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
 import type { UIMessage } from 'ai'
-import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import { Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
 
 import type { StepData } from '../plant-chat'
 
@@ -69,7 +73,7 @@ export const streamChatMessage = (
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
-  PlantNotFoundError | SqlError | GCSUploadError,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError | GCSUploadError,
   | ChatRepository
   | AiService
   | EventBus
@@ -77,6 +81,7 @@ export const streamChatMessage = (
   | PlantRepository
   | CareLogRepository
   | DiagnosisRepository
+  | DelegationRepository
   | LimitChecker
   | UsageTracker
   | GCSService

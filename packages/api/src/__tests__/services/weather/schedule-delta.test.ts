@@ -1,6 +1,5 @@
 import {
   buildWeatherCtx,
-  coldWeekForecast,
   desertSummerForecast,
   heatWaveThenColdForecast,
   hotWeekForecast,

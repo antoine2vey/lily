@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { magicLinks } from '@lily/db/schema/auth'
 import { hoursAgoAsDate, nowAsDate } from '@lily/shared'
-import { and, eq, isNull, lt } from 'drizzle-orm'
+import { and, eq, gt, isNull, lt } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -31,6 +31,9 @@ export interface IMagicLinkRepository {
     token: string
   ) => Effect.Effect<MagicLink | null, SqlError>
   readonly findValidByToken: (
+    token: string
+  ) => Effect.Effect<MagicLink | null, SqlError>
+  readonly findValidAndMarkUsed: (
     token: string
   ) => Effect.Effect<MagicLink | null, SqlError>
   readonly markUsed: (id: string) => Effect.Effect<MagicLink | null, SqlError>
@@ -101,6 +104,26 @@ export const MagicLinkRepositoryLive = Layer.effect(
           }
           return null
         }).pipe(Effect.withSpan('MagicLinkRepository.findValidByToken')),
+
+      findValidAndMarkUsed: (token: string) =>
+        Effect.gen(function* () {
+          const currentTime = nowAsDate()
+          // Atomic: UPDATE WHERE token=? AND used_at IS NULL AND expires_at > now
+          // This prevents TOCTOU race conditions
+          const results = yield* db
+            .update(magicLinks)
+            .set({ usedAt: currentTime })
+            .where(
+              and(
+                eq(magicLinks.token, token),
+                isNull(magicLinks.usedAt),
+                gt(magicLinks.expiresAt, currentTime)
+              )
+            )
+            .returning()
+
+          return pipe(results, Array.head, Option.getOrNull)
+        }).pipe(Effect.withSpan('MagicLinkRepository.findValidAndMarkUsed')),
 
       markUsed: (id: string) =>
         Effect.gen(function* () {

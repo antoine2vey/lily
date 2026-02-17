@@ -22,15 +22,21 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser2.id,
   name: mockUser2.name,
   email: mockUser2.email,
-  image: mockUser2.image,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser1.id,
   name: mockUser1.name,
   email: mockUser1.email,
-  image: mockUser1.image,
-} as any)
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  role: 'user' as const,
+  status: 'active' as const,
+})
 
 const notifications: Notification[] = []
 

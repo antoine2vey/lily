@@ -55,6 +55,32 @@ export const createMockMagicLinkRepository = (
         )
       ),
 
+    findValidAndMarkUsed: (token: string) =>
+      Effect.gen(function* () {
+        const index = Array.findFirstIndex(
+          magicLinkStore,
+          (ml) =>
+            ml.token === token &&
+            ml.usedAt === null &&
+            ml.expiresAt > new Date()
+        )
+        if (Option.isNone(index)) {
+          return null
+        }
+
+        const magicLink = magicLinkStore[index.value]
+        if (!magicLink) {
+          return null
+        }
+
+        const updated = {
+          ...magicLink,
+          usedAt: new Date(),
+        }
+        magicLinkStore[index.value] = updated
+        return updated
+      }),
+
     markUsed: (id: string) =>
       Effect.gen(function* () {
         const index = Array.findFirstIndex(magicLinkStore, (ml) => ml.id === id)

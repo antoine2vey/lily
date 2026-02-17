@@ -7,7 +7,10 @@ import {
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import { ChatHistoryListResponse } from '@lily/shared/ai-chat'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
 // Path parameter for plant ID
@@ -30,6 +33,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .setPayload(StreamChatRequest)
       .addError(LimitExceededError, { status: 403 })
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

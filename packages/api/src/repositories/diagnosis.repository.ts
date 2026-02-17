@@ -81,7 +81,7 @@ export const DiagnosisRepositoryLive = Layer.effect(
     return {
       create: (data: CreateDiagnosisData) =>
         Effect.gen(function* () {
-          const [row] = yield* db
+          const rows = yield* db
             .insert(diagnoses)
             .values({
               plantId: data.plantId,
@@ -101,7 +101,11 @@ export const DiagnosisRepositoryLive = Layer.effect(
             })
             .returning()
 
-          return mapToDiagnosis(row!)
+          return pipe(
+            Array.head(rows),
+            Option.map(mapToDiagnosis),
+            Option.getOrThrow
+          )
         }).pipe(Effect.withSpan('DiagnosisRepository.create')),
 
       findByPlantId: (params: FindDiagnosesParams) =>
