@@ -1,4 +1,5 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
@@ -12,6 +13,7 @@ import {
   nowAsDate,
   UserNotFoundError,
 } from '@lily/shared'
+import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 export const createDelegation = (request: CreateDelegationRequest) =>
@@ -63,6 +65,7 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       )
     }
 
+    const plantRepo = yield* PlantRepository
     const plantIds = request.plantIds as string[]
     if (Array.isEmptyArray(plantIds)) {
       return yield* Effect.fail(
@@ -70,6 +73,19 @@ export const createDelegation = (request: CreateDelegationRequest) =>
           message: 'At least one plant must be selected',
         })
       )
+    }
+
+    // Verify all plants belong to the current user
+    const plants = yield* plantRepo.findByIds(plantIds)
+    const allOwned = Array.every(
+      plants,
+      (p) => p.userId === currentUserId
+    )
+    if (
+      plants.length !== plantIds.length ||
+      !allOwned
+    ) {
+      return yield* Effect.fail(new PlantNotAuthorizedError())
     }
 
     const overlapping = yield* delegationRepo.findOverlappingDelegations({

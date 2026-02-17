@@ -62,10 +62,7 @@ const RevenueCatWebhookEventSchema = Schema.Struct({
 export const RevenueCatProviderLive = Layer.effect(
   RevenueCatProvider,
   Effect.gen(function* () {
-    const webhookAuthKey = yield* pipe(
-      Config.string('REVENUECAT_WEBHOOK_AUTH_KEY'),
-      Config.withDefault('')
-    )
+    const webhookAuthKey = yield* Config.string('REVENUECAT_WEBHOOK_AUTH_KEY')
     const apiKey = yield* pipe(
       Config.string('REVENUECAT_API_KEY'),
       Config.withDefault('')
@@ -75,17 +72,15 @@ export const RevenueCatProviderLive = Layer.effect(
       constructWebhookEvent: (payload, authorization) =>
         Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan('revenuecat.webhook', true)
-          // Validate authorization header if configured
-          if (webhookAuthKey.length > 0) {
-            const expectedAuth = `Bearer ${webhookAuthKey}`
-            if (authorization !== expectedAuth) {
-              return yield* Effect.fail(
-                new PaymentProviderError({
-                  message: 'Invalid webhook authorization',
-                  code: 'webhook_auth_invalid',
-                })
-              )
-            }
+          // Always validate authorization header
+          const expectedAuth = `Bearer ${webhookAuthKey}`
+          if (authorization !== expectedAuth) {
+            return yield* Effect.fail(
+              new PaymentProviderError({
+                message: 'Invalid webhook authorization',
+                code: 'webhook_auth_invalid',
+              })
+            )
           }
 
           // Parse the webhook payload

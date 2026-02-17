@@ -115,6 +115,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.get('getPlant')`/${plantIdParam}`
       .addSuccess(PlantDetail)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -140,6 +141,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .setUrlParams(PaginationParams)
       .addSuccess(PlantPhotosListResponse)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

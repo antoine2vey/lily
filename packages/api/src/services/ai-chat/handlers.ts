@@ -4,6 +4,7 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
@@ -65,6 +66,7 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(AchievementRepositoryLive),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(DelegationRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(DiagnosisRepositoryLive),
     Layer.provide(GCSService.Default),

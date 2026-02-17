@@ -67,7 +67,9 @@ export const PlantsApiLive = (api: Api) =>
           plantsService.aiIdentify(images).pipe(withInfraErrorsAsDefect)
         )
         .handle('getPlant', ({ path: { id } }) =>
-          plantsService.findPlantById({ id }).pipe(withInfraErrorsAsDefect)
+          plantsService
+            .findPlantById({ id })
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('updatePlant', ({ path: { id }, payload }) =>
           plantsService
@@ -86,7 +88,7 @@ export const PlantsApiLive = (api: Api) =>
               page: parseInt(urlParams.page, 10) || 1,
               limit: parseInt(urlParams.limit, 10) || 20,
             })
-            .pipe(withInfraErrorsAsDefect)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
         .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
           plantsService

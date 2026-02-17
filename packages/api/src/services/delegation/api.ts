@@ -16,6 +16,7 @@ import {
   RespondDelegationRequest,
   UserNotFoundError,
 } from '@lily/shared'
+import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
 const delegationIdParam = HttpApiSchema.param('delegationId', Schema.String)
@@ -35,6 +36,7 @@ export const DelegationApi = HttpApiGroup.make('delegations')
       .addError(CannotDelegateSelfError)
       .addError(DelegationDateError)
       .addError(DelegationOverlapError)
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(UserNotFoundError)
   )
   .add(

@@ -9,7 +9,10 @@ import {
   CareLogUpdateRequest,
   RecentActivitiesListResponse,
 } from '@lily/shared/care-log'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
 // Path parameters
@@ -42,6 +45,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       .setUrlParams(CareLogsQueryParams)
       .addSuccess(CareLogsListResponse)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -50,6 +54,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       .setPayload(CareLogCreateRequest)
       .addSuccess(CareLog, { status: 201 })
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -61,6 +66,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       .addSuccess(CareLog)
       .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -72,6 +78,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       .addSuccess(CareLog)
       .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -82,6 +89,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
       .addSuccess(Schema.Struct({ message: Schema.String }))
       .addError(CareLogNotFoundError)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .middleware(Authentication)

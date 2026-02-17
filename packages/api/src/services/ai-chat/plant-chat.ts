@@ -4,6 +4,7 @@ import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
+import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
@@ -57,6 +58,9 @@ export const plantChat = (
     if (!plant) {
       return yield* Effect.fail(new PlantNotFoundError({ plantId }))
     }
+
+    // Verify the current user owns this plant or is an active caretaker
+    yield* assertCanAccessPlant(plant.userId, plant.id)
 
     // Fetch recent care logs for context
     const careLogsResponse = yield* careLogRepo.findByPlantId({
