@@ -3,7 +3,15 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { magicLinks } from '@lily/db/schema/auth'
 import { hoursAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, isNull, lt } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  Effect,
+  String as EffectString,
+  Layer,
+  Option,
+  pipe,
+} from 'effect'
 
 /**
  * Magic link record type
@@ -52,7 +60,7 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const results = yield* db
             .insert(magicLinks)
             .values({
-              email: email.toLowerCase().trim(),
+              email: pipe(email, EffectString.toLowerCase, EffectString.trim),
               token,
               expiresAt,
             })
@@ -123,7 +131,12 @@ export const MagicLinkRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const result = yield* db
             .delete(magicLinks)
-            .where(eq(magicLinks.email, email.toLowerCase().trim()))
+            .where(
+              eq(
+                magicLinks.email,
+                pipe(email, EffectString.toLowerCase, EffectString.trim)
+              )
+            )
             .returning()
 
           return result.length

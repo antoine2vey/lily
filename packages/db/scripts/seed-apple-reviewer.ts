@@ -207,9 +207,10 @@ const seedAppleReviewer = Effect.gen(function* () {
     .from(users)
     .where(eq(users.email, APPLE_REVIEWER_EMAIL))
 
-  const existingUser = existingUsers[0]
-  const user = existingUser
+  const existingUserOption = A.head(existingUsers)
+  const user = Option.isSome(existingUserOption)
     ? yield* Effect.gen(function* () {
+        const existingUser = existingUserOption.value
         yield* Console.log(`User already exists: ${existingUser.email}`)
 
         const updated = yield* db

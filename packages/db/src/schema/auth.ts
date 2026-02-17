@@ -17,6 +17,10 @@ export const magicLinks = pgTable('magic_links', {
     .defaultNow(),
 })
 
+export const magicLinksRelations = relations(magicLinks, ({ one }) => ({
+  user: one(users, { fields: [magicLinks.email], references: [users.email] }),
+}))
+
 /**
  * Refresh tokens - for token refresh without re-authentication
  * NOTE: 'tokenHash' stores SHA-256 hash of token, never the plaintext

@@ -3,8 +3,8 @@ import { Match, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
-import { ConfirmationModal } from 'src/components/ConfirmationModal'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type DelegationStatus =
   | 'pending'

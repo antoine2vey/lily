@@ -9,11 +9,12 @@ import { getWeatherForLocation } from '@lily/api/services/weather/endpoints/get-
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import type { CareAdjustment, WeatherData } from '@lily/shared'
 import {
+  nowAsIsoString,
   roundCoord,
   type WeatherFetchError,
   WeatherNotAvailableError,
 } from '@lily/shared'
-import { Array, Effect, Option } from 'effect'
+import { Array, Effect, Option, pipe, String } from 'effect'
 
 export const getCareAdjustments = (): Effect.Effect<
   ReadonlyArray<CareAdjustment>,
@@ -85,7 +86,7 @@ export const getCareAdjustments = (): Effect.Effect<
       Array.head(forecast.daily),
       () =>
         ({
-          date: new Date().toISOString().split('T')[0] as string,
+          date: pipe(nowAsIsoString(), String.split('T'), Array.headNonEmpty),
           temperatureMin: null,
           temperatureMax: null,
           temperatureMean: null,

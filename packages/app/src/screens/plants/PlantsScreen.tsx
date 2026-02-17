@@ -9,7 +9,7 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from 'src/components/EmptyState'
 import { PullToRefresh } from 'src/components/PullToRefresh'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { PlantCardSkeleton } from 'src/components/skeletons'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useRooms } from 'src/hooks/useRooms'
@@ -99,23 +99,6 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
   Order.number,
   (plant) => healthOrderMap[plant.health]
 )
-
-function PlantCardSkeleton() {
-  return (
-    <View className="overflow-hidden rounded-xl bg-white dark:bg-surface-dark shadow-soft">
-      <View className="p-3 gap-3">
-        <SkeletonBox width="100%" height={150} rounded="lg" />
-        <View>
-          <SkeletonBox width="80%" height={16} rounded="sm" className="mb-1" />
-          <View className="flex-row items-center gap-1">
-            <SkeletonCircle size={14} />
-            <SkeletonBox width={50} height={12} rounded="sm" />
-          </View>
-        </View>
-      </View>
-    </View>
-  )
-}
 
 function PlantsGridSkeleton() {
   return (

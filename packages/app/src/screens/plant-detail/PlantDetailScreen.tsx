@@ -10,14 +10,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Dimensions,
-  Pressable,
-  Share,
-  Text,
-  View,
-} from 'react-native'
+import { Dimensions, Pressable, Share, Text, View } from 'react-native'
 import Animated, {
   interpolateColor,
   useAnimatedScrollHandler,
@@ -28,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
+import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -69,18 +63,43 @@ const mapHumidityRatingToHumidity = (rating: number): HumidityLevel => {
 }
 
 function PlantDetailSkeleton() {
-  const iconColors = useIconColors()
   return (
     <View
       className="flex-1 bg-background dark:bg-background-dark"
       testID="plant-detail-skeleton"
     >
+      <SkeletonBox width="100%" height={HERO_HEIGHT} rounded="none" />
       <View
-        style={{ height: HERO_HEIGHT }}
-        className="bg-gray-200 dark:bg-slate-700"
-      />
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={iconColors.primary} />
+        className="bg-background dark:bg-background-dark px-6 pb-8 -mt-12"
+        style={{ borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
+      >
+        <View className="w-12 h-1.5 bg-border dark:bg-slate-600 rounded-full mx-auto mt-4 mb-6 opacity-50" />
+        <SkeletonBox width="70%" height={24} rounded="sm" />
+        <View className="mt-2">
+          <SkeletonBox width="40%" height={14} rounded="sm" />
+        </View>
+        <View className="mt-8">
+          <SkeletonBox width="100%" height={80} rounded="lg" />
+        </View>
+        <View className="mt-10 flex-row gap-4">
+          <View className="flex-1">
+            <SkeletonBox width="100%" height={100} rounded="lg" />
+          </View>
+          <View className="flex-1">
+            <SkeletonBox width="100%" height={100} rounded="lg" />
+          </View>
+        </View>
+        <View className="mt-10">
+          <SkeletonBox width={120} height={20} rounded="sm" />
+          <View className="mt-3 flex-row gap-3">
+            {Array.map([1, 2, 3], (i) => (
+              <View key={i} className="items-center gap-2">
+                <SkeletonCircle size={48} />
+                <SkeletonBox width={48} height={12} rounded="sm" />
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
     </View>
   )

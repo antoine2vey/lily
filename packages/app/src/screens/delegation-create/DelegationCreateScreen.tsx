@@ -15,19 +15,14 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
-import { FormTextArea } from 'src/components/FormTextArea'
-import { useCreateDelegation } from 'src/hooks/useCreateDelegation'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlants } from 'src/hooks/usePlants'
-import { CaretakerPicker } from 'src/screens/delegation-create/components/CaretakerPicker'
-import { DateRangePicker } from 'src/screens/delegation-create/components/DateRangePicker'
-import { PlantSelector } from 'src/screens/delegation-create/components/PlantSelector'
-
-interface SelectedUser {
-  id: string
-  name: string | null
-  image: string | null
-}
+import { FormTextArea } from '@/components/FormTextArea'
+import { useCreateDelegation } from '@/hooks/useCreateDelegation'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlants } from '@/hooks/usePlants'
+import { CaretakerPicker } from '@/screens/delegation-create/components/CaretakerPicker'
+import { DateRangePicker } from '@/screens/delegation-create/components/DateRangePicker'
+import { PlantSelector } from '@/screens/delegation-create/components/PlantSelector'
+import type { SelectedUser } from '@/screens/delegation-create/types'
 
 type FormError = string | null
 

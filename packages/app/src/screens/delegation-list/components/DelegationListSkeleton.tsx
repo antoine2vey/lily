@@ -1,6 +1,6 @@
 import { Array as Arr } from 'effect'
 import { View } from 'react-native'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 
 function DelegationCardSkeleton() {
   return (

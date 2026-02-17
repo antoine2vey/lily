@@ -1,13 +1,13 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
   type DelegationStatus,
+  nowAsDate,
 } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 
@@ -18,7 +18,6 @@ export const respondToDelegation = (
   Effect.gen(function* () {
     const { id: currentUserId } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
-    const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
 
     const delegation = yield* delegationRepo.findById(delegationId)
@@ -46,7 +45,7 @@ export const respondToDelegation = (
 
     const newStatus: DelegationStatus = params.accept ? 'accepted' : 'rejected'
     yield* delegationRepo.updateStatus(delegationId, newStatus, {
-      respondedAt: new Date(),
+      respondedAt: nowAsDate(),
     })
 
     const caretakerName = pipe(
@@ -64,20 +63,20 @@ export const respondToDelegation = (
       ? ('delegation_accepted' as const)
       : ('delegation_rejected' as const)
 
-    const { title, body } = buildSimpleContent(
+    yield* scheduleNotification(
       type,
+      delegation.ownerId,
       { senderName: caretakerName },
       ownerLanguage
     )
 
-    yield* notificationRepo.create({
-      userId: delegation.ownerId,
-      type,
-      title,
-      body,
-      scheduledAt: new Date(),
-    })
-
     const updated = yield* delegationRepo.findById(delegationId)
-    return updated!
+    return yield* pipe(
+      Option.fromNullable(updated),
+      Option.match({
+        onNone: () =>
+          Effect.fail(new DelegationNotFoundError({ delegationId })),
+        onSome: Effect.succeed,
+      })
+    )
   }).pipe(Effect.withSpan('DelegationService.respondToDelegation'))

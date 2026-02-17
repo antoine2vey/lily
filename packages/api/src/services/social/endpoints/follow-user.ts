@@ -1,9 +1,8 @@
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -18,7 +17,6 @@ export const followUser = (targetUserId: string) =>
     const followRepo = yield* FollowRepository
     const userRepo = yield* UserRepository
     const eventBus = yield* EventBus
-    const notificationRepo = yield* NotificationRepository
 
     if (currentUserId === targetUserId) {
       return yield* Effect.fail(new CannotFollowSelfError())
@@ -60,19 +58,12 @@ export const followUser = (targetUserId: string) =>
       Option.getOrElse(() => 'Someone')
     )
 
-    const { title, body } = buildSimpleContent(
+    yield* scheduleNotification(
       'new_follower',
+      targetUserId,
       { senderName: followerName },
       targetUser.language
     )
-
-    yield* notificationRepo.create({
-      userId: targetUserId,
-      type: 'new_follower',
-      title,
-      body,
-      scheduledAt: new Date(),
-    })
 
     return { success: true as const }
   }).pipe(Effect.withSpan('SocialService.followUser'))

@@ -16,7 +16,7 @@ export function PlantGrid({ plants }: PlantGridProps) {
   const columns = 3
   const cellSize = (width - padding * 2 - gap * (columns - 1)) / columns
 
-  if (Array.isEmptyArray(plants)) return null
+  if (Array.isEmptyReadonlyArray(plants)) return null
 
   return (
     <View className="px-4">

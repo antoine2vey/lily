@@ -23,14 +23,26 @@ type BasicInfo = {
   category: string
 }
 
+const DEFAULT_BASIC_INFO: BasicInfo = { photo: null, name: '', category: '' }
+
+function safeDecodeParam<T>(encoded: string | undefined, fallback: T): T {
+  if (!encoded) return fallback
+  try {
+    return JSON.parse(decodeURIComponent(encoded)) as T
+  } catch {
+    return fallback
+  }
+}
+
 export function ManualAddCareNeedsScreen() {
   const { t } = useTranslation(['addPlant', 'rooms'])
   const params = useLocalSearchParams<{ basicInfo?: string }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
-  const basicInfo: BasicInfo = params.basicInfo
-    ? JSON.parse(decodeURIComponent(params.basicInfo))
-    : { photo: null, name: '', category: '' }
+  const basicInfo = safeDecodeParam<BasicInfo>(
+    params.basicInfo,
+    DEFAULT_BASIC_INFO
+  )
 
   const [watering, setWatering] = useState(50)
   const [light, setLight] = useState(50)

@@ -4,17 +4,12 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { Avatar } from 'src/components/Avatar'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useSearchUsers } from 'src/hooks/useSearchUsers'
-import { useSuggestedUsers } from 'src/hooks/useSuggestedUsers'
-
-interface SelectedUser {
-  id: string
-  name: string | null
-  image: string | null
-}
+import { Avatar } from '@/components/Avatar'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useSearchUsers } from '@/hooks/useSearchUsers'
+import { useSuggestedUsers } from '@/hooks/useSuggestedUsers'
+import type { SelectedUser } from '@/screens/delegation-create/types'
 
 interface CaretakerPickerProps {
   selectedUser: SelectedUser | null
