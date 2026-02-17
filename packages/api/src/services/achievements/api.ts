@@ -5,6 +5,7 @@ import {
   AchievementsResponse,
   UnlockAchievementRequest,
 } from '@lily/shared/achievement'
+import { ForbiddenError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
 
@@ -18,10 +19,11 @@ export const AchievementsApi = HttpApiGroup.make('achievements')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // POST /achievements/unlock - Manually unlock achievement (admin/testing)
+    // POST /achievements/unlock - Manually unlock achievement (admin only)
     HttpApiEndpoint.post('unlockAchievement')`/unlock`
       .setPayload(UnlockAchievementRequest)
       .addSuccess(Achievement, { status: 201 })
+      .addError(ForbiddenError, { status: 403 })
       .addError(UserNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

@@ -5,6 +5,10 @@ import {
   DiagnosisNotFoundError,
   PaginationParams,
 } from '@lily/shared'
+import {
+  PlantNotAuthorizedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import { Diagnosis } from '@lily/shared/diagnosis'
 import { Schema } from 'effect'
 
@@ -16,6 +20,8 @@ export const DiagnosisApi = HttpApiGroup.make('diagnosis')
     HttpApiEndpoint.get('getDiagnoses')`/plants/${plantIdParam}/diagnoses`
       .setUrlParams(PaginationParams)
       .addSuccess(DiagnosisListResponse)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

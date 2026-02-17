@@ -3,14 +3,29 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
+import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Array, Effect, Option } from 'effect'
 
-// Unlock achievement for the current user
+// Unlock achievement - restricted to admin users only
 export const unlockAchievement = (
   request: UnlockAchievementRequest
-): Effect.Effect<Achievement, SqlError, AchievementRepository | CurrentUser> =>
+): Effect.Effect<
+  Achievement,
+  SqlError | ForbiddenError,
+  AchievementRepository | CurrentUser
+> =>
   Effect.gen(function* () {
-    const { id: userId } = yield* CurrentUser
+    const currentUser = yield* CurrentUser
+    const { id: userId } = currentUser
+
+    // Only admins can manually unlock achievements
+    if (currentUser.role !== 'admin') {
+      return yield* Effect.fail(
+        new ForbiddenError({
+          message: 'Only admins can manually unlock achievements',
+        })
+      )
+    }
     const repo = yield* AchievementRepository
     const unlocked = yield* repo.unlock(userId, request.achievement)
 

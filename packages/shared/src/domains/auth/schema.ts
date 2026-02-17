@@ -43,6 +43,7 @@ export const AuthResponse = Schema.Struct({
 
 export const RefreshTokenResponse = Schema.Struct({
   accessToken: Schema.String,
+  refreshToken: Schema.String,
   expiresIn: Schema.Number,
 })
 

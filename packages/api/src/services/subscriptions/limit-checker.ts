@@ -44,14 +44,28 @@ const DisableLimitsConfig = Config.boolean('DISABLE_LIMITS').pipe(
   Config.withDefault(false)
 )
 
+const NodeEnvConfig = Config.string('NODE_ENV').pipe(
+  Config.withDefault('development')
+)
+
 export const LimitCheckerLive = Layer.effect(
   LimitChecker,
   Effect.gen(function* () {
     const disableLimits = yield* DisableLimitsConfig
+    const nodeEnv = yield* NodeEnvConfig
 
     if (disableLimits) {
-      yield* Effect.log('LimitChecker is disabled')
-      return noopLimitChecker
+      // Prevent disabling limits in production
+      if (nodeEnv === 'production') {
+        yield* Effect.logWarning(
+          'DISABLE_LIMITS=true is ignored in production environment'
+        )
+      } else {
+        yield* Effect.logWarning(
+          'LimitChecker is disabled (non-production environment)'
+        )
+        return noopLimitChecker
+      }
     }
 
     const subRepo = yield* SubscriptionRepository
