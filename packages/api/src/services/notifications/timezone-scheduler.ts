@@ -4,7 +4,7 @@ import {
   parseTime,
   validateTimezone,
 } from '@lily/shared'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { DateTime, Effect, String as EffectString, Option, pipe } from 'effect'
 
 /**
  * Calculates the scheduled notification time in the user's preferred timezone
@@ -48,7 +48,7 @@ export const calculateScheduledAt = (
         Effect.logWarning(
           `Invalid time format "${time}", falling back to ${DEFAULT_NOTIFICATION_TIME}`
         )
-        const parts = DEFAULT_NOTIFICATION_TIME.split(':')
+        const parts = EffectString.split(DEFAULT_NOTIFICATION_TIME, ':')
         const h = parts[0] ?? '9'
         const m = parts[1] ?? '0'
         return Effect.succeed({
@@ -118,7 +118,7 @@ const DEFAULT_DND_END = '07:00'
  * Parse a HH:mm time string into total minutes since midnight.
  */
 const timeToMinutes = (time: string): number => {
-  const parts = time.split(':')
+  const parts = EffectString.split(time, ':')
   const h = parseInt(parts[0] ?? '0', 10)
   const m = parseInt(parts[1] ?? '0', 10)
   return h * 60 + m

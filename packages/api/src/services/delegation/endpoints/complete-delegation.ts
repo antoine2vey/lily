@@ -4,6 +4,7 @@ import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
+  nowAsDate,
 } from '@lily/shared'
 import { Effect } from 'effect'
 
@@ -36,7 +37,7 @@ export const completeDelegation = (delegationId: string) =>
     }
 
     yield* delegationRepo.updateStatus(delegationId, 'completed', {
-      completedAt: new Date(),
+      completedAt: nowAsDate(),
     })
 
     const updated = yield* delegationRepo.findById(delegationId)

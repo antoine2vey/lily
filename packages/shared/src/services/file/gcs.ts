@@ -9,6 +9,7 @@ import {
   Redacted,
   Schema,
 } from 'effect'
+import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,
@@ -154,7 +155,9 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
           // Generate key if not provided
           const key = pipe(
             Option.fromNullable(validatedRequest.key),
-            Option.getOrElse(() => `${Date.now()}-${validatedRequest.fileName}`)
+            Option.getOrElse(
+              () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
+            )
           )
 
           // Upload file to GCS
@@ -181,7 +184,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             key,
             url,
             bucketName: buckets.plant.name,
-            uploadedAt: new Date(),
+            uploadedAt: nowAsDate(),
           }
         }).pipe(Effect.withSpan('GCS.uploadFile')),
 
@@ -197,7 +200,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
               file.getSignedUrl({
                 action: 'read',
                 expires:
-                  Date.now() + Duration.toMillis(Duration.hours(expiryHours)),
+                  nowAsEpochMillis() +
+                  Duration.toMillis(Duration.hours(expiryHours)),
               }),
             catch: (error) =>
               new GCSUploadError({
@@ -218,7 +222,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
           if (Array.isEmptyArray(uniqueKeys)) return new Map<string, string>()
 
           const expiry =
-            Date.now() + Duration.toMillis(Duration.hours(expiryHours))
+            nowAsEpochMillis() + Duration.toMillis(Duration.hours(expiryHours))
 
           const pairs = yield* Effect.forEach(
             uniqueKeys,
@@ -263,7 +267,9 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
           // Generate key if not provided (same as uploadFile)
           const key = pipe(
             Option.fromNullable(validatedRequest.key),
-            Option.getOrElse(() => `${Date.now()}-${validatedRequest.fileName}`)
+            Option.getOrElse(
+              () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
+            )
           )
 
           // Upload file to GCS with private access
@@ -289,7 +295,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             try: () =>
               file.getSignedUrl({
                 action: 'read',
-                expires: Date.now() + Duration.toMillis(Duration.hours(1)),
+                expires:
+                  nowAsEpochMillis() + Duration.toMillis(Duration.hours(1)),
               }),
             catch: (error) =>
               new GCSUploadError({
@@ -301,7 +308,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             key,
             url,
             bucketName: buckets.ai.name,
-            uploadedAt: new Date(),
+            uploadedAt: nowAsDate(),
           }
         }).pipe(Effect.withSpan('GCS.uploadPrivateFile')),
     }

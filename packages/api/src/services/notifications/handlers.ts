@@ -4,7 +4,24 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
 import { NotificationsService } from '@lily/api/services/notifications/service'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer, Option, pipe } from 'effect'
+
+const VALID_STATUSES: ReadonlyArray<string> = [
+  'pending',
+  'queued',
+  'sent',
+  'failed',
+]
+
+const safeParseInt = (value: string, fallback: number): number =>
+  pipe(
+    Option.fromNullable(value),
+    Option.flatMap((v) => {
+      const parsed = Number.parseInt(v, 10)
+      return Number.isNaN(parsed) ? Option.none() : Option.some(parsed)
+    }),
+    Option.getOrElse(() => fallback)
+  )
 
 // Implement the Notifications API group
 export const NotificationsApiLive = (api: Api) =>
@@ -16,11 +33,9 @@ export const NotificationsApiLive = (api: Api) =>
         .handle('getNotifications', ({ urlParams }) =>
           notificationsService
             .getNotifications({
-              page: parseInt(urlParams.page, 10) || 1,
-              limit: parseInt(urlParams.limit, 10) || 20,
-              status: ['pending', 'queued', 'sent', 'failed'].includes(
-                urlParams.status
-              )
+              page: safeParseInt(urlParams.page, 1),
+              limit: safeParseInt(urlParams.limit, 20),
+              status: Array.contains(VALID_STATUSES, urlParams.status)
                 ? (urlParams.status as 'pending' | 'queued' | 'sent' | 'failed')
                 : 'all',
             })

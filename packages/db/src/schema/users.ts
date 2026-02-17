@@ -1,5 +1,5 @@
 import { userAchievements } from '@lily/db/schema/achievements'
-import { refreshTokens } from '@lily/db/schema/auth'
+import { magicLinks, refreshTokens } from '@lily/db/schema/auth'
 import { careDelegations } from '@lily/db/schema/delegation'
 import {
   languageCodeEnum,
@@ -72,6 +72,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   notifications: many(notifications),
   deviceTokens: many(deviceTokens),
   refreshTokens: many(refreshTokens),
+  magicLinks: many(magicLinks),
   achievements: many(userAchievements),
   subscription: one(userSubscriptions),
   subscriptionUsage: many(subscriptionUsage),

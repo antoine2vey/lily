@@ -3,39 +3,17 @@ import { Array as Arr, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { Avatar } from 'src/components/Avatar'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlants } from 'src/hooks/usePlants'
+import { Avatar } from '@/components/Avatar'
+import { PlantSelectorSkeleton } from '@/components/skeletons'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlants } from '@/hooks/usePlants'
 
 interface PlantSelectorProps {
   selectedPlantIds: ReadonlyArray<string>
   onTogglePlant: (plantId: string) => void
   onSelectAll: () => void
   onDeselectAll: () => void
-}
-
-function PlantSelectorSkeleton() {
-  return (
-    <View className="gap-2">
-      <SkeletonBox width="30%" height={14} rounded="sm" />
-      <View className="gap-2 mt-2">
-        {Arr.map([1, 2, 3], (i) => (
-          <View
-            key={i}
-            className="flex-row items-center p-3 rounded-xl bg-surface dark:bg-surface-dark"
-          >
-            <SkeletonCircle size={36} />
-            <View className="flex-1 ml-3">
-              <SkeletonBox width="50%" height={14} rounded="sm" />
-            </View>
-            <SkeletonBox width={24} height={24} rounded="sm" />
-          </View>
-        ))}
-      </View>
-    </View>
-  )
 }
 
 export function PlantSelector({

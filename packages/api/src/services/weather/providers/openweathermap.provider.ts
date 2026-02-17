@@ -1,7 +1,7 @@
 import type { IWeatherProvider } from '@lily/api/services/weather/provider'
 import type { WeatherData, WeatherForecast } from '@lily/shared'
-import { roundCoord, WeatherFetchError } from '@lily/shared'
-import { Array, Effect, pipe } from 'effect'
+import { roundCoord, toIsoString, WeatherFetchError } from '@lily/shared'
+import { Array, DateTime, Effect, Option, pipe, String as Str } from 'effect'
 
 // OpenWeatherMap One Call 3.0 response shape (subset we use)
 interface OWMDailyEntry {
@@ -70,17 +70,26 @@ const estimateET0Hargreaves = (
   return 0.0023 * (tMean + 17.8) * Math.sqrt(tempRange) * Ra
 }
 
-const getDayOfYear = (timestamp: number): number => {
-  const date = new Date(timestamp * 1000)
-  const start = new Date(date.getFullYear(), 0, 0)
-  const diff = date.getTime() - start.getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
-}
+const getDayOfYear = (timestamp: number): number =>
+  Option.match(DateTime.make(timestamp * 1000), {
+    onNone: () => 1,
+    onSome: (dt) => {
+      const parts = DateTime.toParts(dt)
+      const startOfYear = DateTime.unsafeMake({
+        year: parts.year,
+        month: 1,
+        day: 1,
+      })
+      const distanceMs = DateTime.distance(startOfYear, dt)
+      return Math.floor(distanceMs / (1000 * 60 * 60 * 24)) + 1
+    },
+  })
 
-const formatDate = (timestamp: number): string => {
-  const d = new Date(timestamp * 1000)
-  return d.toISOString().split('T')[0] as string
-}
+const formatDate = (timestamp: number): string =>
+  Option.match(DateTime.make(timestamp * 1000), {
+    onNone: () => '1970-01-01',
+    onSome: (dt) => pipe(toIsoString(dt), Str.split('T'), Array.headNonEmpty),
+  })
 
 const normalizeResponse = (res: OWMResponse): WeatherForecast => {
   const daily: ReadonlyArray<WeatherData> = pipe(

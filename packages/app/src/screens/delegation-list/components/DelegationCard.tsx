@@ -3,10 +3,10 @@ import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { Avatar } from 'src/components/Avatar'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { DelegationStatusBadge } from 'src/screens/delegation-detail/components/DelegationStatusBadge'
+import { Avatar } from '@/components/Avatar'
+import { useAuth } from '@/contexts/AuthContext'
+import { useIconColors } from '@/hooks/useIconColors'
+import { DelegationStatusBadge } from '@/screens/delegation-detail/components/DelegationStatusBadge'
 
 interface DelegationListItem {
   id: string

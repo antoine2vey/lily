@@ -1,7 +1,7 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { UsernameRequest, UserProfile } from '@lily/shared/auth'
-import { Effect } from 'effect'
+import { Effect, String as EffectString } from 'effect'
 
 /**
  * Set or update username for the current user
@@ -19,7 +19,7 @@ export const setUsername = (
     const userRepo = yield* UserRepository
 
     // Validate username format
-    const username = request.username.trim()
+    const username = EffectString.trim(request.username)
     if (username.length < 3) {
       return yield* Effect.fail({
         message: 'Username must be at least 3 characters',

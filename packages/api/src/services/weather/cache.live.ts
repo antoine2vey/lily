@@ -7,7 +7,14 @@ import {
   WEATHER_DATA_TTL_SECONDS,
   WEATHER_GEO_KEY,
 } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import {
+  Array,
+  Effect,
+  String as EffectString,
+  Layer,
+  Option,
+  pipe,
+} from 'effect'
 
 // Generate a member ID from rounded coordinates
 const coordToId = (lat: number, lng: number): string =>
@@ -17,7 +24,7 @@ const coordToId = (lat: number, lng: number): string =>
 const idToCoord = (
   id: string
 ): Option.Option<{ latitude: number; longitude: number }> =>
-  pipe(id.split('_'), (parts) =>
+  pipe(EffectString.split(id, '_'), (parts) =>
     parts.length === 2
       ? Option.some({
           latitude: Number.parseFloat(parts[0] as string),

@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { weatherSnapshots } from '@lily/db'
 import { and, desc, eq, lt } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, DateTime, Effect, Layer } from 'effect'
 
 export interface IWeatherRepository {
   readonly upsertSnapshot: (data: {
@@ -71,9 +71,10 @@ export const WeatherRepositoryLive = Layer.effect(
 
       findRecentByLocation: (lat, lng, days) =>
         Effect.gen(function* () {
-          const cutoffDate = new Date()
-          cutoffDate.setDate(cutoffDate.getDate() - days)
-          const cutoffDateStr = cutoffDate.toISOString().split('T')[0] as string
+          const cutoffDt = DateTime.subtract(DateTime.unsafeNow(), {
+            days,
+          })
+          const cutoffDateStr = DateTime.formatIsoDateUtc(cutoffDt)
 
           const results = yield* db
             .select()
@@ -90,20 +91,22 @@ export const WeatherRepositoryLive = Layer.effect(
             .orderBy(desc(weatherSnapshots.date))
 
           // Filter to only recent days (text comparison works for ISO dates)
-          return results.filter((r) => r.date >= cutoffDateStr)
+          return Array.filter(results, (r) => r.date >= cutoffDateStr)
         }),
 
       cleanupOldSnapshots: (olderThanDays) =>
         Effect.gen(function* () {
-          const cutoff = new Date()
-          cutoff.setDate(cutoff.getDate() - olderThanDays)
+          const cutoffDt = DateTime.subtract(DateTime.unsafeNow(), {
+            days: olderThanDays,
+          })
+          const cutoff = DateTime.toDateUtc(cutoffDt)
 
           const result = yield* db
             .delete(weatherSnapshots)
             .where(lt(weatherSnapshots.createdAt, cutoff))
             .returning()
 
-          return result.length
+          return Array.length(result)
         }),
     }
   })
