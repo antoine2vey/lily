@@ -38,7 +38,7 @@ export default function UsernameSetupScreen() {
     _tag: 'Idle',
   })
   const [loading, setLoading] = useState(false)
-  const { setUsername: saveUsername, logout } = useAuth()
+  const { setUsername: saveUsername } = useAuth()
   const router = useRouter()
   const iconColors = useIconColors()
   const { isDark } = useThemeContext()

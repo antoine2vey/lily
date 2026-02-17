@@ -5,11 +5,11 @@ import {
   DiagnosisNotFoundError,
   PaginationParams,
 } from '@lily/shared'
+import { Diagnosis } from '@lily/shared/diagnosis'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Diagnosis } from '@lily/shared/diagnosis'
 import { Schema } from 'effect'
 
 const plantIdParam = HttpApiSchema.param('plantId', Schema.String)

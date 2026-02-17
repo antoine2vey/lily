@@ -3,17 +3,21 @@ import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achie
 import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { ACHIEVEMENTS } from '@lily/shared'
-import { Effect, Layer } from 'effect'
+import { ForbiddenError } from '@lily/shared/errors/admin'
+import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const createCurrentUserLayer = (userId: string) =>
+const createCurrentUserLayer = (
+  userId: string,
+  role: 'user' | 'admin' = 'admin'
+) =>
   Layer.succeed(CurrentUser, {
     id: userId,
     email: 'test@test.com',
     name: 'Test User',
     createdAt: new Date(),
     updatedAt: new Date(),
-    role: 'user' as const,
+    role,
     status: 'active' as const,
   })
 
@@ -120,6 +124,24 @@ describe('unlockAchievement', () => {
 
     expect(result.key).toBe('DEDICATED_CARETAKER')
     expect(result.name).toBe('Dedicated Caretaker')
+  })
+
+  it('should fail with ForbiddenError when non-admin tries to unlock', async () => {
+    const nonAdminLayer = Layer.merge(
+      createMockAchievementRepository({ achievements: [] }),
+      createCurrentUserLayer(userId, 'user')
+    )
+
+    const result = await Effect.runPromiseExit(
+      unlockAchievement({ achievement: 'PLANT_COLLECTOR' }).pipe(
+        Effect.provide(nonAdminLayer)
+      )
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(ForbiddenError)
+    }
   })
 
   it('should preserve original unlock time when returning existing', async () => {

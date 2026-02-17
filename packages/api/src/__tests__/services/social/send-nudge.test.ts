@@ -158,8 +158,8 @@ describe('sendNudge', () => {
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]!.type).toBe('nudge_to_water')
-    expect(notifications[0]!.userId).toBe(targetUser.id)
+    expect(notifications[0]?.type).toBe('nudge_to_water')
+    expect(notifications[0]?.userId).toBe(targetUser.id)
   })
 
   it('should include nudger name in notification body', async () => {
@@ -179,6 +179,6 @@ describe('sendNudge', () => {
     await Effect.runPromise(
       sendNudge({ targetUserId: targetUser.id }).pipe(Effect.provide(layer))
     )
-    expect(notifications[0]!.body).toContain('Current User')
+    expect(notifications[0]?.body).toContain('Current User')
   })
 })

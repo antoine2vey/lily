@@ -9,7 +9,7 @@ import {
   type DelegationStatus,
   nowAsDate,
 } from '@lily/shared'
-import { Effect, Match, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 export const respondToDelegation = (
   delegationId: string,

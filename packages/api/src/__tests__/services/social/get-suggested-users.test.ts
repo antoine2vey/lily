@@ -43,7 +43,7 @@ describe('getSuggestedUsers', () => {
       getSuggestedUsers().pipe(Effect.provide(layer))
     )
     expect(result).toHaveLength(1)
-    expect(result[0]!.id).toBe('follow-user-2')
+    expect(result[0]?.id).toBe('follow-user-2')
   })
 
   it('should return empty list when no suggestions available', async () => {

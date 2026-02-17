@@ -129,7 +129,7 @@ describe('followUser', () => {
       followUser(publicUser.id).pipe(Effect.provide(layer))
     )
     expect(eventData.publishedEvents).toHaveLength(1)
-    expect(eventData.publishedEvents[0]!._tag).toBe('UserFollowed')
+    expect(eventData.publishedEvents[0]?._tag).toBe('UserFollowed')
   })
 
   it('should create a notification for the followed user', async () => {
@@ -140,7 +140,7 @@ describe('followUser', () => {
       followUser(publicUser.id).pipe(Effect.provide(layer))
     )
     expect(notifications).toHaveLength(1)
-    expect(notifications[0]!.type).toBe('new_follower')
-    expect(notifications[0]!.userId).toBe(publicUser.id)
+    expect(notifications[0]?.type).toBe('new_follower')
+    expect(notifications[0]?.userId).toBe(publicUser.id)
   })
 })

@@ -41,5 +41,8 @@ export const completeDelegation = (delegationId: string) =>
     })
 
     const updated = yield* delegationRepo.findById(delegationId)
-    return updated!
+    if (!updated) {
+      return yield* Effect.fail(new DelegationNotFoundError({ delegationId }))
+    }
+    return updated
   }).pipe(Effect.withSpan('DelegationService.completeDelegation'))

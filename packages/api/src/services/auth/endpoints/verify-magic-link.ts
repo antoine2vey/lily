@@ -53,15 +53,12 @@ export const verifyMagicLink = ({
     // Check rate limit
     yield* rateLimiter.checkRateLimit(`verify:${code}`, RATE_LIMITS.VERIFY)
 
-    // Find and validate the magic link
-    const magicLink = yield* magicLinkRepo.findValidByToken(code)
+    // Atomically find valid magic link and mark as used (prevents TOCTOU race)
+    const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(code)
 
     if (!magicLink) {
       return yield* Effect.fail({ message: 'Invalid or expired code' })
     }
-
-    // Mark as used immediately (one-time use)
-    yield* magicLinkRepo.markUsed(magicLink.id)
 
     // Find or create user
     let user = yield* userRepo.findByEmail(magicLink.email)
