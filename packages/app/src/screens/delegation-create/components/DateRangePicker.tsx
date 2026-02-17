@@ -4,8 +4,8 @@ import { Calendar, toDateId } from '@marceloterreiro/flash-calendar'
 import { Option, pipe } from 'effect'
 import { useCallback, useRef } from 'react'
 import { Text, View } from 'react-native'
-import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useCalendarTheme } from '@/hooks/useCalendarTheme'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface DateRangePickerProps {
   startDate: string | null

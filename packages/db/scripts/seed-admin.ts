@@ -10,12 +10,14 @@
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive, users } from '@lily/db'
 import { eq } from 'drizzle-orm'
-import { Console, Effect } from 'effect'
+import { Array, Console, Effect, Option, pipe, String } from 'effect'
 
 const getEmail = (): string => {
-  const email = process.argv
-    .find((arg) => arg.startsWith('--email='))
-    ?.split('=')[1]
+  const email = pipe(
+    Array.findFirst(process.argv, String.startsWith('--email=')),
+    Option.flatMap((arg) => Array.get(String.split(arg, '='), 1)),
+    Option.getOrUndefined
+  )
 
   if (!email) {
     console.error('Error: --email parameter is required')

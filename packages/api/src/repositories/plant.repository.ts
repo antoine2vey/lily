@@ -12,7 +12,12 @@ import {
   rooms,
   users,
 } from '@lily/db'
-import { endOfDay, type PaginatedResponse, paginate } from '@lily/shared'
+import {
+  endOfDay,
+  nowAsDate,
+  type PaginatedResponse,
+  paginate,
+} from '@lily/shared'
 import {
   and,
   asc,
@@ -168,6 +173,79 @@ export class PlantRepository extends Context.Tag('PlantRepository')<
   IPlantRepository
 >() {}
 
+// Shared room selection shape for joins
+const roomSelect = {
+  id: rooms.id,
+  name: rooms.name,
+  icon: rooms.icon,
+  luminosity: rooms.luminosity,
+  isOutdoor: rooms.isOutdoor,
+}
+
+// Build where-clause conditions from filter and room params
+function buildPlantFilters(params: FindPlantsParams): ReturnType<typeof and>[] {
+  const filterCondition = pipe(
+    Match.value(params.filter),
+    Match.when('needsAttention', () =>
+      Option.some(eq(plants.health, 'NEEDS_ATTENTION'))
+    ),
+    Match.when('overdue', () => {
+      const endOfTodayDate = DateTime.toDateUtc(
+        endOfDay(DateTime.unsafeNow(), params.timezone)
+      )
+      return Option.some(
+        and(
+          isNotNull(plants.nextWateringAt),
+          lte(plants.nextWateringAt, endOfTodayDate)
+        )
+      )
+    }),
+    Match.orElse(() => Option.none())
+  )
+
+  const roomCondition = pipe(
+    Option.fromNullable(params.roomId),
+    Option.map((roomId) => eq(plants.roomId, roomId))
+  )
+
+  return pipe(
+    [filterCondition, roomCondition],
+    Array.filterMap((opt) => opt)
+  )
+}
+
+// Build the drizzle orderBy clause from sort param
+function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
+  return sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
+}
+
+// Map a DB row to an owned PlantWithRoom
+function toOwnedPlant(row: {
+  plant: typeof plants.$inferSelect
+  room: RoomRef
+}): PlantWithRoom {
+  return {
+    ...row.plant,
+    room: row.room,
+    ownership: 'owned' as const,
+    ownerName: null,
+  }
+}
+
+// Map a DB row to a caretaking PlantWithRoom
+function toCaretakingPlant(row: {
+  plant: typeof plants.$inferSelect
+  room: RoomRef
+  ownerName: string | null
+}): PlantWithRoom {
+  return {
+    ...row.plant,
+    room: row.room,
+    ownership: 'caretaking' as const,
+    ownerName: row.ownerName,
+  }
+}
+
 // Live implementation using PgDrizzle
 export const PlantRepositoryLive = Layer.effect(
   PlantRepository,
@@ -178,36 +256,8 @@ export const PlantRepositoryLive = Layer.effect(
       findAll: (params: FindPlantsParams) =>
         Effect.gen(function* () {
           const { page, limit, offset } = getPaginationParams(params)
-
-          // Build shared filter conditions (applied to both owned and caretaking)
-          const filterCondition = pipe(
-            Match.value(params.filter),
-            Match.when('needsAttention', () =>
-              Option.some(eq(plants.health, 'NEEDS_ATTENTION'))
-            ),
-            Match.when('overdue', () => {
-              const endOfTodayDate = DateTime.toDateUtc(
-                endOfDay(DateTime.unsafeNow(), params.timezone)
-              )
-              return Option.some(
-                and(
-                  isNotNull(plants.nextWateringAt),
-                  lte(plants.nextWateringAt, endOfTodayDate)
-                )
-              )
-            }),
-            Match.orElse(() => Option.none())
-          )
-
-          const roomCondition = pipe(
-            Option.fromNullable(params.roomId),
-            Option.map((roomId) => eq(plants.roomId, roomId))
-          )
-
-          const extraConditions = pipe(
-            [filterCondition, roomCondition],
-            Array.filterMap((opt) => opt)
-          )
+          const extraConditions = buildPlantFilters(params)
+          const orderBy = buildPlantOrderBy(params.sort)
 
           // Owned plants query
           const ownedConditions = and(
@@ -222,31 +272,14 @@ export const PlantRepositoryLive = Layer.effect(
           const ownedTotal = extractCount(ownedCountResult)
 
           const ownedRows = yield* db
-            .select({
-              plant: plants,
-              room: {
-                id: rooms.id,
-                name: rooms.name,
-                icon: rooms.icon,
-                luminosity: rooms.luminosity,
-                isOutdoor: rooms.isOutdoor,
-              },
-            })
+            .select({ plant: plants, room: roomSelect })
             .from(plants)
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(ownedConditions)
-            .orderBy(
-              params.sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
-            )
+            .orderBy(orderBy)
 
-          const ownedItems: PlantWithRoom[] = Array.map(ownedRows, (row) => ({
-            ...row.plant,
-            room: row.room,
-            ownership: 'owned' as const,
-            ownerName: null,
-          }))
+          const ownedItems = Array.map(ownedRows, toOwnedPlant)
 
-          // Caretaking plants query (only when requested)
           if (!params.includeCaretaking) {
             const paginated = pipe(
               ownedItems,
@@ -256,6 +289,7 @@ export const PlantRepositoryLive = Layer.effect(
             return paginate(paginated, ownedTotal, page, limit)
           }
 
+          // Caretaking plants query
           const caretakingConditions = and(
             eq(careDelegations.caretakerId, params.userId),
             eq(careDelegations.status, 'active'),
@@ -276,13 +310,7 @@ export const PlantRepositoryLive = Layer.effect(
           const caretakingRows = yield* db
             .select({
               plant: plants,
-              room: {
-                id: rooms.id,
-                name: rooms.name,
-                icon: rooms.icon,
-                luminosity: rooms.luminosity,
-                isOutdoor: rooms.isOutdoor,
-              },
+              room: roomSelect,
               ownerName: users.name,
             })
             .from(careDelegations)
@@ -294,19 +322,9 @@ export const PlantRepositoryLive = Layer.effect(
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .innerJoin(users, eq(careDelegations.ownerId, users.id))
             .where(caretakingConditions)
-            .orderBy(
-              params.sort === 'name' ? asc(plants.name) : desc(plants.dateAdded)
-            )
+            .orderBy(orderBy)
 
-          const caretakingItems: PlantWithRoom[] = Array.map(
-            caretakingRows,
-            (row) => ({
-              ...row.plant,
-              room: row.room,
-              ownership: 'caretaking' as const,
-              ownerName: row.ownerName,
-            })
-          )
+          const caretakingItems = Array.map(caretakingRows, toCaretakingPlant)
 
           // Merge owned + caretaking, apply sort, paginate
           const allItems = Array.appendAll(ownedItems, caretakingItems)
@@ -342,28 +360,14 @@ export const PlantRepositoryLive = Layer.effect(
       findById: (id: string) =>
         Effect.gen(function* () {
           const [row] = yield* db
-            .select({
-              plant: plants,
-              room: {
-                id: rooms.id,
-                name: rooms.name,
-                icon: rooms.icon,
-                luminosity: rooms.luminosity,
-                isOutdoor: rooms.isOutdoor,
-              },
-            })
+            .select({ plant: plants, room: roomSelect })
             .from(plants)
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(eq(plants.id, id))
 
           return pipe(
             Option.fromNullable(row),
-            Option.map((r) => ({
-              ...r.plant,
-              room: r.room,
-              ownership: 'owned' as const,
-              ownerName: null,
-            })),
+            Option.map(toOwnedPlant),
             Option.getOrNull
           )
         }).pipe(Effect.withSpan('PlantRepository.findById')),
@@ -371,16 +375,7 @@ export const PlantRepositoryLive = Layer.effect(
       findPlantsWithPendingCare: (userId: string, endOfWeek: Date) =>
         Effect.gen(function* () {
           const rows = yield* db
-            .select({
-              plant: plants,
-              room: {
-                id: rooms.id,
-                name: rooms.name,
-                icon: rooms.icon,
-                luminosity: rooms.luminosity,
-                isOutdoor: rooms.isOutdoor,
-              },
-            })
+            .select({ plant: plants, room: roomSelect })
             .from(plants)
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(
@@ -392,12 +387,7 @@ export const PlantRepositoryLive = Layer.effect(
                 )
               )
             )
-          return Array.map(rows, (row) => ({
-            ...row.plant,
-            room: row.room,
-            ownership: 'owned' as const,
-            ownerName: null,
-          }))
+          return Array.map(rows, toOwnedPlant)
         }).pipe(Effect.withSpan('PlantRepository.findPlantsWithPendingCare')),
 
       create: (data: CreatePlantData) =>
@@ -486,7 +476,7 @@ export const PlantRepositoryLive = Layer.effect(
 
       markOverduePlantsAsNeedsAttention: () =>
         Effect.gen(function* () {
-          const now = new Date()
+          const now = nowAsDate()
           // Find plants that are overdue (watering OR fertilization is past due)
           // and currently HEALTHY or THRIVING
           const result = yield* db
@@ -517,7 +507,7 @@ export const PlantRepositoryLive = Layer.effect(
 
       markHealthyPlantsInOrder: () =>
         Effect.gen(function* () {
-          const now = new Date()
+          const now = nowAsDate()
           // Find plants that are NEEDS_ATTENTION but ALL their schedules are in order
           // Both watering AND fertilization must be OK (null or in the future)
           const result = yield* db

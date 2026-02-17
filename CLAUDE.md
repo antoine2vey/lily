@@ -41,7 +41,23 @@ Lily is a plant care management application built as a TypeScript monorepo using
 
 ### Imports
 
-Imports should always be absolute imports (with @). Never use relative imports.
+**NEVER use relative imports or bare `src/` prefix.** Always use the `@/` path alias for internal app imports.
+
+```typescript
+// ❌ FORBIDDEN - Relative imports
+import { Avatar } from '../components/Avatar'
+import { useAuth } from '../../contexts/AuthContext'
+
+// ❌ FORBIDDEN - Bare src/ prefix
+import { Avatar } from 'src/components/Avatar'
+import { useAuth } from 'src/contexts/AuthContext'
+
+// ✅ REQUIRED - @/ alias (maps to src/)
+import { Avatar } from '@/components/Avatar'
+import { useAuth } from '@/contexts/AuthContext'
+```
+
+Cross-package imports use their package name (e.g. `@lily/shared`, `@lily/api`).
 
 ---
 

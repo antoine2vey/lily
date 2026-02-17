@@ -1,1 +1,1 @@
-export { DelegationCreateScreen } from 'src/screens/delegation-create/DelegationCreateScreen'
+export { DelegationCreateScreen } from '@/screens/delegation-create/DelegationCreateScreen'

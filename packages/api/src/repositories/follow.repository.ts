@@ -5,7 +5,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import { plants, userFollows, userNudges, users } from '@lily/db'
-import { and, count, desc, eq, ilike, ne, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, inArray, ne, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UserCardRow {
@@ -257,7 +257,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, currentUserId),
-                sql`${userFollows.followingId} = ANY(${sql.raw(`ARRAY[${Array.map(userIds, (id) => `'${id}'`).join(',')}]::uuid[]`)})`
+                inArray(userFollows.followingId, userIds as string[])
               )
             )
           return new Set(Array.map(rows, (r) => r.followingId))

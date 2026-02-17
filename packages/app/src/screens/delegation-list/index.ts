@@ -1,1 +1,1 @@
-export { DelegationListScreen } from 'src/screens/delegation-list/DelegationListScreen'
+export { DelegationListScreen } from '@/screens/delegation-list/DelegationListScreen'

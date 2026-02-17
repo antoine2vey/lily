@@ -1,22 +1,20 @@
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
 import type { NudgeRequest } from '@lily/shared'
 import {
   NudgeNotAllowedError,
   NudgeRateLimitError,
   UserNotFoundError,
 } from '@lily/shared'
-import { Effect, Option, pipe } from 'effect'
+import { DateTime, Effect, Option, pipe } from 'effect'
 
 export const sendNudge = (params: NudgeRequest) =>
   Effect.gen(function* () {
     const { id: currentUserId, name: currentUserName } = yield* CurrentUser
     const followRepo = yield* FollowRepository
     const userRepo = yield* UserRepository
-    const notificationRepo = yield* NotificationRepository
 
     const { targetUserId } = params
 
@@ -45,8 +43,9 @@ export const sendNudge = (params: NudgeRequest) =>
       targetUserId
     )
     if (lastNudge) {
-      const oneDayMs = 24 * 60 * 60 * 1000
-      const oneDayAgo = new Date(Date.now() - oneDayMs)
+      const oneDayAgo = DateTime.toDateUtc(
+        DateTime.subtract(DateTime.unsafeNow(), { days: 1 })
+      )
       if (lastNudge > oneDayAgo) {
         return yield* Effect.fail(
           new NudgeRateLimitError({
@@ -65,19 +64,12 @@ export const sendNudge = (params: NudgeRequest) =>
       Option.getOrElse(() => 'A friend')
     )
 
-    const { title, body } = buildSimpleContent(
+    yield* scheduleNotification(
       'nudge_to_water',
+      targetUserId,
       { senderName: nudgerName },
       targetUser.language
     )
-
-    yield* notificationRepo.create({
-      userId: targetUserId,
-      type: 'nudge_to_water',
-      title,
-      body,
-      scheduledAt: new Date(),
-    })
 
     return { success: true }
   }).pipe(Effect.withSpan('SocialService.sendNudge'))

@@ -1,4 +1,4 @@
-import { DateTime, Effect, Schema } from 'effect'
+import { DateTime, Effect, String as EffectString, Schema } from 'effect'
 
 // HH:mm time format validation pattern
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -50,7 +50,7 @@ export const parseTime = (
 ): Effect.Effect<{ hours: number; minutes: number }, InvalidTimeFormatError> =>
   Effect.gen(function* () {
     yield* validateTimeFormat(time)
-    const parts = time.split(':')
+    const parts = EffectString.split(time, ':')
     const hoursStr = parts[0] ?? '0'
     const minutesStr = parts[1] ?? '0'
     return {

@@ -7,6 +7,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { SQL } from 'bun'
+import { Array, Order, pipe } from 'effect'
 
 const runMigrations = async () => {
   const databaseUrl = process.env.DATABASE_URL
@@ -31,12 +32,17 @@ const runMigrations = async () => {
 
   // Get already applied migrations
   const applied = await sql`SELECT hash FROM "__drizzle_migrations"`
-  const appliedHashes = new Set(applied.map((r: { hash: string }) => r.hash))
+  const appliedHashes = new Set(
+    Array.map(applied as { hash: string }[], (r) => r.hash)
+  )
 
   // Read migration files
   const migrationsFolder = './drizzle'
   const files = await readdir(migrationsFolder)
-  const sqlFiles = files.filter((f) => f.endsWith('.sql')).sort()
+  const sqlFiles = pipe(
+    Array.filter(files, (f) => f.endsWith('.sql')),
+    Array.sort(Order.string)
+  )
 
   console.log(`Found ${sqlFiles.length} migration files`)
 

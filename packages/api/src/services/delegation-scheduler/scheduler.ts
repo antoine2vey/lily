@@ -1,7 +1,10 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { SimpleNotificationType } from '@lily/api/services/notification-scheduler/translations'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import type { DelegationStatus } from '@lily/shared'
+import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 
 const POLL_INTERVAL = '5 minutes'
@@ -18,46 +21,69 @@ const getUserLanguage = (
     )
   })
 
+const processDelegationBatch = (
+  delegations: ReadonlyArray<{
+    id: string
+    ownerId: string
+    caretakerId: string
+  }>,
+  newStatus: DelegationStatus,
+  notificationType: SimpleNotificationType,
+  timestamps: Record<string, Date> | undefined,
+  now: Date
+) =>
+  Effect.gen(function* () {
+    const delegationRepo = yield* DelegationRepository
+    const notificationRepo = yield* NotificationRepository
+    const userRepo = yield* UserRepository
+
+    yield* Effect.forEach(delegations, (d) =>
+      Effect.gen(function* () {
+        yield* delegationRepo.updateStatus(d.id, newStatus, timestamps)
+        const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
+        const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
+        const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
+
+        const ownerContent = buildSimpleContent(
+          notificationType,
+          { plantCount: plants.length },
+          ownerLang
+        )
+        const caretakerContent = buildSimpleContent(
+          notificationType,
+          { plantCount: plants.length },
+          caretakerLang
+        )
+
+        yield* notificationRepo.create({
+          userId: d.ownerId,
+          type: notificationType,
+          title: ownerContent.title,
+          body: ownerContent.body,
+          scheduledAt: now,
+        })
+        yield* notificationRepo.create({
+          userId: d.caretakerId,
+          type: notificationType,
+          title: caretakerContent.title,
+          body: caretakerContent.body,
+          scheduledAt: now,
+        })
+      })
+    )
+  })
+
 export const pollAndTransition = Effect.gen(function* () {
   const delegationRepo = yield* DelegationRepository
-  const notificationRepo = yield* NotificationRepository
-  const userRepo = yield* UserRepository
-  const now = new Date()
+  const now = nowAsDate()
 
   const toActivate = yield* delegationRepo.findAcceptedReadyToActivate(now)
-  yield* Effect.forEach(toActivate, (d) =>
-    Effect.gen(function* () {
-      yield* delegationRepo.updateStatus(d.id, 'active')
-      const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
-      const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
-      const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
-
-      const ownerContent = buildSimpleContent(
-        'delegation_activated',
-        { plantCount: plants.length },
-        ownerLang
-      )
-      const caretakerContent = buildSimpleContent(
-        'delegation_activated',
-        { plantCount: plants.length },
-        caretakerLang
-      )
-
-      yield* notificationRepo.create({
-        userId: d.ownerId,
-        type: 'delegation_activated',
-        title: ownerContent.title,
-        body: ownerContent.body,
-        scheduledAt: now,
-      })
-      yield* notificationRepo.create({
-        userId: d.caretakerId,
-        type: 'delegation_activated',
-        title: caretakerContent.title,
-        body: caretakerContent.body,
-        scheduledAt: now,
-      })
-    })
+  yield* processDelegationBatch(
+    toActivate,
+    'active',
+    'delegation_activated',
+    undefined,
+    now
   )
 
   if (Array.isNonEmptyArray(toActivate)) {
@@ -65,41 +91,12 @@ export const pollAndTransition = Effect.gen(function* () {
   }
 
   const toComplete = yield* delegationRepo.findActiveReadyToComplete(now)
-  yield* Effect.forEach(toComplete, (d) =>
-    Effect.gen(function* () {
-      yield* delegationRepo.updateStatus(d.id, 'completed', {
-        completedAt: now,
-      })
-      const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
-      const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
-      const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
-
-      const ownerContent = buildSimpleContent(
-        'delegation_completed',
-        { plantCount: plants.length },
-        ownerLang
-      )
-      const caretakerContent = buildSimpleContent(
-        'delegation_completed',
-        { plantCount: plants.length },
-        caretakerLang
-      )
-
-      yield* notificationRepo.create({
-        userId: d.ownerId,
-        type: 'delegation_completed',
-        title: ownerContent.title,
-        body: ownerContent.body,
-        scheduledAt: now,
-      })
-      yield* notificationRepo.create({
-        userId: d.caretakerId,
-        type: 'delegation_completed',
-        title: caretakerContent.title,
-        body: caretakerContent.body,
-        scheduledAt: now,
-      })
-    })
+  yield* processDelegationBatch(
+    toComplete,
+    'completed',
+    'delegation_completed',
+    { completedAt: now },
+    now
   )
 
   if (Array.isNonEmptyArray(toComplete)) {

@@ -105,7 +105,13 @@ export function HomeScreen() {
     isRefetching,
     refetch: refetchPlants,
   } = useEffectQuery('plants', 'getPlants', {
-    urlParams: { page: '1', limit: '20', filter: 'all', sort: 'added' },
+    urlParams: {
+      page: '1',
+      limit: '20',
+      filter: 'all',
+      sort: 'added',
+      includeCaretaking: 'true',
+    },
   })
 
   const { data: overduePlantsData, refetch: refetchOverdue } = useEffectQuery(
@@ -117,6 +123,7 @@ export function HomeScreen() {
         limit: '50',
         filter: 'overdue',
         sort: 'added',
+        includeCaretaking: 'false',
       },
     }
   )

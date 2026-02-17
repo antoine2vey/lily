@@ -6,7 +6,14 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { nowAsDate } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { Config, type ConfigError, Console, Effect } from 'effect'
+import {
+  Config,
+  type ConfigError,
+  Console,
+  Effect,
+  String as EffectString,
+  pipe,
+} from 'effect'
 import qrcode from 'qrcode-terminal'
 
 // Feature flag - MUST be explicitly set in environment
@@ -35,7 +42,11 @@ export const sendMagicLink = ({
     const disableVerification = yield* DisableMagicLinkVerification
 
     // Normalize email
-    const normalizedEmail = email.toLowerCase().trim()
+    const normalizedEmail = pipe(
+      email,
+      EffectString.toLowerCase,
+      EffectString.trim
+    )
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
