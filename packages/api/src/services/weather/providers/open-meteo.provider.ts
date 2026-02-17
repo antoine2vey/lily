@@ -22,18 +22,21 @@ interface OpenMeteoResponse {
   }
 }
 
-const DAILY_VARS = [
-  'temperature_2m_max',
-  'temperature_2m_min',
-  'temperature_2m_mean',
-  'relative_humidity_2m_mean',
-  'wind_speed_10m_max',
-  'precipitation_sum',
-  'shortwave_radiation_sum',
-  'et0_fao_evapotranspiration',
-  'cloud_cover_mean',
-  'soil_temperature_0_to_7cm_mean',
-].join(',')
+const DAILY_VARS = Array.join(
+  [
+    'temperature_2m_max',
+    'temperature_2m_min',
+    'temperature_2m_mean',
+    'relative_humidity_2m_mean',
+    'wind_speed_10m_max',
+    'precipitation_sum',
+    'shortwave_radiation_sum',
+    'et0_fao_evapotranspiration',
+    'cloud_cover_mean',
+    'soil_temperature_0_to_7cm_mean',
+  ],
+  ','
+)
 
 const normalizeResponse = (res: OpenMeteoResponse): WeatherForecast => {
   const daily: ReadonlyArray<WeatherData> = pipe(

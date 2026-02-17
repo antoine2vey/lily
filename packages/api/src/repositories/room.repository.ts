@@ -1,6 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plants, rooms } from '@lily/db'
+import { nowAsDate } from '@lily/shared'
 import { asc, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 
@@ -93,7 +94,7 @@ export const RoomRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const [room] = yield* db
             .update(rooms)
-            .set({ ...data, updatedAt: new Date() })
+            .set({ ...data, updatedAt: nowAsDate() })
             .where(eq(rooms.id, id))
             .returning()
           return Option.getOrNull(Option.fromNullable(room))

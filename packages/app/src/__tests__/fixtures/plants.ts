@@ -27,6 +27,8 @@ export const mockPlants: PlantRecord[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-2',
@@ -52,6 +54,8 @@ export const mockPlants: PlantRecord[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-3',
@@ -77,6 +81,8 @@ export const mockPlants: PlantRecord[] = [
     userId: 'user-2',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
 ]
 
@@ -121,5 +127,7 @@ export const createTestPlant = (
   userId: 'user-1',
   roomId: null,
   room: null,
+  ownership: 'owned' as const,
+  ownerName: null,
   ...overrides,
 })

@@ -7,6 +7,7 @@ interface PlantsParams {
   limit?: string
   filter?: string
   sort?: string
+  includeCaretaking?: string
 }
 
 export function usePlants(params?: PlantsParams) {
@@ -30,6 +31,10 @@ export function usePlants(params?: PlantsParams) {
         sort: pipe(
           Option.fromNullable(params?.sort),
           Option.getOrElse(() => 'added')
+        ),
+        includeCaretaking: pipe(
+          Option.fromNullable(params?.includeCaretaking),
+          Option.getOrElse(() => 'false')
         ),
       },
     },

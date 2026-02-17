@@ -4,6 +4,7 @@ import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { nowAsEpochMillis } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
   FileService,
@@ -15,7 +16,13 @@ import {
   GCSService,
   type GCSUploadError,
 } from '@lily/shared/services/file/gcs'
-import { Effect } from 'effect'
+import {
+  Effect,
+  Array as EffectArray,
+  String as EffectString,
+  Option,
+  pipe,
+} from 'effect'
 
 export const uploadAvatar = (
   files: readonly PersistedFile[]
@@ -40,7 +47,12 @@ export const uploadAvatar = (
 
     const { url } = yield* gcs.uploadFile({
       fileBuffer: Buffer.from(file.buffer),
-      fileName: `avatars/${userId}-${Date.now()}.${file.name.split('.').pop() ?? 'jpg'}`,
+      fileName: `avatars/${userId}-${nowAsEpochMillis()}.${pipe(
+        file.name,
+        EffectString.split('.'),
+        EffectArray.last,
+        Option.getOrElse(() => 'jpg')
+      )}`,
       contentType: file.contentType,
     })
 

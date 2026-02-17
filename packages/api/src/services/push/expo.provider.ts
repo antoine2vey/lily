@@ -114,7 +114,10 @@ export const ExpoPushServiceLive = Layer.effect(
           if (invalidTokens.length > 0) {
             return yield* Effect.fail(
               new PushConfigError({
-                message: `Invalid Expo push tokens: ${Array.map(invalidTokens, (t) => t.to).join(', ')}`,
+                message: `Invalid Expo push tokens: ${Array.join(
+                  Array.map(invalidTokens, (t) => t.to),
+                  ', '
+                )}`,
               })
             )
           }

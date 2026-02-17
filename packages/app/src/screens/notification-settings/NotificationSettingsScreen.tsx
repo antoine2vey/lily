@@ -1,50 +1,35 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatTime, makeTimePickerDate, parseApiDate } from '@lily/shared'
-import DateTimePicker from '@react-native-community/datetimepicker'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
-  useColorScheme,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ToggleRow } from 'src/components/ToggleRow'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ToggleRow } from '@/components/ToggleRow'
+import { useAuth } from '@/contexts/AuthContext'
+import { useIconColors } from '@/hooks/useIconColors'
 import {
   useNotificationSettings,
   useUpdateNotificationSettings,
-} from 'src/hooks/useNotificationSettings'
-import { apiEffectRunner } from 'src/utils/client'
-import { getDeviceTimezone } from 'src/utils/notifications'
-
-// Common timezone options
-const TIMEZONE_OPTIONS = [
-  { label: 'UTC', value: 'UTC' },
-  { label: 'New York (ET)', value: 'America/New_York' },
-  { label: 'Chicago (CT)', value: 'America/Chicago' },
-  { label: 'Denver (MT)', value: 'America/Denver' },
-  { label: 'Los Angeles (PT)', value: 'America/Los_Angeles' },
-  { label: 'London (GMT/BST)', value: 'Europe/London' },
-  { label: 'Paris (CET)', value: 'Europe/Paris' },
-  { label: 'Berlin (CET)', value: 'Europe/Berlin' },
-  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
-  { label: 'Shanghai (CST)', value: 'Asia/Shanghai' },
-  { label: 'Sydney (AEDT)', value: 'Australia/Sydney' },
-  { label: 'Dubai (GST)', value: 'Asia/Dubai' },
-  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
-  { label: 'Mumbai (IST)', value: 'Asia/Kolkata' },
-  { label: 'São Paulo (BRT)', value: 'America/Sao_Paulo' },
-]
+} from '@/hooks/useNotificationSettings'
+import {
+  TimePickerModal,
+  type TimePickerTarget,
+} from '@/screens/notification-settings/components/TimePickerModal'
+import {
+  TIMEZONE_OPTIONS,
+  TimezonePickerModal,
+} from '@/screens/notification-settings/components/TimezonePickerModal'
+import { apiEffectRunner } from '@/utils/client'
+import { getDeviceTimezone } from '@/utils/notifications'
 
 function parseTime(timeString: string): Date {
   const parts = String.split(timeString, ':')
@@ -58,7 +43,6 @@ function parseTime(timeString: string): Date {
     Option.map(Number),
     Option.getOrElse(() => 0)
   )
-  // Create a Date object for the time picker (required by DateTimePicker)
   return makeTimePickerDate(hours, minutes)
 }
 
@@ -74,8 +58,6 @@ const formatTimeDisplay = (
   )
 
 function formatTimeString(date: Date): string {
-  // Extract hours and minutes for API format (HH:MM)
-  // Using Date methods here as this is for DateTimePicker interop
   const hours = `${date.getHours()}`.padStart(2, '0')
   const minutes = `${date.getMinutes()}`.padStart(2, '0')
   return `${hours}:${minutes}`
@@ -92,41 +74,19 @@ function getTimezoneLabel(timezone: string): string {
 export function NotificationSettingsScreen() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation(['notifications', 'common'])
-  const colorScheme = useColorScheme()
-  const isDark = colorScheme === 'dark'
   const iconColors = useIconColors()
   const { data: settings, isLoading } = useNotificationSettings()
   const { mutate: updateSettings } = useUpdateNotificationSettings()
   const { state } = useAuth()
 
-  const [showTimePicker, setShowTimePicker] = useState<
-    'dndStart' | 'dndEnd' | 'notificationTime' | null
-  >(null)
+  const [showTimePicker, setShowTimePicker] = useState<TimePickerTarget | null>(
+    null
+  )
   const [showTimezonePicker, setShowTimezonePicker] = useState(false)
   const [timezone, setTimezone] = useState<string>('UTC')
   const [preferredNotificationTime, setPreferredNotificationTime] =
     useState<string>('09:00')
   const [isLoadingTimezone, setIsLoadingTimezone] = useState(true)
-  const [timezoneSearch, setTimezoneSearch] = useState('')
-
-  // Filter timezone options based on search
-  const filteredTimezones = pipe(
-    TIMEZONE_OPTIONS,
-    Array.filter(
-      (tz) =>
-        String.isEmpty(timezoneSearch) ||
-        pipe(
-          tz.label,
-          String.toLowerCase,
-          String.includes(String.toLowerCase(timezoneSearch))
-        ) ||
-        pipe(
-          tz.value,
-          String.toLowerCase,
-          String.includes(String.toLowerCase(timezoneSearch))
-        )
-    )
-  )
 
   // Load user timezone settings
   useEffect(() => {
@@ -148,7 +108,6 @@ export function NotificationSettingsScreen() {
           )
         }
       } catch (_error) {
-        // Fall back to device timezone on error
         if (!cancelled) {
           setTimezone(getDeviceTimezone())
         }
@@ -223,15 +182,50 @@ export function NotificationSettingsScreen() {
     updateSettings({ [key]: value })
   }
 
-  const handleTimeChange = (
-    key: 'doNotDisturbStart' | 'doNotDisturbEnd',
-    date: Date
-  ) => {
-    updateSettings({ [key]: formatTimeString(date) })
-    if (Platform.OS === 'android') {
-      setShowTimePicker(null)
-    }
-  }
+  const handleTimeChange = useCallback(
+    (key: 'doNotDisturbStart' | 'doNotDisturbEnd', date: Date) => {
+      updateSettings({ [key]: formatTimeString(date) })
+      if (Platform.OS === 'android') {
+        setShowTimePicker(null)
+      }
+    },
+    [updateSettings]
+  )
+
+  const getTimePickerValue = useCallback(
+    (target: TimePickerTarget): Date =>
+      pipe(
+        Match.value(target),
+        Match.when('dndStart', () =>
+          parseTime(settings?.doNotDisturbStart ?? '22:00')
+        ),
+        Match.when('dndEnd', () =>
+          parseTime(settings?.doNotDisturbEnd ?? '07:00')
+        ),
+        Match.when('notificationTime', () =>
+          parseTime(preferredNotificationTime)
+        ),
+        Match.exhaustive
+      ),
+    [settings, preferredNotificationTime]
+  )
+
+  const handleTimePickerChange = useCallback(
+    (target: TimePickerTarget, date: Date) => {
+      pipe(
+        Match.value(target),
+        Match.when('dndStart', () =>
+          handleTimeChange('doNotDisturbStart', date)
+        ),
+        Match.when('dndEnd', () => handleTimeChange('doNotDisturbEnd', date)),
+        Match.when('notificationTime', () =>
+          handleNotificationTimeChange(date)
+        ),
+        Match.exhaustive
+      )
+    },
+    [handleTimeChange, handleNotificationTimeChange]
+  )
 
   if (isLoading || !settings || isLoadingTimezone) {
     return (
@@ -457,7 +451,6 @@ export function NotificationSettingsScreen() {
             {t('timezone.title')}
           </Text>
           <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
-            {/* Timezone */}
             <Pressable
               onPress={() => setShowTimezonePicker(true)}
               className="flex-row items-center gap-3 p-4 active:bg-surface-tinted dark:active:bg-slate-800 border-b border-border/50 dark:border-slate-700/50"
@@ -484,7 +477,6 @@ export function NotificationSettingsScreen() {
               />
             </Pressable>
 
-            {/* Auto-detect Timezone */}
             <Pressable
               onPress={handleAutoDetectTimezone}
               className="flex-row items-center gap-3 p-4 active:bg-surface-tinted dark:active:bg-slate-800"
@@ -503,202 +495,22 @@ export function NotificationSettingsScreen() {
           </View>
         </View>
 
-        {/* Bottom spacer */}
         <View className="h-6" />
       </ScrollView>
 
-      {/* Time Pickers - iOS Modal wrapper */}
-      {showTimePicker && Platform.OS === 'ios' && (
-        <Modal
-          visible={true}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowTimePicker(null)}
-        >
-          <View className="flex-1 justify-end bg-black/30">
-            <View className="bg-surface dark:bg-surface-dark rounded-t-2xl">
-              <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/30 dark:border-slate-700/30">
-                <Pressable onPress={() => setShowTimePicker(null)}>
-                  <Text className="text-base text-text-muted dark:text-slate-400">
-                    {t('quietHours.cancel')}
-                  </Text>
-                </Pressable>
-                <Text className="text-base font-semibold text-text-primary dark:text-white">
-                  {pipe(
-                    Match.value(showTimePicker),
-                    Match.when('dndStart', () => t('quietHours.startTime')),
-                    Match.when('dndEnd', () => t('quietHours.endTime')),
-                    Match.when('notificationTime', () =>
-                      t('quietHours.notificationTime')
-                    ),
-                    Match.exhaustive
-                  )}
-                </Text>
-                <Pressable onPress={() => setShowTimePicker(null)}>
-                  <Text className="text-base font-semibold text-primary">
-                    {t('quietHours.done')}
-                  </Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={pipe(
-                  Match.value(showTimePicker),
-                  Match.when('dndStart', () =>
-                    parseTime(settings.doNotDisturbStart)
-                  ),
-                  Match.when('dndEnd', () =>
-                    parseTime(settings.doNotDisturbEnd)
-                  ),
-                  Match.when('notificationTime', () =>
-                    parseTime(preferredNotificationTime)
-                  ),
-                  Match.exhaustive
-                )}
-                mode="time"
-                display="spinner"
-                themeVariant={isDark ? 'dark' : 'light'}
-                onChange={(_event: unknown, selectedTime: Date | undefined) => {
-                  if (selectedTime) {
-                    pipe(
-                      Match.value(showTimePicker),
-                      Match.when('dndStart', () =>
-                        handleTimeChange('doNotDisturbStart', selectedTime)
-                      ),
-                      Match.when('dndEnd', () =>
-                        handleTimeChange('doNotDisturbEnd', selectedTime)
-                      ),
-                      Match.when('notificationTime', () =>
-                        handleNotificationTimeChange(selectedTime)
-                      ),
-                      Match.exhaustive
-                    )
-                  }
-                }}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
+      <TimePickerModal
+        target={showTimePicker}
+        onClose={() => setShowTimePicker(null)}
+        getValueForTarget={getTimePickerValue}
+        onTimeChange={handleTimePickerChange}
+      />
 
-      {/* Time Pickers - Android */}
-      {showTimePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={pipe(
-            Match.value(showTimePicker),
-            Match.when('dndStart', () => parseTime(settings.doNotDisturbStart)),
-            Match.when('dndEnd', () => parseTime(settings.doNotDisturbEnd)),
-            Match.when('notificationTime', () =>
-              parseTime(preferredNotificationTime)
-            ),
-            Match.exhaustive
-          )}
-          mode="time"
-          display="spinner"
-          onChange={(_event: unknown, selectedTime: Date | undefined) => {
-            setShowTimePicker(null)
-            if (selectedTime) {
-              pipe(
-                Match.value(showTimePicker),
-                Match.when('dndStart', () =>
-                  handleTimeChange('doNotDisturbStart', selectedTime)
-                ),
-                Match.when('dndEnd', () =>
-                  handleTimeChange('doNotDisturbEnd', selectedTime)
-                ),
-                Match.when('notificationTime', () =>
-                  handleNotificationTimeChange(selectedTime)
-                ),
-                Match.exhaustive
-              )
-            }
-          }}
-        />
-      )}
-
-      {/* Timezone Picker Modal */}
-      <Modal
+      <TimezonePickerModal
         visible={showTimezonePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowTimezonePicker(false)}
-      >
-        <View
-          className="flex-1 bg-background dark:bg-background-dark"
-          style={{ paddingTop: insets.top }}
-        >
-          {/* Modal Header */}
-          <View className="flex-row items-center px-4 py-3">
-            <Pressable
-              onPress={() => setShowTimezonePicker(false)}
-              className="w-10 h-10 items-center justify-center rounded-full"
-            >
-              <MaterialIcons
-                name="close"
-                size={24}
-                color={iconColors.textPrimary}
-              />
-            </Pressable>
-            <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
-              {t('timezone.select')}
-            </Text>
-          </View>
-
-          {/* Search Input */}
-          <View className="px-4 py-3">
-            <View className="flex-row items-center bg-surface dark:bg-surface-dark border border-border/30 dark:border-slate-700/30 rounded-xl px-4">
-              <MaterialIcons
-                name="search"
-                size={20}
-                color={iconColors.textMuted}
-              />
-              <TextInput
-                className="flex-1 py-3 px-2 text-base text-text-primary dark:text-white"
-                placeholder={t('timezone.search')}
-                placeholderTextColor={iconColors.textMuted}
-                value={timezoneSearch}
-                onChangeText={setTimezoneSearch}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          </View>
-
-          {/* Timezone List */}
-          <ScrollView
-            className="flex-1 px-4"
-            showsVerticalScrollIndicator={false}
-          >
-            <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
-              {Array.map(filteredTimezones, (tz, index) => (
-                <Pressable
-                  key={tz.value}
-                  onPress={() => handleTimezoneChange(tz.value)}
-                  className={`flex-row items-center px-4 py-4 active:bg-surface-tinted dark:active:bg-slate-800 ${
-                    index < Array.length(filteredTimezones) - 1
-                      ? 'border-b border-border/50 dark:border-slate-700/50'
-                      : ''
-                  }`}
-                >
-                  <Text className="flex-1 text-base text-text-primary dark:text-white font-medium">
-                    {tz.label}
-                  </Text>
-                  <Text className="text-sm text-text-muted dark:text-slate-400 mr-2">
-                    {tz.value}
-                  </Text>
-                  {timezone === tz.value && (
-                    <MaterialIcons
-                      name="check"
-                      size={20}
-                      color={iconColors.primary}
-                    />
-                  )}
-                </Pressable>
-              ))}
-            </View>
-            <View className="h-8" />
-          </ScrollView>
-        </View>
-      </Modal>
+        onClose={() => setShowTimezonePicker(false)}
+        selectedTimezone={timezone}
+        onTimezoneChange={handleTimezoneChange}
+      />
     </View>
   )
 }

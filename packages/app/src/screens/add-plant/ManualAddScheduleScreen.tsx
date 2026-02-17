@@ -34,6 +34,23 @@ type CareNeeds = {
   petSafe: boolean
 }
 
+const DEFAULT_BASIC_INFO: BasicInfo = { photo: null, name: '', category: '' }
+const DEFAULT_CARE_NEEDS: CareNeeds = {
+  watering: 50,
+  luxNeeded: 2000,
+  humidity: 50,
+  petSafe: false,
+}
+
+function safeDecodeParam<T>(encoded: string | undefined, fallback: T): T {
+  if (!encoded) return fallback
+  try {
+    return JSON.parse(decodeURIComponent(encoded)) as T
+  } catch {
+    return fallback
+  }
+}
+
 export function ManualAddScheduleScreen() {
   const { t } = useTranslation(['addPlant', 'common'])
   const params = useLocalSearchParams<{
@@ -55,12 +72,14 @@ export function ManualAddScheduleScreen() {
     { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
     { days: 60, label: t('addPlant:schedule.presets.sixtyDays') },
   ]
-  const basicInfo: BasicInfo = params.basicInfo
-    ? JSON.parse(decodeURIComponent(params.basicInfo))
-    : { photo: null, name: '', category: '' }
-  const careNeeds: CareNeeds = params.careNeeds
-    ? JSON.parse(decodeURIComponent(params.careNeeds))
-    : { watering: 50, luxNeeded: 2000, humidity: 50, petSafe: false }
+  const basicInfo = safeDecodeParam<BasicInfo>(
+    params.basicInfo,
+    DEFAULT_BASIC_INFO
+  )
+  const careNeeds = safeDecodeParam<CareNeeds>(
+    params.careNeeds,
+    DEFAULT_CARE_NEEDS
+  )
 
   const [roomId, setRoomId] = useState<string | null>(null)
   const [wateringDays, setWateringDays] = useState(7)

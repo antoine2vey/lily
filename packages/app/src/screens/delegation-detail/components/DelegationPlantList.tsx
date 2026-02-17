@@ -3,8 +3,8 @@ import { formatShortDate, parseApiDate } from '@lily/shared'
 import { Array as Arr, Option, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { Avatar } from 'src/components/Avatar'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { Avatar } from '@/components/Avatar'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface DelegationPlant {
   id: string

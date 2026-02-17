@@ -30,79 +30,85 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
   en: {
     new_follower: {
       title: () => 'New follower',
-      body: (p) => `${p.senderName ?? 'Someone'} started following you`,
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} started following you`,
     },
     nudge_to_water: {
       title: () => 'Nudge from a friend',
       body: (p) =>
-        `${p.senderName ?? 'A friend'} is reminding you to check on your plants!`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'A friend')} is reminding you to check on your plants!`,
     },
     delegation_request: {
       title: () => 'Care request',
       body: (p) =>
-        `${p.senderName ?? 'Someone'} wants you to care for their plants`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} wants you to care for their plants`,
     },
     delegation_accepted: {
       title: () => 'Request accepted',
-      body: (p) => `${p.senderName ?? 'Someone'} accepted your care delegation`,
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} accepted your care delegation`,
     },
     delegation_rejected: {
       title: () => 'Request declined',
-      body: (p) => `${p.senderName ?? 'Someone'} declined your care delegation`,
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} declined your care delegation`,
     },
     delegation_canceled: {
       title: () => 'Delegation canceled',
-      body: (p) => `${p.senderName ?? 'Someone'} canceled the care delegation`,
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} canceled the care delegation`,
     },
     delegation_activated: {
       title: () => 'Delegation started',
       body: (p) =>
-        `Care delegation for ${p.plantCount ?? 0} plants has started`,
+        `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has started`,
     },
     delegation_completed: {
       title: () => 'Delegation ended',
-      body: (p) => `Care delegation for ${p.plantCount ?? 0} plants has ended`,
+      body: (p) =>
+        `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has ended`,
     },
   },
   fr: {
     new_follower: {
       title: () => 'Nouveau follower',
-      body: (p) => `${p.senderName ?? "Quelqu'un"} a commencé à vous suivre`,
+      body: (p) =>
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a commencé à vous suivre`,
     },
     nudge_to_water: {
       title: () => "Rappel d'un ami",
       body: (p) =>
-        `${p.senderName ?? 'Un ami'} vous rappelle de vous occuper de vos plantes !`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Un ami')} vous rappelle de vous occuper de vos plantes !`,
     },
     delegation_request: {
       title: () => 'Demande de garde',
       body: (p) =>
-        `${p.senderName ?? "Quelqu'un"} souhaite que vous gardiez ses plantes`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} souhaite que vous gardiez ses plantes`,
     },
     delegation_accepted: {
       title: () => 'Demande acceptée',
       body: (p) =>
-        `${p.senderName ?? "Quelqu'un"} a accepté votre délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a accepté votre délégation de soins`,
     },
     delegation_rejected: {
       title: () => 'Demande refusée',
       body: (p) =>
-        `${p.senderName ?? "Quelqu'un"} a refusé votre délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a refusé votre délégation de soins`,
     },
     delegation_canceled: {
       title: () => 'Délégation annulée',
       body: (p) =>
-        `${p.senderName ?? "Quelqu'un"} a annulé la délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a annulé la délégation de soins`,
     },
     delegation_activated: {
       title: () => 'Délégation commencée',
       body: (p) =>
-        `La délégation de soins pour ${p.plantCount ?? 0} plantes a commencé`,
+        `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes a commencé`,
     },
     delegation_completed: {
       title: () => 'Délégation terminée',
       body: (p) =>
-        `La délégation de soins pour ${p.plantCount ?? 0} plantes est terminée`,
+        `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes est terminée`,
     },
   },
 }

@@ -5,7 +5,7 @@ import { buildNotificationContent } from '@lily/api/services/notification-schedu
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { Array, DateTime, Effect, Match, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Match, Option, pipe, Record } from 'effect'
 
 const POLL_INTERVAL = '1 minute'
 const BATCH_SIZE = 100
@@ -97,7 +97,9 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
-    const user = userSettingsMap.get(notification.userId) ?? null
+    const user = Option.getOrNull(
+      Option.fromNullable(userSettingsMap.get(notification.userId))
+    )
 
     // Safety net: skip care reminders if user has disabled them
     if (isCareReminderType(notification.type) && user && !user.careReminders) {
@@ -150,7 +152,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   // Phase 4: Enqueue one message per group
-  for (const [_key, group] of Object.entries(grouped)) {
+  for (const [_key, group] of Record.toEntries(grouped)) {
     const first = Array.head(group)
     if (Option.isNone(first)) continue
 

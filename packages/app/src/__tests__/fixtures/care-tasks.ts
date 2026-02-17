@@ -44,6 +44,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-2',
@@ -69,6 +71,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-3',
@@ -94,6 +98,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-4',
@@ -119,6 +125,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
   {
     id: 'plant-5',
@@ -144,6 +152,8 @@ export const mockPlantsForCareTasks: Plant[] = [
     userId: 'user-2',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
 ]
 
@@ -173,5 +183,7 @@ export const mockPlantsNoCare: Plant[] = [
     userId: 'user-1',
     roomId: null,
     room: null,
+    ownership: 'owned' as const,
+    ownerName: null,
   },
 ]

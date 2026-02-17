@@ -267,7 +267,10 @@ const seedDemoData = Effect.gen(function* () {
       .values({
         ...plantData,
         userId: user.id,
-        dateAdded: plantData.dateAdded ?? new Date(),
+        dateAdded: Option.getOrElse(
+          Option.fromNullable(plantData.dateAdded),
+          () => new Date()
+        ),
       })
       .returning({ id: plants.id, name: plants.name })
 
@@ -286,8 +289,12 @@ const seedDemoData = Effect.gen(function* () {
     new Date(Date.now() - hours * 60 * 60 * 1000)
 
   // Snake Plant - Long history, infrequent watering (succulent)
-  const snakePlant = createdPlants.find((p) => p.name === 'Snake Plant')
-  if (snakePlant) {
+  const snakePlantOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Snake Plant'
+  )
+  if (Option.isSome(snakePlantOption)) {
+    const snakePlant = snakePlantOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -336,8 +343,9 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Pothos - Regular watering, trailing vine
-  const pothos = createdPlants.find((p) => p.name === 'Pothos')
-  if (pothos) {
+  const pothosOption = A.findFirst(createdPlants, (p) => p.name === 'Pothos')
+  if (Option.isSome(pothosOption)) {
+    const pothos = pothosOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -380,8 +388,9 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Fern - High maintenance, frequent watering
-  const fern = createdPlants.find((p) => p.name === 'Fern')
-  if (fern) {
+  const fernOption = A.findFirst(createdPlants, (p) => p.name === 'Fern')
+  if (Option.isSome(fernOption)) {
+    const fern = fernOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -442,8 +451,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Fiddle Leaf Fig - Medium maintenance with recent activity
-  const fiddleLeafFig = createdPlants.find((p) => p.name === 'Fiddle Leaf Fig')
-  if (fiddleLeafFig) {
+  const fiddleLeafFigOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Fiddle Leaf Fig'
+  )
+  if (Option.isSome(fiddleLeafFigOption)) {
+    const fiddleLeafFig = fiddleLeafFigOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -492,8 +505,9 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Cactus - Very infrequent, newly added
-  const cactus = createdPlants.find((p) => p.name === 'Cactus')
-  if (cactus) {
+  const cactusOption = A.findFirst(createdPlants, (p) => p.name === 'Cactus')
+  if (Option.isSome(cactusOption)) {
+    const cactus = cactusOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -506,8 +520,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Aloe Vera - Moderate history
-  const aloeVera = createdPlants.find((p) => p.name === 'Aloe Vera')
-  if (aloeVera) {
+  const aloeVeraOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Aloe Vera'
+  )
+  if (Option.isSome(aloeVeraOption)) {
+    const aloeVera = aloeVeraOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -544,8 +562,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Monstera - Popular plant with good history
-  const monstera = createdPlants.find((p) => p.name === 'Monstera')
-  if (monstera) {
+  const monsteraOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Monstera'
+  )
+  if (Option.isSome(monsteraOption)) {
+    const monstera = monsteraOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -594,8 +616,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Peace Lily - Flowering plant with varied care
-  const peaceLily = createdPlants.find((p) => p.name === 'Peace Lily')
-  if (peaceLily) {
+  const peaceLilyOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Peace Lily'
+  )
+  if (Option.isSome(peaceLilyOption)) {
+    const peaceLily = peaceLilyOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -644,8 +670,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Spider Plant - Air purifier with propagation
-  const spiderPlant = createdPlants.find((p) => p.name === 'Spider Plant')
-  if (spiderPlant) {
+  const spiderPlantOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Spider Plant'
+  )
+  if (Option.isSome(spiderPlantOption)) {
+    const spiderPlant = spiderPlantOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -682,8 +712,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Rubber Plant - Sturdy with moderate care
-  const rubberPlant = createdPlants.find((p) => p.name === 'Rubber Plant')
-  if (rubberPlant) {
+  const rubberPlantOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Rubber Plant'
+  )
+  if (Option.isSome(rubberPlantOption)) {
+    const rubberPlant = rubberPlantOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -720,8 +754,9 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Orchid - Needs attention, irregular care
-  const orchid = createdPlants.find((p) => p.name === 'Orchid')
-  if (orchid) {
+  const orchidOption = A.findFirst(createdPlants, (p) => p.name === 'Orchid')
+  if (Option.isSome(orchidOption)) {
+    const orchid = orchidOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',
@@ -766,8 +801,12 @@ const seedDemoData = Effect.gen(function* () {
   }
 
   // Calathea - Needs attention, demanding plant
-  const calathea = createdPlants.find((p) => p.name === 'Calathea')
-  if (calathea) {
+  const calatheaOption = A.findFirst(
+    createdPlants,
+    (p) => p.name === 'Calathea'
+  )
+  if (Option.isSome(calatheaOption)) {
+    const calathea = calatheaOption.value
     yield* db.insert(careLogs).values([
       {
         type: 'watering',

@@ -7,7 +7,7 @@ import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule
 import { calculateScheduleDelta } from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import { roundCoord } from '@lily/shared'
-import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 interface WeatherEnabledUser {
   readonly id: string
@@ -119,15 +119,17 @@ const readjustUserPlants = (
       `[Readjust] User ${user.id} has ${plantsResult.items.length} plants`
     )
 
-    // Process each plant sequentially to avoid overwhelming the DB
-    yield* Effect.forEach(plantsResult.items, (plant) =>
-      readjustPlantSchedule(plant, user, weatherCtx).pipe(
-        Effect.catchAll((error) =>
-          Effect.logWarning(`Readjustment failed for plant ${plant.id}`, {
-            error,
-          })
-        )
-      )
+    yield* Effect.forEach(
+      plantsResult.items,
+      (plant) =>
+        readjustPlantSchedule(plant, user, weatherCtx).pipe(
+          Effect.catchAll((error) =>
+            Effect.logWarning(`Readjustment failed for plant ${plant.id}`, {
+              error,
+            })
+          )
+        ),
+      { concurrency: 10 }
     )
   })
 
@@ -204,66 +206,64 @@ const readjustPlantSchedule = (
     )
 
     const plantRepo = yield* PlantRepository
-    const oneDayMs = 24 * 60 * 60 * 1000
+    const oneDayMs = Duration.toMillis(Duration.days(1))
 
-    let wateringChanged = false
-    let fertilizationChanged = false
-    let newNextWateringAt: Date | undefined
-    let newNextFertilizationAt: Date | undefined
-
-    // --- Apply watering delta ---
-    if (delta.wateringDaysDelta !== 0) {
-      newNextWateringAt = new Date(
-        plant.nextWateringAt.getTime() + delta.wateringDaysDelta * oneDayMs
+    // Compute schedule changes as immutable result
+    const newNextWateringAt = pipe(
+      Option.fromNullable(plant.nextWateringAt),
+      Option.filter(() => delta.wateringDaysDelta !== 0),
+      Option.map(
+        (wateringDate) =>
+          new Date(wateringDate.getTime() + delta.wateringDaysDelta * oneDayMs)
       )
-      wateringChanged = true
-    }
+    )
 
-    // --- Apply fertilization delta ---
-    if (delta.fertilizationDaysDelta !== 0 && plant.nextFertilizationAt) {
-      newNextFertilizationAt = new Date(
-        plant.nextFertilizationAt.getTime() +
-          delta.fertilizationDaysDelta * oneDayMs
+    const newNextFertilizationAt = pipe(
+      Option.fromNullable(plant.nextFertilizationAt),
+      Option.filter(() => delta.fertilizationDaysDelta !== 0),
+      Option.map(
+        (fertDate) =>
+          new Date(fertDate.getTime() + delta.fertilizationDaysDelta * oneDayMs)
       )
-      fertilizationChanged = true
-    }
+    )
+
+    const wateringChanged = Option.isSome(newNextWateringAt)
+    const fertilizationChanged = Option.isSome(newNextFertilizationAt)
 
     // Apply updates if anything changed
     if (wateringChanged || fertilizationChanged) {
       const updateData = {
-        ...(wateringChanged && newNextWateringAt
-          ? { nextWateringAt: newNextWateringAt }
-          : {}),
-        ...(fertilizationChanged && newNextFertilizationAt
-          ? { nextFertilizationAt: newNextFertilizationAt }
+        ...(wateringChanged ? { nextWateringAt: newNextWateringAt.value } : {}),
+        ...(fertilizationChanged
+          ? { nextFertilizationAt: newNextFertilizationAt.value }
           : {}),
       }
 
       yield* plantRepo.update(plant.id, updateData)
 
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${wateringChanged}${wateringChanged && newNextWateringAt ? ` (${plant.nextWateringAt.toISOString()} → ${newNextWateringAt.toISOString()})` : ''}, fertilization=${fertilizationChanged}${fertilizationChanged && newNextFertilizationAt ? ` (${plant.nextFertilizationAt?.toISOString()} → ${newNextFertilizationAt.toISOString()})` : ''}`
+        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${plant.nextWateringAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${fertilizationChanged ? ` (${plant.nextFertilizationAt?.toISOString()} → ${newNextFertilizationAt.value.toISOString()})` : ''}`
       )
 
       // Reschedule notifications
-      if (wateringChanged && newNextWateringAt) {
+      if (wateringChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
           plantName: plant.name,
           userId: plant.userId,
           type: 'watering_reminder',
-          scheduledDate: newNextWateringAt,
+          scheduledDate: newNextWateringAt.value,
           remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }
 
-      if (fertilizationChanged && newNextFertilizationAt) {
+      if (fertilizationChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
           plantName: plant.name,
           userId: plant.userId,
           type: 'fertilization_reminder',
-          scheduledDate: newNextFertilizationAt,
+          scheduledDate: newNextFertilizationAt.value,
           remindersEnabled: plant.remindersEnabled && user.careReminders,
         })
       }

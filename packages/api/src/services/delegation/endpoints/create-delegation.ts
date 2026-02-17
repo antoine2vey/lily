@@ -1,23 +1,23 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   CannotDelegateSelfError,
   type CreateDelegationRequest,
   DelegationDateError,
+  DelegationNotFoundError,
   DelegationOverlapError,
+  nowAsDate,
   UserNotFoundError,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 export const createDelegation = (request: CreateDelegationRequest) =>
   Effect.gen(function* () {
     const { id: currentUserId, name: currentUserName } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
-    const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
     const limitChecker = yield* LimitChecker
 
@@ -34,15 +34,18 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       )
     }
 
-    const startDate = new Date(request.startDate)
-    const endDate = new Date(request.endDate)
-    const now = new Date()
+    const startDateTime = DateTime.make(request.startDate)
+    const endDateTime = DateTime.make(request.endDate)
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    if (Option.isNone(startDateTime) || Option.isNone(endDateTime)) {
       return yield* Effect.fail(
         new DelegationDateError({ message: 'Invalid date format' })
       )
     }
+
+    const startDate = DateTime.toDateUtc(startDateTime.value)
+    const endDate = DateTime.toDateUtc(endDateTime.value)
+    const now = nowAsDate()
 
     if (startDate < now) {
       return yield* Effect.fail(
@@ -98,19 +101,21 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       Option.getOrElse(() => 'Someone')
     )
 
-    const { title, body } = buildSimpleContent(
+    yield* scheduleNotification(
       'delegation_request',
+      request.caretakerId,
       { senderName: ownerName },
       caretaker.language
     )
 
-    yield* notificationRepo.create({
-      userId: request.caretakerId,
-      type: 'delegation_request',
-      title,
-      body,
-      scheduledAt: new Date(),
-    })
-
-    return detail!
+    return yield* pipe(
+      Option.fromNullable(detail),
+      Option.match({
+        onNone: () =>
+          Effect.fail(
+            new DelegationNotFoundError({ delegationId: delegation.id })
+          ),
+        onSome: Effect.succeed,
+      })
+    )
   }).pipe(Effect.withSpan('DelegationService.createDelegation'))

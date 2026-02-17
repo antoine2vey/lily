@@ -1,4 +1,13 @@
-import { Config, Context, Effect, Layer, Option, Redacted } from 'effect'
+import {
+  Array,
+  Config,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Redacted,
+} from 'effect'
 import * as jose from 'jose'
 import { JWTError } from './errors'
 
@@ -159,11 +168,12 @@ export const JWTServiceLive = Layer.effect(
           const hashBuffer = yield* Effect.promise(() =>
             crypto.subtle.digest('SHA-256', data)
           )
-          const hashArray = new Uint8Array(hashBuffer)
+          const hashArray = [...new Uint8Array(hashBuffer)]
           // Convert to hex string
-          const hashHex = Array.from(hashArray)
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join('')
+          const hashHex = pipe(
+            Array.map(hashArray, (b) => b.toString(16).padStart(2, '0')),
+            Array.join('')
+          )
           return hashHex
         }).pipe(Effect.withSpan('JWTService.hashRefreshToken')),
     }

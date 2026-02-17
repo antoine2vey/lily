@@ -10,7 +10,7 @@ import {
 } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
@@ -19,7 +19,7 @@ import { toast } from 'sonner-native'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { PullToRefresh } from 'src/components/PullToRefresh'
 import { SectionHeader } from 'src/components/SectionHeader'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { CareTaskCardSkeleton, SkeletonBox } from 'src/components/skeletons'
 import { useCareTasks } from 'src/hooks/useCareTasks'
 import { useCompleteTask } from 'src/hooks/useCompleteTask'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
@@ -65,25 +65,6 @@ const getTaskActionKey = (type: CareTaskType): 'water' | 'fertilize' =>
     Match.when('fertilize', () => 'fertilize' as const),
     Match.exhaustive
   )
-
-function CareTaskCardSkeleton({ compact = false }: { compact?: boolean }) {
-  const imageSize = compact ? 40 : 48
-
-  return (
-    <View className="flex-row items-center p-3 rounded-xl mb-2 bg-surface dark:bg-surface-dark">
-      <SkeletonCircle size={imageSize} />
-      <View className="flex-1 ml-3">
-        <SkeletonBox width="60%" height={compact ? 14 : 16} rounded="sm" />
-        <View className="mt-1">
-          <SkeletonBox width={70} height={20} rounded="full" />
-        </View>
-      </View>
-      <View className="w-10 h-10 items-center justify-center">
-        <SkeletonCircle size={28} />
-      </View>
-    </View>
-  )
-}
 
 function CareContentSkeleton() {
   return (
@@ -224,24 +205,48 @@ export function CareScreen() {
   const isInitialLoading = isLoading && !tasks
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
-  const overdueCount = Array.length(
-    Option.getOrElse(
-      Option.fromNullable(tasks?.overdue),
-      () => [] as NonNullable<typeof tasks>['overdue']
-    )
+  const overdueTasks = useMemo(
+    () =>
+      Option.getOrElse(
+        Option.fromNullable(tasks?.overdue),
+        () => [] as NonNullable<typeof tasks>['overdue']
+      ),
+    [tasks?.overdue]
   )
-  const todayCount = Array.length(
-    Option.getOrElse(
-      Option.fromNullable(tasks?.today),
-      () => [] as NonNullable<typeof tasks>['today']
-    )
+
+  const todayTasks = useMemo(
+    () =>
+      Option.getOrElse(
+        Option.fromNullable(tasks?.today),
+        () => [] as NonNullable<typeof tasks>['today']
+      ),
+    [tasks?.today]
   )
-  const thisWeekCount = Array.length(
-    Option.getOrElse(
-      Option.fromNullable(tasks?.thisWeek),
-      () => [] as NonNullable<typeof tasks>['thisWeek']
-    )
+
+  const thisWeekTasks = useMemo(
+    () =>
+      Option.getOrElse(
+        Option.fromNullable(tasks?.thisWeek),
+        () => [] as NonNullable<typeof tasks>['thisWeek']
+      ),
+    [tasks?.thisWeek]
   )
+
+  const groupedThisWeek = useMemo(
+    () =>
+      pipe(
+        thisWeekTasks,
+        Array.groupBy((task) =>
+          formatWeekday(task.dueDate, t('unknownDay'), i18n.language)
+        ),
+        Record.toEntries
+      ),
+    [thisWeekTasks, t, i18n.language]
+  )
+
+  const overdueCount = Array.length(overdueTasks)
+  const todayCount = Array.length(todayTasks)
+  const thisWeekCount = Array.length(thisWeekTasks)
   const totalTasks = overdueCount + todayCount + thisWeekCount
 
   return (
@@ -315,25 +320,19 @@ export function CareScreen() {
                           </Text>
                         </View>
                       </View>
-                      {pipe(
-                        Option.getOrElse(
-                          Option.fromNullable(tasks?.overdue),
-                          () => [] as NonNullable<typeof tasks>['overdue']
-                        ),
-                        Array.map((task) => (
-                          <CareTaskCard
-                            key={task.id}
-                            task={task}
-                            onCardPress={() => handleCardPress(task, 'overdue')}
-                            onPlantPhotoPress={() =>
-                              handlePlantPhotoPress(task.plantId)
-                            }
-                            onUndo={() => handleUndo(task.id)}
-                            overdue
-                            isPendingCompletion={pendingTaskIds.has(task.id)}
-                          />
-                        ))
-                      )}
+                      {Array.map(overdueTasks, (task) => (
+                        <CareTaskCard
+                          key={task.id}
+                          task={task}
+                          onCardPress={() => handleCardPress(task, 'overdue')}
+                          onPlantPhotoPress={() =>
+                            handlePlantPhotoPress(task.plantId)
+                          }
+                          onUndo={() => handleUndo(task.id)}
+                          overdue
+                          isPendingCompletion={pendingTaskIds.has(task.id)}
+                        />
+                      ))}
                     </View>
                   )}
 
@@ -341,24 +340,18 @@ export function CareScreen() {
                     <View>
                       <SectionHeader title={t('screen.sections.today')} />
                       <View className="mt-3">
-                        {pipe(
-                          Option.getOrElse(
-                            Option.fromNullable(tasks?.today),
-                            () => [] as NonNullable<typeof tasks>['today']
-                          ),
-                          Array.map((task) => (
-                            <CareTaskCard
-                              key={task.id}
-                              task={task}
-                              onCardPress={() => handleCardPress(task, 'today')}
-                              onPlantPhotoPress={() =>
-                                handlePlantPhotoPress(task.plantId)
-                              }
-                              onUndo={() => handleUndo(task.id)}
-                              isPendingCompletion={pendingTaskIds.has(task.id)}
-                            />
-                          ))
-                        )}
+                        {Array.map(todayTasks, (task) => (
+                          <CareTaskCard
+                            key={task.id}
+                            task={task}
+                            onCardPress={() => handleCardPress(task, 'today')}
+                            onPlantPhotoPress={() =>
+                              handlePlantPhotoPress(task.plantId)
+                            }
+                            onUndo={() => handleUndo(task.id)}
+                            isPendingCompletion={pendingTaskIds.has(task.id)}
+                          />
+                        ))}
                       </View>
                     </View>
                   )}
@@ -367,43 +360,29 @@ export function CareScreen() {
                     <View>
                       <SectionHeader title={t('screen.sections.thisWeek')} />
                       <View className="mt-3">
-                        {pipe(
-                          Option.getOrElse(
-                            Option.fromNullable(tasks?.thisWeek),
-                            () => [] as NonNullable<typeof tasks>['thisWeek']
-                          ),
-                          Array.groupBy((task) =>
-                            formatWeekday(
-                              task.dueDate,
-                              t('unknownDay'),
-                              i18n.language
-                            )
-                          ),
-                          Record.toEntries,
-                          Array.map(([dayName, dayTasks]) => (
-                            <View key={dayName} className="mb-4 last:mb-0">
-                              <Text className="text-xs uppercase mb-2 font-medium text-text-muted dark:text-slate-400">
-                                {dayName}
-                              </Text>
-                              {Array.map(dayTasks, (task) => (
-                                <CareTaskCard
-                                  key={task.id}
-                                  task={task}
-                                  onCardPress={() =>
-                                    handleCardPress(task, 'thisWeek')
-                                  }
-                                  onPlantPhotoPress={() =>
-                                    handlePlantPhotoPress(task.plantId)
-                                  }
-                                  onUndo={() => handleUndo(task.id)}
-                                  isPendingCompletion={pendingTaskIds.has(
-                                    task.id
-                                  )}
-                                />
-                              ))}
-                            </View>
-                          ))
-                        )}
+                        {Array.map(groupedThisWeek, ([dayName, dayTasks]) => (
+                          <View key={dayName} className="mb-4 last:mb-0">
+                            <Text className="text-xs uppercase mb-2 font-medium text-text-muted dark:text-slate-400">
+                              {dayName}
+                            </Text>
+                            {Array.map(dayTasks, (task) => (
+                              <CareTaskCard
+                                key={task.id}
+                                task={task}
+                                onCardPress={() =>
+                                  handleCardPress(task, 'thisWeek')
+                                }
+                                onPlantPhotoPress={() =>
+                                  handlePlantPhotoPress(task.plantId)
+                                }
+                                onUndo={() => handleUndo(task.id)}
+                                isPendingCompletion={pendingTaskIds.has(
+                                  task.id
+                                )}
+                              />
+                            ))}
+                          </View>
+                        ))}
                       </View>
                     </View>
                   )}
