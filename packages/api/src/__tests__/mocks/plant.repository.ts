@@ -174,19 +174,19 @@ export const createMockPlantRepository = (
         )
       ),
 
-    findPlantsWithPendingCare: (userId: string, endOfWeek: Date) => {
+    findPlantsWithPendingCare: (userId: string, cutoffDate: Date) => {
       const filtered = Array.filter(plantsData, (p) => {
         if (p.userId !== userId) return false
 
         const wateringDue = pipe(
           Option.fromNullable(p.nextWateringAt),
-          Option.map((d) => d.getTime() <= endOfWeek.getTime()),
+          Option.map((d) => d.getTime() <= cutoffDate.getTime()),
           Option.getOrElse(() => false)
         )
 
         const fertilizationDue = pipe(
           Option.fromNullable(p.nextFertilizationAt),
-          Option.map((d) => d.getTime() <= endOfWeek.getTime()),
+          Option.map((d) => d.getTime() <= cutoffDate.getTime()),
           Option.getOrElse(() => false)
         )
 
