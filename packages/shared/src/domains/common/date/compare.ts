@@ -119,6 +119,30 @@ export const isThisWeek = (
 }
 
 /**
+ * Check if a DateTime is upcoming (after today, within the next N days).
+ *
+ * @param dateTime - DateTime to check
+ * @param referenceDate - Reference DateTime (defaults to now)
+ * @param timezone - IANA timezone string
+ * @param days - Number of days to look ahead (default: 7)
+ * @returns true if the DateTime is after today but within the next N days
+ */
+export const isUpcoming = (
+  dateTime: DateTime.DateTime,
+  referenceDate: DateTime.DateTime,
+  timezone: string,
+  days = 7
+): boolean => {
+  const afterToday = DateTime.greaterThan(
+    dateTime,
+    endOfDay(referenceDate, timezone)
+  )
+  const cutoff = endOfDay(DateTime.add(referenceDate, { days }), timezone)
+  const beforeCutoff = DateTime.lessThanOrEqualTo(dateTime, cutoff)
+  return afterToday && beforeCutoff
+}
+
+/**
  * Check if a DateTime is yesterday.
  *
  * @param dateTime - DateTime to check

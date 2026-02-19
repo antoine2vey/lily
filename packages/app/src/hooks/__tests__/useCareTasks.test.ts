@@ -39,7 +39,7 @@ describe('useCareTasks', () => {
     const mockTasks = {
       overdue: [mockPlantsForCareTasks[0]],
       today: [mockPlantsForCareTasks[1]],
-      thisWeek: [mockPlantsForCareTasks[2], mockPlantsForCareTasks[3]],
+      upcoming: [mockPlantsForCareTasks[2], mockPlantsForCareTasks[3]],
     }
     mockedUseEffectQuery.mockReturnValue(mockQuerySuccess(mockTasks))
 

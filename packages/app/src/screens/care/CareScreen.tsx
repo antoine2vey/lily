@@ -27,7 +27,7 @@ import { useIconColors } from 'src/hooks/useIconColors'
 import { CareTaskCard } from 'src/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from 'src/screens/care/components/DelegatedTasksSection'
 
-type TaskSectionType = 'overdue' | 'today' | 'thisWeek'
+type TaskSectionType = 'overdue' | 'today' | 'upcoming'
 
 interface FutureTaskModalState {
   visible: boolean
@@ -91,7 +91,7 @@ function CareContentSkeleton() {
         </View>
       </View>
 
-      {/* This week section */}
+      {/* Upcoming section */}
       <View>
         <SkeletonBox width={80} height={20} rounded="sm" />
         <View className="mt-3">
@@ -174,7 +174,7 @@ export function CareScreen() {
   const handleCardPress = (task: CareTask, section: TaskSectionType) => {
     pipe(
       Match.value(section),
-      Match.when('thisWeek', () => {
+      Match.when('upcoming', () => {
         setFutureTaskModal({
           visible: true,
           task,
@@ -223,31 +223,31 @@ export function CareScreen() {
     [tasks?.today]
   )
 
-  const thisWeekTasks = useMemo(
+  const upcomingTasks = useMemo(
     () =>
       Option.getOrElse(
-        Option.fromNullable(tasks?.thisWeek),
-        () => [] as NonNullable<typeof tasks>['thisWeek']
+        Option.fromNullable(tasks?.upcoming),
+        () => [] as NonNullable<typeof tasks>['upcoming']
       ),
-    [tasks?.thisWeek]
+    [tasks?.upcoming]
   )
 
   const groupedThisWeek = useMemo(
     () =>
       pipe(
-        thisWeekTasks,
+        upcomingTasks,
         Array.groupBy((task) =>
           formatWeekday(task.dueDate, t('unknownDay'), i18n.language)
         ),
         Record.toEntries
       ),
-    [thisWeekTasks, t, i18n.language]
+    [upcomingTasks, t, i18n.language]
   )
 
   const overdueCount = Array.length(overdueTasks)
   const todayCount = Array.length(todayTasks)
-  const thisWeekCount = Array.length(thisWeekTasks)
-  const totalTasks = overdueCount + todayCount + thisWeekCount
+  const upcomingCount = Array.length(upcomingTasks)
+  const totalTasks = overdueCount + todayCount + upcomingCount
 
   return (
     <View
@@ -356,9 +356,9 @@ export function CareScreen() {
                     </View>
                   )}
 
-                  {thisWeekCount > 0 && (
+                  {upcomingCount > 0 && (
                     <View>
-                      <SectionHeader title={t('screen.sections.thisWeek')} />
+                      <SectionHeader title={t('screen.sections.upcoming')} />
                       <View className="mt-3">
                         {Array.map(groupedThisWeek, ([dayName, dayTasks]) => (
                           <View key={dayName} className="mb-4 last:mb-0">
@@ -370,7 +370,7 @@ export function CareScreen() {
                                 key={task.id}
                                 task={task}
                                 onCardPress={() =>
-                                  handleCardPress(task, 'thisWeek')
+                                  handleCardPress(task, 'upcoming')
                                 }
                                 onPlantPhotoPress={() =>
                                   handlePlantPhotoPress(task.plantId)

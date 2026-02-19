@@ -20,7 +20,7 @@ export const CareTask = Schema.Struct({
 export const CareTasksResponse = Schema.Struct({
   overdue: Schema.Array(CareTask),
   today: Schema.Array(CareTask),
-  thisWeek: Schema.Array(CareTask),
+  upcoming: Schema.Array(CareTask),
 })
 
 // Type exports
