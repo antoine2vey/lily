@@ -189,8 +189,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   // Network/server error — retry after a short delay
                   await new Promise((r) => setTimeout(r, 1500))
                   await checkAuth(retries - 1)
+                } else {
+                  // Retries exhausted — clear tokens and go to login
+                  // rather than leaving the user stuck on splash screen
+                  await Effect.runPromise(removeStoredAccessToken())
+                  setState({ _tag: 'Unauthenticated' })
                 }
-                // After retries exhausted, stay in Loading (don't logout)
               }
             },
           })
