@@ -4,6 +4,7 @@ import {
   isRoomCompatibleWithPlant,
   LUMINOSITY_LEVELS,
   luxToLuminosityLevel,
+  luxToSliderValue,
 } from '../domains/common/luminosity'
 
 describe('luxToLuminosityLevel', () => {
@@ -55,6 +56,38 @@ describe('isRoomCompatibleWithPlant', () => {
     expect(isRoomCompatibleWithPlant(100, 10000)).toEqual(Option.some(false))
     // Room: 40000 lux (level 5), Plant: 10000 lux (level 4) — too much light
     expect(isRoomCompatibleWithPlant(40000, 10000)).toEqual(Option.some(false))
+  })
+})
+
+describe('luxToSliderValue', () => {
+  it('should return 10 for low light lux values', () => {
+    expect(luxToSliderValue(0)).toBe(10)
+    expect(luxToSliderValue(100)).toBe(10)
+    expect(luxToSliderValue(249)).toBe(10)
+  })
+
+  it('should return 30 for medium light lux values', () => {
+    expect(luxToSliderValue(250)).toBe(30)
+    expect(luxToSliderValue(500)).toBe(30)
+    expect(luxToSliderValue(999)).toBe(30)
+  })
+
+  it('should return 50 for bright indirect lux values', () => {
+    expect(luxToSliderValue(1000)).toBe(50)
+    expect(luxToSliderValue(2000)).toBe(50)
+    expect(luxToSliderValue(4999)).toBe(50)
+  })
+
+  it('should return 70 for direct light lux values', () => {
+    expect(luxToSliderValue(5000)).toBe(70)
+    expect(luxToSliderValue(10000)).toBe(70)
+    expect(luxToSliderValue(24999)).toBe(70)
+  })
+
+  it('should return 90 for full sun lux values', () => {
+    expect(luxToSliderValue(25000)).toBe(90)
+    expect(luxToSliderValue(40000)).toBe(90)
+    expect(luxToSliderValue(100000)).toBe(90)
   })
 })
 

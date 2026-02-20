@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Either, Match, pipe } from 'effect'
+import { Either, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -56,6 +56,7 @@ export function ManualAddScheduleScreen() {
   const params = useLocalSearchParams<{
     basicInfo?: string
     careNeeds?: string
+    prefillData?: string
   }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
@@ -80,12 +81,38 @@ export function ManualAddScheduleScreen() {
     params.careNeeds,
     DEFAULT_CARE_NEEDS
   )
+  const prefill = safeDecodeParam<Record<string, unknown> | null>(
+    params.prefillData,
+    null
+  )
 
   const [roomId, setRoomId] = useState<string | null>(null)
-  const [wateringDays, setWateringDays] = useState(7)
-  const [fertilizingDays, setFertilizingDays] = useState(30)
+  const [wateringDays, setWateringDays] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) =>
+        Option.fromNullable(p.wateringFrequencyDays as number)
+      ),
+      Option.getOrElse(() => 7)
+    )
+  )
+  const [fertilizingDays, setFertilizingDays] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) =>
+        Option.fromNullable(p.fertilizationFrequencyDays as number)
+      ),
+      Option.getOrElse(() => 30)
+    )
+  )
   const [careReminders, setCareReminders] = useState(true)
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) => Option.fromNullable(p.description as string)),
+      Option.getOrElse(() => '')
+    )
+  )
 
   const { mutate: createPlant, isPending } = useCreatePlant()
 
