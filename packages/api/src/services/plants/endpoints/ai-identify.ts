@@ -63,7 +63,7 @@ export const aiIdentify = (
       contentType: file.contentType,
     })
 
-    const aiResult = yield* ai.plantRecognitionWithRetry(url, locale)
+    const aiResult = yield* ai.plantRecognition(url, locale)
 
     yield* usageTracker.trackPlantIdentify(userId)
 

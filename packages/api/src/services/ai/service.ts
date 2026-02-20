@@ -2,10 +2,7 @@ import {
   plantCardScan,
   plantCardScanMultiple,
 } from '@lily/shared/services/ai/plant-card-scan'
-import {
-  plantRecognition,
-  plantRecognitionWithRetry,
-} from '@lily/shared/services/ai/plant-recognition'
+import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { AISDKError, type UIMessage } from 'ai'
 import { Effect, Schema } from 'effect'
 
@@ -31,19 +28,10 @@ function mapAiSdkError(error: unknown): AiApiCallError | AiGenericError {
 export class AiService extends Effect.Service<AiService>()('AiService', {
   effect: Effect.gen(function* () {
     return {
-      plantRecognition: (url: string, locale = 'en') =>
-        plantRecognition(url, locale).pipe(
+      plantRecognition: (urls: string | readonly string[], locale = 'en') =>
+        plantRecognition(urls, locale).pipe(
           Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantRecognition')
-        ),
-      plantRecognitionWithRetry: (
-        urls: string | readonly string[],
-        locale = 'en',
-        maxAttempts = 3
-      ) =>
-        plantRecognitionWithRetry(urls, locale, maxAttempts).pipe(
-          Effect.mapError(mapAiSdkError),
-          Effect.withSpan('AiService.plantRecognitionWithRetry')
         ),
       // Returns raw AI SDK StreamTextResult for streaming endpoint
       plantChatStream: (

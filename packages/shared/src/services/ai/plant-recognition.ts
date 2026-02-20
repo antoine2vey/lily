@@ -3,7 +3,7 @@ import { generateText, Output } from 'ai'
 import { Array, Effect, Match, pipe } from 'effect'
 
 import { type PlantAIResult, plantSchema } from './plant-schema'
-import { isPlantResultSufficient } from './quality-check'
+import { withQualityRetry } from './quality-check'
 
 export type PlantRecognitionResult = PlantAIResult
 
@@ -46,9 +46,9 @@ const systemPrompt = (locale: string) => `
         Include confidence scores for all results including the alternatives.
       `
 
-export const plantRecognition = (
+const singleCall = (
   urls: string | readonly string[],
-  locale = 'en'
+  locale: string
 ): Effect.Effect<PlantRecognitionResult, Error> =>
   Effect.tryPromise({
     try: async () => {
@@ -81,53 +81,8 @@ export const plantRecognition = (
     catch: (error) => error as Error,
   })
 
-interface RetryState {
-  readonly attempt: number
-  readonly best: PlantRecognitionResult
-  readonly done: boolean
-}
-
-export const plantRecognitionWithRetry = (
+export const plantRecognition = (
   urls: string | readonly string[],
-  locale = 'en',
-  maxAttempts = 3
+  locale = 'en'
 ): Effect.Effect<PlantRecognitionResult, Error> =>
-  pipe(
-    Effect.iterate(
-      {
-        attempt: 0,
-        best: null as unknown as PlantRecognitionResult,
-        done: false,
-      } as RetryState,
-      {
-        while: (state) => !state.done && state.attempt < maxAttempts,
-        body: (state) =>
-          Effect.map(plantRecognition(urls, locale), (result) =>
-            pipe(
-              Match.value(isPlantResultSufficient(result)),
-              Match.when(true, () => ({
-                attempt: state.attempt + 1,
-                best: result,
-                done: true,
-              })),
-              Match.orElse(() => ({
-                attempt: state.attempt + 1,
-                best: pipe(
-                  Match.value(state.attempt === 0),
-                  Match.when(true, () => result),
-                  Match.orElse(() =>
-                    pipe(
-                      Match.value(result.confidence > state.best.confidence),
-                      Match.when(true, () => result),
-                      Match.orElse(() => state.best)
-                    )
-                  )
-                ),
-                done: false,
-              }))
-            )
-          ),
-      }
-    ),
-    Effect.map((state) => state.best)
-  )
+  withQualityRetry(singleCall(urls, locale))
