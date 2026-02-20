@@ -5,10 +5,10 @@ import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type CareTask,
   type CareTasksResponse,
-  endOfWeek,
+  endOfDay,
   isOverdueByDay,
-  isThisWeek,
   isToday,
+  isUpcoming,
 } from '@lily/shared'
 import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
 
@@ -49,7 +49,7 @@ const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
 )
 
 /**
- * Get care tasks grouped by overdue, today, thisWeek
+ * Get care tasks grouped by overdue, today, upcoming (rolling 7-day window)
  */
 export const findCareTasks = (): Effect.Effect<
   CareTasksResponse,
@@ -69,11 +69,11 @@ export const findCareTasks = (): Effect.Effect<
     )
 
     const now = DateTime.unsafeNow()
-    const endOfWeekDt = endOfWeek(now, timezone)
-    const endOfWeekDate = DateTime.toDateUtc(endOfWeekDt)
+    const cutoffDt = endOfDay(DateTime.add(now, { days: 7 }), timezone)
+    const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
-    // Get plants with pending care
-    const plants = yield* repo.findPlantsWithPendingCare(userId, endOfWeekDate)
+    // Get plants with pending care (rolling 7-day window)
+    const plants = yield* repo.findPlantsWithPendingCare(userId, cutoffDate)
 
     // Generate tasks from plants
     const tasks: CareTask[] = []
@@ -84,7 +84,7 @@ export const findCareTasks = (): Effect.Effect<
         Option.fromNullable(plant.nextWateringAt),
         Option.map((date) => {
           const dateDt = DateTime.unsafeMake(date)
-          if (DateTime.lessThanOrEqualTo(dateDt, endOfWeekDt)) {
+          if (DateTime.lessThanOrEqualTo(dateDt, cutoffDt)) {
             tasks.push(createTask(plant, 'water', date))
           }
         })
@@ -95,7 +95,7 @@ export const findCareTasks = (): Effect.Effect<
         Option.fromNullable(plant.nextFertilizationAt),
         Option.map((date) => {
           const dateDt = DateTime.unsafeMake(date)
-          if (DateTime.lessThanOrEqualTo(dateDt, endOfWeekDt)) {
+          if (DateTime.lessThanOrEqualTo(dateDt, cutoffDt)) {
             tasks.push(createTask(plant, 'fertilize', date))
           }
         })
@@ -109,14 +109,14 @@ export const findCareTasks = (): Effect.Effect<
     const today = Array.filter(tasks, (task) =>
       isToday(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
-    const thisWeek = Array.filter(tasks, (task) =>
-      isThisWeek(DateTime.unsafeMake(task.dueDate), now, timezone)
+    const upcoming = Array.filter(tasks, (task) =>
+      isUpcoming(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
 
     // Sort each group by due date (earliest first)
     return {
       overdue: Array.sort(overdue, taskDueDateOrder),
       today: Array.sort(today, taskDueDateOrder),
-      thisWeek: Array.sort(thisWeek, taskDueDateOrder),
+      upcoming: Array.sort(upcoming, taskDueDateOrder),
     }
   }).pipe(Effect.withSpan('CareTasksService.findCareTasks'))

@@ -8,6 +8,8 @@ export function useCreatePlant() {
   return useEffectMutation('plants', 'createPlant', {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.plants.lists() })
+      queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.careLogs.all })
     },
   })
 }
