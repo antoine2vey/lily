@@ -68,7 +68,7 @@ export default {
     },
     petSafety: {
       label: 'Pet Safety',
-      question: 'Is this plant toxic to pets?',
+      question: 'Is this plant safe for pets?',
     },
   },
   schedule: {

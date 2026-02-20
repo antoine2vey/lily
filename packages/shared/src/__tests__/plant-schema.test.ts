@@ -269,6 +269,7 @@ describe('Plant Schemas', () => {
         fertilizationFrequencyDays: 30,
         category: 'Tropical',
         description: 'A popular houseplant with split leaves',
+        wateringTips: 'Let soil dry between waterings. Reduce in winter.',
         imageUrl: 'https://example.com/identified.jpg',
       }
 
@@ -292,6 +293,7 @@ describe('Plant Schemas', () => {
         fertilizationFrequencyDays: null,
         category: null,
         description: null,
+        wateringTips: null,
         imageUrl: 'https://example.com/unknown.jpg',
       }
 

@@ -65,6 +65,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         HttpApiSchema.Multipart(
           Schema.Struct({
             images: Multipart.FilesSchema,
+            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
           })
         )
       )
@@ -80,6 +81,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         HttpApiSchema.Multipart(
           Schema.Struct({
             images: Multipart.FilesSchema,
+            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
           })
         )
       )
@@ -95,6 +97,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         HttpApiSchema.Multipart(
           Schema.Struct({
             images: Multipart.FilesSchema,
+            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
           })
         )
       )

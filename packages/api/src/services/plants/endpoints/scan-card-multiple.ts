@@ -27,7 +27,8 @@ import {
 import { Array as Arr, Effect, Option, pipe } from 'effect'
 
 export const scanCardMultiple = (
-  images: readonly PersistedFile[]
+  images: readonly PersistedFile[],
+  locale: string
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
@@ -82,7 +83,7 @@ export const scanCardMultiple = (
     const urls = Arr.map(uploadResults, (r) => r.url)
 
     // Single AI call with all images — returns one plant result
-    const result = yield* ai.plantCardScanMultiple(urls)
+    const result = yield* ai.plantCardScanMultiple(urls, locale)
 
     // Record scan and track usage (single scan, multiple images)
     const scan = yield* scanRepo.create({ userId, scanType: 'card' })

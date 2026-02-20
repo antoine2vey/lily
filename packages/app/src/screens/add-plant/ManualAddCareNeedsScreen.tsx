@@ -52,6 +52,12 @@ export function ManualAddCareNeedsScreen() {
     null
   )
 
+  console.log('[DEBUG CareNeeds] raw params.prefillData:', params.prefillData)
+  console.log(
+    '[DEBUG CareNeeds] decoded prefill:',
+    JSON.stringify(prefill, null, 2)
+  )
+
   const [watering, setWatering] = useState(50)
   const [light, setLight] = useState(
     pipe(

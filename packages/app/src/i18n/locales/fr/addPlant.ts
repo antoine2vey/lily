@@ -68,7 +68,7 @@ export default {
     },
     petSafety: {
       label: 'Sécurité animaux',
-      question: 'Cette plante est-elle toxique pour les animaux ?',
+      question: 'Cette plante est-elle sans danger pour les animaux ?',
     },
   },
   schedule: {

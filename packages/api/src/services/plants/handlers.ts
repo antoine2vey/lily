@@ -57,14 +57,16 @@ export const PlantsApiLive = (api: Api) =>
         .handle('createPlant', ({ payload }) =>
           plantsService.createPlant(payload).pipe(withInfraErrorsAsDefect)
         )
-        .handle('scanCard', ({ payload: { images } }) =>
-          plantsService.scanCard(images).pipe(withInfraErrorsAsDefect)
+        .handle('scanCard', ({ payload: { images, locale } }) =>
+          plantsService.scanCard(images, locale).pipe(withInfraErrorsAsDefect)
         )
-        .handle('scanCardMultiple', ({ payload: { images } }) =>
-          plantsService.scanCardMultiple(images).pipe(withInfraErrorsAsDefect)
+        .handle('scanCardMultiple', ({ payload: { images, locale } }) =>
+          plantsService
+            .scanCardMultiple(images, locale)
+            .pipe(withInfraErrorsAsDefect)
         )
-        .handle('aiIdentify', ({ payload: { images } }) =>
-          plantsService.aiIdentify(images).pipe(withInfraErrorsAsDefect)
+        .handle('aiIdentify', ({ payload: { images, locale } }) =>
+          plantsService.aiIdentify(images, locale).pipe(withInfraErrorsAsDefect)
         )
         .handle('getPlant', ({ path: { id } }) =>
           plantsService

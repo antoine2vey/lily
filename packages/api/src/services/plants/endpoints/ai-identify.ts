@@ -24,7 +24,8 @@ import {
 import { Effect } from 'effect'
 
 export const aiIdentify = (
-  images: readonly PersistedFile[]
+  images: readonly PersistedFile[],
+  locale: string
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
@@ -62,7 +63,7 @@ export const aiIdentify = (
       contentType: file.contentType,
     })
 
-    const aiResult = yield* ai.plantRecognition(url)
+    const aiResult = yield* ai.plantRecognition(url, locale)
 
     yield* usageTracker.trackPlantIdentify(userId)
 

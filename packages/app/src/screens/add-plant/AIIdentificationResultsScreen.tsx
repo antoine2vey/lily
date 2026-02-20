@@ -108,7 +108,12 @@ export function AIIdentificationResultsScreen() {
       humidityRating: result.humidityRating,
       petToxicityRating: result.petToxicityRating,
       fertilizationFrequencyDays: result.fertilizationFrequencyDays,
+      wateringTips: result.wateringTips,
     }
+    console.log(
+      '[DEBUG AIResults] prefillData:',
+      JSON.stringify(prefillData, null, 2)
+    )
     const categoryParam = result.category
       ? `&prefillCategory=${encodeURIComponent(result.category)}`
       : ''
