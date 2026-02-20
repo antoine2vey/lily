@@ -36,7 +36,7 @@ export const createMockAiService = (
   )
 
   const mockService = {
-    plantRecognition: (_url: string) =>
+    plantRecognition: (_url: string, _locale?: string) =>
       Effect.succeed({
         name: 'Mock Plant',
         family: 'Mockaceae',
@@ -49,6 +49,7 @@ export const createMockAiService = (
         fertilizationFrequencyDays: 30,
         category: 'Tropical',
         description: 'A mock plant for testing',
+        wateringTips: 'Water when top soil is dry.',
       }),
     plantChatStream: (
       _plantId: string,
@@ -79,7 +80,7 @@ export const createMockAiService = (
           completionDeferred,
         }
       }),
-    plantCardScan: (_url: string) =>
+    plantCardScan: (_url: string, _locale?: string) =>
       Effect.succeed({
         name: 'Mock Plant',
         family: 'Mockaceae',
@@ -92,8 +93,9 @@ export const createMockAiService = (
         fertilizationFrequencyDays: 30,
         category: 'Tropical',
         description: 'A mock plant description',
+        wateringTips: 'Water when top soil is dry.',
       }),
-    plantCardScanMultiple: (_urls: string[]) =>
+    plantCardScanMultiple: (_urls: string[], _locale?: string) =>
       Effect.succeed({
         name: 'Mock Plant',
         family: 'Mockaceae',
@@ -106,6 +108,7 @@ export const createMockAiService = (
         fertilizationFrequencyDays: 30,
         category: 'Tropical',
         description: 'A mock plant identified from multiple images',
+        wateringTips: 'Water when top soil is dry.',
       }),
   }
 

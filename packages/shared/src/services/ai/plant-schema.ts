@@ -49,6 +49,12 @@ export const plantSchema = z.object({
     .describe('Plant category like Tropical, Succulent, etc.')
     .nullable(),
   description: z.string().describe('Brief 1-2 sentence description').nullable(),
+  wateringTips: z
+    .string()
+    .describe(
+      'Brief practical watering tips specific to this plant (e.g. "Let soil dry between waterings. Reduce in winter.")'
+    )
+    .nullable(),
 })
 
 export type PlantAIResult = z.infer<typeof plantSchema>

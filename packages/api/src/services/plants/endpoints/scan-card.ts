@@ -25,7 +25,8 @@ import {
 import { Effect } from 'effect'
 
 export const scanCard = (
-  images: readonly PersistedFile[]
+  images: readonly PersistedFile[],
+  locale: string
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
@@ -68,7 +69,7 @@ export const scanCard = (
       contentType: file.contentType,
     })
 
-    const result = yield* ai.plantCardScan(url)
+    const result = yield* ai.plantCardScan(url, locale)
 
     // Record the scan for SCAN_CHAMP achievement
     const scan = yield* scanRepo.create({ userId, scanType: 'card' })

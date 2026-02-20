@@ -28,8 +28,8 @@ function mapAiSdkError(error: unknown): AiApiCallError | AiGenericError {
 export class AiService extends Effect.Service<AiService>()('AiService', {
   effect: Effect.gen(function* () {
     return {
-      plantRecognition: (url: string) =>
-        plantRecognition(url).pipe(
+      plantRecognition: (url: string, locale = 'en') =>
+        plantRecognition(url, locale).pipe(
           Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantRecognition')
         ),
@@ -44,13 +44,13 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
             attributes: { 'plant.id': plantId },
           })
         ),
-      plantCardScan: (url: string) =>
-        plantCardScan(url).pipe(
+      plantCardScan: (url: string, locale = 'en') =>
+        plantCardScan(url, locale).pipe(
           Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantCardScan')
         ),
-      plantCardScanMultiple: (urls: readonly string[]) =>
-        plantCardScanMultiple(urls as string[]).pipe(
+      plantCardScanMultiple: (urls: readonly string[], locale = 'en') =>
+        plantCardScanMultiple(urls as string[], locale).pipe(
           Effect.mapError(mapAiSdkError),
           Effect.withSpan('AiService.plantCardScanMultiple', {
             attributes: { 'scan.imageCount': urls.length },

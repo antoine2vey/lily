@@ -1,6 +1,7 @@
 import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
+import { useTranslation } from 'react-i18next'
 import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
 import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
 
@@ -10,6 +11,8 @@ import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
  * so the same results screen can be reused.
  */
 export function useScanCard() {
+  const { i18n } = useTranslation()
+
   return useMutation({
     mutationFn: async (
       photoUri: string
@@ -22,7 +25,8 @@ export function useScanCard() {
       return uploadMultipart<PlantIdentificationResult>(
         '/api/plants/scan-card',
         [file],
-        'images'
+        'images',
+        { locale: i18n.language }
       )
     },
     retry: 1,
@@ -34,6 +38,8 @@ export function useScanCard() {
  * Sends all images in a single request, returns one combined result.
  */
 export function useScanCardMultiple() {
+  const { i18n } = useTranslation()
+
   return useMutation({
     mutationFn: async (
       photoUris: string[]
@@ -48,7 +54,8 @@ export function useScanCardMultiple() {
       return uploadMultipart<PlantIdentificationResult>(
         '/api/plants/scan-card-multiple',
         files,
-        'images'
+        'images',
+        { locale: i18n.language }
       )
     },
     retry: 1,

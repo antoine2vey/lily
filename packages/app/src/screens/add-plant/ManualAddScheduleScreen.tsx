@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Either, Match, Option, pipe } from 'effect'
+import { Array, Either, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -86,6 +86,12 @@ export function ManualAddScheduleScreen() {
     null
   )
 
+  console.log('[DEBUG Schedule] raw params.prefillData:', params.prefillData)
+  console.log(
+    '[DEBUG Schedule] decoded prefill:',
+    JSON.stringify(prefill, null, 2)
+  )
+
   const [roomId, setRoomId] = useState<string | null>(null)
   const [wateringDays, setWateringDays] = useState(
     pipe(
@@ -109,7 +115,13 @@ export function ManualAddScheduleScreen() {
   const [notes, setNotes] = useState(
     pipe(
       Option.fromNullable(prefill),
-      Option.flatMap((p) => Option.fromNullable(p.description as string)),
+      Option.map((p) =>
+        Array.filterMap(
+          [p.description as string | null, p.wateringTips as string | null],
+          Option.fromNullable
+        )
+      ),
+      Option.map((parts) => Array.join(parts, '\n')),
       Option.getOrElse(() => '')
     )
   )

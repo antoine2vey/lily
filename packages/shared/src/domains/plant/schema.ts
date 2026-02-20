@@ -106,6 +106,7 @@ export const AIIdentifyResponse = Schema.Struct({
   fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
   category: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
+  wateringTips: Schema.NullOr(Schema.String),
   imageUrl: Schema.String,
 })
 
