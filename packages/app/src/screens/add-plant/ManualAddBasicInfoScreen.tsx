@@ -23,6 +23,7 @@ export function ManualAddBasicInfoScreen() {
   const params = useLocalSearchParams<{
     prefillName?: string
     prefillCategory?: string
+    prefillData?: string
   }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
@@ -38,7 +39,10 @@ export function ManualAddBasicInfoScreen() {
     const basicInfo = encodeURIComponent(
       JSON.stringify({ photo, name, category })
     )
-    router.push(`/add-plant/manual-care?basicInfo=${basicInfo}`)
+    const prefillParam = params.prefillData
+      ? `&prefillData=${encodeURIComponent(params.prefillData)}`
+      : ''
+    router.push(`/add-plant/manual-care?basicInfo=${basicInfo}${prefillParam}`)
   }
 
   const canProceed = String.isNonEmpty(String.trim(name))

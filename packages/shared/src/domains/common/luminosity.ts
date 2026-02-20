@@ -51,3 +51,14 @@ export const luxToLuminosityLevel = (lux: number): LuminosityLevel =>
     ),
     Match.orElse(() => 5 as const)
   )
+
+const LEVEL_TO_SLIDER: Record<LuminosityLevel, number> = {
+  1: 10,
+  2: 30,
+  3: 50,
+  4: 70,
+  5: 90,
+}
+
+export const luxToSliderValue = (lux: number): number =>
+  LEVEL_TO_SLIDER[luxToLuminosityLevel(lux)]

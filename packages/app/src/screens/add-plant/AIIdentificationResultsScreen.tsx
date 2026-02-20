@@ -109,8 +109,11 @@ export function AIIdentificationResultsScreen() {
       petToxicityRating: result.petToxicityRating,
       fertilizationFrequencyDays: result.fertilizationFrequencyDays,
     }
+    const categoryParam = result.category
+      ? `&prefillCategory=${encodeURIComponent(result.category)}`
+      : ''
     router.push(
-      `/add-plant/manual-basic?prefillName=${encodeURIComponent(result.name)}&prefillData=${encodeURIComponent(JSON.stringify(prefillData))}`
+      `/add-plant/manual-basic?prefillName=${encodeURIComponent(result.name)}${categoryParam}&prefillData=${encodeURIComponent(JSON.stringify(prefillData))}`
     )
   }
 

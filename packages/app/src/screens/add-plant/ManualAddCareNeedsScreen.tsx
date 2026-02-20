@@ -4,8 +4,9 @@ import {
   LUMINOSITY_LUX_VALUES,
   type LuminosityLevel,
   luxToLuminosityLevel,
+  luxToSliderValue,
 } from '@lily/shared'
-import { Array, Match, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,18 +37,45 @@ function safeDecodeParam<T>(encoded: string | undefined, fallback: T): T {
 
 export function ManualAddCareNeedsScreen() {
   const { t } = useTranslation(['addPlant', 'rooms'])
-  const params = useLocalSearchParams<{ basicInfo?: string }>()
+  const params = useLocalSearchParams<{
+    basicInfo?: string
+    prefillData?: string
+  }>()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const basicInfo = safeDecodeParam<BasicInfo>(
     params.basicInfo,
     DEFAULT_BASIC_INFO
   )
+  const prefill = safeDecodeParam<Record<string, unknown> | null>(
+    params.prefillData,
+    null
+  )
 
   const [watering, setWatering] = useState(50)
-  const [light, setLight] = useState(50)
-  const [humidity, setHumidity] = useState(50)
-  const [petSafe, setPetSafe] = useState(false)
+  const [light, setLight] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) => Option.fromNullable(p.luxNeeded as number)),
+      Option.map(luxToSliderValue),
+      Option.getOrElse(() => 50)
+    )
+  )
+  const [humidity, setHumidity] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) => Option.fromNullable(p.humidityRating as number)),
+      Option.getOrElse(() => 50)
+    )
+  )
+  const [petSafe, setPetSafe] = useState(
+    pipe(
+      Option.fromNullable(prefill),
+      Option.flatMap((p) => Option.fromNullable(p.petToxicityRating as number)),
+      Option.map((rating) => rating <= 50),
+      Option.getOrElse(() => false)
+    )
+  )
 
   const sliderToLux = (v: number): number =>
     pipe(
@@ -105,8 +133,11 @@ export function ManualAddCareNeedsScreen() {
       JSON.stringify({ watering, luxNeeded, humidity, petSafe })
     )
     const basicInfoParam = encodeURIComponent(JSON.stringify(basicInfo))
+    const prefillParam = params.prefillData
+      ? `&prefillData=${encodeURIComponent(params.prefillData)}`
+      : ''
     router.push(
-      `/add-plant/manual-schedule?basicInfo=${basicInfoParam}&careNeeds=${careNeeds}`
+      `/add-plant/manual-schedule?basicInfo=${basicInfoParam}&careNeeds=${careNeeds}${prefillParam}`
     )
   }
 
