@@ -46,7 +46,7 @@ const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
       remindersEnabled: true,
       fertilizationFrequencyDays: 30,
       lastFertilizedAt: new Date('2024-01-01'),
-      nextFertilizationAt: tomorrow, // This week
+      nextFertilizationAt: tomorrow, // Upcoming
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -90,11 +90,11 @@ const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
       health: 'HEALTHY',
       wateringFrequencyDays: 10,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: inThreeDays, // This week
+      nextWateringAt: inThreeDays, // Upcoming
       remindersEnabled: true,
       fertilizationFrequencyDays: 14,
       lastFertilizedAt: null,
-      nextFertilizationAt: inThreeDays, // This week
+      nextFertilizationAt: inThreeDays, // Upcoming
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -114,7 +114,7 @@ const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
       health: 'THRIVING',
       wateringFrequencyDays: 30,
       lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: nextWeek, // Not this week
+      nextWateringAt: nextWeek, // Beyond 7-day window
       remindersEnabled: true,
       fertilizationFrequencyDays: null,
       lastFertilizedAt: null,
@@ -207,14 +207,14 @@ describe('findCareTasks', () => {
       createMockUserRepository(mockUsers)
     )
 
-  it('should return tasks grouped by overdue, today, and thisWeek', async () => {
+  it('should return tasks grouped by overdue, today, and upcoming', async () => {
     const result = await Effect.runPromise(
       findCareTasks().pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.overdue).toBeDefined()
     expect(result.today).toBeDefined()
-    expect(result.thisWeek).toBeDefined()
+    expect(result.upcoming).toBeDefined()
   })
 
   it('should include overdue watering tasks', async () => {
@@ -245,14 +245,14 @@ describe('findCareTasks', () => {
     expect(todayWater._tag).toBe('Some')
   })
 
-  it('should include this week fertilization tasks', async () => {
+  it('should include upcoming fertilization tasks', async () => {
     const result = await Effect.runPromise(
       findCareTasks().pipe(Effect.provide(createTestLayer()))
     )
 
-    // plant-1 has nextFertilizationAt = tomorrow (this week)
+    // plant-1 has nextFertilizationAt = tomorrow (upcoming)
     const weekFertilize = Array.findFirst(
-      result.thisWeek,
+      result.upcoming,
       (t) => t.plantId === 'plant-1' && t.type === 'fertilize'
     )
 
@@ -284,7 +284,7 @@ describe('findCareTasks', () => {
 
     expect(result.overdue).toEqual([])
     expect(result.today).toEqual([])
-    expect(result.thisWeek).toEqual([])
+    expect(result.upcoming).toEqual([])
   })
 
   it('should generate correct task IDs', async () => {
@@ -293,7 +293,7 @@ describe('findCareTasks', () => {
     )
 
     // Check that task IDs follow the format plantId-type
-    const allTasks = [...result.overdue, ...result.today, ...result.thisWeek]
+    const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
     Array.forEach(allTasks, (task) => {
       expect(task.id).toBe(`${task.plantId}-${task.type}`)
     })
@@ -331,17 +331,17 @@ describe('findCareTasks', () => {
       findCareTasks().pipe(Effect.provide(createTestLayer()))
     )
 
-    const allTasks = [...result.overdue, ...result.today, ...result.thisWeek]
+    const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
     expect(Array.every(allTasks, (t) => t.completed === false)).toBe(true)
   })
 
-  it('should not include tasks beyond this week', async () => {
+  it('should not include tasks beyond 7 days', async () => {
     const result = await Effect.runPromise(
       findCareTasks().pipe(Effect.provide(createTestLayer()))
     )
 
-    // plant-4 has nextWateringAt = nextWeek (beyond this week)
-    const allTasks = [...result.overdue, ...result.today, ...result.thisWeek]
+    // plant-4 has nextWateringAt = 10 days from now (beyond 7-day window)
+    const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
     const futureTask = Array.findFirst(allTasks, (t) => t.plantId === 'plant-4')
 
     expect(futureTask._tag).toBe('None')
@@ -352,12 +352,12 @@ describe('findCareTasks', () => {
       findCareTasks().pipe(Effect.provide(createTestLayer()))
     )
 
-    // Check thisWeek is sorted by dueDate
-    if (result.thisWeek.length > 1) {
+    // Check upcoming is sorted by dueDate
+    if (result.upcoming.length > 1) {
       Array.forEach(
         Array.zip(
-          Array.take(result.thisWeek, result.thisWeek.length - 1),
-          Array.drop(result.thisWeek, 1)
+          Array.take(result.upcoming, result.upcoming.length - 1),
+          Array.drop(result.upcoming, 1)
         ),
         ([prev, curr]) => {
           expect(prev.dueDate.getTime()).toBeLessThanOrEqual(
@@ -478,7 +478,7 @@ describe('findCareTasks', () => {
       const utcTodayIds = Array.map(utcResult.today, (t) => t.plantId)
       expect(utcTodayIds).toContain('tz-plant-1')
 
-      const utcWeekIds = Array.map(utcResult.thisWeek, (t) => t.plantId)
+      const utcWeekIds = Array.map(utcResult.upcoming, (t) => t.plantId)
       expect(utcWeekIds).toContain('tz-plant-2')
 
       // Test with Paris user — plants must belong to the Paris user

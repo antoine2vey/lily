@@ -5,7 +5,7 @@ export default {
     sections: {
       overdue: 'En retard',
       today: "Aujourd'hui",
-      thisWeek: 'Cette semaine',
+      upcoming: 'À venir',
     },
     allCaughtUp: 'Tout est à jour !',
     noTasksScheduled: 'Aucune tâche de soin programmée',

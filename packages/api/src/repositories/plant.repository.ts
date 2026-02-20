@@ -131,7 +131,7 @@ export interface IPlantRepository {
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
   readonly findPlantsWithPendingCare: (
     userId: string,
-    endOfWeek: Date
+    cutoffDate: Date
   ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly create: (
     data: CreatePlantData
@@ -372,7 +372,7 @@ export const PlantRepositoryLive = Layer.effect(
           )
         }).pipe(Effect.withSpan('PlantRepository.findById')),
 
-      findPlantsWithPendingCare: (userId: string, endOfWeek: Date) =>
+      findPlantsWithPendingCare: (userId: string, cutoffDate: Date) =>
         Effect.gen(function* () {
           const rows = yield* db
             .select({ plant: plants, room: roomSelect })
@@ -382,8 +382,8 @@ export const PlantRepositoryLive = Layer.effect(
               and(
                 eq(plants.userId, userId),
                 or(
-                  lte(plants.nextWateringAt, endOfWeek),
-                  lte(plants.nextFertilizationAt, endOfWeek)
+                  lte(plants.nextWateringAt, cutoffDate),
+                  lte(plants.nextFertilizationAt, cutoffDate)
                 )
               )
             )

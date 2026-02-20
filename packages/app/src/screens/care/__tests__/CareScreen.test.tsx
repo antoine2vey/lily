@@ -61,7 +61,7 @@ describe('CareScreen', () => {
       data: {
         overdue: [],
         today: [],
-        thisWeek: [],
+        upcoming: [],
       },
       isLoading: false,
     })
@@ -77,7 +77,7 @@ describe('CareScreen', () => {
       data: {
         overdue: [],
         today: [],
-        thisWeek: [],
+        upcoming: [],
       },
       isLoading: false,
     })
@@ -102,7 +102,7 @@ describe('CareScreen', () => {
           },
         ],
         today: [],
-        thisWeek: [],
+        upcoming: [],
       },
       isLoading: false,
     })
@@ -129,7 +129,7 @@ describe('CareScreen', () => {
             dueDate: mockNow(),
           },
         ],
-        thisWeek: [],
+        upcoming: [],
       },
       isLoading: false,
     })
@@ -140,14 +140,14 @@ describe('CareScreen', () => {
     expect(screen.getByText('Fern')).toBeTruthy()
   })
 
-  it('displays this week section when there are upcoming tasks', () => {
+  it('displays upcoming section when there are upcoming tasks', () => {
     const futureDate = mockDateFuture(3, 'days')
 
     mockedUseCareTasks.mockReturnValue({
       data: {
         overdue: [],
         today: [],
-        thisWeek: [
+        upcoming: [
           {
             id: 'task-1',
             plantId: 'plant-1',
@@ -164,7 +164,7 @@ describe('CareScreen', () => {
 
     render(<CareScreen />)
 
-    expect(screen.getByText('This Week')).toBeTruthy()
+    expect(screen.getByText('Upcoming')).toBeTruthy()
     expect(screen.getByText('Cactus')).toBeTruthy()
   })
 
@@ -175,7 +175,7 @@ describe('CareScreen', () => {
       data: {
         overdue: [],
         today: [],
-        thisWeek: [
+        upcoming: [
           {
             id: 'task-1',
             plantId: 'plant-1',
@@ -227,7 +227,7 @@ describe('CareScreen', () => {
             dueDate: mockNow(),
           },
         ],
-        thisWeek: [
+        upcoming: [
           {
             id: 'task-3',
             plantId: 'plant-3',
@@ -246,7 +246,7 @@ describe('CareScreen', () => {
 
     expect(screen.getByText('Overdue')).toBeTruthy()
     expect(screen.getByText('Today')).toBeTruthy()
-    expect(screen.getByText('This Week')).toBeTruthy()
+    expect(screen.getByText('Upcoming')).toBeTruthy()
     expect(screen.getByText('Monstera')).toBeTruthy()
     expect(screen.getByText('Fern')).toBeTruthy()
     expect(screen.getByText('Cactus')).toBeTruthy()
