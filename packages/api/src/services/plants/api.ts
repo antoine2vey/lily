@@ -107,6 +107,19 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // POST /plants/ai-re-identify - Re-identify plant from existing image URLs
+    HttpApiEndpoint.post('aiReIdentify')`/ai-re-identify`
+      .setPayload(
+        Schema.Struct({
+          imageUrls: Schema.Array(Schema.String),
+          locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
+        })
+      )
+      .addSuccess(AIIdentifyResponse)
+      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     // POST /plants/water-multiple - Water multiple plants at once
     HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
       .setPayload(WaterMultiplePlantsRequest)
