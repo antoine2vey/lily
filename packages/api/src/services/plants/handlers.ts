@@ -68,6 +68,11 @@ export const PlantsApiLive = (api: Api) =>
         .handle('aiIdentify', ({ payload: { images, locale } }) =>
           plantsService.aiIdentify(images, locale).pipe(withInfraErrorsAsDefect)
         )
+        .handle('aiReIdentify', ({ payload: { imageUrls, locale } }) =>
+          plantsService
+            .aiReIdentify(imageUrls, locale)
+            .pipe(withInfraErrorsAsDefect)
+        )
         .handle('getPlant', ({ path: { id } }) =>
           plantsService
             .findPlantById({ id })

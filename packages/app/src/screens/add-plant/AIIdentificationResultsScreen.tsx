@@ -3,16 +3,24 @@ import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
 import { Array, Either, Match, Option, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { Chip } from 'src/components/Chip'
-import { Button } from 'src/components/ui/Button'
-import { useCreatePlant } from 'src/hooks/useCreatePlant'
-import { useIconColors } from 'src/hooks/useIconColors'
-import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { Chip } from '@/components/Chip'
+import { Button } from '@/components/ui/Button'
+import { useCreatePlant } from '@/hooks/useCreatePlant'
+import { useIconColors } from '@/hooks/useIconColors'
+import type { PlantIdentificationResult } from '@/hooks/useIdentifyPlant'
+import { useReIdentifyPlant } from '@/hooks/useReIdentifyPlant'
 
 export function AIIdentificationResultsScreen() {
   const { t } = useTranslation('addPlant')
@@ -20,7 +28,7 @@ export function AIIdentificationResultsScreen() {
   const iconColors = useIconColors()
   const photoUri = params.photoUri ? decodeURIComponent(params.photoUri) : ''
 
-  const result = useMemo((): PlantIdentificationResult | null => {
+  const parsedResult = useMemo((): PlantIdentificationResult | null => {
     if (!params.result) return null
     try {
       return JSON.parse(decodeURIComponent(params.result))
@@ -29,7 +37,12 @@ export function AIIdentificationResultsScreen() {
     }
   }, [params.result])
 
+  const [result, setResult] = useState<PlantIdentificationResult | null>(
+    parsedResult
+  )
+
   const { mutate: createPlant, isPending: isCreating } = useCreatePlant()
+  const { mutate: reIdentify, isPending: isRetrying } = useReIdentifyPlant()
 
   const handleAddToCollection = () => {
     if (!result?.name) return
@@ -123,7 +136,17 @@ export function AIIdentificationResultsScreen() {
   }
 
   const handleRetry = () => {
-    router.push('/add-plant/ai-scanner')
+    if (!result?.imageUrl || isRetrying) return
+
+    reIdentify([result.imageUrl], {
+      onSuccess: (newResult) => setResult(newResult),
+      onError: () => {
+        Alert.alert(
+          t('scanner.error'),
+          t('scanner.identificationFailedMessage')
+        )
+      },
+    })
   }
 
   const insets = useSafeAreaInsets()
@@ -143,7 +166,9 @@ export function AIIdentificationResultsScreen() {
           <Text className="text-base text-center mt-2 mb-6 font-regular text-text-muted dark:text-slate-400">
             {t('scanner.identificationFailedMessage')}
           </Text>
-          <Button onPress={handleRetry}>{t('results.tryAgain')}</Button>
+          <Button onPress={() => router.push('/add-plant/ai-scanner')}>
+            {t('results.tryAgain')}
+          </Button>
         </View>
       </View>
     )
@@ -452,13 +477,18 @@ export function AIIdentificationResultsScreen() {
           <View className="h-4 w-px bg-border dark:bg-slate-600" />
           <Pressable
             onPress={handleRetry}
+            disabled={isRetrying}
             className="flex-row items-center gap-1.5"
           >
-            <MaterialIcons
-              name="replay"
-              size={18}
-              color={iconColors.textSecondary}
-            />
+            {isRetrying ? (
+              <ActivityIndicator size={18} color={iconColors.textSecondary} />
+            ) : (
+              <MaterialIcons
+                name="replay"
+                size={18}
+                color={iconColors.textSecondary}
+              />
+            )}
             <Text className="text-sm font-semibold text-text-secondary">
               {t('results.tryAgain')}
             </Text>
