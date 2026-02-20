@@ -1,5 +1,34 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { render, screen } from '@testing-library/react-native'
+import type React from 'react'
 import { Text } from 'react-native'
+
+// Mock the reacticx BottomSheet to avoid reanimated/gesture-handler dependencies
+jest.mock('src/components/ui/templates/bottom-sheet', () => {
+  const ReactMock = require('react')
+  const { View: RNView } = require('react-native')
+
+  const MockBottomSheet = ReactMock.forwardRef(
+    (props: { children: React.ReactNode }, ref: React.Ref<unknown>) => {
+      ReactMock.useImperativeHandle(ref, () => ({
+        snapToIndex: jest.fn(),
+        snapToPosition: jest.fn(),
+        expand: jest.fn(),
+        collapse: jest.fn(),
+        close: jest.fn(),
+        getCurrentIndex: jest.fn(() => 0),
+      }))
+
+      return ReactMock.createElement(
+        RNView,
+        { testID: 'raw-bottom-sheet' },
+        props.children
+      )
+    }
+  )
+
+  return { BottomSheet: MockBottomSheet }
+})
+
 import { BottomSheet } from '../BottomSheet'
 
 describe('BottomSheet', () => {
@@ -33,24 +62,6 @@ describe('BottomSheet', () => {
     expect(toJSON()).toBeNull()
   })
 
-  it('calls onClose when backdrop pressed', () => {
-    const onClose = jest.fn()
-    const { UNSAFE_root } = render(
-      <BottomSheet {...defaultProps} onClose={onClose} />
-    )
-
-    // Find the Pressable backdrop and press it
-    const pressables = UNSAFE_root.findAllByType(
-      require('react-native').Pressable
-    )
-    if (pressables.length > 0) {
-      fireEvent.press(pressables[0])
-    }
-    // The onClose should be called eventually (after animation)
-    // In tests, we just verify the component renders correctly
-    expect(UNSAFE_root).toBeTruthy()
-  })
-
   it('renders with custom snap points', () => {
     const { toJSON } = render(
       <BottomSheet {...defaultProps} snapPoints={['75%']} />
@@ -62,11 +73,6 @@ describe('BottomSheet', () => {
     const { toJSON } = render(
       <BottomSheet {...defaultProps} snapPoints={[400]} />
     )
-    expect(toJSON()).toBeTruthy()
-  })
-
-  it('renders drag handle', () => {
-    const { toJSON } = render(<BottomSheet {...defaultProps} />)
     expect(toJSON()).toBeTruthy()
   })
 
