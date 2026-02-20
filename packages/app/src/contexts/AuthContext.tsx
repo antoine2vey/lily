@@ -145,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for stored token on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = async (retries = 2) => {
       try {
         const tokenOption = await Effect.runPromise(getStoredAccessToken())
         const emailOption = await Effect.runPromise(getStoredUserEmail())
@@ -173,10 +173,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 } else {
                   setState({ _tag: 'Authenticated', user, accessToken })
                 }
-              } catch {
-                // Token is invalid, clear storage
-                await Effect.runPromise(removeStoredAccessToken())
-                setState({ _tag: 'Unauthenticated' })
+              } catch (error) {
+                const isAuthError =
+                  error &&
+                  typeof error === 'object' &&
+                  '_tag' in error &&
+                  (error._tag === 'UnauthorizedError' ||
+                    error._tag === 'SessionNotFoundError')
+
+                if (isAuthError) {
+                  // Token is truly invalid, clear storage
+                  await Effect.runPromise(removeStoredAccessToken())
+                  setState({ _tag: 'Unauthenticated' })
+                } else if (retries > 0) {
+                  // Network/server error — retry after a short delay
+                  await new Promise((r) => setTimeout(r, 1500))
+                  await checkAuth(retries - 1)
+                }
+                // After retries exhausted, stay in Loading (don't logout)
               }
             },
           })

@@ -329,22 +329,44 @@ const refreshAccessToken: Effect.Effect<string, ApiFailure> = Effect.gen(
         })
 
         if (!response.ok) {
-          // Clear tokens on refresh failure
-          await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
-          await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
-          throw new Error('Refresh failed')
+          // Only clear tokens on auth errors, not server errors
+          if (response.status === 401 || response.status === 403) {
+            await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
+            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+          }
+          throw new Error(`Refresh failed: ${response.status}`)
         }
 
         const data = await response.json()
         const newAccessToken = data.accessToken as string
+        const newRefreshToken = data.refreshToken as string
 
-        // Store the new access token
+        // Store both tokens (server rotates refresh tokens)
         await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
+        if (newRefreshToken) {
+          await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, newRefreshToken)
+        }
 
         return newAccessToken
       },
-      catch: (): ApiFailure =>
-        new UnauthorizedError({ message: 'Token refresh failed' }),
+      catch: (error): ApiFailure => {
+        const message =
+          error instanceof Error ? error.message : 'Token refresh failed'
+        // Only treat as auth error if it was an actual auth failure
+        const isAuthFailure =
+          pipe(message, Str.includes('401')) ||
+          pipe(message, Str.includes('403')) ||
+          pipe(message, Str.includes('No refresh token'))
+
+        if (isAuthFailure) {
+          return new UnauthorizedError({ message })
+        }
+        // Network/server errors should not be treated as auth failures
+        return {
+          _tag: 'UnknownError' as const,
+          message: `Token refresh failed: ${message}`,
+        }
+      },
     }).pipe(
       Effect.tapBoth({
         onSuccess: (token) =>
@@ -577,15 +599,29 @@ async function handleTokenRefreshAndRetry<
 
   return Exit.match(refreshExit, {
     onSuccess: () => runApiEffect(section, method, params, 1),
-    onFailure: () => {
-      // Token refresh failed, trigger auth failure callback
-      if (onAuthFailure) {
+    onFailure: (cause) => {
+      const error = Cause.failureOption(cause)
+      const isAuthFailure = pipe(
+        error,
+        Option.map((e) => isUnauthorizedError(e)),
+        Option.getOrElse(() => false)
+      )
+
+      if (isAuthFailure && onAuthFailure) {
+        // Only trigger logout on actual auth failures, not network errors
         onAuthFailure()
       }
+
       return Either.left(
-        new UnauthorizedError({
-          message: 'Session expired. Please log in again.',
-        })
+        pipe(
+          error,
+          Option.getOrElse(
+            () =>
+              new UnauthorizedError({
+                message: 'Session expired. Please log in again.',
+              })
+          )
+        )
       )
     },
   })
