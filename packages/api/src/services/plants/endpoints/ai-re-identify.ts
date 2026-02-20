@@ -16,7 +16,7 @@ export const aiReIdentify = (
 > =>
   Effect.gen(function* () {
     const ai = yield* AiService
-    const aiResult = yield* ai.plantRecognitionWithRetry(imageUrls, locale)
+    const aiResult = yield* ai.plantRecognition(imageUrls, locale)
     const primaryUrl = Option.getOrElse(Array.head(imageUrls), () => '')
     return { ...aiResult, imageUrl: primaryUrl }
   }).pipe(

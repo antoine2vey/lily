@@ -36,26 +36,7 @@ export const createMockAiService = (
   )
 
   const mockService = {
-    plantRecognition: (_url: string, _locale?: string) =>
-      Effect.succeed({
-        name: 'Mock Plant',
-        family: 'Mockaceae',
-        confidence: 0.95,
-        alternatives: [],
-        wateringFrequencyDays: 7,
-        luxNeeded: 2000,
-        humidityRating: 50,
-        petToxicityRating: 20,
-        fertilizationFrequencyDays: 30,
-        category: 'Tropical',
-        description: 'A mock plant for testing',
-        wateringTips: 'Water when top soil is dry.',
-      }),
-    plantRecognitionWithRetry: (
-      _urls: string | readonly string[],
-      _locale?: string,
-      _maxAttempts?: number
-    ) =>
+    plantRecognition: (_urls: string | readonly string[], _locale?: string) =>
       Effect.succeed({
         name: 'Mock Plant',
         family: 'Mockaceae',
