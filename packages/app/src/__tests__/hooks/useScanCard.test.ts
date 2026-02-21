@@ -94,7 +94,8 @@ describe('useScanCard', () => {
       expect(mockUploadMultipart).toHaveBeenCalledWith(
         '/api/plants/scan-card',
         expect.any(Array),
-        'images'
+        'images',
+        expect.objectContaining({ locale: expect.any(String) })
       )
     })
 
@@ -223,7 +224,8 @@ describe('useScanCardMultiple', () => {
       expect(mockUploadMultipart).toHaveBeenCalledWith(
         '/api/plants/scan-card-multiple',
         expect.any(Array),
-        'images'
+        'images',
+        expect.objectContaining({ locale: expect.any(String) })
       )
 
       // Verify all files are passed
@@ -249,7 +251,8 @@ describe('useScanCardMultiple', () => {
       expect(mockUploadMultipart).toHaveBeenCalledWith(
         '/api/plants/scan-card-multiple',
         [],
-        'images'
+        'images',
+        expect.objectContaining({ locale: expect.any(String) })
       )
     })
 
