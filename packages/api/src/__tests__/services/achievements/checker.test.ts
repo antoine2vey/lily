@@ -2,8 +2,18 @@ import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achie
 import type { AppEvent } from '@lily/api/events'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { processEvent } from '@lily/api/services/achievements/checker'
-import { Array, Effect } from 'effect'
+import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// No-op notifier for testing - just swallows notifications
+const MockAchievementNotifier = Layer.succeed(AchievementNotifier, {
+  notify: () => Effect.void,
+  subscribe: Effect.die('subscribe not implemented in tests'),
+})
+
+const withNotifier = (repoLayer: Layer.Layer<AchievementRepository>) =>
+  Layer.merge(repoLayer, MockAchievementNotifier)
 
 describe('Achievement Checker', () => {
   describe('PlantCreated event', () => {
@@ -20,7 +30,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -48,7 +58,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -76,7 +86,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -109,7 +119,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -140,7 +150,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -171,7 +181,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -202,7 +212,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -233,7 +243,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -263,7 +273,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -294,7 +304,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -323,7 +333,7 @@ describe('Achievement Checker', () => {
       }
 
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
 
       const result = await Effect.runPromise(
@@ -353,7 +363,7 @@ describe('Achievement Checker', () => {
 
       // Should not throw
       await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
+        processEvent(event).pipe(Effect.provide(withNotifier(mockRepo)))
       )
     })
   })
@@ -363,6 +373,7 @@ describe('Achievement Checker', () => {
       const mockRepo = createMockAchievementRepository({
         achievements: [],
       })
+      const layers = withNotifier(mockRepo)
 
       const event: AppEvent = {
         _tag: 'ChatMessageSent',
@@ -372,15 +383,9 @@ describe('Achievement Checker', () => {
       }
 
       // Process the same event multiple times
-      await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
-      )
-      await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
-      )
-      await Effect.runPromise(
-        processEvent(event).pipe(Effect.provide(mockRepo))
-      )
+      await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
+      await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
+      await Effect.runPromise(processEvent(event).pipe(Effect.provide(layers)))
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {

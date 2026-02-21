@@ -13,6 +13,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
+import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
@@ -160,6 +161,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
   Layer.provide(AchievementSubscriberLive),
+  Layer.provide(AchievementNotifierLive),
   Layer.provide(DelegationSchedulerLive),
   Layer.provide(HealthSchedulerLive),
   Layer.provide(WeatherSchedulerLive),

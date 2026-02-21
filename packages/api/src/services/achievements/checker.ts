@@ -40,10 +40,7 @@ const onPlantCreated = (event: { userId: string }) =>
     if (plantCount >= plantCollectorThreshold) {
       yield* unlock(event.userId, 'PLANT_COLLECTOR').pipe(
         Effect.tap((result) =>
-          Effect.when(
-            notify(event.userId, 'PLANT_COLLECTOR'),
-            () => !!result
-          )
+          Effect.when(notify(event.userId, 'PLANT_COLLECTOR'), () => !!result)
         )
       )
     }
@@ -61,20 +58,14 @@ const onCareLogCreated = (event: {
     if (event.type === 'watering' && careCount >= 10) {
       yield* unlock(event.userId, 'WATERING_NOVICE').pipe(
         Effect.tap((result) =>
-          Effect.when(
-            notify(event.userId, 'WATERING_NOVICE'),
-            () => !!result
-          )
+          Effect.when(notify(event.userId, 'WATERING_NOVICE'), () => !!result)
         )
       )
     }
     if (event.type === 'fertilization' && careCount >= 10) {
       yield* unlock(event.userId, 'FERTILIZER_GURU').pipe(
         Effect.tap((result) =>
-          Effect.when(
-            notify(event.userId, 'FERTILIZER_GURU'),
-            () => !!result
-          )
+          Effect.when(notify(event.userId, 'FERTILIZER_GURU'), () => !!result)
         )
       )
     }
@@ -96,10 +87,7 @@ const onCareLogCreated = (event: {
 const onChatMessageSent = (event: { userId: string }) =>
   unlock(event.userId, 'AI_CONVERSATIONALIST').pipe(
     Effect.tap((result) =>
-      Effect.when(
-        notify(event.userId, 'AI_CONVERSATIONALIST'),
-        () => !!result
-      )
+      Effect.when(notify(event.userId, 'AI_CONVERSATIONALIST'), () => !!result)
     )
   )
 
@@ -129,10 +117,7 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
     if (plantPhotoCount >= 5) {
       yield* unlock(event.userId, 'GROWTH_TRACKER').pipe(
         Effect.tap((result) =>
-          Effect.when(
-            notify(event.userId, 'GROWTH_TRACKER'),
-            () => !!result
-          )
+          Effect.when(notify(event.userId, 'GROWTH_TRACKER'), () => !!result)
         )
       )
     }
@@ -180,10 +165,7 @@ const onCareHistoryViewed = (event: { userId: string }) =>
 const onDiseaseIdentified = (event: { userId: string }) =>
   unlock(event.userId, 'DISEASE_DETECTIVE').pipe(
     Effect.tap((result) =>
-      Effect.when(
-        notify(event.userId, 'DISEASE_DETECTIVE'),
-        () => !!result
-      )
+      Effect.when(notify(event.userId, 'DISEASE_DETECTIVE'), () => !!result)
     )
   )
 

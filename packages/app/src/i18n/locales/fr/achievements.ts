@@ -20,6 +20,10 @@ export default {
     keepGoing: 'Continuez pour débloquer ce succès',
     unknown: 'Inconnu',
   },
+  unlockModal: {
+    title: 'Succès débloqué !',
+    continue: 'Continuer',
+  },
   badges: {
     firstPlantAdded: {
       name: 'Première plante',
