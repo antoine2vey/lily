@@ -15,7 +15,7 @@ import type {
   WaterMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Duration, Effect, Option } from 'effect'
 
 export const waterMultiplePlants = (
   request: WaterMultiplePlantsRequest

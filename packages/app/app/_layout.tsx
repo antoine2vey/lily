@@ -21,6 +21,8 @@ import { LocalizationProvider } from 'src/contexts/LocalizationContext'
 import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
 import 'src/i18n'
+import { AchievementUnlockedModal } from 'src/components/AchievementUnlockedModal'
+import { useAchievementNotifications } from 'src/hooks/useAchievementNotifications'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
 import { useOTAUpdates } from 'src/hooks/useOTAUpdates'
 import * as RevenueCatService from 'src/services/revenuecat'
@@ -83,6 +85,10 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
     Match.orElse(() => false)
   )
 
+  // Detect newly unlocked achievements and show celebration modal
+  const { currentAchievement, dismiss } =
+    useAchievementNotifications(isAuthenticated)
+
   // Add app state sync for subscription (syncs when app returns to foreground)
   useAppStateSync(isAuthenticated)
 
@@ -111,7 +117,16 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
     )
   }
 
-  return <Slot />
+  return (
+    <>
+      <Slot />
+      <AchievementUnlockedModal
+        visible={!!currentAchievement}
+        achievement={currentAchievement}
+        onClose={dismiss}
+      />
+    </>
+  )
 }
 
 export default function RootLayout() {

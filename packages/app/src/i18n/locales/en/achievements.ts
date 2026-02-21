@@ -20,6 +20,10 @@ export default {
     keepGoing: 'Keep going to unlock this achievement',
     unknown: 'Unknown',
   },
+  unlockModal: {
+    title: 'Achievement Unlocked!',
+    continue: 'Continue',
+  },
   badges: {
     firstPlantAdded: {
       name: 'First Plant',

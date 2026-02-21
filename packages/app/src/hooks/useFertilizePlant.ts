@@ -4,7 +4,6 @@ import { queryKeys } from 'src/utils/query-keys'
 
 export function useFertilizePlant() {
   const queryClient = useQueryClient()
-
   return useEffectMutation('plants', 'fertilizePlant', {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.plants.details() })

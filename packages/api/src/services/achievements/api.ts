@@ -19,6 +19,10 @@ export const AchievementsApi = HttpApiGroup.make('achievements')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // GET /achievements/events - SSE stream for real-time achievement unlock notifications
+    HttpApiEndpoint.get('achievementEvents')`/events`
+  )
+  .add(
     // POST /achievements/unlock - Manually unlock achievement (admin only)
     HttpApiEndpoint.post('unlockAchievement')`/unlock`
       .setPayload(UnlockAchievementRequest)

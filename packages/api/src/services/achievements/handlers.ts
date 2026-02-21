@@ -1,6 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { achievementEvents } from '@lily/api/services/achievements/endpoints/achievement-events'
 import { AchievementsService } from '@lily/api/services/achievements/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
@@ -15,6 +16,9 @@ export const AchievementsApiLive = (api: Api) =>
       return handlers
         .handle('getUserAchievements', () =>
           achievementsService.getUserAchievements().pipe(withSqlErrorAsDefect)
+        )
+        .handle('achievementEvents', () =>
+          achievementEvents().pipe(withSqlErrorAsDefect)
         )
         .handle('unlockAchievement', ({ payload }) =>
           achievementsService
