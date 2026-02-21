@@ -1,6 +1,6 @@
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('aiReIdentify', () => {

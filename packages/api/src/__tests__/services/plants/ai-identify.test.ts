@@ -32,7 +32,7 @@ describe('aiIdentify', () => {
 
   it('should return a typed object with plant identification', async () => {
     const result = await Effect.runPromise(
-      aiIdentify([mockFile]).pipe(Effect.provide(createTestLayer()))
+      aiIdentify([mockFile], 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toBeDefined()

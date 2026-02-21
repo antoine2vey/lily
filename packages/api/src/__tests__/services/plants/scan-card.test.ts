@@ -37,7 +37,7 @@ describe('scanCard', () => {
 
   it('should parse nursery card and return plant data', async () => {
     const result = await Effect.runPromise(
-      scanCard([mockFile]).pipe(Effect.provide(createTestLayer()))
+      scanCard([mockFile], 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toBeDefined()
@@ -47,7 +47,7 @@ describe('scanCard', () => {
 
   it('should record scan for achievement tracking', async () => {
     const result = await Effect.runPromise(
-      scanCard([mockFile]).pipe(Effect.provide(createTestLayer()))
+      scanCard([mockFile], 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toBeDefined()
@@ -67,7 +67,9 @@ describe('scanCard', () => {
       MockUsageTrackerLive
     )
 
-    await Effect.runPromise(scanCard([mockFile]).pipe(Effect.provide(layer)))
+    await Effect.runPromise(
+      scanCard([mockFile], 'en').pipe(Effect.provide(layer))
+    )
 
     expect(publishedEvents.length).toBe(1)
     expect(publishedEvents[0]).toMatchObject({
@@ -78,7 +80,7 @@ describe('scanCard', () => {
 
   it('should return plant care ratings from AI', async () => {
     const result = await Effect.runPromise(
-      scanCard([mockFile]).pipe(Effect.provide(createTestLayer()))
+      scanCard([mockFile], 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.humidityRating).toBe(50)
