@@ -3,27 +3,34 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import {
+  type MockEventBusData,
+  createMockEventBus,
+} from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { fertilizePlant } from '@lily/api/services/plants/endpoints/fertilize-plant'
-import { Effect, Exit, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('fertilizePlant', () => {
-  const createTestLayer = () =>
+  const createTestLayer = (eventBusData?: MockEventBusData) =>
     Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository(mockCareLogs),
       createMockNotificationRepository([]),
       createMockUserRepository(mockUsers),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockDelegationRepository(),
       createMockWeatherCache(),
       createMockWeatherProvider(),
-      createMockWeatherRepository()
+      createMockWeatherRepository(),
+      createMockEventBus(eventBusData)
     )
 
   it('should update lastFertilizedAt', async () => {
@@ -100,5 +107,25 @@ describe('fertilizePlant', () => {
 
     expect(result.remindersEnabled).toBe(true)
     expect(result.nextFertilizationAt).toBeDefined()
+  })
+
+  it('should publish CareLogCreated event after fertilizing', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    await Effect.runPromise(
+      fertilizePlant({ id: 'plant-1' }).pipe(
+        Effect.provide(createTestLayer(eventBusData))
+      )
+    )
+
+    const careLogEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'CareLogCreated'
+    )
+    expect(careLogEvents).toHaveLength(1)
+    expect(careLogEvents[0]).toMatchObject({
+      _tag: 'CareLogCreated',
+      plantId: 'plant-1',
+      type: 'fertilization',
+    })
   })
 })

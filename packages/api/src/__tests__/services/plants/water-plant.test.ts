@@ -6,27 +6,34 @@ import {
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import {
+  type MockEventBusData,
+  createMockEventBus,
+} from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { waterPlant } from '@lily/api/services/plants/endpoints/water-plant'
-import { Effect, Exit, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('waterPlant', () => {
-  const createTestLayer = () =>
+  const createTestLayer = (eventBusData?: MockEventBusData) =>
     Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository(mockCareLogs),
       createMockNotificationRepository([]),
       createMockUserRepository(mockUsers),
+      createMockCurrentUser({ id: 'user-1' }),
       createMockDelegationRepository(),
       createMockWeatherCache(),
       createMockWeatherProvider(),
-      createMockWeatherRepository()
+      createMockWeatherRepository(),
+      createMockEventBus(eventBusData)
     )
 
   it('should update lastWateredAt and nextWateringAt', async () => {
@@ -122,10 +129,12 @@ describe('waterPlant', () => {
             createMockCareLogRepository(mockCareLogs),
             createMockNotificationRepository([]),
             createMockUserRepository(mockUsers),
+            createMockCurrentUser({ id: 'user-1' }),
             createMockDelegationRepository(),
             createMockWeatherCache(),
             createMockWeatherProvider(),
-            createMockWeatherRepository()
+            createMockWeatherRepository(),
+            createMockEventBus()
           )
         )
       )
@@ -141,5 +150,79 @@ describe('waterPlant', () => {
     )
 
     expect(result.health).toBe('HEALTHY')
+  })
+
+  it('should publish CareLogCreated event after watering', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    await Effect.runPromise(
+      waterPlant({ id: 'plant-1' }).pipe(
+        Effect.provide(createTestLayer(eventBusData))
+      )
+    )
+
+    const careLogEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'CareLogCreated'
+    )
+    expect(careLogEvents).toHaveLength(1)
+    expect(careLogEvents[0]).toMatchObject({
+      _tag: 'CareLogCreated',
+      plantId: 'plant-1',
+      type: 'watering',
+    })
+  })
+
+  it('should publish AttentionResponded event when plant was NEEDS_ATTENTION', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    const plantsWithAttention = [
+      createTestPlant({
+        id: 'attention-plant',
+        health: 'NEEDS_ATTENTION',
+      }),
+    ]
+
+    await Effect.runPromise(
+      waterPlant({ id: 'attention-plant' }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants: plantsWithAttention }),
+            createMockCareLogRepository(mockCareLogs),
+            createMockNotificationRepository([]),
+            createMockUserRepository(mockUsers),
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockDelegationRepository(),
+            createMockWeatherCache(),
+            createMockWeatherProvider(),
+            createMockWeatherRepository(),
+            createMockEventBus(eventBusData)
+          )
+        )
+      )
+    )
+
+    const attentionEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'AttentionResponded'
+    )
+    expect(attentionEvents).toHaveLength(1)
+    expect(attentionEvents[0]).toMatchObject({
+      _tag: 'AttentionResponded',
+      plantId: 'attention-plant',
+    })
+  })
+
+  it('should not publish AttentionResponded event when plant is HEALTHY', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    await Effect.runPromise(
+      waterPlant({ id: 'plant-1' }).pipe(
+        Effect.provide(createTestLayer(eventBusData))
+      )
+    )
+
+    const attentionEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'AttentionResponded'
+    )
+    expect(attentionEvents).toHaveLength(0)
   })
 })

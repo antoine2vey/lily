@@ -1,5 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -8,11 +8,14 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
+import type { EventBus } from '@lily/shared/server'
 import { roundCoord } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
@@ -138,10 +141,11 @@ export const executePlantCare = (
   | WeatherCache
   | WeatherRepository
   | DelegationRepository
+  | EventBus
+  | CurrentUser
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const careLogRepo = yield* CareLogRepository
     const config = getCareTypeConfig(params.careType)
 
     // Fetch the plant
@@ -153,6 +157,14 @@ export const executePlantCare = (
 
     const nowDt = DateTime.unsafeNow()
     const now = DateTime.toDateUtc(nowDt)
+
+    // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
+    // Called before plant update so createCareLog sees the original health state
+    yield* createCareLog(params.plantId, {
+      type: config.careLogType,
+      notes: params.notes,
+      date: now,
+    })
 
     // Get frequency - watering always has frequency, fertilization is optional
     const frequency = plant[config.frequencyField]
@@ -181,17 +193,11 @@ export const executePlantCare = (
       nowDt
     )
 
-    // Build update payload dynamically
-    // Reset health to HEALTHY if plant was NEEDS_ATTENTION
-    const healthUpdate =
-      plant.health === 'NEEDS_ATTENTION' ? { health: 'HEALTHY' as const } : {}
-
     const updatePayload = {
       [config.lastCareField]: now,
       ...(adjustedNextCareAt && {
         [config.nextCareField]: adjustedNextCareAt,
       }),
-      ...healthUpdate,
     }
 
     // Update the plant
@@ -203,14 +209,6 @@ export const executePlantCare = (
     if (!updatedPlant) {
       return yield* Effect.fail(new PlantNotFoundError())
     }
-
-    // Create care log record
-    yield* careLogRepo.create({
-      type: config.careLogType,
-      plantId: params.plantId,
-      notes: params.notes,
-      date: now,
-    })
 
     // Schedule next reminder if we have a next care date
     if (adjustedNextCareAt) {

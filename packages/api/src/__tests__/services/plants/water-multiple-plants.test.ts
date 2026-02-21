@@ -1,9 +1,16 @@
 import * as SqlClient from '@effect/sql/SqlClient'
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
-import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  mockPlants,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import {
+  type MockEventBusData,
+  createMockEventBus,
+} from '@lily/api/__tests__/mocks/event-bus'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -17,7 +24,10 @@ const MockSqlClient = Layer.succeed(SqlClient.SqlClient, {
 } as unknown as SqlClient.SqlClient)
 
 describe('waterMultiplePlants', () => {
-  const createTestLayer = (userId = 'user-1') =>
+  const createTestLayer = (
+    userId = 'user-1',
+    eventBusData?: MockEventBusData
+  ) =>
     Layer.mergeAll(
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository(mockCareLogs),
@@ -25,7 +35,8 @@ describe('waterMultiplePlants', () => {
       createMockUserRepository(mockUsers),
       MockSqlClient,
       createMockCurrentUser({ id: userId }),
-      createMockDelegationRepository()
+      createMockDelegationRepository(),
+      createMockEventBus(eventBusData)
     )
 
   it('should water multiple plants and return results', async () => {
@@ -160,7 +171,8 @@ describe('waterMultiplePlants', () => {
               delegationPlants: [
                 { delegationId: 'delegation-1', plantId: 'plant-1' },
               ],
-            })
+            }),
+            createMockEventBus()
           )
         )
       )
@@ -172,5 +184,72 @@ describe('waterMultiplePlants', () => {
       (opt) => (opt._tag === 'Some' ? opt.value : undefined)
     )
     expect(plant1Result?.success).toBe(true)
+  })
+
+  it('should publish CareLogCreated events for each watered plant', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    await Effect.runPromise(
+      waterMultiplePlants({ plantIds: ['plant-1', 'plant-2'] }).pipe(
+        Effect.provide(createTestLayer('user-1', eventBusData))
+      )
+    )
+
+    const careLogEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'CareLogCreated'
+    )
+    expect(careLogEvents).toHaveLength(2)
+    const plantIds = Array.map(
+      careLogEvents,
+      (e) => (e as { plantId: string }).plantId
+    )
+    expect(plantIds).toContain('plant-1')
+    expect(plantIds).toContain('plant-2')
+  })
+
+  it('should publish AttentionResponded event for NEEDS_ATTENTION plants', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    const plantsWithAttention = [
+      createTestPlant({ id: 'attention-plant', health: 'NEEDS_ATTENTION' }),
+      ...mockPlants,
+    ]
+
+    await Effect.runPromise(
+      waterMultiplePlants({ plantIds: ['attention-plant'] }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockPlantRepository({ plants: plantsWithAttention }),
+            createMockCareLogRepository(mockCareLogs),
+            createMockNotificationRepository([]),
+            createMockUserRepository(mockUsers),
+            MockSqlClient,
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockDelegationRepository(),
+            createMockEventBus(eventBusData)
+          )
+        )
+      )
+    )
+
+    const attentionEvents = Array.filter(
+      eventBusData.publishedEvents,
+      (e) => e._tag === 'AttentionResponded'
+    )
+    expect(attentionEvents).toHaveLength(1)
+    expect(attentionEvents[0]).toMatchObject({
+      _tag: 'AttentionResponded',
+      plantId: 'attention-plant',
+    })
+  })
+
+  it('should not publish events for failed waterings', async () => {
+    const eventBusData: MockEventBusData = { publishedEvents: [] }
+    await Effect.runPromise(
+      waterMultiplePlants({ plantIds: ['non-existent'] }).pipe(
+        Effect.provide(createTestLayer('user-1', eventBusData))
+      )
+    )
+
+    expect(eventBusData.publishedEvents).toHaveLength(0)
   })
 })
