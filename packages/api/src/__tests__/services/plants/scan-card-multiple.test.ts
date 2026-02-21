@@ -40,7 +40,7 @@ describe('scanCardMultiple', () => {
     const files = [createMockFile('card1.jpg'), createMockFile('card2.jpg')]
 
     const result = await Effect.runPromise(
-      scanCardMultiple(files).pipe(Effect.provide(createTestLayer()))
+      scanCardMultiple(files, 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.name).toBe('Mock Plant')
@@ -52,7 +52,7 @@ describe('scanCardMultiple', () => {
     const files = [createMockFile('card1.jpg')]
 
     const result = await Effect.runPromise(
-      scanCardMultiple(files).pipe(Effect.provide(createTestLayer()))
+      scanCardMultiple(files, 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.name).toBe('Mock Plant')
@@ -74,7 +74,9 @@ describe('scanCardMultiple', () => {
     )
 
     const files = [createMockFile('card1.jpg'), createMockFile('card2.jpg')]
-    await Effect.runPromise(scanCardMultiple(files).pipe(Effect.provide(layer)))
+    await Effect.runPromise(
+      scanCardMultiple(files, 'en').pipe(Effect.provide(layer))
+    )
 
     expect(publishedEvents).toHaveLength(1)
     expect(publishedEvents[0]).toMatchObject({
@@ -87,7 +89,7 @@ describe('scanCardMultiple', () => {
     const files = [createMockFile('card1.jpg'), createMockFile('card2.jpg')]
 
     const result = await Effect.runPromise(
-      scanCardMultiple(files).pipe(Effect.provide(createTestLayer()))
+      scanCardMultiple(files, 'en').pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.imageUrl).toContain('https://')
