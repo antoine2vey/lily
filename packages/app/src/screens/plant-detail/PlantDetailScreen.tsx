@@ -33,6 +33,7 @@ import { CareSchedule } from 'src/screens/plant-detail/components/CareSchedule'
 import { ChatCTA } from 'src/screens/plant-detail/components/ChatCTA'
 import { GallerySection } from 'src/screens/plant-detail/components/GallerySection'
 import { IdealEnvironment } from 'src/screens/plant-detail/components/IdealEnvironment'
+import { PastCareSheet } from 'src/screens/plant-detail/components/PastCareSheet'
 import { PlantHeader } from 'src/screens/plant-detail/components/PlantHeader'
 import { PlantOptionsSheet } from 'src/screens/plant-detail/components/PlantOptionsSheet'
 import { RecentHistory } from 'src/screens/plant-detail/components/RecentHistory'
@@ -177,6 +178,8 @@ export function PlantDetailScreen() {
 
   const [showOptionsSheet, setShowOptionsSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showPastWaterSheet, setShowPastWaterSheet] = useState(false)
+  const [showPastFertilizeSheet, setShowPastFertilizeSheet] = useState(false)
 
   // Scroll tracking for header animation
   const scrollY = useSharedValue(0)
@@ -254,7 +257,7 @@ export function PlantDetailScreen() {
   const handleFertilizeNow = useCallback(() => {
     if (!plantId) return
     fertilizePlant.mutate(
-      { path: { id: plantId } },
+      { path: { id: plantId }, payload: {} },
       {
         onSuccess: () =>
           toast.success(t('detail.toast.fertilized', { name: plant?.name })),
@@ -262,6 +265,44 @@ export function PlantDetailScreen() {
       }
     )
   }, [plantId, plant?.name, fertilizePlant, t])
+
+  const handleWaterPast = useCallback(() => {
+    setShowPastWaterSheet(true)
+  }, [])
+
+  const handleWaterPastSelect = useCallback(
+    (date: Date) => {
+      if (!plantId) return
+      waterPlant.mutate(
+        { path: { id: plantId }, payload: { date } },
+        {
+          onSuccess: () =>
+            toast.success(t('detail.toast.watered', { name: plant?.name })),
+          onError: () => toast.error(t('detail.toast.waterFailed')),
+        }
+      )
+    },
+    [plantId, plant?.name, waterPlant, t]
+  )
+
+  const handleFertilizePast = useCallback(() => {
+    setShowPastFertilizeSheet(true)
+  }, [])
+
+  const handleFertilizePastSelect = useCallback(
+    (date: Date) => {
+      if (!plantId) return
+      fertilizePlant.mutate(
+        { path: { id: plantId }, payload: { date } },
+        {
+          onSuccess: () =>
+            toast.success(t('detail.toast.fertilized', { name: plant?.name })),
+          onError: () => toast.error(t('detail.toast.fertilizeFailed')),
+        }
+      )
+    },
+    [plantId, plant?.name, fertilizePlant, t]
+  )
 
   const handleEditSchedule = useCallback(() => {
     router.push(`/plant/${plantId}/edit`)
@@ -471,6 +512,13 @@ export function PlantDetailScreen() {
               onEdit={handleEditSchedule}
               onWaterNow={handleWaterNow}
               onFertilizeNow={handleFertilizeNow}
+              onWaterPast={handleWaterPast}
+              onFertilizePast={handleFertilizePast}
+              isWaterFirstTime={plant.lastWateredAt === null}
+              isFertilizeFirstTime={
+                plant.fertilizationFrequencyDays !== null &&
+                plant.lastFertilizedAt === null
+              }
             />
           </View>
 
@@ -560,6 +608,18 @@ export function PlantDetailScreen() {
         onToggleFavorite={handleToggleFavorite}
         onShare={handleShare}
         onDelete={handleDelete}
+      />
+
+      {/* Past Care Sheets */}
+      <PastCareSheet
+        visible={showPastWaterSheet}
+        onClose={() => setShowPastWaterSheet(false)}
+        onSelect={handleWaterPastSelect}
+      />
+      <PastCareSheet
+        visible={showPastFertilizeSheet}
+        onClose={() => setShowPastFertilizeSheet(false)}
+        onSelect={handleFertilizePastSelect}
       />
 
       {/* Delete Confirmation */}

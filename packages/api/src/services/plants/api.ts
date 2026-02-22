@@ -7,6 +7,7 @@ import {
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
+  FutureDateNotAllowedError,
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
@@ -15,6 +16,7 @@ import {
   EnhancedPlantCreateRequest,
   Plant,
   PlantDetail,
+  PlantFertilizeRequest,
   PlantPhotosListResponse,
   PlantsListResponse,
   PlantUpdateRequest,
@@ -194,14 +196,17 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(FutureDateNotAllowedError, { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
     // POST /plants/:plantId/fertilize - "Fertilize Now" shortcut
     HttpApiEndpoint.post('fertilizePlant')`/${plantIdParam}/fertilize`
+      .setPayload(PlantFertilizeRequest)
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(FutureDateNotAllowedError, { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .prefix('/plants')

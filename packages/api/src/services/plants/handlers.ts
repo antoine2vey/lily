@@ -117,9 +117,9 @@ export const PlantsApiLive = (api: Api) =>
             .waterMultiplePlants(payload)
             .pipe(withInfraErrorsAsDefect)
         )
-        .handle('fertilizePlant', ({ path: { id } }) =>
+        .handle('fertilizePlant', ({ path: { id }, payload }) =>
           plantsService
-            .fertilizePlant({ id })
+            .fertilizePlant({ ...payload, id })
             .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
     })

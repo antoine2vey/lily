@@ -70,6 +70,11 @@ export const PlantUpdateRequest = Schema.Struct({
 
 export const PlantWaterRequest = Schema.Struct({
   notes: Schema.optional(Schema.String),
+  date: Schema.optional(Schema.Date),
+})
+
+export const PlantFertilizeRequest = Schema.Struct({
+  date: Schema.optional(Schema.Date),
 })
 
 // Enhanced plant creation request
@@ -154,6 +159,7 @@ export type Plant = typeof Plant.Type
 export type PlantCreateRequest = typeof PlantCreateRequest.Type
 export type PlantUpdateRequest = typeof PlantUpdateRequest.Type
 export type PlantWaterRequest = typeof PlantWaterRequest.Type
+export type PlantFertilizeRequest = typeof PlantFertilizeRequest.Type
 export type EnhancedPlantCreateRequest = typeof EnhancedPlantCreateRequest.Type
 export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type

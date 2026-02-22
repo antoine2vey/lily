@@ -11,6 +11,16 @@ export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()
   HttpApiSchema.annotations({ status: 404 })
 ) {}
 
+export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotAllowedError>()(
+  'FutureDateNotAllowedError',
+  {
+    message: Schema.optionalWith(Schema.String, {
+      default: () => 'Care date cannot be in the future',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 400 })
+) {}
+
 export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthorizedError>()(
   'PlantNotAuthorizedError',
   {

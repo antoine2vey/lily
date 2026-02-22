@@ -16,7 +16,10 @@ import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import { roundCoord } from '@lily/shared'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
+import {
+  FutureDateNotAllowedError,
+  PlantNotFoundError,
+} from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
@@ -26,6 +29,7 @@ export interface ExecutePlantCareParams {
   readonly plantId: string
   readonly careType: CareType
   readonly notes?: string | undefined
+  readonly date?: Date | undefined
 }
 
 // Configuration for each care type
@@ -132,7 +136,7 @@ export const executePlantCare = (
   params: ExecutePlantCareParams
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | PlantNotFoundError,
+  SqlError | PlantNotFoundError | FutureDateNotAllowedError,
   | PlantRepository
   | CareLogRepository
   | NotificationRepository
@@ -156,47 +160,70 @@ export const executePlantCare = (
     }
 
     const nowDt = DateTime.unsafeNow()
-    const now = DateTime.toDateUtc(nowDt)
+
+    // Use provided date (past care) or current time
+    const careDt = pipe(
+      Option.fromNullable(params.date),
+      Option.map((d) => DateTime.unsafeMake(d)),
+      Option.getOrElse(() => nowDt)
+    )
+
+    // Validate that the provided date is not in the future (1-minute tolerance for clock skew)
+    if (
+      DateTime.greaterThan(
+        careDt,
+        DateTime.addDuration(nowDt, Duration.minutes(1))
+      )
+    ) {
+      return yield* Effect.fail(new FutureDateNotAllowedError())
+    }
+
+    const careDate = DateTime.toDateUtc(careDt)
+    const isPastCare = Option.isSome(Option.fromNullable(params.date))
 
     // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
     // Called before plant update so createCareLog sees the original health state
     yield* createCareLog(params.plantId, {
       type: config.careLogType,
       notes: params.notes,
-      date: now,
+      date: careDate,
     })
 
     // Get frequency - watering always has frequency, fertilization is optional
     const frequency = plant[config.frequencyField]
 
-    // Calculate next care date (if frequency exists)
+    // Calculate next care date from the care date (if frequency exists)
     const nextCareAt = pipe(
       Option.fromNullable(frequency),
       Option.map((days) =>
-        DateTime.toDateUtc(DateTime.addDuration(nowDt, Duration.days(days)))
+        DateTime.toDateUtc(DateTime.addDuration(careDt, Duration.days(days)))
       ),
       Option.getOrUndefined
     )
 
-    // Apply weather-based adjustment to next care date
-    const adjustedNextCareAt = yield* applyWeatherAdjustment(
-      plant.userId,
-      {
-        id: plant.id,
-        category: plant.category,
-        wateringFrequencyDays: plant.wateringFrequencyDays,
-        wateringRating: plant.wateringRating,
-        isOutdoor: plant.room?.isOutdoor ?? false,
-      },
-      params.careType,
-      nextCareAt,
-      nowDt
-    )
+    // Skip weather adjustment for past dates (no historical weather data available)
+    const adjustedNextCareAt = isPastCare
+      ? Effect.succeed(nextCareAt)
+      : applyWeatherAdjustment(
+          plant.userId,
+          {
+            id: plant.id,
+            category: plant.category,
+            wateringFrequencyDays: plant.wateringFrequencyDays,
+            wateringRating: plant.wateringRating,
+            isOutdoor: plant.room?.isOutdoor ?? false,
+          },
+          params.careType,
+          nextCareAt,
+          nowDt
+        )
+
+    const finalNextCareAt = yield* adjustedNextCareAt
 
     const updatePayload = {
-      [config.lastCareField]: now,
-      ...(adjustedNextCareAt && {
-        [config.nextCareField]: adjustedNextCareAt,
+      [config.lastCareField]: careDate,
+      ...(finalNextCareAt && {
+        [config.nextCareField]: finalNextCareAt,
       }),
     }
 
@@ -211,13 +238,13 @@ export const executePlantCare = (
     }
 
     // Schedule next reminder if we have a next care date
-    if (adjustedNextCareAt) {
+    if (finalNextCareAt) {
       yield* scheduleCareReminder({
         plantId: params.plantId,
         plantName: plant.name,
         userId: plant.userId,
         type: config.reminderType,
-        scheduledDate: adjustedNextCareAt,
+        scheduledDate: finalNextCareAt,
         remindersEnabled: plant.remindersEnabled,
       })
     }
