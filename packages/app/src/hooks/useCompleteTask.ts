@@ -24,6 +24,7 @@ async function completeTaskApi(params: CompleteTaskParams): Promise<void> {
     Match.when('fertilize', async () => {
       await apiEffectRunner('plants', 'fertilizePlant', {
         path: { id: plantId },
+        payload: {},
       })
     }),
     Match.exhaustive

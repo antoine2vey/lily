@@ -14,6 +14,10 @@ interface CareScheduleProps {
   onEdit: () => void
   onWaterNow?: () => void
   onFertilizeNow?: () => void
+  onWaterPast?: () => void
+  onFertilizePast?: () => void
+  isWaterFirstTime?: boolean
+  isFertilizeFirstTime?: boolean
 }
 
 type UrgencyState = 'overdue' | 'today' | 'soon' | 'normal'
@@ -99,6 +103,8 @@ interface CareCardProps {
   label: string
   nextDate: string
   onDoNow?: () => void
+  onLogPast?: () => void
+  isFirstTime?: boolean
 }
 
 function CareCard({
@@ -108,6 +114,8 @@ function CareCard({
   label,
   nextDate,
   onDoNow,
+  onLogPast,
+  isFirstTime,
 }: CareCardProps) {
   const { t } = useTranslation('plants')
 
@@ -176,6 +184,17 @@ function CareCard({
           </Text>
         </Pressable>
       )}
+      {isFirstTime && onLogPast && (
+        <Pressable
+          onPress={onLogPast}
+          className="mt-2 py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600 self-start"
+          testID={`care-card-${String.toLowerCase(label)}-already-done`}
+        >
+          <Text className="text-xs font-semibold text-text-secondary dark:text-slate-400">
+            {t('detail.alreadyDone')}
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -188,6 +207,10 @@ export function CareSchedule({
   onEdit,
   onWaterNow,
   onFertilizeNow,
+  onWaterPast,
+  onFertilizePast,
+  isWaterFirstTime,
+  isFertilizeFirstTime,
 }: CareScheduleProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
@@ -206,6 +229,8 @@ export function CareSchedule({
           label={t('careTypes.water')}
           nextDate={wateringDate}
           onDoNow={onWaterNow}
+          onLogPast={onWaterPast}
+          isFirstTime={isWaterFirstTime}
         />
         <CareCard
           icon="eco"
@@ -214,6 +239,8 @@ export function CareSchedule({
           label={t('careTypes.fertilize')}
           nextDate={fertilizingDate}
           onDoNow={onFertilizeNow}
+          onLogPast={onFertilizePast}
+          isFirstTime={isFertilizeFirstTime}
         />
       </View>
     </View>

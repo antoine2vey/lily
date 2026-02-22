@@ -7,6 +7,7 @@ export const waterPlant = (request: PlantWaterRequest & { id: string }) =>
     plantId: request.id,
     careType: 'watering',
     notes: request.notes,
+    date: request.date,
   }).pipe(
     Effect.withSpan('PlantsService.waterPlant', {
       attributes: { 'plant.id': request.id },
