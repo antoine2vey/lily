@@ -50,7 +50,7 @@ import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
 
-// Shared infrastructure layers
+// Shared infrastructure layers.
 const SharedLive = Layer.mergeAll(DrizzleLive, PgLive)
 
 // Redis event bus layer with its dependency
