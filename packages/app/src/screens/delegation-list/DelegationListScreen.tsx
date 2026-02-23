@@ -3,11 +3,12 @@ import { Array as Arr, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Chip } from '@/components/Chip'
 import { EmptyState } from '@/components/EmptyState'
+import { PullToRefresh } from '@/components/PullToRefresh'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useMyDelegations } from '@/hooks/useMyDelegations'
@@ -98,57 +99,68 @@ export function DelegationListScreen() {
         >
           {t('title')}
         </Text>
-        <Pressable
-          onPress={() => router.push('/delegation-create')}
-          className="w-10 h-10 items-center justify-center rounded-full bg-primary"
-        >
-          <MaterialIcons name="add" size={24} color="white" />
-        </Pressable>
+        {activeFilter !== 'caretaker' ? (
+          <Pressable
+            onPress={() => router.push('/delegation-create')}
+            className="w-10 h-10 items-center justify-center rounded-full bg-primary"
+          >
+            <MaterialIcons name="add" size={24} color="white" />
+          </Pressable>
+        ) : (
+          <View className="w-10 h-10" />
+        )}
       </View>
 
-      {showSkeleton ? (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <DelegationListSkeleton />
-        </Animated.View>
-      ) : isInitialLoading ? null : (
-        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
-          {/* Filter Chips */}
-          <View className="flex-row gap-2 px-6 mb-4">
-            {Arr.map(filterOptions, (option) => (
-              <Chip
-                key={option.key}
-                label={option.label}
-                selected={activeFilter === option.key}
-                onPress={() => setActiveFilter(option.key)}
-              />
-            ))}
-          </View>
-
-          {/* List */}
-          <FlatList
-            data={delegations}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={{
-              paddingHorizontal: 24,
-              paddingBottom: 32,
-            }}
-            showsVerticalScrollIndicator={false}
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            ListEmptyComponent={
-              <EmptyState
-                title={emptyConfig.title}
-                description={emptyConfig.description}
-                action={{
-                  label: t('createDelegation'),
-                  onPress: () => router.push('/delegation-create'),
-                }}
-              />
-            }
+      {/* Filter Chips */}
+      <View className="flex-row gap-2 px-6 mb-4">
+        {Arr.map(filterOptions, (option) => (
+          <Chip
+            key={option.key}
+            label={option.label}
+            selected={activeFilter === option.key}
+            onPress={() => setActiveFilter(option.key)}
           />
-        </Animated.View>
-      )}
+        ))}
+      </View>
+
+      <PullToRefresh isRefreshing={isRefetching} onRefresh={refetch}>
+        {(scrollHandler) =>
+          showSkeleton ? (
+            <Animated.View entering={FadeIn.duration(300)}>
+              <DelegationListSkeleton />
+            </Animated.View>
+          ) : isInitialLoading ? null : (
+            <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+              <Animated.FlatList
+                data={delegations}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                contentContainerStyle={{
+                  paddingHorizontal: 24,
+                  paddingBottom: 32,
+                }}
+                showsVerticalScrollIndicator={false}
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                ListEmptyComponent={
+                  <EmptyState
+                    title={emptyConfig.title}
+                    description={emptyConfig.description}
+                    action={
+                      activeFilter !== 'caretaker'
+                        ? {
+                            label: t('createDelegation'),
+                            onPress: () => router.push('/delegation-create'),
+                          }
+                        : undefined
+                    }
+                  />
+                }
+              />
+            </Animated.View>
+          )
+        }
+      </PullToRefresh>
     </View>
   )
 }
