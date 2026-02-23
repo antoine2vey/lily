@@ -100,54 +100,59 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </View>
       )}
 
-      <View className="flex-row items-end gap-2">
-        {/* Gallery Button */}
+      {/* Action Buttons */}
+      <View className="flex-row items-center gap-2 mb-2">
         <Pressable
           onPress={handlePickImage}
-          className="w-12 h-12 items-center justify-center rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700 mb-0.5"
+          className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
         >
           <MaterialIcons
             name="photo-library"
-            size={24}
+            size={18}
             color={iconColors.textMuted}
           />
+          <Text className="text-xs text-text-muted dark:text-slate-400 font-medium">
+            Gallery
+          </Text>
         </Pressable>
 
-        {/* Camera Button */}
         <Pressable
           onPress={handleTakePhoto}
-          className="w-12 h-12 items-center justify-center rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700 mb-0.5"
+          className="flex-row items-center gap-1.5 px-3 h-9 rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
         >
           <MaterialIcons
             name="add-a-photo"
-            size={24}
+            size={18}
             color={iconColors.textMuted}
           />
+          <Text className="text-xs text-text-muted dark:text-slate-400 font-medium">
+            Photo
+          </Text>
         </Pressable>
+      </View>
 
-        {/* Input Container with Send Button inside */}
-        <View className="flex-1 flex-row items-end bg-surface dark:bg-surface-dark rounded-3xl border border-border/50 dark:border-slate-700/50 py-1 pl-4 pr-1.5">
-          <TextInput
-            value={message}
-            onChangeText={setMessage}
-            placeholder={t('input.placeholder')}
-            placeholderTextColor={iconColors.textMuted}
-            multiline
-            className="flex-1 font-regular text-base text-text-primary dark:text-white py-3 max-h-32"
-            editable={!disabled}
+      {/* Input Container with Send Button inside */}
+      <View className="flex-row items-end bg-surface dark:bg-surface-dark rounded-3xl border border-border/50 dark:border-slate-700/50 py-1 pl-4 pr-1.5">
+        <TextInput
+          value={message}
+          onChangeText={setMessage}
+          placeholder={t('input.placeholder')}
+          placeholderTextColor={iconColors.textMuted}
+          multiline
+          className="flex-1 font-regular text-base text-text-primary dark:text-white py-3 max-h-32"
+          editable={!disabled}
+        />
+        <Pressable
+          onPress={handleSend}
+          disabled={!canSend}
+          className={`w-10 h-10 rounded-full items-center justify-center ml-2 mb-0.5 ${canSend ? 'bg-primary' : 'bg-border'}`}
+        >
+          <MaterialIcons
+            name="arrow-upward"
+            size={22}
+            color={canSend ? iconColors.white : iconColors.textMuted}
           />
-          <Pressable
-            onPress={handleSend}
-            disabled={!canSend}
-            className={`w-10 h-10 rounded-full items-center justify-center ml-2 mb-0.5 ${canSend ? 'bg-primary' : 'bg-border'}`}
-          >
-            <MaterialIcons
-              name="arrow-upward"
-              size={22}
-              color={canSend ? iconColors.white : iconColors.textMuted}
-            />
-          </Pressable>
-        </View>
+        </Pressable>
       </View>
     </View>
   )

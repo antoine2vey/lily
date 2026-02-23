@@ -13,6 +13,7 @@ import { Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { Avatar } from 'src/components/Avatar'
 import { MarkdownText } from 'src/components/MarkdownText'
+import { useAuth } from 'src/contexts/AuthContext'
 
 import { toolBubbleRenderers, toolFullWidthRenderers } from './tool-renderers'
 
@@ -32,6 +33,15 @@ interface ChatMessageProps {
 export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const { t } = useTranslation('chat')
+  const { state } = useAuth()
+
+  const userName = pipe(
+    Match.value(state),
+    Match.when({ _tag: 'Authenticated' }, (s) =>
+      Option.getOrElse(Option.fromNullable(s.user.username), () => 'You')
+    ),
+    Match.orElse(() => 'You')
+  )
 
   // Check if this message has a completed diagnosis tool
   const hasCompletedDiagnosis = Array.some(
@@ -134,11 +144,11 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
       )
       if (!Array.isNonEmptyReadonlyArray(texts)) return null
       return (
-        <View className="flex-row items-end justify-start mb-2">
-          <View className="mr-3 mb-5">
+        <View className="flex-row items-start justify-start mb-2">
+          <View className="mr-3 mt-3">
             <Avatar name="Lily" size="sm" />
           </View>
-          <View className="max-w-[80%] items-start">
+          <View className="flex-1 items-start">
             <View
               className="px-4 py-3 rounded-md bg-primary-tint dark:bg-primary/20"
               style={{ borderBottomLeftRadius: 4, borderBottomRightRadius: 16 }}
@@ -174,16 +184,14 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
       {/* Bubble row (text + files + loading states) */}
       {hasBubbleParts && (
         <View
-          className={`flex-row items-end ${isUser ? 'justify-end' : 'justify-start'}`}
+          className={`flex-row items-start ${isUser ? 'justify-end' : 'justify-start'}`}
         >
           {!isUser && (
-            <View className="mr-3 mb-5">
+            <View className="mr-3 mt-3">
               <Avatar name="Lily" size="sm" />
             </View>
           )}
-          <View
-            className={`max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}
-          >
+          <View className={`flex-1 ${isUser ? 'items-end' : 'items-start'}`}>
             <View
               className={`px-4 py-3 rounded-md ${
                 isUser
@@ -198,6 +206,11 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
               {bubbleParts}
             </View>
           </View>
+          {isUser && (
+            <View className="ml-3 mt-3">
+              <Avatar name={userName} size="sm" />
+            </View>
+          )}
         </View>
       )}
 
@@ -212,7 +225,7 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
       {/* Timestamp */}
       {createdAt && (
         <Text
-          className={`text-xs mt-1 font-regular text-text-muted dark:text-slate-400 ${isUser ? 'text-right mr-1' : 'ml-1'}`}
+          className={`text-xs mt-1 font-regular text-text-muted dark:text-slate-400 ${isUser ? 'text-right mr-12' : 'ml-12'}`}
         >
           {formatApiTime(createdAt)}
         </Text>
