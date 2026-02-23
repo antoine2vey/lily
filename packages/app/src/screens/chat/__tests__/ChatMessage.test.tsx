@@ -1,5 +1,15 @@
 import { render, screen } from '@testing-library/react-native'
 import type { UIMessage } from 'ai'
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    state: {
+      _tag: 'Authenticated',
+      user: { id: 'user-1', email: 'test@example.com' },
+    },
+  })),
+}))
+
 import { ChatMessage } from '../components/ChatMessage'
 
 describe('ChatMessage', () => {

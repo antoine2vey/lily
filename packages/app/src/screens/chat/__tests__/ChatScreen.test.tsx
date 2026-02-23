@@ -15,6 +15,15 @@ jest.mock('src/hooks/usePlantChat', () => ({
   usePlantChat: jest.fn(),
 }))
 
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    state: {
+      _tag: 'Authenticated',
+      user: { id: 'user-1', email: 'test@example.com' },
+    },
+  })),
+}))
+
 jest.mock('src/hooks/useUploadChatImage', () => ({
   useUploadChatImage: jest.fn(() => ({
     mutateAsync: jest.fn(),
