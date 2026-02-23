@@ -6,7 +6,6 @@ import {
   type LuminosityLevel,
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
-import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -315,25 +314,13 @@ export function PlantDetailScreen() {
     [router, plantId]
   )
 
-  const handleAddPhoto = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    })
-
-    if (!result.canceled && result.assets[0] && plantId) {
-      uploadPhoto.mutate({
-        plantId,
-        photoUri: result.assets[0].uri,
-      })
-    }
-  }, [plantId, uploadPhoto])
-
-  const handleSeeAllPhotos = useCallback(() => {
-    router.push(`/plant/${plantId}/gallery`)
-  }, [router, plantId])
+  const handlePhoto = useCallback(
+    (uri: string) => {
+      if (!plantId) return
+      uploadPhoto.mutate({ plantId, photoUri: uri })
+    },
+    [plantId, uploadPhoto]
+  )
 
   const handleViewAllHistory = useCallback(() => {
     router.push(`/plant/${plantId}/care-history`)
@@ -537,8 +524,7 @@ export function PlantDetailScreen() {
             <GallerySection
               photos={photos}
               onPhotoPress={handlePhotoPress}
-              onAddPhoto={handleAddPhoto}
-              onSeeAll={handleSeeAllPhotos}
+              onPhoto={handlePhoto}
             />
           </View>
 

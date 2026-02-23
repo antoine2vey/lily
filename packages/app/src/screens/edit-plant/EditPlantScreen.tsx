@@ -1,8 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
-import * as ImagePicker from 'expo-image-picker'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from 'src/components'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
+import { PhotoSourceSheet } from 'src/components/PhotoSourceSheet'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { Slider } from 'src/components/Slider'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
@@ -100,18 +100,19 @@ export function EditPlantScreen() {
     }
   }, [plant])
 
-  const handleChangePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    })
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false)
 
-    if (!result.canceled && result.assets[0]) {
-      setPhoto(result.assets[0].uri)
-    }
-  }
+  const handleOpenPhotoPicker = useCallback(() => {
+    setShowPhotoPicker(true)
+  }, [])
+
+  const handleClosePhotoPicker = useCallback(() => {
+    setShowPhotoPicker(false)
+  }, [])
+
+  const handlePhoto = useCallback((uri: string) => {
+    setPhoto(uri)
+  }, [])
 
   const handleSave = () => {
     if (!plant) return
@@ -225,7 +226,7 @@ export function EditPlantScreen() {
         >
           {/* Photo */}
           <View className="items-center py-8">
-            <Pressable onPress={handleChangePhoto} className="relative">
+            <Pressable onPress={handleOpenPhotoPicker} className="relative">
               <AnimatedImage
                 source={{ uri: photo }}
                 className="w-28 h-28 rounded-3xl"
@@ -238,7 +239,7 @@ export function EditPlantScreen() {
                 />
               </View>
             </Pressable>
-            <Pressable onPress={handleChangePhoto} className="mt-3">
+            <Pressable onPress={handleOpenPhotoPicker} className="mt-3">
               <Text className="text-sm font-semibold text-primary dark:text-primary-light">
                 {t('plantDetail:edit.changePhoto')}
               </Text>
@@ -468,6 +469,12 @@ export function EditPlantScreen() {
         destructive
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <PhotoSourceSheet
+        visible={showPhotoPicker}
+        onClose={handleClosePhotoPicker}
+        onPhoto={handlePhoto}
       />
     </View>
   )

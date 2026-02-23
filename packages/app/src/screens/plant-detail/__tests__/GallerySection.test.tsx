@@ -19,8 +19,7 @@ describe('GallerySection', () => {
   const defaultProps = {
     photos: mockPhotos,
     onPhotoPress: jest.fn(),
-    onAddPhoto: jest.fn(),
-    onSeeAll: jest.fn(),
+    onPhoto: jest.fn(),
   }
 
   beforeEach(() => {
@@ -51,40 +50,24 @@ describe('GallerySection', () => {
     expect(onPhotoPress).toHaveBeenCalledWith('photo-1')
   })
 
-  it('calls onAddPhoto when add button pressed', () => {
-    const onAddPhoto = jest.fn()
-    render(<GallerySection {...defaultProps} onAddPhoto={onAddPhoto} />)
+  it('opens picker sheet when add button pressed', () => {
+    render(<GallerySection {...defaultProps} />)
 
     fireEvent.press(screen.getByTestId('add-photo-button'))
-    expect(onAddPhoto).toHaveBeenCalledTimes(1)
+
+    expect(screen.getByText('Add Photo')).toBeTruthy()
+    expect(screen.getByText('Choose from gallery')).toBeTruthy()
+    expect(screen.getByText('Take a photo')).toBeTruthy()
   })
 
-  it('shows header with gallery text when photos exist', () => {
+  it('shows header with gallery text', () => {
     render(<GallerySection {...defaultProps} />)
     expect(screen.getByText('Gallery')).toBeTruthy()
   })
 
-  it('calls onSeeAll when header pressed with photos', () => {
-    const onSeeAll = jest.fn()
-    render(<GallerySection {...defaultProps} onSeeAll={onSeeAll} />)
-
-    fireEvent.press(screen.getByText('Gallery'))
-    expect(onSeeAll).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not call onSeeAll when header pressed without photos', () => {
-    const onSeeAll = jest.fn()
-    render(<GallerySection {...defaultProps} photos={[]} onSeeAll={onSeeAll} />)
-
-    fireEvent.press(screen.getByText('Gallery'))
-    expect(onSeeAll).not.toHaveBeenCalled()
-  })
-
   it('renders empty state when no photos', () => {
     render(<GallerySection {...defaultProps} photos={[]} />)
-    // Should still render the add photo button
     expect(screen.getByTestId('add-photo-button')).toBeTruthy()
-    // But no photo thumbnails
     expect(screen.queryByTestId('photo-photo-1')).toBeNull()
   })
 })

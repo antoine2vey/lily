@@ -1,8 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
+import { PhotoSourceSheet } from 'src/components/PhotoSourceSheet'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface GallerySectionProps {
@@ -12,37 +14,34 @@ interface GallerySectionProps {
     createdAt: Date
   }>
   onPhotoPress: (photoId: string) => void
-  onAddPhoto: () => void
-  onSeeAll: () => void
+  onPhoto: (uri: string) => void
 }
 
 export function GallerySection({
   photos,
   onPhotoPress,
-  onAddPhoto,
-  onSeeAll,
+  onPhoto,
 }: GallerySectionProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
+  const [showPicker, setShowPicker] = useState(false)
+
+  const handleOpenPicker = useCallback(() => {
+    setShowPicker(true)
+  }, [])
+
+  const handleClosePicker = useCallback(() => {
+    setShowPicker(false)
+  }, [])
 
   return (
     <View testID="gallery-section">
       {/* Header */}
-      <Pressable
-        onPress={!Array.isEmptyReadonlyArray(photos) ? onSeeAll : undefined}
-        className="flex-row justify-between items-center mb-4 px-1"
-      >
+      <View className="flex-row justify-between items-center mb-4 px-1">
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('detail.gallery')}
         </Text>
-        {!Array.isEmptyReadonlyArray(photos) && (
-          <MaterialIcons
-            name="arrow-forward"
-            size={20}
-            color={iconColors.textMuted}
-          />
-        )}
-      </Pressable>
+      </View>
 
       {/* Photos Strip */}
       <ScrollView
@@ -54,7 +53,7 @@ export function GallerySection({
       >
         {/* Add Photo Button */}
         <Pressable
-          onPress={onAddPhoto}
+          onPress={handleOpenPicker}
           className="w-24 h-24 rounded-2xl items-center justify-center border-2 border-dashed border-border dark:border-slate-600 bg-surface-tinted dark:bg-surface-dark active:bg-surface dark:active:bg-primary/10"
           testID="add-photo-button"
         >
@@ -80,6 +79,13 @@ export function GallerySection({
           </Pressable>
         ))}
       </ScrollView>
+
+      {/* Photo Source Picker */}
+      <PhotoSourceSheet
+        visible={showPicker}
+        onClose={handleClosePicker}
+        onPhoto={onPhoto}
+      />
     </View>
   )
 }
