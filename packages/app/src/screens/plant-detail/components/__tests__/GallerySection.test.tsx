@@ -4,8 +4,7 @@ import { GallerySection } from '../GallerySection'
 
 describe('GallerySection', () => {
   const mockOnPhotoPress = jest.fn()
-  const mockOnAddPhoto = jest.fn()
-  const mockOnSeeAll = jest.fn()
+  const mockOnPhoto = jest.fn()
 
   const mockPhotos = [
     {
@@ -29,8 +28,7 @@ describe('GallerySection', () => {
       <GallerySection
         photos={mockPhotos}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
@@ -42,40 +40,11 @@ describe('GallerySection', () => {
       <GallerySection
         photos={mockPhotos}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
     expect(screen.getByText('Gallery')).toBeTruthy()
-  })
-
-  it('header is clickable when photos exist', () => {
-    render(
-      <GallerySection
-        photos={mockPhotos}
-        onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
-      />
-    )
-
-    fireEvent.press(screen.getByText('Gallery'))
-    expect(mockOnSeeAll).toHaveBeenCalledTimes(1)
-  })
-
-  it('header click does nothing when no photos', () => {
-    render(
-      <GallerySection
-        photos={[]}
-        onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
-      />
-    )
-
-    fireEvent.press(screen.getByText('Gallery'))
-    expect(mockOnSeeAll).not.toHaveBeenCalled()
   })
 
   it('renders add photo button', () => {
@@ -83,27 +52,27 @@ describe('GallerySection', () => {
       <GallerySection
         photos={[]}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
     expect(screen.getByTestId('add-photo-button')).toBeTruthy()
   })
 
-  it('calls onAddPhoto when add button pressed', () => {
+  it('opens picker sheet when add button pressed', () => {
     render(
       <GallerySection
         photos={[]}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
     fireEvent.press(screen.getByTestId('add-photo-button'))
 
-    expect(mockOnAddPhoto).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Add Photo')).toBeTruthy()
+    expect(screen.getByText('Choose from gallery')).toBeTruthy()
+    expect(screen.getByText('Take a photo')).toBeTruthy()
   })
 
   it('calls onPhotoPress when photo is pressed', () => {
@@ -111,8 +80,7 @@ describe('GallerySection', () => {
       <GallerySection
         photos={mockPhotos}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
@@ -121,18 +89,16 @@ describe('GallerySection', () => {
     expect(mockOnPhotoPress).toHaveBeenCalledWith('photo-1')
   })
 
-  it('calls onSeeAll when header is pressed with photos', () => {
+  it('renders empty state when no photos', () => {
     render(
       <GallerySection
-        photos={mockPhotos}
+        photos={[]}
         onPhotoPress={mockOnPhotoPress}
-        onAddPhoto={mockOnAddPhoto}
-        onSeeAll={mockOnSeeAll}
+        onPhoto={mockOnPhoto}
       />
     )
 
-    fireEvent.press(screen.getByText('Gallery'))
-
-    expect(mockOnSeeAll).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('add-photo-button')).toBeTruthy()
+    expect(screen.queryByTestId('photo-photo-1')).toBeNull()
   })
 })
