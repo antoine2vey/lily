@@ -31,14 +31,6 @@ function DelegationCardSkeleton() {
 export function DelegationListSkeleton() {
   return (
     <View className="gap-3 px-6">
-      {/* Filter chips */}
-      <View className="flex-row gap-2 mb-2">
-        <SkeletonBox width={50} height={36} rounded="full" />
-        <SkeletonBox width={80} height={36} rounded="full" />
-        <SkeletonBox width={90} height={36} rounded="full" />
-      </View>
-
-      {/* Cards */}
       {Arr.map([1, 2, 3], (i) => (
         <DelegationCardSkeleton key={i} />
       ))}
