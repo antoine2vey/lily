@@ -11,6 +11,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
+import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
 import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
@@ -124,6 +125,13 @@ const DelegationSchedulerLive = Layer.scopedDiscard(
   Layer.provide(UserRepositoryLive)
 )
 
+// Achievement reconciliation scheduler - catches up missed threshold-based unlocks
+const AchievementReconciliationSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startAchievementReconciliationScheduler
+  })
+).pipe(Layer.provide(AchievementRepositoryLive))
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -160,6 +168,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
+  Layer.provide(AchievementReconciliationSchedulerLive),
   Layer.provide(AchievementSubscriberLive),
   Layer.provide(AchievementNotifierLive),
   Layer.provide(DelegationSchedulerLive),

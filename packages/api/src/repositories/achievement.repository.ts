@@ -52,6 +52,8 @@ export interface IAchievementRepository {
   readonly getHistoryViewCount: (
     userId: string
   ) => Effect.Effect<number, SqlError>
+
+  readonly findUserIdsWithPlants: () => Effect.Effect<string[], SqlError>
 }
 
 export class AchievementRepository extends Context.Tag('AchievementRepository')<
@@ -232,6 +234,14 @@ export const AchievementRepositoryLive = Layer.effect(
             Option.getOrElse(() => 0)
           )
         }).pipe(Effect.withSpan('AchievementRepository.getHistoryViewCount')),
+
+      findUserIdsWithPlants: () =>
+        Effect.gen(function* () {
+          const result = yield* db
+            .selectDistinct({ userId: plants.userId })
+            .from(plants)
+          return Array.map(result, (r) => r.userId)
+        }).pipe(Effect.withSpan('AchievementRepository.findUserIdsWithPlants')),
     }
   })
 )
