@@ -1,9 +1,10 @@
 import type { UserSettings } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Either } from 'effect'
 import { Alert } from 'react-native'
-import { useLocationPermission } from 'src/hooks/useLocationPermission'
-import { apiEffectRunner, useEffectQuery } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import { useLocationPermission } from '@/hooks/useLocationPermission'
+import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 // Query key used for optimistic updates (matches useEffectQuery format)
 const USER_SETTINGS_QUERY_KEY = ['users', 'getUserSettings', {}]
@@ -51,21 +52,21 @@ export function useToggleWeather() {
     },
     onMutate: async (enabled) => {
       await queryClient.cancelQueries({ queryKey: USER_SETTINGS_QUERY_KEY })
-      const previous = queryClient.getQueryData<UserSettings>(
+      const previous = queryClient.getQueryData<ApiResult<UserSettings>>(
         USER_SETTINGS_QUERY_KEY
       )
 
-      queryClient.setQueryData<UserSettings>(
+      queryClient.setQueryData<ApiResult<UserSettings>>(
         USER_SETTINGS_QUERY_KEY,
-        (old): UserSettings | undefined => {
+        (old) => {
           if (!old) return undefined
-          return {
-            ...old,
+          return Either.map(old, (settings) => ({
+            ...settings,
             weather: {
-              ...old.weather,
+              ...settings.weather,
               enabled,
             },
-          }
+          }))
         }
       )
 

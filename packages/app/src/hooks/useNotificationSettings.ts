@@ -1,7 +1,8 @@
 import type { UserSettings } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiEffectRunner, useEffectQuery } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import { Either } from 'effect'
+import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 interface NotificationSettings {
   careReminders: boolean
@@ -38,21 +39,21 @@ export function useUpdateNotificationSettings() {
     },
     onMutate: async (newSettings) => {
       await queryClient.cancelQueries({ queryKey: USER_SETTINGS_QUERY_KEY })
-      const previous = queryClient.getQueryData<UserSettings>(
+      const previous = queryClient.getQueryData<ApiResult<UserSettings>>(
         USER_SETTINGS_QUERY_KEY
       )
 
-      queryClient.setQueryData<UserSettings>(
+      queryClient.setQueryData<ApiResult<UserSettings>>(
         USER_SETTINGS_QUERY_KEY,
-        (old): UserSettings | undefined => {
+        (old) => {
           if (!old) return undefined
-          return {
-            ...old,
+          return Either.map(old, (settings) => ({
+            ...settings,
             notifications: {
-              ...old.notifications,
+              ...settings.notifications,
               ...newSettings,
             },
-          }
+          }))
         }
       )
 
