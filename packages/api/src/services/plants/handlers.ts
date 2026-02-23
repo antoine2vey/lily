@@ -122,6 +122,11 @@ export const PlantsApiLive = (api: Api) =>
             .fertilizePlant({ ...payload, id })
             .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
+        .handle('correctCareDates', ({ path: { id }, payload }) =>
+          plantsService
+            .correctCareDates({ ...payload, id })
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
+        )
     })
   ).pipe(
     Layer.provide(PlantsService.Default),

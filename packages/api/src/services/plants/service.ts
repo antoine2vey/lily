@@ -1,5 +1,6 @@
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
 import { aiReIdentify } from '@lily/api/services/plants/endpoints/ai-re-identify'
+import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
@@ -35,6 +36,7 @@ export class PlantsService extends Effect.Service<PlantsService>()(
       uploadPlantPhoto,
       deletePlantPhoto,
       fertilizePlant,
+      correctCareDates,
     }),
   }
 ) {}

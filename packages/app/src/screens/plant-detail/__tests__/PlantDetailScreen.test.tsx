@@ -65,6 +65,13 @@ jest.mock('@/hooks/useUpdatePlant', () => ({
   }),
 }))
 
+jest.mock('@/hooks/useCorrectCareDates', () => ({
+  useCorrectCareDates: () => ({
+    mutate: jest.fn(),
+    isPending: false,
+  }),
+}))
+
 import { useEffectQuery } from 'src/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 

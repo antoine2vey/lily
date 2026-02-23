@@ -138,6 +138,21 @@ export const createMockCareLogRepository = (
           Option.getOrNull
         )
       ),
+
+    findLatestByPlantAndType: (
+      plantId: string,
+      type: 'watering' | 'fertilization'
+    ) => {
+      const byDateDesc = Order.reverse(
+        Order.mapInput(Order.Date, (log: CareLog) => log.date)
+      )
+      const matching = pipe(
+        careLogs,
+        Array.filter((log) => log.plantId === plantId && log.type === type),
+        Array.sort(byDateDesc)
+      )
+      return Effect.succeed(pipe(Array.head(matching), Option.getOrNull))
+    },
   }
 
   return Layer.succeed(CareLogRepository, repo)

@@ -57,17 +57,16 @@ describe('waterPlant', () => {
     )
 
     // plant-1 has wateringFrequencyDays = 7
+    // nextWateringAt is calculated from start-of-day + frequency days
     expect(result.lastWateredAt).toBeDefined()
-    const lastWateredTime = pipe(
-      Option.fromNullable(result.lastWateredAt?.getTime()),
-      Option.getOrElse(() => 0)
-    )
+    expect(result.nextWateringAt).toBeDefined()
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
     const expectedNextWatering = new Date(
-      lastWateredTime + 7 * 24 * 60 * 60 * 1000
+      todayStart.getTime() + 7 * 24 * 60 * 60 * 1000
     )
-    expect(result.nextWateringAt?.getTime()).toBeCloseTo(
-      expectedNextWatering.getTime(),
-      -3 // within 1 second
+    expect(result.nextWateringAt?.getTime()).toBe(
+      expectedNextWatering.getTime()
     )
   })
 

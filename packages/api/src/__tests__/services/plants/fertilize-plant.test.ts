@@ -55,18 +55,16 @@ describe('fertilizePlant', () => {
       fertilizePlant({ id: 'plant-1' }).pipe(Effect.provide(createTestLayer()))
     )
 
+    // nextFertilizationAt is calculated from start-of-day + frequency days
     expect(result.nextFertilizationAt).toBeDefined()
     expect(result.lastFertilizedAt).toBeDefined()
-    const lastFertilizedTime = pipe(
-      Option.fromNullable(result.lastFertilizedAt?.getTime()),
-      Option.getOrElse(() => 0)
-    )
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
     const expectedNextFertilization = new Date(
-      lastFertilizedTime + 30 * 24 * 60 * 60 * 1000
+      todayStart.getTime() + 30 * 24 * 60 * 60 * 1000
     )
-    expect(result.nextFertilizationAt?.getTime()).toBeCloseTo(
-      expectedNextFertilization.getTime(),
-      -3
+    expect(result.nextFertilizationAt?.getTime()).toBe(
+      expectedNextFertilization.getTime()
     )
   })
 

@@ -77,6 +77,10 @@ export interface ICareLogRepository {
     data: UpdateCareLogData
   ) => Effect.Effect<CareLog | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<CareLog | null, SqlError>
+  readonly findLatestByPlantAndType: (
+    plantId: string,
+    type: 'watering' | 'fertilization'
+  ) => Effect.Effect<CareLog | null, SqlError>
 }
 
 // Tag for dependency injection
@@ -226,6 +230,20 @@ export const CareLogRepositoryLive = Layer.effect(
             .returning()
           return row ? mapToCareLog(row) : null
         }).pipe(Effect.withSpan('CareLogRepository.delete')),
+
+      findLatestByPlantAndType: (
+        plantId: string,
+        type: 'watering' | 'fertilization'
+      ) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .select()
+            .from(careLogs)
+            .where(and(eq(careLogs.plantId, plantId), eq(careLogs.type, type)))
+            .orderBy(desc(careLogs.date))
+            .limit(1)
+          return row ? mapToCareLog(row) : null
+        }).pipe(Effect.withSpan('CareLogRepository.findLatestByPlantAndType')),
     }
   })
 )
