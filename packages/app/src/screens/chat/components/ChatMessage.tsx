@@ -65,9 +65,7 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
                       {displayText}
                     </Text>
                   ) : (
-                    <MarkdownText textClassName="text-md text-text-primary dark:text-white leading-relaxed font-regular">
-                      {displayText}
-                    </MarkdownText>
+                    <MarkdownText>{displayText}</MarkdownText>
                   )}
                 </View>
               )
@@ -125,9 +123,7 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
                   if (p.text === '') return Option.none()
                   return Option.some(
                     <View key={`diag-text-${index}`}>
-                      <MarkdownText textClassName="text-md text-text-primary dark:text-white leading-relaxed font-regular">
-                        {p.text}
-                      </MarkdownText>
+                      <MarkdownText>{p.text}</MarkdownText>
                     </View>
                   )
                 }

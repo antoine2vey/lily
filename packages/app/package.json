@@ -24,6 +24,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/slider": "^5.1.2",
+    "@ronradtke/react-native-markdown-display": "^8.1.0",
     "@shopify/flash-list": "2.0.2",
     "@shopify/react-native-skia": "2.2.12",
     "@tanstack/react-query": "^5.81.5",
