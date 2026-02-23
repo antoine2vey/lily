@@ -15,6 +15,7 @@ import {
   AIIdentifyResponse,
   EnhancedPlantCreateRequest,
   Plant,
+  PlantCorrectCareDatesRequest,
   PlantDetail,
   PlantFertilizeRequest,
   PlantPhotosListResponse,
@@ -203,6 +204,16 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/:plantId/fertilize - "Fertilize Now" shortcut
     HttpApiEndpoint.post('fertilizePlant')`/${plantIdParam}/fertilize`
       .setPayload(PlantFertilizeRequest)
+      .addSuccess(Plant)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(FutureDateNotAllowedError, { status: 400 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // PATCH /plants/:id/care-dates - Correct care dates
+    HttpApiEndpoint.patch('correctCareDates')`/${plantIdParam}/care-dates`
+      .setPayload(PlantCorrectCareDatesRequest)
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })

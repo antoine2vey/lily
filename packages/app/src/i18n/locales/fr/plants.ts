@@ -98,6 +98,18 @@ export default {
         'Une erreur est survenue lors du chargement des détails.',
       tryAgain: 'Réessayer',
     },
+    correctDates: {
+      link: 'Corriger une date',
+      title: 'Corriger les dates de soins',
+      wateringDate: 'Date du dernier arrosage',
+      fertilizationDate: 'Date de la dernière fertilisation',
+      save: 'Enregistrer',
+      noDate: 'Pas encore fait',
+      toast: {
+        success: 'Dates de soins corrigées',
+        error: 'Échec de la correction des dates',
+      },
+    },
     toast: {
       shareMessage: 'Découvrez ma plante "{name}" sur Lily !',
       deleted: '{name} supprimée',

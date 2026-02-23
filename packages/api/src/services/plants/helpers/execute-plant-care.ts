@@ -114,12 +114,13 @@ const applyWeatherAdjustment = (
 
     // For manual care, skip flags don't apply — the user just performed the action,
     // so we always use adjustedWateringDays to schedule the next one.
+    const nowDayStart = DateTime.startOf(nowDt, 'day')
     return pipe(
       Match.value(careType),
       Match.when('watering', () =>
         DateTime.toDateUtc(
           DateTime.addDuration(
-            nowDt,
+            nowDayStart,
             Duration.days(adjustment.adjustedWateringDays)
           )
         )
@@ -192,11 +193,17 @@ export const executePlantCare = (
     // Get frequency - watering always has frequency, fertilization is optional
     const frequency = plant[config.frequencyField]
 
+    // Normalize to start-of-day so that daysUntil (which compares day
+    // boundaries) returns exactly `frequency` days, regardless of time-of-day.
+    const careDayStart = DateTime.startOf(careDt, 'day')
+
     // Calculate next care date from the care date (if frequency exists)
     const nextCareAt = pipe(
       Option.fromNullable(frequency),
       Option.map((days) =>
-        DateTime.toDateUtc(DateTime.addDuration(careDt, Duration.days(days)))
+        DateTime.toDateUtc(
+          DateTime.addDuration(careDayStart, Duration.days(days))
+        )
       ),
       Option.getOrUndefined
     )

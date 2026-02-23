@@ -150,7 +150,14 @@ export const WaterMultiplePlantsResponse = Schema.Array(
   WaterMultiplePlantsResult
 )
 
+export const PlantCorrectCareDatesRequest = Schema.Struct({
+  lastWateredAt: Schema.optional(Schema.Date),
+  lastFertilizedAt: Schema.optional(Schema.Date),
+})
+
 // Type exports
+export type PlantCorrectCareDatesRequest =
+  typeof PlantCorrectCareDatesRequest.Type
 export type WaterMultiplePlantsRequest = typeof WaterMultiplePlantsRequest.Type
 export type WaterMultiplePlantsResult = typeof WaterMultiplePlantsResult.Type
 export type WaterMultiplePlantsResponse =

@@ -18,6 +18,7 @@ interface CareScheduleProps {
   onFertilizePast?: () => void
   isWaterFirstTime?: boolean
   isFertilizeFirstTime?: boolean
+  onCorrectDates?: () => void
 }
 
 type UrgencyState = 'overdue' | 'today' | 'soon' | 'normal'
@@ -211,6 +212,7 @@ export function CareSchedule({
   onFertilizePast,
   isWaterFirstTime,
   isFertilizeFirstTime,
+  onCorrectDates,
 }: CareScheduleProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
@@ -221,6 +223,13 @@ export function CareSchedule({
         title={t('detail.careSchedule')}
         action={{ label: t('detail.edit'), onPress: onEdit }}
       />
+      {onCorrectDates && (
+        <Pressable onPress={onCorrectDates} className="mt-1">
+          <Text className="text-xs font-regular text-primary dark:text-primary-light underline">
+            {t('detail.correctDates.link')}
+          </Text>
+        </Pressable>
+      )}
       <View className="flex-row gap-3 mt-4">
         <CareCard
           icon="water-drop"

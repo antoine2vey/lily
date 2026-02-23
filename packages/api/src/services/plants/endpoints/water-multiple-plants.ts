@@ -74,8 +74,9 @@ export const waterMultiplePlants = (
 
               const plant = plantOption.value
 
+              const nowDayStart = DateTime.startOf(nowDt, 'day')
               const nextWateringDt = DateTime.addDuration(
-                nowDt,
+                nowDayStart,
                 Duration.days(plant.wateringFrequencyDays)
               )
               const nextWateringAt = DateTime.toDateUtc(nextWateringDt)

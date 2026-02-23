@@ -30,6 +30,7 @@ import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
 import { useWaterPlant } from 'src/hooks/useWaterPlant'
 import { CareSchedule } from 'src/screens/plant-detail/components/CareSchedule'
 import { ChatCTA } from 'src/screens/plant-detail/components/ChatCTA'
+import { CorrectCareDatesSheet } from 'src/screens/plant-detail/components/CorrectCareDatesSheet'
 import { GallerySection } from 'src/screens/plant-detail/components/GallerySection'
 import { IdealEnvironment } from 'src/screens/plant-detail/components/IdealEnvironment'
 import { PastCareSheet } from 'src/screens/plant-detail/components/PastCareSheet'
@@ -179,6 +180,7 @@ export function PlantDetailScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPastWaterSheet, setShowPastWaterSheet] = useState(false)
   const [showPastFertilizeSheet, setShowPastFertilizeSheet] = useState(false)
+  const [showCorrectDatesSheet, setShowCorrectDatesSheet] = useState(false)
 
   // Scroll tracking for header animation
   const scrollY = useSharedValue(0)
@@ -302,6 +304,10 @@ export function PlantDetailScreen() {
     },
     [plantId, plant?.name, fertilizePlant, t]
   )
+
+  const handleCorrectDates = useCallback(() => {
+    setShowCorrectDatesSheet(true)
+  }, [])
 
   const handleEditSchedule = useCallback(() => {
     router.push(`/plant/${plantId}/edit`)
@@ -506,6 +512,11 @@ export function PlantDetailScreen() {
                 plant.fertilizationFrequencyDays !== null &&
                 plant.lastFertilizedAt === null
               }
+              onCorrectDates={
+                plant.lastWateredAt !== null || plant.lastFertilizedAt !== null
+                  ? handleCorrectDates
+                  : undefined
+              }
             />
           </View>
 
@@ -606,6 +617,16 @@ export function PlantDetailScreen() {
         visible={showPastFertilizeSheet}
         onClose={() => setShowPastFertilizeSheet(false)}
         onSelect={handleFertilizePastSelect}
+      />
+
+      {/* Correct Care Dates Sheet */}
+      <CorrectCareDatesSheet
+        visible={showCorrectDatesSheet}
+        onClose={() => setShowCorrectDatesSheet(false)}
+        plantId={Option.getOrElse(Option.fromNullable(plantId), () => '')}
+        lastWateredAt={plant.lastWateredAt}
+        lastFertilizedAt={plant.lastFertilizedAt}
+        hasFertilization={plant.fertilizationFrequencyDays !== null}
       />
 
       {/* Delete Confirmation */}

@@ -97,6 +97,18 @@ export default {
       loadFailedMessage: 'Something went wrong while loading plant details.',
       tryAgain: 'Try Again',
     },
+    correctDates: {
+      link: 'Correct a date',
+      title: 'Correct Care Dates',
+      wateringDate: 'Last watering date',
+      fertilizationDate: 'Last fertilization date',
+      save: 'Save',
+      noDate: 'Not yet done',
+      toast: {
+        success: 'Care dates corrected',
+        error: 'Failed to correct dates',
+      },
+    },
     toast: {
       shareMessage: 'Check out my plant "{name}" on Lily!',
       deleted: '{name} deleted',
