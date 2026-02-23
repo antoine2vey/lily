@@ -124,6 +124,15 @@ export const createMockAchievementRepository = (
           Option.getOrElse(() => 0)
         )
       ),
+
+    findUserIdsWithPlants: () => {
+      const userIds = pipe(
+        data.achievements,
+        Array.map((a) => a.userId),
+        Array.dedupe
+      )
+      return Effect.succeed(userIds)
+    },
   }
 
   return Layer.succeed(AchievementRepository, repo)
