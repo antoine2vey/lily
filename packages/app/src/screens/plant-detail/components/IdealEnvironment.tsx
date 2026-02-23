@@ -100,35 +100,13 @@ export function IdealEnvironment({
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
-  // Theme-aware colors for environment metrics
-  const sunlightColors = {
-    iconBgColor: isDark ? 'rgba(251, 191, 36, 0.2)' : 'rgba(251, 191, 36, 0.1)',
-    iconColor: isDark ? '#FBBF24' : '#FB923C',
-    barColor: isDark ? '#FBBF24' : '#FB923C',
-    badgeBgColor: isDark
-      ? 'rgba(155, 199, 109, 0.2)'
-      : 'rgba(91, 140, 90, 0.1)',
-    badgeTextColor: isDark ? '#9bc76d' : '#5B8C5A',
-  }
-
-  const waterColors = {
-    iconBgColor: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(96, 165, 250, 0.1)',
-    iconColor: isDark ? '#93C5FD' : '#60A5FA',
-    barColor: isDark ? '#93C5FD' : '#60A5FA',
-    badgeBgColor: isDark
-      ? 'rgba(96, 165, 250, 0.2)'
-      : 'rgba(96, 165, 250, 0.1)',
-    badgeTextColor: isDark ? '#93C5FD' : '#3B82F6',
-  }
-
-  const humidityColors = {
-    iconBgColor: isDark ? 'rgba(45, 212, 191, 0.2)' : 'rgba(45, 212, 191, 0.1)',
-    iconColor: isDark ? '#5EEAD4' : '#2DD4BF',
-    barColor: isDark ? '#5EEAD4' : '#2DD4BF',
-    badgeBgColor: isDark
-      ? 'rgba(45, 212, 191, 0.2)'
-      : 'rgba(45, 212, 191, 0.1)',
-    badgeTextColor: isDark ? '#5EEAD4' : '#14B8A6',
+  // Unified color scheme using primary green
+  const rowColors = {
+    iconBgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : 'rgba(91, 140, 90, 0.1)',
+    iconColor: isDark ? '#6B9C6A' : '#5B8C5A',
+    barColor: isDark ? '#6B9C6A' : '#5B8C5A',
+    badgeBgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : 'rgba(91, 140, 90, 0.1)',
+    badgeTextColor: isDark ? '#6B9C6A' : '#5B8C5A',
   }
 
   const capitalize = (s: string): string => String.capitalize(s)
@@ -139,35 +117,35 @@ export function IdealEnvironment({
       <View className="mt-4 bg-surface dark:bg-surface-dark p-6 rounded-3xl shadow-sm border border-border/30 dark:border-slate-700/30 gap-6">
         <EnvironmentRow
           icon="wb-sunny"
-          iconBgColor={sunlightColors.iconBgColor}
-          iconColor={sunlightColors.iconColor}
+          iconBgColor={rowColors.iconBgColor}
+          iconColor={rowColors.iconColor}
           label={t('detail.sunlight')}
           value={sunlightLabel}
-          badgeBgColor={sunlightColors.badgeBgColor}
-          badgeTextColor={sunlightColors.badgeTextColor}
-          barColor={sunlightColors.barColor}
+          badgeBgColor={rowColors.badgeBgColor}
+          badgeTextColor={rowColors.badgeTextColor}
+          barColor={rowColors.barColor}
           percentage={sunlightPercentage}
         />
         <EnvironmentRow
           icon="water-drop"
-          iconBgColor={waterColors.iconBgColor}
-          iconColor={waterColors.iconColor}
+          iconBgColor={rowColors.iconBgColor}
+          iconColor={rowColors.iconColor}
           label={t('detail.water')}
           value={capitalize(water)}
-          badgeBgColor={waterColors.badgeBgColor}
-          badgeTextColor={waterColors.badgeTextColor}
-          barColor={waterColors.barColor}
+          badgeBgColor={rowColors.badgeBgColor}
+          badgeTextColor={rowColors.badgeTextColor}
+          barColor={rowColors.barColor}
           percentage={WATER_PERCENTAGES[water]}
         />
         <EnvironmentRow
           icon="cloud"
-          iconBgColor={humidityColors.iconBgColor}
-          iconColor={humidityColors.iconColor}
+          iconBgColor={rowColors.iconBgColor}
+          iconColor={rowColors.iconColor}
           label={t('detail.humidity')}
           value={capitalize(humidity)}
-          badgeBgColor={humidityColors.badgeBgColor}
-          badgeTextColor={humidityColors.badgeTextColor}
-          barColor={humidityColors.barColor}
+          badgeBgColor={rowColors.badgeBgColor}
+          badgeTextColor={rowColors.badgeTextColor}
+          barColor={rowColors.barColor}
           percentage={HUMIDITY_PERCENTAGES[humidity]}
         />
       </View>
