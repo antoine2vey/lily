@@ -16,6 +16,7 @@ export interface CreateProcessedChunkData {
   plantType?: string | undefined
   category?: ContentCategory | undefined
   plantMentions?: string[] | undefined
+  metadata?: Record<string, unknown> | undefined
   embedding?: number[] | undefined
 }
 
@@ -33,6 +34,7 @@ interface SearchRow {
   sourceUrl: string | null
   plantType: string | null
   category: ContentCategory | null
+  metadata: Record<string, unknown> | null
   similarity: number
 }
 
@@ -90,6 +92,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
             plantMentions: Option.getOrNull(
               Option.fromNullable(chunk.plantMentions)
             ),
+            metadata: Option.getOrNull(Option.fromNullable(chunk.metadata)),
             embedding: Option.getOrNull(Option.fromNullable(chunk.embedding)),
           }))
 
@@ -123,6 +126,10 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                 sourceUrl: rawDocuments.sourceUrl,
                 plantType: processedChunks.plantType,
                 category: processedChunks.category,
+                metadata: sql<Record<
+                  string,
+                  unknown
+                > | null>`processed_chunks.metadata`,
                 similarity: sql<number>`1 - (${processedChunks.embedding} <=> ${vectorStr}::vector)`,
               })
               .from(processedChunks)
@@ -158,6 +165,9 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                 category: Option.getOrUndefined(
                   Option.fromNullable(r.category)
                 ) as ContentCategory | undefined,
+                metadata: Option.getOrUndefined(
+                  Option.fromNullable(r.metadata)
+                ),
                 similarity: r.similarity,
               })
             )

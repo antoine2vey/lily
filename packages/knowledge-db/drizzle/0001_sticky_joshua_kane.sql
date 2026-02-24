@@ -1,0 +1,1 @@
+ALTER TABLE "processed_chunks" ADD COLUMN "metadata" jsonb;

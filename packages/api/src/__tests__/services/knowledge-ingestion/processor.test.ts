@@ -14,9 +14,23 @@ vi.mock('@lily/api/services/rag/embedding.service', () => ({
   embedTexts: vi.fn(),
 }))
 
-vi.mock('@ai-sdk/openai', () => ({
-  openai: {
-    embedding: () => 'mock-model',
+vi.mock('@ai-sdk/openai', () => {
+  const fn = () => 'mock-model'
+  fn.embedding = () => 'mock-model'
+  return { openai: fn }
+})
+
+vi.mock('ai', () => ({
+  embed: vi.fn(),
+  embedMany: vi.fn(),
+  generateText: vi.fn().mockResolvedValue({
+    output: {
+      keywords: ['test'],
+      summary: 'Test summary for embedding',
+    },
+  }),
+  Output: {
+    object: vi.fn((opts: unknown) => opts),
   },
 }))
 
@@ -306,7 +320,7 @@ describe('processIngestJob', () => {
   })
 
   it('should produce 0 chunks for documents with content too short to chunk', async () => {
-    const shortDoc = makeTestDoc({ content: 'Short content' })
+    const shortDoc = makeTestDoc({ source: 'web', content: 'Short content' })
     const job = createTestIngestJob({ id: 'test-job-short' })
     const jobs = [job]
     const insertedChunks: CreateProcessedChunkData[] = []

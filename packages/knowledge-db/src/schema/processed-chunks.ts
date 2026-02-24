@@ -16,7 +16,7 @@ export const vector = customType<{
   data: number[]
   driverParam: string
 }>({
-  dataType: () => 'vector(1536)',
+  dataType: () => 'vector(3072)',
   toDriver: (value) => `[${value.join(',')}]`,
   fromDriver: (value) => {
     const str = value as string
@@ -37,6 +37,7 @@ export const processedChunks = pgTable(
     plantType: text('plant_type'),
     category: contentCategoryEnum('category'),
     plantMentions: jsonb('plant_mentions').$type<string[]>(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
     embedding: vector('embedding'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()

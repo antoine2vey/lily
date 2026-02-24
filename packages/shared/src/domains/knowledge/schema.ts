@@ -110,6 +110,7 @@ export const ProcessedChunk = Schema.Struct({
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(ContentCategory),
   plantMentions: Schema.optional(Schema.Array(Schema.String)),
+  metadata: Schema.optional(Schema.Unknown),
   createdAt: Schema.Date,
 })
 
@@ -122,6 +123,7 @@ export const ChunkSearchResult = Schema.Struct({
   sourceUrl: Schema.optional(Schema.String),
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(ContentCategory),
+  metadata: Schema.optional(Schema.Unknown),
   similarity: Schema.Number,
 })
 
@@ -141,7 +143,7 @@ export const KnowledgeSearchRequest = Schema.Struct({
   query: Schema.String,
   plantType: Schema.optional(Schema.String),
   limit: Schema.optionalWith(Schema.Number, { default: () => 5 }),
-  minSimilarity: Schema.optionalWith(Schema.Number, { default: () => 0.7 }),
+  minSimilarity: Schema.optionalWith(Schema.Number, { default: () => 0.3 }),
 })
 
 export type KnowledgeSearchRequest = typeof KnowledgeSearchRequest.Type
