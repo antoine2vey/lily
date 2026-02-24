@@ -15,5 +15,9 @@
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],
-  "references": [{ "path": "../shared" }, { "path": "../db" }]
+  "references": [
+    { "path": "../shared" },
+    { "path": "../db" },
+    { "path": "../knowledge-db" }
+  ]
 }

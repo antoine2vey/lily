@@ -60,6 +60,14 @@
       "types": "./src/domains/username/schema.ts",
       "default": "./src/domains/username/schema.ts"
     },
+    "./knowledge": {
+      "types": "./src/domains/knowledge/index.ts",
+      "default": "./src/domains/knowledge/index.ts"
+    },
+    "./errors/knowledge": {
+      "types": "./src/domains/knowledge/errors.ts",
+      "default": "./src/domains/knowledge/errors.ts"
+    },
     "./errors/care-log": {
       "types": "./src/domains/care-log/errors.ts",
       "default": "./src/domains/care-log/errors.ts"

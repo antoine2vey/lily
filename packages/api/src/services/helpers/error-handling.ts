@@ -29,6 +29,7 @@ type InfrastructureError =
   | { readonly _tag: 'SystemError' }
   | { readonly _tag: 'BadArgument' }
   | { readonly _tag: 'PlatformError' }
+  | { readonly _tag: 'UnknownException' }
 
 /**
  * Known infrastructure error class names.
@@ -50,6 +51,7 @@ const infrastructureErrorNames = new Set([
   'SystemError',
   'BadArgument',
   'PlatformError',
+  'UnknownException',
 ])
 
 /**

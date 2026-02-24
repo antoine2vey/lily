@@ -9,6 +9,7 @@ import { DelegationApi } from '@lily/api/services/delegation/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
 import { DiagnosisApi } from '@lily/api/services/diagnosis/api'
 import { HealthApiGroup } from '@lily/api/services/health/api'
+import { KnowledgeIngestionApi } from '@lily/api/services/knowledge-ingestion/api'
 import { NotificationsApi } from '@lily/api/services/notifications/api'
 import { PlantsApi } from '@lily/api/services/plants/api'
 import { RoomsApi } from '@lily/api/services/rooms/api'
@@ -44,5 +45,6 @@ export const Api = HttpApi.make('Api')
   .add(SocialApi.prefix('/api'))
   .add(DelegationApi.prefix('/api'))
   .add(WeatherApi.prefix('/api'))
+  .add(KnowledgeIngestionApi.prefix('/api'))
 
 export type Api = typeof Api

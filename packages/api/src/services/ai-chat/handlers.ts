@@ -7,6 +7,7 @@ import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
@@ -15,8 +16,10 @@ import { AIChatService } from '@lily/api/services/ai-chat/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
+import { RagService } from '@lily/api/services/rag/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
+import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import { Effect, Layer } from 'effect'
@@ -70,5 +73,8 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(DiagnosisRepositoryLive),
     Layer.provide(GCSService.Default),
-    Layer.provide(FileService.Default)
+    Layer.provide(FileService.Default),
+    Layer.provide(RagService.Default),
+    Layer.provide(ProcessedChunkRepositoryLive),
+    Layer.provide(KnowledgeDrizzleLive)
   )
