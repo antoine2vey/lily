@@ -10,13 +10,13 @@ describe('chunkContent', () => {
     expect(chunkContent('   \n\n  \t  ')).toEqual([])
   })
 
-  it('should return empty array for content below MIN_SIZE (200 chars)', () => {
+  it('should return empty array for content below MIN_SIZE (100 chars)', () => {
     const short = 'This is a short text about plants.'
-    expect(short.length).toBeLessThan(200)
+    expect(short.length).toBeLessThan(100)
     expect(chunkContent(short)).toEqual([])
   })
 
-  it('should return single chunk for content within MAX_SIZE (2500 chars)', () => {
+  it('should return single chunk for content within MAX_SIZE (700 chars)', () => {
     const content = 'A'.repeat(500)
     const chunks = chunkContent(content)
     expect(chunks).toHaveLength(1)
@@ -24,7 +24,7 @@ describe('chunkContent', () => {
   })
 
   it('should return single chunk for content exactly at MIN_SIZE boundary', () => {
-    const content = 'A'.repeat(200)
+    const content = 'A'.repeat(100)
     const chunks = chunkContent(content)
     expect(chunks).toHaveLength(1)
   })
@@ -32,7 +32,7 @@ describe('chunkContent', () => {
   it('should split long content into multiple chunks', () => {
     const paragraph = 'This is a paragraph about plant care. '.repeat(30)
     const content = `${paragraph}\n\n${paragraph}\n\n${paragraph}`
-    expect(content.length).toBeGreaterThan(2500)
+    expect(content.length).toBeGreaterThan(700)
 
     const chunks = chunkContent(content)
     expect(chunks.length).toBeGreaterThan(1)
@@ -45,13 +45,13 @@ describe('chunkContent', () => {
 
     const chunks = chunkContent(content)
     for (const chunk of chunks) {
-      expect(chunk.length).toBeLessThanOrEqual(2500)
+      expect(chunk.length).toBeLessThanOrEqual(700)
     }
   })
 
   it('should split on paragraph boundaries (double newlines)', () => {
-    const para1 = 'A'.repeat(1800)
-    const para2 = 'B'.repeat(1800)
+    const para1 = 'A'.repeat(500)
+    const para2 = 'B'.repeat(500)
     const content = `${para1}\n\n${para2}`
 
     const chunks = chunkContent(content)
@@ -68,11 +68,11 @@ describe('chunkContent', () => {
   })
 
   it('should force-split long paragraphs without natural boundaries', () => {
-    const longParagraph = 'A'.repeat(6000)
+    const longParagraph = 'A'.repeat(2000)
     const chunks = chunkContent(longParagraph)
     expect(chunks.length).toBeGreaterThan(1)
     for (const chunk of chunks) {
-      expect(chunk.length).toBeLessThanOrEqual(2500)
+      expect(chunk.length).toBeLessThanOrEqual(700)
     }
   })
 
@@ -83,7 +83,7 @@ describe('chunkContent', () => {
       )
     const chunks = chunkContent(content)
     for (const chunk of chunks) {
-      expect(chunk.length).toBeGreaterThanOrEqual(200)
+      expect(chunk.length).toBeGreaterThanOrEqual(100)
     }
   })
 
@@ -98,10 +98,10 @@ describe('chunkContent', () => {
     const chunks = chunkContent(content)
     if (chunks.length >= 2) {
       // The end of chunk N should overlap with the start of chunk N+1
-      const endOfFirst = chunks[0].slice(-100)
-      const startOfSecond = chunks[1].slice(0, 300)
+      const endOfFirst = chunks[0].slice(-50)
+      const startOfSecond = chunks[1].slice(0, 200)
       // Some characters from end of first chunk should appear in start of second
-      expect(startOfSecond).toContain(endOfFirst.slice(-50).trim())
+      expect(startOfSecond).toContain(endOfFirst.slice(-20).trim())
     }
   })
 
@@ -123,7 +123,7 @@ describe('chunkContent', () => {
     const chunks = chunkContent(content)
     expect(chunks.length).toBeGreaterThanOrEqual(1)
     for (const chunk of chunks) {
-      expect(chunk.length).toBeLessThanOrEqual(2500)
+      expect(chunk.length).toBeLessThanOrEqual(700)
     }
   })
 })

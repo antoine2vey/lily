@@ -1,9 +1,9 @@
 import { Array, pipe } from 'effect'
 
-const TARGET_SIZE = 2000
-const MAX_SIZE = 2500
-const MIN_SIZE = 200
-const OVERLAP = 200
+const TARGET_SIZE = 500
+const MAX_SIZE = 700
+const MIN_SIZE = 100
+const OVERLAP = 50
 
 interface ChunkAccumulator {
   readonly chunks: readonly string[]

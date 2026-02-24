@@ -1,6 +1,6 @@
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
-import { Array, Effect, pipe } from 'effect'
+import { Array, Effect, Match, Option, pipe } from 'effect'
 import { embedText } from './embedding.service'
 
 export interface RagRetrieveParams {
@@ -26,6 +26,7 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
             embedding,
             plantType: params.plantType,
             limit: params.limit ?? 5,
+            minSimilarity: 0.5,
           })
 
           return chunks
@@ -58,9 +59,33 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
         const sections = pipe(
           chunks,
           Array.map((chunk) => {
-            const source = chunk.source
             const similarity = Math.round(chunk.similarity * 100)
-            return `### Knowledge Source (${source}, ${similarity}% relevance)\n${chunk.content}`
+            const meta = (chunk.metadata ?? {}) as {
+              chunkType?: string
+              subreddit?: string
+            }
+
+            return pipe(
+              Match.value(meta.chunkType),
+              Match.when('reddit_thread', () => {
+                const subreddit = Option.getOrElse(
+                  Option.fromNullable(meta.subreddit),
+                  () => 'plantclinic'
+                )
+                return `### Plant Care Q&A (r/${subreddit}, ${similarity}% match)\n${chunk.content}`
+              }),
+              Match.when('reddit_question_only', () => {
+                const subreddit = Option.getOrElse(
+                  Option.fromNullable(meta.subreddit),
+                  () => 'plantclinic'
+                )
+                return `### Plant Care Question (r/${subreddit}, ${similarity}% match)\n${chunk.content}`
+              }),
+              Match.orElse(
+                () =>
+                  `### Knowledge Source (${chunk.source}, ${similarity}% relevance)\n${chunk.content}`
+              )
+            )
           }),
           Array.join('\n\n')
         )

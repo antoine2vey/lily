@@ -3,7 +3,7 @@ import { EmbeddingError } from '@lily/shared/errors/knowledge'
 import { embed, embedMany } from 'ai'
 import { Array, Effect } from 'effect'
 
-const embeddingModel = openai.embedding('text-embedding-3-small')
+const embeddingModel = openai.embedding('text-embedding-3-large')
 
 export const embedText = (
   text: string

@@ -4,7 +4,15 @@ import type {
 } from '@lily/api/services/knowledge-ingestion/adapters/types'
 import { AdapterError } from '@lily/shared/errors/knowledge'
 import type { AdapterConfig, RedditAdapterConfig } from '@lily/shared/knowledge'
-import { Array, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import {
+  Array,
+  Effect,
+  Option,
+  pipe,
+  Schedule,
+  String as Str,
+  Stream,
+} from 'effect'
 
 interface RedditPost {
   data: {
@@ -25,6 +33,12 @@ interface RedditComment {
     author: string
     score: number
   }
+}
+
+export interface RedditCommentData {
+  readonly body: string
+  readonly author: string
+  readonly score: number
 }
 
 interface RedditListing {
@@ -54,7 +68,7 @@ const CONTROL_CHARS_RE = new RegExp(
 // biome-ignore lint/complexity/useRegexLiterals: using RegExp constructor to avoid noControlCharactersInRegex
 const NON_BMP_RE = new RegExp('[\\u{10000}-\\u{10FFFF}]', 'gu')
 
-const sanitizeText = (text: string): string =>
+export const sanitizeText = (text: string): string =>
   text.replace(CONTROL_CHARS_RE, '').replace(NON_BMP_RE, '')
 
 /**
@@ -62,6 +76,14 @@ const sanitizeText = (text: string): string =>
  * 6 seconds between requests keeps us safely under that limit.
  */
 const REQUEST_DELAY = '6 seconds'
+
+const DELETED_MARKERS = ['[deleted]', '[removed]']
+const BOT_PATTERNS = ['automoderator', 'bot']
+
+const MIN_COMMENT_BODY_LENGTH = 100
+const MIN_COMMENT_SCORE = 3
+const MIN_POST_SCORE = 5
+const MIN_POST_COMMENTS = 2
 
 /**
  * Fetch JSON from a public Reddit URL with 429 retry handling.
@@ -156,22 +178,25 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
 
     const response = yield* fetchRedditJson<RedditListing>(url)
     const posts = response.data.children
-    const withText = pipe(
+
+    const qualified = Array.filter(
       posts,
-      Array.filter((p) => p.data.selftext.length > 0),
-      Array.length
+      (p) =>
+        p.data.selftext.length > 0 &&
+        p.data.score >= MIN_POST_SCORE &&
+        p.data.num_comments >= MIN_POST_COMMENTS
     )
 
     yield* Effect.log(
-      `r/${subreddit}: ${posts.length} posts fetched, ${withText} with text content`
+      `r/${subreddit}: ${posts.length} posts fetched, ${qualified.length} qualified (score >= ${MIN_POST_SCORE}, comments >= ${MIN_POST_COMMENTS})`
     )
 
-    return posts
+    return qualified
   })
 
 const fetchPostComments = (permalink: string) =>
   Effect.gen(function* () {
-    const url = `https://www.reddit.com${permalink}.json?sort=top&limit=5&raw_json=1`
+    const url = `https://www.reddit.com${permalink}.json?sort=top&limit=10&raw_json=1`
 
     const response = yield* fetchRedditJson<RedditListing[]>(url).pipe(
       Effect.tapError((e) =>
@@ -183,20 +208,35 @@ const fetchPostComments = (permalink: string) =>
     )
 
     if (!globalThis.Array.isArray(response)) {
-      return []
+      return [] as RedditCommentData[]
     }
 
     return pipe(
       Array.get(response, 1),
       Option.match({
-        onNone: () => [] as string[],
+        onNone: () => [] as RedditCommentData[],
         onSome: (listing) =>
           pipe(
             (listing as RedditListing).data
               .children as unknown as RedditComment[],
             Array.filter((c) => Boolean(c.data?.body)),
-            Array.map((c) => c.data.body),
-            Array.take(5)
+            Array.map(
+              (c): RedditCommentData => ({
+                body: c.data.body,
+                author: c.data.author,
+                score: c.data.score,
+              })
+            ),
+            Array.filter(
+              (c) =>
+                !Array.contains(DELETED_MARKERS, c.body) &&
+                !Array.contains(DELETED_MARKERS, c.author) &&
+                !Array.some(BOT_PATTERNS, (p) =>
+                  pipe(Str.toLowerCase(c.author), Str.includes(p))
+                ) &&
+                c.body.length >= MIN_COMMENT_BODY_LENGTH &&
+                c.score >= MIN_COMMENT_SCORE
+            )
           ),
       })
     )
@@ -204,34 +244,29 @@ const fetchPostComments = (permalink: string) =>
 
 const postToDocument = (
   post: RedditPost,
-  comments: string[]
-): RawDocumentInput => {
-  const commentText = pipe(
-    comments,
-    Array.map((comment, i) => `Comment ${i + 1}: ${sanitizeText(comment)}`),
-    Array.join('\n\n')
-  )
-
-  const content = pipe(
-    [sanitizeText(post.data.selftext), commentText],
-    Array.filter((s) => s.length > 0),
-    Array.join('\n\n---\n\n')
-  )
-
-  return {
-    source: 'reddit',
-    sourceUrl: `https://reddit.com${post.data.permalink}`,
-    sourceId: `reddit_${post.data.id}`,
-    title: sanitizeText(post.data.title),
-    content,
-    author: post.data.author,
-    score: post.data.score,
-    metadata: {
-      subreddit: post.data.subreddit,
-      numComments: post.data.num_comments,
-    },
-  }
-}
+  comments: RedditCommentData[]
+): RawDocumentInput => ({
+  source: 'reddit',
+  sourceUrl: `https://reddit.com${post.data.permalink}`,
+  sourceId: `reddit_${post.data.id}`,
+  title: sanitizeText(post.data.title),
+  content: sanitizeText(post.data.selftext),
+  author: post.data.author,
+  score: post.data.score,
+  metadata: {
+    subreddit: post.data.subreddit,
+    numComments: post.data.num_comments,
+    postScore: post.data.score,
+    comments: Array.map(
+      comments,
+      (c): RedditCommentData => ({
+        body: sanitizeText(c.body),
+        author: c.author,
+        score: c.score,
+      })
+    ),
+  },
+})
 
 export const redditAdapter: ISourceAdapter = {
   name: 'reddit',
@@ -257,11 +292,7 @@ export const redditAdapter: ISourceAdapter = {
             })
           ),
           // Flatten posts into individual items
-          Stream.flatMap((posts) =>
-            Stream.fromIterable(
-              Array.filter(posts, (p) => p.data.selftext.length > 0)
-            )
-          ),
+          Stream.flatMap((posts) => Stream.fromIterable(posts)),
           // Fetch comments and convert each post to a document
           Stream.mapEffect((post) =>
             Effect.gen(function* () {
