@@ -119,6 +119,7 @@ export const ChunkSearchResult = Schema.Struct({
   id: Schema.String,
   content: Schema.String,
   source: Schema.String,
+  sourceUrl: Schema.optional(Schema.String),
   plantType: Schema.optional(Schema.String),
   category: Schema.optional(ContentCategory),
   similarity: Schema.Number,
@@ -135,6 +136,15 @@ export type CreateIngestJobRequest = typeof CreateIngestJobRequest.Type
 
 export const IngestJobListResponse = PaginatedResponse(IngestJob)
 export type IngestJobListResponse = typeof IngestJobListResponse.Type
+
+export const KnowledgeSearchRequest = Schema.Struct({
+  query: Schema.String,
+  plantType: Schema.optional(Schema.String),
+  limit: Schema.optionalWith(Schema.Number, { default: () => 5 }),
+  minSimilarity: Schema.optionalWith(Schema.Number, { default: () => 0.7 }),
+})
+
+export type KnowledgeSearchRequest = typeof KnowledgeSearchRequest.Type
 
 export const KnowledgeStats = Schema.Struct({
   totalChunks: Schema.Number,

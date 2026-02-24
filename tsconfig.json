@@ -33,6 +33,7 @@
     { "path": "./packages/db" },
     { "path": "./packages/knowledge-db" },
     { "path": "./packages/api" },
-    { "path": "./packages/web" }
+    { "path": "./packages/web" },
+    { "path": "./packages/admin" }
   ]
 }
