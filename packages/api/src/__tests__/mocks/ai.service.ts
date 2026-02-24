@@ -54,7 +54,8 @@ export const createMockAiService = (
     plantChatStream: (
       _plantId: string,
       _messages: UIMessage[],
-      _options?: { imageUrl?: string }
+      _knowledgeContext?: string,
+      _imageOptions?: { imageUrl?: string; imageKey?: string }
     ) =>
       Effect.gen(function* () {
         const completionDeferred = yield* Deferred.make<readonly StepData[]>()

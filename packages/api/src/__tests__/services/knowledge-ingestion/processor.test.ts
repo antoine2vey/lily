@@ -108,17 +108,20 @@ describe('processIngestJob', () => {
       )
     )
 
-    expect(jobs[0].status).toBe('completed')
-    expect(jobs[0].documentsFetched).toBeGreaterThanOrEqual(1)
+    expect(jobs[0]?.status).toBe('completed')
+    expect(jobs[0]?.documentsFetched).toBeGreaterThanOrEqual(1)
   })
 
   it('should update counts incrementally via updateStatus', async () => {
     const docs = [makeTestDoc(), makeTestDoc()]
     const job = createTestIngestJob({ id: 'test-job-2' })
-    const jobs = [job]
+    const _jobs = [job]
     const insertedChunks: CreateProcessedChunkData[] = []
-    const statusUpdates: { status: string; docs?: number; chunks?: number }[] =
-      []
+    const statusUpdates: {
+      status: string
+      docs?: number | undefined
+      chunks?: number | undefined
+    }[] = []
 
     // Capture status updates
     const originalJobs = [job]
@@ -130,7 +133,7 @@ describe('processIngestJob', () => {
         findById: () => Effect.succeed(job),
         findAll: () => Effect.succeed(originalJobs),
         findPending: () => Effect.succeed([]),
-        updateStatus: (id, status, counts) => {
+        updateStatus: (_id, status, counts) => {
           statusUpdates.push({
             status,
             docs: counts?.documentsFetched,
@@ -139,7 +142,7 @@ describe('processIngestJob', () => {
           const updated = { ...job, status, ...counts, updatedAt: new Date() }
           return Effect.succeed(updated)
         },
-        updateError: () => Effect.succeed(undefined as void),
+        updateError: () => Effect.succeed(undefined as undefined),
         count: () => Effect.succeed(1),
       }
     )
@@ -161,7 +164,7 @@ describe('processIngestJob', () => {
     await Effect.runPromise(processIngestJob(job).pipe(Effect.provide(layer)))
 
     // First call: mark in_progress
-    expect(statusUpdates[0].status).toBe('in_progress')
+    expect(statusUpdates[0]?.status).toBe('in_progress')
     // Should have incremental updates for each doc
     const inProgressUpdates = statusUpdates.filter(
       (u) => u.status === 'in_progress' && u.docs !== undefined
@@ -213,11 +216,11 @@ describe('processIngestJob', () => {
     // documents array should have existingDoc + freshDoc (not the duplicate)
     const newDocs = documents.filter((d) => d.ingestJobId === 'test-job-dedup')
     expect(newDocs).toHaveLength(1)
-    expect(newDocs[0].sourceId).toBe('new-source-id')
+    expect(newDocs[0]?.sourceId).toBe('new-source-id')
   })
 
   it('should process documents without sourceId (no dedup check)', async () => {
-    const doc = makeTestDoc({ sourceId: undefined })
+    const doc = makeTestDoc({ sourceId: undefined as unknown as string })
     const job = createTestIngestJob({ id: 'test-job-no-source' })
     const jobs = [job]
     const documents: RawDocument[] = []
@@ -238,7 +241,7 @@ describe('processIngestJob', () => {
     )
 
     expect(documents).toHaveLength(1)
-    expect(jobs[0].status).toBe('completed')
+    expect(jobs[0]?.status).toBe('completed')
   })
 
   it('should store chunks without embeddings when embedding fails', async () => {
@@ -265,7 +268,7 @@ describe('processIngestJob', () => {
     )
 
     // Job should still complete
-    expect(jobs[0].status).toBe('completed')
+    expect(jobs[0]?.status).toBe('completed')
     // Chunks should be stored (without embeddings)
     if (insertedChunks.length > 0) {
       for (const chunk of insertedChunks) {
@@ -291,8 +294,8 @@ describe('processIngestJob', () => {
       processIngestJob(job).pipe(Effect.provide(buildLayers({ jobs })))
     )
 
-    expect(jobs[0].status).toBe('failed')
-    expect(jobs[0].error).toContain('Connection timeout')
+    expect(jobs[0]?.status).toBe('failed')
+    expect(jobs[0]?.error).toContain('Connection timeout')
   })
 
   it('should complete with 0 docs and 0 chunks for empty stream', async () => {
@@ -313,9 +316,9 @@ describe('processIngestJob', () => {
       )
     )
 
-    expect(jobs[0].status).toBe('completed')
-    expect(jobs[0].documentsFetched).toBe(0)
-    expect(jobs[0].chunksCreated).toBe(0)
+    expect(jobs[0]?.status).toBe('completed')
+    expect(jobs[0]?.documentsFetched).toBe(0)
+    expect(jobs[0]?.chunksCreated).toBe(0)
     expect(insertedChunks).toHaveLength(0)
   })
 
@@ -339,7 +342,7 @@ describe('processIngestJob', () => {
       )
     )
 
-    expect(jobs[0].status).toBe('completed')
+    expect(jobs[0]?.status).toBe('completed')
     expect(insertedChunks).toHaveLength(0)
   })
 
@@ -364,8 +367,8 @@ describe('processIngestJob', () => {
       processIngestJob(job).pipe(Effect.provide(buildLayers({ jobs })))
     )
 
-    expect(jobs[0].status).toBe('failed')
-    expect(jobs[0].error).toContain('Rate limited by Reddit')
+    expect(jobs[0]?.status).toBe('failed')
+    expect(jobs[0]?.error).toContain('Rate limited by Reddit')
   })
 
   it('should store chunk metadata (plantType, category, plantMentions)', async () => {
@@ -395,9 +398,9 @@ describe('processIngestJob', () => {
 
     if (insertedChunks.length > 0) {
       const chunk = insertedChunks[0]
-      expect(chunk.source).toBe('reddit')
-      expect(chunk.category).toBeDefined()
-      expect(chunk.chunkIndex).toBe(0)
+      expect(chunk?.source).toBe('reddit')
+      expect(chunk?.category).toBeDefined()
+      expect(chunk?.chunkIndex).toBe(0)
     }
   })
 })

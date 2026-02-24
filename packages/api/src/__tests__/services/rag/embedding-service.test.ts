@@ -1,4 +1,3 @@
-import { EmbeddingError } from '@lily/shared/errors/knowledge'
 import { Effect, Exit } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 

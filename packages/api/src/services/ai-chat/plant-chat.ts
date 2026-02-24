@@ -38,16 +38,16 @@ export interface PlantChatResult {
   completionDeferred: Deferred.Deferred<readonly StepData[]>
 }
 
-export interface PlantChatOptions {
+export interface PlantChatImageOptions {
   imageUrl?: string | undefined
   imageKey?: string | undefined
-  knowledgeContext?: string | undefined
 }
 
 export const plantChat = (
   plantId: string,
   messages: UIMessage[],
-  options?: PlantChatOptions
+  knowledgeContext?: string,
+  imageOptions?: PlantChatImageOptions
 ) => {
   return Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
@@ -118,7 +118,7 @@ export const plantChat = (
       Recent Care History:
       ${careHistoryText || 'No care events recorded yet'}
 
-      ${options?.knowledgeContext ?? ''}
+      ${knowledgeContext ?? ''}
 
       Guidelines:
       - Always respond in the same language as the user's message. This includes tool call fields (disease name, symptoms, treatment steps, prevention tips).
@@ -146,7 +146,7 @@ export const plantChat = (
 
     // If image is provided, add it to the last user message
     pipe(
-      Option.fromNullable(options?.imageUrl),
+      Option.fromNullable(imageOptions?.imageUrl),
       Option.flatMap((imageUrl) =>
         pipe(
           Array.last(modelMessages),
@@ -164,13 +164,13 @@ export const plantChat = (
       )
     )
 
-    const useVisionModel = Boolean(options?.imageUrl)
+    const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const tools = buildPlantChatTools({
       diagnosisRepo,
       userId,
       plantId,
-      imageKey: options?.imageKey,
+      imageKey: imageOptions?.imageKey,
     })
 
     // Deferred that resolves with step data when streaming finishes

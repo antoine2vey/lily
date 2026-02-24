@@ -97,9 +97,13 @@ describe('chunkContent', () => {
 
     const chunks = chunkContent(content)
     if (chunks.length >= 2) {
+      const first = chunks[0]
+      const second = chunks[1]
+      expect(first).toBeDefined()
+      expect(second).toBeDefined()
       // The end of chunk N should overlap with the start of chunk N+1
-      const endOfFirst = chunks[0].slice(-50)
-      const startOfSecond = chunks[1].slice(0, 200)
+      const endOfFirst = (first as string).slice(-50)
+      const startOfSecond = (second as string).slice(0, 200)
       // Some characters from end of first chunk should appear in start of second
       expect(startOfSecond).toContain(endOfFirst.slice(-20).trim())
     }

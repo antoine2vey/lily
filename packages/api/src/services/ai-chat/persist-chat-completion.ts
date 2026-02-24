@@ -3,14 +3,11 @@ import { type IEventBus, publishWithRetry } from '@lily/api/events'
 import type { IChatRepository } from '@lily/api/repositories/chat.repository'
 import type { IDiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { IUsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import { nowAsEpochMillis } from '@lily/shared'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 
+import { generateMessageId } from './generate-message-id'
 import type { StepData } from './plant-chat'
-
-const generateMessageId = (role: 'user' | 'assistant'): string =>
-  `${role}-${nowAsEpochMillis()}-${Math.random().toString(36).slice(2, 11)}`
 
 export interface PersistChatCompletionDeps {
   readonly chatRepo: IChatRepository
@@ -60,7 +57,10 @@ export const persistChatCompletion = (
     const assistantUIMessage: UIMessage = {
       id: generateMessageId('assistant'),
       role: 'assistant',
-      parts: [{ type: 'text', text: fullText }, ...toolParts],
+      parts: Array.prepend(toolParts, {
+        type: 'text' as const,
+        text: fullText,
+      }) as UIMessage['parts'],
     }
 
     const savedMessages = yield* chatRepo.saveChat({

@@ -45,11 +45,12 @@ export const createMockIngestJobRepository = (data: {
       counts?: { documentsFetched?: number; chunksCreated?: number }
     ) => {
       const idx = data.jobs.findIndex((j) => j.id === id)
-      if (idx === -1) {
+      const existing = data.jobs[idx]
+      if (idx === -1 || !existing) {
         return Effect.succeed(null)
       }
       const updated: IngestJob = {
-        ...data.jobs[idx],
+        ...existing,
         status,
         ...(counts?.documentsFetched !== undefined
           ? { documentsFetched: counts.documentsFetched }
@@ -65,15 +66,16 @@ export const createMockIngestJobRepository = (data: {
 
     updateError: (id: string, error: string) => {
       const idx = data.jobs.findIndex((j) => j.id === id)
-      if (idx !== -1) {
+      const existing = data.jobs[idx]
+      if (idx !== -1 && existing) {
         data.jobs[idx] = {
-          ...data.jobs[idx],
+          ...existing,
           error,
-          status: 'failed',
+          status: 'failed' as const,
           updatedAt: new Date(),
         }
       }
-      return Effect.succeed(undefined as void)
+      return Effect.succeed(undefined as undefined)
     },
 
     count: () => Effect.succeed(data.jobs.length),
