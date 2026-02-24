@@ -15,7 +15,7 @@ import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.r
 import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { fertilizePlant } from '@lily/api/services/plants/endpoints/fertilize-plant'
-import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('fertilizePlant', () => {

@@ -7,20 +7,20 @@ import type { DelegationRepository } from '@lily/api/repositories/delegation.rep
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
+import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { RagService } from '@lily/api/services/rag/service'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import { nowAsEpochMillis } from '@lily/shared'
 import type {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
 import type { UIMessage } from 'ai'
-import { Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
 
 import type { StepData } from '../plant-chat'
 
@@ -31,9 +31,6 @@ const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
-const generateMessageId = (role: 'user' | 'assistant'): string =>
-  `${role}-${nowAsEpochMillis()}-${Math.random().toString(36).slice(2, 11)}`
-
 export interface StreamChatRequest {
   message: string
   imageUrl?: string
@@ -41,6 +38,12 @@ export interface StreamChatRequest {
 }
 
 const encoder = new TextEncoder()
+
+const SSE_HEADERS = {
+  'cache-control': 'no-cache',
+  'x-accel-buffering': 'no',
+  connection: 'keep-alive',
+}
 
 /**
  * Encode an async iterable of UI message chunks as SSE events.
@@ -51,23 +54,32 @@ const encoder = new TextEncoder()
  */
 const uiStreamToSse = (
   stream: AsyncIterable<unknown>,
-  onComplete?: () => Promise<void>
+  onComplete?: Effect.Effect<void>
 ): Stream.Stream<Uint8Array, Error> => {
-  const sseChunks = Stream.fromAsyncIterable(stream, (e) => e as Error).pipe(
+  const sseChunks = Stream.fromAsyncIterable(
+    stream,
+    (e) => new Error(String(e))
+  ).pipe(
     Stream.map((chunk) => encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
   )
 
   const afterStream = Stream.fromEffect(
-    Effect.promise(async () => {
-      if (onComplete) {
-        await onComplete()
-      }
-      return encoder.encode('data: [DONE]\n\n')
-    })
+    pipe(
+      onComplete ?? Effect.void,
+      Effect.as(encoder.encode('data: [DONE]\n\n'))
+    )
   )
 
   return pipe(sseChunks, Stream.concat(afterStream))
 }
+
+const makeSseResponse = (sseStream: Stream.Stream<Uint8Array, Error>) =>
+  pipe(
+    HttpServerResponse.stream(sseStream, {
+      contentType: 'text/event-stream; charset=utf-8',
+    }),
+    HttpServerResponse.setHeaders(SSE_HEADERS)
+  )
 
 export const streamChatMessage = (
   plantId: string,
@@ -125,7 +137,10 @@ export const streamChatMessage = (
     const userMessage: UIMessage = {
       id: generateMessageId('user'),
       role: 'user',
-      parts: [...fileParts, { type: 'text', text: request.message }],
+      parts: Array.append(fileParts, {
+        type: 'text' as const,
+        text: request.message,
+      }) as UIMessage['parts'],
     }
 
     // Check if user has reached their AI chat limit
@@ -158,9 +173,7 @@ export const streamChatMessage = (
         yield { type: 'text-end', id: 'quota-msg' }
       }
 
-      return HttpServerResponse.stream(uiStreamToSse(quotaChunks()), {
-        contentType: 'text/event-stream; charset=utf-8',
-      })
+      return makeSseResponse(uiStreamToSse(quotaChunks()))
     }
 
     // Get previous messages from database (secure - server-side history)
@@ -185,10 +198,17 @@ export const streamChatMessage = (
       })
     )
     const userMessageForAi: UIMessage = {
-      ...userMessage,
-      parts: [...aiFileParts, { type: 'text' as const, text: request.message }],
+      id: userMessage.id,
+      role: userMessage.role,
+      parts: Array.append(aiFileParts, {
+        type: 'text' as const,
+        text: request.message,
+      }) as UIMessage['parts'],
     }
-    const allMessages = [...resolvedPreviousMessages, userMessageForAi]
+    const allMessages = Array.append(
+      resolvedPreviousMessages,
+      userMessageForAi
+    ) as UIMessage[]
 
     // Retrieve RAG context (gracefully degrades to empty string on failure)
     const ragChunks = yield* ragService.retrieve({
@@ -196,51 +216,51 @@ export const streamChatMessage = (
     })
     const knowledgeContext = ragService.formatContext(ragChunks)
 
-    const imageContext = pipe(
+    const imageOptions = pipe(
       Option.fromNullable(imageSignedUrl),
       Option.map((url) => ({
         imageUrl: url,
         imageKey: request.imageKey,
-        knowledgeContext,
       })),
-      Option.getOrElse(() => ({
-        imageUrl: undefined as string | undefined,
-        imageKey: undefined as string | undefined,
-        knowledgeContext,
-      }))
+      Option.getOrUndefined
     )
 
     const { stream: streamResult, completionDeferred } =
-      yield* aiService.plantChatStream(plantId, allMessages, imageContext)
+      yield* aiService.plantChatStream(
+        plantId,
+        allMessages,
+        knowledgeContext,
+        imageOptions
+      )
 
     // Stream UI message chunks as SSE events.
     // Persistence runs after the stream ends but before [DONE],
     // so the client knows data is saved when it receives the sentinel.
     const uiStream = streamResult.toUIMessageStream()
 
-    const onComplete = async () => {
-      const steps: readonly StepData[] = await Effect.runPromise(
-        Deferred.await(completionDeferred)
-      )
-
-      await Effect.runPromise(
+    const onComplete = Deferred.await(completionDeferred).pipe(
+      Effect.timeout('30 seconds'),
+      Effect.catchTag('TimeoutException', () =>
+        Effect.logError('AI stream completion timed out', {
+          plantId,
+          userId,
+        }).pipe(Effect.as([] as readonly StepData[]))
+      ),
+      Effect.flatMap((steps) =>
         persistChatCompletion(
           { chatRepo, diagnosisRepo, eventBus, usageTracker },
           { plantId, userId, userMessage, steps }
-        ).pipe(
-          Effect.retry(postStreamRetryPolicy),
-          Effect.catchAll((error) =>
-            Effect.logError('Failed to save chat message after stream', {
-              error: String(error),
-              plantId,
-              userId,
-            })
-          )
         )
+      ),
+      Effect.retry(postStreamRetryPolicy),
+      Effect.catchAll((error) =>
+        Effect.logError('Failed to save chat message after stream', {
+          error: String(error),
+          plantId,
+          userId,
+        })
       )
-    }
+    )
 
-    return HttpServerResponse.stream(uiStreamToSse(uiStream, onComplete), {
-      contentType: 'text/event-stream; charset=utf-8',
-    })
+    return makeSseResponse(uiStreamToSse(uiStream, onComplete))
   })

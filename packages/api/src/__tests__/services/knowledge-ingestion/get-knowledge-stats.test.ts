@@ -2,7 +2,6 @@ import { mockIngestJobs } from '@lily/api/__tests__/fixtures/knowledge'
 import { createMockIngestJobRepository } from '@lily/api/__tests__/mocks/ingest-job.repository'
 import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/processed-chunk.repository'
 import { getKnowledgeStats } from '@lily/api/services/knowledge-ingestion/endpoints/get-knowledge-stats'
-import type { IngestJob } from '@lily/shared/knowledge'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

@@ -114,8 +114,8 @@ describe('RagService', () => {
         (await import('@lily/api/repositories/processed-chunk.repository'))
           .ProcessedChunkRepository,
         {
-          create: () => Effect.succeed(undefined as void),
-          createMany: () => Effect.succeed(undefined as void),
+          create: () => Effect.succeed(undefined as undefined),
+          createMany: () => Effect.succeed(undefined as undefined),
           search: () => Effect.fail(new Error('DB connection lost') as never),
           count: () => Effect.succeed(0),
           countBySource: () => Effect.succeed([]),

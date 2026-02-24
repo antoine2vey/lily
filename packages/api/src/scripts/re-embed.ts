@@ -30,6 +30,7 @@ import {
   processedChunks,
   rawDocuments,
 } from '@lily/knowledge-db'
+import type { ContentCategory } from '@lily/shared/knowledge'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
 const EMBED_BATCH_SIZE = 50
@@ -173,7 +174,9 @@ const reChunkAndEmbed = Effect.gen(function* () {
         chunkIndex: chunk.chunkIndex,
         source: chunk.source,
         plantType: Option.getOrNull(Option.fromNullable(chunk.plantType)),
-        category: Option.getOrNull(Option.fromNullable(chunk.category)),
+        category: Option.getOrNull(
+          Option.fromNullable(chunk.category)
+        ) as ContentCategory | null,
         plantMentions: Option.getOrNull(
           Option.fromNullable(chunk.plantMentions)
         ),

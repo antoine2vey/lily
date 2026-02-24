@@ -34,6 +34,6 @@ describe('createIngestJob', () => {
     )
 
     expect(jobs).toHaveLength(1)
-    expect(jobs[0].adapter).toBe('web')
+    expect(jobs[0]?.adapter).toBe('web')
   })
 })

@@ -6,7 +6,7 @@ import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { AISDKError, type UIMessage } from 'ai'
 import { Effect, Schema } from 'effect'
 
-import { type PlantChatOptions, plantChat } from '../ai-chat/plant-chat'
+import { type PlantChatImageOptions, plantChat } from '../ai-chat/plant-chat'
 
 export class AiApiCallError extends Schema.Class<AiApiCallError>(
   'AiApiCallError'
@@ -37,9 +37,10 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
       plantChatStream: (
         plantId: string,
         messages: UIMessage[],
-        options?: PlantChatOptions
+        knowledgeContext?: string,
+        imageOptions?: PlantChatImageOptions
       ) =>
-        plantChat(plantId, messages, options).pipe(
+        plantChat(plantId, messages, knowledgeContext, imageOptions).pipe(
           Effect.withSpan('AiService.plantChatStream', {
             attributes: { 'plant.id': plantId },
           })
