@@ -23,12 +23,14 @@ export interface SearchChunksParams {
   embedding: number[]
   plantType?: string | undefined
   limit?: number | undefined
+  minSimilarity?: number | undefined
 }
 
 interface SearchRow {
   id: string
   content: string
   source: string
+  sourceUrl: string | null
   plantType: string | null
   category: ContentCategory | null
   similarity: number
@@ -118,11 +120,16 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                 id: processedChunks.id,
                 content: processedChunks.content,
                 source: processedChunks.source,
+                sourceUrl: rawDocuments.sourceUrl,
                 plantType: processedChunks.plantType,
                 category: processedChunks.category,
                 similarity: sql<number>`1 - (${processedChunks.embedding} <=> ${vectorStr}::vector)`,
               })
               .from(processedChunks)
+              .innerJoin(
+                rawDocuments,
+                eq(processedChunks.documentId, rawDocuments.id)
+              )
               .where(plantTypeCondition)
               .orderBy(
                 sql`${processedChunks.embedding} <=> ${vectorStr}::vector`
@@ -130,13 +137,21 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               .limit(limit)
           )) as SearchRow[]
 
+          const threshold = Option.getOrElse(
+            Option.fromNullable(params.minSimilarity),
+            () => 0.7
+          )
+
           return pipe(
-            Array.filter(results, (r) => r.similarity > 0.7),
+            Array.filter(results, (r) => r.similarity > threshold),
             Array.map(
               (r): ChunkSearchResult => ({
                 id: r.id,
                 content: r.content,
                 source: r.source,
+                sourceUrl: Option.getOrUndefined(
+                  Option.fromNullable(r.sourceUrl)
+                ),
                 plantType: Option.getOrUndefined(
                   Option.fromNullable(r.plantType)
                 ),
