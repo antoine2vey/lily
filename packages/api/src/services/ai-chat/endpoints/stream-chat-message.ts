@@ -10,6 +10,7 @@ import { AiService } from '@lily/api/services/ai/service'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { RagService } from '@lily/api/services/rag/service'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import { nowAsEpochMillis } from '@lily/shared'
@@ -85,10 +86,12 @@ export const streamChatMessage = (
   | LimitChecker
   | UsageTracker
   | GCSService
+  | RagService
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
+    const ragService = yield* RagService
     const eventBus = yield* EventBus
     const diagnosisRepo = yield* DiagnosisRepository
     const { id: userId } = yield* CurrentUser
@@ -187,10 +190,24 @@ export const streamChatMessage = (
     }
     const allMessages = [...resolvedPreviousMessages, userMessageForAi]
 
+    // Retrieve RAG context (gracefully degrades to empty string on failure)
+    const ragChunks = yield* ragService.retrieve({
+      query: request.message,
+    })
+    const knowledgeContext = ragService.formatContext(ragChunks)
+
     const imageContext = pipe(
       Option.fromNullable(imageSignedUrl),
-      Option.map((url) => ({ imageUrl: url, imageKey: request.imageKey })),
-      Option.getOrUndefined
+      Option.map((url) => ({
+        imageUrl: url,
+        imageKey: request.imageKey,
+        knowledgeContext,
+      })),
+      Option.getOrElse(() => ({
+        imageUrl: undefined as string | undefined,
+        imageKey: undefined as string | undefined,
+        knowledgeContext,
+      }))
     )
 
     const { stream: streamResult, completionDeferred } =

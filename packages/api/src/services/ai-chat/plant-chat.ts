@@ -41,6 +41,7 @@ export interface PlantChatResult {
 export interface PlantChatOptions {
   imageUrl?: string | undefined
   imageKey?: string | undefined
+  knowledgeContext?: string | undefined
 }
 
 export const plantChat = (
@@ -116,6 +117,8 @@ export const plantChat = (
 
       Recent Care History:
       ${careHistoryText || 'No care events recorded yet'}
+
+      ${options?.knowledgeContext ?? ''}
 
       Guidelines:
       - Always respond in the same language as the user's message. This includes tool call fields (disease name, symptoms, treatment steps, prevention tips).

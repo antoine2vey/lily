@@ -7,8 +7,11 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
+import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
@@ -26,6 +29,8 @@ import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
+import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
+import { startKnowledgeIngestionWorker } from '@lily/api/services/knowledge-ingestion/worker'
 import {
   RedisClientLive,
   RedisMessageQueueLive,
@@ -49,6 +54,7 @@ import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { startWeatherScheduler } from '@lily/api/services/weather-scheduler/scheduler'
 import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
+import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { Effect, Layer } from 'effect'
 
 // Shared infrastructure layers.
@@ -139,6 +145,18 @@ const HealthSchedulerLive = Layer.scopedDiscard(
   })
 ).pipe(Layer.provide(PlantRepositoryLive))
 
+// Knowledge ingestion worker layer - polls for pending ingest jobs
+const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startKnowledgeIngestionWorker
+  })
+).pipe(
+  Layer.provide(IngestJobRepositoryLive),
+  Layer.provide(RawDocumentRepositoryLive),
+  Layer.provide(ProcessedChunkRepositoryLive),
+  Layer.provide(KnowledgeDrizzleLive)
+)
+
 // Provide the implementation for all APIs
 const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AchievementsApiLive(Api)),
@@ -159,7 +177,8 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(SubscriptionWebhooksApiLive(Api)),
   Layer.provide(UsernameApiLive(Api)),
   Layer.provide(UsersApiLive(Api)),
-  Layer.provide(WeatherApiLive(Api))
+  Layer.provide(WeatherApiLive(Api)),
+  Layer.provide(KnowledgeIngestionApiLive(Api))
 )
 
 // Set up the server using BunHttpServer on port 3000
@@ -176,6 +195,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
+  Layer.provide(KnowledgeIngestionWorkerLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
   Layer.provide(
