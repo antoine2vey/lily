@@ -2,7 +2,7 @@ import { ingestJobs, KnowledgeDrizzle } from '@lily/knowledge-db'
 import type { IngestJob, IngestJobStatus } from '@lily/shared/knowledge'
 import { count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import type { UnknownException } from 'effect/Cause'
+import { UnknownException } from 'effect/Cause'
 
 type IngestJobRow = typeof ingestJobs.$inferSelect
 
