@@ -43,7 +43,10 @@ export const RedditAdapterConfig = Schema.Struct({
     ),
     { default: () => 'year' as const }
   ),
-  limit: Schema.optionalWith(Schema.Number, { default: () => 25 }),
+  limit: Schema.optionalWith(
+    Schema.Number.pipe(Schema.int(), Schema.between(1, 1000)),
+    { default: () => 25 }
+  ),
 })
 
 export type RedditAdapterConfig = typeof RedditAdapterConfig.Type
