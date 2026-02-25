@@ -146,7 +146,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
 
           const threshold = Option.getOrElse(
             Option.fromNullable(params.minSimilarity),
-            () => 0.7
+            () => 0.5
           )
 
           return pipe(

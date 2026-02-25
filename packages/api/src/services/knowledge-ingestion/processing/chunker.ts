@@ -34,7 +34,8 @@ const forceSplit = (acc: ChunkAccumulator): ChunkAccumulator => {
   const remaining = overlap + acc.currentChunk.slice(splitPoint)
 
   return forceSplit({
-    chunks: part.length >= MIN_SIZE ? [...acc.chunks, part] : acc.chunks,
+    chunks:
+      part.length >= MIN_SIZE ? Array.append(acc.chunks, part) : acc.chunks,
     currentChunk: remaining,
   })
 }
@@ -79,7 +80,7 @@ export const chunkContent = (content: string): string[] => {
           const newCurrent = joinNonEmpty([overlapText, cleanSegment], '\n\n')
 
           return forceSplit({
-            chunks: [...acc.chunks, acc.currentChunk],
+            chunks: Array.append(acc.chunks, acc.currentChunk),
             currentChunk: newCurrent,
           })
         }
@@ -95,10 +96,11 @@ export const chunkContent = (content: string): string[] => {
 
   // Push remaining chunk
   const finalChunk = result.currentChunk.trim()
-  return [
-    ...result.chunks,
-    ...(finalChunk.length >= MIN_SIZE ? [finalChunk] : []),
-  ]
+  return (
+    finalChunk.length >= MIN_SIZE
+      ? Array.append(result.chunks, finalChunk)
+      : result.chunks
+  ) as string[]
 }
 
 /**
