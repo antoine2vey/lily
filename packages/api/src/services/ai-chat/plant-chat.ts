@@ -14,7 +14,16 @@ import {
   type ToolSet,
   type UIMessage,
 } from 'ai'
-import { Array, Deferred, Effect, Option, pipe } from 'effect'
+import {
+  Array,
+  Deferred,
+  Effect,
+  Match,
+  Option,
+  Predicate,
+  pipe,
+  Struct,
+} from 'effect'
 
 import { buildPlantChatTools } from './tools'
 
@@ -144,24 +153,39 @@ export const plantChat = (
       convertToModelMessages(messages)
     )
 
-    // If image is provided, add it to the last user message
-    pipe(
+    // If image is provided, add it to the last user message immutably
+    const lastIndex = modelMessages.length - 1
+    const finalModelMessages = pipe(
       Option.fromNullable(imageOptions?.imageUrl),
       Option.flatMap((imageUrl) =>
         pipe(
-          Array.last(modelMessages),
+          Array.get(modelMessages, lastIndex),
           Option.filter((msg) => msg.role === 'user'),
           Option.map((lastMsg) => {
-            const existingContent = globalThis.Array.isArray(lastMsg.content)
-              ? lastMsg.content
-              : [{ type: 'text' as const, text: lastMsg.content as string }]
-            lastMsg.content = [
-              ...existingContent,
-              { type: 'image' as const, image: new URL(imageUrl) },
-            ]
+            const imageContent = {
+              type: 'image' as const,
+              image: new URL(imageUrl),
+            }
+            const updatedContent = pipe(
+              Match.value(lastMsg.content),
+              Match.when(Predicate.isString, (str) => [
+                { type: 'text' as const, text: str },
+                imageContent,
+              ]),
+              Match.orElse((arr) =>
+                Array.append(arr as { type: string }[], imageContent)
+              )
+            )
+            return pipe(
+              Array.take(modelMessages, lastIndex),
+              Array.append(
+                Struct.evolve(lastMsg, { content: () => updatedContent })
+              )
+            ) as typeof modelMessages
           })
         )
-      )
+      ),
+      Option.getOrElse(() => modelMessages)
     )
 
     const useVisionModel = Boolean(imageOptions?.imageUrl)
@@ -179,7 +203,7 @@ export const plantChat = (
     const stream: PlantChatStreamResult = streamText({
       model: openai(useVisionModel ? 'gpt-4o' : 'gpt-4o-mini'),
       system: systemPrompt,
-      messages: modelMessages,
+      messages: finalModelMessages,
       tools,
       stopWhen: stepCountIs(2),
       onFinish: ({ steps }) => {

@@ -21,7 +21,7 @@ import type {
   IngestJob,
   RawDocument,
 } from '@lily/shared/knowledge'
-import { Array, Effect, Match, Option, pipe, Ref, Stream } from 'effect'
+import { Array, Effect, Match, Option, pipe, Record, Ref, Stream } from 'effect'
 
 interface ProcessedChunkInput {
   readonly content: string
@@ -29,7 +29,7 @@ interface ProcessedChunkInput {
   readonly metadata: Record<string, unknown> | undefined
 }
 
-const chunkDocument = (doc: RawDocument): ProcessedChunkInput[] =>
+export const chunkDocument = (doc: RawDocument): ProcessedChunkInput[] =>
   pipe(
     Match.value(doc.source),
     Match.when('reddit', () => {
@@ -109,11 +109,13 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
             onSome: (e) => ({
               content: chunk.content,
               embeddingText: e.summary,
-              metadata: {
-                ...chunk.metadata,
-                keywords: e.keywords,
-                summary: e.summary,
-              },
+              metadata: pipe(
+                Array.appendAll(Record.toEntries(chunk.metadata ?? {}), [
+                  ['keywords', e.keywords],
+                  ['summary', e.summary],
+                ] as [string, unknown][]),
+                Record.fromEntries
+              ),
             }),
           })
         )

@@ -58,10 +58,17 @@ export const IngestJobRepositoryLive = Layer.effect(
             db.insert(ingestJobs).values({ adapter, config }).returning()
           )) as IngestJobRow[]
 
-          return pipe(
+          return yield* pipe(
             Array.head(rows),
-            Option.map(mapToIngestJob),
-            Option.getOrThrow
+            Option.match({
+              onNone: () =>
+                Effect.fail(
+                  new UnknownException(
+                    new Error('INSERT into ingest_jobs returned no rows')
+                  )
+                ),
+              onSome: (row) => Effect.succeed(mapToIngestJob(row)),
+            })
           )
         }).pipe(Effect.withSpan('IngestJobRepository.create')),
 
@@ -111,12 +118,8 @@ export const IngestJobRepositoryLive = Layer.effect(
               .update(ingestJobs)
               .set({
                 status,
-                ...(counts?.documentsFetched !== undefined
-                  ? { documentsFetched: counts.documentsFetched }
-                  : {}),
-                ...(counts?.chunksCreated !== undefined
-                  ? { chunksCreated: counts.chunksCreated }
-                  : {}),
+                documentsFetched: counts?.documentsFetched,
+                chunksCreated: counts?.chunksCreated,
               })
               .where(eq(ingestJobs.id, id))
               .returning()

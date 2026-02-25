@@ -6,6 +6,7 @@ import { AdapterError } from '@lily/shared/errors/knowledge'
 import type { AdapterConfig, RedditAdapterConfig } from '@lily/shared/knowledge'
 import {
   Array,
+  Duration,
   Effect,
   Option,
   pipe,
@@ -140,9 +141,14 @@ const fetchRedditJson = <T>(url: string) =>
 
     return json
   }).pipe(
+    // Sleep for the server-specified retry-after duration before each retry
+    Effect.tapError((e: AdapterError | RateLimitedError) =>
+      e._tag === 'RateLimitedError'
+        ? Effect.sleep(Duration.seconds(e.retryAfter))
+        : Effect.void
+    ),
     Effect.retry(
-      Schedule.exponential('5 seconds').pipe(
-        Schedule.intersect(Schedule.recurs(5)),
+      Schedule.recurs(5).pipe(
         Schedule.whileInput(
           (e: AdapterError | RateLimitedError) => e._tag === 'RateLimitedError'
         )
@@ -170,7 +176,7 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
     )
     const limit = Option.getOrElse(Option.fromNullable(config.limit), () => 25)
 
-    const url = `https://www.reddit.com/r/${subreddit}/${sort}.json?t=${timeFilter}&limit=${limit}&raw_json=1`
+    const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json?t=${timeFilter}&limit=${limit}&raw_json=1`
 
     yield* Effect.log(
       `Fetching r/${subreddit}/${sort} (limit=${limit}, t=${timeFilter})`

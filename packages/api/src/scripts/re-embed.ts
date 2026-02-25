@@ -9,20 +9,19 @@
  * 6. Inserts new chunks with metadata
  *
  * Usage:
- *   cd packages/api && bun run src/scripts/re-embed.ts
+ *   cd packages/api && bun run src/scripts/re-embed.ts --confirm
  *
  * Requires KNOWLEDGE_DATABASE_URL and OPENAI_API_KEY env vars.
+ * --confirm is required to prevent accidental data loss.
  */
 
-import type { RedditCommentData } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
 import { categorize } from '@lily/api/services/knowledge-ingestion/processing/categorizer'
-import { chunkContent } from '@lily/api/services/knowledge-ingestion/processing/chunker'
 import { enrichChunk } from '@lily/api/services/knowledge-ingestion/processing/enrichment'
 import {
   extractPlantMentions,
   extractPrimaryPlantType,
 } from '@lily/api/services/knowledge-ingestion/processing/plant-extractor'
-import { chunkRedditDocument } from '@lily/api/services/knowledge-ingestion/processing/reddit-chunker'
+import { chunkDocument } from '@lily/api/services/knowledge-ingestion/processor'
 import { embedTexts } from '@lily/api/services/rag/embedding.service'
 import {
   KnowledgeDrizzle,
@@ -30,63 +29,28 @@ import {
   processedChunks,
   rawDocuments,
 } from '@lily/knowledge-db'
-import type { ContentCategory } from '@lily/shared/knowledge'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import type { ContentCategory, RawDocument } from '@lily/shared/knowledge'
+import { Array, Effect, Option, pipe, Record, Ref } from 'effect'
 
 const EMBED_BATCH_SIZE = 50
 
-interface ChunkInput {
-  readonly content: string
-  readonly embeddingText: string
-  readonly metadata: Record<string, unknown> | undefined
-}
-
-const chunkDocumentBySource = (doc: {
-  content: string
-  source: string
-  title: string
-  score: number | null
-  metadata: unknown
-}): ChunkInput[] =>
-  pipe(
-    Match.value(doc.source),
-    Match.when('reddit', () => {
-      const meta = (doc.metadata ?? {}) as {
-        subreddit?: string
-        postScore?: number
-        comments?: RedditCommentData[]
-      }
-      const chunk = chunkRedditDocument({
-        title: doc.title,
-        content: doc.content,
-        postScore: meta.postScore ?? doc.score ?? 0,
-        subreddit: meta.subreddit ?? 'unknown',
-        comments: meta.comments ?? [],
-      })
-      return [chunk]
-    }),
-    Match.orElse(() =>
-      pipe(
-        chunkContent(doc.content),
-        Array.map(
-          (text): ChunkInput => ({
-            content: text,
-            embeddingText: text,
-            metadata: undefined,
-          })
-        )
-      )
-    )
-  )
-
 const reChunkAndEmbed = Effect.gen(function* () {
+  // Guard: require --confirm to prevent accidental deletion of all processed_chunks
+  const args = Array.drop(process.argv, 2)
+  if (!Array.contains(args, '--confirm')) {
+    yield* Effect.logError(
+      'Refusing to run: this script DELETES all processed_chunks.\n  Usage: bun run src/scripts/re-embed.ts --confirm'
+    )
+    return yield* Effect.fail(new Error('missing --confirm flag'))
+  }
+
   const db = yield* KnowledgeDrizzle
 
   // 1. Delete all existing chunks
   yield* Effect.tryPromise(() => db.delete(processedChunks))
   yield* Effect.log('Deleted all existing chunks')
 
-  // 2. Load all raw documents (including title, metadata, score for reddit dispatch)
+  // 2. Load all raw documents
   const docs = yield* Effect.tryPromise(() =>
     db
       .select({
@@ -96,104 +60,104 @@ const reChunkAndEmbed = Effect.gen(function* () {
         title: rawDocuments.title,
         score: rawDocuments.score,
         metadata: rawDocuments.metadata,
+        sourceUrl: rawDocuments.sourceUrl,
+        sourceId: rawDocuments.sourceId,
+        author: rawDocuments.author,
+        ingestJobId: rawDocuments.ingestJobId,
+        fetchedAt: rawDocuments.fetchedAt,
       })
       .from(rawDocuments)
   )
   yield* Effect.log(`Found ${docs.length} raw documents to re-chunk`)
 
-  // 3. Re-chunk all documents with source-aware dispatch
-  const allChunks: {
-    documentId: string
-    content: string
-    embeddingText: string
-    chunkIndex: number
-    source: string
-    plantType: string | undefined
-    category: string | undefined
-    plantMentions: string[] | undefined
-    metadata: Record<string, unknown> | undefined
-  }[] = []
-
-  for (const doc of docs) {
-    const chunks = chunkDocumentBySource(doc)
-    Array.forEach(chunks, (chunk, i) => {
-      allChunks.push({
-        documentId: doc.id,
-        content: chunk.content,
-        embeddingText: chunk.embeddingText,
-        chunkIndex: i,
-        source: doc.source,
-        plantType: extractPrimaryPlantType(chunk.content),
-        category: categorize(chunk.content),
-        plantMentions: extractPlantMentions(chunk.content),
-        metadata: chunk.metadata,
-      })
-    })
-  }
-
+  // 3. Re-chunk all documents using the shared chunkDocument from processor.ts
+  const allChunks = pipe(
+    docs,
+    Array.flatMap((doc) =>
+      pipe(
+        chunkDocument(doc as unknown as RawDocument),
+        Array.map((chunk, i) => ({
+          documentId: doc.id,
+          content: chunk.content,
+          embeddingText: chunk.embeddingText,
+          chunkIndex: i,
+          source: doc.source,
+          metadata: chunk.metadata,
+        }))
+      )
+    )
+  )
   yield* Effect.log(`Re-chunked into ${allChunks.length} chunks`)
 
-  // 4. AI-enrich each chunk
+  // 4. AI-enrich each chunk immutably
   yield* Effect.log('Starting AI enrichment...')
-  let enriched = 0
-
-  for (const [i, chunk] of allChunks.entries()) {
-    const enrichment = yield* enrichChunk(chunk.content).pipe(
-      Effect.catchAll(() => Effect.succeed(undefined))
-    )
-
-    if (enrichment) {
-      allChunks[i] = {
+  const enrichedChunks = yield* Effect.forEach(allChunks, (chunk) =>
+    enrichChunk(chunk.content).pipe(
+      Effect.map((enrichment) => ({
         ...chunk,
         embeddingText: enrichment.summary,
-        metadata: {
-          ...chunk.metadata,
-          keywords: enrichment.keywords,
-          summary: enrichment.summary,
-        },
-      }
-      enriched++
-    }
-  }
-
-  yield* Effect.log(`Enriched ${enriched}/${allChunks.length} chunks`)
-
-  // 5. Embed and insert in batches (using embeddingText)
-  let inserted = 0
-
-  for (let i = 0; i < allChunks.length; i += EMBED_BATCH_SIZE) {
-    const batch = allChunks.slice(i, i + EMBED_BATCH_SIZE)
-    const texts = Array.map(batch, (c) => c.embeddingText)
-    const embeddings = yield* embedTexts(texts)
-
-    const values = pipe(
-      Array.zip(batch, embeddings),
-      Array.map(([chunk, embedding]) => ({
-        documentId: chunk.documentId,
-        content: chunk.content,
-        chunkIndex: chunk.chunkIndex,
-        source: chunk.source,
-        plantType: Option.getOrNull(Option.fromNullable(chunk.plantType)),
-        category: Option.getOrNull(
-          Option.fromNullable(chunk.category)
-        ) as ContentCategory | null,
-        plantMentions: Option.getOrNull(
-          Option.fromNullable(chunk.plantMentions)
+        metadata: pipe(
+          Array.appendAll(Record.toEntries(chunk.metadata ?? {}), [
+            ['keywords', enrichment.keywords],
+            ['summary', enrichment.summary],
+          ] as [string, unknown][]),
+          Record.fromEntries
         ),
-        metadata: Option.getOrNull(Option.fromNullable(chunk.metadata)),
-        embedding,
-      }))
+      })),
+      Effect.catchAll(() => Effect.succeed(chunk))
     )
+  )
 
-    yield* Effect.tryPromise(() => db.insert(processedChunks).values(values))
+  const enrichedCount = Array.filter(
+    enrichedChunks,
+    (c) => c.metadata !== undefined && 'summary' in (c.metadata ?? {})
+  ).length
+  yield* Effect.log(`Enriched ${enrichedCount}/${enrichedChunks.length} chunks`)
 
-    inserted += batch.length
-    yield* Effect.log(
-      `Progress: ${inserted}/${allChunks.length} chunks embedded and inserted`
-    )
-  }
+  // 5. Embed and insert in batches
+  const batches = Array.chunksOf(enrichedChunks, EMBED_BATCH_SIZE)
+  const insertedRef = yield* Ref.make(0)
 
-  yield* Effect.log(`Done! ${inserted} chunks created.`)
+  yield* Effect.forEach(batches, (batch) =>
+    Effect.gen(function* () {
+      const texts = Array.map(batch, (c) => c.embeddingText)
+      const embeddings = yield* embedTexts(texts)
+
+      const values = pipe(
+        Array.zip(batch, embeddings),
+        Array.map(([chunk, embedding]) => ({
+          documentId: chunk.documentId,
+          content: chunk.content,
+          chunkIndex: chunk.chunkIndex,
+          source: chunk.source,
+          plantType: Option.getOrNull(
+            Option.fromNullable(extractPrimaryPlantType(chunk.content))
+          ),
+          category: Option.getOrNull(
+            Option.fromNullable(categorize(chunk.content))
+          ) as ContentCategory | null,
+          plantMentions: Option.getOrNull(
+            Option.fromNullable(extractPlantMentions(chunk.content))
+          ),
+          metadata: Option.getOrNull(Option.fromNullable(chunk.metadata)),
+          embedding,
+        }))
+      )
+
+      yield* Effect.tryPromise(() => db.insert(processedChunks).values(values))
+
+      const total = yield* Ref.updateAndGet(
+        insertedRef,
+        (n) => n + batch.length
+      )
+      yield* Effect.log(
+        `Progress: ${total}/${enrichedChunks.length} chunks embedded and inserted`
+      )
+    })
+  )
+
+  const finalCount = yield* Ref.get(insertedRef)
+  yield* Effect.log(`Done! ${finalCount} chunks created.`)
 })
 
 const program = reChunkAndEmbed.pipe(
