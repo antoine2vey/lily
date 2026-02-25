@@ -164,6 +164,8 @@ const fetchRedditJson = <T>(url: string) =>
     )
   )
 
+const REDDIT_PAGE_SIZE = 100
+
 const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
   Effect.gen(function* () {
     const sort = Option.getOrElse(
@@ -174,19 +176,49 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
       Option.fromNullable(config.timeFilter),
       () => 'year' as const
     )
-    const limit = Option.getOrElse(Option.fromNullable(config.limit), () => 25)
+    const totalLimit = Option.getOrElse(
+      Option.fromNullable(config.limit),
+      () => 25
+    )
+    const pageSize = Math.min(totalLimit, REDDIT_PAGE_SIZE)
 
-    const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json?t=${timeFilter}&limit=${limit}&raw_json=1`
+    let allPosts: RedditPost[] = []
+    let after: string | null = null
+    let fetched = 0
 
     yield* Effect.log(
-      `Fetching r/${subreddit}/${sort} (limit=${limit}, t=${timeFilter})`
+      `Fetching r/${subreddit}/${sort} (limit=${totalLimit}, t=${timeFilter})`
     )
 
-    const response = yield* fetchRedditJson<RedditListing>(url)
-    const posts = response.data.children
+    while (fetched < totalLimit) {
+      const afterParam = pipe(
+        Option.fromNullable(after),
+        Option.match({
+          onNone: () => '',
+          onSome: (a) => `&after=${a}`,
+        })
+      )
+      const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json?t=${timeFilter}&limit=${pageSize}&raw_json=1${afterParam}`
+
+      yield* Effect.sleep(REQUEST_DELAY)
+      const response = yield* fetchRedditJson<RedditListing>(url)
+      const posts = response.data.children
+
+      if (Array.isEmptyArray(posts)) {
+        break
+      }
+
+      allPosts = [...allPosts, ...posts]
+      fetched = fetched + posts.length
+      after = response.data.after
+
+      if (after === null) {
+        break
+      }
+    }
 
     const qualified = Array.filter(
-      posts,
+      allPosts,
       (p) =>
         p.data.selftext.length > 0 &&
         p.data.score >= MIN_POST_SCORE &&
@@ -194,7 +226,7 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
     )
 
     yield* Effect.log(
-      `r/${subreddit}: ${posts.length} posts fetched, ${qualified.length} qualified (score >= ${MIN_POST_SCORE}, comments >= ${MIN_POST_COMMENTS})`
+      `r/${subreddit}: ${allPosts.length} posts fetched, ${qualified.length} qualified (score >= ${MIN_POST_SCORE}, comments >= ${MIN_POST_COMMENTS})`
     )
 
     return qualified
