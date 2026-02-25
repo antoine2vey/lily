@@ -191,17 +191,17 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
     )
 
     while (fetched < totalLimit) {
-      const afterParam = pipe(
+      const afterParam: string = pipe(
         Option.fromNullable(after),
         Option.match({
           onNone: () => '',
           onSome: (a) => `&after=${a}`,
         })
       )
-      const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json?t=${timeFilter}&limit=${pageSize}&raw_json=1${afterParam}`
+      const url: string = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json?t=${timeFilter}&limit=${pageSize}&raw_json=1${afterParam}`
 
       yield* Effect.sleep(REQUEST_DELAY)
-      const response = yield* fetchRedditJson<RedditListing>(url)
+      const response: RedditListing = yield* fetchRedditJson<RedditListing>(url)
       const posts = response.data.children
 
       if (Array.isEmptyArray(posts)) {
