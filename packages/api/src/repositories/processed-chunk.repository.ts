@@ -139,13 +139,13 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               ),
               vector_candidates AS (
                 SELECT id,
-                       (embedding <=> ${sql.raw(vectorStr)}::vector) AS vdist,
-                       RANK() OVER (ORDER BY embedding <=> ${sql.raw(vectorStr)}::vector) AS vrank
+                       (embedding <=> ${sql.raw(vectorStr)}::halfvec) AS vdist,
+                       RANK() OVER (ORDER BY embedding <=> ${sql.raw(vectorStr)}::halfvec) AS vrank
                 FROM processed_chunks
                 WHERE embedding IS NOT NULL
-                  AND (embedding <=> ${sql.raw(vectorStr)}::vector) < ${distanceThresholdRaw}
+                  AND (embedding <=> ${sql.raw(vectorStr)}::halfvec) < ${distanceThresholdRaw}
                   ${plantTypeCondition}
-                ORDER BY embedding <=> ${sql.raw(vectorStr)}::vector
+                ORDER BY embedding <=> ${sql.raw(vectorStr)}::halfvec
                 LIMIT ${candidateLimitRaw}
               ),
               fts_candidates AS (

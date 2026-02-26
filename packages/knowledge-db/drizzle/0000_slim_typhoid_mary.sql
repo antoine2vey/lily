@@ -22,7 +22,7 @@ CREATE TABLE "processed_chunks" (
 	"plant_type" text,
 	"category" "content_category",
 	"plant_mentions" jsonb,
-	"embedding" vector(3072),
+	"embedding" halfvec(3072),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
