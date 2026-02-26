@@ -1,5 +1,4 @@
 # Single stage build to preserve Bun's workspace symlinks
-# knowledge-db migrations included
 FROM oven/bun:1.3.8-alpine
 WORKDIR /app
 
