@@ -7,7 +7,6 @@ on:
       - 'v*'
     paths:
       - 'packages/app/**'
-      - 'packages/shared/**'
       - '!packages/app/eas.json'
       - '!packages/app/app.json'
 
