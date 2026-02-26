@@ -35,6 +35,40 @@ services:
       timeout: 5s
       retries: 5
 
+  knowledge-db:
+    image: pgvector/pgvector:pg17
+    container_name: lily-knowledge-db
+    environment:
+      POSTGRES_DB: lily_knowledge
+      POSTGRES_USER: lily
+      POSTGRES_PASSWORD: lily123
+    ports:
+      - '5434:5432'
+    volumes:
+      - knowledge_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lily -d lily_knowledge']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  knowledge-db-test:
+    image: pgvector/pgvector:pg17
+    container_name: lily-knowledge-db-test
+    environment:
+      POSTGRES_DB: lily_knowledge_test
+      POSTGRES_USER: lily
+      POSTGRES_PASSWORD: lily123
+    ports:
+      - '5435:5432'
+    volumes:
+      - knowledge_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lily -d lily_knowledge_test']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: lily-redis
@@ -57,10 +91,13 @@ services:
       - '3000:3000'
     environment:
       DATABASE_URL: postgresql://lily:lily123@postgres:5432/lily
+      KNOWLEDGE_DATABASE_URL: postgresql://lily:lily123@knowledge-db:5432/lily_knowledge
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
     depends_on:
       postgres:
+        condition: service_healthy
+      knowledge-db:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -72,4 +109,6 @@ services:
 volumes:
   postgres_data:
   postgres_test_data:
+  knowledge_data:
+  knowledge_test_data:
   redis_data:

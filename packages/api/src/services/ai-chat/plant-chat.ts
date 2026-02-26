@@ -4,6 +4,7 @@ import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
@@ -14,7 +15,16 @@ import {
   type ToolSet,
   type UIMessage,
 } from 'ai'
-import { Array, Deferred, Effect, Option, pipe } from 'effect'
+import {
+  Array,
+  Deferred,
+  Effect,
+  Match,
+  Option,
+  Predicate,
+  pipe,
+  Struct,
+} from 'effect'
 
 import { buildPlantChatTools } from './tools'
 
@@ -38,7 +48,7 @@ export interface PlantChatResult {
   completionDeferred: Deferred.Deferred<readonly StepData[]>
 }
 
-export interface PlantChatOptions {
+export interface PlantChatImageOptions {
   imageUrl?: string | undefined
   imageKey?: string | undefined
 }
@@ -46,12 +56,13 @@ export interface PlantChatOptions {
 export const plantChat = (
   plantId: string,
   messages: UIMessage[],
-  options?: PlantChatOptions
+  imageOptions?: PlantChatImageOptions
 ) => {
   return Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const diagnosisRepo = yield* DiagnosisRepository
+    const ragService = yield* RagService
     const { id: userId } = yield* CurrentUser
 
     const plant = yield* plantRepo.findById(plantId)
@@ -77,6 +88,20 @@ export const plantChat = (
       ),
       Array.join('\n')
     )
+
+    const lastUserMessage = pipe(
+      Array.last(messages),
+      Option.filter((m) => m.role === 'user'),
+      Option.flatMap((m) => Array.findFirst(m.parts, (p) => p.type === 'text')),
+      Option.map((p) => (p as { type: 'text'; text: string }).text),
+      Option.getOrElse(() => '')
+    )
+    const ragQuery = `${plant.name}: ${lastUserMessage}`
+    const ragChunks = yield* ragService.retrieve({
+      query: ragQuery,
+      plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
+    })
+    const knowledgeContext = ragService.formatContext(ragChunks)
 
     const daysSinceAdded = daysSince(plant.dateAdded)
 
@@ -117,12 +142,15 @@ export const plantChat = (
       Recent Care History:
       ${careHistoryText || 'No care events recorded yet'}
 
+      ${knowledgeContext}
+
       Guidelines:
       - Always respond in the same language as the user's message. This includes tool call fields (disease name, symptoms, treatment steps, prevention tips).
       - Answer any questions related to plant care, even general ones, by applying your knowledge to this specific plant
       - Use the plant data and care history above to personalize your advice
       - If the plant health is NEEDS_ATTENTION or SICK, proactively offer troubleshooting advice
       - Reference the care schedule when answering watering/fertilization questions
+      - Always provide actionable solutions, not just problem identification — if you name a cause, follow it with concrete steps the user can take right now
       - Keep responses concise and practical
       - If asked about topics completely unrelated to plants or gardening, politely redirect: "I'm here to help with plant care questions about ${plant.name}. What would you like to know about caring for it?"
 
@@ -141,33 +169,48 @@ export const plantChat = (
       convertToModelMessages(messages)
     )
 
-    // If image is provided, add it to the last user message
-    pipe(
-      Option.fromNullable(options?.imageUrl),
+    // If image is provided, add it to the last user message immutably
+    const lastIndex = modelMessages.length - 1
+    const finalModelMessages = pipe(
+      Option.fromNullable(imageOptions?.imageUrl),
       Option.flatMap((imageUrl) =>
         pipe(
-          Array.last(modelMessages),
+          Array.get(modelMessages, lastIndex),
           Option.filter((msg) => msg.role === 'user'),
           Option.map((lastMsg) => {
-            const existingContent = globalThis.Array.isArray(lastMsg.content)
-              ? lastMsg.content
-              : [{ type: 'text' as const, text: lastMsg.content as string }]
-            lastMsg.content = [
-              ...existingContent,
-              { type: 'image' as const, image: new URL(imageUrl) },
-            ]
+            const imageContent = {
+              type: 'image' as const,
+              image: new URL(imageUrl),
+            }
+            const updatedContent = pipe(
+              Match.value(lastMsg.content),
+              Match.when(Predicate.isString, (str) => [
+                { type: 'text' as const, text: str },
+                imageContent,
+              ]),
+              Match.orElse((arr) =>
+                Array.append(arr as { type: string }[], imageContent)
+              )
+            )
+            return pipe(
+              Array.take(modelMessages, lastIndex),
+              Array.append(
+                Struct.evolve(lastMsg, { content: () => updatedContent })
+              )
+            ) as typeof modelMessages
           })
         )
-      )
+      ),
+      Option.getOrElse(() => modelMessages)
     )
 
-    const useVisionModel = Boolean(options?.imageUrl)
+    const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const tools = buildPlantChatTools({
       diagnosisRepo,
       userId,
       plantId,
-      imageKey: options?.imageKey,
+      imageKey: imageOptions?.imageKey,
     })
 
     // Deferred that resolves with step data when streaming finishes
@@ -176,7 +219,7 @@ export const plantChat = (
     const stream: PlantChatStreamResult = streamText({
       model: openai(useVisionModel ? 'gpt-4o' : 'gpt-4o-mini'),
       system: systemPrompt,
-      messages: modelMessages,
+      messages: finalModelMessages,
       tools,
       stopWhen: stepCountIs(2),
       onFinish: ({ steps }) => {

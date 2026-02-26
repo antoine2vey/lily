@@ -13,6 +13,7 @@ import {
   MockLimitCheckerLive,
 } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
@@ -82,7 +83,8 @@ describe('streamChatMessage', () => {
       opts.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
-      MockUsageTrackerLive
+      MockUsageTrackerLive,
+      MockRagServiceLive
     ).pipe(
       Layer.merge(createMockGCSService()),
       Layer.merge(emptyDelegationMock)
