@@ -2,6 +2,7 @@ import { contentCategoryEnum } from '@lily/knowledge-db/schema/enums'
 import { rawDocuments } from '@lily/knowledge-db/schema/raw-documents'
 import { relations } from 'drizzle-orm'
 import {
+  type AnyPgColumn,
   customType,
   index,
   integer,
@@ -32,7 +33,7 @@ export const processedChunks = pgTable(
       .notNull()
       .references(() => rawDocuments.id, { onDelete: 'cascade' }),
     parentChunkId: uuid('parent_chunk_id').references(
-      () => processedChunks.id,
+      (): AnyPgColumn => processedChunks.id,
       { onDelete: 'cascade' }
     ),
     content: text('content').notNull(),
