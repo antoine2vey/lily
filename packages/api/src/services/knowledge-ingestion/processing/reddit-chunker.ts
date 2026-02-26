@@ -1,4 +1,5 @@
 import type { RedditCommentData } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
+import { chunkContent } from '@lily/api/services/knowledge-ingestion/processing/chunker'
 import { Array, Option, Order, pipe, String } from 'effect'
 
 const MAX_COMMENTS_PER_THREAD = 5
@@ -91,17 +92,28 @@ export const chunkRedditDocument = (
     topCommentScore,
   }
 
+  // Split long comment bodies with chunkContent so no single child exceeds
+  // the embedding model's token limit (8192 tokens for text-embedding-3-large).
+  // Each resulting chunk keeps the question as context prefix.
   const children: RedditChunkChild[] = pipe(
     sortedComments,
-    Array.map(
-      (comment): RedditChunkChild => ({
-        content: `Q: ${input.title}\n\nA: ${comment.body}`,
+    Array.flatMap((comment): RedditChunkChild[] => {
+      const bodyChunks: readonly string[] = Array.match(
+        chunkContent(comment.body),
+        {
+          onEmpty: (): readonly string[] => [comment.body],
+          onNonEmpty: (chunks) => chunks,
+        }
+      )
+
+      return Array.map(bodyChunks, (chunk) => ({
+        content: `Q: ${input.title}\n\nA: ${chunk}`,
         metadata: {
           chunkType: 'reddit_thread',
           subreddit: input.subreddit,
         },
-      })
-    )
+      }))
+    })
   )
 
   return {
