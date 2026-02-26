@@ -23,6 +23,8 @@ COPY packages/shared/tsconfig.json ./packages/shared/
 COPY packages/api/src ./packages/api/src
 COPY packages/db ./packages/db
 COPY packages/knowledge-db/src ./packages/knowledge-db/src
+COPY packages/knowledge-db/scripts ./packages/knowledge-db/scripts
+COPY packages/knowledge-db/drizzle ./packages/knowledge-db/drizzle
 COPY packages/shared/src ./packages/shared/src
 
 EXPOSE 3000
