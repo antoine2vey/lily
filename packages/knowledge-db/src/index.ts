@@ -13,12 +13,12 @@ const KnowledgePgClientLive = PgClient.layerConfig({
   url: Config.redacted('KNOWLEDGE_DATABASE_URL'),
 })
 
-export const KnowledgeDrizzleLive = Layer.effect(
+// Use Effect.provide(layer) so the knowledge PgClient is built in isolation,
+// never sharing the global PgDrizzle.PgDrizzle memo with the main database.
+export const KnowledgeDrizzleLive = Layer.scoped(
   KnowledgeDrizzle,
-  Effect.gen(function* () {
-    return yield* PgDrizzle.PgDrizzle
-  })
-).pipe(Layer.provide(PgDrizzle.layer), Layer.provide(KnowledgePgClientLive))
+  PgDrizzle.make().pipe(Effect.provide(KnowledgePgClientLive))
+)
 
 export * from '@lily/knowledge-db/schema'
 export { schema }
