@@ -131,7 +131,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           const candidateLimitRaw = sql.raw(String(candidateLimit))
           const limitRaw = sql.raw(String(limit))
 
-          const rawRows = yield* db
+          const dbResult = yield* db
             .execute(sql`
 
               WITH fts_query AS (
@@ -213,8 +213,17 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               })
             )
 
+          // @effect/sql-drizzle/Pg wraps the pg QueryResult in an outer array
+          // when using db.execute(): the actual rows live at result[0].rows
+          const rawRows = pipe(
+            dbResult as unknown as ReadonlyArray<{ rows: SearchRow[] }>,
+            Array.head,
+            Option.map((qr) => qr.rows),
+            Option.getOrElse((): SearchRow[] => [])
+          )
+
           return Array.map(
-            rawRows as unknown as SearchRow[],
+            rawRows,
             (r): ChunkSearchResult => ({
               id: r.id,
               content: r.content,
