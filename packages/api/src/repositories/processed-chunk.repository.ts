@@ -1,3 +1,4 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import {
   KnowledgeDrizzle,
   processedChunks,
@@ -6,7 +7,6 @@ import {
 import type { ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
 import { count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import type { UnknownException } from 'effect/Cause'
 
 export interface CreateProcessedChunkData {
   id?: string | undefined
@@ -45,21 +45,19 @@ interface SearchRow {
 export interface IProcessedChunkRepository {
   readonly create: (
     data: CreateProcessedChunkData
-  ) => Effect.Effect<void, UnknownException>
+  ) => Effect.Effect<void, SqlError>
   readonly createMany: (
     chunks: CreateProcessedChunkData[]
-  ) => Effect.Effect<void, UnknownException>
+  ) => Effect.Effect<void, SqlError>
   readonly search: (
     params: SearchChunksParams
-  ) => Effect.Effect<ChunkSearchResult[], UnknownException>
-  readonly count: () => Effect.Effect<number, UnknownException>
+  ) => Effect.Effect<ChunkSearchResult[], SqlError>
+  readonly count: () => Effect.Effect<number, SqlError>
   readonly countBySource: () => Effect.Effect<
     { source: string; count: number }[],
-    UnknownException
+    SqlError
   >
-  readonly countByJobId: (
-    jobId: string
-  ) => Effect.Effect<number, UnknownException>
+  readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
 }
 
 export class ProcessedChunkRepository extends Context.Tag(
@@ -87,12 +85,13 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
 
     return {
       create: (data: CreateProcessedChunkData) =>
-        Effect.tryPromise(() =>
-          db.insert(processedChunks).values(toInsertValues(data))
-        ).pipe(
-          Effect.asVoid,
-          Effect.withSpan('ProcessedChunkRepository.create')
-        ),
+        db
+          .insert(processedChunks)
+          .values(toInsertValues(data))
+          .pipe(
+            Effect.asVoid,
+            Effect.withSpan('ProcessedChunkRepository.create')
+          ),
 
       createMany: (chunks: CreateProcessedChunkData[]) =>
         Effect.gen(function* () {
@@ -100,9 +99,9 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
             return
           }
 
-          yield* Effect.tryPromise(() =>
-            db.insert(processedChunks).values(Array.map(chunks, toInsertValues))
-          )
+          yield* db
+            .insert(processedChunks)
+            .values(Array.map(chunks, toInsertValues))
         }).pipe(Effect.withSpan('ProcessedChunkRepository.createMany')),
 
       search: (params: SearchChunksParams) =>
@@ -132,8 +131,8 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           const candidateLimitRaw = sql.raw(String(candidateLimit))
           const limitRaw = sql.raw(String(limit))
 
-          const rows = (yield* Effect.tryPromise(() =>
-            db.execute(sql`
+          const rawRows = yield* db
+            .execute(sql`
 
               WITH fts_query AS (
                 SELECT plainto_tsquery('english', ${params.queryText}) AS q
@@ -195,27 +194,27 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               WHERE vector_similarity >= ${similarityThresholdRaw}
               ORDER BY rrf_score DESC LIMIT ${limitRaw}
             `)
-          ).pipe(
-            Effect.tapError((e) => {
-              const err = e as unknown as {
-                cause?: {
-                  code?: string
-                  message?: string
-                  detail?: string
-                  hint?: string
+            .pipe(
+              Effect.tapError((e) => {
+                const err = e as unknown as {
+                  cause?: {
+                    code?: string
+                    message?: string
+                    detail?: string
+                    hint?: string
+                  }
                 }
-              }
-              const pgCode = err?.cause?.code ?? 'unknown'
-              const pgMessage = err?.cause?.message ?? String(e)
-              return Effect.logError(`[search] PG ${pgCode}: ${pgMessage}`, {
-                detail: err?.cause?.detail,
-                hint: err?.cause?.hint,
+                const pgCode = err?.cause?.code ?? 'unknown'
+                const pgMessage = err?.cause?.message ?? String(e)
+                return Effect.logError(`[search] PG ${pgCode}: ${pgMessage}`, {
+                  detail: err?.cause?.detail,
+                  hint: err?.cause?.hint,
+                })
               })
-            })
-          )) as unknown as { rows: SearchRow[] }
+            )
 
           return Array.map(
-            rows.rows,
+            rawRows as unknown as SearchRow[],
             (r): ChunkSearchResult => ({
               id: r.id,
               content: r.content,
@@ -230,59 +229,49 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
         }).pipe(Effect.withSpan('ProcessedChunkRepository.search')),
 
       count: () =>
-        Effect.tryPromise(
-          () =>
-            db.select({ value: count() }).from(processedChunks) as Promise<
-              { value: number }[]
-            >
-        ).pipe(
-          Effect.map((result) =>
-            pipe(
-              Array.head(result),
-              Option.map((r) => r.value),
-              Option.getOrElse(() => 0)
-            )
+        db
+          .select({ value: count() })
+          .from(processedChunks)
+          .pipe(
+            Effect.map((result) =>
+              pipe(
+                Array.head(result),
+                Option.map((r) => r.value),
+                Option.getOrElse(() => 0)
+              )
+            ),
+            Effect.withSpan('ProcessedChunkRepository.count')
           ),
-          Effect.withSpan('ProcessedChunkRepository.count')
-        ),
 
       countBySource: () =>
-        Effect.tryPromise(
-          () =>
-            db
-              .select({
-                source: processedChunks.source,
-                count: count(),
-              })
-              .from(processedChunks)
-              .groupBy(processedChunks.source) as Promise<
-              { source: string; count: number }[]
-            >
-        ).pipe(Effect.withSpan('ProcessedChunkRepository.countBySource')),
+        db
+          .select({
+            source: processedChunks.source,
+            count: count(),
+          })
+          .from(processedChunks)
+          .groupBy(processedChunks.source)
+          .pipe(Effect.withSpan('ProcessedChunkRepository.countBySource')),
 
       countByJobId: (jobId: string) =>
-        Effect.tryPromise(
-          () =>
-            db
-              .select({ value: count() })
-              .from(processedChunks)
-              .innerJoin(
-                rawDocuments,
-                eq(processedChunks.documentId, rawDocuments.id)
+        db
+          .select({ value: count() })
+          .from(processedChunks)
+          .innerJoin(
+            rawDocuments,
+            eq(processedChunks.documentId, rawDocuments.id)
+          )
+          .where(eq(rawDocuments.ingestJobId, jobId))
+          .pipe(
+            Effect.map((result) =>
+              pipe(
+                Array.head(result),
+                Option.map((r) => r.value),
+                Option.getOrElse(() => 0)
               )
-              .where(eq(rawDocuments.ingestJobId, jobId)) as Promise<
-              { value: number }[]
-            >
-        ).pipe(
-          Effect.map((result) =>
-            pipe(
-              Array.head(result),
-              Option.map((r) => r.value),
-              Option.getOrElse(() => 0)
-            )
+            ),
+            Effect.withSpan('ProcessedChunkRepository.countByJobId')
           ),
-          Effect.withSpan('ProcessedChunkRepository.countByJobId')
-        ),
     }
   })
 )

@@ -1,8 +1,8 @@
+import { SqlError } from '@effect/sql/SqlError'
 import { ingestJobs, KnowledgeDrizzle } from '@lily/knowledge-db'
 import type { IngestJob, IngestJobStatus } from '@lily/shared/knowledge'
 import { count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import { UnknownException } from 'effect/Cause'
 
 type IngestJobRow = typeof ingestJobs.$inferSelect
 
@@ -23,22 +23,20 @@ export interface IIngestJobRepository {
   readonly create: (
     adapter: string,
     config: unknown
-  ) => Effect.Effect<IngestJob, UnknownException>
-  readonly findById: (
-    id: string
-  ) => Effect.Effect<IngestJob | null, UnknownException>
-  readonly findAll: () => Effect.Effect<IngestJob[], UnknownException>
-  readonly findPending: () => Effect.Effect<IngestJob[], UnknownException>
+  ) => Effect.Effect<IngestJob, SqlError>
+  readonly findById: (id: string) => Effect.Effect<IngestJob | null, SqlError>
+  readonly findAll: () => Effect.Effect<IngestJob[], SqlError>
+  readonly findPending: () => Effect.Effect<IngestJob[], SqlError>
   readonly updateStatus: (
     id: string,
     status: IngestJobStatus,
     counts?: { documentsFetched?: number; chunksCreated?: number }
-  ) => Effect.Effect<IngestJob | null, UnknownException>
+  ) => Effect.Effect<IngestJob | null, SqlError>
   readonly updateError: (
     id: string,
     error: string
-  ) => Effect.Effect<void, UnknownException>
-  readonly count: () => Effect.Effect<number, UnknownException>
+  ) => Effect.Effect<void, SqlError>
+  readonly count: () => Effect.Effect<number, SqlError>
 }
 
 export class IngestJobRepository extends Context.Tag('IngestJobRepository')<
@@ -54,18 +52,22 @@ export const IngestJobRepositoryLive = Layer.effect(
     return {
       create: (adapter: string, config: unknown) =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db.insert(ingestJobs).values({ adapter, config }).returning()
-          )) as IngestJobRow[]
+          const rows = yield* db
+            .insert(ingestJobs)
+            .values({ adapter, config })
+            .returning()
 
           return yield* pipe(
             Array.head(rows),
             Option.match({
               onNone: () =>
                 Effect.fail(
-                  new UnknownException(
-                    new Error('INSERT into ingest_jobs returned no rows')
-                  )
+                  new SqlError({
+                    cause: new Error(
+                      'INSERT into ingest_jobs returned no rows'
+                    ),
+                    message: 'INSERT into ingest_jobs returned no rows',
+                  })
                 ),
               onSome: (row) => Effect.succeed(mapToIngestJob(row)),
             })
@@ -74,9 +76,10 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       findById: (id: string) =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db.select().from(ingestJobs).where(eq(ingestJobs.id, id))
-          )) as IngestJobRow[]
+          const rows = yield* db
+            .select()
+            .from(ingestJobs)
+            .where(eq(ingestJobs.id, id))
 
           return pipe(
             Array.head(rows),
@@ -87,22 +90,21 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       findAll: () =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db.select().from(ingestJobs).orderBy(desc(ingestJobs.createdAt))
-          )) as IngestJobRow[]
+          const rows = yield* db
+            .select()
+            .from(ingestJobs)
+            .orderBy(desc(ingestJobs.createdAt))
 
           return Array.map(rows, mapToIngestJob)
         }).pipe(Effect.withSpan('IngestJobRepository.findAll')),
 
       findPending: () =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db
-              .select()
-              .from(ingestJobs)
-              .where(eq(ingestJobs.status, 'pending'))
-              .orderBy(ingestJobs.createdAt)
-          )) as IngestJobRow[]
+          const rows = yield* db
+            .select()
+            .from(ingestJobs)
+            .where(eq(ingestJobs.status, 'pending'))
+            .orderBy(ingestJobs.createdAt)
 
           return Array.map(rows, mapToIngestJob)
         }).pipe(Effect.withSpan('IngestJobRepository.findPending')),
@@ -113,17 +115,15 @@ export const IngestJobRepositoryLive = Layer.effect(
         counts?: { documentsFetched?: number; chunksCreated?: number }
       ) =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db
-              .update(ingestJobs)
-              .set({
-                status,
-                documentsFetched: counts?.documentsFetched,
-                chunksCreated: counts?.chunksCreated,
-              })
-              .where(eq(ingestJobs.id, id))
-              .returning()
-          )) as IngestJobRow[]
+          const rows = yield* db
+            .update(ingestJobs)
+            .set({
+              status,
+              documentsFetched: counts?.documentsFetched,
+              chunksCreated: counts?.chunksCreated,
+            })
+            .where(eq(ingestJobs.id, id))
+            .returning()
 
           return pipe(
             Array.head(rows),
@@ -134,19 +134,15 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       updateError: (id: string, error: string) =>
         Effect.gen(function* () {
-          yield* Effect.tryPromise(() =>
-            db
-              .update(ingestJobs)
-              .set({ error, status: 'failed' })
-              .where(eq(ingestJobs.id, id))
-          )
+          yield* db
+            .update(ingestJobs)
+            .set({ error, status: 'failed' })
+            .where(eq(ingestJobs.id, id))
         }).pipe(Effect.withSpan('IngestJobRepository.updateError')),
 
       count: () =>
         Effect.gen(function* () {
-          const result = (yield* Effect.tryPromise(() =>
-            db.select({ value: count() }).from(ingestJobs)
-          )) as { value: number }[]
+          const result = yield* db.select({ value: count() }).from(ingestJobs)
 
           return pipe(
             Array.head(result),

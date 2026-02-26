@@ -1,7 +1,7 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import { Array, Effect, pipe } from 'effect'
-import type { UnknownException } from 'effect/Cause'
 
 export interface KnowledgeStatsResult {
   readonly totalChunks: number
@@ -12,7 +12,7 @@ export interface KnowledgeStatsResult {
 
 export const getKnowledgeStats: Effect.Effect<
   KnowledgeStatsResult,
-  UnknownException,
+  SqlError,
   IngestJobRepository | ProcessedChunkRepository
 > = Effect.gen(function* () {
   const jobRepo = yield* IngestJobRepository

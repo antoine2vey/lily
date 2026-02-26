@@ -1,21 +1,24 @@
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { PgClient } from '@effect/sql-pg'
 import * as schema from '@lily/knowledge-db/schema'
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { PgRemoteDatabase } from 'drizzle-orm/pg-proxy'
 import { Config, Context, Effect, Layer } from 'effect'
-import { Pool } from 'pg'
 
 export class KnowledgeDrizzle extends Context.Tag('KnowledgeDrizzle')<
   KnowledgeDrizzle,
-  NodePgDatabase<typeof schema>
+  PgRemoteDatabase<Record<string, never>>
 >() {}
+
+const KnowledgePgClientLive = PgClient.layerConfig({
+  url: Config.redacted('KNOWLEDGE_DATABASE_URL'),
+})
 
 export const KnowledgeDrizzleLive = Layer.effect(
   KnowledgeDrizzle,
   Effect.gen(function* () {
-    const url = yield* Config.string('KNOWLEDGE_DATABASE_URL')
-    const pool = new Pool({ connectionString: url })
-    return drizzle(pool, { schema })
+    return yield* PgDrizzle.PgDrizzle
   })
-)
+).pipe(Layer.provide(PgDrizzle.layer), Layer.provide(KnowledgePgClientLive))
 
 export * from '@lily/knowledge-db/schema'
 export { schema }

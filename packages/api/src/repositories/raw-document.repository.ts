@@ -1,8 +1,8 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import { KnowledgeDrizzle, rawDocuments } from '@lily/knowledge-db'
 import type { RawDocument } from '@lily/shared/knowledge'
 import { count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import type { UnknownException } from 'effect/Cause'
 
 type RawDocumentRow = typeof rawDocuments.$inferSelect
 
@@ -35,13 +35,11 @@ const mapToRawDocument = (row: RawDocumentRow): RawDocument => ({
 export interface IRawDocumentRepository {
   readonly create: (
     data: CreateRawDocumentData
-  ) => Effect.Effect<RawDocument, UnknownException>
+  ) => Effect.Effect<RawDocument, SqlError>
   readonly findBySourceId: (
     sourceId: string
-  ) => Effect.Effect<RawDocument | null, UnknownException>
-  readonly countByJobId: (
-    jobId: string
-  ) => Effect.Effect<number, UnknownException>
+  ) => Effect.Effect<RawDocument | null, SqlError>
+  readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
 }
 
 export class RawDocumentRepository extends Context.Tag('RawDocumentRepository')<
@@ -57,9 +55,7 @@ export const RawDocumentRepositoryLive = Layer.effect(
     return {
       create: (data: CreateRawDocumentData) =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db.insert(rawDocuments).values(data).returning()
-          )) as RawDocumentRow[]
+          const rows = yield* db.insert(rawDocuments).values(data).returning()
 
           return pipe(
             Array.head(rows),
@@ -70,13 +66,11 @@ export const RawDocumentRepositoryLive = Layer.effect(
 
       findBySourceId: (sourceId: string) =>
         Effect.gen(function* () {
-          const rows = (yield* Effect.tryPromise(() =>
-            db
-              .select()
-              .from(rawDocuments)
-              .where(eq(rawDocuments.sourceId, sourceId))
-              .limit(1)
-          )) as RawDocumentRow[]
+          const rows = yield* db
+            .select()
+            .from(rawDocuments)
+            .where(eq(rawDocuments.sourceId, sourceId))
+            .limit(1)
 
           return pipe(
             Array.head(rows),
@@ -87,12 +81,10 @@ export const RawDocumentRepositoryLive = Layer.effect(
 
       countByJobId: (jobId: string) =>
         Effect.gen(function* () {
-          const result = (yield* Effect.tryPromise(() =>
-            db
-              .select({ value: count() })
-              .from(rawDocuments)
-              .where(eq(rawDocuments.ingestJobId, jobId))
-          )) as { value: number }[]
+          const result = yield* db
+            .select({ value: count() })
+            .from(rawDocuments)
+            .where(eq(rawDocuments.ingestJobId, jobId))
 
           return pipe(
             Array.head(result),
