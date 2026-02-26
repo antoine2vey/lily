@@ -111,7 +111,7 @@ export const IngestJobRepositoryLive = Layer.effect(
 
       updateStatus: (
         id: string,
-        status: IngestJob['status'],
+        status: IngestJobStatus,
         counts?: { documentsFetched?: number; chunksCreated?: number }
       ) =>
         Effect.gen(function* () {

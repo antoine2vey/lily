@@ -2,7 +2,6 @@ import { Match, pipe, String } from 'effect'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSendMagicLink, useVerifyCode } from '@/hooks/use-auth'
-import { getApiUrl, setApiUrl } from '@/lib/auth'
 
 type Step = 'email' | 'code'
 
@@ -14,11 +13,9 @@ export const LoginPage = () => {
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
-  const [apiUrl, setApiUrlValue] = useState(getApiUrl())
 
   const handleSendLink = (e: React.FormEvent) => {
     e.preventDefault()
-    setApiUrl(apiUrl)
     sendMagicLink.mutate(email, {
       onSuccess: () => setStep('code'),
     })
@@ -55,21 +52,6 @@ export const LoginPage = () => {
               onSubmit={handleSendLink}
               className="mt-5 space-y-4"
             >
-              <div>
-                <label
-                  htmlFor="api-url"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  API URL
-                </label>
-                <input
-                  id="api-url"
-                  type="url"
-                  value={apiUrl}
-                  onChange={(e) => setApiUrlValue(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-              </div>
               <div>
                 <label
                   htmlFor="email"

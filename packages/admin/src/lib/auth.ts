@@ -1,7 +1,5 @@
 const ACCESS_TOKEN_KEY = 'lily_admin_access_token'
 const REFRESH_TOKEN_KEY = 'lily_admin_refresh_token'
-const API_URL_KEY = 'lily_admin_api_url'
-const DEFAULT_API_URL = 'http://localhost:3000'
 
 export const getAccessToken = (): string | null =>
   localStorage.getItem(ACCESS_TOKEN_KEY)
@@ -23,8 +21,4 @@ export const clearAuth = (): void => {
 }
 
 export const getApiUrl = (): string =>
-  localStorage.getItem(API_URL_KEY) ?? DEFAULT_API_URL
-
-export const setApiUrl = (url: string): void => {
-  localStorage.setItem(API_URL_KEY, url)
-}
+  import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
