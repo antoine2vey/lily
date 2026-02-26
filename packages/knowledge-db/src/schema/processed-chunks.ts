@@ -17,7 +17,7 @@ export const vector = customType<{
   data: number[]
   driverParam: string
 }>({
-  dataType: () => 'vector(3072)',
+  dataType: () => 'halfvec(3072)',
   toDriver: (value) => `[${value.join(',')}]`,
   fromDriver: (value) => {
     const str = value as string
