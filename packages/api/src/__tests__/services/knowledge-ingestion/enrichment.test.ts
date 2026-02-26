@@ -18,12 +18,10 @@ import { generateText } from 'ai'
 const mockedGenerateText = vi.mocked(generateText)
 
 describe('enrichChunk', () => {
-  it('should return keywords and summary on success', async () => {
+  it('should return keywords on success', async () => {
     mockedGenerateText.mockResolvedValueOnce({
       output: {
         keywords: ['monstera', 'watering frequency', 'soil moisture'],
-        summary:
-          'Optimal watering frequency for monstera depends on soil dryness. Water when top 2 inches are dry.',
       },
     } as Awaited<ReturnType<typeof generateText>>)
 
@@ -36,14 +34,12 @@ describe('enrichChunk', () => {
       'watering frequency',
       'soil moisture',
     ])
-    expect(result.summary).toContain('monstera')
   })
 
   it('should call generateText with correct parameters', async () => {
     mockedGenerateText.mockResolvedValueOnce({
       output: {
         keywords: ['test'],
-        summary: 'Test summary.',
       },
     } as Awaited<ReturnType<typeof generateText>>)
 

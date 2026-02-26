@@ -13,12 +13,6 @@ const EnrichmentSchema = z.object({
     .describe(
       'Semantic keywords and phrases for plant care search. Include plant names, care topics, symptoms, and specific advice terms.'
     ),
-  summary: z
-    .string()
-    .max(300)
-    .describe(
-      'A concise 1-2 sentence summary of the question asked and the key advice given. Written as if answering a plant care query.'
-    ),
 })
 
 export type ChunkEnrichment = z.infer<typeof EnrichmentSchema>
@@ -30,11 +24,9 @@ export class EnrichmentError extends Schema.TaggedError<EnrichmentError>()(
   }
 ) {}
 
-const SYSTEM_PROMPT = `You are a plant care knowledge indexer. Given a Reddit thread about plant care, extract semantic keywords and write a concise summary.
+const SYSTEM_PROMPT = `You are a plant care knowledge indexer. Given a plant care text, extract semantic keywords.
 
-Keywords should include: plant names, care topics (watering, light, soil, etc.), specific symptoms or problems, and actionable advice terms.
-
-The summary should capture what question was asked and what the community recommends, written as a natural answer to a plant care query.`
+Keywords should include: plant names, care topics (watering, light, soil, etc.), specific symptoms or problems, and actionable advice terms.`
 
 export const enrichChunk = (
   content: string

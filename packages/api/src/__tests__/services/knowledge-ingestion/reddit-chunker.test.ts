@@ -12,7 +12,7 @@ const makeComment = (
 })
 
 describe('chunkRedditDocument', () => {
-  it('should create a single consolidated chunk from a thread with comments', () => {
+  it('should return parent with full thread and children with individual answers', () => {
     const result = chunkRedditDocument({
       title: 'How do I water my monstera?',
       content: 'I just got a new monstera and need watering advice.',
@@ -30,20 +30,32 @@ describe('chunkRedditDocument', () => {
       ],
     })
 
-    expect(result.content).toContain('Q: How do I water my monstera?')
-    expect(result.content).toContain('I just got a new monstera')
-    expect(result.content).toContain('---')
-    expect(result.content).toContain('Top answers:')
-    expect(result.content).toContain('[42 upvotes]')
-    expect(result.content).toContain('[28 upvotes]')
-    expect(result.metadata.chunkType).toBe('reddit_thread')
-    expect(result.metadata.postScore).toBe(25)
-    expect(result.metadata.subreddit).toBe('plantclinic')
-    expect(result.metadata.commentCount).toBe(2)
-    expect(result.metadata.topCommentScore).toBe(42)
+    // Parent has full thread content
+    expect(result.parent).toBeDefined()
+    expect(result.parent?.content).toContain('Q: How do I water my monstera?')
+    expect(result.parent?.content).toContain('I just got a new monstera')
+    expect(result.parent?.content).toContain('---')
+    expect(result.parent?.content).toContain('Top answers:')
+    expect(result.parent?.content).toContain('[42 upvotes]')
+    expect(result.parent?.content).toContain('[28 upvotes]')
+    expect(result.parent?.metadata.chunkType).toBe('reddit_thread')
+    expect(result.parent?.metadata.postScore).toBe(25)
+    expect(result.parent?.metadata.subreddit).toBe('plantclinic')
+    expect(result.parent?.metadata.commentCount).toBe(2)
+    expect(result.parent?.metadata.topCommentScore).toBe(42)
+
+    // Children are individual Q+A pairs
+    expect(result.children).toHaveLength(2)
+    expect(result.children[0]?.content).toContain(
+      'Q: How do I water my monstera?'
+    )
+    expect(result.children[0]?.content).toContain('A:')
+    expect(result.children[0]?.content).toContain('Water when the top')
+    expect(result.children[0]?.metadata.chunkType).toBe('reddit_thread')
+    expect(result.children[0]?.metadata.subreddit).toBe('plantclinic')
   })
 
-  it('should sort comments by score descending', () => {
+  it('should sort children by comment score descending', () => {
     const result = chunkRedditDocument({
       title: 'Help with fern',
       content: 'My fern is drooping.',
@@ -51,28 +63,28 @@ describe('chunkRedditDocument', () => {
       subreddit: 'houseplants',
       comments: [
         makeComment({
-          body: 'Low score comment that still provides some useful information about fern care and humidity requirements.',
+          body: 'Low score comment about fern care and humidity.',
           score: 5,
         }),
         makeComment({
-          body: 'High score comment with the best advice about fern care including misting and indirect light placement.',
+          body: 'High score comment with the best advice about fern care including misting.',
           score: 50,
         }),
         makeComment({
-          body: 'Medium score comment about fern humidity needs and the importance of proper drainage in the potting mix.',
+          body: 'Medium score comment about fern humidity needs and drainage.',
           score: 20,
         }),
       ],
     })
 
-    const lines = result.content.split('\n')
-    const upvoteLines = lines.filter((l: string) => l.includes('upvotes]'))
-    expect(upvoteLines[0]).toContain('[50 upvotes]')
-    expect(upvoteLines[1]).toContain('[20 upvotes]')
-    expect(upvoteLines[2]).toContain('[5 upvotes]')
+    expect(result.children).toHaveLength(3)
+    // First child should be highest-scored comment
+    expect(result.children[0]?.content).toContain('High score comment')
+    expect(result.children[1]?.content).toContain('Medium score comment')
+    expect(result.children[2]?.content).toContain('Low score comment')
   })
 
-  it('should limit to MAX_COMMENTS_PER_THREAD (5)', () => {
+  it('should limit children to MAX_COMMENTS_PER_THREAD (5)', () => {
     const comments = globalThis.Array.from({ length: 8 }, (_, i) =>
       makeComment({
         body: `Comment number ${i + 1} about plant care with enough detail to pass the minimum length requirement for inclusion.`,
@@ -88,14 +100,15 @@ describe('chunkRedditDocument', () => {
       comments,
     })
 
-    expect(result.metadata.commentCount).toBe(5)
-    // Should have top 5 scores: 100, 90, 80, 70, 60
-    expect(result.content).toContain('[100 upvotes]')
-    expect(result.content).toContain('[60 upvotes]')
-    expect(result.content).not.toContain('[50 upvotes]')
+    expect(result.children).toHaveLength(5)
+    expect(result.parent?.metadata.commentCount).toBe(5)
+    // Parent should include top 5 comments
+    expect(result.parent?.content).toContain('[100 upvotes]')
+    expect(result.parent?.content).toContain('[60 upvotes]')
+    expect(result.parent?.content).not.toContain('[50 upvotes]')
   })
 
-  it('should preserve full content without truncation', () => {
+  it('should preserve full content in parent without truncation', () => {
     const longBody = 'A'.repeat(5000)
     const longComment = 'B'.repeat(3000)
 
@@ -107,11 +120,11 @@ describe('chunkRedditDocument', () => {
       comments: [makeComment({ body: longComment, score: 15 })],
     })
 
-    expect(result.content).toContain(longBody)
-    expect(result.content).toContain(longComment)
+    expect(result.parent?.content).toContain(longBody)
+    expect(result.parent?.content).toContain(longComment)
   })
 
-  it('should create question-only chunk when no comments', () => {
+  it('should return single child with no parent when no comments', () => {
     const result = chunkRedditDocument({
       title: 'Why is my cactus soft?',
       content: 'My cactus feels mushy at the base.',
@@ -120,14 +133,14 @@ describe('chunkRedditDocument', () => {
       comments: [],
     })
 
-    expect(result.content).toBe(
+    expect(result.parent).toBeUndefined()
+    expect(result.children).toHaveLength(1)
+    expect(result.children[0]?.content).toBe(
       'Q: Why is my cactus soft?\n\nMy cactus feels mushy at the base.'
     )
-    expect(result.content).not.toContain('---')
-    expect(result.content).not.toContain('Top answers:')
-    expect(result.metadata.chunkType).toBe('reddit_question_only')
-    expect(result.metadata.commentCount).toBe(0)
-    expect(result.metadata.topCommentScore).toBe(0)
+    expect(result.children[0]?.metadata.chunkType).toBe('reddit_question_only')
+    expect(result.children[0]?.metadata.commentCount).toBe(0)
+    expect(result.children[0]?.metadata.topCommentScore).toBe(0)
   })
 
   it('should handle post with no selftext (title-only question)', () => {
@@ -144,50 +157,34 @@ describe('chunkRedditDocument', () => {
       ],
     })
 
-    expect(result.content).toContain('Q: Best soil for pothos?')
-    expect(result.content).not.toContain('\n\nQ:')
-    expect(result.content).toContain('[30 upvotes]')
-    expect(result.metadata.chunkType).toBe('reddit_thread')
+    expect(result.parent).toBeDefined()
+    expect(result.parent?.content).toContain('Q: Best soil for pothos?')
+    expect(result.parent?.content).not.toContain('\n\nQ:')
+    expect(result.parent?.content).toContain('[30 upvotes]')
+    expect(result.parent?.metadata.chunkType).toBe('reddit_thread')
+
+    expect(result.children).toHaveLength(1)
+    expect(result.children[0]?.content).toContain('Q: Best soil for pothos?')
+    expect(result.children[0]?.content).toContain('A:')
   })
 
-  it('should build fallback embedding text from title + body excerpt', () => {
+  it('should format child content as Q+A pair', () => {
     const result = chunkRedditDocument({
       title: 'Watering frequency for snake plant',
       content:
         'I water my snake plant once a week but the leaves are turning yellow.',
       postScore: 15,
       subreddit: 'plantclinic',
-      comments: [],
+      comments: [
+        makeComment({
+          body: 'Snake plants are susceptible to overwatering. Water only when the soil is completely dry.',
+          score: 20,
+        }),
+      ],
     })
 
-    expect(result.embeddingText).toBe(
-      'Watering frequency for snake plant. I water my snake plant once a week but the leaves are turning yellow.'
+    expect(result.children[0]?.content).toBe(
+      'Q: Watering frequency for snake plant\n\nA: Snake plants are susceptible to overwatering. Water only when the soil is completely dry.'
     )
-  })
-
-  it('should use only title for embedding text when no selftext', () => {
-    const result = chunkRedditDocument({
-      title: 'How often to fertilize fiddle leaf fig?',
-      content: '',
-      postScore: 10,
-      subreddit: 'houseplants',
-      comments: [],
-    })
-
-    expect(result.embeddingText).toBe('How often to fertilize fiddle leaf fig?')
-  })
-
-  it('should truncate body to 200 chars in fallback embedding text', () => {
-    const longBody = 'A'.repeat(500)
-
-    const result = chunkRedditDocument({
-      title: 'Test',
-      content: longBody,
-      postScore: 10,
-      subreddit: 'test',
-      comments: [],
-    })
-
-    expect(result.embeddingText).toBe(`Test. ${'A'.repeat(200)}`)
   })
 })

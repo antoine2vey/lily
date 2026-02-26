@@ -11,7 +11,7 @@ import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-i
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { RagService } from '@lily/api/services/rag/service'
+import type { RagService } from '@lily/api/services/rag/service'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type {
@@ -30,6 +30,17 @@ const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(
 )
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
+
+const makeImageParts = (url: string | undefined): UIMessage['parts'] =>
+  pipe(
+    Option.fromNullable(url),
+    Option.match({
+      onNone: (): UIMessage['parts'] => [],
+      onSome: (u): UIMessage['parts'] => [
+        { type: 'file' as const, mediaType: 'image/jpeg', url: u },
+      ],
+    })
+  )
 
 export interface StreamChatRequest {
   message: string
@@ -65,7 +76,7 @@ const uiStreamToSse = (
 
   const afterStream = Stream.fromEffect(
     pipe(
-      onComplete ?? Effect.void,
+      Option.getOrElse(Option.fromNullable(onComplete), () => Effect.void),
       Effect.as(encoder.encode('data: [DONE]\n\n'))
     )
   )
@@ -103,7 +114,6 @@ export const streamChatMessage = (
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
-    const ragService = yield* RagService
     const eventBus = yield* EventBus
     const diagnosisRepo = yield* DiagnosisRepository
     const { id: userId } = yield* CurrentUser
@@ -123,15 +133,7 @@ export const streamChatMessage = (
     // Build the file part for DB persistence.
     // Store raw GCS key (not the expiring signed URL) so we can
     // regenerate signed URLs later when loading history.
-    const fileParts: UIMessage['parts'] = pipe(
-      Option.fromNullable(request.imageKey),
-      Option.match({
-        onNone: (): UIMessage['parts'] => [],
-        onSome: (key): UIMessage['parts'] => [
-          { type: 'file' as const, mediaType: 'image/jpeg', url: key },
-        ],
-      })
-    )
+    const fileParts = makeImageParts(request.imageKey)
 
     // Create the new user message
     const userMessage: UIMessage = {
@@ -188,15 +190,7 @@ export const streamChatMessage = (
       yield* resolveMessageImageUrls(previousMessages)
 
     // Combine history with new user message (use signed URL for AI, not raw key)
-    const aiFileParts: UIMessage['parts'] = pipe(
-      Option.fromNullable(imageSignedUrl),
-      Option.match({
-        onNone: (): UIMessage['parts'] => [],
-        onSome: (url): UIMessage['parts'] => [
-          { type: 'file' as const, mediaType: 'image/jpeg', url },
-        ],
-      })
-    )
+    const aiFileParts = makeImageParts(imageSignedUrl)
     const userMessageForAi: UIMessage = {
       id: userMessage.id,
       role: userMessage.role,
@@ -210,12 +204,6 @@ export const streamChatMessage = (
       userMessageForAi
     ) as UIMessage[]
 
-    // Retrieve RAG context (gracefully degrades to empty string on failure)
-    const ragChunks = yield* ragService.retrieve({
-      query: request.message,
-    })
-    const knowledgeContext = ragService.formatContext(ragChunks)
-
     const imageOptions = pipe(
       Option.fromNullable(imageSignedUrl),
       Option.map((url) => ({
@@ -226,12 +214,7 @@ export const streamChatMessage = (
     )
 
     const { stream: streamResult, completionDeferred } =
-      yield* aiService.plantChatStream(
-        plantId,
-        allMessages,
-        knowledgeContext,
-        imageOptions
-      )
+      yield* aiService.plantChatStream(plantId, allMessages, imageOptions)
 
     // Stream UI message chunks as SSE events.
     // Persistence runs after the stream ends but before [DONE],

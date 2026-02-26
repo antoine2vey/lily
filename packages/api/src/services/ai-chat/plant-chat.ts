@@ -4,6 +4,7 @@ import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
@@ -55,13 +56,13 @@ export interface PlantChatImageOptions {
 export const plantChat = (
   plantId: string,
   messages: UIMessage[],
-  knowledgeContext?: string,
   imageOptions?: PlantChatImageOptions
 ) => {
   return Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const diagnosisRepo = yield* DiagnosisRepository
+    const ragService = yield* RagService
     const { id: userId } = yield* CurrentUser
 
     const plant = yield* plantRepo.findById(plantId)
@@ -87,6 +88,20 @@ export const plantChat = (
       ),
       Array.join('\n')
     )
+
+    const lastUserMessage = pipe(
+      Array.last(messages),
+      Option.filter((m) => m.role === 'user'),
+      Option.flatMap((m) => Array.findFirst(m.parts, (p) => p.type === 'text')),
+      Option.map((p) => (p as { type: 'text'; text: string }).text),
+      Option.getOrElse(() => '')
+    )
+    const ragQuery = `${plant.name}: ${lastUserMessage}`
+    const ragChunks = yield* ragService.retrieve({
+      query: ragQuery,
+      plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
+    })
+    const knowledgeContext = ragService.formatContext(ragChunks)
 
     const daysSinceAdded = daysSince(plant.dateAdded)
 
@@ -127,7 +142,7 @@ export const plantChat = (
       Recent Care History:
       ${careHistoryText || 'No care events recorded yet'}
 
-      ${knowledgeContext ?? ''}
+      ${knowledgeContext}
 
       Guidelines:
       - Always respond in the same language as the user's message. This includes tool call fields (disease name, symptoms, treatment steps, prevention tips).
@@ -135,6 +150,7 @@ export const plantChat = (
       - Use the plant data and care history above to personalize your advice
       - If the plant health is NEEDS_ATTENTION or SICK, proactively offer troubleshooting advice
       - Reference the care schedule when answering watering/fertilization questions
+      - Always provide actionable solutions, not just problem identification — if you name a cause, follow it with concrete steps the user can take right now
       - Keep responses concise and practical
       - If asked about topics completely unrelated to plants or gardening, politely redirect: "I'm here to help with plant care questions about ${plant.name}. What would you like to know about caring for it?"
 
