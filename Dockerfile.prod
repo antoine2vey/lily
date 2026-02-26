@@ -9,6 +9,7 @@ COPY package.json bun.lock ./
 COPY packages/api/package.json ./packages/api/
 COPY packages/app/package.json ./packages/app/
 COPY packages/db/package.json ./packages/db/
+COPY packages/knowledge-db/package.json ./packages/knowledge-db/
 COPY packages/shared/package.json ./packages/shared/
 
 RUN bun install --ignore-scripts
@@ -21,6 +22,7 @@ COPY packages/shared/tsconfig.json ./packages/shared/
 # Copy source code
 COPY packages/api/src ./packages/api/src
 COPY packages/db ./packages/db
+COPY packages/knowledge-db/src ./packages/knowledge-db/src
 COPY packages/shared/src ./packages/shared/src
 
 EXPOSE 3000
