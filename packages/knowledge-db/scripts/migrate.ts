@@ -23,6 +23,9 @@ const runMigrations = async () => {
 
   const sql = new SQL(databaseUrl)
 
+  // Enable pgvector extension required for vector columns
+  await sql`CREATE EXTENSION IF NOT EXISTS vector`
+
   // Create migrations table if not exists
   await sql`
     CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
