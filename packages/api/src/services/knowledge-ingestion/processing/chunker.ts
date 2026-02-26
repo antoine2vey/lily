@@ -3,7 +3,7 @@ import { Array, pipe } from 'effect'
 const TARGET_SIZE = 500
 const MAX_SIZE = 700
 const MIN_SIZE = 100
-const OVERLAP = 50
+const OVERLAP = 75
 
 interface ChunkAccumulator {
   readonly chunks: readonly string[]
@@ -42,8 +42,8 @@ const forceSplit = (acc: ChunkAccumulator): ChunkAccumulator => {
 
 /**
  * Split content into semantic chunks based on paragraph boundaries,
- * headers, and double newlines. Targets 2000-2500 chars per chunk
- * with 200 char overlap for context continuity.
+ * headers, and double newlines. Targets ~500 chars per chunk (max 700)
+ * with 75-char overlap between adjacent chunks for context continuity.
  */
 export const chunkContent = (content: string): string[] => {
   const trimmed = content.trim()

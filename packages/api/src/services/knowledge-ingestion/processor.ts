@@ -23,13 +23,19 @@ import type {
 } from '@lily/shared/knowledge'
 import { Array, Effect, Match, Option, pipe, Record, Ref, Stream } from 'effect'
 
-interface ProcessedChunkInput {
+interface ChunkInput {
   readonly content: string
-  readonly embeddingText: string
   readonly metadata: Record<string, unknown> | undefined
 }
 
-export const chunkDocument = (doc: RawDocument): ProcessedChunkInput[] =>
+interface ChunkDocumentResult {
+  readonly parent?: ChunkInput
+  readonly children: ChunkInput[]
+}
+
+export const chunkDocumentWithParent = (
+  doc: RawDocument
+): ChunkDocumentResult =>
   pipe(
     Match.value(doc.source),
     Match.when('reddit', () => {
@@ -38,27 +44,46 @@ export const chunkDocument = (doc: RawDocument): ProcessedChunkInput[] =>
         postScore?: number
         comments?: RedditCommentData[]
       }
-      const chunk = chunkRedditDocument({
+      const result = chunkRedditDocument({
         title: doc.title,
         content: doc.content,
         postScore: meta.postScore ?? doc.score ?? 0,
         subreddit: meta.subreddit ?? 'unknown',
         comments: meta.comments ?? [],
       })
-      return [chunk]
-    }),
-    Match.orElse(() =>
-      pipe(
-        chunkContent(doc.content),
-        Array.map(
-          (text): ProcessedChunkInput => ({
-            content: text,
-            embeddingText: text,
-            metadata: undefined,
-          })
-        )
+
+      return pipe(
+        Option.fromNullable(result.parent),
+        Option.match({
+          onNone: () => ({ children: result.children }),
+          onSome: (parent) => ({ parent, children: result.children }),
+        })
       )
-    )
+    }),
+    Match.orElse(() => {
+      const chunks = chunkContent(doc.content)
+      const chunkCount = Array.length(chunks)
+
+      return pipe(
+        Match.value(chunkCount),
+        Match.when(0, () => ({ children: [] as ChunkInput[] })),
+        Match.when(1, () => ({
+          children: [
+            {
+              content: Option.getOrElse(Array.head(chunks), () => ''),
+              metadata: undefined,
+            },
+          ] as ChunkInput[],
+        })),
+        Match.orElse(() => ({
+          parent: { content: doc.content, metadata: undefined as undefined },
+          children: Array.map(
+            chunks,
+            (text): ChunkInput => ({ content: text, metadata: undefined })
+          ),
+        }))
+      )
+    })
   )
 
 /**
@@ -84,56 +109,88 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       ingestJobId: jobId,
     })
 
-    // Chunk content (source-aware dispatch)
-    const rawChunks = chunkDocument(insertedDoc)
+    // Chunk content with parent-child structure
+    const chunkResult = chunkDocumentWithParent(insertedDoc)
 
-    if (Array.isEmptyArray(rawChunks)) {
+    if (Array.isEmptyArray(chunkResult.children)) {
       return { inserted: true, chunksCreated: 0 } as const
     }
 
-    // AI enrichment
-    const enrichedChunks = yield* Effect.forEach(rawChunks, (chunk) =>
-      Effect.gen(function* () {
-        const enrichment = yield* enrichChunk(chunk.content).pipe(
-          Effect.catchAll((error) =>
-            Effect.logWarning('Chunk enrichment failed, continuing without', {
-              error: String(error),
-            }).pipe(Effect.map(() => undefined))
-          )
-        )
-
-        return pipe(
-          Option.fromNullable(enrichment),
-          Option.match({
-            onNone: () => chunk,
-            onSome: (e) => ({
-              content: chunk.content,
-              embeddingText: e.summary,
-              metadata: pipe(
-                Array.appendAll(Record.toEntries(chunk.metadata ?? {}), [
-                  ['keywords', e.keywords],
-                  ['summary', e.summary],
-                ] as [string, unknown][]),
-                Record.fromEntries
-              ),
-            }),
-          })
-        )
+    // Insert parent if present (no embedding — stored for LLM context only)
+    const parentId = yield* pipe(
+      Option.fromNullable(chunkResult.parent),
+      Option.match({
+        onNone: () => Effect.succeed(undefined as string | undefined),
+        onSome: (parent) =>
+          Effect.gen(function* () {
+            const id = crypto.randomUUID()
+            yield* chunkRepo.create({
+              id,
+              documentId: insertedDoc.id,
+              content: parent.content,
+              chunkIndex: 0,
+              source: insertedDoc.source,
+              plantType: extractPrimaryPlantType(parent.content),
+              category: categorize(parent.content),
+              plantMentions: extractPlantMentions(parent.content),
+              metadata: parent.metadata,
+              embedding: undefined,
+            })
+            return id as string | undefined
+          }),
       })
     )
 
-    // Extract metadata for each chunk
-    const chunkData = Array.map(enrichedChunks, (chunk, index) => ({
-      ...chunk,
+    // Enrich child chunks: get keywords, prepend to content
+    const enrichedChildren = yield* Effect.forEach(
+      chunkResult.children,
+      (child) =>
+        Effect.gen(function* () {
+          const enrichment = yield* enrichChunk(child.content).pipe(
+            Effect.catchAll((error) =>
+              Effect.logWarning('Chunk enrichment failed, continuing without', {
+                error: String(error),
+              }).pipe(Effect.map(() => undefined))
+            )
+          )
+
+          return pipe(
+            Option.fromNullable(enrichment),
+            Option.match({
+              onNone: () => ({
+                content: child.content,
+                embeddingContent: undefined as string | undefined,
+                metadata: child.metadata,
+              }),
+              onSome: (e) => ({
+                content: child.content,
+                embeddingContent: `keywords: ${Array.join(e.keywords, ', ')}\n\n${child.content}`,
+                metadata: pipe(
+                  Array.appendAll(Record.toEntries(child.metadata ?? {}), [
+                    ['keywords', e.keywords],
+                  ] as [string, unknown][]),
+                  Record.fromEntries
+                ),
+              }),
+            })
+          )
+        })
+    )
+
+    // Extract metadata for each child chunk
+    const childData = Array.map(enrichedChildren, (child, index) => ({
+      ...child,
       chunkIndex: index,
       source: insertedDoc.source,
-      plantType: extractPrimaryPlantType(chunk.content),
-      category: categorize(chunk.content),
-      plantMentions: extractPlantMentions(chunk.content),
+      plantType: extractPrimaryPlantType(child.content),
+      category: categorize(child.content),
+      plantMentions: extractPlantMentions(child.content),
     }))
 
-    // Generate embeddings in batch (using embeddingText, not content)
-    const texts = Array.map(chunkData, (c) => c.embeddingText)
+    // Generate embeddings for children in batch — use embeddingContent when
+    // available (keyword-enriched) so the vector captures topic keywords,
+    // while content stays clean for the LLM.
+    const texts = Array.map(childData, (c) => c.embeddingContent ?? c.content)
     const embeddings = yield* embedTexts(texts).pipe(
       Effect.catchAll((error) =>
         Effect.logWarning(
@@ -143,18 +200,20 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       )
     )
 
-    // Store chunks
+    // Store child chunks with parentChunkId
     const chunksToInsert: CreateProcessedChunkData[] = pipe(
-      chunkData,
-      Array.map((chunk, i) => ({
+      childData,
+      Array.map((child, i) => ({
         documentId: insertedDoc.id,
-        content: chunk.content,
-        chunkIndex: chunk.chunkIndex,
-        source: chunk.source,
-        plantType: chunk.plantType,
-        category: chunk.category,
-        plantMentions: chunk.plantMentions,
-        metadata: chunk.metadata,
+        parentChunkId: parentId,
+        content: child.content,
+        embeddingContent: child.embeddingContent,
+        chunkIndex: child.chunkIndex,
+        source: child.source,
+        plantType: child.plantType,
+        category: child.category,
+        plantMentions: child.plantMentions,
+        metadata: child.metadata,
         embedding: pipe(Array.get(embeddings, i), Option.getOrUndefined) as
           | number[]
           | undefined,
@@ -235,9 +294,18 @@ export const processIngestJob = (job: IngestJob) =>
     Effect.catchAll((error) =>
       Effect.gen(function* () {
         const jobRepo = yield* IngestJobRepository
-        yield* jobRepo.updateError(job.id, String(error))
+        // UnknownException wraps the actual DB/network error in `.error`
+        const underlying = (error as { error?: unknown }).error
+        const errorMessage = pipe(
+          Option.fromNullable(underlying),
+          Option.match({
+            onNone: () => String(error),
+            onSome: (cause) => String(cause),
+          })
+        )
+        yield* jobRepo.updateError(job.id, errorMessage)
         yield* Effect.logError(`Job ${job.id} failed`, {
-          error: String(error),
+          error: errorMessage,
         })
       })
     ),

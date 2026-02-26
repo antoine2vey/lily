@@ -1,6 +1,6 @@
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Match, Option, pipe, String } from 'effect'
 import { embedText } from './embedding.service'
 
 export interface RagRetrieveParams {
@@ -21,27 +21,24 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
       retrieve: (params: RagRetrieveParams) =>
         Effect.gen(function* () {
           const embedding = yield* embedText(params.query)
+          const limit = Option.getOrElse(
+            Option.fromNullable(params.limit),
+            () => 5
+          )
 
-          const chunks = yield* chunkRepo.search({
+          return yield* chunkRepo.search({
             embedding,
+            queryText: params.query,
             plantType: params.plantType,
-            limit: params.limit ?? 5,
-            minSimilarity: 0.5,
+            limit,
+            minSimilarity: 0.6,
           })
-
-          return chunks
         }).pipe(
           Effect.catchAll((error) =>
-            Effect.gen(function* () {
-              yield* Effect.logWarning(
-                'RAG retrieval failed, continuing without knowledge context',
-                {
-                  error: String(error),
-                  query: params.query,
-                }
-              )
-              return [] as ChunkSearchResult[]
-            })
+            Effect.logWarning(
+              'RAG retrieval failed, continuing without knowledge context',
+              { error: globalThis.String(error), query: params.query }
+            ).pipe(Effect.as([] as ChunkSearchResult[]))
           ),
           Effect.withSpan('RagService.retrieve', {
             attributes: { 'rag.query': params.query },
@@ -56,41 +53,53 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
           return ''
         }
 
+        const urlOnlyLine = /^\s*(\[\d+ upvotes\]\s+)?https?:\/\/\S+\s*$/
+
+        const cleanContent = (content: string) =>
+          pipe(
+            String.split(content, '\n'),
+            Array.filter((line) => !urlOnlyLine.test(line)),
+            Array.join('\n'),
+            String.replace(/\n{3,}/g, '\n\n'),
+            String.trim
+          )
+
         const sections = pipe(
           chunks,
           Array.map((chunk) => {
             const similarity = Math.round(chunk.similarity * 100)
-            const meta = (chunk.metadata ?? {}) as {
-              chunkType?: string
-              subreddit?: string
-            }
+            const meta = Option.getOrElse(
+              Option.fromNullable(chunk.metadata),
+              () => ({})
+            ) as { chunkType?: string; subreddit?: string }
+            const content = cleanContent(chunk.content)
+            const subreddit = Option.getOrElse(
+              Option.fromNullable(meta.subreddit),
+              () => 'plantclinic'
+            )
 
             return pipe(
               Match.value(meta.chunkType),
-              Match.when('reddit_thread', () => {
-                const subreddit = Option.getOrElse(
-                  Option.fromNullable(meta.subreddit),
-                  () => 'plantclinic'
-                )
-                return `### Plant Care Q&A (r/${subreddit}, ${similarity}% match)\n${chunk.content}`
-              }),
-              Match.when('reddit_question_only', () => {
-                const subreddit = Option.getOrElse(
-                  Option.fromNullable(meta.subreddit),
-                  () => 'plantclinic'
-                )
-                return `### Plant Care Question (r/${subreddit}, ${similarity}% match)\n${chunk.content}`
-              }),
+              Match.when(
+                'reddit_thread',
+                () =>
+                  `### Plant Care Q&A (r/${subreddit}, ${similarity}% match)\n${content}`
+              ),
+              Match.when(
+                'reddit_question_only',
+                () =>
+                  `### Plant Care Question (r/${subreddit}, ${similarity}% match)\n${content}`
+              ),
               Match.orElse(
                 () =>
-                  `### Knowledge Source (${chunk.source}, ${similarity}% relevance)\n${chunk.content}`
+                  `### Knowledge Source (${chunk.source}, ${similarity}% relevance)\n${content}`
               )
             )
           }),
           Array.join('\n\n')
         )
 
-        return `## Relevant Plant Care Knowledge\nUse the following knowledge base excerpts to inform your advice when relevant. Do not mention these sources explicitly to the user.\n\n${sections}`
+        return `## Relevant Plant Care Knowledge\nUse the following information to inform your advice. Synthesize it with your own knowledge — do not quote or reference these sources directly.\n\n${sections}`
       },
     }
   }),

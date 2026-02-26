@@ -25,8 +25,7 @@ vi.mock('ai', () => ({
   embedMany: vi.fn(),
   generateText: vi.fn().mockResolvedValue({
     output: {
-      keywords: ['test'],
-      summary: 'Test summary for embedding',
+      keywords: ['test', 'plant', 'care'],
     },
   }),
   Output: {
@@ -72,6 +71,25 @@ const makeTestDoc = (
   ...overrides,
 })
 
+const makeRedditDocWithComments = (commentCount = 2): RawDocumentInput => ({
+  source: 'reddit',
+  sourceUrl: 'https://reddit.com/r/houseplants/1',
+  sourceId: `source-${crypto.randomUUID()}`,
+  title: 'How do I care for my monstera?',
+  content: 'I need help with watering my monstera.',
+  author: 'plant_lover',
+  score: 42,
+  metadata: {
+    subreddit: 'houseplants',
+    postScore: 42,
+    comments: globalThis.Array.from({ length: commentCount }, (_, i) => ({
+      body: `This is a detailed comment number ${i + 1} about monstera care with watering and lighting advice for healthy growth in indoor conditions.`,
+      author: `commenter${i}`,
+      score: 30 - i * 5,
+    })),
+  },
+})
+
 const buildLayers = (opts: {
   jobs: IngestJob[]
   documents?: RawDocument[]
@@ -110,6 +128,75 @@ describe('processIngestJob', () => {
 
     expect(jobs[0]?.status).toBe('completed')
     expect(jobs[0]?.documentsFetched).toBeGreaterThanOrEqual(1)
+  })
+
+  it('should produce parent + children for Reddit post with comments', async () => {
+    const doc = makeRedditDocWithComments(2)
+    const job = createTestIngestJob({ id: 'test-job-reddit-parent-child' })
+    const jobs = [job]
+    const insertedChunks: CreateProcessedChunkData[] = []
+
+    mockedGetAdapter.mockReturnValueOnce(
+      Effect.succeed({
+        name: 'reddit',
+        fetch: () => Stream.fromIterable([doc]),
+      })
+    )
+    mockedEmbedTexts.mockReturnValue(
+      Effect.succeed([
+        [0.1, 0.2],
+        [0.3, 0.4],
+      ])
+    )
+
+    await Effect.runPromise(
+      processIngestJob(job).pipe(
+        Effect.provide(buildLayers({ jobs, insertedChunks }))
+      )
+    )
+
+    // 1 parent (no embedding, no parentChunkId) + 2 children (with parentChunkId)
+    expect(insertedChunks).toHaveLength(3)
+
+    const parent = insertedChunks.find((c) => c.parentChunkId === undefined)
+    const children = insertedChunks.filter((c) => c.parentChunkId !== undefined)
+
+    expect(parent).toBeDefined()
+    expect(parent?.embedding).toBeUndefined()
+    expect(parent?.id).toBeDefined()
+
+    expect(children).toHaveLength(2)
+    for (const child of children) {
+      expect(child.parentChunkId).toBe(parent?.id)
+    }
+
+    // chunksCreated counts only children
+    expect(jobs[0]?.chunksCreated).toBe(2)
+  })
+
+  it('should produce single child with no parent for Reddit post without comments', async () => {
+    const doc = makeTestDoc() // source: 'reddit', no comments in metadata
+    const job = createTestIngestJob({ id: 'test-job-reddit-no-comments' })
+    const jobs = [job]
+    const insertedChunks: CreateProcessedChunkData[] = []
+
+    mockedGetAdapter.mockReturnValueOnce(
+      Effect.succeed({
+        name: 'reddit',
+        fetch: () => Stream.fromIterable([doc]),
+      })
+    )
+    mockedEmbedTexts.mockReturnValue(Effect.succeed([[0.1, 0.2]]))
+
+    await Effect.runPromise(
+      processIngestJob(job).pipe(
+        Effect.provide(buildLayers({ jobs, insertedChunks }))
+      )
+    )
+
+    expect(insertedChunks).toHaveLength(1)
+    expect(insertedChunks[0]?.parentChunkId).toBeUndefined()
+    expect(jobs[0]?.chunksCreated).toBe(1)
   })
 
   it('should update counts incrementally via updateStatus', async () => {
@@ -269,9 +356,12 @@ describe('processIngestJob', () => {
 
     // Job should still complete
     expect(jobs[0]?.status).toBe('completed')
-    // Chunks should be stored (without embeddings)
-    if (insertedChunks.length > 0) {
-      for (const chunk of insertedChunks) {
+    // Child chunks should be stored (without embeddings)
+    const children = insertedChunks.filter(
+      (c) => c.parentChunkId !== undefined || c.id === undefined
+    )
+    if (children.length > 0) {
+      for (const chunk of children) {
         expect(chunk.embedding).toBeUndefined()
       }
     }
@@ -371,7 +461,7 @@ describe('processIngestJob', () => {
     expect(jobs[0]?.error).toContain('Rate limited by Reddit')
   })
 
-  it('should store chunk metadata (plantType, category, plantMentions)', async () => {
+  it('should store chunk metadata (source, category) for child chunks', async () => {
     const doc = makeTestDoc({
       content: makeLongContent(500).replace(
         /plant care/g,
@@ -396,11 +486,50 @@ describe('processIngestJob', () => {
       )
     )
 
-    if (insertedChunks.length > 0) {
-      const chunk = insertedChunks[0]
-      expect(chunk?.source).toBe('reddit')
-      expect(chunk?.category).toBeDefined()
-      expect(chunk?.chunkIndex).toBe(0)
+    // Find child chunks (those that are not parent-only)
+    const children = insertedChunks.filter(
+      (c) =>
+        c.embedding !== undefined ||
+        c.parentChunkId !== undefined ||
+        c.id === undefined
+    )
+    if (children.length > 0) {
+      const child = children[0]
+      expect(child?.source).toBe('reddit')
+      expect(child?.category).toBeDefined()
+      expect(child?.chunkIndex).toBe(0)
+    }
+  })
+
+  it('should store keywords in embeddingContent and keep content clean', async () => {
+    const doc = makeTestDoc()
+    const job = createTestIngestJob({ id: 'test-job-keywords' })
+    const jobs = [job]
+    const insertedChunks: CreateProcessedChunkData[] = []
+
+    mockedGetAdapter.mockReturnValueOnce(
+      Effect.succeed({
+        name: 'reddit',
+        fetch: () => Stream.fromIterable([doc]),
+      })
+    )
+    mockedEmbedTexts.mockReturnValue(Effect.succeed([[0.1, 0.2]]))
+
+    await Effect.runPromise(
+      processIngestJob(job).pipe(
+        Effect.provide(buildLayers({ jobs, insertedChunks }))
+      )
+    )
+
+    const childChunks = insertedChunks.filter(
+      (c) => c.id === undefined || c.parentChunkId !== undefined
+    )
+    if (childChunks.length > 0) {
+      const child = childChunks[0]
+      // embeddingContent carries the keyword-enriched text for the vector
+      expect(child?.embeddingContent).toContain('keywords:')
+      // content is clean — no keyword prefix polluting LLM context
+      expect(child?.content).not.toContain('keywords:')
     }
   })
 })

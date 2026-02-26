@@ -107,6 +107,7 @@ export type RawDocument = typeof RawDocument.Type
 export const ProcessedChunk = Schema.Struct({
   id: Schema.String,
   documentId: Schema.String,
+  parentChunkId: Schema.optional(Schema.String),
   content: Schema.String,
   chunkIndex: Schema.Number,
   source: Schema.String,

@@ -36,14 +36,41 @@ export const KnowledgeIngestionApiLive = (api: Api) =>
         )
         .handle('searchKnowledge', ({ payload }) =>
           Effect.gen(function* () {
-            const embedding = yield* embedText(payload.query)
-            return yield* chunkRepo.search({
-              embedding,
-              plantType: payload.plantType,
-              limit: payload.limit,
-              minSimilarity: payload.minSimilarity,
+            yield* Effect.logInfo('searchKnowledge start', {
+              query: payload.query,
             })
-          }).pipe(withInfraErrorsAsDefect)
+            const embedding = yield* embedText(payload.query).pipe(
+              Effect.tapError((e) =>
+                Effect.logError('embedText failed', { error: String(e) })
+              )
+            )
+            yield* Effect.logInfo('embedText ok, running search')
+            const results = yield* chunkRepo
+              .search({
+                embedding,
+                queryText: payload.query,
+                plantType: payload.plantType,
+                limit: payload.limit,
+                minSimilarity: payload.minSimilarity,
+              })
+              .pipe(
+                Effect.tapError((e) =>
+                  Effect.logError('chunkRepo.search failed', {
+                    error: String(e),
+                    cause: String((e as { error?: unknown }).error ?? ''),
+                  })
+                )
+              )
+            yield* Effect.logInfo('search ok', { count: results.length })
+            return results
+          }).pipe(
+            Effect.tapDefect((cause) =>
+              Effect.logError('searchKnowledge defect', {
+                cause: String(cause),
+              })
+            ),
+            withInfraErrorsAsDefect
+          )
         )
     })
   ).pipe(

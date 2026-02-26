@@ -37,10 +37,9 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
       plantChatStream: (
         plantId: string,
         messages: UIMessage[],
-        knowledgeContext?: string,
         imageOptions?: PlantChatImageOptions
       ) =>
-        plantChat(plantId, messages, knowledgeContext, imageOptions).pipe(
+        plantChat(plantId, messages, imageOptions).pipe(
           Effect.withSpan('AiService.plantChatStream', {
             attributes: { 'plant.id': plantId },
           })
