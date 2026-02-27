@@ -102,7 +102,7 @@ const fetchWebPage = (
     )
 
     yield* Effect.log(
-      `Extracted "${title}" (${content.length} chars) from ${url}`
+      `Extracted "${title}" (${content.length} chars) from ${url}\n${content}`
     )
 
     return {
@@ -131,15 +131,27 @@ export const webAdapter: ISourceAdapter = {
       )
     }
 
+    const total = config.urls.length
+
     return pipe(
       Stream.fromIterable(config.urls),
-      Stream.mapEffect((url) =>
+      Stream.zipWithIndex,
+      Stream.mapEffect(([url, index]) =>
         Effect.gen(function* () {
+          yield* Effect.log(
+            `[web adapter] [${index + 1}/${total}] Starting: ${url}`
+          )
           yield* Effect.sleep(REQUEST_DELAY)
-          return yield* fetchWebPage(url)
+          const doc = yield* fetchWebPage(url)
+          yield* Effect.log(
+            `[web adapter] [${index + 1}/${total}] Done: "${doc.title}" (${doc.content.length} chars)`
+          )
+          return doc
         }).pipe(
           Effect.tapError((e) =>
-            Effect.logWarning(`Skipping ${url}: ${e.message}`)
+            Effect.logWarning(
+              `[web adapter] [${index + 1}/${total}] Skipped ${url}: ${e.message}`
+            )
           ),
           Effect.option
         )

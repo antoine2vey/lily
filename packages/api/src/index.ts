@@ -154,6 +154,7 @@ const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   Layer.provide(IngestJobRepositoryLive),
   Layer.provide(RawDocumentRepositoryLive),
   Layer.provide(ProcessedChunkRepositoryLive),
+  Layer.provide(DeadLetterRepositoryLive),
   Layer.provide(KnowledgeDrizzleLive)
 )
 

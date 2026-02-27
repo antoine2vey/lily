@@ -32,6 +32,11 @@ export const KnowledgeIngestionApi = HttpApiGroup.make('knowledgeIngestion')
       .addError(IngestJobNotFoundError, { status: 404 })
   )
   .add(
+    HttpApiEndpoint.del('deleteIngestJob')`/jobs/${jobIdParam}`
+      .addSuccess(Schema.Void)
+      .addError(IngestJobNotFoundError, { status: 404 })
+  )
+  .add(
     HttpApiEndpoint.get('getKnowledgeStats')`/stats`.addSuccess(KnowledgeStats)
   )
   .add(
