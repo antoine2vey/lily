@@ -21,7 +21,8 @@
     "test:integration": "vitest run src/__tests__/integration --no-file-parallelism",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "seed:knowledge": "bun run scripts/seed-houseplant-knowledge.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.25",
@@ -33,12 +34,14 @@
     "@lily/db": "workspace:*",
     "@lily/knowledge-db": "workspace:*",
     "@lily/shared": "workspace:*",
+    "@mozilla/readability": "^0.6.0",
     "ai": "^6.0.68",
     "drizzle-orm": "^0.45.1",
     "effect": "^3.17.5",
     "expo-server-sdk": "^4.0.0",
     "ioredis": "^5.9.1",
     "jose": "^6.1.3",
+    "linkedom": "^0.18.12",
     "qrcode-terminal": "^0.12.0",
     "resend": "^6.7.0",
     "zod": "^4.0.14"

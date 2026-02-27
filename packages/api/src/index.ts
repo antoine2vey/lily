@@ -2,6 +2,7 @@ import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
+import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
@@ -154,6 +155,7 @@ const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   Layer.provide(IngestJobRepositoryLive),
   Layer.provide(RawDocumentRepositoryLive),
   Layer.provide(ProcessedChunkRepositoryLive),
+  Layer.provide(DeadLetterRepositoryLive),
   Layer.provide(KnowledgeDrizzleLive)
 )
 
@@ -183,7 +185,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 
 // Set up the server using BunHttpServer on port 3000
 const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
-  Layer.provide(HttpApiBuilder.middlewareCors()),
+  Layer.provide(HttpApiBuilder.middlewareCors({ maxAge: 86400 })),
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
@@ -204,4 +206,9 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
 )
 
 // Launch the server with optional telemetry
-BunRuntime.runMain(Layer.launch(ServerLive).pipe(Effect.provide(TelemetryLive)))
+BunRuntime.runMain(
+  Layer.launch(ServerLive).pipe(
+    Effect.provide(TelemetryLive),
+    Effect.provide(LoggerLayer)
+  )
+)

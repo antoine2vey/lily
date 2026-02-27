@@ -10,7 +10,12 @@ export const embedText = (
 ): Effect.Effect<number[], EmbeddingError> =>
   Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
-      try: () => embed({ model: embeddingModel, value: text }),
+      try: () =>
+        embed({
+          model: embeddingModel,
+          value: text,
+          abortSignal: AbortSignal.timeout(30_000),
+        }),
       catch: (e) =>
         new EmbeddingError({
           message: `Failed to embed text: ${String(e)}`,
@@ -29,7 +34,12 @@ export const embedTexts = (
     }
 
     const result = yield* Effect.tryPromise({
-      try: () => embedMany({ model: embeddingModel, values: texts }),
+      try: () =>
+        embedMany({
+          model: embeddingModel,
+          values: texts,
+          abortSignal: AbortSignal.timeout(60_000),
+        }),
       catch: (e) =>
         new EmbeddingError({
           message: `Failed to embed texts: ${String(e)}`,

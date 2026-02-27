@@ -31,6 +31,9 @@ export const KnowledgeIngestionApiLive = (api: Api) =>
         .handle('getIngestJob', ({ path: { id } }) =>
           service.getIngestJob(id).pipe(withInfraErrorsAsDefect)
         )
+        .handle('deleteIngestJob', ({ path: { id } }) =>
+          service.deleteIngestJob(id).pipe(withInfraErrorsAsDefect)
+        )
         .handle('getKnowledgeStats', () =>
           service.getKnowledgeStats.pipe(withInfraErrorsAsDefect)
         )

@@ -79,6 +79,13 @@ export const createMockIngestJobRepository = (data: {
     },
 
     count: () => Effect.succeed(data.jobs.length),
+
+    delete: (id: string) => {
+      const idx = data.jobs.findIndex((j) => j.id === id)
+      if (idx === -1) return Effect.succeed(false)
+      data.jobs.splice(idx, 1)
+      return Effect.succeed(true)
+    },
   }
 
   return Layer.succeed(IngestJobRepository, repo)

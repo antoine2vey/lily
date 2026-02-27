@@ -1,16 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 
-export interface CreateIngestJobRequest {
-  readonly adapter: string
-  readonly config: {
-    readonly type: 'reddit'
-    readonly subreddits: ReadonlyArray<string>
-    readonly sort?: 'hot' | 'top' | 'new'
-    readonly timeFilter?: 'day' | 'week' | 'month' | 'year' | 'all'
-    readonly limit?: number
-  }
-}
+export type CreateIngestJobRequest =
+  | {
+      readonly adapter: 'reddit'
+      readonly config: {
+        readonly type: 'reddit'
+        readonly subreddits: ReadonlyArray<string>
+        readonly sort?: 'hot' | 'top' | 'new'
+        readonly timeFilter?: 'day' | 'week' | 'month' | 'year' | 'all'
+        readonly limit?: number
+      }
+    }
+  | {
+      readonly adapter: 'web'
+      readonly config: {
+        readonly type: 'web'
+        readonly urls: ReadonlyArray<string>
+      }
+    }
 
 export const useCreateJob = () => {
   const queryClient = useQueryClient()
