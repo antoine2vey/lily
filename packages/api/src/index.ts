@@ -185,7 +185,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 
 // Set up the server using BunHttpServer on port 3000
 const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
-  Layer.provide(HttpApiBuilder.middlewareCors()),
+  Layer.provide(HttpApiBuilder.middlewareCors({ maxAge: 86400 })),
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
