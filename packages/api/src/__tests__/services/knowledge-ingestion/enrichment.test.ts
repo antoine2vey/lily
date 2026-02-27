@@ -1,5 +1,5 @@
 import { Effect, Exit } from 'effect'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('ai', () => ({
   generateText: vi.fn(),
@@ -18,6 +18,10 @@ import { generateText } from 'ai'
 const mockedGenerateText = vi.mocked(generateText)
 
 describe('enrichChunk', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('should return keywords on success', async () => {
     mockedGenerateText.mockResolvedValueOnce({
       output: {
@@ -55,9 +59,12 @@ describe('enrichChunk', () => {
   })
 
   it('should return EnrichmentError on failure', async () => {
-    mockedGenerateText.mockRejectedValueOnce(new Error('API error'))
+    vi.useFakeTimers()
+    mockedGenerateText.mockRejectedValue(new Error('API error'))
 
-    const exit = await Effect.runPromiseExit(enrichChunk('some content'))
+    const exitPromise = Effect.runPromiseExit(enrichChunk('some content'))
+    await vi.runAllTimersAsync()
+    const exit = await exitPromise
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
@@ -66,13 +73,16 @@ describe('enrichChunk', () => {
   })
 
   it('should be recoverable with catchAll (graceful fallback pattern)', async () => {
-    mockedGenerateText.mockRejectedValueOnce(new Error('API timeout'))
+    vi.useFakeTimers()
+    mockedGenerateText.mockRejectedValue(new Error('API timeout'))
 
-    const result = await Effect.runPromise(
+    const resultPromise = Effect.runPromise(
       enrichChunk('some content').pipe(
         Effect.catchAll(() => Effect.succeed(undefined))
       )
     )
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
 
     expect(result).toBeUndefined()
   })
