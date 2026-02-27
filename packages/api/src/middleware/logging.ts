@@ -6,15 +6,14 @@ export const LoggingMiddleware = HttpMiddleware.make((app) =>
     const request = yield* HttpServerRequest.HttpServerRequest
     const start = DateTime.unsafeNow()
 
-    const response = yield* Effect.tapErrorCause(app, (_cause) => {
+    const response = yield* Effect.tapErrorCause(app, (cause) => {
       const duration = DateTime.distance(start, DateTime.unsafeNow())
 
       return Effect.gen(function* () {
-        yield* Effect.logError('HTTP request failed', {
-          method: request.method,
-          url: request.url,
-          duration_ms: duration,
-        })
+        yield* Effect.logError(
+          `${request.method} ${request.url} failed (${duration}ms)`,
+          cause
+        )
         yield* Effect.annotateCurrentSpan('http.method', request.method)
         yield* Effect.annotateCurrentSpan('http.url', request.url)
         yield* Effect.annotateCurrentSpan('http.duration_ms', duration)
@@ -24,12 +23,9 @@ export const LoggingMiddleware = HttpMiddleware.make((app) =>
 
     const duration = DateTime.distance(start, DateTime.unsafeNow())
 
-    yield* Effect.log('HTTP request completed', {
-      method: request.method,
-      url: request.url,
-      status: response.status,
-      duration_ms: duration,
-    })
+    yield* Effect.log(
+      `${request.method} ${request.url} ${response.status} (${duration}ms)`
+    )
     yield* Effect.annotateCurrentSpan('http.method', request.method)
     yield* Effect.annotateCurrentSpan('http.url', request.url)
     yield* Effect.annotateCurrentSpan('http.status_code', response.status)
