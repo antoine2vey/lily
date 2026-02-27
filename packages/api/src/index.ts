@@ -210,5 +210,6 @@ BunRuntime.runMain(
   Layer.launch(ServerLive).pipe(
     Effect.provide(TelemetryLive),
     Effect.provide(LoggerLayer)
-  )
+  ),
+  { disablePrettyLogger: true }
 )
