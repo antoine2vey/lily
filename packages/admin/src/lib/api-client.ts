@@ -25,7 +25,7 @@ const getTokenExpiry = (token: string): number | null => {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
-    const payload = JSON.parse(atob(parts[1]!))
+    const payload = JSON.parse(atob(parts[1] ?? ''))
     return typeof payload.exp === 'number' ? payload.exp * 1000 : null
   } catch {
     return null
@@ -153,6 +153,13 @@ export const apiRequest = async <T>(
   if (!response.ok) {
     const body = await response.text()
     throw new ApiError(response.status, body)
+  }
+
+  if (
+    response.status === 204 ||
+    response.headers.get('content-length') === '0'
+  ) {
+    return undefined as T
   }
 
   return response.json() as Promise<T>
