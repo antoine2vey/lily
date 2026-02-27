@@ -29,8 +29,6 @@ const fetchWebPage = (
   url: string
 ): Effect.Effect<RawDocumentInput, AdapterError> =>
   Effect.gen(function* () {
-    yield* Effect.log(`Fetching web page: ${url}`)
-
     const response = yield* Effect.tryPromise({
       try: () =>
         fetch(url, {
@@ -101,10 +99,6 @@ const fetchWebPage = (
       Option.getOrElse(() => url)
     )
 
-    yield* Effect.log(
-      `Extracted "${title}" (${content.length} chars) from ${url}\n${content}`
-    )
-
     return {
       source: 'web',
       sourceUrl: url,
@@ -138,15 +132,8 @@ export const webAdapter: ISourceAdapter = {
       Stream.zipWithIndex,
       Stream.mapEffect(([url, index]) =>
         Effect.gen(function* () {
-          yield* Effect.log(
-            `[web adapter] [${index + 1}/${total}] Starting: ${url}`
-          )
           yield* Effect.sleep(REQUEST_DELAY)
-          const doc = yield* fetchWebPage(url)
-          yield* Effect.log(
-            `[web adapter] [${index + 1}/${total}] Done: "${doc.title}" (${doc.content.length} chars)`
-          )
-          return doc
+          return yield* fetchWebPage(url)
         }).pipe(
           Effect.tapError((e) =>
             Effect.logWarning(
