@@ -1,3 +1,4 @@
+import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import {
   type CreateProcessedChunkData,
@@ -141,16 +142,37 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       })
     )
 
-    // Enrich child chunks: get keywords, prepend to content
+    // Enrich child chunks with keywords, up to 5 in parallel
     const enrichedChildren = yield* Effect.forEach(
       chunkResult.children,
       (child) =>
         Effect.gen(function* () {
           const enrichment = yield* enrichChunk(child.content).pipe(
-            Effect.catchAll((error) =>
-              Effect.logWarning('Chunk enrichment failed, continuing without', {
-                error: String(error),
-              }).pipe(Effect.map(() => undefined))
+            Effect.catchTag('EnrichmentError', (error) =>
+              Effect.gen(function* () {
+                const dlqRepo = yield* DeadLetterRepository
+                yield* dlqRepo
+                  .create({
+                    originalMessageId: `${jobId}:${insertedDoc.id}:${child.content.slice(0, 32)}`,
+                    topic: 'enrichment.chunk_failed',
+                    payload: {
+                      ingestJobId: jobId,
+                      documentId: insertedDoc.id,
+                      chunkContent: child.content,
+                    },
+                    error: error.message,
+                    retryCount: 3,
+                  })
+                  .pipe(
+                    Effect.tapError((e) =>
+                      Effect.logError('Failed to write to enrichment DLQ', {
+                        error: String(e),
+                      })
+                    ),
+                    Effect.ignore
+                  )
+                return undefined
+              })
             )
           )
 
@@ -174,7 +196,8 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
               }),
             })
           )
-        })
+        }),
+      { concurrency: 5 }
     )
 
     // Extract metadata for each child chunk
@@ -187,20 +210,18 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       plantMentions: extractPlantMentions(child.content),
     }))
 
-    // Generate embeddings for children in batch — use embeddingContent when
-    // available (keyword-enriched) so the vector captures topic keywords,
-    // while content stays clean for the LLM.
+    // Batch embed all chunks in one request
     const texts = Array.map(childData, (c) => c.embeddingContent ?? c.content)
     const embeddings = yield* embedTexts(texts).pipe(
-      Effect.catchAll((error) =>
+      Effect.catchTag('EmbeddingError', (error) =>
         Effect.logWarning(
           'Embedding failed for batch, storing without embeddings',
-          { error: String(error), documentId: insertedDoc.id }
+          { error: error.message, documentId: insertedDoc.id }
         ).pipe(Effect.map(() => Array.map(texts, () => undefined)))
       )
     )
 
-    // Store child chunks with parentChunkId
+    // Insert all chunks in one statement
     const chunksToInsert: CreateProcessedChunkData[] = pipe(
       childData,
       Array.map((child, i) => ({
@@ -286,10 +307,6 @@ export const processIngestJob = (job: IngestJob) =>
       documentsFetched: finalInserted,
       chunksCreated: finalChunks,
     })
-
-    yield* Effect.log(
-      `Job ${job.id} completed: ${finalInserted} docs, ${finalChunks} chunks`
-    )
   }).pipe(
     Effect.catchAll((error) =>
       Effect.gen(function* () {

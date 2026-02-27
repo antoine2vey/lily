@@ -10,6 +10,9 @@ export const NewJobPage = () => {
   const navigate = useNavigate()
   const createJob = useCreateJob()
 
+  const [adapterType, setAdapterType] = useState<'reddit' | 'web'>('reddit')
+
+  // Reddit fields
   const [subreddits, setSubreddits] = useState('')
   const [sort, setSort] = useState<'hot' | 'top' | 'new'>('top')
   const [timeFilter, setTimeFilter] = useState<
@@ -17,135 +20,253 @@ export const NewJobPage = () => {
   >('year')
   const [limit, setLimit] = useState(25)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  // Web fields
+  const [urls, setUrls] = useState('')
 
-    const parsedSubreddits = pipe(
-      subreddits,
-      String.split(','),
-      Array.map(String.trim),
+  const handleUrlPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text')
+
+    const extracted = pipe(
+      text.match(/https?:\/\/\S+/g) ?? [],
+      Array.map((url) => url.replace(/[)>\]'".,;:]+$/, '')),
       Array.filter(String.isNonEmpty)
     )
 
-    if (parsedSubreddits.length === 0) return
+    if (Array.isEmptyArray(extracted)) return
 
-    createJob.mutate(
-      {
-        adapter: 'reddit',
-        config: {
-          type: 'reddit',
-          subreddits: parsedSubreddits,
-          sort,
-          timeFilter,
-          limit,
+    setUrls((prev) => {
+      const trimmed = String.trim(prev)
+      return String.isNonEmpty(trimmed)
+        ? `${trimmed}\n${Array.join(extracted, '\n')}`
+        : Array.join(extracted, '\n')
+    })
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (adapterType === 'reddit') {
+      const parsedSubreddits = pipe(
+        subreddits,
+        String.split(','),
+        Array.map(String.trim),
+        Array.filter(String.isNonEmpty)
+      )
+
+      if (parsedSubreddits.length === 0) return
+
+      createJob.mutate(
+        {
+          adapter: 'reddit',
+          config: {
+            type: 'reddit',
+            subreddits: parsedSubreddits,
+            sort,
+            timeFilter,
+            limit,
+          },
         },
-      },
-      { onSuccess: () => navigate('/jobs') }
-    )
+        { onSuccess: () => navigate('/jobs') }
+      )
+    } else {
+      const parsedUrls = pipe(
+        urls,
+        String.split('\n'),
+        Array.map(String.trim),
+        Array.filter(String.isNonEmpty)
+      )
+
+      if (parsedUrls.length === 0) return
+
+      createJob.mutate(
+        {
+          adapter: 'web',
+          config: {
+            type: 'web',
+            urls: parsedUrls,
+          },
+        },
+        { onSuccess: () => navigate('/jobs') }
+      )
+    }
   }
 
   const isSubmitDisabled =
-    pipe(subreddits, String.trim, String.isEmpty) || createJob.isPending
+    (adapterType === 'reddit'
+      ? pipe(subreddits, String.trim, String.isEmpty)
+      : pipe(urls, String.trim, String.isEmpty)) || createJob.isPending
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold">New Reddit Ingestion Job</h1>
+      <h1 className="mb-6 text-2xl font-semibold">New Ingestion Job</h1>
 
       <form
         onSubmit={handleSubmit}
         className="max-w-lg space-y-5 rounded-lg border border-gray-200 bg-white p-6"
       >
         <div>
-          <label
-            htmlFor="subreddits"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Subreddits
-          </label>
-          <input
-            id="subreddits"
-            type="text"
-            value={subreddits}
-            onChange={(e) => setSubreddits(e.target.value)}
-            placeholder="houseplants, plantclinic, gardening"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            Comma-separated list of subreddit names (without r/)
-          </p>
+          <span className="block text-sm font-medium text-gray-700">
+            Adapter
+          </span>
+          <div className="mt-1 flex gap-2">
+            {pipe(
+              ['reddit', 'web'] as const,
+              Array.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setAdapterType(type)}
+                  className={`rounded-md px-4 py-2 text-sm font-medium capitalize ${
+                    adapterType === type
+                      ? 'bg-primary-600 text-white'
+                      : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label
-              htmlFor="sort"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Sort
-            </label>
-            <select
-              id="sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as 'hot' | 'top' | 'new')}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              {pipe(
-                sortOptions,
-                Array.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+        {adapterType === 'reddit' && (
+          <>
+            <div>
+              <label
+                htmlFor="subreddits"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Subreddits
+              </label>
+              <input
+                id="subreddits"
+                type="text"
+                value={subreddits}
+                onChange={(e) => setSubreddits(e.target.value)}
+                placeholder="houseplants, plantclinic, gardening"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Comma-separated list of subreddit names (without r/)
+              </p>
+            </div>
 
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label
+                  htmlFor="sort"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Sort
+                </label>
+                <select
+                  id="sort"
+                  value={sort}
+                  onChange={(e) =>
+                    setSort(e.target.value as 'hot' | 'top' | 'new')
+                  }
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  {pipe(
+                    sortOptions,
+                    Array.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="timeFilter"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Time Filter
+                </label>
+                <select
+                  id="timeFilter"
+                  value={timeFilter}
+                  onChange={(e) =>
+                    setTimeFilter(
+                      e.target.value as
+                        | 'day'
+                        | 'week'
+                        | 'month'
+                        | 'year'
+                        | 'all'
+                    )
+                  }
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  {pipe(
+                    timeFilterOptions,
+                    Array.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="limit"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Limit
+                </label>
+                <input
+                  id="limit"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {adapterType === 'web' && (
           <div>
             <label
-              htmlFor="timeFilter"
+              htmlFor="urls"
               className="block text-sm font-medium text-gray-700"
             >
-              Time Filter
+              URLs
             </label>
-            <select
-              id="timeFilter"
-              value={timeFilter}
-              onChange={(e) =>
-                setTimeFilter(
-                  e.target.value as 'day' | 'week' | 'month' | 'year' | 'all'
-                )
+            <textarea
+              id="urls"
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              onPaste={handleUrlPaste}
+              placeholder={
+                'https://example.com/plant-care\nhttps://example.com/watering-guide'
               }
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              {pipe(
-                timeFilterOptions,
-                Array.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="limit"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Limit
-            </label>
-            <input
-              id="limit"
-              type="number"
-              min={1}
-              max={1000}
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              rows={10}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
+            <p className="mt-1 text-xs text-gray-400">
+              One URL per line.{' '}
+              {pipe(
+                urls,
+                String.split('\n'),
+                Array.map(String.trim),
+                Array.filter(String.isNonEmpty),
+                (parsed) =>
+                  parsed.length > 0
+                    ? `${parsed.length} URL${parsed.length === 1 ? '' : 's'} entered.`
+                    : null
+              )}
+            </p>
           </div>
-        </div>
+        )}
 
         {createJob.isError && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">

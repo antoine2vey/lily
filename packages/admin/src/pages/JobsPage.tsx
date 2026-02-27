@@ -2,6 +2,7 @@ import { formatApiRelativeTime } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '@/components/StatusBadge'
+import { useDeleteJob } from '@/hooks/use-delete-job'
 import type { IngestJob } from '@/hooks/use-ingest-jobs'
 import { useIngestJobs } from '@/hooks/use-ingest-jobs'
 import type { KnowledgeStats } from '@/hooks/use-knowledge-stats'
@@ -19,6 +20,7 @@ type TableState = 'loading' | 'empty' | 'data'
 export const JobsPage = () => {
   const { data: jobsData, isLoading: jobsLoading } = useIngestJobs()
   const { data: statsData } = useKnowledgeStats()
+  const deleteJob = useDeleteJob()
 
   const jobs = pipe(
     Option.fromNullable(jobsData),
@@ -83,6 +85,7 @@ export const JobsPage = () => {
                   'Chunks',
                   'Created',
                   'Error',
+                  'Actions',
                 ] as const,
                 Array.map((header) => (
                   <th
@@ -101,7 +104,7 @@ export const JobsPage = () => {
               Match.when('loading', () => (
                 <tr key="loading">
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     Loading...
@@ -111,7 +114,7 @@ export const JobsPage = () => {
               Match.when('empty', () => (
                 <tr key="empty">
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     No jobs found. Create one to get started.
@@ -152,6 +155,20 @@ export const JobsPage = () => {
                             ),
                           })
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <button
+                          type="button"
+                          disabled={deleteJob.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Delete job ${job.id}?`)) {
+                              deleteJob.mutate(job.id)
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))

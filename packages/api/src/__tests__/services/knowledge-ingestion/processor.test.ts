@@ -1,4 +1,5 @@
 import { createTestIngestJob } from '@lily/api/__tests__/fixtures/knowledge'
+import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-letter.repository'
 import { createMockIngestJobRepository } from '@lily/api/__tests__/mocks/ingest-job.repository'
 import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/processed-chunk.repository'
 import { createMockRawDocumentRepository } from '@lily/api/__tests__/mocks/raw-document.repository'
@@ -101,7 +102,8 @@ const buildLayers = (opts: {
   return Layer.mergeAll(
     createMockIngestJobRepository({ jobs: opts.jobs }),
     createMockRawDocumentRepository({ documents }),
-    createMockProcessedChunkRepository({ insertedChunks })
+    createMockProcessedChunkRepository({ insertedChunks }),
+    createMockDeadLetterRepository()
   )
 }
 
@@ -231,6 +233,7 @@ describe('processIngestJob', () => {
         },
         updateError: () => Effect.succeed(undefined as undefined),
         count: () => Effect.succeed(1),
+        delete: () => Effect.succeed(false),
       }
     )
 
@@ -245,7 +248,8 @@ describe('processIngestJob', () => {
     const layer = Layer.mergeAll(
       jobLayer,
       createMockRawDocumentRepository({ documents: [] }),
-      createMockProcessedChunkRepository({ insertedChunks })
+      createMockProcessedChunkRepository({ insertedChunks }),
+      createMockDeadLetterRepository()
     )
 
     await Effect.runPromise(processIngestJob(job).pipe(Effect.provide(layer)))

@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Effect, Schema } from 'effect'
+import { Effect, Schedule, Schema } from 'effect'
 import { z } from 'zod'
 
 const enrichmentModel = openai('gpt-4o-mini')
@@ -28,6 +28,11 @@ const SYSTEM_PROMPT = `You are a plant care knowledge indexer. Given a plant car
 
 Keywords should include: plant names, care topics (watering, light, soil, etc.), specific symptoms or problems, and actionable advice terms.`
 
+const retryPolicy = Schedule.intersect(
+  Schedule.recurs(3),
+  Schedule.exponential('1 second')
+)
+
 export const enrichChunk = (
   content: string
 ): Effect.Effect<ChunkEnrichment, EnrichmentError> =>
@@ -44,7 +49,23 @@ export const enrichChunk = (
         new EnrichmentError({
           message: `Chunk enrichment failed: ${globalThis.String(e)}`,
         }),
-    })
+    }).pipe(
+      Effect.timeoutFail({
+        duration: '10 seconds',
+        onTimeout: () =>
+          new EnrichmentError({ message: 'Enrichment timed out after 10s' }),
+      }),
+      Effect.tapError((e) =>
+        Effect.logWarning(`[enrichment] Attempt failed: ${e.message}`)
+      ),
+      Effect.retry(retryPolicy),
+      Effect.tapError((e) =>
+        Effect.logError(
+          '[enrichment] DLQ: chunk failed after 3 attempts, skipping',
+          { error: e.message, chunk: content.slice(0, 200) }
+        )
+      )
+    )
 
     if (!result.output) {
       return yield* Effect.fail(

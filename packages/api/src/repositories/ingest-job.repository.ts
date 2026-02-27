@@ -37,6 +37,7 @@ export interface IIngestJobRepository {
     error: string
   ) => Effect.Effect<void, SqlError>
   readonly count: () => Effect.Effect<number, SqlError>
+  readonly delete: (id: string) => Effect.Effect<boolean, SqlError>
 }
 
 export class IngestJobRepository extends Context.Tag('IngestJobRepository')<
@@ -150,6 +151,15 @@ export const IngestJobRepositoryLive = Layer.effect(
             Option.getOrElse(() => 0)
           )
         }).pipe(Effect.withSpan('IngestJobRepository.count')),
+
+      delete: (id: string) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .delete(ingestJobs)
+            .where(eq(ingestJobs.id, id))
+            .returning()
+          return Array.isNonEmptyArray(rows)
+        }).pipe(Effect.withSpan('IngestJobRepository.delete')),
     }
   })
 )
