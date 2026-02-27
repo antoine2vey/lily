@@ -307,10 +307,6 @@ export const processIngestJob = (job: IngestJob) =>
       documentsFetched: finalInserted,
       chunksCreated: finalChunks,
     })
-
-    yield* Effect.log(
-      `Job ${job.id} completed: ${finalInserted} docs, ${finalChunks} chunks`
-    )
   }).pipe(
     Effect.catchAll((error) =>
       Effect.gen(function* () {

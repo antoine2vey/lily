@@ -37,10 +37,6 @@ export const enrichChunk = (
   content: string
 ): Effect.Effect<ChunkEnrichment, EnrichmentError> =>
   Effect.gen(function* () {
-    yield* Effect.log(
-      `[enrichment] Calling LLM for chunk (${content.length} chars): "${content.slice(0, 80).replace(/\n/g, ' ')}..."`
-    )
-
     const result = yield* Effect.tryPromise({
       try: () =>
         generateText({
@@ -76,10 +72,6 @@ export const enrichChunk = (
         new EnrichmentError({ message: 'Enrichment returned no output' })
       )
     }
-
-    yield* Effect.log(
-      `[enrichment] Done — keywords: ${result.output.keywords.join(', ')}`
-    )
 
     return result.output
   }).pipe(Effect.withSpan('Enrichment.enrichChunk'))
