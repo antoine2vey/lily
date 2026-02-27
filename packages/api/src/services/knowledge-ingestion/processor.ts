@@ -17,7 +17,6 @@ import {
 } from '@lily/api/services/knowledge-ingestion/processing/plant-extractor'
 import { chunkRedditDocument } from '@lily/api/services/knowledge-ingestion/processing/reddit-chunker'
 import { embedTexts } from '@lily/api/services/rag/embedding.service'
-import { EmbeddingError } from '@lily/shared/errors/knowledge'
 import type {
   AdapterConfig,
   IngestJob,

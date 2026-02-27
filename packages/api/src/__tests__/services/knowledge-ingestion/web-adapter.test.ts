@@ -65,15 +65,14 @@ describe('webAdapter', () => {
     const docs = await collectDocs(config)
 
     expect(docs).toHaveLength(1)
-    const doc = docs[0]!
-    expect(doc.source).toBe('web')
-    expect(doc.sourceUrl).toBe('https://example.com/monstera-care')
-    expect(doc.sourceId).toMatch(/^web_/)
-    expect(doc.title).toBeTruthy()
-    expect(doc.content.length).toBeGreaterThanOrEqual(200)
-    expect(doc.metadata).toHaveProperty('domain', 'example.com')
-    expect(doc.metadata).toHaveProperty('contentLength')
-    expect(doc.metadata).toHaveProperty('fetchedAt')
+    expect(docs[0]?.source).toBe('web')
+    expect(docs[0]?.sourceUrl).toBe('https://example.com/monstera-care')
+    expect(docs[0]?.sourceId).toMatch(/^web_/)
+    expect(docs[0]?.title).toBeTruthy()
+    expect(docs[0]?.content.length).toBeGreaterThanOrEqual(200)
+    expect(docs[0]?.metadata).toHaveProperty('domain', 'example.com')
+    expect(docs[0]?.metadata).toHaveProperty('contentLength')
+    expect(docs[0]?.metadata).toHaveProperty('fetchedAt')
   })
 
   it('generates deterministic sourceId for the same URL', async () => {
@@ -88,7 +87,7 @@ describe('webAdapter', () => {
     const docs1 = await collectDocs(config)
     const docs2 = await collectDocs(config)
 
-    expect(docs1[0]!.sourceId).toBe(docs2[0]!.sourceId)
+    expect(docs1[0]?.sourceId).toBe(docs2[0]?.sourceId)
   })
 
   it('skips pages that return non-200 status', async () => {
@@ -139,7 +138,7 @@ describe('webAdapter', () => {
     const docs = await collectDocs(config)
 
     expect(docs).toHaveLength(1)
-    expect(docs[0]!.sourceUrl).toBe('https://example.com/working')
+    expect(docs[0]?.sourceUrl).toBe('https://example.com/working')
   })
 
   it('fails with AdapterError for wrong config type', async () => {
@@ -167,7 +166,7 @@ describe('webAdapter', () => {
     const docs = await collectDocs(config)
 
     expect(docs).toHaveLength(1)
-    expect(docs[0]!.content).not.toContain('\u0000')
-    expect(docs[0]!.content).not.toContain('\uFFFE')
+    expect(docs[0]?.content).not.toContain('\u0000')
+    expect(docs[0]?.content).not.toContain('\uFFFE')
   })
 })
