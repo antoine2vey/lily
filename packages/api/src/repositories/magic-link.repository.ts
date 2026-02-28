@@ -6,6 +6,7 @@ import { and, eq, gt, isNull, lt } from 'drizzle-orm'
 import {
   Array,
   Context,
+  DateTime,
   Effect,
   String as EffectString,
   Layer,
@@ -99,7 +100,13 @@ export const MagicLinkRepositoryLive = Layer.effect(
           const record = pipe(results, Array.head, Option.getOrNull)
 
           // Check expiration manually since drizzle gt() can be tricky with dates
-          if (record && record.expiresAt > currentTime) {
+          if (
+            record &&
+            DateTime.greaterThan(
+              DateTime.unsafeMake(record.expiresAt),
+              DateTime.unsafeMake(currentTime)
+            )
+          ) {
             return record
           }
           return null

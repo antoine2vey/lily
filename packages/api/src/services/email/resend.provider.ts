@@ -32,7 +32,7 @@ const createResendService = (config: {
               to: request.to,
               subject: request.subject,
               html: request.html,
-              ...(request.text !== undefined && { text: request.text }),
+              text: request.text,
             }),
           catch: (error) =>
             new EmailSendError({

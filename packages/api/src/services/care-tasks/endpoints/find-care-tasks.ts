@@ -76,31 +76,25 @@ export const findCareTasks = (): Effect.Effect<
     const plants = yield* repo.findPlantsWithPendingCare(userId, cutoffDate)
 
     // Generate tasks from plants
-    const tasks: CareTask[] = []
-
-    Array.forEach(plants, (plant) => {
-      // Check watering schedule
+    const waterTasks = Array.filterMap(plants, (plant) =>
       pipe(
         Option.fromNullable(plant.nextWateringAt),
-        Option.map((date) => {
-          const dateDt = DateTime.unsafeMake(date)
-          if (DateTime.lessThanOrEqualTo(dateDt, cutoffDt)) {
-            tasks.push(createTask(plant, 'water', date))
-          }
-        })
+        Option.filter((date) =>
+          DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
+        ),
+        Option.map((date) => createTask(plant, 'water', date))
       )
-
-      // Check fertilization schedule
+    )
+    const fertilizeTasks = Array.filterMap(plants, (plant) =>
       pipe(
         Option.fromNullable(plant.nextFertilizationAt),
-        Option.map((date) => {
-          const dateDt = DateTime.unsafeMake(date)
-          if (DateTime.lessThanOrEqualTo(dateDt, cutoffDt)) {
-            tasks.push(createTask(plant, 'fertilize', date))
-          }
-        })
+        Option.filter((date) =>
+          DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
+        ),
+        Option.map((date) => createTask(plant, 'fertilize', date))
       )
-    })
+    )
+    const tasks = Array.appendAll(waterTasks, fertilizeTasks)
 
     // Group tasks by date category using user's timezone
     const overdue = Array.filter(tasks, (task) =>

@@ -40,13 +40,20 @@ export const RedisEventBusLive = Layer.scoped(
     // Listen for messages and enqueue to local queue
     subscriberRedis.on('message', (channel, message) => {
       if (channel === CHANNEL) {
-        try {
-          const parsed = JSON.parse(message)
-          const decoded = Schema.decodeUnknownSync(AppEventSchema)(parsed)
-          Effect.runSync(Queue.offer(queue, decoded))
-        } catch (error) {
-          console.error('Failed to decode event bus message:', error)
-        }
+        Effect.runFork(
+          Effect.gen(function* () {
+            const parsed = yield* Effect.try({
+              try: () => JSON.parse(message) as unknown,
+              catch: (e) => e,
+            })
+            const decoded = yield* Schema.decodeUnknown(AppEventSchema)(parsed)
+            yield* Queue.offer(queue, decoded)
+          }).pipe(
+            Effect.catchAll((error) =>
+              Effect.logError('Failed to decode event bus message', { error })
+            )
+          )
+        )
       }
     })
 

@@ -6,7 +6,7 @@ import {
   PushService,
   type PushTicket,
 } from '@lily/shared/server'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Match, Option, pipe } from 'effect'
 import Expo, {
   type ExpoPushMessage,
   type ExpoPushTicket,
@@ -32,19 +32,20 @@ const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
 }
 
 // Helper to convert Expo ticket to our PushTicket
-const convertTicket = (ticket: ExpoPushTicket): PushTicket => {
-  if (ticket.status === 'error') {
-    return {
+const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
+  pipe(
+    Match.value(ticket),
+    Match.when({ status: 'error' }, (t) => ({
       id: crypto.randomUUID(),
-      status: 'error',
-      message: ticket.message,
-    }
-  }
-  return {
-    id: ticket.id,
-    status: 'ok',
-  }
-}
+      status: 'error' as const,
+      message: t.message,
+    })),
+    Match.when({ status: 'ok' }, (t) => ({
+      id: t.id,
+      status: 'ok' as const,
+    })),
+    Match.exhaustive
+  )
 
 // Expo Push implementation of IPushService
 export const ExpoPushServiceLive = Layer.effect(
@@ -75,15 +76,16 @@ export const ExpoPushServiceLive = Layer.effect(
               }),
           })
 
-          const ticket = result[0]
-
-          if (!ticket) {
-            return yield* Effect.fail(
-              new PushSendError({
-                message: 'No ticket received from Expo',
-              })
-            )
-          }
+          const ticket = yield* pipe(
+            Array.head(result),
+            Option.match({
+              onNone: () =>
+                Effect.fail(
+                  new PushSendError({ message: 'No ticket received from Expo' })
+                ),
+              onSome: Effect.succeed,
+            })
+          )
 
           if (ticket.status === 'error') {
             return yield* Effect.fail(
@@ -105,13 +107,16 @@ export const ExpoPushServiceLive = Layer.effect(
 
       sendBatch: (messages) =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('push.count', messages.length)
+          yield* Effect.annotateCurrentSpan(
+            'push.count',
+            Array.length(messages)
+          )
           // Validate all tokens
           const invalidTokens = Array.filter(
             messages,
             (m) => !Expo.isExpoPushToken(m.to)
           )
-          if (invalidTokens.length > 0) {
+          if (Array.isNonEmptyArray(invalidTokens)) {
             return yield* Effect.fail(
               new PushConfigError({
                 message: `Invalid Expo push tokens: ${Array.join(
@@ -127,24 +132,21 @@ export const ExpoPushServiceLive = Layer.effect(
             Array.map(messages, buildExpoMessage)
           )
 
-          const tickets: PushTicket[] = []
+          const ticketBatches = yield* Effect.forEach(chunks, (chunk) =>
+            Effect.map(
+              Effect.tryPromise({
+                try: () => expo.sendPushNotificationsAsync(chunk),
+                catch: (error) =>
+                  new PushSendError({
+                    message: 'Failed to send push notification batch',
+                    cause: error,
+                  }),
+              }),
+              (result) => Array.map(result, convertTicket)
+            )
+          )
 
-          for (const chunk of chunks) {
-            const result = yield* Effect.tryPromise({
-              try: () => expo.sendPushNotificationsAsync(chunk),
-              catch: (error) =>
-                new PushSendError({
-                  message: 'Failed to send push notification batch',
-                  cause: error,
-                }),
-            })
-
-            for (const ticket of result) {
-              tickets.push(convertTicket(ticket))
-            }
-          }
-
-          return tickets
+          return Array.flatten(ticketBatches)
         }).pipe(Effect.withSpan('ExpoPush.sendBatch')),
     }
 
