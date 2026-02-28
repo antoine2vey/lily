@@ -39,8 +39,8 @@ export const handleUncancellation = (
       yield* subRepo.logEvent(ctx.userId, 'subscription_created', {
         tier: 'paid',
         status: 'active',
-        eventType: 'RENEWAL',
-        note: 'Created from RENEWAL event (subscription was missing)',
+        eventType: 'UNCANCELLATION',
+        note: 'Created from UNCANCELLATION event (subscription was missing)',
       })
     }
   })

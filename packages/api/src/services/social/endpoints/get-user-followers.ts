@@ -7,7 +7,7 @@ import {
   UserNotFoundError,
   UserNotPublicError,
 } from '@lily/shared'
-import { Array, Effect } from 'effect'
+import { Effect } from 'effect'
 
 export const getUserFollowers = (
   targetUserId: string,
@@ -42,6 +42,6 @@ export const getUserFollowers = (
       total,
       page,
       limit,
-      hasMore: Array.length(items) === limit,
+      hasMore: page * limit < total,
     }
   }).pipe(Effect.withSpan('SocialService.getUserFollowers'))
