@@ -8,7 +8,7 @@ import {
   PushService,
   type QueueMessage,
 } from '@lily/shared/server'
-import { Array, Effect, Match, Option, pipe, Schedule } from 'effect'
+import { Array, Effect, Match, Option, pipe, Schedule, Struct } from 'effect'
 
 const MAX_RETRIES = 3
 
@@ -128,10 +128,10 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
             yield* handleFailedMessage(message, error)
           } else {
             // Re-enqueue with incremented retry count
-            yield* queue.enqueue(topic, {
-              ...message,
-              retryCount: message.retryCount + 1,
-            })
+            yield* queue.enqueue(
+              topic,
+              Struct.evolve(message, { retryCount: (n) => n + 1 })
+            )
             yield* Effect.forEach(message.payload.notificationIds, (id) =>
               notificationRepo.incrementRetryCount(id)
             )
@@ -166,13 +166,11 @@ const validateTopic = Match.type<NotificationTopic>().pipe(
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
   // Validate all topics are handled at startup (compile + runtime check)
-  for (const topic of NOTIFICATION_TOPICS) {
-    validateTopic(topic)
-  }
+  Array.forEach(NOTIFICATION_TOPICS, validateTopic)
 
   // Start a worker for each topic
-  for (const topic of NOTIFICATION_TOPICS) {
-    yield* Effect.fork(
+  yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
+    Effect.fork(
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchAll((error) =>
@@ -183,7 +181,7 @@ export const startNotificationWorker = Effect.gen(function* () {
         )
       )
     )
-  }
+  )
 
   yield* Effect.log('Notification workers started', {
     topics: NOTIFICATION_TOPICS,

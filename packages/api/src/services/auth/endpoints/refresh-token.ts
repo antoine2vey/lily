@@ -1,21 +1,19 @@
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import {
+  ACCESS_TOKEN_EXPIRY_SECONDS,
+  REFRESH_TOKEN_EXPIRY_MS,
+} from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import { nowAsDate } from '@lily/shared'
 import type {
   RefreshTokenRequest,
   RefreshTokenResponse,
 } from '@lily/shared/auth'
-import { Effect } from 'effect'
-
-// Access token expiry in seconds for response
-const ACCESS_TOKEN_EXPIRY_SECONDS = 15 * 60
-// Refresh token expiry: 30 days
-const REFRESH_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000
+import { DateTime, Duration, Effect } from 'effect'
 
 /**
  * Refresh access token using refresh token.
@@ -88,8 +86,11 @@ export const refreshToken = ({
     const newRefreshToken = yield* jwtService.generateRefreshToken()
     const newRefreshTokenHash =
       yield* jwtService.hashRefreshToken(newRefreshToken)
-    const refreshTokenExpiry = new Date(
-      nowAsDate().getTime() + REFRESH_TOKEN_EXPIRY_MS
+    const refreshTokenExpiry = DateTime.toDateUtc(
+      DateTime.addDuration(
+        DateTime.unsafeNow(),
+        Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
+      )
     )
 
     // Store the new hashed refresh token

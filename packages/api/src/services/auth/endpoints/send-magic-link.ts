@@ -4,12 +4,13 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import { nowAsDate } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import {
   Config,
   type ConfigError,
   Console,
+  DateTime,
+  Duration,
   Effect,
   String as EffectString,
   pipe,
@@ -65,7 +66,12 @@ export const sendMagicLink = ({
 
     // Generate secure token
     const token = crypto.randomUUID()
-    const expiresAt = new Date(nowAsDate().getTime() + MAGIC_LINK_EXPIRY_MS)
+    const expiresAt = DateTime.toDateUtc(
+      DateTime.addDuration(
+        DateTime.unsafeNow(),
+        Duration.millis(MAGIC_LINK_EXPIRY_MS)
+      )
+    )
 
     // Store magic link in database
     yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)

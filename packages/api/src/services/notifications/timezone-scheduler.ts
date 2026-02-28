@@ -4,7 +4,14 @@ import {
   parseTime,
   validateTimezone,
 } from '@lily/shared'
-import { DateTime, Effect, String as EffectString, Option, pipe } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  String as EffectString,
+  Option,
+  pipe,
+} from 'effect'
 
 /**
  * Calculates the scheduled notification time in the user's preferred timezone
@@ -33,29 +40,39 @@ export const calculateScheduledAt = (
     // Try to validate timezone, fall back to UTC if invalid
     const validTimezone = yield* pipe(
       validateTimezone(tz),
-      Effect.catchTag('InvalidTimezoneError', () => {
-        Effect.logWarning(
-          `Invalid timezone "${tz}", falling back to ${DEFAULT_TIMEZONE}`
-        )
-        return Effect.succeed(DEFAULT_TIMEZONE)
-      })
+      Effect.catchTag('InvalidTimezoneError', () =>
+        Effect.gen(function* () {
+          yield* Effect.logWarning(
+            `Invalid timezone "${tz}", falling back to ${DEFAULT_TIMEZONE}`
+          )
+          return DEFAULT_TIMEZONE
+        })
+      )
     )
 
     // Parse the preferred time
     const { hours, minutes } = yield* pipe(
       parseTime(time),
-      Effect.catchTag('InvalidTimeFormatError', () => {
-        Effect.logWarning(
-          `Invalid time format "${time}", falling back to ${DEFAULT_NOTIFICATION_TIME}`
-        )
-        const parts = EffectString.split(DEFAULT_NOTIFICATION_TIME, ':')
-        const h = parts[0] ?? '9'
-        const m = parts[1] ?? '0'
-        return Effect.succeed({
-          hours: parseInt(h, 10),
-          minutes: parseInt(m, 10),
+      Effect.catchTag('InvalidTimeFormatError', () =>
+        Effect.gen(function* () {
+          yield* Effect.logWarning(
+            `Invalid time format "${time}", falling back to ${DEFAULT_NOTIFICATION_TIME}`
+          )
+          const parts = EffectString.split(DEFAULT_NOTIFICATION_TIME, ':')
+          const h = pipe(
+            Array.head(parts),
+            Option.getOrElse(() => '9')
+          )
+          const m = pipe(
+            Array.get(parts, 1),
+            Option.getOrElse(() => '0')
+          )
+          return {
+            hours: parseInt(h, 10),
+            minutes: parseInt(m, 10),
+          }
         })
-      })
+      )
     )
 
     // Create a zoned DateTime for the base date

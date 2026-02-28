@@ -2,6 +2,10 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import {
+  ACCESS_TOKEN_EXPIRY_SECONDS,
+  REFRESH_TOKEN_EXPIRY_MS,
+} from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import {
   RATE_LIMITS,
@@ -11,12 +15,7 @@ import { users } from '@lily/db/schema/users'
 import { nowAsDate } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
 import { eq } from 'drizzle-orm'
-import { Array, Effect, Option, pipe } from 'effect'
-
-// Refresh token expiry: 30 days
-const REFRESH_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000
-// Access token expiry in seconds for response
-const ACCESS_TOKEN_EXPIRY_SECONDS = 15 * 60
+import { Array, DateTime, Duration, Effect, Option, pipe, Struct } from 'effect'
 
 /**
  * Verify magic link token and exchange for JWT tokens
@@ -82,7 +81,7 @@ export const verifyMagicLink = ({
           .update(users)
           .set({ emailVerified: true, updatedAt: nowAsDate() })
           .where(eq(users.id, user.id))
-        user = { ...user, emailVerified: true }
+        user = Struct.evolve(user, { emailVerified: () => true })
       }
     }
 
@@ -108,8 +107,11 @@ export const verifyMagicLink = ({
     // Generate refresh token
     const refreshToken = yield* jwtService.generateRefreshToken()
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
-    const refreshTokenExpiry = new Date(
-      nowAsDate().getTime() + REFRESH_TOKEN_EXPIRY_MS
+    const refreshTokenExpiry = DateTime.toDateUtc(
+      DateTime.addDuration(
+        DateTime.unsafeNow(),
+        Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
+      )
     )
 
     // Store hashed refresh token

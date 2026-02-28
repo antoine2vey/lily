@@ -6,7 +6,7 @@ import {
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Config, Context, Effect, Layer } from 'effect'
+import { Array, Config, Context, Effect, Layer, Option } from 'effect'
 import Redis from 'ioredis'
 
 // Redis client service tag
@@ -74,12 +74,12 @@ export const RedisMessageQueueLive = Layer.effect(
             // Remove message from processing queue by scanning
             const processingKey = getProcessingKey(topic)
             const messages = await redis.lrange(processingKey, 0, -1)
-            for (const msg of messages) {
-              const parsed = JSON.parse(msg) as QueueMessage
-              if (parsed.id === messageId) {
-                await redis.lrem(processingKey, 1, msg)
-                break
-              }
+            const found = Array.findFirst(
+              messages,
+              (msg) => (JSON.parse(msg) as QueueMessage).id === messageId
+            )
+            if (Option.isSome(found)) {
+              await redis.lrem(processingKey, 1, found.value)
             }
           },
           catch: (error) =>
@@ -101,13 +101,13 @@ export const RedisMessageQueueLive = Layer.effect(
             const processingKey = getProcessingKey(topic)
             const queueKey = getQueueKey(topic)
             const messages = await redis.lrange(processingKey, 0, -1)
-            for (const msg of messages) {
-              const parsed = JSON.parse(msg) as QueueMessage
-              if (parsed.id === messageId) {
-                await redis.lrem(processingKey, 1, msg)
-                await redis.rpush(queueKey, msg)
-                break
-              }
+            const found = Array.findFirst(
+              messages,
+              (msg) => (JSON.parse(msg) as QueueMessage).id === messageId
+            )
+            if (Option.isSome(found)) {
+              await redis.lrem(processingKey, 1, found.value)
+              await redis.rpush(queueKey, found.value)
             }
           },
           catch: (error) =>

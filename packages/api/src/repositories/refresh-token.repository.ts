@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { refreshTokens } from '@lily/db/schema/auth'
 import { daysAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, isNull, lt } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
 
 /**
  * Refresh token record type
@@ -86,7 +86,13 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           const record = pipe(results, Array.head, Option.getOrNull)
 
           // Check expiration manually
-          if (record && record.expiresAt > currentTime) {
+          if (
+            record &&
+            DateTime.greaterThan(
+              DateTime.unsafeMake(record.expiresAt),
+              DateTime.unsafeMake(currentTime)
+            )
+          ) {
             return record
           }
           return null
