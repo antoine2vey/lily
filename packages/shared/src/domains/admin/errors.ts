@@ -20,3 +20,13 @@ export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfEr
   },
   HttpApiSchema.annotations({ status: 400 })
 ) {}
+
+export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotFoundError>()(
+  'ChatMessageNotFoundError',
+  {
+    message: Schema.optionalWith(Schema.String, {
+      default: () => 'Chat message not found',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 404 })
+) {}

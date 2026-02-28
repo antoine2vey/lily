@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout'
 import { JobsPage } from '@/pages/JobsPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { NewJobPage } from '@/pages/NewJobPage'
+import { PromptPreviewPage } from '@/pages/PromptPreviewPage'
 import { SearchPage } from '@/pages/SearchPage'
 
 const queryClient = new QueryClient()
@@ -20,6 +21,7 @@ export const App = () => (
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/jobs/new" element={<NewJobPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/prompt-preview" element={<PromptPreviewPage />} />
           </Route>
         </Route>
       </Routes>
