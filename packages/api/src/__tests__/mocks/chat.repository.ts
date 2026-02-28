@@ -18,6 +18,61 @@ export const createMockChatRepository = (
   data: MockChatRepositoryData = { messages: [] }
 ): Layer.Layer<ChatRepository> => {
   const repo: IChatRepository = {
+    findById: (id: string) => {
+      const found = Array.findFirst(data.messages, (msg) => msg.id === id)
+      return Effect.succeed(
+        pipe(
+          found,
+          Option.map((msg) => ({
+            id: msg.id,
+            messageId: null,
+            role: msg.role,
+            content: msg.content,
+            parts: null,
+            imageKey: null,
+            userId: msg.userId,
+            plantId: msg.plantId,
+            createdAt: new Date(msg.createdAt),
+          })),
+          Option.getOrNull
+        )
+      )
+    },
+
+    findMessagesBefore: (params: {
+      plantId: string
+      userId: string
+      beforeDate: Date
+    }) => {
+      const filtered = pipe(
+        data.messages,
+        Array.filter(
+          (msg) =>
+            msg.plantId === params.plantId &&
+            msg.userId === params.userId &&
+            new Date(msg.createdAt) < params.beforeDate
+        ),
+        Array.sort(
+          Order.mapInput(
+            Order.Date,
+            (msg: ChatMessage) => new Date(msg.createdAt)
+          )
+        ),
+        Array.map((msg) => ({
+          id: msg.id,
+          messageId: null,
+          role: msg.role,
+          content: msg.content,
+          parts: null,
+          imageKey: null,
+          userId: msg.userId,
+          plantId: msg.plantId,
+          createdAt: new Date(msg.createdAt),
+        }))
+      )
+      return Effect.succeed(filtered)
+    },
+
     findByPlantId: (params: FindChatHistoryParams) => {
       const page = pipe(
         Option.fromNullable(params.page),
