@@ -6,6 +6,7 @@ import {
 } from '@lily/api/repositories/chat.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
+import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
 import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatIsoDate } from '@lily/shared'
 import type { PromptPreviewResponse } from '@lily/shared/admin'
@@ -59,8 +60,11 @@ export const previewPrompt = (
     // 4. Determine the user message text for RAG query
     const userMessageText = messageRow.content
 
+    // 4b. Translate to English for RAG retrieval (knowledge base is English-only)
+    const translatedQuery = yield* translateToEnglish(userMessageText)
+
     // 5. Run RAG retrieval
-    const ragQuery = `${plant.name}: ${userMessageText}`
+    const ragQuery = `${plant.name}: ${translatedQuery}`
     const ragChunks = yield* ragService.retrieve({
       query: ragQuery,
       plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
@@ -143,6 +147,7 @@ export const previewPrompt = (
         date: formatIsoDate(log.date),
         notes: pipe(Option.fromNullable(log.notes), Option.getOrNull),
       })),
+      translatedQuery,
       ragQuery,
       ragChunks: Array.map(ragChunks, (chunk) => ({
         id: chunk.id,

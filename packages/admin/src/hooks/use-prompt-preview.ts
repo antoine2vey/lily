@@ -55,6 +55,7 @@ export interface PromptPreviewResponse {
   readonly message: PromptPreviewMessage
   readonly plant: PromptPreviewPlant
   readonly careHistory: ReadonlyArray<PromptPreviewCareEntry>
+  readonly translatedQuery: string
   readonly ragQuery: string
   readonly ragChunks: ReadonlyArray<PromptPreviewRagChunk>
   readonly formattedRagContext: string
