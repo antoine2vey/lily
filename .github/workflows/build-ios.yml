@@ -30,3 +30,7 @@ jobs:
         run: eas build --platform ios --profile production --auto-submit --non-interactive
         env:
           EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
+
+      - name: Publish OTA update for new fingerprint
+        working-directory: packages/app
+        run: eas update --branch production --message "Seed update for ${{ github.ref_name }}" --non-interactive
