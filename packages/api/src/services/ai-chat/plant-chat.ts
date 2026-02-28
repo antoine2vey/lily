@@ -3,6 +3,7 @@ import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
+import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { RagService } from '@lily/api/services/rag/service'
@@ -97,7 +98,11 @@ export const plantChat = (
       Option.map((p) => (p as { type: 'text'; text: string }).text),
       Option.getOrElse(() => '')
     )
-    const ragQuery = `${plant.name}: ${lastUserMessage}`
+
+    // Translate to English for RAG retrieval (knowledge base is English-only)
+    const ragQueryText = yield* translateToEnglish(lastUserMessage)
+
+    const ragQuery = `${plant.name}: ${ragQueryText}`
     const ragChunks = yield* ragService.retrieve({
       query: ragQuery,
       plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
