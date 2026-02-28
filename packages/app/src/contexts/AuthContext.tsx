@@ -42,6 +42,8 @@ async function registerDeviceForPush(): Promise<string | null> {
   try {
     const pushToken = await getExpoPushToken()
     if (!pushToken) {
+      // Permission denied or revoked — clean up any stale token from the backend
+      await unregisterDeviceFromPush()
       return null
     }
 
@@ -172,6 +174,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   setState({ _tag: 'NeedsUsername', user, accessToken })
                 } else {
                   setState({ _tag: 'Authenticated', user, accessToken })
+                  // Re-register on every launch to refresh a valid token or
+                  // deactivate a stale one if permission was revoked
+                  registerDeviceForPush().catch((err) => {
+                    console.warn('Push notification registration failed:', err)
+                  })
                 }
               } catch (error) {
                 const isAuthError =
