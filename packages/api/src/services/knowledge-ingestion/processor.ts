@@ -11,10 +11,7 @@ import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/ad
 import { categorize } from '@lily/api/services/knowledge-ingestion/processing/categorizer'
 import { chunkContent } from '@lily/api/services/knowledge-ingestion/processing/chunker'
 import { enrichChunk } from '@lily/api/services/knowledge-ingestion/processing/enrichment'
-import {
-  extractPlantMentions,
-  extractPrimaryPlantType,
-} from '@lily/api/services/knowledge-ingestion/processing/plant-extractor'
+import { extractPlantMentions } from '@lily/api/services/knowledge-ingestion/processing/plant-extractor'
 import { chunkRedditDocument } from '@lily/api/services/knowledge-ingestion/processing/reddit-chunker'
 import { embedTexts } from '@lily/api/services/rag/embedding.service'
 import type {
@@ -125,15 +122,16 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
         onSome: (parent) =>
           Effect.gen(function* () {
             const id = crypto.randomUUID()
+            const plantMentions = extractPlantMentions(parent.content)
             yield* chunkRepo.create({
               id,
               documentId: insertedDoc.id,
               content: parent.content,
               chunkIndex: 0,
               source: insertedDoc.source,
-              plantType: extractPrimaryPlantType(parent.content),
+              plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
               category: categorize(parent.content),
-              plantMentions: extractPlantMentions(parent.content),
+              plantMentions,
               metadata: parent.metadata,
               embedding: undefined,
             })
@@ -201,14 +199,17 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
     )
 
     // Extract metadata for each child chunk
-    const childData = Array.map(enrichedChildren, (child, index) => ({
-      ...child,
-      chunkIndex: index,
-      source: insertedDoc.source,
-      plantType: extractPrimaryPlantType(child.content),
-      category: categorize(child.content),
-      plantMentions: extractPlantMentions(child.content),
-    }))
+    const childData = Array.map(enrichedChildren, (child, index) => {
+      const plantMentions = extractPlantMentions(child.content)
+      return {
+        ...child,
+        chunkIndex: index,
+        source: insertedDoc.source,
+        plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
+        category: categorize(child.content),
+        plantMentions,
+      }
+    })
 
     // Batch embed all chunks in one request
     const texts = Array.map(childData, (c) => c.embeddingContent ?? c.content)

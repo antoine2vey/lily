@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Effect, Schedule, Schema } from 'effect'
+import { Effect, Option, pipe, Schedule, Schema } from 'effect'
 import { z } from 'zod'
 
 const enrichmentModel = openai('gpt-4o-mini')
@@ -67,11 +67,14 @@ export const enrichChunk = (
       )
     )
 
-    if (!result.output) {
-      return yield* Effect.fail(
-        new EnrichmentError({ message: 'Enrichment returned no output' })
-      )
-    }
-
-    return result.output
+    return yield* pipe(
+      Option.fromNullable(result.output),
+      Option.match({
+        onNone: () =>
+          Effect.fail(
+            new EnrichmentError({ message: 'Enrichment returned no output' })
+          ),
+        onSome: (output) => Effect.succeed(output),
+      })
+    )
   }).pipe(Effect.withSpan('Enrichment.enrichChunk'))
