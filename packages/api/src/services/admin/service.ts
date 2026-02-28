@@ -1,6 +1,7 @@
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { listUsers } from '@lily/api/services/admin/endpoints/list-users'
+import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { updateRole } from '@lily/api/services/admin/endpoints/update-role'
 import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
 import { updateUser } from '@lily/api/services/admin/endpoints/update-user'
@@ -16,6 +17,7 @@ export class AdminService extends Effect.Service<AdminService>()(
       updateRole,
       updateStatus,
       deleteUser,
+      previewPrompt,
     }),
   }
 ) {}

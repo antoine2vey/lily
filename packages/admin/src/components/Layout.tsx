@@ -6,6 +6,7 @@ const navItems = [
   { path: '/jobs', label: 'Jobs' },
   { path: '/jobs/new', label: 'New Job' },
   { path: '/search', label: 'Search' },
+  { path: '/prompt-preview', label: 'Prompt Preview' },
 ] as const
 
 export const Layout = () => {

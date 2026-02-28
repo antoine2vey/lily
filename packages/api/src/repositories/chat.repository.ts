@@ -8,7 +8,7 @@ import { chatMessages } from '@lily/db'
 import { paginate } from '@lily/shared'
 import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { and, asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq, lt } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -59,11 +59,22 @@ export interface SavedChatMessage {
   role: string
 }
 
+// Raw DB row type for admin lookups
+export type ChatMessageRow = typeof chatMessages.$inferSelect
+
 // Repository service interface
 export interface IChatRepository {
+  readonly findById: (
+    id: string
+  ) => Effect.Effect<ChatMessageRow | null, SqlError>
   readonly findByPlantId: (
     params: FindChatHistoryParams
   ) => Effect.Effect<ChatHistoryListResponse, SqlError>
+  readonly findMessagesBefore: (params: {
+    plantId: string
+    userId: string
+    beforeDate: Date
+  }) => Effect.Effect<ChatMessageRow[], SqlError>
   readonly getMessagesAsUIMessages: (
     plantId: string,
     userId: string
@@ -93,6 +104,35 @@ export const ChatRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
+      findById: (id: string) =>
+        Effect.gen(function* () {
+          const [row] = yield* db
+            .select()
+            .from(chatMessages)
+            .where(eq(chatMessages.id, id))
+          return pipe(Option.fromNullable(row), Option.getOrNull)
+        }).pipe(Effect.withSpan('ChatRepository.findById')),
+
+      findMessagesBefore: (params: {
+        plantId: string
+        userId: string
+        beforeDate: Date
+      }) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(chatMessages)
+            .where(
+              and(
+                eq(chatMessages.plantId, params.plantId),
+                eq(chatMessages.userId, params.userId),
+                lt(chatMessages.createdAt, params.beforeDate)
+              )
+            )
+            .orderBy(asc(chatMessages.createdAt))
+          return rows
+        }).pipe(Effect.withSpan('ChatRepository.findMessagesBefore')),
+
       findByPlantId: (params: FindChatHistoryParams) =>
         Effect.gen(function* () {
           const { page, limit, offset } = getPaginationParams(params)

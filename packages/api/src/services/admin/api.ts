@@ -7,9 +7,11 @@ import {
   AdminUser,
   AdminUserListParams,
   AdminUserUpdateRequest,
+  PromptPreviewResponse,
 } from '@lily/shared/admin'
 import {
   CannotModifySelfError,
+  ChatMessageNotFoundError,
   ForbiddenError,
 } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
@@ -17,6 +19,9 @@ import { Schema } from 'effect'
 
 // Path parameter for user ID
 const userIdParam = HttpApiSchema.param('id', Schema.String)
+
+// Path parameter for message ID (prompt preview)
+const messageIdParam = HttpApiSchema.param('messageId', Schema.String)
 
 // Define the Admin API group
 export const AdminApi = HttpApiGroup.make('admin')
@@ -67,6 +72,13 @@ export const AdminApi = HttpApiGroup.make('admin')
       .addSuccess(AdminUser)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/prompt-preview/:messageId - Preview AI prompt for a message
+    HttpApiEndpoint.get('previewPrompt')`/prompt-preview/${messageIdParam}`
+      .addSuccess(PromptPreviewResponse)
+      .addError(ChatMessageNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })
   )
   .prefix('/admin')
