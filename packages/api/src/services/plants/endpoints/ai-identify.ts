@@ -69,9 +69,8 @@ export const aiIdentify = (
 
     return { ...aiResult, imageUrl: url }
   }).pipe(
-    Effect.tapErrorCause((cause) => {
-      console.error('[ai-identify] FAILED:', cause)
-      return Effect.void
-    }),
+    Effect.tapErrorCause((cause) =>
+      Effect.logError('[ai-identify] FAILED', { cause })
+    ),
     Effect.withSpan('PlantsService.aiIdentify')
   )

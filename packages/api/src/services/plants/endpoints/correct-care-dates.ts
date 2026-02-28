@@ -10,43 +10,15 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import {
+  type CareType,
+  getCareTypeConfig,
+} from '@lily/api/services/plants/utils'
+import {
   FutureDateNotAllowedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
-import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
-
-type CareType = 'watering' | 'fertilization'
-
-interface CareTypeConfig {
-  readonly frequencyField:
-    | 'wateringFrequencyDays'
-    | 'fertilizationFrequencyDays'
-  readonly lastCareField: 'lastWateredAt' | 'lastFertilizedAt'
-  readonly nextCareField: 'nextWateringAt' | 'nextFertilizationAt'
-  readonly reminderType: 'watering_reminder' | 'fertilization_reminder'
-  readonly careLogType: 'watering' | 'fertilization'
-}
-
-const getCareTypeConfig = (careType: CareType): CareTypeConfig =>
-  pipe(
-    Match.value(careType),
-    Match.when('watering', () => ({
-      frequencyField: 'wateringFrequencyDays' as const,
-      lastCareField: 'lastWateredAt' as const,
-      nextCareField: 'nextWateringAt' as const,
-      reminderType: 'watering_reminder' as const,
-      careLogType: 'watering' as const,
-    })),
-    Match.when('fertilization', () => ({
-      frequencyField: 'fertilizationFrequencyDays' as const,
-      lastCareField: 'lastFertilizedAt' as const,
-      nextCareField: 'nextFertilizationAt' as const,
-      reminderType: 'fertilization_reminder' as const,
-      careLogType: 'fertilization' as const,
-    })),
-    Match.exhaustive
-  )
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 const correctSingleCareDate = (
   plantId: string,

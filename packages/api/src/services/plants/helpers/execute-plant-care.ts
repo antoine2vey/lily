@@ -11,6 +11,10 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import {
+  type CareType,
+  getCareTypeConfig,
+} from '@lily/api/services/plants/utils'
 import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
@@ -21,9 +25,9 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
-import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 
-export type CareType = 'watering' | 'fertilization'
+export type { CareType } from '@lily/api/services/plants/utils'
 
 export interface ExecutePlantCareParams {
   readonly plantId: string
@@ -31,37 +35,6 @@ export interface ExecutePlantCareParams {
   readonly notes?: string | undefined
   readonly date?: Date | undefined
 }
-
-// Configuration for each care type
-interface CareTypeConfig {
-  readonly frequencyField:
-    | 'wateringFrequencyDays'
-    | 'fertilizationFrequencyDays'
-  readonly lastCareField: 'lastWateredAt' | 'lastFertilizedAt'
-  readonly nextCareField: 'nextWateringAt' | 'nextFertilizationAt'
-  readonly reminderType: 'watering_reminder' | 'fertilization_reminder'
-  readonly careLogType: 'watering' | 'fertilization'
-}
-
-const getCareTypeConfig = (careType: CareType): CareTypeConfig =>
-  pipe(
-    Match.value(careType),
-    Match.when('watering', () => ({
-      frequencyField: 'wateringFrequencyDays' as const,
-      lastCareField: 'lastWateredAt' as const,
-      nextCareField: 'nextWateringAt' as const,
-      reminderType: 'watering_reminder' as const,
-      careLogType: 'watering' as const,
-    })),
-    Match.when('fertilization', () => ({
-      frequencyField: 'fertilizationFrequencyDays' as const,
-      lastCareField: 'lastFertilizedAt' as const,
-      nextCareField: 'nextFertilizationAt' as const,
-      reminderType: 'fertilization_reminder' as const,
-      careLogType: 'fertilization' as const,
-    })),
-    Match.exhaustive
-  )
 
 // Apply weather adjustment to the next care date if user has weather enabled
 const applyWeatherAdjustment = (
