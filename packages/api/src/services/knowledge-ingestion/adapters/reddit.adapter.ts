@@ -8,6 +8,7 @@ import {
   Array,
   Duration,
   Effect,
+  Match,
   Option,
   pipe,
   Schedule,
@@ -54,7 +55,7 @@ class RateLimitedError {
   constructor(readonly retryAfter: number) {}
 }
 
-const USER_AGENT = 'lily-plant-care:v1.0.0 (plant care knowledge base)'
+export const USER_AGENT = 'lily-plant-care:v1.0.0 (plant care knowledge base)'
 
 /**
  * Strip characters that cause PostgreSQL UTF-8 encoding issues.
@@ -143,24 +144,38 @@ const fetchRedditJson = <T>(url: string) =>
   }).pipe(
     // Sleep for the server-specified retry-after duration before each retry
     Effect.tapError((e: AdapterError | RateLimitedError) =>
-      e._tag === 'RateLimitedError'
-        ? Effect.sleep(Duration.seconds(e.retryAfter))
-        : Effect.void
+      pipe(
+        Match.value(e),
+        Match.when({ _tag: 'RateLimitedError' }, (rle) =>
+          Effect.sleep(Duration.seconds(rle.retryAfter))
+        ),
+        Match.orElse(() => Effect.void)
+      )
     ),
     Effect.retry(
       Schedule.recurs(5).pipe(
-        Schedule.whileInput(
-          (e: AdapterError | RateLimitedError) => e._tag === 'RateLimitedError'
+        Schedule.whileInput((e: AdapterError | RateLimitedError) =>
+          pipe(
+            Match.value(e),
+            Match.when({ _tag: 'RateLimitedError' }, () => true),
+            Match.orElse(() => false)
+          )
         )
       )
     ),
     Effect.mapError((e) =>
-      e._tag === 'RateLimitedError'
-        ? new AdapterError({
-            message: 'Reddit rate limit exceeded after retries',
-            adapter: 'reddit',
-          })
-        : e
+      pipe(
+        Match.value(e),
+        Match.when(
+          { _tag: 'RateLimitedError' },
+          () =>
+            new AdapterError({
+              message: 'Reddit rate limit exceeded after retries',
+              adapter: 'reddit',
+            })
+        ),
+        Match.orElse((err) => err)
+      )
     )
   )
 
@@ -208,7 +223,7 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
         break
       }
 
-      allPosts = [...allPosts, ...posts]
+      allPosts = Array.appendAll(allPosts, posts)
       fetched = fetched + posts.length
       after = response.data.after
 
@@ -323,12 +338,7 @@ export const redditAdapter: ISourceAdapter = {
       Stream.flatMap((subreddit) =>
         pipe(
           // Fetch subreddit posts (with rate-limit delay)
-          Stream.fromEffect(
-            Effect.gen(function* () {
-              yield* Effect.sleep(REQUEST_DELAY)
-              return yield* fetchSubredditPosts(subreddit, config)
-            })
-          ),
+          Stream.fromEffect(fetchSubredditPosts(subreddit, config)),
           // Flatten posts into individual items
           Stream.flatMap((posts) => Stream.fromIterable(posts)),
           // Fetch comments and convert each post to a document

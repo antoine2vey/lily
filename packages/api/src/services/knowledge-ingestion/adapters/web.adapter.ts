@@ -1,16 +1,19 @@
 import { createHash } from 'node:crypto'
-import { sanitizeText } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
+import {
+  sanitizeText,
+  USER_AGENT,
+} from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
 import type {
   ISourceAdapter,
   RawDocumentInput,
 } from '@lily/api/services/knowledge-ingestion/adapters/types'
+import { nowAsIsoString } from '@lily/shared'
 import { AdapterError } from '@lily/shared/errors/knowledge'
 import type { AdapterConfig } from '@lily/shared/knowledge'
 import { Readability } from '@mozilla/readability'
 import { Effect, Option, pipe, Stream } from 'effect'
 import { parseHTML } from 'linkedom'
 
-const USER_AGENT = 'lily-plant-care:v1.0.0 (plant care knowledge base)'
 const REQUEST_DELAY = '2 seconds'
 const MIN_CONTENT_LENGTH = 200
 
@@ -108,7 +111,7 @@ const fetchWebPage = (
       metadata: {
         domain: extractDomain(url),
         contentLength: content.length,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt: nowAsIsoString(),
       },
     } satisfies RawDocumentInput
   })
