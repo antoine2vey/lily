@@ -7,7 +7,7 @@ import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-c
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AdminService } from '@lily/api/services/admin/service'
-import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RagService } from '@lily/api/services/rag/service'
 import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { Effect, Layer } from 'effect'
@@ -19,27 +19,29 @@ export const AdminApiLive = (api: Api) =>
 
       return handlers
         .handle('listUsers', ({ urlParams }) =>
-          adminService.listUsers(urlParams).pipe(withSqlErrorAsDefect)
+          adminService.listUsers(urlParams).pipe(withInfraErrorsAsDefect)
         )
         .handle('getUser', ({ path: { id } }) =>
-          adminService.getUser(id).pipe(withSqlErrorAsDefect)
+          adminService.getUser(id).pipe(withInfraErrorsAsDefect)
         )
         .handle('updateUser', ({ path: { id }, payload }) =>
-          adminService.updateUser(id, payload).pipe(withSqlErrorAsDefect)
+          adminService.updateUser(id, payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('updateUserRole', ({ path: { id }, payload }) =>
-          adminService.updateRole(id, payload.role).pipe(withSqlErrorAsDefect)
+          adminService
+            .updateRole(id, payload.role)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('updateUserStatus', ({ path: { id }, payload }) =>
           adminService
             .updateStatus(id, payload.status)
-            .pipe(withSqlErrorAsDefect)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('deleteUser', ({ path: { id } }) =>
-          adminService.deleteUser(id).pipe(withSqlErrorAsDefect)
+          adminService.deleteUser(id).pipe(withInfraErrorsAsDefect)
         )
         .handle('previewPrompt', ({ path: { messageId } }) =>
-          adminService.previewPrompt(messageId).pipe(withSqlErrorAsDefect)
+          adminService.previewPrompt(messageId).pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(

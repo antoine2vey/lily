@@ -4,6 +4,7 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
+import { AiApiCallError, AiGenericError } from '@lily/api/services/ai/service'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
@@ -25,6 +26,14 @@ import {
   WaterMultiplePlantsRequest,
   WaterMultiplePlantsResponse,
 } from '@lily/shared/plant'
+import {
+  FileTooLargeError,
+  InvalidFileTypeError,
+  MultipleFilesError,
+  NoFilesError,
+  TooManyFilesError,
+} from '@lily/shared/services/file/fileservice'
+import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
 import { Schema } from 'effect'
 
 // Path parameter for plant ID
@@ -74,7 +83,12 @@ export const PlantsApi = HttpApiGroup.make('plants')
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(MultipleFilesError, { status: 400 })
+      .addError(NoFilesError, { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
+      .addError(AiApiCallError, { status: 500 })
+      .addError(AiGenericError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -90,7 +104,14 @@ export const PlantsApi = HttpApiGroup.make('plants')
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(NoFilesError, { status: 400 })
+      .addError(TooManyFilesError, { status: 400 })
+      .addError(InvalidFileTypeError, { status: 400 })
+      .addError(FileTooLargeError, { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
+      .addError(AiApiCallError, { status: 500 })
+      .addError(AiGenericError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -106,7 +127,12 @@ export const PlantsApi = HttpApiGroup.make('plants')
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(MultipleFilesError, { status: 400 })
+      .addError(NoFilesError, { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
+      .addError(AiApiCallError, { status: 500 })
+      .addError(AiGenericError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -119,7 +145,8 @@ export const PlantsApi = HttpApiGroup.make('plants')
         })
       )
       .addSuccess(AIIdentifyResponse)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(AiApiCallError, { status: 500 })
+      .addError(AiGenericError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -127,6 +154,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
     HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
       .setPayload(WaterMultiplePlantsRequest)
       .addSuccess(WaterMultiplePlantsResponse)
+      .addError(PlantNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -176,7 +204,8 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addSuccess(Schema.Void, { status: 201 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

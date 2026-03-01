@@ -4,7 +4,7 @@ import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.re
 import { achievementEvents } from '@lily/api/services/achievements/endpoints/achievement-events'
 import { AchievementsService } from '@lily/api/services/achievements/service'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
-import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { Effect, Layer } from 'effect'
 
 // Implement the Achievements API group
@@ -15,15 +15,17 @@ export const AchievementsApiLive = (api: Api) =>
 
       return handlers
         .handle('getUserAchievements', () =>
-          achievementsService.getUserAchievements().pipe(withSqlErrorAsDefect)
+          achievementsService
+            .getUserAchievements()
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('achievementEvents', () =>
-          achievementEvents().pipe(withSqlErrorAsDefect)
+          achievementEvents().pipe(withInfraErrorsAsDefect)
         )
         .handle('unlockAchievement', ({ payload }) =>
           achievementsService
             .unlockAchievement(payload)
-            .pipe(withSqlErrorAsDefect)
+            .pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(
