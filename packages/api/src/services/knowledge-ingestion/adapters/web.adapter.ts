@@ -128,23 +128,13 @@ export const webAdapter: ISourceAdapter = {
       )
     }
 
-    const total = config.urls.length
-
     return pipe(
       Stream.fromIterable(config.urls),
-      Stream.zipWithIndex,
-      Stream.mapEffect(([url, index]) =>
+      Stream.mapEffect((url) =>
         Effect.gen(function* () {
           yield* Effect.sleep(REQUEST_DELAY)
           return yield* fetchWebPage(url)
-        }).pipe(
-          Effect.tapError((e) =>
-            Effect.logWarning(
-              `[web adapter] [${index + 1}/${total}] Skipped ${url}: ${e.message}`
-            )
-          ),
-          Effect.option
-        )
+        }).pipe(Effect.option)
       ),
       Stream.filterMap((opt) => opt)
     )

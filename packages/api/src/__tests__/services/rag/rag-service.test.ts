@@ -1,3 +1,4 @@
+import { SqlError } from '@effect/sql/SqlError'
 import {
   createTestChunkSearchResult,
   mockChunkSearchResults,
@@ -116,7 +117,8 @@ describe('RagService', () => {
         {
           create: () => Effect.succeed(undefined as undefined),
           createMany: () => Effect.succeed(undefined as undefined),
-          search: () => Effect.fail(new Error('DB connection lost') as never),
+          search: () =>
+            Effect.fail(new SqlError({ message: 'DB connection lost' })),
           count: () => Effect.succeed(0),
           countBySource: () => Effect.succeed([]),
           countByJobId: () => Effect.succeed(0),

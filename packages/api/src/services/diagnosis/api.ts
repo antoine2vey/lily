@@ -12,8 +12,8 @@ import {
 } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
-const plantIdParam = HttpApiSchema.param('plantId', Schema.String)
-const diagnosisIdParam = HttpApiSchema.param('diagnosisId', Schema.String)
+const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
+const diagnosisIdParam = HttpApiSchema.param('diagnosisId', Schema.UUID)
 
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(

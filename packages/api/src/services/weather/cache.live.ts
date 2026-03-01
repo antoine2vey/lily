@@ -40,38 +40,37 @@ export const WeatherCacheLive = Layer.effect(
 
     return {
       findNearest: (lat, lng, radiusKm) =>
-        Effect.tryPromise({
-          try: async () => {
-            // GEOSEARCH to find the closest cached location within radius
-            const results = await redis.geosearch(
-              WEATHER_GEO_KEY,
-              'FROMLONLAT',
-              lng,
-              lat,
-              'BYRADIUS',
-              radiusKm,
-              'km',
-              'COUNT',
-              1,
-              'ASC'
-            )
+        Effect.tryPromise(async () => {
+          // GEOSEARCH to find the closest cached location within radius
+          const results = await redis.geosearch(
+            WEATHER_GEO_KEY,
+            'FROMLONLAT',
+            lng,
+            lat,
+            'BYRADIUS',
+            radiusKm,
+            'km',
+            'COUNT',
+            1,
+            'ASC'
+          )
 
-            if (!results || results.length === 0) {
-              return Option.none<WeatherForecast>()
-            }
+          if (!results || results.length === 0) {
+            return Option.none<WeatherForecast>()
+          }
 
-            const memberId = results[0] as string
-            const data = await redis.get(`${WEATHER_DATA_PREFIX}${memberId}`)
+          const memberId = results[0] as string
+          const data = await redis.get(`${WEATHER_DATA_PREFIX}${memberId}`)
 
-            if (!data) {
-              return Option.none<WeatherForecast>()
-            }
+          if (!data) {
+            return Option.none<WeatherForecast>()
+          }
 
-            return Option.some(JSON.parse(data) as WeatherForecast)
-          },
-          catch: () => Option.none<WeatherForecast>(),
+          return Option.some(JSON.parse(data) as WeatherForecast)
         }).pipe(
-          Effect.catchAll(() => Effect.succeed(Option.none<WeatherForecast>()))
+          Effect.catchTag('UnknownException', () =>
+            Effect.succeed(Option.none<WeatherForecast>())
+          )
         ),
 
       store: (lat, lng, data) =>
@@ -92,7 +91,7 @@ export const WeatherCacheLive = Layer.effect(
             WEATHER_DATA_TTL_SECONDS
           )
         }).pipe(
-          Effect.catchAll(() => Effect.void),
+          Effect.catchTag('UnknownException', () => Effect.void),
           Effect.asVoid
         ),
 
@@ -112,7 +111,7 @@ export const WeatherCacheLive = Layer.effect(
             )
           )
         }).pipe(
-          Effect.catchAll(() =>
+          Effect.catchTag('UnknownException', () =>
             Effect.succeed(
               [] as Array<{ latitude: number; longitude: number; id: string }>
             )
@@ -124,7 +123,7 @@ export const WeatherCacheLive = Layer.effect(
           await redis.zrem(WEATHER_GEO_KEY, id)
           await redis.del(`${WEATHER_DATA_PREFIX}${id}`)
         }).pipe(
-          Effect.catchAll(() => Effect.void),
+          Effect.catchTag('UnknownException', () => Effect.void),
           Effect.asVoid
         ),
     }

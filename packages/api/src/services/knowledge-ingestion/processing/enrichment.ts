@@ -55,16 +55,7 @@ export const enrichChunk = (
         onTimeout: () =>
           new EnrichmentError({ message: 'Enrichment timed out after 10s' }),
       }),
-      Effect.tapError((e) =>
-        Effect.logWarning(`[enrichment] Attempt failed: ${e.message}`)
-      ),
-      Effect.retry(retryPolicy),
-      Effect.tapError((e) =>
-        Effect.logError(
-          '[enrichment] DLQ: chunk failed after 3 attempts, skipping',
-          { error: e.message, chunk: content.slice(0, 200) }
-        )
-      )
+      Effect.retry(retryPolicy)
     )
 
     return yield* pipe(

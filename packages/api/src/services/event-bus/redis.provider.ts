@@ -42,16 +42,22 @@ export const RedisEventBusLive = Layer.scoped(
       if (channel === CHANNEL) {
         Effect.runFork(
           Effect.gen(function* () {
-            const parsed = yield* Effect.try({
-              try: () => JSON.parse(message) as unknown,
-              catch: (e) => e,
-            })
+            const parsed = yield* Effect.try(
+              () => JSON.parse(message) as unknown
+            )
             const decoded = yield* Schema.decodeUnknown(AppEventSchema)(parsed)
             yield* Queue.offer(queue, decoded)
           }).pipe(
-            Effect.catchAll((error) =>
-              Effect.logError('Failed to decode event bus message', { error })
-            )
+            Effect.catchTags({
+              UnknownException: (error) =>
+                Effect.logError('Failed to decode event bus message', {
+                  error,
+                }),
+              ParseError: (error) =>
+                Effect.logError('Failed to decode event bus message', {
+                  error,
+                }),
+            })
           )
         )
       }

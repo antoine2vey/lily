@@ -68,9 +68,4 @@ export const aiIdentify = (
     yield* usageTracker.trackPlantIdentify(userId)
 
     return { ...aiResult, imageUrl: url }
-  }).pipe(
-    Effect.tapErrorCause((cause) =>
-      Effect.logError('[ai-identify] FAILED', { cause })
-    ),
-    Effect.withSpan('PlantsService.aiIdentify')
-  )
+  }).pipe(Effect.withSpan('PlantsService.aiIdentify'))

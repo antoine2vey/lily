@@ -56,7 +56,7 @@ export const getCareAdjustments = (): Effect.Effect<
     const recentSnapshots = yield* weatherRepo
       .findRecentByLocation(rlat, rlng, 7)
       .pipe(
-        Effect.catchAll(() =>
+        Effect.catchTag('SqlError', () =>
           Effect.succeed(
             [] as Array<typeof import('@lily/db').weatherSnapshots.$inferSelect>
           )

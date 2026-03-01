@@ -34,12 +34,18 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
             minSimilarity: 0.6,
           })
         }).pipe(
-          Effect.catchAll((error) =>
-            Effect.logWarning(
-              'RAG retrieval failed, continuing without knowledge context',
-              { error: globalThis.String(error), query: params.query }
-            ).pipe(Effect.as([] as ChunkSearchResult[]))
-          ),
+          Effect.catchTags({
+            EmbeddingError: (error) =>
+              Effect.logWarning(
+                'RAG retrieval failed, continuing without knowledge context',
+                { error: globalThis.String(error), query: params.query }
+              ).pipe(Effect.as([] as ChunkSearchResult[])),
+            SqlError: (error) =>
+              Effect.logWarning(
+                'RAG retrieval failed, continuing without knowledge context',
+                { error: globalThis.String(error), query: params.query }
+              ).pipe(Effect.as([] as ChunkSearchResult[])),
+          }),
           Effect.withSpan('RagService.retrieve', {
             attributes: { 'rag.query': params.query },
           })

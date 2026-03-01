@@ -102,14 +102,17 @@ export const sendMagicLink = ({
       yield* Console.log(`${'='.repeat(50)}\n`)
     }
 
-    yield* Effect.catchAll(
-      sendMagicLinkEmail({
-        email: normalizedEmail,
-        token,
-        callbackUrl: `lily://verify?code=${token}`,
-        language: language ?? 'en',
-      }),
-      () => Effect.succeed(undefined)
+    yield* sendMagicLinkEmail({
+      email: normalizedEmail,
+      token,
+      callbackUrl: `lily://verify?code=${token}`,
+      language: language ?? 'en',
+    }).pipe(
+      Effect.catchTags({
+        EmailSendError: () => Effect.succeed(undefined),
+        EmailConfigError: () => Effect.succeed(undefined),
+        ConfigError: () => Effect.succeed(undefined),
+      })
     )
 
     // Return generic success message (don't reveal if email exists)

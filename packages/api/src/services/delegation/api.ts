@@ -19,7 +19,7 @@ import {
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 
-const delegationIdParam = HttpApiSchema.param('delegationId', Schema.String)
+const delegationIdParam = HttpApiSchema.param('delegationId', Schema.UUID)
 
 const DelegationListParams = Schema.Struct({
   ...PaginationParams.fields,

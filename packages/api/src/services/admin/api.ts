@@ -18,10 +18,10 @@ import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
 
 // Path parameter for user ID
-const userIdParam = HttpApiSchema.param('id', Schema.String)
+const userIdParam = HttpApiSchema.param('id', Schema.UUID)
 
 // Path parameter for message ID (prompt preview)
-const messageIdParam = HttpApiSchema.param('messageId', Schema.String)
+const messageIdParam = HttpApiSchema.param('messageId', Schema.UUID)
 
 // Define the Admin API group
 export const AdminApi = HttpApiGroup.make('admin')

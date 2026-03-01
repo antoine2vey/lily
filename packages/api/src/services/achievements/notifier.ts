@@ -27,12 +27,7 @@ export const AchievementNotifierLive = Layer.effect(
 
     return {
       notify: (userId: string, key: AchievementKey) =>
-        PubSub.publish(pubsub, { userId, key }).pipe(
-          Effect.catchAll((error) =>
-            Effect.logError('Failed to publish achievement event', error)
-          ),
-          Effect.asVoid
-        ),
+        PubSub.publish(pubsub, { userId, key }).pipe(Effect.asVoid),
       subscribe: PubSub.subscribe(pubsub),
     }
   })

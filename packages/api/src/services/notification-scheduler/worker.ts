@@ -8,7 +8,16 @@ import {
   PushService,
   type QueueMessage,
 } from '@lily/shared/server'
-import { Array, Effect, Match, Option, pipe, Schedule, Struct } from 'effect'
+import {
+  Array,
+  Effect,
+  Either,
+  Match,
+  Option,
+  pipe,
+  Schedule,
+  Struct,
+} from 'effect'
 
 const MAX_RETRIES = 3
 
@@ -119,27 +128,32 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
       retryCount: message.retryCount,
     })
 
-    yield* processMessage(message).pipe(
-      Effect.retry(workerRetryPolicy),
-      Effect.catchAll((error) =>
-        Effect.gen(function* () {
-          if (message.retryCount >= MAX_RETRIES - 1) {
-            // Max retries reached, move to dead letter queue
-            yield* handleFailedMessage(message, error)
-          } else {
-            // Re-enqueue with incremented retry count
-            yield* queue.enqueue(
-              topic,
-              Struct.evolve(message, { retryCount: (n) => n + 1 })
-            )
-            yield* Effect.forEach(message.payload.notificationIds, (id) =>
-              notificationRepo.incrementRetryCount(id)
-            )
-            yield* Effect.logWarning('Retrying notification', {
-              messageId: message.id,
-              retryCount: message.retryCount + 1,
-            })
-          }
+    yield* Effect.either(
+      processMessage(message).pipe(Effect.retry(workerRetryPolicy))
+    ).pipe(
+      Effect.flatMap((result) =>
+        Either.match(result, {
+          onLeft: (error) =>
+            Effect.gen(function* () {
+              if (message.retryCount >= MAX_RETRIES - 1) {
+                // Max retries reached, move to dead letter queue
+                yield* handleFailedMessage(message, error)
+              } else {
+                // Re-enqueue with incremented retry count
+                yield* queue.enqueue(
+                  topic,
+                  Struct.evolve(message, { retryCount: (n) => n + 1 })
+                )
+                yield* Effect.forEach(message.payload.notificationIds, (id) =>
+                  notificationRepo.incrementRetryCount(id)
+                )
+                yield* Effect.logWarning('Retrying notification', {
+                  messageId: message.id,
+                  retryCount: message.retryCount + 1,
+                })
+              }
+            }),
+          onRight: () => Effect.void,
         })
       )
     )
@@ -173,9 +187,12 @@ export const startNotificationWorker = Effect.gen(function* () {
     Effect.fork(
       Effect.forever(
         consumeFromTopic(topic).pipe(
-          Effect.catchAll((error) =>
-            Effect.logError(`Worker error for topic ${topic}`, error)
-          ),
+          Effect.catchTags({
+            SqlError: (error) =>
+              Effect.logError(`Worker error for topic ${topic}`, error),
+            QueueOperationError: (error) =>
+              Effect.logError(`Worker error for topic ${topic}`, error),
+          }),
           // Delay between polls when queue is empty
           Effect.zipRight(Effect.sleep('30 seconds'))
         )
