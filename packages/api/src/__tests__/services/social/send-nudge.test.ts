@@ -4,6 +4,7 @@ import {
 } from '@lily/api/__tests__/fixtures/follows'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -40,7 +41,8 @@ const buildLayer = (
       users: mockFollowUsers,
     }),
     createMockUserRepository([targetUser]),
-    createMockNotificationRepository(notifications)
+    createMockNotificationRepository(notifications),
+    createMockMessageQueue()
   )
 
 describe('sendNudge', () => {

@@ -1,5 +1,7 @@
 // Polyfills must be imported first
 import 'src/polyfills'
+// Sentry must be initialized before Sentry.wrap() is called
+import 'src/sentry'
 
 import {
   SpaceGrotesk_400Regular,
@@ -8,6 +10,7 @@ import {
   SpaceGrotesk_700Bold,
   useFonts,
 } from '@expo-google-fonts/space-grotesk'
+import * as Sentry from '@sentry/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { Slot, SplashScreen, useRouter } from 'expo-router'
@@ -16,18 +19,18 @@ import { useEffect } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
+import { AchievementUnlockedModal } from 'src/components/AchievementUnlockedModal'
 import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
 import { LocalizationProvider } from 'src/contexts/LocalizationContext'
 import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
-import 'src/i18n'
-import { AchievementUnlockedModal } from 'src/components/AchievementUnlockedModal'
+import 'src/global.css'
 import { useAchievementNotifications } from 'src/hooks/useAchievementNotifications'
 import { useAppStateSync } from 'src/hooks/useAppStateSync'
 import { useOTAUpdates } from 'src/hooks/useOTAUpdates'
+import 'src/i18n'
 import * as RevenueCatService from 'src/services/revenuecat'
 import { setupNotificationListeners } from 'src/utils/notifications'
-import 'src/global.css'
 
 // RevenueCat service is now initialized lazily in RevenueCatProvider
 
@@ -129,7 +132,7 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   )
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -154,7 +157,7 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   )
-}
+})
 
 function ThemedStatusBar() {
   const { isDark } = useThemeContext()

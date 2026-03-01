@@ -19,7 +19,7 @@ const isCareReminderType = (type: string): boolean =>
   Array.contains(CARE_REMINDER_TYPES, type)
 
 // Map notification type to queue topic using Match
-const mapNotificationTypeToTopic = (
+export const mapNotificationTypeToTopic = (
   type: string
 ): Option.Option<NotificationTopic> =>
   pipe(

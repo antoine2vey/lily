@@ -2,7 +2,7 @@ import { DelegationRepository } from '@lily/api/repositories/delegation.reposito
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import {
   CannotDelegateSelfError,
@@ -111,7 +111,7 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       Option.getOrElse(() => 'Someone')
     )
 
-    yield* scheduleNotification(
+    yield* scheduleSimpleNotification(
       'delegation_request',
       request.caretakerId,
       { senderName: ownerName },

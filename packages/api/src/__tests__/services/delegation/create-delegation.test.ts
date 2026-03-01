@@ -6,6 +6,7 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
@@ -59,6 +60,7 @@ const createLayer = (options?: {
     createMockUserRepository([mockUser1, mockUser2]),
     createMockPlantRepository({ plants: mockPlants }),
     createMockNotificationRepository(notifications),
+    createMockMessageQueue(),
     createMockDelegationRepository({
       delegations: options?.delegations ?? [],
       delegationPlants: options?.delegationPlants ?? [],

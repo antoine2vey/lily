@@ -9,6 +9,10 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { DelegationService } from '@lily/api/services/delegation/service'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import {
+  RedisClientLive,
+  RedisMessageQueueLive,
+} from '@lily/api/services/message-queue/redis.provider'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { Effect, Layer } from 'effect'
 
@@ -61,5 +65,7 @@ export const DelegationApiLive = (api: Api) =>
     Layer.provide(LimitCheckerLive),
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(AchievementRepositoryLive),
+    Layer.provide(RedisMessageQueueLive),
+    Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)
   )

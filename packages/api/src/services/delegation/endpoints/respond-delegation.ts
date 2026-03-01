@@ -1,7 +1,7 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
   DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
@@ -63,7 +63,7 @@ export const respondToDelegation = (
       ? ('delegation_accepted' as const)
       : ('delegation_rejected' as const)
 
-    yield* scheduleNotification(
+    yield* scheduleSimpleNotification(
       type,
       delegation.ownerId,
       { senderName: caretakerName },

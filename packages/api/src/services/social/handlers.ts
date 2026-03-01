@@ -6,7 +6,10 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
-import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
+import {
+  RedisClientLive,
+  RedisMessageQueueLive,
+} from '@lily/api/services/message-queue/redis.provider'
 import { SocialService } from '@lily/api/services/social/service'
 import { Effect, Layer } from 'effect'
 
@@ -57,6 +60,7 @@ export const SocialApiLive = (api: Api) =>
     Layer.provide(UserRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
     Layer.provide(RedisEventBusLive),
+    Layer.provide(RedisMessageQueueLive),
     Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)
   )
