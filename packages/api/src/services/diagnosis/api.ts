@@ -10,7 +10,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { GCSUploadError } from '@lily/shared/services/file/gcs'
+import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 
 const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)

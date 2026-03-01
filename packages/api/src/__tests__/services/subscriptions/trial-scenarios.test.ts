@@ -1,5 +1,5 @@
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
-import type { userSubscriptions } from '@lily/db'
+import type { userSubscriptions } from '@lily/db/schema'
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'
 

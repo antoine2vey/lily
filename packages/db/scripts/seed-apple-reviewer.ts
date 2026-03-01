@@ -16,17 +16,17 @@
  */
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { DrizzleLive } from '@lily/db'
 import {
   careLogs,
   chatMessages,
-  DrizzleLive,
   magicLinks,
   notifications,
   plantPhotos,
   plants,
   userAchievements,
   users,
-} from '@lily/db'
+} from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option, pipe } from 'effect'
 

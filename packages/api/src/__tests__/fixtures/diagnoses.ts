@@ -1,4 +1,4 @@
-import type { diagnoses } from '@lily/db'
+import type { diagnoses } from '@lily/db/schema'
 
 export type DiagnosisRecord = typeof diagnoses.$inferSelect
 

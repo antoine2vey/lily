@@ -10,6 +10,7 @@ import {
   Schema,
 } from 'effect'
 import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
+import { GCSConfigError, GCSUploadError } from './gcs-errors'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,
@@ -54,19 +55,6 @@ export const GCSUploadResponseSchema = Schema.Struct({
 export type GCSUploadResponse = Schema.Schema.Type<
   typeof GCSUploadResponseSchema
 >
-
-// GCS Service Error Types
-export class GCSUploadError extends Schema.Class<GCSUploadError>(
-  'GCSUploadError'
-)({
-  message: Schema.String,
-}) {}
-
-export class GCSConfigError extends Schema.Class<GCSConfigError>(
-  'GCSConfigError'
-)({
-  message: Schema.String,
-}) {}
 
 export class GCSService extends Effect.Service<GCSService>()('GCSService', {
   effect: Effect.gen(function* () {

@@ -4,15 +4,15 @@ import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
-import {
-  type AiApiCallError,
-  type AiGenericError,
-  AiService,
-} from '@lily/api/services/ai/service'
+import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import type { LimitExceededError } from '@lily/shared'
+import type {
+  AiApiCallError,
+  AiGenericError,
+  LimitExceededError,
+} from '@lily/shared'
 import type { AIIdentifyResponse } from '@lily/shared/plant'
 import {
   FileService,

@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { plants, userFollows, userNudges, users } from '@lily/db'
+import { plants, userFollows, userNudges, users } from '@lily/db/schema'
 import { and, count, desc, eq, ilike, inArray, ne, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 

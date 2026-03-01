@@ -4,7 +4,12 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { careDelegations, delegationPlants, plants, users } from '@lily/db'
+import {
+  careDelegations,
+  delegationPlants,
+  plants,
+  users,
+} from '@lily/db/schema'
 import type { DelegationStatus } from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Match, Option, pipe } from 'effect'

@@ -10,7 +10,10 @@ import {
   MultipleFilesError,
   NoFilesError,
 } from '@lily/shared/services/file/fileservice'
-import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
+import {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 

@@ -1,4 +1,4 @@
-import type { rooms } from '@lily/db'
+import type { rooms } from '@lily/db/schema'
 
 export type RoomRecord = typeof rooms.$inferSelect
 

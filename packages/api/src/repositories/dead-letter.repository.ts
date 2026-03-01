@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { deadLetterMessages } from '@lily/db'
+import { deadLetterMessages } from '@lily/db/schema'
 import { desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 

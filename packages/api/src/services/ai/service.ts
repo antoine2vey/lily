@@ -1,22 +1,15 @@
+import { AiApiCallError, AiGenericError } from '@lily/shared'
 import {
   plantCardScan,
   plantCardScanMultiple,
 } from '@lily/shared/services/ai/plant-card-scan'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { AISDKError, type UIMessage } from 'ai'
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 
 import { type PlantChatImageOptions, plantChat } from '../ai-chat/plant-chat'
 
-export class AiApiCallError extends Schema.Class<AiApiCallError>(
-  'AiApiCallError'
-)({
-  message: Schema.String,
-}) {}
-
-export class AiGenericError extends Schema.Class<AiGenericError>(
-  'AiGenericError'
-)({ message: Schema.String }) {}
+export { AiApiCallError, AiGenericError }
 
 function mapAiSdkError(error: unknown): AiApiCallError | AiGenericError {
   if (AISDKError.isInstance(error) && error.name === 'AI_APICallError') {

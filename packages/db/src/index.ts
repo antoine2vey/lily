@@ -1,6 +1,5 @@
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { PgClient } from '@effect/sql-pg'
-import * as schema from '@lily/db/schema'
 import { Config, Layer } from 'effect'
 
 // PostgreSQL client configuration
@@ -10,10 +9,3 @@ export const PgLive = PgClient.layerConfig({
 
 // Drizzle layer with schema (includes PgDrizzle only)
 export const DrizzleLive = PgDrizzle.layer.pipe(Layer.provide(PgLive))
-
-// Re-export Drizzle for use in endpoints
-export { PgDrizzle }
-
-// Re-export schema for convenience
-export * from '@lily/db/schema'
-export { schema }

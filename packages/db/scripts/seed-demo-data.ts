@@ -11,7 +11,8 @@
  */
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { careLogs, DrizzleLive, plants, users } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
+import { careLogs, plants, users } from '@lily/db/schema'
 import { Array as A, Console, Effect, Option } from 'effect'
 
 const getFirst = <T>(arr: T[]): T => {

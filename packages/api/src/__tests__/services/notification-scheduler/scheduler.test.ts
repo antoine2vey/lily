@@ -6,7 +6,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
-import type { plants } from '@lily/db'
+import type { plants } from '@lily/db/schema'
 import type { User } from '@lily/shared'
 import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
 import { Array as Arr, Effect, Logger, LogLevel } from 'effect'

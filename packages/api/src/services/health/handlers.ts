@@ -1,10 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform'
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { Api } from '@lily/api/api'
 import {
   RedisClient,
   RedisClientLive,
 } from '@lily/api/services/message-queue/redis.provider'
-import { PgDrizzle } from '@lily/db'
 import { sql } from 'drizzle-orm'
 import { Effect, Layer } from 'effect'
 

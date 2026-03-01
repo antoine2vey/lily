@@ -7,7 +7,8 @@
  */
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { DrizzleLive, subscriptionTiers } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
+import { subscriptionTiers } from '@lily/db/schema'
 import { Console, Effect } from 'effect'
 
 const tiers = [

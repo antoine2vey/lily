@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { DrizzleLive, users } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
+import { users } from '@lily/db/schema'
 import { Console, Effect } from 'effect'
 
 const listUsers = Effect.gen(function* () {

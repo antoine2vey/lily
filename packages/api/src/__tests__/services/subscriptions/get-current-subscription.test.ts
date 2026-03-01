@@ -1,7 +1,7 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { SubscriptionService } from '@lily/api/services/subscriptions/service'
-import type { subscriptionUsage, userSubscriptions } from '@lily/db'
+import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

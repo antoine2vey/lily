@@ -1,9 +1,9 @@
-import {
-  type AiApiCallError,
-  type AiGenericError,
-  AiService,
-} from '@lily/api/services/ai/service'
-import type { AIIdentifyResponse } from '@lily/shared'
+import { AiService } from '@lily/api/services/ai/service'
+import type {
+  AIIdentifyResponse,
+  AiApiCallError,
+  AiGenericError,
+} from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
 
 export const aiReIdentify = (

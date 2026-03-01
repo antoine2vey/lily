@@ -4,7 +4,7 @@ import {
   LimitChecker,
   LimitCheckerLive,
 } from '@lily/api/services/subscriptions/limit-checker'
-import type { subscriptionUsage, userSubscriptions } from '@lily/db'
+import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import { LimitExceededError } from '@lily/shared'
 import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'

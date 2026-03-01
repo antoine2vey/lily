@@ -11,7 +11,7 @@ import {
   plants,
   rooms,
   users,
-} from '@lily/db'
+} from '@lily/db/schema'
 import {
   endOfDay,
   nowAsDate,
