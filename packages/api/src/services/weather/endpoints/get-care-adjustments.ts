@@ -58,7 +58,9 @@ export const getCareAdjustments = (): Effect.Effect<
       .pipe(
         Effect.catchTag('SqlError', () =>
           Effect.succeed(
-            [] as Array<typeof import('@lily/db').weatherSnapshots.$inferSelect>
+            [] as Array<
+              typeof import('@lily/db/schema').weatherSnapshots.$inferSelect
+            >
           )
         )
       )

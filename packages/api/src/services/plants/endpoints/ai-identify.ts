@@ -17,11 +17,11 @@ import {
   type MultipleFilesError,
   type NoFilesError,
 } from '@lily/shared/services/file/fileservice'
-import {
-  type GCSConfigError,
-  GCSService,
-  type GCSUploadError,
-} from '@lily/shared/services/file/gcs'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
 
 export const aiIdentify = (

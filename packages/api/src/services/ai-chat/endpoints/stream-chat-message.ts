@@ -18,7 +18,8 @@ import type {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { GCSService, type GCSUploadError } from '@lily/shared/services/file/gcs'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
 import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
 

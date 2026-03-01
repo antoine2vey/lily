@@ -4,7 +4,8 @@ import { resolveImageUrl } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { Diagnosis } from '@lily/shared/diagnosis'
 import { DiagnosisNotFoundError } from '@lily/shared/errors/diagnosis'
-import type { GCSService, GCSUploadError } from '@lily/shared/services/file/gcs'
+import type { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
 
 export const resolveDiagnosis = (

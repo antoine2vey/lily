@@ -6,11 +6,11 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { nowAsEpochMillis } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import {
-  type GCSConfigError,
-  GCSService,
-  type GCSUploadError,
-} from '@lily/shared/services/file/gcs'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Array, Effect, pipe, String } from 'effect'
 
 export const uploadChatImage = ({
