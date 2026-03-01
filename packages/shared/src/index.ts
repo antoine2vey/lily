@@ -1,6 +1,7 @@
 // Domain exports (client-safe - no Node.js dependencies)
 export * from './domains/achievement/definitions'
 export * from './domains/achievement/schema'
+export * from './domains/ai-chat/errors'
 export * from './domains/ai-chat/schema'
 export * from './domains/auth/schema'
 export * from './domains/care-log/errors'

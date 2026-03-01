@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { deviceTokens } from '@lily/db'
+import { deviceTokens } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { and, eq } from 'drizzle-orm'

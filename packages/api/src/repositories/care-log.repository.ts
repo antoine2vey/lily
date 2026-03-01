@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { careLogs, plants } from '@lily/db'
+import { careLogs, plants } from '@lily/db/schema'
 import { nowAsDate, paginate } from '@lily/shared'
 import type {
   CareLog,

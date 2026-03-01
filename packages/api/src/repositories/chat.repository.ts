@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { chatMessages } from '@lily/db'
+import { chatMessages } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'

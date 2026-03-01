@@ -4,7 +4,7 @@ import {
   UsageTracker,
   UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
-import type { subscriptionUsage } from '@lily/db'
+import type { subscriptionUsage } from '@lily/db/schema'
 import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 

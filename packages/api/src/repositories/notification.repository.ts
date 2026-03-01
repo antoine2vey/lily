@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { notifications } from '@lily/db'
+import { notifications } from '@lily/db/schema'
 import {
   nowAsDate,
   paginate,

@@ -3,7 +3,7 @@ import {
   DiagnosisRepository,
   type IDiagnosisRepository,
 } from '@lily/api/repositories/diagnosis.repository'
-import type { diagnoses } from '@lily/db'
+import type { diagnoses } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type { Diagnosis } from '@lily/shared/diagnosis'
 import { Array, Effect, Layer, Option, pipe } from 'effect'

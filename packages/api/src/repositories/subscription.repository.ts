@@ -5,7 +5,7 @@ import {
   subscriptionTiers,
   subscriptionUsage,
   userSubscriptions,
-} from '@lily/db'
+} from '@lily/db/schema'
 import {
   compact,
   endOfMonthAsDate,

@@ -11,7 +11,10 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
+import {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 
 // Path parameter for plant ID

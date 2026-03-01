@@ -4,7 +4,7 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { diagnoses } from '@lily/db'
+import { diagnoses } from '@lily/db/schema'
 import { nowAsDate, paginate } from '@lily/shared'
 import type { Diagnosis, DiagnosisListResponse } from '@lily/shared/diagnosis'
 import { and, count, desc, eq } from 'drizzle-orm'

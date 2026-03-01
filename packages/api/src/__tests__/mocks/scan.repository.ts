@@ -2,7 +2,7 @@ import {
   type IScanRepository,
   ScanRepository,
 } from '@lily/api/repositories/scan.repository'
-import type { plantScans } from '@lily/db'
+import type { plantScans } from '@lily/db/schema'
 import { Effect, Layer } from 'effect'
 
 type PlantScan = typeof plantScans.$inferSelect

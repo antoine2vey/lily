@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { users } from '@lily/db'
+import { users } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'

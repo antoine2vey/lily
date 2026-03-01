@@ -65,7 +65,7 @@ export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
 const rawApiUrl = pipe(
   Option.fromNullable(process.env.EXPO_PUBLIC_API_URL),
-  Option.getOrElse(() => (__DEV__ ? 'http://192.168.1.85:3000' : undefined))
+  Option.getOrElse(() => (__DEV__ ? 'http://192.168.1.22:3000' : undefined))
 )
 
 if (!rawApiUrl) {

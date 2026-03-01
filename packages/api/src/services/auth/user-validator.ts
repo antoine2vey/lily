@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { JWTError } from '@lily/api/services/jwt/errors'
 import { JWTService } from '@lily/api/services/jwt/service'
-import type { users } from '@lily/db'
+import type { users } from '@lily/db/schema'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Option, pipe, Redacted } from 'effect'
 

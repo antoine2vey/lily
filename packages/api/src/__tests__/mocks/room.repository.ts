@@ -2,7 +2,7 @@ import {
   type IRoomRepository,
   RoomRepository,
 } from '@lily/api/repositories/room.repository'
-import type { rooms } from '@lily/db'
+import type { rooms } from '@lily/db/schema'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type RoomRecord = typeof rooms.$inferSelect

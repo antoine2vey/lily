@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plantScans } from '@lily/db'
+import { plantScans } from '@lily/db/schema'
 import { Context, Effect, Layer } from 'effect'
 
 export interface IScanRepository {

@@ -2,7 +2,7 @@ import {
   type IWeatherRepository,
   WeatherRepository,
 } from '@lily/api/repositories/weather.repository'
-import type { weatherSnapshots } from '@lily/db'
+import type { weatherSnapshots } from '@lily/db/schema'
 import { Array, Effect, Layer, pipe } from 'effect'
 
 export const createMockWeatherRepository = (

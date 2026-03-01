@@ -1,14 +1,15 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { PublicPlantPreview } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
-import { Image, Text, useWindowDimensions, View } from 'react-native'
+import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface PlantGridProps {
   readonly plants: readonly PublicPlantPreview[]
+  readonly onPress?: (plant: PublicPlantPreview) => void
 }
 
-export function PlantGrid({ plants }: PlantGridProps) {
+export function PlantGrid({ plants, onPress }: PlantGridProps) {
   const { width } = useWindowDimensions()
   const iconColors = useIconColors()
   const padding = 16
@@ -28,7 +29,12 @@ export function PlantGrid({ plants }: PlantGridProps) {
       </Text>
       <View className="flex-row flex-wrap" style={{ gap }}>
         {Array.map(plants, (plant) => (
-          <View key={plant.id} style={{ width: cellSize }}>
+          <Pressable
+            key={plant.id}
+            style={{ width: cellSize }}
+            className="active:opacity-70"
+            onPress={() => onPress?.(plant)}
+          >
             <View
               className="rounded-xl overflow-hidden bg-surface dark:bg-surface-dark border border-border/30 dark:border-slate-700/30"
               style={{ width: cellSize, height: cellSize }}
@@ -62,7 +68,7 @@ export function PlantGrid({ plants }: PlantGridProps) {
             >
               {plant.name}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </View>

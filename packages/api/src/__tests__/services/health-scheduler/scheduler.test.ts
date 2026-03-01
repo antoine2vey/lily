@@ -1,6 +1,6 @@
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { checkOverduePlants } from '@lily/api/services/health-scheduler/scheduler'
-import type { plants } from '@lily/db'
+import type { plants } from '@lily/db/schema'
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

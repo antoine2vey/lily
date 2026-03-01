@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { PublicPlantPreview } from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -20,6 +21,7 @@ import { usePublicProfile } from 'src/hooks/usePublicProfile'
 import { useSendNudge } from 'src/hooks/useSendNudge'
 import { useUnfollowUser } from 'src/hooks/useUnfollowUser'
 import { PlantGrid } from './components/PlantGrid'
+import { PlantPreviewModal } from './components/PlantPreviewModal'
 import { ProfileStats } from './components/ProfileStats'
 import { PublicProfileSkeleton } from './components/PublicProfileSkeleton'
 
@@ -35,6 +37,10 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
   const followMutation = useFollowUser()
   const unfollowMutation = useUnfollowUser()
   const nudgeMutation = useSendNudge()
+
+  const [selectedPlant, setSelectedPlant] = useState<PublicPlantPreview | null>(
+    null
+  )
 
   const isInitialLoading = isLoading && !profile
   const showSkeleton = useDelayedLoading(isInitialLoading)
@@ -186,7 +192,10 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
             </View>
 
             <View className="mt-6">
-              <PlantGrid plants={profile.recentPlants ?? []} />
+              <PlantGrid
+                plants={profile.recentPlants ?? []}
+                onPress={setSelectedPlant}
+              />
             </View>
 
             <View className="mt-6 px-4 gap-3">
@@ -250,6 +259,13 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
           </ScrollView>
         </Animated.View>
       ) : null}
+
+      <PlantPreviewModal
+        plant={selectedPlant}
+        ownerName={displayName}
+        visible={selectedPlant !== null}
+        onClose={() => setSelectedPlant(null)}
+      />
     </View>
   )
 }

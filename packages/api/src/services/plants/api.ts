@@ -4,9 +4,13 @@ import {
   HttpApiSchema,
   Multipart,
 } from '@effect/platform'
-import { AiApiCallError, AiGenericError } from '@lily/api/services/ai/service'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import { LimitExceededError, PaginationParams } from '@lily/shared'
+import {
+  AiApiCallError,
+  AiGenericError,
+  LimitExceededError,
+  PaginationParams,
+} from '@lily/shared'
 import {
   FutureDateNotAllowedError,
   PlantNotAuthorizedError,
@@ -33,7 +37,10 @@ import {
   NoFilesError,
   TooManyFilesError,
 } from '@lily/shared/services/file/fileservice'
-import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
+import {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 
 // Path parameter for plant ID

@@ -7,7 +7,7 @@ import {
   plants,
   userAchievements,
   users,
-} from '@lily/db'
+} from '@lily/db/schema'
 import type { AchievementKey } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'

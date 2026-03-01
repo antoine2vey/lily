@@ -2,15 +2,16 @@ import type { PlatformError } from '@effect/platform/Error'
 import type { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
-import {
-  type AiApiCallError,
-  type AiGenericError,
-  AiService,
-} from '@lily/api/services/ai/service'
+import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import type { AIIdentifyResponse, LimitExceededError } from '@lily/shared'
+import type {
+  AIIdentifyResponse,
+  AiApiCallError,
+  AiGenericError,
+  LimitExceededError,
+} from '@lily/shared'
 import {
   FileService,
   type MultipleFilesError,

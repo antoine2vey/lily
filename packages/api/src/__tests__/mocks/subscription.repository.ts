@@ -3,7 +3,7 @@ import type {
   ISubscriptionRepository,
 } from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import type { subscriptionUsage, userSubscriptions } from '@lily/db'
+import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import type { SubscriptionTier, TierConfig } from '@lily/shared'
 import { Effect, Layer, Option, pipe } from 'effect'
 

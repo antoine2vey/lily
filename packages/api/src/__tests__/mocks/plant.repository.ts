@@ -5,7 +5,7 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { plants } from '@lily/db'
+import type { plants } from '@lily/db/schema'
 import { endOfDay, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'

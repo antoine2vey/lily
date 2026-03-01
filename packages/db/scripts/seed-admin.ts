@@ -8,7 +8,8 @@
  */
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { DrizzleLive, users } from '@lily/db'
+import { DrizzleLive } from '@lily/db'
+import { users } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array, Console, Effect, Option, pipe, String } from 'effect'
 

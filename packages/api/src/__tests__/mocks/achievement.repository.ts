@@ -2,7 +2,7 @@ import {
   AchievementRepository,
   type IAchievementRepository,
 } from '@lily/api/repositories/achievement.repository'
-import type { userAchievements } from '@lily/db'
+import type { userAchievements } from '@lily/db/schema'
 import type { AchievementKey } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 

@@ -1,4 +1,4 @@
-import type { userSubscriptions } from '@lily/db'
+import type { userSubscriptions } from '@lily/db/schema'
 import { DateTime, Match, pipe } from 'effect'
 
 /**

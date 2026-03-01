@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { weatherSnapshots } from '@lily/db'
+import { weatherSnapshots } from '@lily/db/schema'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer } from 'effect'
 
