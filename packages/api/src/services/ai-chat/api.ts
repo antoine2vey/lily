@@ -11,6 +11,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
 import { Schema } from 'effect'
 
 // Path parameter for plant ID
@@ -34,6 +35,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .addError(LimitExceededError, { status: 403 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -53,6 +55,9 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
           imageKey: Schema.String,
         })
       )
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
@@ -62,6 +67,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .setUrlParams(PaginationParams)
       .addSuccess(ChatHistoryListResponse)
       .addError(PlantNotFoundError, { status: 404 })
+      .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .middleware(Authentication)

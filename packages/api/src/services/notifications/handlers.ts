@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
-import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { NotificationsService } from '@lily/api/services/notifications/service'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
@@ -39,12 +39,12 @@ export const NotificationsApiLive = (api: Api) =>
                 ? (urlParams.status as 'pending' | 'queued' | 'sent' | 'failed')
                 : 'all',
             })
-            .pipe(withSqlErrorAsDefect)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('markNotificationRead', ({ path: { notificationId } }) =>
           notificationsService
             .markNotificationRead(notificationId)
-            .pipe(withSqlErrorAsDefect)
+            .pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(

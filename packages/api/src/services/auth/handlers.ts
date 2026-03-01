@@ -6,7 +6,7 @@ import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { AuthService } from '@lily/api/services/auth/service'
-import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 import { Effect, Layer } from 'effect'
@@ -19,7 +19,7 @@ export const AuthApiLive = (api: Api) =>
 
       return handlers
         .handle('sendMagicLink', ({ payload }) =>
-          authService.sendMagicLink(payload).pipe(withSqlErrorAsDefect)
+          authService.sendMagicLink(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('magicLinkCallback', ({ urlParams }) =>
           Effect.gen(function* () {
@@ -28,20 +28,22 @@ export const AuthApiLive = (api: Api) =>
             return HttpServerResponse.redirect(result.redirectUrl, {
               status: 302,
             })
-          }).pipe(withSqlErrorAsDefect)
+          }).pipe(withInfraErrorsAsDefect)
         )
         .handle('verifyMagicLink', ({ payload }) =>
-          authService.verifyMagicLink(payload).pipe(withSqlErrorAsDefect)
+          authService.verifyMagicLink(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('refreshToken', ({ payload }) =>
-          authService.refreshToken(payload).pipe(withSqlErrorAsDefect)
+          authService.refreshToken(payload).pipe(withInfraErrorsAsDefect)
         )
         .handle('getCurrentUser', () =>
-          authService.getCurrentUser().pipe(withSqlErrorAsDefect)
+          authService.getCurrentUser().pipe(withInfraErrorsAsDefect)
         )
-        .handle('logout', () => authService.logout().pipe(withSqlErrorAsDefect))
+        .handle('logout', () =>
+          authService.logout().pipe(withInfraErrorsAsDefect)
+        )
         .handle('setUsername', ({ payload }) =>
-          authService.setUsername(payload).pipe(withSqlErrorAsDefect)
+          authService.setUsername(payload).pipe(withInfraErrorsAsDefect)
         )
     })
   ).pipe(

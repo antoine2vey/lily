@@ -7,7 +7,7 @@ import { NotificationRepositoryLive } from '@lily/api/repositories/notification.
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { CareLogsService } from '@lily/api/services/care-logs/service'
-import { withSqlErrorAsDefect } from '@lily/api/services/helpers/sql-error'
+import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { Effect, Layer } from 'effect'
@@ -24,7 +24,7 @@ export const CareLogsApiLive = (api: Api) =>
             .getRecentActivities({
               limit: parseInt(urlParams.limit, 10) || 10,
             })
-            .pipe(withSqlErrorAsDefect)
+            .pipe(withInfraErrorsAsDefect)
         )
         .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
           careLogsService
@@ -38,27 +38,27 @@ export const CareLogsApiLive = (api: Api) =>
                   ? urlParams.type
                   : 'all',
             })
-            .pipe(withPlantAuth(plantId), withSqlErrorAsDefect)
+            .pipe(withPlantAuth(plantId), withInfraErrorsAsDefect)
         )
         .handle('createCareLog', ({ path: { plantId }, payload }) =>
           careLogsService
             .createCareLog(plantId, payload)
-            .pipe(withPlantAuth(plantId), withSqlErrorAsDefect)
+            .pipe(withPlantAuth(plantId), withInfraErrorsAsDefect)
         )
         .handle('getCareLog', ({ path: { plantId, logId } }) =>
           careLogsService
             .getCareLog(plantId, logId)
-            .pipe(withPlantAuth(plantId), withSqlErrorAsDefect)
+            .pipe(withPlantAuth(plantId), withInfraErrorsAsDefect)
         )
         .handle('updateCareLog', ({ path: { plantId, logId }, payload }) =>
           careLogsService
             .updateCareLog(plantId, logId, payload)
-            .pipe(withPlantAuth(plantId), withSqlErrorAsDefect)
+            .pipe(withPlantAuth(plantId), withInfraErrorsAsDefect)
         )
         .handle('deleteCareLog', ({ path: { plantId, logId } }) =>
           careLogsService
             .deleteCareLog(plantId, logId)
-            .pipe(withPlantAuth(plantId), withSqlErrorAsDefect)
+            .pipe(withPlantAuth(plantId), withInfraErrorsAsDefect)
         )
     })
   ).pipe(

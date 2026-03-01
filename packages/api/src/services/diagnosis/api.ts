@@ -10,6 +10,7 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
+import { GCSUploadError } from '@lily/shared/services/file/gcs'
 import { Schema } from 'effect'
 
 const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
@@ -22,6 +23,7 @@ export const DiagnosisApi = HttpApiGroup.make('diagnosis')
       .addSuccess(DiagnosisListResponse)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -30,6 +32,7 @@ export const DiagnosisApi = HttpApiGroup.make('diagnosis')
     )`/plants/${plantIdParam}/diagnoses/${diagnosisIdParam}/resolve`
       .addSuccess(Diagnosis)
       .addError(DiagnosisNotFoundError, { status: 404 })
+      .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .middleware(Authentication)

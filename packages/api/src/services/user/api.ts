@@ -6,6 +6,11 @@ import {
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { UnauthorizedError, UserNotFoundError } from '@lily/shared'
+import {
+  MultipleFilesError,
+  NoFilesError,
+} from '@lily/shared/services/file/fileservice'
+import { GCSConfigError, GCSUploadError } from '@lily/shared/services/file/gcs'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 
@@ -38,7 +43,10 @@ export const UsersApi = HttpApiGroup.make('users')
       )
       .addSuccess(Schema.Struct({ url: Schema.String }))
       .addError(UserNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(MultipleFilesError, { status: 400 })
+      .addError(NoFilesError, { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
       .addError(UnauthorizedError, { status: 401 })
   )
   .prefix('/users')
