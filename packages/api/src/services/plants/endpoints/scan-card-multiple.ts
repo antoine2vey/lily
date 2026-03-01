@@ -17,13 +17,15 @@ import type { AIIdentifyResponse } from '@lily/shared/plant'
 import {
   FileService,
   type FileTooLargeError,
-  type GCSConfigError,
-  GCSService,
-  type GCSUploadError,
   type InvalidFileTypeError,
   type NoFilesError,
   type TooManyFilesError,
 } from '@lily/shared/server'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Array as Arr, Effect, Option, pipe } from 'effect'
 
 export const scanCardMultiple = (

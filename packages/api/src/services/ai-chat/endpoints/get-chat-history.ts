@@ -3,7 +3,8 @@ import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { ChatHistoryListResponse } from '@lily/shared/ai-chat'
-import type { GCSService, GCSUploadError } from '@lily/shared/services/file/gcs'
+import type { GCSService } from '@lily/shared/services/file/gcs'
+import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
 
 export const getChatHistory = (params: {

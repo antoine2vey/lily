@@ -6,11 +6,11 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { nowAsDate } from '@lily/shared'
-import {
-  type GCSConfigError,
-  GCSService,
-  type GCSUploadError,
-} from '@lily/shared/services/file/gcs'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
 
 export const uploadPlantPhoto = ({
