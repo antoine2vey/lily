@@ -236,7 +236,7 @@ export const streamChatMessage = (
         )
       ),
       Effect.retry(postStreamRetryPolicy),
-      Effect.catchAll((error) =>
+      Effect.catchTag('SqlError', (error) =>
         Effect.logError('Failed to save chat message after stream', {
           error: String(error),
           plantId,

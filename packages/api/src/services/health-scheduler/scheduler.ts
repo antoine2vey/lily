@@ -34,7 +34,7 @@ export const checkOverduePlants = Effect.gen(function* () {
 export const startHealthScheduler = Effect.gen(function* () {
   // Run immediately on startup
   yield* checkOverduePlants.pipe(
-    Effect.catchAll((error) =>
+    Effect.catchTag('SqlError', (error) =>
       Effect.logError('Health scheduler initial check error', error)
     )
   )
@@ -45,7 +45,7 @@ export const startHealthScheduler = Effect.gen(function* () {
       Effect.sleep(POLL_INTERVAL).pipe(
         Effect.zipRight(
           checkOverduePlants.pipe(
-            Effect.catchAll((error) =>
+            Effect.catchTag('SqlError', (error) =>
               Effect.logError('Health scheduler polling error', error)
             )
           )

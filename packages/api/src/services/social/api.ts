@@ -19,7 +19,7 @@ import {
 } from '@lily/shared'
 import { Schema } from 'effect'
 
-const userIdParam = HttpApiSchema.param('userId', Schema.String)
+const userIdParam = HttpApiSchema.param('userId', Schema.UUID)
 
 export const SocialApi = HttpApiGroup.make('social')
   .add(

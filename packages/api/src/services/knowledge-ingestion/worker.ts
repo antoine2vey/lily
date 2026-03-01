@@ -30,7 +30,7 @@ export const startKnowledgeIngestionWorker = Effect.gen(function* () {
       Effect.sleep(POLL_INTERVAL).pipe(
         Effect.zipRight(
           pollPendingJobs.pipe(
-            Effect.catchAll((error) =>
+            Effect.catchTag('SqlError', (error) =>
               Effect.logError('Knowledge ingestion worker error', {
                 error: String(error),
               })

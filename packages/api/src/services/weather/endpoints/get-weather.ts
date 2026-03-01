@@ -64,7 +64,7 @@ export const getWeatherForLocation = (
             soilTemperature: day.soilTemperature,
           })
           .pipe(
-            Effect.catchAll((error) =>
+            Effect.catchTag('SqlError', (error) =>
               Effect.logWarning('Failed to persist weather snapshot', {
                 error,
                 date: day.date,

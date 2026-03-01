@@ -14,7 +14,7 @@ import {
 import { Schema } from 'effect'
 
 // Path parameter for plant ID
-const plantIdParam = HttpApiSchema.param('plantId', Schema.String)
+const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
 
 // Request schema for streaming chat - only the new user message
 const StreamChatRequest = Schema.Struct({

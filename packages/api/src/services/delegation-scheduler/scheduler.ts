@@ -1,3 +1,4 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -13,10 +14,10 @@ const getUserLanguage = (
   userRepo: {
     findById: (
       id: string
-    ) => Effect.Effect<{ language: string | null } | null, unknown>
+    ) => Effect.Effect<{ language: string | null } | null, SqlError>
   },
   userId: string
-): Effect.Effect<LanguageCode, unknown> =>
+): Effect.Effect<LanguageCode, SqlError> =>
   Effect.gen(function* () {
     const user = yield* userRepo.findById(userId)
     return Option.getOrElse(
@@ -112,7 +113,7 @@ export const startDelegationScheduler = Effect.gen(function* () {
   yield* Effect.fork(
     Effect.forever(
       pollAndTransition.pipe(
-        Effect.catchAll((error) =>
+        Effect.catchTag('SqlError', (error) =>
           Effect.logError('Delegation scheduler error', error)
         ),
         Effect.zipRight(Effect.sleep(POLL_INTERVAL))

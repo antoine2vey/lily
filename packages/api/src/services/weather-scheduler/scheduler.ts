@@ -1,3 +1,4 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import { getWeatherForLocation } from '@lily/api/services/weather/endpoints/get-weather'
@@ -92,7 +93,7 @@ const refreshWeatherData = Effect.gen(function* () {
         Effect.tap(() =>
           Effect.log(`Weather refreshed for ${loc.lat},${loc.lng}`)
         ),
-        Effect.catchAll((error) =>
+        Effect.catchTag('WeatherFetchError', (error) =>
           Effect.logWarning(
             `Weather refresh failed for ${loc.lat},${loc.lng}`,
             { error }
@@ -110,7 +111,7 @@ const refreshWeatherData = Effect.gen(function* () {
         Effect.map((ctx) =>
           Option.some([`${loc.lat}_${loc.lng}`, ctx] as const)
         ),
-        Effect.catchAll((error) =>
+        Effect.catchTag('WeatherFetchError', (error) =>
           Effect.logWarning(
             `Weather context build failed for ${loc.lat},${loc.lng}`,
             { error }
@@ -127,22 +128,18 @@ const refreshWeatherData = Effect.gen(function* () {
   )
 
   // Readjust care schedules, passing the already-fetched users and pre-built contexts
-  yield* readjustCareSchedules(weatherUsers, weatherContextMap).pipe(
-    Effect.catchAll((error) =>
-      Effect.logWarning('Care schedule readjustment failed', { error })
-    )
-  )
+  yield* readjustCareSchedules(weatherUsers, weatherContextMap)
 
   // Run cleanup once per day (when UTC hour is 0)
   if (utcHour === 0) {
     const cleaned = yield* weatherRepo
       .cleanupOldSnapshots(CLEANUP_OLDER_THAN_DAYS)
       .pipe(
-        Effect.catchAll((error) => {
-          return Effect.logWarning('Snapshot cleanup failed', { error }).pipe(
+        Effect.catchTag('SqlError', (error) =>
+          Effect.logWarning('Snapshot cleanup failed', { error }).pipe(
             Effect.map(() => 0)
           )
-        })
+        )
       )
     if (cleaned > 0) {
       yield* Effect.log(`Cleaned up ${cleaned} old weather snapshots`)
@@ -154,7 +151,7 @@ const refreshWeatherData = Effect.gen(function* () {
 export const startWeatherScheduler = Effect.gen(function* () {
   // Run immediately on startup
   yield* refreshWeatherData.pipe(
-    Effect.catchAll((error) =>
+    Effect.catchTag('SqlError', (error: SqlError) =>
       Effect.logError('Weather scheduler initial refresh error', error)
     )
   )
@@ -165,7 +162,7 @@ export const startWeatherScheduler = Effect.gen(function* () {
       Effect.sleep(POLL_INTERVAL).pipe(
         Effect.zipRight(
           refreshWeatherData.pipe(
-            Effect.catchAll((error) =>
+            Effect.catchTag('SqlError', (error: SqlError) =>
               Effect.logError('Weather scheduler polling error', error)
             )
           )

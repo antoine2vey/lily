@@ -9,7 +9,7 @@ import {
 import { Schema } from 'effect'
 
 // Path parameter for notification ID
-const notificationIdParam = HttpApiSchema.param('notificationId', Schema.String)
+const notificationIdParam = HttpApiSchema.param('notificationId', Schema.UUID)
 
 // Query parameters for notifications listing (extends base pagination)
 export const NotificationsQueryParams = Schema.Struct({

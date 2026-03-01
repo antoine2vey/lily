@@ -25,7 +25,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
 export type { CareType } from '@lily/api/services/plants/utils'
 
@@ -103,7 +103,7 @@ const applyWeatherAdjustment = (
     )
   }).pipe(
     // If anything fails in weather adjustment, silently return original date
-    Effect.catchAll(() => Effect.succeed(nextCareAt))
+    Effect.catchTag('SqlError', () => Effect.succeed(nextCareAt))
   )
 
 export const executePlantCare = (

@@ -13,7 +13,7 @@ import {
 } from '@lily/shared/knowledge'
 import { Schema } from 'effect'
 
-const jobIdParam = HttpApiSchema.param('id', Schema.String)
+const jobIdParam = HttpApiSchema.param('id', Schema.UUID)
 
 export const KnowledgeIngestionApi = HttpApiGroup.make('knowledgeIngestion')
   .add(

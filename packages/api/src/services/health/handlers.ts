@@ -17,21 +17,21 @@ export const HealthApiLive = (api: Api) =>
       return handlers.handle('check', () =>
         Effect.gen(function* () {
           // Check database
-          const dbStatus = yield* Effect.tryPromise({
-            try: () => db.execute(sql`SELECT 1`),
-            catch: () => 'error' as const,
-          }).pipe(
+          const dbStatus = yield* Effect.tryPromise(() =>
+            db.execute(sql`SELECT 1`)
+          ).pipe(
             Effect.map(() => 'ok' as const),
-            Effect.catchAll(() => Effect.succeed('error' as const))
+            Effect.catchTag('UnknownException', () =>
+              Effect.succeed('error' as const)
+            )
           )
 
           // Check redis
-          const redisStatus = yield* Effect.tryPromise({
-            try: () => redis.ping(),
-            catch: () => 'error' as const,
-          }).pipe(
+          const redisStatus = yield* Effect.tryPromise(() => redis.ping()).pipe(
             Effect.map(() => 'ok' as const),
-            Effect.catchAll(() => Effect.succeed('error' as const))
+            Effect.catchTag('UnknownException', () =>
+              Effect.succeed('error' as const)
+            )
           )
 
           const status =

@@ -131,8 +131,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           const candidateLimitRaw = sql.raw(String(candidateLimit))
           const limitRaw = sql.raw(String(limit))
 
-          const dbResult = yield* db
-            .execute(sql`
+          const dbResult = yield* db.execute(sql`
 
               WITH fts_query AS (
                 SELECT plainto_tsquery('english', ${params.queryText}) AS q
@@ -194,24 +193,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               WHERE vector_similarity >= ${similarityThresholdRaw}
               ORDER BY rrf_score DESC LIMIT ${limitRaw}
             `)
-            .pipe(
-              Effect.tapError((e) => {
-                const err = e as unknown as {
-                  cause?: {
-                    code?: string
-                    message?: string
-                    detail?: string
-                    hint?: string
-                  }
-                }
-                const pgCode = err?.cause?.code ?? 'unknown'
-                const pgMessage = err?.cause?.message ?? String(e)
-                return Effect.logError(`[search] PG ${pgCode}: ${pgMessage}`, {
-                  detail: err?.cause?.detail,
-                  hint: err?.cause?.hint,
-                })
-              })
-            )
 
           // @effect/sql-drizzle/Pg wraps the pg QueryResult in an outer array
           // when using db.execute(): the actual rows live at result[0].rows

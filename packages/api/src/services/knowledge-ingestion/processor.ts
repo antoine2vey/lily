@@ -161,14 +161,7 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
                     error: error.message,
                     retryCount: 3,
                   })
-                  .pipe(
-                    Effect.tapError((e) =>
-                      Effect.logError('Failed to write to enrichment DLQ', {
-                        error: String(e),
-                      })
-                    ),
-                    Effect.ignore
-                  )
+                  .pipe(Effect.ignore)
                 return undefined
               })
             )
@@ -242,15 +235,7 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       }))
     )
 
-    yield* chunkRepo.createMany(chunksToInsert).pipe(
-      Effect.tapError((error) =>
-        Effect.logError('Failed to insert chunks', {
-          error: String(error),
-          documentId: insertedDoc.id,
-          chunkCount: chunksToInsert.length,
-        })
-      )
-    )
+    yield* chunkRepo.createMany(chunksToInsert)
 
     return { inserted: true, chunksCreated: chunksToInsert.length } as const
   })
@@ -309,24 +294,26 @@ export const processIngestJob = (job: IngestJob) =>
       chunksCreated: finalChunks,
     })
   }).pipe(
-    Effect.catchAll((error) =>
-      Effect.gen(function* () {
-        const jobRepo = yield* IngestJobRepository
-        // UnknownException wraps the actual DB/network error in `.error`
-        const underlying = (error as { error?: unknown }).error
-        const errorMessage = pipe(
-          Option.fromNullable(underlying),
-          Option.match({
-            onNone: () => String(error),
-            onSome: (cause) => String(cause),
+    Effect.catchTags({
+      SqlError: (error) =>
+        Effect.gen(function* () {
+          const jobRepo = yield* IngestJobRepository
+          const errorMessage = String(error)
+          yield* jobRepo.updateError(job.id, errorMessage).pipe(Effect.orDie)
+          yield* Effect.logError(`Job ${job.id} failed`, {
+            error: errorMessage,
           })
-        )
-        yield* jobRepo.updateError(job.id, errorMessage)
-        yield* Effect.logError(`Job ${job.id} failed`, {
-          error: errorMessage,
-        })
-      })
-    ),
+        }),
+      AdapterError: (error) =>
+        Effect.gen(function* () {
+          const jobRepo = yield* IngestJobRepository
+          const errorMessage = error.message
+          yield* jobRepo.updateError(job.id, errorMessage).pipe(Effect.orDie)
+          yield* Effect.logError(`Job ${job.id} failed`, {
+            error: errorMessage,
+          })
+        }),
+    }),
     Effect.withSpan('KnowledgeIngestion.processJob', {
       attributes: { 'job.id': job.id, 'job.adapter': job.adapter },
     })

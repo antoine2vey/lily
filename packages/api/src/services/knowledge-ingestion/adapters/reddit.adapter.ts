@@ -143,13 +143,9 @@ const fetchRedditJson = <T>(url: string) =>
     return json
   }).pipe(
     // Sleep for the server-specified retry-after duration before each retry
-    Effect.tapError((e: AdapterError | RateLimitedError) =>
-      pipe(
-        Match.value(e),
-        Match.when({ _tag: 'RateLimitedError' }, (rle) =>
-          Effect.sleep(Duration.seconds(rle.retryAfter))
-        ),
-        Match.orElse(() => Effect.void)
+    Effect.catchTag('RateLimitedError', (rle) =>
+      Effect.sleep(Duration.seconds(rle.retryAfter)).pipe(
+        Effect.zipRight(Effect.fail(rle))
       )
     ),
     Effect.retry(
@@ -252,11 +248,6 @@ const fetchPostComments = (permalink: string) =>
     const url = `https://www.reddit.com${permalink}.json?sort=top&limit=10&raw_json=1`
 
     const response = yield* fetchRedditJson<RedditListing[]>(url).pipe(
-      Effect.tapError((e) =>
-        Effect.logWarning(`Failed to fetch comments for ${permalink}`, {
-          error: String(e),
-        })
-      ),
       Effect.orElseSucceed(() => [] as RedditListing[])
     )
 

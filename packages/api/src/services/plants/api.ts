@@ -28,8 +28,8 @@ import {
 import { Schema } from 'effect'
 
 // Path parameter for plant ID
-const plantIdParam = HttpApiSchema.param('id', Schema.String)
-const photoIdParam = HttpApiSchema.param('photoId', Schema.String)
+const plantIdParam = HttpApiSchema.param('id', Schema.UUID)
+const photoIdParam = HttpApiSchema.param('photoId', Schema.UUID)
 
 // Query parameters for plants listing (extends base pagination)
 export const PlantsQueryParams = Schema.Struct({

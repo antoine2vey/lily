@@ -16,8 +16,8 @@ import {
 import { Schema } from 'effect'
 
 // Path parameters
-const plantIdParam = HttpApiSchema.param('plantId', Schema.String)
-const logIdParam = HttpApiSchema.param('logId', Schema.String)
+const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
+const logIdParam = HttpApiSchema.param('logId', Schema.UUID)
 
 // Query parameters for care logs listing (extends base pagination)
 export const CareLogsQueryParams = Schema.Struct({

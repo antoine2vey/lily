@@ -216,9 +216,12 @@ export const startNotificationScheduler = Effect.gen(function* () {
   yield* Effect.fork(
     Effect.forever(
       pollAndEnqueue.pipe(
-        Effect.catchAll((error) =>
-          Effect.logError('Scheduler polling error', error)
-        ),
+        Effect.catchTags({
+          SqlError: (error) =>
+            Effect.logError('Scheduler polling error', error),
+          QueueOperationError: (error) =>
+            Effect.logError('Scheduler polling error', error),
+        }),
         Effect.zipRight(Effect.sleep(POLL_INTERVAL))
       )
     )

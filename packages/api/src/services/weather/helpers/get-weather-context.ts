@@ -42,7 +42,7 @@ export const getWeatherContext = (
     const recentSnapshots = yield* weatherRepo
       .findRecentByLocation(rlat, rlng, RECENT_HISTORY_DAYS)
       .pipe(
-        Effect.catchAll(() =>
+        Effect.catchTag('SqlError', () =>
           Effect.succeed(
             [] as ReadonlyArray<{
               date: string

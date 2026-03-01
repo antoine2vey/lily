@@ -40,7 +40,7 @@ export const enableWeatherForUser = (
 
     // Trigger initial weather fetch to populate cache
     yield* getWeatherForLocation(latitude, longitude).pipe(
-      Effect.catchAll((error) =>
+      Effect.catchTag('WeatherFetchError', (error) =>
         Effect.logWarning('Initial weather fetch failed', { error })
       )
     )

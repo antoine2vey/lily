@@ -19,9 +19,4 @@ export const aiReIdentify = (
     const aiResult = yield* ai.plantRecognition(imageUrls, locale)
     const primaryUrl = Option.getOrElse(Array.head(imageUrls), () => '')
     return { ...aiResult, imageUrl: primaryUrl }
-  }).pipe(
-    Effect.tapErrorCause((cause) =>
-      Effect.logError('[ai-re-identify] FAILED', { cause })
-    ),
-    Effect.withSpan('PlantsService.aiReIdentify')
-  )
+  }).pipe(Effect.withSpan('PlantsService.aiReIdentify'))

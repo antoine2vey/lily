@@ -9,7 +9,7 @@ import {
 } from '@lily/shared'
 import { Schema } from 'effect'
 
-const roomIdParam = HttpApiSchema.param('id', Schema.String)
+const roomIdParam = HttpApiSchema.param('id', Schema.UUID)
 
 export const RoomsApi = HttpApiGroup.make('rooms')
   .add(

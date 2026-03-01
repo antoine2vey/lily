@@ -8,7 +8,7 @@ import {
 import { Schema } from 'effect'
 
 // Path parameter for token ID
-const tokenIdParam = HttpApiSchema.param('tokenId', Schema.String)
+const tokenIdParam = HttpApiSchema.param('tokenId', Schema.UUID)
 
 // Define the Device Tokens API group
 export const DeviceTokensApi = HttpApiGroup.make('deviceTokens')

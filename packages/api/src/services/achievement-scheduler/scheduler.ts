@@ -94,7 +94,7 @@ export const reconcileAchievements = Effect.gen(function* () {
     userIds,
     (userId) =>
       reconcileUserAchievements(userId).pipe(
-        Effect.catchAll((error) =>
+        Effect.catchTag('SqlError', (error) =>
           Effect.logError(
             'Failed to reconcile achievements for user',
             error
@@ -122,7 +122,7 @@ export const reconcileAchievements = Effect.gen(function* () {
 export const startAchievementReconciliationScheduler = Effect.gen(function* () {
   // Run immediately on startup
   yield* reconcileAchievements.pipe(
-    Effect.catchAll((error) =>
+    Effect.catchTag('SqlError', (error) =>
       Effect.logError('Achievement reconciliation initial check error', error)
     )
   )
@@ -133,7 +133,7 @@ export const startAchievementReconciliationScheduler = Effect.gen(function* () {
       Effect.sleep(POLL_INTERVAL).pipe(
         Effect.zipRight(
           reconcileAchievements.pipe(
-            Effect.catchAll((error) =>
+            Effect.catchTag('SqlError', (error) =>
               Effect.logError('Achievement reconciliation polling error', error)
             )
           )

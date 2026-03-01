@@ -18,12 +18,12 @@ export const createFallbackProvider = (
           new WeatherFetchError({ message: 'No providers configured' })
         ) as Effect.Effect<WeatherForecast, WeatherFetchError>,
         (fallback, provider) =>
-          Effect.catchAll(fallback, () =>
+          Effect.catchTag(fallback, 'WeatherFetchError', () =>
             provider.fetchForecast(lat, lng, forecastDays).pipe(
               Effect.tap(() =>
                 Effect.log(`Weather fetched from ${provider.name}`)
               ),
-              Effect.catchAll((error) =>
+              Effect.catchTag('WeatherFetchError', (error) =>
                 Effect.gen(function* () {
                   yield* Effect.logWarning(
                     `${provider.name} failed, trying next: ${error.message}`
