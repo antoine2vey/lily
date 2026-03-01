@@ -55,6 +55,14 @@
         {
           "locationWhenInUsePermission": "Lily uses your location to provide local weather data and adjust your plant care schedule accordingly."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "antoine2vey"
+        }
       ]
     ],
     "experiments": {

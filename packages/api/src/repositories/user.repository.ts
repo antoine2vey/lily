@@ -29,6 +29,7 @@ export interface UpdateUserData {
   emailVerified?: boolean
   role?: 'user' | 'admin'
   status?: 'active' | 'suspended' | 'banned'
+  language?: 'en' | 'fr'
   timezone?: string | null
   preferredNotificationTime?: string | null
   weatherEnabled?: boolean

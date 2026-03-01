@@ -2,7 +2,7 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { scheduleNotification } from '@lily/api/services/helpers/schedule-notification'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
   AlreadyFollowingError,
   CannotFollowSelfError,
@@ -58,7 +58,7 @@ export const followUser = (targetUserId: string) =>
       Option.getOrElse(() => 'Someone')
     )
 
-    yield* scheduleNotification(
+    yield* scheduleSimpleNotification(
       'new_follower',
       targetUserId,
       { senderName: followerName },
