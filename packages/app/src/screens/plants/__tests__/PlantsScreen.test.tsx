@@ -140,8 +140,8 @@ describe('PlantsScreen', () => {
 
     // Filters show count in parentheses, e.g., "All (3)"
     expect(screen.getByText(/All \(\d+\)/)).toBeTruthy()
-    expect(screen.getByText(/Healthy \(\d+\)/)).toBeTruthy()
-    expect(screen.getByText(/Needs Attention \(\d+\)/)).toBeTruthy()
+    expect(screen.getByText(/Needs Watering \(\d+\)/)).toBeTruthy()
+    expect(screen.getByText(/Needs Fertilizing \(\d+\)/)).toBeTruthy()
   })
 
   it('opens sort options sheet when sort button pressed', () => {

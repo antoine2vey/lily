@@ -5,8 +5,8 @@ describe('PlantFilters', () => {
   const mockOnFilterChange = jest.fn()
   const defaultCounts = {
     all: 10,
-    healthy: 7,
-    attention: 3,
+    watering: 4,
+    fertilizing: 2,
   }
 
   beforeEach(() => {
@@ -23,11 +23,11 @@ describe('PlantFilters', () => {
     )
 
     expect(screen.getByText('All (10)')).toBeTruthy()
-    expect(screen.getByText('Healthy (7)')).toBeTruthy()
-    expect(screen.getByText('Needs Attention (3)')).toBeTruthy()
+    expect(screen.getByText('Needs Watering (4)')).toBeTruthy()
+    expect(screen.getByText('Needs Fertilizing (2)')).toBeTruthy()
   })
 
-  it('calls onFilterChange when filter is pressed', () => {
+  it('calls onFilterChange when watering filter is pressed', () => {
     render(
       <PlantFilters
         selectedFilter="all"
@@ -36,12 +36,12 @@ describe('PlantFilters', () => {
       />
     )
 
-    fireEvent.press(screen.getByText('Healthy (7)'))
+    fireEvent.press(screen.getByText('Needs Watering (4)'))
 
-    expect(mockOnFilterChange).toHaveBeenCalledWith('healthy')
+    expect(mockOnFilterChange).toHaveBeenCalledWith('watering')
   })
 
-  it('calls onFilterChange with attention when needs attention pressed', () => {
+  it('calls onFilterChange with fertilizing when fertilizing filter pressed', () => {
     render(
       <PlantFilters
         selectedFilter="all"
@@ -50,16 +50,16 @@ describe('PlantFilters', () => {
       />
     )
 
-    fireEvent.press(screen.getByText('Needs Attention (3)'))
+    fireEvent.press(screen.getByText('Needs Fertilizing (2)'))
 
-    expect(mockOnFilterChange).toHaveBeenCalledWith('attention')
+    expect(mockOnFilterChange).toHaveBeenCalledWith('fertilizing')
   })
 
   it('displays correct counts', () => {
     const customCounts = {
       all: 25,
-      healthy: 20,
-      attention: 5,
+      watering: 8,
+      fertilizing: 3,
     }
 
     render(
@@ -71,15 +71,15 @@ describe('PlantFilters', () => {
     )
 
     expect(screen.getByText('All (25)')).toBeTruthy()
-    expect(screen.getByText('Healthy (20)')).toBeTruthy()
-    expect(screen.getByText('Needs Attention (5)')).toBeTruthy()
+    expect(screen.getByText('Needs Watering (8)')).toBeTruthy()
+    expect(screen.getByText('Needs Fertilizing (3)')).toBeTruthy()
   })
 
   it('handles zero counts', () => {
     const zeroCounts = {
       all: 0,
-      healthy: 0,
-      attention: 0,
+      watering: 0,
+      fertilizing: 0,
     }
 
     render(
@@ -91,8 +91,8 @@ describe('PlantFilters', () => {
     )
 
     expect(screen.getByText('All (0)')).toBeTruthy()
-    expect(screen.getByText('Healthy (0)')).toBeTruthy()
-    expect(screen.getByText('Needs Attention (0)')).toBeTruthy()
+    expect(screen.getByText('Needs Watering (0)')).toBeTruthy()
+    expect(screen.getByText('Needs Fertilizing (0)')).toBeTruthy()
   })
 
   it('has testID for container', () => {

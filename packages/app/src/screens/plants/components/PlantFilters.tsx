@@ -2,11 +2,11 @@ import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, TouchableOpacity } from 'react-native'
 
-type FilterOption = 'all' | 'healthy' | 'attention'
+type FilterOption = 'all' | 'watering' | 'fertilizing'
 
 interface FilterDefinition {
   key: FilterOption
-  labelKey: 'filterAll' | 'filterHealthy' | 'filterNeedsAttention'
+  labelKey: 'filterAll' | 'filterNeedsWatering' | 'filterNeedsFertilizing'
 }
 
 interface PlantFiltersProps {
@@ -14,15 +14,15 @@ interface PlantFiltersProps {
   onFilterChange: (filter: FilterOption) => void
   counts: {
     all: number
-    healthy: number
-    attention: number
+    watering: number
+    fertilizing: number
   }
 }
 
 const FILTERS: ReadonlyArray<FilterDefinition> = [
   { key: 'all', labelKey: 'filterAll' },
-  { key: 'healthy', labelKey: 'filterHealthy' },
-  { key: 'attention', labelKey: 'filterNeedsAttention' },
+  { key: 'watering', labelKey: 'filterNeedsWatering' },
+  { key: 'fertilizing', labelKey: 'filterNeedsFertilizing' },
 ]
 
 export function PlantFilters({
@@ -39,7 +39,6 @@ export function PlantFilters({
       className="w-full"
       style={{ flexGrow: 0, flexShrink: 0 }}
       contentContainerStyle={{
-        flexDirection: 'row-reverse',
         gap: 12,
         paddingHorizontal: 20,
         paddingVertical: 12,
