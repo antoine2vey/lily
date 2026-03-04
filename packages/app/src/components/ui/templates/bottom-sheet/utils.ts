@@ -41,6 +41,7 @@ const isScrollableList = (
     return true
   }
 
+  // biome-ignore lint/suspicious/noExplicitAny: accessing React component internals (displayName/name)
   const typeName = (type as any)?.displayName || (type as any)?.name || ''
 
   return (

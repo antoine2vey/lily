@@ -69,8 +69,8 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
       snapVelocityThreshold = 500,
       backgroundColor = '#FFFFFF',
       borderRadius = 24,
-      contentContainerStyle,
-      enableDynamicSizing = false,
+      contentContainerStyle: _contentContainerStyle,
+      enableDynamicSizing: _enableDynamicSizing = false,
     },
     ref
   ) => {
@@ -521,10 +521,14 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
 
         const enhancedList = cloneElement(listElement, {
           ...scrollProps,
+          // biome-ignore lint/suspicious/noExplicitAny: NativeWind scroll event type is dynamic
           onScroll: (event: any) => {
+            // biome-ignore lint/suspicious/noExplicitAny: forwarding dynamic scroll handler
             ;(scrollProps.onScroll as any)?.(event)
+            // biome-ignore lint/suspicious/noExplicitAny: accessing dynamic list props
             ;(listElement.props as any).onScroll?.(event)
           },
+          // biome-ignore lint/suspicious/noExplicitAny: cloneElement requires any for dynamic RN props
         } as any)
 
         return (

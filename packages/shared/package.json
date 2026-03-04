@@ -103,6 +103,7 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias",
+    "tsc": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "bunx --bun biome check .",
