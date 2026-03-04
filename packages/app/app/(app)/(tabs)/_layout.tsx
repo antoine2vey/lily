@@ -2,17 +2,23 @@ import { router, Tabs } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BottomTabBar } from 'src/components/BottomTabBar'
+import { useCareBadgeCount } from 'src/hooks/useCareBadgeCount'
 import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
 
 export default function TabsLayout() {
   const { t } = useTranslation('common')
   const [showAddPlant, setShowAddPlant] = useState(false)
+  const careBadgeCount = useCareBadgeCount()
 
   return (
     <>
       <Tabs
         tabBar={(props) => (
-          <BottomTabBar {...props} onFabPress={() => setShowAddPlant(true)} />
+          <BottomTabBar
+            {...props}
+            onFabPress={() => setShowAddPlant(true)}
+            careBadgeCount={careBadgeCount}
+          />
         )}
         screenOptions={{
           headerShown: false,
