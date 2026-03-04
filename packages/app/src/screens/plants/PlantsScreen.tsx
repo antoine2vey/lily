@@ -194,14 +194,11 @@ export function PlantsScreen() {
     result = pipe(
       Match.value(selectedFilter),
       Match.when('all', () => result),
-      Match.when('healthy', () =>
-        Array.filter(result, (plant) => plant.health === 'healthy')
+      Match.when('watering', () =>
+        Array.filter(result, (plant) => plant.watering.daysUntil === 0)
       ),
-      Match.when('attention', () =>
-        Array.filter(
-          result,
-          (plant) => plant.health === 'attention' || plant.health === 'critical'
-        )
+      Match.when('fertilizing', () =>
+        Array.filter(result, (plant) => plant.fertilization.daysUntil === 0)
       ),
       Match.exhaustive
     )
@@ -221,14 +218,11 @@ export function PlantsScreen() {
   const counts = useMemo(
     () => ({
       all: Array.length(plants),
-      healthy: Array.length(
-        Array.filter(plants, (p) => p.health === 'healthy')
+      watering: Array.length(
+        Array.filter(plants, (p) => p.watering.daysUntil === 0)
       ),
-      attention: Array.length(
-        Array.filter(
-          plants,
-          (p) => p.health === 'attention' || p.health === 'critical'
-        )
+      fertilizing: Array.length(
+        Array.filter(plants, (p) => p.fertilization.daysUntil === 0)
       ),
     }),
     [plants]
