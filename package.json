@@ -28,7 +28,7 @@
     "db:setup-test": "bun --env-file=.env.test.local run --filter=@lily/db db:setup-test",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
-    "tsc": "bunx tsc --build",
+    "tsc": "turbo tsc",
     "clean": "turbo clean",
     "prepare": "husky"
   },

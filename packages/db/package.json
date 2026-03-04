@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "tsc": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "echo 'No tests yet'",
     "lint": "bunx --bun biome check .",

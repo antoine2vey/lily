@@ -14,6 +14,7 @@ Lily is a plant care management application built as a TypeScript monorepo using
 - **db** - Drizzle ORM schema and migrations
 - **shared** - Shared types, schemas, and utilities
 - **app** - React Native mobile app (Expo)
+- **web** - Marketing/landing site (Next.js 16 static export)
 
 ## Tech Stack
 

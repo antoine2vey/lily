@@ -12,7 +12,8 @@
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
-import { careLogs, plants, users } from '@lily/db/schema'
+import { careLogs, plants, userFollows, users } from '@lily/db/schema'
+import { and, eq, or } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option } from 'effect'
 
 const getFirst = <T>(arr: T[]): T => {
@@ -31,7 +32,7 @@ const DEMO_PLANTS = [
     description: 'Hardy succulent with sword-shaped leaves',
     category: 'Succulent',
     imageUrl:
-      'https://images.unsplash.com/photo-1593482892290-f54927ae1bb6?w=400',
+      'https://images.unsplash.com/photo-1764249454220-ce25a9153805?w=400',
     humidityRating: 2,
     lightingRating: 3,
     petToxicityRating: 3,
@@ -49,7 +50,7 @@ const DEMO_PLANTS = [
     description: 'Trailing vine with heart-shaped leaves',
     category: 'Vine',
     imageUrl:
-      'https://images.unsplash.com/photo-1602923668104-8f9e03e77e62?w=400',
+      'https://images.unsplash.com/photo-1764271728253-d381475517bb?w=400',
     humidityRating: 3,
     lightingRating: 2,
     petToxicityRating: 3,
@@ -64,7 +65,7 @@ const DEMO_PLANTS = [
     description: 'Lush green fern with delicate fronds',
     category: 'Fern',
     imageUrl:
-      'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=400',
+      'https://images.unsplash.com/photo-1528789283076-808070b2dae6?w=400',
     humidityRating: 5,
     lightingRating: 2,
     petToxicityRating: 1,
@@ -79,7 +80,8 @@ const DEMO_PLANTS = [
     name: 'Fiddle Leaf Fig',
     description: 'Popular indoor tree with large fiddle-shaped leaves',
     category: 'Tree',
-    imageUrl: 'https://images.unsplash.com/photo-1545241047-6083a3684587?w=400',
+    imageUrl:
+      'https://images.unsplash.com/photo-1602648707943-94aff309c088?w=400',
     humidityRating: 4,
     lightingRating: 4,
     petToxicityRating: 3,
@@ -97,7 +99,7 @@ const DEMO_PLANTS = [
     description: 'Desert succulent, low maintenance',
     category: 'Succulent',
     imageUrl:
-      'https://images.unsplash.com/photo-1509423350716-97f9360b4e09?w=400',
+      'https://images.unsplash.com/photo-1763784436630-629fd9a4e0e2?w=400',
     humidityRating: 1,
     lightingRating: 5,
     petToxicityRating: 2,
@@ -113,7 +115,7 @@ const DEMO_PLANTS = [
     description: 'Medicinal succulent with healing gel',
     category: 'Succulent',
     imageUrl:
-      'https://images.unsplash.com/photo-1509423350716-97f9360b4e09?w=400',
+      'https://images.unsplash.com/photo-1501597392671-6eee5525a294?w=400',
     humidityRating: 2,
     lightingRating: 4,
     petToxicityRating: 2,
@@ -128,7 +130,7 @@ const DEMO_PLANTS = [
     description: 'Tropical plant with iconic split leaves',
     category: 'Tropical',
     imageUrl:
-      'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?w=400',
+      'https://images.unsplash.com/photo-1603095859718-b6300a0aad18?w=400',
     humidityRating: 4,
     lightingRating: 3,
     petToxicityRating: 3,
@@ -146,7 +148,7 @@ const DEMO_PLANTS = [
     description: 'Elegant flowering plant with white blooms',
     category: 'Flowering',
     imageUrl:
-      'https://images.unsplash.com/photo-1593691509543-c55fb32e5ce9?w=400',
+      'https://images.unsplash.com/photo-1567465645848-b765281eca3c?w=400',
     humidityRating: 4,
     lightingRating: 2,
     petToxicityRating: 4,
@@ -164,7 +166,7 @@ const DEMO_PLANTS = [
     description: 'Air-purifying plant with arching leaves',
     category: 'Grass',
     imageUrl:
-      'https://images.unsplash.com/photo-1572688484438-313a6e50c333?w=400',
+      'https://images.unsplash.com/photo-1763690792636-b13187f67bd7?w=400',
     humidityRating: 3,
     lightingRating: 3,
     petToxicityRating: 1,
@@ -179,7 +181,7 @@ const DEMO_PLANTS = [
     description: 'Bold foliage plant with glossy leaves',
     category: 'Tree',
     imageUrl:
-      'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=400',
+      'https://images.unsplash.com/photo-1616138984641-ae05293798c6?w=400',
     humidityRating: 3,
     lightingRating: 3,
     petToxicityRating: 3,
@@ -195,7 +197,7 @@ const DEMO_PLANTS = [
     description: 'Elegant flowering orchid',
     category: 'Flowering',
     imageUrl:
-      'https://images.unsplash.com/photo-1566836610593-62a64888c459?w=400',
+      'https://images.unsplash.com/photo-1639374593182-88b49b80a688?w=400',
     humidityRating: 5,
     lightingRating: 3,
     petToxicityRating: 1,
@@ -210,7 +212,7 @@ const DEMO_PLANTS = [
     description: 'Prayer plant with decorative leaves',
     category: 'Tropical',
     imageUrl:
-      'https://images.unsplash.com/photo-1637967886160-fd761519fb90?w=400',
+      'https://images.unsplash.com/photo-1580018550304-def91943abdd?w=400',
     humidityRating: 5,
     lightingRating: 2,
     petToxicityRating: 1,
@@ -222,10 +224,137 @@ const DEMO_PLANTS = [
   },
 ]
 
+const LILY_PLANTS = [
+  {
+    name: 'Bird of Paradise',
+    description: 'Dramatic tropical plant with large paddle-shaped leaves',
+    category: 'Tropical',
+    imageUrl:
+      'https://images.unsplash.com/photo-1767106323400-c99aeb793cee?w=400',
+    humidityRating: 4,
+    lightingRating: 5,
+    petToxicityRating: 3,
+    wateringRating: 3,
+    health: 'THRIVING' as const,
+    wateringFrequencyDays: 7,
+    lastWateredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+    fertilizationFrequencyDays: 30,
+    lastFertilizedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    nextFertilizationAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+    isFavorite: true,
+  },
+  {
+    name: 'Heartleaf Philodendron',
+    description: 'Fast-growing vine with glossy heart-shaped leaves',
+    category: 'Vine',
+    imageUrl:
+      'https://images.unsplash.com/photo-1771814121130-a06205709279?w=400',
+    humidityRating: 3,
+    lightingRating: 2,
+    petToxicityRating: 3,
+    wateringRating: 3,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 7,
+    lastWateredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    isFavorite: true,
+  },
+  {
+    name: 'Jade Plant',
+    description: 'Long-lived succulent with thick oval leaves, symbol of luck',
+    category: 'Succulent',
+    imageUrl:
+      'https://images.unsplash.com/photo-1741817068110-f44ef1f169be?w=400',
+    humidityRating: 2,
+    lightingRating: 4,
+    petToxicityRating: 3,
+    wateringRating: 2,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 14,
+    lastWateredAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    fertilizationFrequencyDays: 60,
+    lastFertilizedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    nextFertilizationAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  },
+  {
+    name: 'Lavender',
+    description: 'Fragrant herb with calming purple flower spikes',
+    category: 'Herb',
+    imageUrl:
+      'https://images.unsplash.com/photo-1765418145389-15cd5a5de9a3?w=400',
+    humidityRating: 2,
+    lightingRating: 5,
+    petToxicityRating: 2,
+    wateringRating: 2,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 10,
+    lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+  },
+  {
+    name: 'String of Pearls',
+    description: 'Trailing succulent with bead-like spherical leaves',
+    category: 'Succulent',
+    imageUrl:
+      'https://images.unsplash.com/photo-1765041425888-39e09e148a80?w=400',
+    humidityRating: 2,
+    lightingRating: 4,
+    petToxicityRating: 3,
+    wateringRating: 2,
+    health: 'NEEDS_ATTENTION' as const,
+    wateringFrequencyDays: 14,
+    lastWateredAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+  },
+  {
+    name: 'Hoya',
+    description: 'Waxy vine with clusters of star-shaped flowers',
+    category: 'Vine',
+    imageUrl:
+      'https://images.unsplash.com/photo-1769346442881-b63ba7476b77?w=400',
+    humidityRating: 3,
+    lightingRating: 3,
+    petToxicityRating: 1,
+    wateringRating: 2,
+    health: 'THRIVING' as const,
+    wateringFrequencyDays: 10,
+    lastWateredAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    nextWateringAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
+    fertilizationFrequencyDays: 30,
+    lastFertilizedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    nextFertilizationAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+    isFavorite: true,
+  },
+]
+
 const seedDemoData = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle
 
   yield* Console.log('Seeding demo data for visual testing...')
+
+  // Wipe existing data for this user
+  yield* Console.log('Wiping existing data for antoine@lily.app...')
+  const existingUsers = yield* db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, 'antoine@lily.app'))
+  const existingUser = A.head(existingUsers)
+  if (Option.isSome(existingUser)) {
+    const userId = existingUser.value.id
+    const existingPlants = yield* db
+      .select({ id: plants.id })
+      .from(plants)
+      .where(eq(plants.userId, userId))
+    for (const plant of existingPlants) {
+      yield* db.delete(careLogs).where(eq(careLogs.plantId, plant.id))
+    }
+    yield* db.delete(plants).where(eq(plants.userId, userId))
+    yield* Console.log('  Wiped existing plants and care logs')
+  } else {
+    yield* Console.log('  No existing data found')
+  }
 
   // Create demo user Alex
   yield* Console.log('Creating demo user Alex...')
@@ -234,6 +363,8 @@ const seedDemoData = Effect.gen(function* () {
     .values({
       email: 'antoine@lily.app',
       name: 'Alex',
+      image:
+        'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face',
       emailVerified: true,
       role: 'user',
       status: 'active',
@@ -249,6 +380,8 @@ const seedDemoData = Effect.gen(function* () {
       target: users.email,
       set: {
         name: 'Alex',
+        image:
+          'https://images.unsplash.com/photo-1624224416603-c908080780b1?w=400&h=400&fit=crop&crop=face',
         updatedAt: new Date(),
       },
     })
@@ -857,6 +990,121 @@ const seedDemoData = Effect.gen(function* () {
     )
   }
 
+  // ----------------------------------------------------------------
+  // Lily user (lily@lily.app) — follow data demo
+  // ----------------------------------------------------------------
+  yield* Console.log('')
+  yield* Console.log('Setting up Lily user (lily@lily.app)...')
+
+  // Wipe Lily's existing plants/care logs
+  const existingLilyUsers = yield* db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, 'lily@lily.app'))
+  const existingLilyUser = A.head(existingLilyUsers)
+  if (Option.isSome(existingLilyUser)) {
+    const lilyId = existingLilyUser.value.id
+    const lilyPlants = yield* db
+      .select({ id: plants.id })
+      .from(plants)
+      .where(eq(plants.userId, lilyId))
+    for (const plant of lilyPlants) {
+      yield* db.delete(careLogs).where(eq(careLogs.plantId, plant.id))
+    }
+    yield* db.delete(plants).where(eq(plants.userId, lilyId))
+    yield* Console.log('  Wiped existing Lily plants and care logs')
+  }
+
+  // Upsert Lily
+  const lilyResult = yield* db
+    .insert(users)
+    .values({
+      email: 'lily@lily.app',
+      name: 'Lily',
+      image:
+        'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face',
+      bio: 'Plant enthusiast 🌿 Growing a little jungle at home.',
+      emailVerified: true,
+      role: 'user',
+      status: 'active',
+      publicProfile: true,
+      careReminders: true,
+      weeklyDigest: true,
+      achievementNotifications: true,
+      tips: true,
+      productUpdates: false,
+      ads: false,
+      doNotDisturb: false,
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
+        name: 'Lily',
+        image:
+          'https://images.unsplash.com/photo-1758598304332-94b40ce7c7b4?w=400&h=400&fit=crop&crop=face',
+        updatedAt: new Date(),
+      },
+    })
+    .returning()
+
+  const lily = getFirst(lilyResult)
+  yield* Console.log(`  Upserted user: ${lily.name} (${lily.email})`)
+
+  // Insert Lily's plants
+  yield* Console.log('  Creating 6 plants for Lily...')
+  const lilyCreatedPlants: Array<{ id: string; name: string }> = []
+  for (const plantData of LILY_PLANTS) {
+    const result = yield* db
+      .insert(plants)
+      .values({ ...plantData, userId: lily.id, dateAdded: new Date() })
+      .returning({ id: plants.id, name: plants.name })
+    const plant = getFirst(result)
+    lilyCreatedPlants.push(plant)
+    yield* Console.log(`    Created plant: ${plant.name}`)
+  }
+
+  // Care logs for Lily's plants
+  yield* Console.log('  Creating care logs for Lily...')
+  const daysAgoL = (d: number) => new Date(Date.now() - d * 24 * 60 * 60 * 1000)
+
+  for (const plant of lilyCreatedPlants) {
+    yield* db.insert(careLogs).values([
+      { type: 'watering', plantId: plant.id, date: daysAgoL(3) },
+      { type: 'watering', plantId: plant.id, date: daysAgoL(13) },
+      { type: 'watering', plantId: plant.id, date: daysAgoL(23) },
+      { type: 'fertilization', plantId: plant.id, date: daysAgoL(30) },
+    ])
+  }
+  yield* Console.log(
+    `  Created ${lilyCreatedPlants.length * 4} care logs for Lily`
+  )
+
+  // ----------------------------------------------------------------
+  // Follow relationships — wipe then re-create
+  // ----------------------------------------------------------------
+  yield* Console.log('')
+  yield* Console.log('Creating follow relationships...')
+  yield* db
+    .delete(userFollows)
+    .where(
+      or(
+        and(
+          eq(userFollows.followerId, user.id),
+          eq(userFollows.followingId, lily.id)
+        ),
+        and(
+          eq(userFollows.followerId, lily.id),
+          eq(userFollows.followingId, user.id)
+        )
+      )
+    )
+  yield* db.insert(userFollows).values([
+    { followerId: user.id, followingId: lily.id },
+    { followerId: lily.id, followingId: user.id },
+  ])
+  yield* Console.log('  Alex follows Lily ✓')
+  yield* Console.log('  Lily follows Alex ✓')
+
   // Updated count: 7 + 6 + 9 + 7 + 1 + 5 + 7 + 7 + 5 + 5 + 6 + 7 = 72
   const totalCareLogs = 72
 
@@ -897,9 +1145,11 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log('    - watering (frequent, with maintenance notes)')
   yield* Console.log('    - fertilization (monthly)')
   yield* Console.log('')
-  yield* Console.log(
-    'To log in as Alex, use the magic link flow with: antoine@lily.app'
-  )
+  yield* Console.log('  Lily (lily@lily.app): 6 plants, follows Alex')
+  yield* Console.log('')
+  yield* Console.log('Login:')
+  yield* Console.log('  Alex: antoine@lily.app')
+  yield* Console.log('  Lily: lily@lily.app')
 })
 
 const program = seedDemoData.pipe(Effect.provide(DrizzleLive))

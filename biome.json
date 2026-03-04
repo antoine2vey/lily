@@ -14,7 +14,8 @@
       "!**/ios/Pods/**",
       "!**/android/.gradle/**",
       "!**/android/build/**",
-      "!**/.next/**"
+      "!**/.next/**",
+      "!**/out/**"
     ]
   },
   "formatter": {

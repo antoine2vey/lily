@@ -17,6 +17,7 @@
     "build": "tsc --build tsconfig.build.json",
     "dev": "bun --watch src/index.ts",
     "start": "bun run src/index.ts",
+    "tsc": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run src/__tests__/integration --no-file-parallelism",
     "lint": "bunx --bun biome check .",

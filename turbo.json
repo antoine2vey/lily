@@ -22,6 +22,9 @@
     "lint:fix": {
       "cache": false
     },
+    "tsc": {
+      "inputs": ["src/**", "tsconfig.json", "tsconfig.build.json"]
+    },
     "clean": {
       "cache": false
     }
