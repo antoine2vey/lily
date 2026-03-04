@@ -8,44 +8,47 @@ import { useIconColors } from 'src/hooks/useIconColors'
 export interface CustomBottomTabBarProps
   extends Pick<BottomTabBarProps, 'state' | 'descriptors' | 'navigation'> {
   onFabPress: () => void
+  careBadgeCount?: number
 }
 
 type TabIconName = keyof typeof MaterialIcons.glyphMap
 
-const iconMap: Record.ReadonlyRecord<
-  string,
-  { active: TabIconName; inactive: TabIconName }
-> = {
+interface TabIconConfig {
+  active: TabIconName
+  inactive: TabIconName
+  hasBadge?: boolean
+}
+
+const iconMap: Record.ReadonlyRecord<string, TabIconConfig> = {
   // Expo Router uses file names as route names
   index: { active: 'home', inactive: 'home' },
   plants: { active: 'local-florist', inactive: 'local-florist' },
-  care: { active: 'water-drop', inactive: 'water-drop' },
+  care: { active: 'water-drop', inactive: 'water-drop', hasBadge: true },
   profile: { active: 'person', inactive: 'person-outline' },
   // Legacy route names for compatibility
   Home: { active: 'home', inactive: 'home' },
   Plants: { active: 'local-florist', inactive: 'local-florist' },
-  Care: { active: 'water-drop', inactive: 'water-drop' },
+  Care: { active: 'water-drop', inactive: 'water-drop', hasBadge: true },
   Profile: { active: 'person', inactive: 'person-outline' },
 }
 
-const defaultIcons = {
+const defaultIcons: TabIconConfig = {
   active: 'help' as TabIconName,
   inactive: 'help-outline' as TabIconName,
 }
 
-const getTabIcon = (routeName: string, focused: boolean): TabIconName => {
-  const icons = pipe(
+const getTabConfig = (routeName: string): TabIconConfig =>
+  pipe(
     Record.get(iconMap, routeName),
     Option.getOrElse(() => defaultIcons)
   )
-  return focused ? icons.active : icons.inactive
-}
 
 export function BottomTabBar({
   state,
   descriptors,
   navigation,
   onFabPress,
+  careBadgeCount = 0,
 }: CustomBottomTabBarProps) {
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
@@ -85,7 +88,8 @@ export function BottomTabBar({
           )
 
           const isFocused = state.index === index
-          const iconName = getTabIcon(route.name, isFocused)
+          const tabConfig = getTabConfig(route.name)
+          const iconName = isFocused ? tabConfig.active : tabConfig.inactive
           const colorClass = isFocused
             ? 'text-primary font-bold'
             : 'text-slate-400 font-semibold'
@@ -102,17 +106,32 @@ export function BottomTabBar({
             }
           }
 
+          const badgeCount = pipe(
+            Option.fromNullable(tabConfig.hasBadge),
+            Option.map(() => careBadgeCount),
+            Option.getOrElse(() => 0)
+          )
+
           return (
             <Pressable
               key={route.key}
               onPress={onPress}
               className="flex-1 items-center justify-end pb-2 gap-1.5"
             >
-              <MaterialIcons
-                name={iconName}
-                size={26}
-                color={isFocused ? iconColors.primary : '#9ca3af'}
-              />
+              <View className="relative">
+                <MaterialIcons
+                  name={iconName}
+                  size={26}
+                  color={isFocused ? iconColors.primary : '#9ca3af'}
+                />
+                {badgeCount > 0 && (
+                  <View className="absolute -top-1.5 -right-2 min-w-[16px] h-4 rounded-full bg-error items-center justify-center px-0.5">
+                    <Text className="text-white text-[10px] font-bold leading-none">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <Text className={`text-[11px] ${colorClass}`}>{label}</Text>
             </Pressable>
           )
