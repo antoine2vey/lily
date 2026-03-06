@@ -42,10 +42,10 @@ export default async function PrivacyPage({ params }: Props) {
             <p className="text-muted">
               {t('s5Text')}{' '}
               <a
-                href="mailto:privacy@lilyapp.io"
+                href="mailto:privacy@withlily.app"
                 className="text-primary hover:text-primary-dark transition-colors"
               >
-                privacy@lilyapp.io
+                privacy@withlily.app
               </a>
               .
             </p>

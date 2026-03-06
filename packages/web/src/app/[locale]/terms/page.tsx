@@ -42,10 +42,10 @@ export default async function TermsPage({ params }: Props) {
             <p className="text-muted">
               {t('s5Text')}{' '}
               <a
-                href="mailto:legal@lilyapp.io"
+                href="mailto:legal@withlily.app"
                 className="text-primary hover:text-primary-dark transition-colors"
               >
-                legal@lilyapp.io
+                legal@withlily.app
               </a>
               .
             </p>

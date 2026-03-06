@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: post.title,
       description: post.description,
-      url: `https://lilyapp.io/${locale}/blog/${slug}`,
+      url: `https://withlily.app/${locale}/blog/${slug}`,
       type: 'article',
       publishedTime: post.date,
       images: post.coverImage
@@ -44,8 +44,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     alternates: {
       languages: {
-        en: `https://lilyapp.io/en/blog/${slug}`,
-        fr: `https://lilyapp.io/fr/blog/${slug}`,
+        en: `https://withlily.app/en/blog/${slug}`,
+        fr: `https://withlily.app/fr/blog/${slug}`,
       },
     },
   }
@@ -90,16 +90,16 @@ export default async function BlogPostPage({ params }: Props) {
     author: {
       '@type': 'Organization',
       name: 'Lily',
-      url: 'https://lilyapp.io',
+      url: 'https://withlily.app',
     },
     publisher: {
       '@type': 'Organization',
       name: 'Lily',
-      logo: { '@type': 'ImageObject', url: 'https://lilyapp.io/favicon.svg' },
+      logo: { '@type': 'ImageObject', url: 'https://withlily.app/favicon.svg' },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://lilyapp.io/${locale}/blog/${slug}`,
+      '@id': `https://withlily.app/${locale}/blog/${slug}`,
     },
     ...(post.coverImage && { image: post.coverImage }),
   }
@@ -112,19 +112,19 @@ export default async function BlogPostPage({ params }: Props) {
         '@type': 'ListItem',
         position: 1,
         name: t('home'),
-        item: `https://lilyapp.io/${locale}`,
+        item: `https://withlily.app/${locale}`,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: t('blog'),
-        item: `https://lilyapp.io/${locale}/blog`,
+        item: `https://withlily.app/${locale}/blog`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: post.title,
-        item: `https://lilyapp.io/${locale}/blog/${slug}`,
+        item: `https://withlily.app/${locale}/blog/${slug}`,
       },
     ],
   }

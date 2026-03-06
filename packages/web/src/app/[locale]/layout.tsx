@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: 'metadata' })
 
   return {
-    metadataBase: new URL('https://lilyapp.io'),
+    metadataBase: new URL('https://withlily.app'),
     title: t('title'),
     description: t('description'),
     keywords: [
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: t('ogTitle'),
       description: t('ogDescription'),
-      url: `https://lilyapp.io/${locale}`,
+      url: `https://withlily.app/${locale}`,
       siteName: 'Lily',
       images: [
         {
@@ -68,10 +68,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     icons: { icon: '/favicon.svg' },
     alternates: {
-      canonical: `https://lilyapp.io/${locale}`,
+      canonical: `https://withlily.app/${locale}`,
       languages: {
-        en: 'https://lilyapp.io/en',
-        fr: 'https://lilyapp.io/fr',
+        en: 'https://withlily.app/en',
+        fr: 'https://withlily.app/fr',
       },
     },
   }
@@ -83,7 +83,7 @@ const softwareApplicationSchema = {
   name: 'Lily',
   applicationCategory: 'LifestyleApplication',
   operatingSystem: 'iOS, Android',
-  url: 'https://lilyapp.io',
+  url: 'https://withlily.app',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   aggregateRating: {
     '@type': 'AggregateRating',
@@ -97,8 +97,8 @@ const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'Lily',
-  url: 'https://lilyapp.io',
-  logo: 'https://lilyapp.io/favicon.svg',
+  url: 'https://withlily.app',
+  logo: 'https://withlily.app/favicon.svg',
   sameAs: [],
 }
 
