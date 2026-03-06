@@ -5,7 +5,7 @@ describe('IdealEnvironment', () => {
   it('renders ideal environment section', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Bright indirect"
+        sunlightRating={3}
         sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
@@ -18,7 +18,7 @@ describe('IdealEnvironment', () => {
   it('displays section header', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Bright indirect"
+        sunlightRating={3}
         sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
@@ -31,7 +31,7 @@ describe('IdealEnvironment', () => {
   it('displays sunlight level', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Bright indirect"
+        sunlightRating={3}
         sunlightPercentage={60}
         water="moderate"
         humidity="moderate"
@@ -45,7 +45,7 @@ describe('IdealEnvironment', () => {
   it('displays water level', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Bright indirect"
+        sunlightRating={4}
         sunlightPercentage={60}
         water="high"
         humidity="moderate"
@@ -59,7 +59,7 @@ describe('IdealEnvironment', () => {
   it('displays humidity level', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Bright indirect"
+        sunlightRating={3}
         sunlightPercentage={60}
         water="moderate"
         humidity="tropical"
@@ -73,7 +73,7 @@ describe('IdealEnvironment', () => {
   it('displays all environment rows', () => {
     render(
       <IdealEnvironment
-        sunlightLabel="Low light"
+        sunlightRating={1}
         sunlightPercentage={20}
         water="low"
         humidity="low"
