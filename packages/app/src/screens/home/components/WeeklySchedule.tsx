@@ -42,7 +42,8 @@ function buildWeekColumns(
   overdue: ReadonlyArray<CareTask>,
   today: ReadonlyArray<CareTask>,
   upcoming: ReadonlyArray<CareTask>,
-  todayLabel: string
+  todayLabel: string,
+  locale: string
 ): ReadonlyArray<DayColumn> {
   const base = now()
 
@@ -66,7 +67,7 @@ function buildWeekColumns(
 
     return {
       dayIndex: i,
-      dayLabel: i === 0 ? todayLabel : formatDayOfWeekShort(dayDt),
+      dayLabel: i === 0 ? todayLabel : formatDayOfWeekShort(dayDt, locale),
       dayNumber: parts.day,
       waterCount: countByType(tasksForDay, 'water'),
       fertilizeCount: countByType(tasksForDay, 'fertilize'),
@@ -100,13 +101,20 @@ export function WeeklySchedule({
   today,
   upcoming,
 }: WeeklyScheduleProps) {
-  const { t } = useTranslation('home')
+  const { t, i18n } = useTranslation('home')
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
   const columns = useMemo(
-    () => buildWeekColumns(overdue, today, upcoming, t('weeklySchedule.today')),
-    [overdue, today, upcoming, t]
+    () =>
+      buildWeekColumns(
+        overdue,
+        today,
+        upcoming,
+        t('weeklySchedule.today'),
+        i18n.language
+      ),
+    [overdue, today, upcoming, t, i18n.language]
   )
   const hasAnyTasks = Array.some(
     columns,
