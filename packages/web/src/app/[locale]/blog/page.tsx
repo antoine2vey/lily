@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: t('metaTitle'),
       description: t('metaDescription'),
-      url: `https://lilyapp.io/${locale}/blog`,
+      url: `https://withlily.app/${locale}/blog`,
       type: 'website',
     },
     alternates: {
       languages: {
-        en: 'https://lilyapp.io/en/blog',
-        fr: 'https://lilyapp.io/fr/blog',
+        en: 'https://withlily.app/en/blog',
+        fr: 'https://withlily.app/fr/blog',
       },
     },
   }

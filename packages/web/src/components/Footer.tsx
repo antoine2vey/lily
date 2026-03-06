@@ -56,7 +56,7 @@ export async function Footer() {
               {t('terms')}
             </a>
             <a
-              href="mailto:hello@lilyapp.io"
+              href="mailto:hello@withlily.app"
               className="hover:text-lily-text transition-colors"
             >
               {t('contact')}

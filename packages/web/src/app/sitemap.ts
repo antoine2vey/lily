@@ -11,7 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const staticUrls: MetadataRoute.Sitemap = Array.flatMap(locales, (locale) =>
     Array.map(staticPages, (pagePath) => ({
-      url: `https://lilyapp.io/${locale}${pagePath}`,
+      url: `https://withlily.app/${locale}${pagePath}`,
       lastModified: DateTime.formatIso(DateTime.unsafeNow()),
       changeFrequency: pipe(
         Match.value(pagePath),
@@ -30,7 +30,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const postUrls: MetadataRoute.Sitemap = Array.flatMap(locales, (locale) =>
     Array.map(getAllPosts(locale), (post) => ({
-      url: `https://lilyapp.io/${locale}/blog/${post.slug}`,
+      url: `https://withlily.app/${locale}/blog/${post.slug}`,
       lastModified: pipe(
         DateTime.make(post.date),
         Option.map(DateTime.formatIso),
