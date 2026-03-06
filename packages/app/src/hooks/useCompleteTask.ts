@@ -37,10 +37,11 @@ export function useCompleteTask() {
   return useMutation({
     mutationFn: completeTaskApi,
     onSuccess: () => {
-      // Invalidate care tasks, plants, and care logs (for homepage recent activities)
+      // Invalidate care tasks, plants, care logs, and achievements (streak update)
       queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.plants.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.careLogs.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.achievements.all })
     },
   })
 }

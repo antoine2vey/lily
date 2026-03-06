@@ -6,63 +6,111 @@ import { useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Avatar } from 'src/components/Avatar'
-import { PullToRefresh } from 'src/components/PullToRefresh'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
-import { Button } from 'src/components/ui'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useLocalization } from 'src/hooks/useLocalization'
-import { useRecentActivities } from 'src/hooks/useRecentActivities'
-import { useUser } from 'src/hooks/useUser'
-import { useWaterAll } from 'src/hooks/useWaterAll'
-import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { HydrationCard } from 'src/screens/home/components/HydrationCard'
-import { RecentActivity } from 'src/screens/home/components/RecentActivity'
-import { StatsRow } from 'src/screens/home/components/StatsRow'
-import { useEffectQuery } from 'src/utils/client'
+import { Avatar } from '@/components/Avatar'
+import { PullToRefresh } from '@/components/PullToRefresh'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
+import { Button } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { useAchievements } from '@/hooks/useAchievements'
+import { useCareTasks } from '@/hooks/useCareTasks'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useLocalization } from '@/hooks/useLocalization'
+import { useRecentActivities } from '@/hooks/useRecentActivities'
+import { useUser } from '@/hooks/useUser'
+import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
+import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
+import { CareAgendaCard } from '@/screens/home/components/CareAgendaCard'
+import { RecentActivity } from '@/screens/home/components/RecentActivity'
+import { StreakCard } from '@/screens/home/components/StreakCard'
+import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
+import { useEffectQuery } from '@/utils/client'
 
 function HomeContentSkeleton() {
   return (
     <>
-      {/* Hydration Card */}
-      <View className="mb-8 mt-2">
-        <View className="bg-surface dark:bg-surface-dark rounded-[32px] p-6">
-          <View className="flex-row items-start justify-between mb-6">
-            <View className="gap-1">
-              <SkeletonBox width={120} height={20} rounded="sm" />
-              <SkeletonBox width={150} height={14} rounded="sm" />
-            </View>
-            <SkeletonCircle size={40} />
+      {/* Streak Card */}
+      <View className="bg-surface dark:bg-surface-dark rounded-[24px] p-4 mb-4">
+        <View className="flex-row items-center gap-4">
+          <SkeletonCircle size={48} />
+          <View className="flex-1 gap-1.5">
+            <SkeletonBox width={80} height={10} rounded="sm" />
+            <SkeletonBox width={140} height={16} rounded="sm" />
           </View>
-          <View className="flex-row items-start gap-5 mb-7">
-            {Array.map([1, 2, 3], (i) => (
-              <View key={i} className="items-center gap-2">
-                <SkeletonCircle size={72} />
-                <SkeletonBox width={48} height={12} rounded="sm" />
-              </View>
-            ))}
+          <View className="items-end gap-1.5">
+            <SkeletonBox width={60} height={22} rounded="full" />
+            <SkeletonBox width={80} height={10} rounded="sm" />
           </View>
-          <SkeletonBox width="100%" height={48} rounded="full" />
         </View>
       </View>
 
-      {/* Stats Row */}
+      {/* Care Agenda Card */}
+      <View className="mb-8 mt-2">
+        <View className="bg-surface dark:bg-surface-dark rounded-[32px] p-6">
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="gap-1.5">
+              <SkeletonBox width={130} height={20} rounded="sm" />
+              <SkeletonBox width={90} height={14} rounded="sm" />
+            </View>
+            <SkeletonCircle size={40} />
+          </View>
+          <View className="gap-2">
+            {Array.map([1, 2, 3], (i) => (
+              <View
+                key={i}
+                className="flex-row items-center gap-3 p-3 rounded-2xl"
+                style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
+              >
+                <SkeletonCircle size={36} />
+                <View className="flex-1 gap-1">
+                  <SkeletonBox width="60%" height={13} rounded="sm" />
+                </View>
+                <SkeletonCircle size={32} />
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Weekly Schedule */}
       <View className="mb-8">
-        <View className="flex-row gap-3">
-          {Array.map([1, 2, 3], (i) => (
+        <View className="flex-row items-center gap-2 mb-3 px-1">
+          <SkeletonBox width={16} height={16} rounded="sm" />
+          <SkeletonBox width={120} height={16} rounded="sm" />
+        </View>
+        <View className="flex-row gap-2">
+          {Array.map([1, 2, 3, 4, 5, 6, 7], (i) => (
             <View
               key={i}
-              className="flex-1 bg-white dark:bg-surface-dark rounded-[20px] py-4 px-2 items-center border border-slate-100 dark:border-slate-700"
+              className="items-center py-3 rounded-2xl gap-2"
+              style={{ width: 48, backgroundColor: 'rgba(0,0,0,0.04)' }}
             >
-              <SkeletonBox
-                width={32}
-                height={28}
-                rounded="sm"
-                className="mb-1"
-              />
-              <SkeletonBox width={48} height={10} rounded="sm" />
+              <SkeletonBox width={24} height={10} rounded="sm" />
+              <SkeletonBox width={20} height={16} rounded="sm" />
+              <SkeletonBox width={6} height={6} rounded="full" />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Achievement Teaser */}
+      <View className="mb-8">
+        <View className="flex-row items-center justify-between mb-3 px-1">
+          <SkeletonBox width={140} height={16} rounded="sm" />
+          <SkeletonBox width={50} height={14} rounded="sm" />
+        </View>
+        <View className="bg-surface dark:bg-surface-dark rounded-[20px] p-4 gap-4">
+          {Array.map([1, 2], (i) => (
+            <View key={i} className="gap-2">
+              <View className="flex-row items-center gap-3">
+                <SkeletonCircle size={36} />
+                <View className="flex-1 gap-1">
+                  <SkeletonBox width="55%" height={13} rounded="sm" />
+                  <SkeletonBox width="35%" height={11} rounded="sm" />
+                </View>
+                <SkeletonBox width={32} height={13} rounded="sm" />
+              </View>
+              <SkeletonBox width="100%" height={6} rounded="full" />
             </View>
           ))}
         </View>
@@ -77,7 +125,7 @@ function HomeContentSkeleton() {
         {Array.map([1, 2, 3], (i) => (
           <View
             key={i}
-            className="flex-row items-center bg-white dark:bg-surface-dark rounded-[20px] p-4 gap-4"
+            className="flex-row items-center bg-surface dark:bg-surface-dark rounded-[20px] p-4 gap-4"
           >
             <SkeletonCircle size={48} />
             <View className="flex-1 gap-1.5">
@@ -107,31 +155,19 @@ export function HomeScreen() {
   } = useEffectQuery('plants', 'getPlants', {
     urlParams: {
       page: '1',
-      limit: '20',
+      limit: '1',
       filter: 'all',
       sort: 'added',
-      includeCaretaking: 'true',
+      includeCaretaking: 'false',
     },
   })
-
-  const { data: overduePlantsData, refetch: refetchOverdue } = useEffectQuery(
-    'plants',
-    'getPlants',
-    {
-      urlParams: {
-        page: '1',
-        limit: '50',
-        filter: 'overdue',
-        sort: 'added',
-        includeCaretaking: 'false',
-      },
-    }
-  )
 
   const { data: recentActivities, refetch: refetchActivities } =
     useRecentActivities(5)
 
-  const { mutate: waterAll, isPending: isWateringAll } = useWaterAll()
+  const { data: careTasksData, refetch: refetchCareTasks } = useCareTasks()
+  const { data: achievementsData, refetch: refetchAchievements } =
+    useAchievements()
 
   const userName = pipe(
     Match.value(state),
@@ -155,51 +191,29 @@ export function HomeScreen() {
   const { data: userSettings } = useUser()
   const userAvatar = userSettings?.image
 
-  const plantList = Option.getOrElse(
-    Option.fromNullable(plants?.items),
-    () => [] as NonNullable<typeof plants>['items']
-  )
-  const hasPlants = !Array.isEmptyReadonlyArray(plantList)
+  const hasPlants =
+    Option.getOrElse(Option.fromNullable(plants?.total), () => 0) > 0
 
-  const healthyCount = pipe(
-    plantList,
-    Array.filter((p) => p.health === 'HEALTHY' || p.health === 'THRIVING'),
-    Array.length
+  const careTasksOverdue = Option.getOrElse(
+    Option.fromNullable(careTasksData?.overdue),
+    () => [] as NonNullable<typeof careTasksData>['overdue']
   )
-  const attentionCount = pipe(
-    plantList,
-    Array.filter((p) => p.health === 'NEEDS_ATTENTION' || p.health === 'SICK'),
-    Array.length
+  const careTasksToday = Option.getOrElse(
+    Option.fromNullable(careTasksData?.today),
+    () => [] as NonNullable<typeof careTasksData>['today']
   )
-
-  const overduePlantList = Option.getOrElse(
-    Option.fromNullable(overduePlantsData?.items),
-    () => [] as NonNullable<typeof overduePlantsData>['items']
-  )
-  const allOverduePlantIds = Array.map(overduePlantList, (p) => p.id)
-
-  const plantsNeedingWater = pipe(
-    overduePlantList,
-    Array.take(3),
-    Array.map((plant) => ({
-      id: plant.id,
-      name: plant.name,
-      imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
-    }))
+  const careTasksUpcoming = Option.getOrElse(
+    Option.fromNullable(careTasksData?.upcoming),
+    () => [] as NonNullable<typeof careTasksData>['upcoming']
   )
 
   const onRefresh = async () => {
-    await Promise.all([refetchPlants(), refetchOverdue(), refetchActivities()])
-  }
-
-  const handleWaterAll = () => {
-    if (!Array.isEmptyReadonlyArray(allOverduePlantIds)) {
-      waterAll({ payload: { plantIds: allOverduePlantIds } })
-    }
-  }
-
-  const handlePlantPress = (plantId: string) => {
-    router.push(`/plant/${plantId}`)
+    await Promise.all([
+      refetchPlants(),
+      refetchActivities(),
+      refetchCareTasks(),
+      refetchAchievements(),
+    ])
   }
 
   const handleActivityPress = (activityId: string) => {
@@ -298,24 +312,24 @@ export function HomeScreen() {
                   }
                   className="pb-6"
                 >
-                  {!Array.isEmptyReadonlyArray(plantsNeedingWater) && (
-                    <View className="mb-8 mt-2">
-                      <HydrationCard
-                        plants={plantsNeedingWater}
-                        onWaterAll={handleWaterAll}
-                        onPlantPress={handlePlantPress}
-                        isLoading={isWateringAll}
-                      />
-                    </View>
-                  )}
+                  {achievementsData && <StreakCard data={achievementsData} />}
 
-                  <View className="mb-8">
-                    <StatsRow
-                      total={Array.length(plantList)}
-                      healthy={healthyCount}
-                      attention={attentionCount}
+                  <View className="mb-8 mt-2">
+                    <CareAgendaCard
+                      overdue={careTasksOverdue}
+                      today={careTasksToday}
                     />
                   </View>
+
+                  <WeeklySchedule
+                    overdue={careTasksOverdue}
+                    today={careTasksToday}
+                    upcoming={careTasksUpcoming}
+                  />
+
+                  {achievementsData && (
+                    <AchievementTeaser data={achievementsData} />
+                  )}
 
                   <RecentActivity
                     activities={recentActivities}

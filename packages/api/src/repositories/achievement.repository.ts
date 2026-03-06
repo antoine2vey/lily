@@ -11,6 +11,7 @@ import {
 import type { AchievementKey } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { unwrapPgRows } from './helpers/pagination'
 
 export interface IAchievementRepository {
   readonly findByUserId: (
@@ -150,28 +151,36 @@ export const AchievementRepositoryLive = Layer.effect(
 
       getCareStreak: (userId: string) =>
         Effect.gen(function* () {
-          // Count consecutive days with care logs
+          // Count consecutive days with care logs ending today or yesterday.
+          // ROW_NUMBER must be ASC so that consecutive dates produce the same
+          // group key (care_date - rn gives the same value for each run).
+          // We then pick the group of the most recent date and count its rows.
           const result = yield* db.execute(sql`
             WITH daily_care AS (
               SELECT DISTINCT DATE(cl.date) as care_date
               FROM care_logs cl
               INNER JOIN plants p ON cl.plant_id = p.id
               WHERE p.user_id = ${userId}
-              ORDER BY care_date DESC
             ),
             streak AS (
               SELECT care_date,
-                     care_date - (ROW_NUMBER() OVER (ORDER BY care_date DESC))::int AS grp
+                     care_date - (ROW_NUMBER() OVER (ORDER BY care_date ASC))::int AS grp
               FROM daily_care
+            ),
+            latest_grp AS (
+              SELECT grp FROM streak ORDER BY care_date DESC LIMIT 1
             )
             SELECT COUNT(*) as streak
             FROM streak
-            WHERE grp = (SELECT grp FROM streak LIMIT 1)
+            WHERE grp = (SELECT grp FROM latest_grp)
+              AND (SELECT care_date FROM streak ORDER BY care_date DESC LIMIT 1)
+                    >= CURRENT_DATE - INTERVAL '1 day'
           `)
           return Number(
             pipe(
-              Array.head(result),
-              Option.flatMap((r) => Option.fromNullable(r.streak)),
+              unwrapPgRows<{ streak: unknown }>(result),
+              Array.head,
+              Option.flatMap((row) => Option.fromNullable(row.streak)),
               Option.getOrElse(() => 0)
             )
           )

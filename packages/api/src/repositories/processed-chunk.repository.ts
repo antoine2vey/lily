@@ -7,6 +7,7 @@ import {
 import type { ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
 import { count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { unwrapPgRows } from './helpers/pagination'
 
 export interface CreateProcessedChunkData {
   id?: string | undefined
@@ -194,14 +195,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               ORDER BY rrf_score DESC LIMIT ${limitRaw}
             `)
 
-          // @effect/sql-drizzle/Pg wraps the pg QueryResult in an outer array
-          // when using db.execute(): the actual rows live at result[0].rows
-          const rawRows = pipe(
-            dbResult as unknown as ReadonlyArray<{ rows: SearchRow[] }>,
-            Array.head,
-            Option.map((qr) => qr.rows),
-            Option.getOrElse((): SearchRow[] => [])
-          )
+          const rawRows = unwrapPgRows<SearchRow>(dbResult)
 
           return Array.map(
             rawRows,

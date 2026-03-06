@@ -71,4 +71,29 @@ export default {
     viewPlant: 'View {name}',
     waterAllPlants: 'Water all plants',
   },
+  careAgenda: {
+    title: "Today's Care",
+    xTasks: '{count, plural, one {# task} other {# tasks}}',
+    allDone: 'All done for today!',
+    allDoneSubtitle: 'Your plants are happy',
+    overdueLabel: 'Overdue',
+    completing: 'Completing...',
+  },
+  weeklySchedule: {
+    title: 'This Week',
+    today: 'Today',
+  },
+  streak: {
+    title: 'Your Streak',
+    days: '{count, plural, one {# day} other {# days}}',
+    level: 'Level {level}',
+    achievements: '{count} achievements',
+    noStreak: 'Start a streak!',
+    noStreakSubtitle: 'Care for plants daily',
+  },
+  achievementTeaser: {
+    title: 'Next Goal',
+    xMore: '{count} more to unlock',
+    viewAll: 'View All',
+  },
 } as const
