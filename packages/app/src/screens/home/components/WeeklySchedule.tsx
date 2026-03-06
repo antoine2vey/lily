@@ -161,6 +161,9 @@ export function WeeklySchedule({
                 {/* Day abbrev */}
                 <Text
                   className="text-[10px] font-bold uppercase tracking-wide mb-1"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.5}
                   style={{
                     color: col.isToday
                       ? iconColors.primary
