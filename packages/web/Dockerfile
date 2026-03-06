@@ -14,4 +14,4 @@ WORKDIR /app
 COPY --from=builder /app/out ./out
 
 EXPOSE 3000
-CMD ["bunx", "serve", "out", "--listen", "$PORT"]
+CMD bunx serve out --listen $PORT
