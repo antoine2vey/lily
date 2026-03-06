@@ -17,8 +17,31 @@ jest.mock('@/hooks/useRecentActivities', () => ({
   })),
 }))
 
+jest.mock('@/hooks/useCareTasks', () => ({
+  useCareTasks: jest.fn(() => ({
+    data: { overdue: [], today: [], upcoming: [] },
+    isLoading: false,
+    refetch: jest.fn(),
+  })),
+}))
+
+jest.mock('@/hooks/useAchievements', () => ({
+  useAchievements: jest.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    refetch: jest.fn(),
+  })),
+}))
+
 jest.mock('@/hooks/useWaterAll', () => ({
   useWaterAll: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+  })),
+}))
+
+jest.mock('@/hooks/useCompleteTask', () => ({
+  useCompleteTask: jest.fn(() => ({
     mutate: jest.fn(),
     isPending: false,
   })),
@@ -85,7 +108,7 @@ describe('HomeScreen', () => {
     expect(screen.getByText('Add Your First Plant')).toBeTruthy()
   })
 
-  it('shows stats row when plants exist', () => {
+  it('shows care agenda when plants exist', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: { items: mockPlants, total: mockPlants.length },
       isLoading: false,
@@ -95,9 +118,8 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />)
 
-    expect(screen.getByText('Total')).toBeTruthy()
-    expect(screen.getByText('Healthy')).toBeTruthy()
-    expect(screen.getByText('Needs Attention')).toBeTruthy()
+    expect(screen.getByText('All done for today!')).toBeTruthy()
+    expect(screen.getByText('Your plants are happy')).toBeTruthy()
   })
 
   it('opens add plant bottom sheet when button pressed', () => {
