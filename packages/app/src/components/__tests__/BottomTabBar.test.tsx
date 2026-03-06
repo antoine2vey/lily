@@ -1,43 +1,38 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import type { CustomBottomTabBarProps } from '../BottomTabBar'
+import type { StandaloneTabBarProps } from '../BottomTabBar'
 import { BottomTabBar } from '../BottomTabBar'
 
-// Mock navigation state and descriptors
-const createMockNavigation = () =>
-  ({
-    emit: jest.fn().mockReturnValue({ defaultPrevented: false }),
-    navigate: jest.fn(),
-  }) as unknown as CustomBottomTabBarProps['navigation']
+const mockNavigate = jest.fn()
+let mockPathname = '/'
 
-const createMockState = (activeIndex = 0) =>
-  ({
-    index: activeIndex,
-    routes: [
-      { key: 'index-1', name: 'index' },
-      { key: 'plants-1', name: 'plants' },
-      { key: 'care-1', name: 'care' },
-      { key: 'profile-1', name: 'profile' },
-    ],
-  }) as unknown as CustomBottomTabBarProps['state']
+jest.mock('expo-router', () => ({
+  usePathname: () => mockPathname,
+  router: { navigate: (...args: unknown[]) => mockNavigate(...args) },
+}))
 
-const createMockDescriptors = () =>
-  ({
-    'index-1': { options: { title: 'Home' } },
-    'plants-1': { options: { title: 'Plants' } },
-    'care-1': { options: { title: 'Care' } },
-    'profile-1': { options: { title: 'Profile' } },
-  }) as unknown as CustomBottomTabBarProps['descriptors']
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const labels: Record<string, string> = {
+        'tabs.home': 'Home',
+        'tabs.plants': 'Plants',
+        'tabs.care': 'Care',
+        'tabs.profile': 'Profile',
+        'tabs.add': 'Add',
+      }
+      return labels[key] ?? key
+    },
+  }),
+}))
 
 describe('BottomTabBar', () => {
-  const defaultProps: CustomBottomTabBarProps = {
-    state: createMockState(),
-    descriptors: createMockDescriptors(),
-    navigation: createMockNavigation(),
+  const defaultProps: StandaloneTabBarProps = {
     onFabPress: jest.fn(),
   }
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPathname = '/'
   })
 
   it('renders all tab items', () => {
@@ -59,76 +54,34 @@ describe('BottomTabBar', () => {
       <BottomTabBar {...defaultProps} onFabPress={onFabPress} />
     )
 
-    // Find the FAB (first Pressable with specific styling)
     const pressables = UNSAFE_root.findAllByType(
       require('react-native').Pressable
     )
-    // FAB is typically the first Pressable
     if (pressables.length > 0) {
       fireEvent.press(pressables[0])
       expect(onFabPress).toHaveBeenCalledTimes(1)
     }
   })
 
-  it('navigates when tab pressed', () => {
-    const navigation = createMockNavigation()
-    render(<BottomTabBar {...defaultProps} navigation={navigation} />)
+  it('navigates when inactive tab pressed', () => {
+    mockPathname = '/'
+    render(<BottomTabBar {...defaultProps} />)
 
     fireEvent.press(screen.getByText('Plants'))
-    expect(navigation.emit).toHaveBeenCalled()
-    expect(navigation.navigate).toHaveBeenCalledWith('plants')
+    expect(mockNavigate).toHaveBeenCalledWith('/plants')
   })
 
   it('does not navigate when active tab pressed', () => {
-    const navigation = createMockNavigation()
-    const state = createMockState(0) // Home is active
-    render(
-      <BottomTabBar {...defaultProps} state={state} navigation={navigation} />
-    )
+    mockPathname = '/'
+    render(<BottomTabBar {...defaultProps} />)
 
     fireEvent.press(screen.getByText('Home'))
-    expect(navigation.emit).toHaveBeenCalled()
-    // Navigate should not be called for active tab
-    expect(navigation.navigate).not.toHaveBeenCalled()
-  })
-
-  it('emits tabPress event when tab pressed', () => {
-    const navigation = createMockNavigation()
-    render(<BottomTabBar {...defaultProps} navigation={navigation} />)
-
-    fireEvent.press(screen.getByText('Plants'))
-    expect(navigation.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'tabPress',
-        target: 'plants-1',
-        canPreventDefault: true,
-      })
-    )
-  })
-
-  it('uses tabBarLabel when provided', () => {
-    const descriptors = {
-      ...createMockDescriptors(),
-      'index-1': { options: { tabBarLabel: 'Dashboard' } },
-    } as unknown as CustomBottomTabBarProps['descriptors']
-    render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
-    expect(screen.getByText('Dashboard')).toBeTruthy()
-  })
-
-  it('falls back to route name when no title or label', () => {
-    const descriptors = {
-      'index-1': { options: {} },
-      'plants-1': { options: {} },
-      'care-1': { options: {} },
-      'profile-1': { options: {} },
-    } as unknown as CustomBottomTabBarProps['descriptors']
-    render(<BottomTabBar {...defaultProps} descriptors={descriptors} />)
-    expect(screen.getByText('index')).toBeTruthy()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('applies focused styling to active tab', () => {
-    const state = createMockState(1) // Plants is active
-    const { toJSON } = render(<BottomTabBar {...defaultProps} state={state} />)
+    mockPathname = '/plants'
+    const { toJSON } = render(<BottomTabBar {...defaultProps} />)
     expect(toJSON()).toBeTruthy()
   })
 })
