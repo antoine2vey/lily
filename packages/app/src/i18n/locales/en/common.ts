@@ -8,6 +8,7 @@ export default {
     plants: 'My Plants',
     care: 'Care',
     profile: 'Profile',
+    add: 'Add',
   },
   buttons: {
     cancel: 'Cancel',
