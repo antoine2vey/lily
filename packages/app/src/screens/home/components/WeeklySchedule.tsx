@@ -116,13 +116,6 @@ export function WeeklySchedule({
       ),
     [overdue, today, upcoming, t, i18n.language]
   )
-  const hasAnyTasks = Array.some(
-    columns,
-    (c) => c.waterCount > 0 || c.fertilizeCount > 0
-  )
-
-  if (!hasAnyTasks) return null
-
   return (
     <View className="mb-8">
       <View className="flex-row items-center gap-2 mb-3 px-1">

@@ -254,7 +254,10 @@ export function HomeScreen() {
       <PullToRefresh isRefreshing={isRefetching} onRefresh={onRefresh}>
         {(scrollHandler) => (
           <Animated.ScrollView
-            contentContainerStyle={{ flexGrow: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              paddingBottom: insets.bottom + 80,
+            }}
             onScroll={scrollHandler}
             scrollEventThrottle={16}
           >
