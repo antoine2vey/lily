@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
-    "start": "bunx serve out --listen 3001",
+    "start": "bunx serve out --listen $PORT",
     "tsc": "tsc --noEmit",
     "test": "echo 'No tests yet'",
     "lint": "biome check .",
