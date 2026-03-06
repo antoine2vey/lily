@@ -72,4 +72,29 @@ export default {
     viewPlant: 'Voir {name}',
     waterAllPlants: 'Arroser toutes les plantes',
   },
+  careAgenda: {
+    title: 'Soins du jour',
+    xTasks: '{count, plural, one {# tâche} other {# tâches}}',
+    allDone: 'Tout terminé !',
+    allDoneSubtitle: 'Vos plantes sont heureuses',
+    overdueLabel: 'En retard',
+    completing: 'En cours...',
+  },
+  weeklySchedule: {
+    title: 'Cette semaine',
+    today: "Aujourd'hui",
+  },
+  streak: {
+    title: 'Votre série',
+    days: '{count, plural, one {# jour} other {# jours}}',
+    level: 'Niveau {level}',
+    achievements: '{count} succès',
+    noStreak: 'Démarrez une série !',
+    noStreakSubtitle: 'Prenez soin de vos plantes chaque jour',
+  },
+  achievementTeaser: {
+    title: 'Prochain objectif',
+    xMore: '{count} de plus pour débloquer',
+    viewAll: 'Tout voir',
+  },
 } as const

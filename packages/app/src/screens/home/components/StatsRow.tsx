@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useLocalization } from 'src/hooks/useLocalization'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useLocalization } from '@/hooks/useLocalization'
 
 interface StatsRowProps {
   total: number
@@ -38,7 +38,7 @@ function StatBox({
 
   return (
     <View
-      className={`flex-1 bg-white dark:bg-surface-dark rounded-[20px] py-4 px-2 items-center justify-center border ${borderColorClass}`}
+      className={`flex-1 bg-surface dark:bg-surface-dark rounded-[20px] py-4 px-2 items-center justify-center border ${borderColorClass}`}
       style={{
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
