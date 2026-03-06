@@ -8,11 +8,11 @@ RUN bun install
 COPY . .
 RUN bun run build
 
-FROM oven/bun:1.3.8-debian AS runner
+FROM nginx:alpine AS runner
 
-WORKDIR /app
-RUN bun add http-server
-COPY --from=builder /app/out ./out
+COPY --from=builder /app/out /usr/share/nginx/html
 
-EXPOSE 3000
-CMD ./node_modules/.bin/http-server out -p $PORT -a 0.0.0.0
+RUN printf 'server {\n  listen __PORT__;\n  root /usr/share/nginx/html;\n  index index.html;\n  location / {\n    try_files $uri $uri.html $uri/ =404;\n  }\n}\n' \
+    > /etc/nginx/conf.d/default.conf
+
+CMD sh -c "sed -i s/__PORT__/$PORT/g /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
