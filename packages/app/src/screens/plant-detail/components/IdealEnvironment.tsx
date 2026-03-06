@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { LuminosityLevel } from '@lily/shared'
 import { String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
@@ -9,7 +10,7 @@ type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
 
 interface IdealEnvironmentProps {
-  sunlightLabel: string
+  sunlightRating: LuminosityLevel
   sunlightPercentage: number
   water: WaterLevel
   humidity: HumidityLevel
@@ -91,7 +92,7 @@ function EnvironmentRow({
 }
 
 export function IdealEnvironment({
-  sunlightLabel,
+  sunlightRating,
   sunlightPercentage,
   water,
   humidity,
@@ -109,8 +110,6 @@ export function IdealEnvironment({
     badgeTextColor: isDark ? '#6B9C6A' : '#5B8C5A',
   }
 
-  const capitalize = (s: string): string => String.capitalize(s)
-
   return (
     <View testID="ideal-environment">
       <SectionHeader title={t('detail.idealEnvironment')} />
@@ -120,7 +119,7 @@ export function IdealEnvironment({
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.sunlight')}
-          value={sunlightLabel}
+          value={t(`detail.sunlightLevels.${sunlightRating}`)}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}
@@ -131,7 +130,7 @@ export function IdealEnvironment({
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.water')}
-          value={capitalize(water)}
+          value={t(`detail.waterLevels.${water}`)}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}
@@ -142,7 +141,7 @@ export function IdealEnvironment({
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.humidity')}
-          value={capitalize(humidity)}
+          value={t(`detail.humidityLevels.${humidity}`)}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}

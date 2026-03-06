@@ -2,7 +2,6 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   daysUntilApiDate,
   formatApiDateAsNextDate,
-  LUMINOSITY_LEVELS,
   type LuminosityLevel,
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
@@ -45,10 +44,8 @@ type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
-const mapLightingRatingToLabel = (rating: number): string => {
-  const level = (rating >= 1 && rating <= 5 ? rating : 1) as LuminosityLevel
-  return LUMINOSITY_LEVELS[level].label
-}
+const mapLightingRatingToSunlightRating = (rating: number): LuminosityLevel =>
+  (rating >= 1 && rating <= 5 ? rating : 1) as LuminosityLevel
 
 const mapWateringRatingToWater = (rating: number): WaterLevel => {
   if (rating <= 3) return 'low'
@@ -523,7 +520,9 @@ export function PlantDetailScreen() {
           {/* Ideal Environment */}
           <View className="mt-10">
             <IdealEnvironment
-              sunlightLabel={mapLightingRatingToLabel(plant.lightingRating)}
+              sunlightRating={mapLightingRatingToSunlightRating(
+                plant.lightingRating
+              )}
               sunlightPercentage={Math.round((plant.lightingRating / 5) * 100)}
               water={mapWateringRatingToWater(plant.wateringRating)}
               humidity={mapHumidityRatingToHumidity(plant.humidityRating)}

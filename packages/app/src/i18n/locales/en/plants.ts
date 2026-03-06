@@ -54,10 +54,22 @@ export default {
     water: 'Water',
     humidity: 'Humidity',
     sunlightLevels: {
-      low: 'Low Light',
-      indirect: 'Indirect Bright',
-      bright: 'Bright Light',
-      direct: 'Direct Sun',
+      1: 'Low light',
+      2: 'Medium light',
+      3: 'Bright indirect',
+      4: 'Direct light',
+      5: 'Full sun',
+    },
+    waterLevels: {
+      low: 'Low',
+      moderate: 'Moderate',
+      high: 'High',
+    },
+    humidityLevels: {
+      low: 'Low',
+      moderate: 'Moderate',
+      high: 'High',
+      tropical: 'Tropical',
     },
     schedule: {
       today: 'Today',
