@@ -176,7 +176,6 @@ export function UserSearchScreen() {
             }
             renderItem={renderItem}
             keyExtractor={keyExtractor}
-            contentContainerClassName="pb-24"
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               isSearching ? (

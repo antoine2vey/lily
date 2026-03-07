@@ -92,7 +92,7 @@ export function SettingsScreen() {
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 24 }}
+        contentContainerStyle={{ paddingTop: 24 }}
       >
         {/* Appearance Section */}
         <View className="mb-6">
@@ -251,9 +251,6 @@ export function SettingsScreen() {
             {t('settings:about.version')} 1.0.0
           </Text>
         </View>
-
-        {/* Bottom spacer */}
-        <View className="h-6" />
       </ScrollView>
 
       {/* Theme Selection Modal */}

@@ -30,6 +30,7 @@ import {
 } from 'src/screens/plants/components/ViewToggle'
 import { useEffectQuery } from 'src/utils/client'
 import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
+import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 
 interface CareStatus {
   daysUntil?: number
@@ -118,6 +119,7 @@ export function PlantsScreen() {
   const { t } = useTranslation('plants')
   const router = useRouter()
   const iconColors = useIconColors()
+  const tabBarInset = useTabBarInset()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all')
   const [sortOption, setSortOption] = useState<SortOption>('name')
@@ -418,7 +420,8 @@ export function PlantsScreen() {
                     </View>
                   )}
                   keyExtractor={(item) => item.id}
-                  contentContainerClassName="px-3 pb-24 pt-2"
+                  contentContainerStyle={{ paddingBottom: tabBarInset }}
+                  contentContainerClassName="px-3 pt-2"
                   showsVerticalScrollIndicator={false}
                   testID="plants-grid"
                   onScroll={scrollHandler}

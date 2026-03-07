@@ -119,7 +119,7 @@ export function SubscriptionUsageScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 8 }}
+        contentContainerStyle={{ paddingTop: 8 }}
       >
         {/* Current Plan Card */}
         <View className="mt-2">
@@ -214,9 +214,6 @@ export function SubscriptionUsageScreen() {
             </Text>
           </Pressable>
         </View>
-
-        {/* Bottom spacer */}
-        <View className="h-8" />
       </ScrollView>
     </View>
   )

@@ -114,7 +114,6 @@ export function FollowersScreen({ userId }: FollowersScreenProps) {
             }
             renderItem={renderItem}
             keyExtractor={keyExtractor}
-            contentContainerClassName="pb-24"
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <EmptyState

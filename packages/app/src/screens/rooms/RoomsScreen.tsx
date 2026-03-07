@@ -324,7 +324,7 @@ export function RoomsScreen() {
           <FlatList
             data={roomsList}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => handleOpenEdit(item)}

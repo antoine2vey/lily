@@ -265,7 +265,7 @@ export function NotificationSettingsScreen() {
       <ScrollView
         className="flex-1 px-4"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 24 }}
+        contentContainerStyle={{ paddingTop: 24 }}
       >
         {/* Care Reminders Section */}
         <View className="mb-6">
@@ -494,8 +494,6 @@ export function NotificationSettingsScreen() {
             </Pressable>
           </View>
         </View>
-
-        <View className="h-6" />
       </ScrollView>
 
       <TimePickerModal

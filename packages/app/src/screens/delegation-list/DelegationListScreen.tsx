@@ -137,7 +137,6 @@ export function DelegationListScreen() {
                 renderItem={renderItem}
                 contentContainerStyle={{
                   paddingHorizontal: 24,
-                  paddingBottom: 32,
                 }}
                 showsVerticalScrollIndicator={false}
                 onScroll={scrollHandler}
