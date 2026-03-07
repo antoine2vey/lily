@@ -56,6 +56,10 @@ export default {
     default: 'Nothing here yet',
     noResults: 'No results found',
   },
+  update: {
+    available: 'A new version is available',
+    reload: 'Update',
+  },
   unknown: 'Unknown',
   time: {
     now: 'Now',
