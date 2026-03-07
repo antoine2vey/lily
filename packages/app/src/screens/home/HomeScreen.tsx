@@ -336,11 +336,13 @@ export function HomeScreen() {
                     <AchievementTeaser data={achievementsData} />
                   )}
 
+                  {/* OTA test: temporarily hidden
                   <RecentActivity
                     activities={recentActivities}
                     onSeeAll={handleSeeAllActivities}
                     onActivityPress={handleActivityPress}
                   />
+                  */}
                 </Animated.View>
               ) : (
                 <Animated.View
