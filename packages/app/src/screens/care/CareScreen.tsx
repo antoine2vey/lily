@@ -26,6 +26,7 @@ import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { CareTaskCard } from 'src/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from 'src/screens/care/components/DelegatedTasksSection'
+import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 
 type TaskSectionType = 'overdue' | 'today' | 'upcoming'
 
@@ -114,6 +115,7 @@ export function CareScreen() {
   const { t, i18n } = useTranslation('care')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
+  const tabBarInset = useTabBarInset()
   const { data: tasks, isLoading, isRefetching, refetch } = useCareTasks()
   const { mutate: completeTask } = useCompleteTask()
   const today = DateTime.unsafeNow()
@@ -281,7 +283,7 @@ export function CareScreen() {
         {(scrollHandler) => (
           <Animated.ScrollView
             className="flex-1 px-6"
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: tabBarInset }}
             showsVerticalScrollIndicator={false}
             onScroll={scrollHandler}
             scrollEventThrottle={16}

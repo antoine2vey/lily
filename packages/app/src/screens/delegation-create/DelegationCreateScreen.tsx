@@ -157,7 +157,6 @@ export function DelegationCreateScreen() {
       >
         <ScrollView
           className="flex-1 px-6"
-          contentContainerStyle={{ paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

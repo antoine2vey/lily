@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { StandaloneTabBarProps } from 'src/components/BottomTabBar'
+import type { StandaloneTabBarProps } from '@/components/BottomTabBar'
 import {
   BottomTabBar,
   getActiveIndex,
@@ -23,7 +23,7 @@ import {
   RIGHT_ROUTES,
   type TAB_ROUTES,
   TabItem,
-} from 'src/components/BottomTabBar'
+} from '@/components/BottomTabBar'
 
 const isSupported = isLiquidGlassSupported && Platform.OS === 'ios'
 

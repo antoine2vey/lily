@@ -163,8 +163,6 @@ export function CareHistoryScreen() {
             onEventPress={handleEventPress}
           />
         )}
-        {/* Bottom spacer for FAB */}
-        <View className="h-24" />
       </ScrollView>
 
       {/* FAB */}

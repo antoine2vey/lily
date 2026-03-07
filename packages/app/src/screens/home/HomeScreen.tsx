@@ -11,6 +11,7 @@ import { PullToRefresh } from '@/components/PullToRefresh'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useAchievements } from '@/hooks/useAchievements'
 import { useCareTasks } from '@/hooks/useCareTasks'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
@@ -144,6 +145,7 @@ export function HomeScreen() {
   const router = useRouter()
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
+  const tabBarInset = useTabBarInset()
   const { t } = useLocalization()
   const [showAddPlant, setShowAddPlant] = useState(false)
 
@@ -256,7 +258,7 @@ export function HomeScreen() {
           <Animated.ScrollView
             contentContainerStyle={{
               flexGrow: 1,
-              paddingBottom: insets.bottom + 80,
+              paddingBottom: tabBarInset,
             }}
             onScroll={scrollHandler}
             scrollEventThrottle={16}

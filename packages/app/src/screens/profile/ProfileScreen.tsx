@@ -21,6 +21,7 @@ import { useUser } from 'src/hooks/useUser'
 import { ProfileHeader } from 'src/screens/profile/components/ProfileHeader'
 import { ProfileMenuItem } from 'src/screens/profile/components/ProfileMenuItem'
 import { StatsCard } from 'src/screens/profile/components/StatsCard'
+import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 
 function ProfileContentSkeleton() {
   return (
@@ -88,6 +89,7 @@ export function ProfileScreen() {
     status: 'active',
   })
   const insets = useSafeAreaInsets()
+  const tabBarInset = useTabBarInset()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
@@ -177,6 +179,7 @@ export function ProfileScreen() {
           <ScrollView
             className="flex-1 px-0"
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: tabBarInset }}
           >
             {/* Profile Header */}
             <ProfileHeader
@@ -334,9 +337,6 @@ export function ProfileScreen() {
                 </Text>
               </Pressable>
             </View>
-
-            {/* Bottom spacer */}
-            <View className="h-8" />
           </ScrollView>
         </Animated.View>
       )}

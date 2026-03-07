@@ -165,9 +165,6 @@ export function EditProfileScreen() {
             showCharacterCount
           />
         </View>
-
-        {/* Bottom spacer */}
-        <View className="h-12" />
       </ScrollView>
     </View>
   )

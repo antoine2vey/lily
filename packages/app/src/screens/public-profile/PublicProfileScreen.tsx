@@ -112,11 +112,7 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
         </Animated.View>
       ) : isInitialLoading ? null : profile ? (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">
-          <ScrollView
-            className="flex-1"
-            showsVerticalScrollIndicator={false}
-            contentContainerClassName="pb-8"
-          >
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="items-center pt-4 px-4">
               <View className="w-20 h-20 rounded-full p-1 border-2 border-primary bg-surface dark:bg-surface-dark mb-3">
                 {pipe(

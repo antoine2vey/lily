@@ -1,21 +1,22 @@
-import { router, Stack } from 'expo-router'
-import { useState } from 'react'
-import { LiquidGlassTabBar } from 'src/components/LiquidGlassTabBar'
-import { useCareBadgeCount } from 'src/hooks/useCareBadgeCount'
-import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { iconColors } from 'src/theme'
+import { Stack } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { TabBarInsetProvider } from '@/contexts/TabBarInsetContext'
+import { useIconColors } from '@/hooks/useIconColors'
+
+const TAB_BAR_HEIGHT = 80
 
 export default function AppLayout() {
-  const [showAddPlant, setShowAddPlant] = useState(false)
-  const careBadgeCount = useCareBadgeCount()
+  const { background } = useIconColors()
+  const { bottom } = useSafeAreaInsets()
+  const tabBarInset = bottom + TAB_BAR_HEIGHT
 
   return (
-    <>
+    <TabBarInsetProvider value={tabBarInset}>
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: {
-            backgroundColor: iconColors.background,
+            backgroundColor: background,
           },
         }}
       >
@@ -76,19 +77,6 @@ export default function AppLayout() {
           }}
         />
       </Stack>
-
-      <LiquidGlassTabBar
-        onFabPress={() => setShowAddPlant(true)}
-        careBadgeCount={careBadgeCount}
-      />
-
-      <AddPlantOptionsSheet
-        visible={showAddPlant}
-        onClose={() => setShowAddPlant(false)}
-        onSelectAI={() => router.push('/add-plant/ai-scanner')}
-        onSelectScan={() => router.push('/add-plant/nursery-scanner')}
-        onSelectManual={() => router.push('/add-plant/manual-basic')}
-      />
-    </>
+    </TabBarInsetProvider>
   )
 }

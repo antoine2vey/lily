@@ -138,9 +138,6 @@ export function AchievementsScreen() {
             </View>
           ))
         )}
-
-        {/* Bottom spacer */}
-        <View className="h-8" />
       </ScrollView>
 
       {/* Achievement Detail Modal */}

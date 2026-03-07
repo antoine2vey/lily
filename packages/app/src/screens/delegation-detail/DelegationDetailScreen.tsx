@@ -140,7 +140,6 @@ export function DelegationDetailScreen() {
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">
           <ScrollView
             className="flex-1 px-6"
-            contentContainerStyle={{ paddingBottom: 32 }}
             showsVerticalScrollIndicator={false}
           >
             <View className="gap-6 mt-2">
