@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react-native'
 import * as Updates from 'expo-updates'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AppState } from 'react-native'
+import { AppState, Pressable, Text, View } from 'react-native'
 import { toast } from 'sonner-native'
 
 /**
@@ -26,16 +26,12 @@ export function useOTAUpdates() {
     }
   }, [isUpdateAvailable])
 
-  // When download completes, show a toast prompting the user to reload
+  // When download completes, show a one-line toast with reload button on the right
   useEffect(() => {
     if (isUpdatePending) {
-      toast.info(t('update.available'), {
-        duration: 10000,
-        action: {
-          label: t('update.reload'),
-          onClick: () => Updates.reloadAsync(),
-        },
-      })
+      showUpdateToast(t('update.available'), t('update.reload'), () =>
+        Updates.reloadAsync()
+      )
     }
   }, [isUpdatePending, t])
 
@@ -69,4 +65,32 @@ export function useOTAUpdates() {
 
     return () => subscription.remove()
   }, [])
+}
+
+function showUpdateToast(
+  message: string,
+  actionLabel: string,
+  onAction: () => void
+) {
+  toast.custom(
+    <View className="px-4">
+      <View className="flex-row items-center justify-between px-4 py-3 bg-surface dark:bg-surface-dark rounded-2xl shadow-md">
+        <Text
+          className="text-sm font-semibold text-text-primary dark:text-white flex-shrink"
+          numberOfLines={1}
+        >
+          {message}
+        </Text>
+        <Pressable
+          onPress={onAction}
+          className="bg-primary rounded-full px-4 py-1.5 ml-3"
+        >
+          <Text className="text-sm font-semibold text-white">
+            {actionLabel}
+          </Text>
+        </Pressable>
+      </View>
+    </View>,
+    { duration: 30000 }
+  )
 }
