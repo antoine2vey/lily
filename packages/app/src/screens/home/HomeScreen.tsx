@@ -336,11 +336,12 @@ export function HomeScreen() {
                     <AchievementTeaser data={achievementsData} />
                   )}
 
-                  <RecentActivity
+                  {/* OTA canary: hidden to verify update delivery */}
+                  {/* <RecentActivity
                     activities={recentActivities}
                     onSeeAll={handleSeeAllActivities}
                     onActivityPress={handleActivityPress}
-                  />
+                  /> */}
                 </Animated.View>
               ) : (
                 <Animated.View
