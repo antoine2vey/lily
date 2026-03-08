@@ -1,4 +1,4 @@
-import { DateTime, Option, pipe } from 'effect'
+import { Array, DateTime, Option, Order, pipe } from 'effect'
 
 import { DEFAULT_TIMEZONE, isInDndWindow, timeToMinutes } from './timezone'
 
@@ -14,8 +14,26 @@ export type OverduePlant = {
   id: string
   name: string
   userId: string
-  nextWateringAt: Date
+  overdueAt: Date
 }
+
+/**
+ * Given a list of nullable care dates, returns the earliest one that is
+ * at or before `now`. Falls back to `now` when no date qualifies.
+ */
+export const earliestOverdueDate = (
+  dates: ReadonlyArray<Date | null>,
+  now: Date
+): Date =>
+  pipe(
+    Array.filterMap(dates, (d) =>
+      pipe(
+        Option.fromNullable(d),
+        Option.filter((date) => date.getTime() <= now.getTime())
+      )
+    ),
+    Array.reduce(now, Order.min(Order.Date))
+  )
 
 /**
  * Pure function to pick a random notification time within the morning or evening

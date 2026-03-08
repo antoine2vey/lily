@@ -644,7 +644,7 @@ describe('Notification Scheduler', () => {
         'overdue-2',
       ])
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '2 plants are overdue for watering'
+        '2 plants need attention'
       )
     })
 
@@ -676,10 +676,10 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        'Your Monstera is overdue for watering'
+        'Your Monstera needs attention'
       )
       expect(enqueuedMessages[0]?.message.payload.body).toBe(
-        "Your Monstera still needs watering — don't forget!"
+        "Your Monstera is overdue for care — don't forget!"
       )
     })
 
