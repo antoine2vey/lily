@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
+import { PlantCareSchedule } from '../plant/schema'
 
 export const DelegationStatus = Schema.Literal(
   'pending',
@@ -15,7 +16,7 @@ export const DelegationPlantSummary = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   imageUrl: Schema.NullOr(Schema.String),
-  nextWateringAt: Schema.NullOr(Schema.Date),
+  schedules: Schema.Array(PlantCareSchedule),
   health: Schema.String,
 })
 export type DelegationPlantSummary = typeof DelegationPlantSummary.Type
@@ -77,8 +78,7 @@ export const DelegatedCareTask = Schema.Struct({
   plantName: Schema.String,
   plantImage: Schema.NullOr(Schema.String),
   ownerName: Schema.NullOr(Schema.String),
-  nextWateringAt: Schema.NullOr(Schema.Date),
-  nextFertilizationAt: Schema.NullOr(Schema.Date),
+  schedules: Schema.Array(PlantCareSchedule),
   health: Schema.String,
 })
 export type DelegatedCareTask = typeof DelegatedCareTask.Type

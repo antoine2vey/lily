@@ -8,7 +8,7 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { getDelegatedTasks } from '@lily/api/services/delegation/endpoints/get-delegated-tasks'
-import { Effect, Layer } from 'effect'
+import { Array, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const caretakerCurrentUser = Layer.succeed(CurrentUser, {
@@ -34,9 +34,17 @@ const completedDelegation = {
   caretakerId: mockUser2.id,
 }
 
-const plantsWithFertilization = mockDelegationPlants.map((p) => ({
+const plantsWithFertilization = Array.map(mockDelegationPlants, (p) => ({
   ...p,
-  nextFertilizationAt: new Date('2024-06-10'),
+  schedules: [
+    ...p.schedules,
+    {
+      careType: 'fertilization' as const,
+      frequencyDays: 14,
+      lastCareAt: new Date('2024-05-27'),
+      nextCareAt: new Date('2024-06-10'),
+    },
+  ],
 }))
 
 const createLayer = (
@@ -88,7 +96,7 @@ describe('getDelegatedTasks', () => {
       getDelegatedTasks.pipe(Effect.provide(layer))
     )
 
-    expect(result[0]).toHaveProperty('nextWateringAt')
+    expect(result[0]).toHaveProperty('schedules')
     expect(result[0]).toHaveProperty('health')
     expect(result[0]).toHaveProperty('plantName')
   })

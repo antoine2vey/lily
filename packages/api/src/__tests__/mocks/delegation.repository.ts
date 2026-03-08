@@ -7,6 +7,7 @@ import {
   type DelegationRow,
   type IDelegationRepository,
 } from '@lily/api/repositories/delegation.repository'
+import type { PlantCareSchedule } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 interface MockUser {
@@ -19,8 +20,7 @@ interface MockPlant {
   id: string
   name: string
   imageUrl: string | null
-  nextWateringAt: Date | null
-  nextFertilizationAt?: Date | null
+  schedules: PlantCareSchedule[]
   health: string
 }
 
@@ -97,7 +97,7 @@ export const createMockDelegationRepository = (
                     id: p.id,
                     name: p.name,
                     imageUrl: p.imageUrl,
-                    nextWateringAt: p.nextWateringAt,
+                    schedules: p.schedules,
                     health: p.health,
                   }))
                 )
@@ -206,8 +206,7 @@ export const createMockDelegationRepository = (
                     plantName: p.name,
                     plantImage: p.imageUrl,
                     ownerName: owner?.name ?? null,
-                    nextWateringAt: p.nextWateringAt,
-                    nextFertilizationAt: p.nextFertilizationAt ?? null,
+                    schedules: p.schedules,
                     health: p.health,
                   })
                 )
@@ -276,7 +275,7 @@ export const createMockDelegationRepository = (
                 id: p.id,
                 name: p.name,
                 imageUrl: p.imageUrl,
-                nextWateringAt: p.nextWateringAt,
+                schedules: p.schedules,
                 health: p.health,
               }))
             )

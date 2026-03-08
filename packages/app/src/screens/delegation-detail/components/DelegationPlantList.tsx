@@ -1,5 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatShortDate, parseApiDate } from '@lily/shared'
+import {
+  formatShortDate,
+  getNextCareAt,
+  type PlantCareSchedule,
+  parseApiDate,
+} from '@lily/shared'
 import { Array as Arr, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
@@ -11,7 +16,7 @@ interface DelegationPlant {
   id: string
   name: string
   imageUrl: string | null
-  nextWateringAt: Date | null
+  schedules: readonly PlantCareSchedule[]
   health: string
 }
 
@@ -48,7 +53,7 @@ export function DelegationPlantList({
       <Animated.View entering={FadeIn.duration(300)} className="gap-2">
         {Arr.map(plants, (plant) => {
           const nextWatering = pipe(
-            Option.fromNullable(plant.nextWateringAt),
+            Option.fromNullable(getNextCareAt(plant.schedules, 'watering')),
             Option.flatMap(parseApiDate),
             Option.map(formatShortDate),
             Option.getOrElse(() => t('plants.noSchedule'))
