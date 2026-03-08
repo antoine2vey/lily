@@ -4,7 +4,11 @@
  * weather forecasts. Checks actual date changes, not just that it runs.
  */
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  fertilizationSpec,
+  wateringSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   buildWeatherCtx,
@@ -121,13 +125,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'indoor-winter',
         name: 'Indoor Monstera',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -157,13 +165,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'outdoor-winter',
         name: 'Outdoor Fern',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -190,13 +202,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'no-room-winter',
         name: 'No Room Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: null,
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -223,24 +239,32 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'indoor-compare',
         name: 'Indoor Compare',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const outdoorPlant = createTestPlant({
         id: 'outdoor-compare',
         name: 'Outdoor Compare',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -282,12 +306,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'outdoor-desert',
         name: 'Outdoor Desert Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: twoDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: twoDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
@@ -315,12 +343,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'indoor-desert',
         name: 'Indoor Desert Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: twoDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: twoDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
@@ -352,12 +384,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'outdoor-monsoon',
         name: 'Outdoor Monsoon Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: oneDayAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: oneDayAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(tropicalMonsoonForecast)
@@ -383,12 +419,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'indoor-monsoon',
         name: 'Indoor Monsoon Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: oneDayAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: oneDayAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(tropicalMonsoonForecast)
@@ -419,12 +459,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'stability-outdoor',
         name: 'Stability Outdoor Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(now + 4 * oneDayMs),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(now + 4 * oneDayMs),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -484,12 +528,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'stability-indoor-heat',
         name: 'Stability Indoor Heat Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: twoDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: twoDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
@@ -550,12 +598,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'stability-indoor',
         name: 'Stability Indoor Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -595,11 +647,15 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const plant = createTestPlant({
         id: 'no-watered-date',
         name: 'Never Watered',
-        wateringFrequencyDays: 7,
-        lastWateredAt: null,
-        nextWateringAt: null,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: null,
+            nextCareAt: null,
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
@@ -629,12 +685,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'no-change',
         name: 'Already Correct',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(correctNext),
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(correctNext),
+          }),
+        ],
       })
 
       const moderateForecast = [
@@ -674,12 +734,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'daily-outdoor-heat',
         name: 'Daily Outdoor Herb',
         category: 'Herb',
-        wateringFrequencyDays: 1,
         wateringRating: 3,
-        lastWateredAt: halfDayAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 1,
+            lastCareAt: halfDayAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
@@ -707,12 +771,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'succulent-cold',
         name: 'Outdoor Succulent',
         category: 'Succulent',
-        wateringFrequencyDays: 14,
         wateringRating: 1,
-        lastWateredAt: fiveDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 14,
+            lastCareAt: fiveDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(nordicWinterForecast)
@@ -744,12 +812,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'massively-overdue',
         name: 'Forgotten Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: twentyDaysAgo,
-        nextWateringAt: new Date(twoWeeksAgo),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: twentyDaysAgo,
+            nextCareAt: new Date(twoWeeksAgo),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(hotWeekForecast, mockHeatWaveHistory)
@@ -775,36 +847,47 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       const now = Date.now()
       const threeDaysAgo = new Date(now - 3 * oneDayMs)
 
+      const shortNextDate = new Date(now + 2 * oneDayMs)
+      const longNextDate = new Date(now + 11 * oneDayMs)
+
       const shortFreq = createTestPlant({
         id: 'short-freq-outdoor',
         name: 'Outdoor Herbs',
         category: 'Herb',
-        wateringFrequencyDays: 5,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(now + 2 * oneDayMs), // due in 2d
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 5,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: shortNextDate, // due in 2d
+          }),
+        ],
       })
 
       const longFreq = createTestPlant({
         id: 'long-freq-outdoor',
         name: 'Outdoor Succulent',
         category: 'Succulent',
-        wateringFrequencyDays: 14,
         wateringRating: 1,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(now + 11 * oneDayMs), // due in 11d
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 14,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: longNextDate, // due in 11d
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(parisWinterForecast)
       const { layers, schedules } = buildLayers({
         plants: [shortFreq, longFreq],
       })
-      const shortOriginal = toMs(shortFreq.nextWateringAt)
-      const longOriginal = toMs(longFreq.nextWateringAt)
+      const shortOriginal = toMs(shortNextDate)
+      const longOriginal = toMs(longNextDate)
 
       await Effect.runPromise(
         readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
@@ -842,12 +925,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'weather-flip',
         name: 'Weather Flip Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       // Run 1: cold weather → delays watering
@@ -916,12 +1003,16 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'just-watered',
         name: 'Just Watered Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: justNow,
-        nextWateringAt: new Date(originalNext),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: justNow,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast, mockHeatWaveHistory)
@@ -954,15 +1045,21 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'fert-delay',
         name: 'Hot Fert Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: thirtyDaysAgo,
-        nextWateringAt: new Date(thirtyDaysAgo.getTime() + 7 * oneDayMs),
-        fertilizationFrequencyDays: 30,
-        lastFertilizedAt: thirtyDaysAgo,
-        nextFertilizationAt: new Date(pastDate),
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: thirtyDaysAgo,
+            nextCareAt: new Date(thirtyDaysAgo.getTime() + 7 * oneDayMs),
+          }),
+          fertilizationSpec({
+            frequencyDays: 30,
+            lastCareAt: thirtyDaysAgo,
+            nextCareAt: new Date(pastDate),
+          }),
+        ],
       })
 
       const ctx = buildWeatherCtx(desertSummerForecast)
@@ -994,13 +1091,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'notif-water',
         name: 'Notification Test Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       // Shared array the mock will push notifications into
@@ -1042,16 +1143,22 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'notif-fert',
         name: 'Fert Notification Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: thirtyDaysAgo,
-        nextWateringAt: new Date(thirtyDaysAgo.getTime() + 7 * oneDayMs),
-        fertilizationFrequencyDays: 30,
-        lastFertilizedAt: thirtyDaysAgo,
-        nextFertilizationAt: new Date(pastDate),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: thirtyDaysAgo,
+            nextCareAt: new Date(thirtyDaysAgo.getTime() + 7 * oneDayMs),
+          }),
+          fertilizationSpec({
+            frequencyDays: 30,
+            lastCareAt: thirtyDaysAgo,
+            nextCareAt: new Date(pastDate),
+          }),
+        ],
       })
 
       const notifications: Notification[] = []
@@ -1080,13 +1187,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'notif-zero',
         name: 'No Change Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(correctNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(correctNext),
+          }),
+        ],
       })
 
       const notifications: Notification[] = []
@@ -1121,13 +1232,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'notif-replace',
         name: 'Replace Notification Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       // Pre-existing pending notification for this plant
@@ -1173,13 +1288,17 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         id: 'notif-disabled',
         name: 'Reminders Disabled Plant',
         category: 'Foliage',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(originalNext),
         remindersEnabled: false, // disabled
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(originalNext),
+          }),
+        ],
       })
 
       const notifications: Notification[] = []

@@ -1,5 +1,8 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  wateringSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -19,8 +22,7 @@ const testPlant = createTestPlant({
   id: 'plant-recalc',
   name: 'Test Plant',
   userId: 'user-1',
-  nextWateringAt: futureDate,
-  nextFertilizationAt: null,
+  scheduleSpecs: [wateringSpec({ nextCareAt: futureDate })],
 })
 
 const testUser = {

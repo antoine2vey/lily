@@ -3,18 +3,38 @@ import type { PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = typeof plants.$inferSelect
 
-// Extended type for test fixtures — includes care fields that
-// schedulesFromPlants uses to derive CareScheduleRow entries.
-// These fields no longer exist on the DB schema but are needed
-// so tests can declare care state in one place.
-export interface TestPlant extends PlantRecord {
-  wateringFrequencyDays: number
-  lastWateredAt: Date | null
-  nextWateringAt: Date | null
-  fertilizationFrequencyDays: number | null
-  lastFertilizedAt: Date | null
-  nextFertilizationAt: Date | null
+export interface ScheduleSpec {
+  careType: 'watering' | 'fertilization'
+  frequencyDays: number
+  lastCareAt: Date | null
+  nextCareAt: Date | null
 }
+
+// Extended type for test fixtures — includes scheduleSpecs that
+// schedulesFromPlants uses to derive CareScheduleRow entries.
+export interface TestPlant extends PlantRecord {
+  scheduleSpecs: ScheduleSpec[]
+}
+
+export const wateringSpec = (
+  overrides: Partial<Omit<ScheduleSpec, 'careType'>> = {}
+): ScheduleSpec => ({
+  careType: 'watering',
+  frequencyDays: 7,
+  lastCareAt: null,
+  nextCareAt: null,
+  ...overrides,
+})
+
+export const fertilizationSpec = (
+  overrides: Partial<Omit<ScheduleSpec, 'careType'>> = {}
+): ScheduleSpec => ({
+  careType: 'fertilization',
+  frequencyDays: 30,
+  lastCareAt: null,
+  nextCareAt: null,
+  ...overrides,
+})
 
 export const mockPlants: TestPlant[] = [
   {
@@ -30,16 +50,22 @@ export const mockPlants: TestPlant[] = [
     petToxicityRating: 2,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-10'),
-    nextWateringAt: new Date('2024-01-17'),
     remindersEnabled: true,
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date('2024-01-01'),
-    nextFertilizationAt: new Date('2024-01-31'),
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-01-10'),
+        nextCareAt: new Date('2024-01-17'),
+      }),
+      fertilizationSpec({
+        frequencyDays: 30,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: new Date('2024-01-31'),
+      }),
+    ],
   },
   {
     id: 'plant-2',
@@ -54,16 +80,11 @@ export const mockPlants: TestPlant[] = [
     petToxicityRating: 3,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 14,
-    lastWateredAt: null,
-    nextWateringAt: null,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [wateringSpec({ frequencyDays: 14 })],
   },
   {
     id: 'plant-3',
@@ -78,16 +99,18 @@ export const mockPlants: TestPlant[] = [
     petToxicityRating: 2,
     wateringRating: 4,
     health: 'NEEDS_ATTENTION',
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: new Date('2024-01-11'),
     remindersEnabled: false,
-    fertilizationFrequencyDays: 14,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-2',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 10,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: new Date('2024-01-11'),
+      }),
+      fertilizationSpec({ frequencyDays: 14 }),
+    ],
   },
 ]
 
@@ -125,16 +148,17 @@ export const mockOverduePlants: TestPlant[] = [
     petToxicityRating: 0,
     wateringRating: 4,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-03'),
-    nextWateringAt: overdueDate,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-01-03'),
+        nextCareAt: overdueDate,
+      }),
+    ],
   },
   {
     id: 'plant-today-1',
@@ -149,16 +173,17 @@ export const mockOverduePlants: TestPlant[] = [
     petToxicityRating: 0,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: todayDate,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 14,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: todayDate,
+      }),
+    ],
   },
   {
     id: 'plant-tomorrow-1',
@@ -173,16 +198,17 @@ export const mockOverduePlants: TestPlant[] = [
     petToxicityRating: 0,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: tomorrowDate,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: tomorrowDate,
+      }),
+    ],
   },
   {
     id: 'plant-null-water',
@@ -197,16 +223,11 @@ export const mockOverduePlants: TestPlant[] = [
     petToxicityRating: 0,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 30,
-    lastWateredAt: null,
-    nextWateringAt: null,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-1',
+    scheduleSpecs: [wateringSpec({ frequencyDays: 30 })],
   },
   {
     id: 'plant-overdue-user2',
@@ -221,16 +242,17 @@ export const mockOverduePlants: TestPlant[] = [
     petToxicityRating: 0,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: overdueDate,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     roomId: null,
     userId: 'user-2',
+    scheduleSpecs: [
+      wateringSpec({
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: overdueDate,
+      }),
+    ],
   },
 ]
 
@@ -249,15 +271,10 @@ export const createTestPlant = (
   petToxicityRating: 0,
   wateringRating: 3,
   health: 'HEALTHY',
-  wateringFrequencyDays: 7,
-  lastWateredAt: null,
-  nextWateringAt: null,
   remindersEnabled: true,
-  fertilizationFrequencyDays: null,
-  lastFertilizedAt: null,
-  nextFertilizationAt: null,
   isFavorite: false,
   roomId: null,
   userId: 'user-1',
+  scheduleSpecs: [wateringSpec()],
   ...overrides,
 })

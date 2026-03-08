@@ -1,3 +1,4 @@
+import type { ScheduleSpec } from '@lily/api/__tests__/fixtures/plants'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 
 export const createTestSchedule = (
@@ -16,41 +17,22 @@ export const createTestSchedule = (
 
 /**
  * Build schedule rows from plant fixtures.
- * Creates watering schedule for every plant, fertilization schedule
- * only when fertilizationFrequencyDays is set.
+ * Creates one CareScheduleRow per entry in each plant's scheduleSpecs.
  */
 export const schedulesFromPlants = (
-  plants: ReadonlyArray<{
-    id: string
-    wateringFrequencyDays: number
-    lastWateredAt: Date | null
-    nextWateringAt: Date | null
-    fertilizationFrequencyDays: number | null
-    lastFertilizedAt: Date | null
-    nextFertilizationAt: Date | null
-  }>
+  plants: ReadonlyArray<{ id: string; scheduleSpecs: ScheduleSpec[] }>
 ): CareScheduleRow[] => {
   const schedules: CareScheduleRow[] = []
 
   for (const p of plants) {
-    schedules.push(
-      createTestSchedule({
-        plantId: p.id,
-        careType: 'watering',
-        frequencyDays: p.wateringFrequencyDays,
-        lastCareAt: p.lastWateredAt,
-        nextCareAt: p.nextWateringAt,
-      })
-    )
-
-    if (p.fertilizationFrequencyDays !== null) {
+    for (const spec of p.scheduleSpecs) {
       schedules.push(
         createTestSchedule({
           plantId: p.id,
-          careType: 'fertilization',
-          frequencyDays: p.fertilizationFrequencyDays,
-          lastCareAt: p.lastFertilizedAt,
-          nextCareAt: p.nextFertilizationAt,
+          careType: spec.careType,
+          frequencyDays: spec.frequencyDays,
+          lastCareAt: spec.lastCareAt,
+          nextCareAt: spec.nextCareAt,
         })
       )
     }

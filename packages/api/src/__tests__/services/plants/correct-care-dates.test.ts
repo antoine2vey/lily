@@ -1,6 +1,10 @@
 import { mockCareLogs } from '@lily/api/__tests__/fixtures/care-logs'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  fertilizationSpec,
+  wateringSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -33,13 +37,19 @@ describe('correctCareDates', () => {
     createTestPlant({
       id: 'plant-1',
       userId: 'user-1',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-10'),
-      nextWateringAt: new Date('2024-01-17'),
-      fertilizationFrequencyDays: 30,
-      lastFertilizedAt: new Date('2024-01-01'),
-      nextFertilizationAt: new Date('2024-01-31'),
       remindersEnabled: true,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-10'),
+          nextCareAt: new Date('2024-01-17'),
+        }),
+        fertilizationSpec({
+          frequencyDays: 30,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: new Date('2024-01-31'),
+        }),
+      ],
     })
 
   const createTestLayer = (plants = [basePlant()], careLogs = mockCareLogs) => {
@@ -214,9 +224,13 @@ describe('correctCareDates', () => {
   it('should only update lastCareAt when original dates are null (no delta possible)', async () => {
     const plant = createTestPlant({
       id: 'no-dates-plant',
-      wateringFrequencyDays: 14,
-      lastWateredAt: null,
-      nextWateringAt: null,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 14,
+          lastCareAt: null,
+          nextCareAt: null,
+        }),
+      ],
     })
 
     const correctedDate = new Date('2024-01-12')
@@ -237,9 +251,7 @@ describe('correctCareDates', () => {
   it('should keep nextFertilizationAt null when original dates are null', async () => {
     const plant = createTestPlant({
       id: 'no-fert-plant',
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
+      scheduleSpecs: [wateringSpec()],
     })
 
     const correctedDate = new Date('2024-01-12')
@@ -255,7 +267,7 @@ describe('correctCareDates', () => {
     // No fertilization schedule exists (frequencyDays was null)
     // The service may create one or not — if it does, check lastCareAt
     // If no schedule, the correctedDate is just stored somewhere
-    // Since fertilizationFrequencyDays is null, no schedule was created by schedulesFromPlants
+    // No fertilization scheduleSpec, so no schedule was created
     // The service should handle this gracefully
     expect(result.id).toBe('no-fert-plant')
   })
@@ -304,10 +316,14 @@ describe('correctCareDates', () => {
     // frequency=7, but next is 8 days out (7 base + 1 weather)
     const plant = createTestPlant({
       id: 'weather-plant',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-10'),
-      nextWateringAt: new Date('2024-01-18'), // 8 days gap preserved
       remindersEnabled: true,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-10'),
+          nextCareAt: new Date('2024-01-18'), // 8 days gap preserved
+        }),
+      ],
     })
 
     // Correct to 1 day earlier → delta=-1 → next shifts to Jan 17
@@ -350,9 +366,13 @@ describe('correctCareDates', () => {
     const plant = createTestPlant({
       id: 'no-reminder-plant',
       remindersEnabled: false,
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-10'),
-      nextWateringAt: new Date('2024-01-17'),
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-10'),
+          nextCareAt: new Date('2024-01-17'),
+        }),
+      ],
     })
 
     const correctedDate = new Date('2024-01-12')
