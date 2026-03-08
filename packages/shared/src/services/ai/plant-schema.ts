@@ -5,13 +5,21 @@ import z from 'zod'
  * Used by both plant recognition (photo identify) and nursery card scan.
  */
 export const plantSchema = z.object({
-  name: z.string().describe('The name of the plant').nullable(),
+  name: z
+    .string()
+    .describe(
+      'The common name of the plant (e.g. "Snake Plant", not "Sansevieria trifasciata"). Use the well-known common name in the user locale. Fall back to scientific name only if no common name exists.'
+    )
+    .nullable(),
   family: z.string().describe('The family of the plant').nullable(),
   confidence: z.number().describe('The confidence of the plant').min(0).max(1),
   alternatives: z
     .array(
       z.object({
-        name: z.string().describe('The name of the alternative').nullable(),
+        name: z
+          .string()
+          .describe('The common name of the alternative plant')
+          .nullable(),
         confidence: z
           .number()
           .min(0)
