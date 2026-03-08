@@ -12,6 +12,7 @@ export const MagicLinkRequest = Schema.Struct({
 export const MagicLinkVerifyRequest = Schema.Struct({
   code: Schema.String,
   timezone: Schema.optional(Schema.String),
+  language: Schema.optional(LanguageCode),
 })
 
 export const UsernameRequest = Schema.Struct({
