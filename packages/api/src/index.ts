@@ -39,6 +39,7 @@ import {
 import { startNotificationScheduler } from '@lily/api/services/notification-scheduler/scheduler'
 import { startNotificationWorker } from '@lily/api/services/notification-scheduler/worker'
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
+import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/scheduler'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
@@ -139,6 +140,18 @@ const AchievementReconciliationSchedulerLive = Layer.scopedDiscard(
   })
 ).pipe(Layer.provide(AchievementRepositoryLive))
 
+// Overdue reminder scheduler layer - sends daily overdue watering reminders
+const OverdueSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startOverdueScheduler
+  })
+).pipe(
+  Layer.provide(PlantRepositoryLive),
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive),
+  Layer.provide(DelegationRepositoryLive)
+)
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -194,6 +207,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(AchievementNotifierLive),
   Layer.provide(DelegationSchedulerLive),
   Layer.provide(HealthSchedulerLive),
+  Layer.provide(OverdueSchedulerLive),
   Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),

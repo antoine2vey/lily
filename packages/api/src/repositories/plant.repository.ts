@@ -15,6 +15,7 @@ import {
 import {
   endOfDay,
   nowAsDate,
+  type OverduePlant,
   type PaginatedResponse,
   paginate,
 } from '@lily/shared'
@@ -165,6 +166,10 @@ export interface IPlantRepository {
     SqlError
   >
   readonly markHealthyPlantsInOrder: () => Effect.Effect<number, SqlError>
+  readonly findOverduePlantsByUser: () => Effect.Effect<
+    Record<string, Array<OverduePlant>>,
+    SqlError
+  >
 }
 
 // Tag for dependency injection
@@ -531,6 +536,35 @@ export const PlantRepositoryLive = Layer.effect(
             .returning()
           return Array.length(result)
         }).pipe(Effect.withSpan('PlantRepository.markHealthyPlantsInOrder')),
+
+      findOverduePlantsByUser: () =>
+        Effect.gen(function* () {
+          const now = nowAsDate()
+          const rows = yield* db
+            .select({
+              id: plants.id,
+              name: plants.name,
+              userId: plants.userId,
+              nextWateringAt: plants.nextWateringAt,
+            })
+            .from(plants)
+            .where(
+              and(
+                isNotNull(plants.nextWateringAt),
+                lte(plants.nextWateringAt, now)
+              )
+            )
+            .orderBy(asc(plants.userId))
+          return Array.groupBy(
+            rows as Array<{
+              id: string
+              name: string
+              userId: string
+              nextWateringAt: Date
+            }>,
+            (p) => p.userId
+          )
+        }).pipe(Effect.withSpan('PlantRepository.findOverduePlantsByUser')),
     }
   })
 )
