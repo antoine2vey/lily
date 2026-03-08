@@ -49,4 +49,4 @@ jobs:
         working-directory: packages/app
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive
+        run: eas update --branch production --environment production --message "${{ github.event.head_commit.message }}" --non-interactive

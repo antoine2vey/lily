@@ -37,4 +37,4 @@ jobs:
         working-directory: packages/app
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-        run: eas update --branch production --message "Seed update for ${{ github.ref_name }}" --non-interactive
+        run: eas update --branch production --environment production --message "Seed update for ${{ github.ref_name }}" --non-interactive
