@@ -3,12 +3,16 @@ import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { buildSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
+import {
+  buildSystemPrompt,
+  formatCareHistoryText,
+} from '@lily/api/services/ai-chat/build-system-prompt'
+import { buildPlantChatTools } from '@lily/api/services/ai-chat/tools'
 import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { RagService } from '@lily/api/services/rag/service'
-import { daysSince, formatIsoDate } from '@lily/shared'
+import { daysSince } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
   convertToModelMessages,
@@ -28,8 +32,6 @@ import {
   pipe,
   Struct,
 } from 'effect'
-
-import { buildPlantChatTools } from './tools'
 
 // Type alias to avoid TS4023: bun's module resolution prevents TS
 // from naming the 'Output' generic in declaration files
@@ -87,14 +89,7 @@ export const plantChat = (
       limit: 10,
     })
 
-    const careHistoryText = pipe(
-      careLogsResponse.items,
-      Array.map(
-        (log) =>
-          `- ${log.type} on ${formatIsoDate(log.date)}${log.notes ? `: "${log.notes}"` : ''}`
-      ),
-      Array.join('\n')
-    )
+    const careHistoryText = formatCareHistoryText(careLogsResponse.items)
 
     const lastUserMessage = pipe(
       Array.last(messages),

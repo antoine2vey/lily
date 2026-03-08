@@ -10,6 +10,7 @@ import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
+import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { RagService } from '@lily/api/services/rag/service'
@@ -23,8 +24,6 @@ import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
 import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
-
-import type { StepData } from '../plant-chat'
 
 // Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
 const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(

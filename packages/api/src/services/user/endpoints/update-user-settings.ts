@@ -7,7 +7,7 @@ import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-
 import { compact } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Array as Arr, Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Match, Option, pipe } from 'effect'
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -98,7 +98,7 @@ export const updateUserSettings = (
               careType,
               Option.flatMap((ct) =>
                 pipe(
-                  Arr.findFirst(schedules, (s) => s.careType === ct),
+                  Array.findFirst(schedules, (s) => s.careType === ct),
                   Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
                 )
               )
@@ -124,8 +124,8 @@ export const updateUserSettings = (
     return {
       name: user.name,
       email: user.email,
-      image: user.image || undefined,
-      bio: user.bio || undefined,
+      image: pipe(Option.fromNullable(user.image), Option.getOrUndefined),
+      bio: pipe(Option.fromNullable(user.bio), Option.getOrUndefined),
       notifications: {
         careReminders: user.careReminders,
         weeklyDigest: user.weeklyDigest,
@@ -134,8 +134,14 @@ export const updateUserSettings = (
         productUpdates: user.productUpdates,
         ads: user.ads,
         doNotDisturb: user.doNotDisturb,
-        doNotDisturbStart: user.doNotDisturbStart || '22:00',
-        doNotDisturbEnd: user.doNotDisturbEnd || '07:00',
+        doNotDisturbStart: pipe(
+          Option.fromNullable(user.doNotDisturbStart),
+          Option.getOrElse(() => '22:00')
+        ),
+        doNotDisturbEnd: pipe(
+          Option.fromNullable(user.doNotDisturbEnd),
+          Option.getOrElse(() => '07:00')
+        ),
       },
       privacy: {
         publicProfile: user.publicProfile,
@@ -147,8 +153,8 @@ export const updateUserSettings = (
       language: user.language,
       weather: {
         enabled: user.weatherEnabled,
-        latitude: user.latitude ?? null,
-        longitude: user.longitude ?? null,
+        latitude: pipe(Option.fromNullable(user.latitude), Option.getOrNull),
+        longitude: pipe(Option.fromNullable(user.longitude), Option.getOrNull),
       },
     }
   }).pipe(Effect.withSpan('UserService.updateUserSettings'))

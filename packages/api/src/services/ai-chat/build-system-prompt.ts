@@ -1,6 +1,25 @@
 import { formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 
+/**
+ * Format care log items into a human-readable text block.
+ */
+export const formatCareHistoryText = (
+  items: ReadonlyArray<{
+    readonly type: string
+    readonly date: Date
+    readonly notes?: string | null | undefined
+  }>
+): string =>
+  pipe(
+    items,
+    Array.map(
+      (log) =>
+        `- ${log.type} on ${formatIsoDate(log.date)}${log.notes ? `: "${log.notes}"` : ''}`
+    ),
+    Array.join('\n')
+  )
+
 export interface SystemPromptPlantData {
   readonly name: string
   readonly category: string | null
@@ -63,17 +82,57 @@ export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
         Pet toxicity: ${plant.petToxicityRating}/5 (5 = highly toxic)
 
       Watering Schedule:
-        Frequency: ${watering ? `Every ${watering.frequencyDays} days` : 'Not set'}
-        Last watered: ${formatIsoDate(watering?.lastCareAt ?? null)}
-        Next watering: ${formatDaysUntilHuman(watering?.nextCareAt ?? null)}
+        Frequency: ${pipe(
+          Option.fromNullable(watering),
+          Option.match({
+            onNone: () => 'Not set',
+            onSome: (w) => `Every ${w.frequencyDays} days`,
+          })
+        )}
+        Last watered: ${formatIsoDate(
+          pipe(
+            Option.fromNullable(watering),
+            Option.flatMap((w) => Option.fromNullable(w.lastCareAt)),
+            Option.getOrNull
+          )
+        )}
+        Next watering: ${formatDaysUntilHuman(
+          pipe(
+            Option.fromNullable(watering),
+            Option.flatMap((w) => Option.fromNullable(w.nextCareAt)),
+            Option.getOrNull
+          )
+        )}
 
       Fertilization Schedule:
-        Frequency: ${fertilization ? `Every ${fertilization.frequencyDays} days` : 'Not set'}
-        Last fertilized: ${formatIsoDate(fertilization?.lastCareAt ?? null)}
-        Next fertilization: ${formatDaysUntilHuman(fertilization?.nextCareAt ?? null)}
+        Frequency: ${pipe(
+          Option.fromNullable(fertilization),
+          Option.match({
+            onNone: () => 'Not set',
+            onSome: (f) => `Every ${f.frequencyDays} days`,
+          })
+        )}
+        Last fertilized: ${formatIsoDate(
+          pipe(
+            Option.fromNullable(fertilization),
+            Option.flatMap((f) => Option.fromNullable(f.lastCareAt)),
+            Option.getOrNull
+          )
+        )}
+        Next fertilization: ${formatDaysUntilHuman(
+          pipe(
+            Option.fromNullable(fertilization),
+            Option.flatMap((f) => Option.fromNullable(f.nextCareAt)),
+            Option.getOrNull
+          )
+        )}
 
       Recent Care History:
-      ${careHistoryText || 'No care events recorded yet'}
+      ${pipe(
+        Option.some(careHistoryText),
+        Option.filter((text) => text.length > 0),
+        Option.getOrElse(() => 'No care events recorded yet')
+      )}
 
       ${knowledgeContext}
 

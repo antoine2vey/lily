@@ -36,10 +36,16 @@ export const createPlant = (
 
     const plantOrNull = yield* repo.create({
       name: request.name,
-      description: request.description || null,
-      category: request.category || null,
-      imageUrl: request.imageUrl || null,
-      humidityRating: request.humidityRating || 0,
+      description: pipe(
+        Option.fromNullable(request.description),
+        Option.getOrNull
+      ),
+      category: pipe(Option.fromNullable(request.category), Option.getOrNull),
+      imageUrl: pipe(Option.fromNullable(request.imageUrl), Option.getOrNull),
+      humidityRating: pipe(
+        Option.fromNullable(request.humidityRating),
+        Option.getOrElse(() => 0)
+      ),
       lightingRating: luxToLuminosityLevel(request.luxNeeded),
       petToxicityRating: pipe(
         Option.fromNullable(request.petToxicityRating),
@@ -48,7 +54,7 @@ export const createPlant = (
       wateringRating: 0, // Default value
       health: 'HEALTHY', // Default value
       userId,
-      roomId: request.roomId ?? null,
+      roomId: pipe(Option.fromNullable(request.roomId), Option.getOrNull),
     })
 
     if (!plantOrNull) {

@@ -278,7 +278,10 @@ export const PlantRepositoryLive = Layer.effect(
 
         const grouped = new Map<string, PlantCareScheduleRef[]>()
         Array.forEach(rows, (r) => {
-          const existing = grouped.get(r.plantId) ?? []
+          const existing = pipe(
+            Option.fromNullable(grouped.get(r.plantId)),
+            Option.getOrElse(() => [] as PlantCareScheduleRef[])
+          )
           existing.push({
             careType: r.careType,
             frequencyDays: r.frequencyDays,
@@ -319,7 +322,13 @@ export const PlantRepositoryLive = Layer.effect(
           const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
           const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
           const ownedItems = Array.map(ownedRows, (row) =>
-            toOwnedPlant(row, ownedScheduleMap.get(row.plant.id) ?? [])
+            toOwnedPlant(
+              row,
+              pipe(
+                Option.fromNullable(ownedScheduleMap.get(row.plant.id)),
+                Option.getOrElse(() => [] as PlantCareScheduleRef[])
+              )
+            )
           )
 
           if (!params.includeCaretaking) {
@@ -375,7 +384,10 @@ export const PlantRepositoryLive = Layer.effect(
           const caretakingItems = Array.map(caretakingRows, (row) =>
             toCaretakingPlant(
               row,
-              caretakingScheduleMap.get(row.plant.id) ?? []
+              pipe(
+                Option.fromNullable(caretakingScheduleMap.get(row.plant.id)),
+                Option.getOrElse(() => [] as PlantCareScheduleRef[])
+              )
             )
           )
 
@@ -440,7 +452,7 @@ export const PlantRepositoryLive = Layer.effect(
       create: (data: CreatePlantData) =>
         Effect.gen(function* () {
           const [plant] = yield* db.insert(plants).values(data).returning()
-          return Option.getOrNull(Option.fromNullable(plant))
+          return pipe(Option.fromNullable(plant), Option.getOrNull)
         }).pipe(Effect.withSpan('PlantRepository.create')),
 
       update: (id: string, data: UpdatePlantData) =>
@@ -450,7 +462,7 @@ export const PlantRepositoryLive = Layer.effect(
             .set(data)
             .where(eq(plants.id, id))
             .returning()
-          return Option.getOrNull(Option.fromNullable(plant))
+          return pipe(Option.fromNullable(plant), Option.getOrNull)
         }).pipe(Effect.withSpan('PlantRepository.update')),
 
       delete: (id: string) =>
@@ -459,7 +471,7 @@ export const PlantRepositoryLive = Layer.effect(
             .delete(plants)
             .where(eq(plants.id, id))
             .returning()
-          return Option.getOrNull(Option.fromNullable(plant))
+          return pipe(Option.fromNullable(plant), Option.getOrNull)
         }).pipe(Effect.withSpan('PlantRepository.delete')),
 
       findPhotos: (params: FindPhotosParams) =>
@@ -489,7 +501,7 @@ export const PlantRepositoryLive = Layer.effect(
             .insert(plantPhotos)
             .values({ plantId, url })
             .returning()
-          return Option.getOrNull(Option.fromNullable(photo))
+          return pipe(Option.fromNullable(photo), Option.getOrNull)
         }).pipe(Effect.withSpan('PlantRepository.addPhoto')),
 
       addPhotos: (
@@ -509,7 +521,7 @@ export const PlantRepositoryLive = Layer.effect(
             .delete(plantPhotos)
             .where(eq(plantPhotos.id, photoId))
             .returning()
-          return Option.getOrNull(Option.fromNullable(photo))
+          return pipe(Option.fromNullable(photo), Option.getOrNull)
         }).pipe(Effect.withSpan('PlantRepository.deletePhoto')),
 
       deletePhotoByPlantId: (plantId: string, photoId: string) =>
