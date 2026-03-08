@@ -26,13 +26,6 @@ export const deletePlant = ({
       ownership: 'owned' as const,
       ownerName: null,
       schedules: [],
-      // TODO(deprecated): Remove once app reads `schedules` array
-      wateringFrequencyDays: null,
-      lastWateredAt: null,
-      nextWateringAt: null,
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
     }
   }).pipe(
     Effect.withSpan('PlantsService.deletePlant', {

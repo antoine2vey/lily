@@ -84,8 +84,20 @@ describe('PlantDetailScreen', () => {
     lightingRating: 5,
     wateringRating: 5,
     humidityRating: 5,
-    nextWateringAt: mockIsoStringFuture(2, 'days'),
-    nextFertilizationAt: mockIsoStringFuture(14, 'days'),
+    schedules: [
+      {
+        careType: 'watering' as const,
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-01-10'),
+        nextCareAt: new Date(mockIsoStringFuture(2, 'days')),
+      },
+      {
+        careType: 'fertilization' as const,
+        frequencyDays: 30,
+        lastCareAt: new Date('2024-01-01'),
+        nextCareAt: new Date(mockIsoStringFuture(14, 'days')),
+      },
+    ],
   }
 
   beforeEach(() => {

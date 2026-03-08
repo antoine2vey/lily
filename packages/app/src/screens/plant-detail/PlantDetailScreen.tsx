@@ -2,6 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   daysUntilApiDate,
   formatApiDateAsNextDate,
+  getFertilizationSchedule,
+  getWateringSchedule,
   type LuminosityLevel,
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
@@ -390,12 +392,26 @@ export function PlantDetailScreen() {
 
   const healthStatus = mapApiHealthToCardHealth(plant.health)
 
+  // Extract schedules
+  const schedules = Option.getOrElse(
+    Option.fromNullable(plant.schedules),
+    () => [] as NonNullable<typeof plant.schedules>
+  )
+  const wateringSchedule = getWateringSchedule(schedules)
+  const fertilizationSchedule = getFertilizationSchedule(schedules)
+
   // Calculate days until watering/fertilizing using shared utilities
-  const daysUntilWater = daysUntilApiDate(plant.nextWateringAt)
+  const daysUntilWater = daysUntilApiDate(
+    Option.match(wateringSchedule, {
+      onNone: () => null,
+      onSome: (s) => s.nextCareAt,
+    })
+  )
   // Only show fertilizing days if there's a schedule set
-  const daysUntilFertilize = plant.fertilizationFrequencyDays
-    ? daysUntilApiDate(plant.nextFertilizationAt)
-    : null
+  const daysUntilFertilize = Option.match(fertilizationSchedule, {
+    onNone: () => null as number | null,
+    onSome: (s) => daysUntilApiDate(s.nextCareAt),
+  })
 
   // Map photos from plant data
   const photos = Array.map(
@@ -494,23 +510,44 @@ export function PlantDetailScreen() {
           <View className="mt-10">
             <CareSchedule
               wateringDays={daysUntilWater}
-              wateringDate={formatApiDateAsNextDate(plant.nextWateringAt)}
+              wateringDate={formatApiDateAsNextDate(
+                Option.match(wateringSchedule, {
+                  onNone: () => null,
+                  onSome: (s) => s.nextCareAt,
+                })
+              )}
               fertilizingDays={daysUntilFertilize}
               fertilizingDate={formatApiDateAsNextDate(
-                plant.nextFertilizationAt
+                Option.match(fertilizationSchedule, {
+                  onNone: () => null,
+                  onSome: (s) => s.nextCareAt,
+                })
               )}
               onEdit={handleEditSchedule}
               onWaterNow={handleWaterNow}
               onFertilizeNow={handleFertilizeNow}
               onWaterPast={handleWaterPast}
               onFertilizePast={handleFertilizePast}
-              isWaterFirstTime={plant.lastWateredAt === null}
+              isWaterFirstTime={Option.match(wateringSchedule, {
+                onNone: () => true,
+                onSome: (s) => s.lastCareAt === null,
+              })}
               isFertilizeFirstTime={
-                plant.fertilizationFrequencyDays !== null &&
-                plant.lastFertilizedAt === null
+                Option.isSome(fertilizationSchedule) &&
+                Option.match(fertilizationSchedule, {
+                  onNone: () => false,
+                  onSome: (s) => s.lastCareAt === null,
+                })
               }
               onCorrectDates={
-                plant.lastWateredAt !== null || plant.lastFertilizedAt !== null
+                Option.match(wateringSchedule, {
+                  onNone: () => false,
+                  onSome: (s) => s.lastCareAt !== null,
+                }) ||
+                Option.match(fertilizationSchedule, {
+                  onNone: () => false,
+                  onSome: (s) => s.lastCareAt !== null,
+                })
                   ? handleCorrectDates
                   : undefined
               }
@@ -623,9 +660,15 @@ export function PlantDetailScreen() {
         visible={showCorrectDatesSheet}
         onClose={() => setShowCorrectDatesSheet(false)}
         plantId={Option.getOrElse(Option.fromNullable(plantId), () => '')}
-        lastWateredAt={plant.lastWateredAt}
-        lastFertilizedAt={plant.lastFertilizedAt}
-        hasFertilization={plant.fertilizationFrequencyDays !== null}
+        lastWateredAt={Option.match(wateringSchedule, {
+          onNone: () => null,
+          onSome: (s) => s.lastCareAt,
+        })}
+        lastFertilizedAt={Option.match(fertilizationSchedule, {
+          onNone: () => null,
+          onSome: (s) => s.lastCareAt,
+        })}
+        hasFertilization={Option.isSome(fertilizationSchedule)}
       />
 
       {/* Delete Confirmation */}

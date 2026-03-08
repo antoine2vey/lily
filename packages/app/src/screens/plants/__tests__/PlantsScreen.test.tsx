@@ -53,7 +53,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -71,7 +78,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -88,7 +102,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -105,7 +126,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -128,7 +156,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({
@@ -148,7 +183,14 @@ describe('PlantsScreen', () => {
     const plantsWithHealth = mockPlants.map((p) => ({
       ...p,
       health: 'HEALTHY',
-      nextWateringAt: mockIsoString(),
+      schedules: [
+        {
+          careType: 'watering' as const,
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: new Date(mockIsoString()),
+        },
+      ],
     }))
 
     mockedUseEffectQuery.mockReturnValue({

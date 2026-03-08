@@ -1,4 +1,4 @@
-import type { Plant } from '@lily/shared/plant'
+import type { Plant, PlantCareSchedule } from '@lily/shared/plant'
 
 // Helper to get dates relative to now
 const now = new Date()
@@ -18,6 +18,33 @@ inThreeDays.setDate(inThreeDays.getDate() + 3)
 const nextWeek = new Date(now)
 nextWeek.setDate(nextWeek.getDate() + 10)
 
+const makeSchedules = (opts: {
+  wateringFrequencyDays: number
+  lastWateredAt: Date | null
+  nextWateringAt: Date | null
+  fertilizationFrequencyDays: number | null
+  lastFertilizedAt: Date | null
+  nextFertilizationAt: Date | null
+}): PlantCareSchedule[] => {
+  const schedules: PlantCareSchedule[] = [
+    {
+      careType: 'watering',
+      frequencyDays: opts.wateringFrequencyDays,
+      lastCareAt: opts.lastWateredAt,
+      nextCareAt: opts.nextWateringAt,
+    },
+  ]
+  if (opts.fertilizationFrequencyDays !== null) {
+    schedules.push({
+      careType: 'fertilization',
+      frequencyDays: opts.fertilizationFrequencyDays,
+      lastCareAt: opts.lastFertilizedAt,
+      nextCareAt: opts.nextFertilizationAt,
+    })
+  }
+  return schedules
+}
+
 // Mock plants for care tasks testing
 export const mockPlantsForCareTasks: Plant[] = [
   {
@@ -33,19 +60,21 @@ export const mockPlantsForCareTasks: Plant[] = [
     petToxicityRating: 2,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-10'),
-    nextWateringAt: yesterday, // Overdue
     remindersEnabled: true,
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date('2024-01-01'),
-    nextFertilizationAt: tomorrow, // This week
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-10'),
+      nextWateringAt: yesterday, // Overdue
+      fertilizationFrequencyDays: 30,
+      lastFertilizedAt: new Date('2024-01-01'),
+      nextFertilizationAt: tomorrow, // This week
+    }),
   },
   {
     id: 'plant-2',
@@ -60,19 +89,21 @@ export const mockPlantsForCareTasks: Plant[] = [
     petToxicityRating: 3,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: today, // Today
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 14,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: today, // Today
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
   {
     id: 'plant-3',
@@ -87,19 +118,21 @@ export const mockPlantsForCareTasks: Plant[] = [
     petToxicityRating: 2,
     wateringRating: 4,
     health: 'HEALTHY',
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: inThreeDays, // This week
     remindersEnabled: true,
-    fertilizationFrequencyDays: 14,
-    lastFertilizedAt: null,
-    nextFertilizationAt: inThreeDays, // This week
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 10,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: inThreeDays, // This week
+      fertilizationFrequencyDays: 14,
+      lastFertilizedAt: null,
+      nextFertilizationAt: inThreeDays, // This week
+    }),
   },
   {
     id: 'plant-4',
@@ -114,19 +147,21 @@ export const mockPlantsForCareTasks: Plant[] = [
     petToxicityRating: 1,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 30,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: nextWeek, // Not this week
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 30,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: nextWeek, // Not this week
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
   {
     id: 'plant-5',
@@ -141,19 +176,21 @@ export const mockPlantsForCareTasks: Plant[] = [
     petToxicityRating: 0,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: yesterday, // Overdue but belongs to user-2
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-2',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: yesterday, // Overdue but belongs to user-2
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
 ]
 
@@ -172,18 +209,20 @@ export const mockPlantsNoCare: Plant[] = [
     petToxicityRating: 0,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: nextWeek, // Far in the future
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: nextWeek, // Far in the future
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
 ]
