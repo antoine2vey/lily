@@ -24,6 +24,7 @@ import { Array, DateTime, Duration, Effect, Option, pipe, Struct } from 'effect'
 export const verifyMagicLink = ({
   code,
   timezone,
+  language,
 }: MagicLinkVerifyRequest): Effect.Effect<
   AuthResponse,
   { message: string },
@@ -63,25 +64,39 @@ export const verifyMagicLink = ({
     let user = yield* userRepo.findByEmail(magicLink.email)
 
     if (!user) {
-      // Create new user with email verified and device timezone
+      // Create new user with email verified, device timezone and language
       const newUsers = yield* db
         .insert(users)
         .values({
           email: magicLink.email,
           emailVerified: true,
           ...(timezone ? { timezone } : {}),
+          ...(language ? { language } : {}),
         })
         .returning()
 
       user = pipe(newUsers, Array.head, Option.getOrNull)
     } else {
-      // Update emailVerified if not already
-      if (!user.emailVerified) {
+      // Sync emailVerified and language from device on each login
+      const needsEmailVerify = !user.emailVerified
+      const needsLanguageSync = language && user.language !== language
+
+      if (needsEmailVerify || needsLanguageSync) {
         yield* db
           .update(users)
-          .set({ emailVerified: true, updatedAt: nowAsDate() })
+          .set({
+            updatedAt: nowAsDate(),
+            ...(needsEmailVerify ? { emailVerified: true } : {}),
+            ...(needsLanguageSync ? { language } : {}),
+          })
           .where(eq(users.id, user.id))
-        user = Struct.evolve(user, { emailVerified: () => true })
+
+        if (needsEmailVerify) {
+          user = Struct.evolve(user, { emailVerified: () => true })
+        }
+        if (needsLanguageSync) {
+          user = Struct.evolve(user, { language: () => language })
+        }
       }
     }
 

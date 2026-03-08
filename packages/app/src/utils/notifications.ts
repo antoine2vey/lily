@@ -1,5 +1,7 @@
-import { Match, Option, pipe, String as Str } from 'effect'
+import type { LanguageCode } from '@lily/shared'
+import { Array as Arr, Match, Option, pipe, String as Str } from 'effect'
 import * as Device from 'expo-device'
+import * as Localization from 'expo-localization'
 import * as Notifications from 'expo-notifications'
 import type { Href, Router } from 'expo-router'
 import { Platform } from 'react-native'
@@ -132,4 +134,23 @@ export function getDeviceTimezone(): string {
   } catch {
     return 'UTC'
   }
+}
+
+/**
+ * Get the device's preferred language as a supported LanguageCode.
+ * Falls back to 'en' if the device language is not supported.
+ */
+export function getDeviceLanguage(): LanguageCode {
+  const deviceCode = pipe(
+    Arr.head(Localization.getLocales()),
+    Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
+    Option.getOrElse(() => 'en')
+  )
+
+  return pipe(
+    Match.value(deviceCode),
+    Match.when('fr', () => 'fr' as LanguageCode),
+    Match.when('en', () => 'en' as LanguageCode),
+    Match.orElse(() => 'en' as LanguageCode)
+  )
 }

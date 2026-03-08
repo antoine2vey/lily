@@ -18,6 +18,7 @@ import {
   setOnAuthFailure,
 } from 'src/utils/client'
 import {
+  getDeviceLanguage,
   getDeviceTimezone,
   getExpoPushToken,
   getPlatform,
@@ -245,7 +246,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     async (code: string): Promise<{ success: boolean; error?: string }> => {
       try {
         const response = await apiEffectRunner('auth', 'verifyMagicLink', {
-          payload: { code, timezone: getDeviceTimezone() },
+          payload: {
+            code,
+            timezone: getDeviceTimezone(),
+            language: getDeviceLanguage(),
+          },
         })
 
         // Store both tokens
