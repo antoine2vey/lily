@@ -226,7 +226,14 @@ describe('PlantsScreen', () => {
         id: '1',
         name: 'Monstera',
         health: 'HEALTHY',
-        nextWateringAt: mockIsoString(),
+        schedules: [
+          {
+            careType: 'watering' as const,
+            frequencyDays: 7,
+            lastCareAt: null,
+            nextCareAt: new Date(mockIsoString()),
+          },
+        ],
       },
     ]
 
