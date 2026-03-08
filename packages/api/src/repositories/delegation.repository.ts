@@ -7,12 +7,22 @@ import {
 import {
   careDelegations,
   delegationPlants,
+  plantCareSchedules,
   plants,
   users,
 } from '@lily/db/schema'
-import type { DelegationStatus } from '@lily/shared'
+import type { DelegationStatus, PlantCareSchedule } from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Match, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  Order,
+  pipe,
+} from 'effect'
 
 export interface CreateDelegationData {
   ownerId: string
@@ -66,8 +76,7 @@ export interface DelegatedTaskRow {
   plantName: string
   plantImage: string | null
   ownerName: string | null
-  nextWateringAt: Date | null
-  nextFertilizationAt: Date | null
+  schedules: PlantCareSchedule[]
   health: string
 }
 
@@ -75,7 +84,7 @@ export interface DelegationPlantRow {
   id: string
   name: string
   imageUrl: string | null
-  nextWateringAt: Date | null
+  schedules: PlantCareSchedule[]
   health: string
 }
 
@@ -152,6 +161,65 @@ export class DelegationRepository extends Context.Tag('DelegationRepository')<
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
 
+const scheduleColumns = {
+  careType: plantCareSchedules.careType,
+  frequencyDays: plantCareSchedules.frequencyDays,
+  lastCareAt: plantCareSchedules.lastCareAt,
+  nextCareAt: plantCareSchedules.nextCareAt,
+}
+
+type ScheduleJoinRow = {
+  careType: 'watering' | 'fertilization' | null
+  frequencyDays: number | null
+  lastCareAt: Date | null
+  nextCareAt: Date | null
+}
+
+const toScheduleRef = (r: ScheduleJoinRow): PlantCareSchedule | null =>
+  r.careType !== null && r.frequencyDays !== null
+    ? {
+        careType: r.careType,
+        frequencyDays: r.frequencyDays,
+        lastCareAt: r.lastCareAt,
+        nextCareAt: r.nextCareAt,
+      }
+    : null
+
+function groupWithSchedules<
+  R extends ScheduleJoinRow,
+  T extends { schedules: PlantCareSchedule[] },
+>(rows: readonly R[], getKey: (r: R) => string, init: (r: R) => T): T[] {
+  const grouped = new Map<string, T>()
+  Array.forEach(rows, (r) => {
+    const key = getKey(r)
+    const existing = grouped.get(key) ?? init(r)
+    const schedule = toScheduleRef(r)
+    if (schedule) existing.schedules.push(schedule)
+    grouped.set(key, existing)
+  })
+  return [...grouped.values()]
+}
+
+const groupPlantRows = (
+  rows: readonly (ScheduleJoinRow & {
+    id: string
+    name: string
+    imageUrl: string | null
+    health: string
+  })[]
+): DelegationPlantRow[] =>
+  groupWithSchedules(
+    rows,
+    (r) => r.id,
+    (r): DelegationPlantRow => ({
+      id: r.id,
+      name: r.name,
+      imageUrl: r.imageUrl,
+      health: r.health,
+      schedules: [],
+    })
+  )
+
 export const DelegationRepositoryLive = Layer.effect(
   DelegationRepository,
   Effect.gen(function* () {
@@ -212,19 +280,20 @@ export const DelegationRepositoryLive = Layer.effect(
               id: plants.id,
               name: plants.name,
               imageUrl: plants.imageUrl,
-              nextWateringAt:
-                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
-                  'next_watering_at'
-                ),
               health: plants.health,
+              ...scheduleColumns,
             })
             .from(delegationPlants)
             .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
+            .leftJoin(
+              plantCareSchedules,
+              eq(plants.id, plantCareSchedules.plantId)
+            )
             .where(eq(delegationPlants.delegationId, id))
 
           return {
             ...row,
-            plants: plantRows as DelegationPlantRow[],
+            plants: groupPlantRows(plantRows),
           } as DelegationDetailRow
         }).pipe(Effect.withSpan('DelegationRepository.findById')),
 
@@ -339,15 +408,8 @@ export const DelegationRepositoryLive = Layer.effect(
               plantName: plants.name,
               plantImage: plants.imageUrl,
               ownerName: users.name,
-              nextWateringAt:
-                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
-                  'next_watering_at'
-                ),
-              nextFertilizationAt:
-                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'fertilization' LIMIT 1)`.as(
-                  'next_fertilization_at'
-                ),
               health: plants.health,
+              ...scheduleColumns,
             })
             .from(careDelegations)
             .innerJoin(
@@ -356,17 +418,42 @@ export const DelegationRepositoryLive = Layer.effect(
             )
             .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
             .innerJoin(users, eq(careDelegations.ownerId, users.id))
+            .leftJoin(
+              plantCareSchedules,
+              eq(plants.id, plantCareSchedules.plantId)
+            )
             .where(
               and(
                 eq(careDelegations.caretakerId, caretakerId),
                 eq(careDelegations.status, 'active')
               )
             )
-            .orderBy(
-              sql`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`
-            )
 
-          return rows as DelegatedTaskRow[]
+          const tasks = groupWithSchedules(
+            rows,
+            (r) => `${r.delegationId}:${r.plantId}`,
+            (r): DelegatedTaskRow => ({
+              delegationId: r.delegationId,
+              plantId: r.plantId,
+              plantName: r.plantName,
+              plantImage: r.plantImage,
+              ownerName: r.ownerName,
+              health: r.health,
+              schedules: [],
+            })
+          )
+
+          return Array.sortWith(
+            tasks,
+            (t) =>
+              pipe(
+                Array.findFirst(t.schedules, (s) => s.careType === 'watering'),
+                Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+                Option.map((d) => d.getTime()),
+                Option.getOrElse(() => Number.MAX_SAFE_INTEGER)
+              ),
+            Order.number
+          )
         }).pipe(
           Effect.withSpan(
             'DelegationRepository.findActiveDelegationsForCaretaker'
@@ -453,17 +540,18 @@ export const DelegationRepositoryLive = Layer.effect(
               id: plants.id,
               name: plants.name,
               imageUrl: plants.imageUrl,
-              nextWateringAt:
-                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
-                  'next_watering_at'
-                ),
               health: plants.health,
+              ...scheduleColumns,
             })
             .from(delegationPlants)
             .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
+            .leftJoin(
+              plantCareSchedules,
+              eq(plants.id, plantCareSchedules.plantId)
+            )
             .where(eq(delegationPlants.delegationId, delegationId))
 
-          return rows as DelegationPlantRow[]
+          return groupPlantRows(rows)
         }).pipe(Effect.withSpan('DelegationRepository.getPlantsByDelegation')),
 
       hasActiveDelegationForPlant: (userId, plantId) =>

@@ -35,14 +35,28 @@ export const mockDelegationPlants = [
     id: 'plant-1',
     name: 'Monstera',
     imageUrl: 'https://example.com/monstera.jpg',
-    nextWateringAt: new Date('2024-06-05'),
+    schedules: [
+      {
+        careType: 'watering' as const,
+        frequencyDays: 7,
+        lastCareAt: new Date('2024-05-29'),
+        nextCareAt: new Date('2024-06-05'),
+      },
+    ],
     health: 'HEALTHY',
   },
   {
     id: 'plant-2',
     name: 'Fern',
     imageUrl: null,
-    nextWateringAt: new Date('2024-06-03'),
+    schedules: [
+      {
+        careType: 'watering' as const,
+        frequencyDays: 3,
+        lastCareAt: new Date('2024-05-31'),
+        nextCareAt: new Date('2024-06-03'),
+      },
+    ],
     health: 'NEEDS_ATTENTION',
   },
 ]

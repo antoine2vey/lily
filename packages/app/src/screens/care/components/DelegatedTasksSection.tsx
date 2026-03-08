@@ -1,5 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { formatShortDate, parseApiDate } from '@lily/shared'
+import {
+  formatShortDate,
+  getNextCareAt,
+  type PlantCareSchedule,
+  parseApiDate,
+} from '@lily/shared'
 import { Array as Arr, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
@@ -24,8 +29,7 @@ export function DelegatedTasksSection() {
             plantName: string
             plantImage: string | null
             ownerName: string | null
-            nextWateringAt: Date | null
-            nextFertilizationAt: Date | null
+            schedules: readonly PlantCareSchedule[]
             health: string
           }>
       )
@@ -51,7 +55,7 @@ export function DelegatedTasksSection() {
       <View className="mt-3 gap-2">
         {Arr.map(visibleTasks, (task) => {
           const nextWatering = pipe(
-            Option.fromNullable(task.nextWateringAt),
+            Option.fromNullable(getNextCareAt(task.schedules, 'watering')),
             Option.flatMap(parseApiDate),
             Option.map(formatShortDate),
             Option.getOrElse(() => 'No schedule')
