@@ -6,7 +6,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import { endOfDay, paginate } from '@lily/shared'
+import { earliestOverdueDate, endOfDay, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -358,14 +358,19 @@ export const createMockPlantRepository = (
       const overdue = Array.filter(
         plantsData,
         (p) =>
-          p.nextWateringAt !== null &&
-          p.nextWateringAt.getTime() <= now.getTime()
+          (p.nextWateringAt !== null &&
+            p.nextWateringAt.getTime() <= now.getTime()) ||
+          (p.nextFertilizationAt !== null &&
+            p.nextFertilizationAt.getTime() <= now.getTime())
       )
       const mapped = Array.map(overdue, (p) => ({
         id: p.id,
         name: p.name,
         userId: p.userId,
-        nextWateringAt: p.nextWateringAt as Date,
+        overdueAt: earliestOverdueDate(
+          [p.nextWateringAt, p.nextFertilizationAt],
+          now
+        ),
       }))
       return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
     },

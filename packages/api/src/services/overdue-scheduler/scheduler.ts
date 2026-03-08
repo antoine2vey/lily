@@ -40,10 +40,12 @@ export const processUserOverdueReminders = (
     )
 
     // Dedup: skip if already sent today
-    const alreadySent = yield* notificationRepo.hasOverdueReminderTodayForUser(
-      userId,
-      timezone
-    )
+    const alreadySent =
+      yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+        userId,
+        timezone,
+        'overdue_reminder'
+      )
 
     if (alreadySent) {
       return yield* new AlreadySentTodayError({ userId })
@@ -53,7 +55,7 @@ export const processUserOverdueReminders = (
     const todayStart = startOfTodayAsDate(timezone)
     const strictlyOverdue = Array.filter(
       plants,
-      (p) => p.nextWateringAt.getTime() < todayStart.getTime()
+      (p) => p.overdueAt.getTime() < todayStart.getTime()
     )
 
     if (Array.isEmptyReadonlyArray(strictlyOverdue)) return 0
@@ -107,7 +109,7 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
 
   yield* Effect.log('Running overdue reminder check...')
 
-  // Fetch overdue plants already grouped by userId (DB-sorted, repo-grouped)
+  // Single query: fetch plants overdue for any care type, grouped by userId
   const grouped = yield* plantRepo.findOverduePlantsByUser()
 
   if (Record.isEmptyRecord(grouped)) return

@@ -195,13 +195,17 @@ export const createMockNotificationRepository = (
         })
       }),
 
-    hasOverdueReminderTodayForUser: (userId: string, _timezone: string) =>
+    hasNotificationOfTypeTodayForUser: (
+      userId: string,
+      _timezone: string,
+      type: string
+    ) =>
       Effect.succeed(
         Array.some(
           notificationsState,
           (n) =>
             n.userId === userId &&
-            n.type === 'overdue_reminder' &&
+            n.type === type &&
             (n.status === 'pending' ||
               n.status === 'queued' ||
               n.status === 'sent')

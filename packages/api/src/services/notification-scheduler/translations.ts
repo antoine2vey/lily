@@ -154,9 +154,9 @@ const translations: Record<LanguageCode, TranslationMap> = {
       andMore: (count) => `and ${count} more`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `Your ${name} is overdue for watering`,
-      singleBody: (name) => `Your ${name} still needs watering — don't forget!`,
-      pluralTitle: (count) => `${count} plants are overdue for watering`,
+      singleTitle: (name) => `Your ${name} needs attention`,
+      singleBody: (name) => `Your ${name} is overdue for care — don't forget!`,
+      pluralTitle: (count) => `${count} plants need attention`,
       andMore: (count) => `and ${count} more`,
     },
   },
@@ -176,10 +176,10 @@ const translations: Record<LanguageCode, TranslationMap> = {
       andMore: (count) => `et ${count} de plus`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `Votre ${name} a besoin d'eau`,
+      singleTitle: (name) => `Votre ${name} a besoin d'attention`,
       singleBody: (name) =>
-        `Votre ${name} attend toujours d'être arrosé(e) — n'oubliez pas !`,
-      pluralTitle: (count) => `${count} plantes sont en retard d'arrosage`,
+        `Votre ${name} est en retard de soins — n'oubliez pas !`,
+      pluralTitle: (count) => `${count} plantes ont besoin d'attention`,
       andMore: (count) => `et ${count} de plus`,
     },
   },

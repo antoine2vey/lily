@@ -13,6 +13,7 @@ import {
   users,
 } from '@lily/db/schema'
 import {
+  earliestOverdueDate,
   endOfDay,
   nowAsDate,
   type OverduePlant,
@@ -546,24 +547,34 @@ export const PlantRepositoryLive = Layer.effect(
               name: plants.name,
               userId: plants.userId,
               nextWateringAt: plants.nextWateringAt,
+              nextFertilizationAt: plants.nextFertilizationAt,
             })
             .from(plants)
             .where(
-              and(
-                isNotNull(plants.nextWateringAt),
-                lte(plants.nextWateringAt, now)
+              or(
+                and(
+                  isNotNull(plants.nextWateringAt),
+                  lte(plants.nextWateringAt, now)
+                ),
+                and(
+                  isNotNull(plants.nextFertilizationAt),
+                  lte(plants.nextFertilizationAt, now)
+                )
               )
             )
             .orderBy(asc(plants.userId))
-          return Array.groupBy(
-            rows as Array<{
-              id: string
-              name: string
-              userId: string
-              nextWateringAt: Date
-            }>,
-            (p) => p.userId
-          )
+
+          const mapped = Array.map(rows, (p) => ({
+            id: p.id,
+            name: p.name,
+            userId: p.userId,
+            overdueAt: earliestOverdueDate(
+              [p.nextWateringAt, p.nextFertilizationAt],
+              now
+            ),
+          }))
+
+          return Array.groupBy(mapped, (p) => p.userId)
         }).pipe(Effect.withSpan('PlantRepository.findOverduePlantsByUser')),
     }
   })

@@ -73,7 +73,7 @@ const runProcessUser = (
     id: p.id,
     name: p.name,
     userId: p.userId,
-    nextWateringAt: p.nextWateringAt as Date,
+    overdueAt: p.nextWateringAt as Date,
   }))
 
   return Effect.runPromiseExit(
@@ -717,6 +717,94 @@ describe('checkAndCreateOverdueReminders', () => {
         (n) => n.type === 'overdue_reminder' && n.userId === 'user-b'
       )
       expect(notifB.length).toBe(1)
+    })
+  })
+
+  describe('fertilization overdue', () => {
+    it('should create overdue_reminder for plants with only fertilization overdue', async () => {
+      const notifications: Notification[] = []
+      const plant = createTestPlant({
+        id: 'plant-fert-1',
+        name: 'Hungry Monstera',
+        userId: 'user-1',
+        nextFertilizationAt: daysAgo(3),
+        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+
+      await runCheck([plant], [defaultUser], notifications)
+
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBeGreaterThanOrEqual(1)
+      expect(overdueNotifs[0]?.plantId).toBe('plant-fert-1')
+      expect(overdueNotifs[0]?.userId).toBe('user-1')
+    })
+
+    it('should skip plants where fertilization is today (precision filter)', async () => {
+      const notifications: Notification[] = []
+      const plant = createTestPlant({
+        id: 'plant-fert-today',
+        userId: 'user-1',
+        nextFertilizationAt: new Date(), // today, not strictly overdue
+        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+
+      await runCheck([plant], [defaultUser], notifications)
+
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBe(0)
+    })
+
+    it('should deduplicate when a plant is overdue for both watering and fertilization', async () => {
+      const notifications: Notification[] = []
+      const plant = createTestPlant({
+        id: 'plant-both-overdue',
+        userId: 'user-1',
+        nextWateringAt: daysAgo(2),
+        nextFertilizationAt: daysAgo(4),
+      })
+
+      await runCheck([plant], [defaultUser], notifications)
+
+      // Should produce exactly 1 overdue_reminder per plant, not 2
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBe(1)
+      expect(overdueNotifs[0]?.plantId).toBe('plant-both-overdue')
+    })
+
+    it('should include both watering-only and fertilization-only overdue plants in a single pass', async () => {
+      const notifications: Notification[] = []
+      const wateringPlant = createTestPlant({
+        id: 'plant-water-only',
+        userId: 'user-1',
+        nextWateringAt: daysAgo(2),
+        nextFertilizationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+      const fertPlant = createTestPlant({
+        id: 'plant-fert-only',
+        userId: 'user-1',
+        nextFertilizationAt: daysAgo(3),
+        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      })
+
+      await runCheck([wateringPlant, fertPlant], [defaultUser], notifications)
+
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBe(2)
+      const plantIds = Arr.map(overdueNotifs, (n) => n.plantId)
+      expect(plantIds).toContain('plant-water-only')
+      expect(plantIds).toContain('plant-fert-only')
     })
   })
 })
