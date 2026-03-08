@@ -2,7 +2,7 @@ import type { Plant, PlantCareSchedule, PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = Plant
 
-const makeSchedules = (opts: {
+export const makeSchedules = (opts: {
   wateringFrequencyDays: number
   lastWateredAt: Date | null
   nextWateringAt: Date | null

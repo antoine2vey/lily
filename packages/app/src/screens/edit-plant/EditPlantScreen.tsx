@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { getFertilizationSchedule, getWateringSchedule } from '@lily/shared'
+import { getFrequencyDays } from '@lily/shared'
 import { Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
@@ -71,6 +71,17 @@ export function EditPlantScreen() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Derive original schedule values — reused by both useEffect and hasChanges
+  const originalScheduleData = useMemo(() => {
+    if (!plant)
+      return { wateringFreq: 7, fertilizationFreq: null as number | null }
+    const schedules = plant.schedules
+    return {
+      wateringFreq: getFrequencyDays(schedules, 'watering') ?? 7,
+      fertilizationFreq: getFrequencyDays(schedules, 'fertilization'),
+    }
+  }, [plant])
+
   // Initialize form with plant data
   useEffect(() => {
     if (plant) {
@@ -92,28 +103,12 @@ export function EditPlantScreen() {
         Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50)
       )
       setPetSafe(plant.petToxicityRating === 0)
-      const schedules = Option.getOrElse(
-        Option.fromNullable(plant.schedules),
-        () => [] as NonNullable<typeof plant.schedules>
-      )
-      const ws = getWateringSchedule(schedules)
-      const fs = getFertilizationSchedule(schedules)
-      setWateringFrequencyDays(
-        Option.match(ws, {
-          onNone: () => 7,
-          onSome: (s) => s.frequencyDays,
-        })
-      )
-      setFertilizationFrequencyDays(
-        Option.match(fs, {
-          onNone: () => null,
-          onSome: (s) => s.frequencyDays,
-        })
-      )
-      setFertilizationEnabled(Option.isSome(fs))
+      setWateringFrequencyDays(originalScheduleData.wateringFreq)
+      setFertilizationFrequencyDays(originalScheduleData.fertilizationFreq)
+      setFertilizationEnabled(originalScheduleData.fertilizationFreq !== null)
       setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
     }
-  }, [plant])
+  }, [plant, originalScheduleData])
 
   const [showPhotoPicker, setShowPhotoPicker] = useState(false)
 
@@ -192,26 +187,9 @@ export function EditPlantScreen() {
       Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50) ||
     petSafe !== (plant.petToxicityRating === 0) ||
     photo !== Option.getOrUndefined(Option.fromNullable(plant.imageUrl)) ||
-    wateringFrequencyDays !==
-      Option.match(
-        getWateringSchedule(
-          Option.getOrElse(
-            Option.fromNullable(plant.schedules),
-            () => [] as NonNullable<typeof plant.schedules>
-          )
-        ),
-        { onNone: () => 7, onSome: (s) => s.frequencyDays }
-      ) ||
+    wateringFrequencyDays !== originalScheduleData.wateringFreq ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
-      Option.match(
-        getFertilizationSchedule(
-          Option.getOrElse(
-            Option.fromNullable(plant.schedules),
-            () => [] as NonNullable<typeof plant.schedules>
-          )
-        ),
-        { onNone: () => null, onSome: (s) => s.frequencyDays }
-      ) ||
+      originalScheduleData.fertilizationFreq ||
     selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
 
   return (

@@ -2,13 +2,14 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   daysUntilApiDate,
   formatApiDateAsNextDate,
-  getFertilizationSchedule,
-  getWateringSchedule,
+  getFrequencyDays,
+  getLastCareAt,
+  getNextCareAt,
   type LuminosityLevel,
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dimensions, Pressable, Share, Text, View } from 'react-native'
 import Animated, {
@@ -382,36 +383,40 @@ export function PlantDetailScreen() {
     )
   }, [plantId, plant?.name, deletePlant, router, t])
 
+  // Extract schedule data — memoized since this screen re-renders on scroll
+  const scheduleData = useMemo(() => {
+    if (!plant) return null
+    const schedules = plant.schedules
+    const nextWaterAt = getNextCareAt(schedules, 'watering')
+    const nextFertAt = getNextCareAt(schedules, 'fertilization')
+    const lastWaterAt = getLastCareAt(schedules, 'watering')
+    const lastFertAt = getLastCareAt(schedules, 'fertilization')
+    const hasFertSchedule =
+      getFrequencyDays(schedules, 'fertilization') !== null
+
+    return {
+      nextWaterAt,
+      nextFertAt,
+      lastWaterAt,
+      lastFertAt,
+      hasFertSchedule,
+      daysUntilWater: daysUntilApiDate(nextWaterAt),
+      daysUntilFertilize: hasFertSchedule ? daysUntilApiDate(nextFertAt) : null,
+      isWaterFirstTime: lastWaterAt === null,
+      isFertilizeFirstTime: hasFertSchedule && lastFertAt === null,
+      hasAnyCareHistory: lastWaterAt !== null || lastFertAt !== null,
+    }
+  }, [plant])
+
   if (isLoading && !plant) {
     return <PlantDetailSkeleton />
   }
 
-  if (error || !plant) {
+  if (error || !plant || !scheduleData) {
     return <ErrorState onRetry={refetch} />
   }
 
   const healthStatus = mapApiHealthToCardHealth(plant.health)
-
-  // Extract schedules
-  const schedules = Option.getOrElse(
-    Option.fromNullable(plant.schedules),
-    () => [] as NonNullable<typeof plant.schedules>
-  )
-  const wateringSchedule = getWateringSchedule(schedules)
-  const fertilizationSchedule = getFertilizationSchedule(schedules)
-
-  // Calculate days until watering/fertilizing using shared utilities
-  const daysUntilWater = daysUntilApiDate(
-    Option.match(wateringSchedule, {
-      onNone: () => null,
-      onSome: (s) => s.nextCareAt,
-    })
-  )
-  // Only show fertilizing days if there's a schedule set
-  const daysUntilFertilize = Option.match(fertilizationSchedule, {
-    onNone: () => null as number | null,
-    onSome: (s) => daysUntilApiDate(s.nextCareAt),
-  })
 
   // Map photos from plant data
   const photos = Array.map(
@@ -509,47 +514,19 @@ export function PlantDetailScreen() {
           {/* Care Schedule */}
           <View className="mt-10">
             <CareSchedule
-              wateringDays={daysUntilWater}
-              wateringDate={formatApiDateAsNextDate(
-                Option.match(wateringSchedule, {
-                  onNone: () => null,
-                  onSome: (s) => s.nextCareAt,
-                })
-              )}
-              fertilizingDays={daysUntilFertilize}
-              fertilizingDate={formatApiDateAsNextDate(
-                Option.match(fertilizationSchedule, {
-                  onNone: () => null,
-                  onSome: (s) => s.nextCareAt,
-                })
-              )}
+              wateringDays={scheduleData.daysUntilWater}
+              wateringDate={formatApiDateAsNextDate(scheduleData.nextWaterAt)}
+              fertilizingDays={scheduleData.daysUntilFertilize}
+              fertilizingDate={formatApiDateAsNextDate(scheduleData.nextFertAt)}
               onEdit={handleEditSchedule}
               onWaterNow={handleWaterNow}
               onFertilizeNow={handleFertilizeNow}
               onWaterPast={handleWaterPast}
               onFertilizePast={handleFertilizePast}
-              isWaterFirstTime={Option.match(wateringSchedule, {
-                onNone: () => true,
-                onSome: (s) => s.lastCareAt === null,
-              })}
-              isFertilizeFirstTime={
-                Option.isSome(fertilizationSchedule) &&
-                Option.match(fertilizationSchedule, {
-                  onNone: () => false,
-                  onSome: (s) => s.lastCareAt === null,
-                })
-              }
+              isWaterFirstTime={scheduleData.isWaterFirstTime}
+              isFertilizeFirstTime={scheduleData.isFertilizeFirstTime}
               onCorrectDates={
-                Option.match(wateringSchedule, {
-                  onNone: () => false,
-                  onSome: (s) => s.lastCareAt !== null,
-                }) ||
-                Option.match(fertilizationSchedule, {
-                  onNone: () => false,
-                  onSome: (s) => s.lastCareAt !== null,
-                })
-                  ? handleCorrectDates
-                  : undefined
+                scheduleData.hasAnyCareHistory ? handleCorrectDates : undefined
               }
             />
           </View>
@@ -660,15 +637,9 @@ export function PlantDetailScreen() {
         visible={showCorrectDatesSheet}
         onClose={() => setShowCorrectDatesSheet(false)}
         plantId={Option.getOrElse(Option.fromNullable(plantId), () => '')}
-        lastWateredAt={Option.match(wateringSchedule, {
-          onNone: () => null,
-          onSome: (s) => s.lastCareAt,
-        })}
-        lastFertilizedAt={Option.match(fertilizationSchedule, {
-          onNone: () => null,
-          onSome: (s) => s.lastCareAt,
-        })}
-        hasFertilization={Option.isSome(fertilizationSchedule)}
+        lastWateredAt={scheduleData.lastWaterAt}
+        lastFertilizedAt={scheduleData.lastFertAt}
+        hasFertilization={scheduleData.hasFertSchedule}
       />
 
       {/* Delete Confirmation */}

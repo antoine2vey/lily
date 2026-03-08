@@ -164,16 +164,12 @@ export function PlantsScreen() {
       () => [] as NonNullable<typeof plantsData>['items']
     )
     return Array.map(items, (plant) => {
-      const schedules = Option.getOrElse(
-        Option.fromNullable(plant.schedules),
-        () => [] as NonNullable<typeof plant.schedules>
-      )
       const nextWateringAt = pipe(
-        getWateringSchedule(schedules),
+        getWateringSchedule(plant.schedules),
         Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
       )
       const nextFertilizationAt = pipe(
-        getFertilizationSchedule(schedules),
+        getFertilizationSchedule(plant.schedules),
         Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
       )
       return {

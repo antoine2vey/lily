@@ -1,4 +1,5 @@
-import type { Plant, PlantCareSchedule } from '@lily/shared/plant'
+import type { Plant } from '@lily/shared/plant'
+import { makeSchedules } from 'src/__tests__/fixtures/plants'
 
 // Helper to get dates relative to now
 const now = new Date()
@@ -17,33 +18,6 @@ inThreeDays.setDate(inThreeDays.getDate() + 3)
 
 const nextWeek = new Date(now)
 nextWeek.setDate(nextWeek.getDate() + 10)
-
-const makeSchedules = (opts: {
-  wateringFrequencyDays: number
-  lastWateredAt: Date | null
-  nextWateringAt: Date | null
-  fertilizationFrequencyDays: number | null
-  lastFertilizedAt: Date | null
-  nextFertilizationAt: Date | null
-}): PlantCareSchedule[] => {
-  const schedules: PlantCareSchedule[] = [
-    {
-      careType: 'watering',
-      frequencyDays: opts.wateringFrequencyDays,
-      lastCareAt: opts.lastWateredAt,
-      nextCareAt: opts.nextWateringAt,
-    },
-  ]
-  if (opts.fertilizationFrequencyDays !== null) {
-    schedules.push({
-      careType: 'fertilization',
-      frequencyDays: opts.fertilizationFrequencyDays,
-      lastCareAt: opts.lastFertilizedAt,
-      nextCareAt: opts.nextFertilizationAt,
-    })
-  }
-  return schedules
-}
 
 // Mock plants for care tasks testing
 export const mockPlantsForCareTasks: Plant[] = [
