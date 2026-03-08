@@ -212,7 +212,10 @@ export const DelegationRepositoryLive = Layer.effect(
               id: plants.id,
               name: plants.name,
               imageUrl: plants.imageUrl,
-              nextWateringAt: plants.nextWateringAt,
+              nextWateringAt:
+                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
+                  'next_watering_at'
+                ),
               health: plants.health,
             })
             .from(delegationPlants)
@@ -336,8 +339,14 @@ export const DelegationRepositoryLive = Layer.effect(
               plantName: plants.name,
               plantImage: plants.imageUrl,
               ownerName: users.name,
-              nextWateringAt: plants.nextWateringAt,
-              nextFertilizationAt: plants.nextFertilizationAt,
+              nextWateringAt:
+                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
+                  'next_watering_at'
+                ),
+              nextFertilizationAt:
+                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'fertilization' LIMIT 1)`.as(
+                  'next_fertilization_at'
+                ),
               health: plants.health,
             })
             .from(careDelegations)
@@ -353,7 +362,9 @@ export const DelegationRepositoryLive = Layer.effect(
                 eq(careDelegations.status, 'active')
               )
             )
-            .orderBy(plants.nextWateringAt)
+            .orderBy(
+              sql`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`
+            )
 
           return rows as DelegatedTaskRow[]
         }).pipe(
@@ -442,7 +453,10 @@ export const DelegationRepositoryLive = Layer.effect(
               id: plants.id,
               name: plants.name,
               imageUrl: plants.imageUrl,
-              nextWateringAt: plants.nextWateringAt,
+              nextWateringAt:
+                sql<Date | null>`(SELECT next_care_at FROM plant_care_schedules WHERE plant_id = ${plants.id} AND care_type = 'watering' LIMIT 1)`.as(
+                  'next_watering_at'
+                ),
               health: plants.health,
             })
             .from(delegationPlants)

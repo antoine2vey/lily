@@ -1,4 +1,6 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { checkOverduePlants } from '@lily/api/services/health-scheduler/scheduler'
 import type { plants } from '@lily/db/schema'
 import { Effect } from 'effect'
@@ -21,18 +23,47 @@ const createTestPlant = (
   petToxicityRating: 0,
   wateringRating: 50,
   health: 'HEALTHY',
-  wateringFrequencyDays: 7,
-  lastWateredAt: null,
-  nextWateringAt: null,
   remindersEnabled: true,
-  fertilizationFrequencyDays: null,
-  lastFertilizedAt: null,
-  nextFertilizationAt: null,
   isFavorite: false,
   roomId: null,
   userId: 'user-1',
   ...overrides,
 })
+
+/** Build schedule rows to represent a plant's care dates for the mock */
+const buildSchedules = (
+  plantId: string,
+  opts: {
+    nextWateringAt?: Date | null
+    nextFertilizationAt?: Date | null
+  } = {}
+): CareScheduleRow[] => {
+  const schedules: CareScheduleRow[] = []
+  if (opts.nextWateringAt !== undefined && opts.nextWateringAt !== null) {
+    schedules.push(
+      createTestSchedule({
+        plantId,
+        careType: 'watering',
+        frequencyDays: 7,
+        nextCareAt: opts.nextWateringAt,
+      })
+    )
+  }
+  if (
+    opts.nextFertilizationAt !== undefined &&
+    opts.nextFertilizationAt !== null
+  ) {
+    schedules.push(
+      createTestSchedule({
+        plantId,
+        careType: 'fertilization',
+        frequencyDays: 30,
+        nextCareAt: opts.nextFertilizationAt,
+      })
+    )
+  }
+  return schedules
+}
 
 describe('Health Scheduler', () => {
   beforeEach(() => {
@@ -44,14 +75,16 @@ describe('Health Scheduler', () => {
     const overduePlant = createTestPlant({
       id: 'plant-1',
       health: 'HEALTHY',
-      nextWateringAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-10T12:00:00Z'),
     })
 
     const plants = [overduePlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -62,14 +95,16 @@ describe('Health Scheduler', () => {
     const thrivingPlant = createTestPlant({
       id: 'plant-1',
       health: 'THRIVING',
-      nextWateringAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-10T12:00:00Z'),
     })
 
     const plants = [thrivingPlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -80,14 +115,16 @@ describe('Health Scheduler', () => {
     const futurePlant = createTestPlant({
       id: 'plant-1',
       health: 'HEALTHY',
-      nextWateringAt: new Date('2024-01-20T12:00:00Z'), // 5 days in the future
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-20T12:00:00Z'),
     })
 
     const plants = [futurePlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -98,14 +135,16 @@ describe('Health Scheduler', () => {
     const attentionPlant = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-10T12:00:00Z'),
     })
 
     const plants = [attentionPlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -117,14 +156,16 @@ describe('Health Scheduler', () => {
     const sickPlant = createTestPlant({
       id: 'plant-1',
       health: 'SICK',
-      nextWateringAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-10T12:00:00Z'),
     })
 
     const plants = [sickPlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -136,8 +177,8 @@ describe('Health Scheduler', () => {
     const noSchedulePlant = createTestPlant({
       id: 'plant-1',
       health: 'HEALTHY',
-      nextWateringAt: null,
     })
+    // No schedules = no overdue
 
     const plants = [noSchedulePlant]
 
@@ -154,14 +195,16 @@ describe('Health Scheduler', () => {
     const plantInOrder = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date('2024-01-20T12:00:00Z'), // 5 days in the future
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-20T12:00:00Z'),
     })
 
     const plants = [plantInOrder]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -172,8 +215,8 @@ describe('Health Scheduler', () => {
     const noSchedulePlant = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: null,
     })
+    // No schedules = no overdue → should reset to HEALTHY
 
     const plants = [noSchedulePlant]
 
@@ -190,14 +233,16 @@ describe('Health Scheduler', () => {
     const overduePlant = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
+    })
+    const schedules = buildSchedules('plant-1', {
+      nextWateringAt: new Date('2024-01-10T12:00:00Z'),
     })
 
     const plants = [overduePlant]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -209,15 +254,21 @@ describe('Health Scheduler', () => {
     const overdueFertilization = createTestPlant({
       id: 'plant-1',
       health: 'HEALTHY',
-      nextWateringAt: new Date('2024-01-20T12:00:00Z'), // future
-      nextFertilizationAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago
     })
+    const schedules = [
+      ...buildSchedules('plant-1', {
+        nextWateringAt: new Date('2024-01-20T12:00:00Z'),
+      }),
+      ...buildSchedules('plant-1', {
+        nextFertilizationAt: new Date('2024-01-10T12:00:00Z'),
+      }),
+    ]
 
     const plants = [overdueFertilization]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -228,15 +279,21 @@ describe('Health Scheduler', () => {
     const overdueFertilization = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date('2024-01-20T12:00:00Z'), // future - OK
-      nextFertilizationAt: new Date('2024-01-10T12:00:00Z'), // 5 days ago - overdue
     })
+    const schedules = [
+      ...buildSchedules('plant-1', {
+        nextWateringAt: new Date('2024-01-20T12:00:00Z'),
+      }),
+      ...buildSchedules('plant-1', {
+        nextFertilizationAt: new Date('2024-01-10T12:00:00Z'),
+      }),
+    ]
 
     const plants = [overdueFertilization]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 
@@ -248,15 +305,21 @@ describe('Health Scheduler', () => {
     const plantInOrder = createTestPlant({
       id: 'plant-1',
       health: 'NEEDS_ATTENTION',
-      nextWateringAt: new Date('2024-01-20T12:00:00Z'), // future
-      nextFertilizationAt: new Date('2024-01-25T12:00:00Z'), // future
     })
+    const schedules = [
+      ...buildSchedules('plant-1', {
+        nextWateringAt: new Date('2024-01-20T12:00:00Z'),
+      }),
+      ...buildSchedules('plant-1', {
+        nextFertilizationAt: new Date('2024-01-25T12:00:00Z'),
+      }),
+    ]
 
     const plants = [plantInOrder]
 
     await Effect.runPromise(
       checkOverduePlants.pipe(
-        Effect.provide(createMockPlantRepository({ plants }))
+        Effect.provide(createMockPlantRepository({ plants, schedules }))
       )
     )
 

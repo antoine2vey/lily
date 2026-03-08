@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
@@ -31,7 +31,7 @@ export const UsersApiLive = (api: Api) =>
     Layer.provide(UserService.Default),
     Layer.provide(UserRepositoryLive),
     Layer.provide(NotificationRepositoryLive),
-    Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareScheduleRepositoryLive),
     Layer.provide(GCSService.Default),
     Layer.provide(FileService.Default),
     Layer.provide(AuthenticationLive)

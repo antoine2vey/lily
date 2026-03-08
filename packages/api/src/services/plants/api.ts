@@ -18,8 +18,11 @@ import {
 } from '@lily/shared/errors/plant'
 import {
   AIIdentifyResponse,
+  CareMultiplePlantsRequest,
+  CareMultiplePlantsResponse,
   EnhancedPlantCreateRequest,
   Plant,
+  PlantCareRequest,
   PlantCorrectCareDatesRequest,
   PlantDetail,
   PlantFertilizeRequest,
@@ -157,6 +160,14 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // POST /plants/care-multiple - Care for multiple plants at once (generic)
+    HttpApiEndpoint.post('careMultiplePlants')`/care-multiple`
+      .setPayload(CareMultiplePlantsRequest)
+      .addSuccess(CareMultiplePlantsResponse)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     // POST /plants/water-multiple - Water multiple plants at once
     HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
       .setPayload(WaterMultiplePlantsRequest)
@@ -224,6 +235,16 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // POST /plants/:id/care - Generic care action
+    HttpApiEndpoint.post('carePlant')`/${plantIdParam}/care`
+      .setPayload(PlantCareRequest)
+      .addSuccess(Plant)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(FutureDateNotAllowedError, { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

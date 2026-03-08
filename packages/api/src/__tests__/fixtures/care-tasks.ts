@@ -1,6 +1,4 @@
-import type { plants } from '@lily/db/schema'
-
-type PlantRecord = typeof plants.$inferSelect
+import type { TestPlant } from '@lily/api/__tests__/fixtures/plants'
 
 // Helper to get dates relative to now
 const now = new Date()
@@ -21,7 +19,7 @@ const nextWeek = new Date(now)
 nextWeek.setDate(nextWeek.getDate() + 10)
 
 // Mock plants for care tasks testing
-export const mockPlantsForCareTasks: PlantRecord[] = [
+export const mockPlantsForCareTasks: TestPlant[] = [
   {
     id: 'plant-1',
     name: 'Monstera',
@@ -145,7 +143,7 @@ export const mockPlantsForCareTasks: PlantRecord[] = [
 ]
 
 // Mock plants with no pending care tasks
-export const mockPlantsNoCare: PlantRecord[] = [
+export const mockPlantsNoCare: TestPlant[] = [
   {
     id: 'plant-no-care-1',
     name: 'No Care Plant',

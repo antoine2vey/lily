@@ -1,5 +1,7 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { mockForecast } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { createMockWeatherRepository } from '@lily/api/__tests__/mocks/weather.repository'
@@ -15,7 +17,6 @@ const mockPlant = {
   id: 'plant-1',
   name: 'Test Plant',
   category: 'Foliage',
-  wateringFrequencyDays: 7,
   wateringRating: 3,
   userId: 'user-1',
   description: null,
@@ -23,11 +24,6 @@ const mockPlant = {
   humidityRating: 3,
   lightingRating: 3,
   petToxicityRating: 1,
-  fertilizationFrequencyDays: null,
-  nextWateringAt: null,
-  nextFertilizationAt: null,
-  lastWateredAt: null,
-  lastFertilizedAt: null,
   health: 'HEALTHY' as const,
   dateAdded: new Date(),
   createdAt: new Date(),
@@ -36,6 +32,14 @@ const mockPlant = {
   isFavorite: false,
   roomId: null,
 }
+
+const mockCareSchedules = [
+  createTestSchedule({
+    plantId: 'plant-1',
+    careType: 'watering',
+    frequencyDays: 7,
+  }),
+]
 
 describe('getCareAdjustments', () => {
   it('should fail when user has no weather enabled', async () => {
@@ -53,7 +57,10 @@ describe('getCareAdjustments', () => {
       createMockPlantRepository({ plants: [mockPlant] }),
       createMockWeatherCache(),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository()
+      createMockWeatherRepository(),
+      createMockCareScheduleRepository({
+        schedules: mockCareSchedules,
+      })
     )
 
     const result = await Effect.runPromiseExit(
@@ -85,7 +92,10 @@ describe('getCareAdjustments', () => {
       createMockPlantRepository({ plants: [mockPlant] }),
       createMockWeatherCache(mockForecast),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository()
+      createMockWeatherRepository(),
+      createMockCareScheduleRepository({
+        schedules: mockCareSchedules,
+      })
     )
 
     const result = await Effect.runPromise(
@@ -123,7 +133,8 @@ describe('getCareAdjustments', () => {
       createMockPlantRepository({ plants: [] }), // No plants
       createMockWeatherCache(mockForecast),
       createMockWeatherProvider(mockForecast),
-      createMockWeatherRepository()
+      createMockWeatherRepository(),
+      createMockCareScheduleRepository({})
     )
 
     const result = await Effect.runPromise(

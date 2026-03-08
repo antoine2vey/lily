@@ -1,5 +1,6 @@
 export * from '@lily/db/schema/achievements'
 export * from '@lily/db/schema/auth'
+export * from '@lily/db/schema/care-schedules'
 export * from '@lily/db/schema/chat'
 export * from '@lily/db/schema/dead-letter'
 export * from '@lily/db/schema/delegation'

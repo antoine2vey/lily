@@ -1,13 +1,13 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
 import { compact } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
-import { Effect, Match, Option, pipe } from 'effect'
+import { Array as Arr, Effect, Match, Option, pipe } from 'effect'
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -15,13 +15,13 @@ export const updateUserSettings = (
 ): Effect.Effect<
   UserSettings,
   SqlError | UserNotFoundError,
-  UserRepository | CurrentUser | NotificationRepository | PlantRepository
+  UserRepository | CurrentUser | NotificationRepository | CareScheduleRepository
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
     const repo = yield* UserRepository
     const notificationRepo = yield* NotificationRepository
-    const plantRepo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
 
     // Get current user settings to check if timezone/time changed
     const existingUser = yield* repo.findById(id)
@@ -79,20 +79,29 @@ export const updateUserSettings = (
             const plantId = notification.plantId
             if (!plantId) return
 
-            // Get the plant to find the base date
-            const plant = yield* plantRepo.findById(plantId)
-            if (!plant) return
+            // Fetch care schedules for the plant
+            const schedules = yield* scheduleRepo.findByPlant(plantId)
 
             // Determine the base date based on notification type
-            const baseDate = pipe(
+            const careType = pipe(
               Match.value(notification.type),
               Match.when('watering_reminder', () =>
-                Option.fromNullable(plant.nextWateringAt)
+                Option.some('watering' as const)
               ),
               Match.when('fertilization_reminder', () =>
-                Option.fromNullable(plant.nextFertilizationAt)
+                Option.some('fertilization' as const)
               ),
-              Match.orElse(() => Option.none<Date>())
+              Match.orElse(() => Option.none<'watering' | 'fertilization'>())
+            )
+
+            const baseDate = pipe(
+              careType,
+              Option.flatMap((ct) =>
+                pipe(
+                  Arr.findFirst(schedules, (s) => s.careType === ct),
+                  Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+                )
+              )
             )
 
             // If we have a base date, recalculate the scheduled time

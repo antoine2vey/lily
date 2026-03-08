@@ -1,6 +1,6 @@
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import {
   AlreadySentTodayError,
@@ -105,12 +105,12 @@ export const processUserOverdueReminders = (
 
 // Core effect: check for overdue plants and create reminder notifications
 export const checkAndCreateOverdueReminders = Effect.gen(function* () {
-  const plantRepo = yield* PlantRepository
+  const scheduleRepo = yield* CareScheduleRepository
 
   yield* Effect.log('Running overdue reminder check...')
 
   // Single query: fetch plants overdue for any care type, grouped by userId
-  const grouped = yield* plantRepo.findOverduePlantsByUser()
+  const grouped = yield* scheduleRepo.findOverdueByUser()
 
   if (Record.isEmptyRecord(grouped)) return
 

@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
@@ -107,6 +108,16 @@ export const PlantsApiLive = (api: Api) =>
             .deletePlantPhoto({ plantId: id, photoId })
             .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
+        .handle('carePlant', ({ path: { id }, payload }) =>
+          plantsService
+            .carePlant({ ...payload, id })
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
+        )
+        .handle('careMultiplePlants', ({ payload }) =>
+          plantsService
+            .careMultiplePlants(payload)
+            .pipe(withInfraErrorsAsDefect)
+        )
         .handle('waterPlant', ({ path: { id }, payload }) =>
           plantsService
             .waterPlant({ ...payload, id })
@@ -130,10 +141,15 @@ export const PlantsApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(PlantsService.Default),
-    Layer.provide(PlantRepositoryLive),
-    Layer.provide(DelegationRepositoryLive),
-    Layer.provide(CareLogRepositoryLive),
-    Layer.provide(NotificationRepositoryLive),
+    Layer.provide(
+      Layer.mergeAll(
+        PlantRepositoryLive,
+        CareScheduleRepositoryLive,
+        DelegationRepositoryLive,
+        CareLogRepositoryLive,
+        NotificationRepositoryLive
+      )
+    ),
     Layer.provide(UserRepositoryLive),
     Layer.provide(ScanRepositoryLive),
     Layer.provide(AiService.Default),

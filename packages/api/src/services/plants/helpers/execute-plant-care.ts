@@ -1,5 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import {
+  CareScheduleRepository,
+  type CareType,
+} from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -11,10 +15,6 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import {
-  type CareType,
-  getCareTypeConfig,
-} from '@lily/api/services/plants/utils'
 import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
@@ -27,7 +27,7 @@ import {
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
-export type { CareType } from '@lily/api/services/plants/utils'
+export type { CareType } from '@lily/api/repositories/care-schedule.repository'
 
 export interface ExecutePlantCareParams {
   readonly plantId: string
@@ -113,6 +113,7 @@ export const executePlantCare = (
   SqlError | PlantNotFoundError | FutureDateNotAllowedError,
   | PlantRepository
   | CareLogRepository
+  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | WeatherProvider
@@ -124,7 +125,7 @@ export const executePlantCare = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-    const config = getCareTypeConfig(params.careType)
+    const scheduleRepo = yield* CareScheduleRepository
 
     // Fetch the plant
     const plant = yield* repo.findById(params.plantId)
@@ -158,13 +159,21 @@ export const executePlantCare = (
     // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
     // Called before plant update so createCareLog sees the original health state
     yield* createCareLog(params.plantId, {
-      type: config.careLogType,
+      type: params.careType,
       notes: params.notes,
       date: careDate,
     })
 
-    // Get frequency - watering always has frequency, fertilization is optional
-    const frequency = plant[config.frequencyField]
+    // Get frequency from schedule table
+    const schedule = yield* scheduleRepo.findByPlantAndType(
+      params.plantId,
+      params.careType
+    )
+    const frequency = pipe(
+      Option.fromNullable(schedule),
+      Option.map((s) => s.frequencyDays),
+      Option.getOrNull
+    )
 
     // Normalize to start-of-day so that daysUntil (which compares day
     // boundaries) returns exactly `frequency` days, regardless of time-of-day.
@@ -189,7 +198,11 @@ export const executePlantCare = (
           {
             id: plant.id,
             category: plant.category,
-            wateringFrequencyDays: plant.wateringFrequencyDays,
+            wateringFrequencyDays: pipe(
+              Option.fromNullable(schedule),
+              Option.map((s) => s.frequencyDays),
+              Option.getOrElse(() => 7)
+            ),
             wateringRating: plant.wateringRating,
             isOutdoor: plant.room?.isOutdoor ?? false,
           },
@@ -200,15 +213,17 @@ export const executePlantCare = (
 
     const finalNextCareAt = yield* adjustedNextCareAt
 
-    const updatePayload = {
-      [config.lastCareField]: careDate,
-      ...(finalNextCareAt && {
-        [config.nextCareField]: finalNextCareAt,
-      }),
+    // Update schedule table
+    if (schedule) {
+      yield* scheduleRepo.updateByPlantAndType(
+        params.plantId,
+        params.careType,
+        {
+          lastCareAt: careDate,
+          ...(finalNextCareAt ? { nextCareAt: finalNextCareAt } : {}),
+        }
+      )
     }
-
-    // Update the plant
-    yield* repo.update(params.plantId, updatePayload)
 
     // Re-fetch to include room data
     const updatedPlant = yield* repo.findById(params.plantId)
@@ -223,7 +238,7 @@ export const executePlantCare = (
         plantId: params.plantId,
         plantName: plant.name,
         userId: plant.userId,
-        type: config.reminderType,
+        type: `${params.careType}_reminder` as const,
         scheduledDate: finalNextCareAt,
         remindersEnabled: plant.remindersEnabled,
       })

@@ -22,6 +22,7 @@ import {
   chatMessages,
   magicLinks,
   notifications,
+  plantCareSchedules,
   plantPhotos,
   plants,
   userAchievements,
@@ -261,14 +262,22 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* db.delete(notifications).where(eq(notifications.userId, user.id))
   yield* Console.log('Cleaned up existing demo data')
 
-  // 4. Create demo plants
+  // 4. Create demo plants (care schedule fields are stored separately)
   const createdPlants = yield* db
     .insert(plants)
     .values(
       pipe(
         DEMO_PLANTS,
         A.map((plant) => ({
-          ...plant,
+          name: plant.name,
+          description: plant.description,
+          category: plant.category,
+          humidityRating: plant.humidityRating,
+          lightingRating: plant.lightingRating,
+          petToxicityRating: plant.petToxicityRating,
+          wateringRating: plant.wateringRating,
+          health: plant.health,
+          isFavorite: plant.isFavorite,
           userId: user.id,
           dateAdded: daysAgo(30),
         }))
@@ -278,10 +287,44 @@ const seedAppleReviewer = Effect.gen(function* () {
 
   yield* Console.log(`Created ${createdPlants.length} demo plants`)
 
+  // 4b. Create care schedules for each plant
+  const scheduleEntries = pipe(
+    A.zip(createdPlants, DEMO_PLANTS),
+    A.flatMap(([created, demo]) => {
+      const entries: Array<{
+        plantId: string
+        careType: 'watering' | 'fertilization'
+        frequencyDays: number
+        lastCareAt: Date
+        nextCareAt: Date
+      }> = [
+        {
+          plantId: created.id,
+          careType: 'watering',
+          frequencyDays: demo.wateringFrequencyDays,
+          lastCareAt: demo.lastWateredAt,
+          nextCareAt: demo.nextWateringAt,
+        },
+      ]
+      if (demo.fertilizationFrequencyDays) {
+        entries.push({
+          plantId: created.id,
+          careType: 'fertilization',
+          frequencyDays: demo.fertilizationFrequencyDays,
+          lastCareAt: demo.lastFertilizedAt,
+          nextCareAt: demo.nextFertilizationAt,
+        })
+      }
+      return entries
+    })
+  )
+  yield* db.insert(plantCareSchedules).values(scheduleEntries)
+  yield* Console.log(`Created ${scheduleEntries.length} care schedule entries`)
+
   // 5. Create care logs for each plant
   const careLogEntries = pipe(
-    createdPlants,
-    A.flatMap((plant) => {
+    A.zip(createdPlants, DEMO_PLANTS),
+    A.flatMap(([plant, demo]) => {
       const logs = []
 
       // Add watering history
@@ -289,18 +332,18 @@ const seedAppleReviewer = Effect.gen(function* () {
         logs.push({
           type: 'watering' as const,
           plantId: plant.id,
-          date: daysAgo(i * plant.wateringFrequencyDays),
+          date: daysAgo(i * demo.wateringFrequencyDays),
           notes: i === 0 ? 'Soil was quite dry' : undefined,
         })
       }
 
       // Add fertilization history
-      if (plant.fertilizationFrequencyDays) {
+      if (demo.fertilizationFrequencyDays) {
         for (let i = 0; i < 3; i++) {
           logs.push({
             type: 'fertilization' as const,
             plantId: plant.id,
-            date: daysAgo(i * plant.fertilizationFrequencyDays),
+            date: daysAgo(i * demo.fertilizationFrequencyDays),
             notes: i === 0 ? 'Used balanced 10-10-10 fertilizer' : undefined,
           })
         }

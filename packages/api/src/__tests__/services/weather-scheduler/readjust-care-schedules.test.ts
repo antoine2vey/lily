@@ -1,3 +1,4 @@
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
@@ -5,6 +6,7 @@ import {
   mockWeatherDataModerate,
   mockWeatherDataRainy,
 } from '@lily/api/__tests__/fixtures/weather'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -55,7 +57,11 @@ const buildLayers = ({
     createMockUserRepository([weatherUser]),
     createMockPlantRepository({ plants }),
     createMockNotificationRepository(notifications),
-    createMockDelegationRepository()
+    createMockDelegationRepository(),
+    createMockCareScheduleRepository({
+      schedules: schedulesFromPlants(plants),
+      plants,
+    })
   )
 
 describe('readjustCareSchedules', () => {

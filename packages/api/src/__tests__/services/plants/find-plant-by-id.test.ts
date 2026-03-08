@@ -13,8 +13,9 @@ describe('findPlantById', () => {
     )
 
     // Result includes plant data plus photos array and room
-    expect(result).toEqual({
-      ...mockPlants[0],
+    expect(result).toMatchObject({
+      id: mockPlants[0]?.id,
+      name: mockPlants[0]?.name,
       room: null,
       ownership: 'owned',
       ownerName: null,

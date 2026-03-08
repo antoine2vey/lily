@@ -1,21 +1,30 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import {
+  deriveDeprecatedCareFields,
+  PlantRepository,
+} from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { type LimitExceededError, luxToLuminosityLevel } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
-import { DateTime, Effect, Option, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
 ): Effect.Effect<
   Plant,
   SqlError | LimitExceededError,
-  PlantRepository | EventBus | CurrentUser | LimitChecker
+  | PlantRepository
+  | CareScheduleRepository
+  | EventBus
+  | CurrentUser
+  | LimitChecker
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
@@ -40,10 +49,6 @@ export const createPlant = (
         Option.getOrElse(() => 0)
       ),
       wateringRating: 0, // Default value
-      wateringFrequencyDays: request.wateringFrequencyDays,
-      fertilizationFrequencyDays: request.fertilizationFrequencyDays ?? null,
-      nextWateringAt: now,
-      nextFertilizationAt: request.fertilizationFrequencyDays ? now : null,
       health: 'HEALTHY', // Default value
       userId,
       roomId: request.roomId ?? null,
@@ -55,14 +60,39 @@ export const createPlant = (
 
     const plant = plantOrNull
 
+    // Create schedule rows for the new plant
+    yield* scheduleRepo.upsert(plant.id, 'watering', {
+      frequencyDays: request.wateringFrequencyDays,
+      nextCareAt: now,
+    })
+
+    if (request.fertilizationFrequencyDays) {
+      yield* scheduleRepo.upsert(plant.id, 'fertilization', {
+        frequencyDays: request.fertilizationFrequencyDays,
+        nextCareAt: now,
+      })
+    }
+
     yield* publishWithRetry(
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
     )
+
+    // Fetch the created schedules for the response
+    const scheduleRows = yield* scheduleRepo.findByPlant(plant.id)
+    const schedules = Array.map(scheduleRows, (s) => ({
+      careType: s.careType,
+      frequencyDays: s.frequencyDays,
+      lastCareAt: s.lastCareAt,
+      nextCareAt: s.nextCareAt,
+    }))
 
     return {
       ...plant,
       room: null,
       ownership: 'owned' as const,
       ownerName: null,
+      schedules,
+      // TODO(deprecated): Remove once app reads `schedules` array
+      ...deriveDeprecatedCareFields(schedules),
     }
   }).pipe(Effect.withSpan('PlantsService.createPlant'))

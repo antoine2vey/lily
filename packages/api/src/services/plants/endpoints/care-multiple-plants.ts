@@ -12,16 +12,16 @@ import { canAccessPlant } from '@lily/api/services/plants/helpers/assert-can-acc
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
-  WaterMultiplePlantsRequest,
-  WaterMultiplePlantsResponse,
+  CareMultiplePlantsRequest,
+  CareMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option } from 'effect'
 
-export const waterMultiplePlants = (
-  request: WaterMultiplePlantsRequest
+export const careMultiplePlants = (
+  request: CareMultiplePlantsRequest
 ): Effect.Effect<
-  WaterMultiplePlantsResponse,
+  CareMultiplePlantsResponse,
   SqlError | PlantNotFoundError,
   | PlantRepository
   | CareScheduleRepository
@@ -60,8 +60,6 @@ export const waterMultiplePlants = (
                 (p) => p.id === plantId
               )
 
-              // Treat "not found" and "not authorized" identically
-              // to avoid leaking plant existence information
               const hasAccess = yield* Option.match(plantOption, {
                 onNone: () => Effect.succeed(false),
                 onSome: (plant) => canAccessPlant(plant.userId, plant.id),
@@ -77,45 +75,52 @@ export const waterMultiplePlants = (
 
               const plant = plantOption.value
 
-              // Get frequency from watering schedule
+              // Get frequency from schedule
               const schedule = yield* scheduleRepo.findByPlantAndType(
                 plantId,
-                'watering'
+                request.careType
               )
-              const frequency = schedule?.frequencyDays ?? 7
+              const frequency = schedule ? schedule.frequencyDays : undefined
 
               const nowDayStart = DateTime.startOf(nowDt, 'day')
-              const nextWateringDt = DateTime.addDuration(
-                nowDayStart,
-                Duration.days(frequency)
-              )
-              const nextWateringAt = DateTime.toDateUtc(nextWateringDt)
+              const nextCareAt = frequency
+                ? DateTime.toDateUtc(
+                    DateTime.addDuration(nowDayStart, Duration.days(frequency))
+                  )
+                : undefined
 
-              // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
-              // Called before plant update so createCareLog sees the original health state
+              // Create care log + publish events
               yield* createCareLog(plantId, {
-                type: 'watering',
+                type: request.careType,
                 date: now,
               })
 
-              // Update the schedule
-              yield* scheduleRepo.updateByPlantAndType(plantId, 'watering', {
-                lastCareAt: now,
-                nextCareAt: nextWateringAt,
-              })
+              // Update schedule table
+              if (schedule && nextCareAt) {
+                yield* scheduleRepo.updateByPlantAndType(
+                  plantId,
+                  request.careType,
+                  {
+                    lastCareAt: now,
+                    nextCareAt,
+                  }
+                )
+              }
 
               // Re-fetch to include room data
               const updatedPlant = yield* repo.findById(plantId)
 
-              // Schedule reminder using shared helper
-              yield* scheduleCareReminder({
-                plantId,
-                plantName: plant.name,
-                userId: plant.userId,
-                type: 'watering_reminder',
-                scheduledDate: nextWateringAt,
-                remindersEnabled: plant.remindersEnabled,
-              })
+              // Schedule reminder
+              if (nextCareAt) {
+                yield* scheduleCareReminder({
+                  plantId,
+                  plantName: plant.name,
+                  userId: plant.userId,
+                  type: `${request.careType}_reminder` as const,
+                  scheduledDate: nextCareAt,
+                  remindersEnabled: plant.remindersEnabled,
+                })
+              }
 
               return {
                 plantId,
@@ -130,7 +135,10 @@ export const waterMultiplePlants = (
       })
     )
   }).pipe(
-    Effect.withSpan('PlantsService.waterMultiplePlants', {
-      attributes: { 'plant.count': request.plantIds.length },
+    Effect.withSpan('PlantsService.careMultiplePlants', {
+      attributes: {
+        'plant.count': request.plantIds.length,
+        'care.type': request.careType,
+      },
     })
   )

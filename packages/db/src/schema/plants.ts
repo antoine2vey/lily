@@ -1,3 +1,4 @@
+import { plantCareSchedules } from '@lily/db/schema/care-schedules'
 import { delegationPlants } from '@lily/db/schema/delegation'
 import { diagnoses } from '@lily/db/schema/diagnoses'
 import { plantHealthEnum } from '@lily/db/schema/enums'
@@ -36,14 +37,6 @@ export const plants = pgTable(
     petToxicityRating: integer('pet_toxicity_rating').notNull(),
     wateringRating: integer('watering_rating').notNull(),
     health: plantHealthEnum('health').notNull().default('HEALTHY'),
-    wateringFrequencyDays: integer('watering_frequency_days').notNull(),
-    lastWateredAt: timestamp('last_watered_at', { withTimezone: true }),
-    nextWateringAt: timestamp('next_watering_at', { withTimezone: true }),
-    fertilizationFrequencyDays: integer('fertilization_frequency_days'),
-    lastFertilizedAt: timestamp('last_fertilized_at', { withTimezone: true }),
-    nextFertilizationAt: timestamp('next_fertilization_at', {
-      withTimezone: true,
-    }),
     remindersEnabled: boolean('reminders_enabled').notNull().default(true),
     isFavorite: boolean('is_favorite').notNull().default(false),
     userId: uuid('user_id')
@@ -67,4 +60,5 @@ export const plantsRelations = relations(plants, ({ one, many }) => ({
   photos: many(plantPhotos),
   diagnoses: many(diagnoses),
   delegations: many(delegationPlants),
+  careSchedules: many(plantCareSchedules),
 }))

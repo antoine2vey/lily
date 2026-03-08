@@ -7,16 +7,15 @@ import {
 import {
   careDelegations,
   delegationPlants,
+  plantCareSchedules,
   plantPhotos,
   plants,
   rooms,
   users,
 } from '@lily/db/schema'
 import {
-  earliestOverdueDate,
   endOfDay,
   nowAsDate,
-  type OverduePlant,
   type PaginatedResponse,
   paginate,
 } from '@lily/shared'
@@ -26,7 +25,6 @@ import {
   count,
   desc,
   eq,
-  gt,
   inArray,
   isNotNull,
   isNull,
@@ -65,10 +63,68 @@ export type RoomRef = {
   isOutdoor: boolean
 } | null
 
+export type PlantCareScheduleRef = {
+  careType: 'watering' | 'fertilization'
+  frequencyDays: number
+  lastCareAt: Date | null
+  nextCareAt: Date | null
+}
+
+// TODO(deprecated): Remove DeprecatedCareFields after the app reads from
+// `schedules` array. These are derived from schedules for backward compat.
+type DeprecatedCareFields = {
+  wateringFrequencyDays: number | null
+  lastWateredAt: Date | null
+  nextWateringAt: Date | null
+  fertilizationFrequencyDays: number | null
+  lastFertilizedAt: Date | null
+  nextFertilizationAt: Date | null
+}
+
 export type PlantWithRoom = typeof plants.$inferSelect & {
   room: RoomRef
   ownership: 'owned' | 'caretaking'
   ownerName: string | null
+  schedules: PlantCareScheduleRef[]
+} & DeprecatedCareFields
+
+// TODO(deprecated): Remove once the app reads `schedules` array directly.
+// Derives the 6 legacy flat fields from a schedules array so the current
+// app release keeps working after the column drop.
+export function deriveDeprecatedCareFields(
+  schedules: PlantCareScheduleRef[]
+): DeprecatedCareFields {
+  const watering = Array.findFirst(schedules, (s) => s.careType === 'watering')
+  const fertilization = Array.findFirst(
+    schedules,
+    (s) => s.careType === 'fertilization'
+  )
+  return {
+    wateringFrequencyDays: Option.match(watering, {
+      onNone: () => null,
+      onSome: (s) => s.frequencyDays,
+    }),
+    lastWateredAt: Option.match(watering, {
+      onNone: () => null,
+      onSome: (s) => s.lastCareAt,
+    }),
+    nextWateringAt: Option.match(watering, {
+      onNone: () => null,
+      onSome: (s) => s.nextCareAt,
+    }),
+    fertilizationFrequencyDays: Option.match(fertilization, {
+      onNone: () => null,
+      onSome: (s) => s.frequencyDays,
+    }),
+    lastFertilizedAt: Option.match(fertilization, {
+      onNone: () => null,
+      onSome: (s) => s.lastCareAt,
+    }),
+    nextFertilizationAt: Option.match(fertilization, {
+      onNone: () => null,
+      onSome: (s) => s.nextCareAt,
+    }),
+  }
 }
 
 export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
@@ -82,10 +138,6 @@ export interface CreatePlantData {
   lightingRating: number
   petToxicityRating: number
   wateringRating: number
-  wateringFrequencyDays: number
-  fertilizationFrequencyDays?: number | null
-  nextWateringAt?: Date
-  nextFertilizationAt?: Date | null
   health: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
   userId: string
   roomId?: string | null
@@ -96,16 +148,10 @@ export interface UpdatePlantData {
   description?: string | null
   category?: string | null
   imageUrl?: string | null
-  wateringFrequencyDays?: number
-  fertilizationFrequencyDays?: number | null
   humidityRating?: number
   lightingRating?: number
   petToxicityRating?: number
   wateringRating?: number
-  lastWateredAt?: Date
-  nextWateringAt?: Date
-  lastFertilizedAt?: Date
-  nextFertilizationAt?: Date
   health?: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
   roomId?: string | null
 }
@@ -131,10 +177,6 @@ export interface IPlantRepository {
   readonly findById: (
     id: string
   ) => Effect.Effect<PlantWithRoom | null, SqlError>
-  readonly findPlantsWithPendingCare: (
-    userId: string,
-    cutoffDate: Date
-  ) => Effect.Effect<Array<PlantWithRoom>, SqlError>
   readonly create: (
     data: CreatePlantData
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
@@ -167,10 +209,6 @@ export interface IPlantRepository {
     SqlError
   >
   readonly markHealthyPlantsInOrder: () => Effect.Effect<number, SqlError>
-  readonly findOverduePlantsByUser: () => Effect.Effect<
-    Record<string, Array<OverduePlant>>,
-    SqlError
-  >
 }
 
 // Tag for dependency injection
@@ -189,7 +227,11 @@ const roomSelect = {
 }
 
 // Build where-clause conditions from filter and room params
-function buildPlantFilters(params: FindPlantsParams): ReturnType<typeof and>[] {
+function buildPlantFilters(
+  params: FindPlantsParams,
+  // biome-ignore lint/suspicious/noExplicitAny: db type is inferred from PgDrizzle
+  db: any
+): ReturnType<typeof and>[] {
   const filterCondition = pipe(
     Match.value(params.filter),
     Match.when('needsAttention', () =>
@@ -200,9 +242,17 @@ function buildPlantFilters(params: FindPlantsParams): ReturnType<typeof and>[] {
         endOfDay(DateTime.unsafeNow(), params.timezone)
       )
       return Option.some(
-        and(
-          isNotNull(plants.nextWateringAt),
-          lte(plants.nextWateringAt, endOfTodayDate)
+        inArray(
+          plants.id,
+          db
+            .select({ plantId: plantCareSchedules.plantId })
+            .from(plantCareSchedules)
+            .where(
+              and(
+                isNotNull(plantCareSchedules.nextCareAt),
+                lte(plantCareSchedules.nextCareAt, endOfTodayDate)
+              )
+            )
         )
       )
     }),
@@ -226,29 +276,39 @@ function buildPlantOrderBy(sort: FindPlantsParams['sort']) {
 }
 
 // Map a DB row to an owned PlantWithRoom
-function toOwnedPlant(row: {
-  plant: typeof plants.$inferSelect
-  room: RoomRef
-}): PlantWithRoom {
+function toOwnedPlant(
+  row: {
+    plant: typeof plants.$inferSelect
+    room: RoomRef
+  },
+  schedules: PlantCareScheduleRef[] = []
+): PlantWithRoom {
   return {
     ...row.plant,
     room: row.room,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules,
+    ...deriveDeprecatedCareFields(schedules),
   }
 }
 
 // Map a DB row to a caretaking PlantWithRoom
-function toCaretakingPlant(row: {
-  plant: typeof plants.$inferSelect
-  room: RoomRef
-  ownerName: string | null
-}): PlantWithRoom {
+function toCaretakingPlant(
+  row: {
+    plant: typeof plants.$inferSelect
+    room: RoomRef
+    ownerName: string | null
+  },
+  schedules: PlantCareScheduleRef[] = []
+): PlantWithRoom {
   return {
     ...row.plant,
     room: row.room,
     ownership: 'caretaking' as const,
     ownerName: row.ownerName,
+    schedules,
+    ...deriveDeprecatedCareFields(schedules),
   }
 }
 
@@ -258,11 +318,37 @@ export const PlantRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
+    // TODO(deprecated): Remove once the app reads `schedules` array.
+    // Batch-fetches care schedules for a set of plant IDs, grouped by plantId.
+    const fetchSchedulesForPlants = (plantIds: readonly string[]) =>
+      Effect.gen(function* () {
+        if (Array.isEmptyReadonlyArray(plantIds)) {
+          return new Map<string, PlantCareScheduleRef[]>()
+        }
+        const rows = yield* db
+          .select()
+          .from(plantCareSchedules)
+          .where(inArray(plantCareSchedules.plantId, plantIds as string[]))
+
+        const grouped = new Map<string, PlantCareScheduleRef[]>()
+        Array.forEach(rows, (r) => {
+          const existing = grouped.get(r.plantId) ?? []
+          existing.push({
+            careType: r.careType,
+            frequencyDays: r.frequencyDays,
+            lastCareAt: r.lastCareAt,
+            nextCareAt: r.nextCareAt,
+          })
+          grouped.set(r.plantId, existing)
+        })
+        return grouped
+      })
+
     return {
       findAll: (params: FindPlantsParams) =>
         Effect.gen(function* () {
           const { page, limit, offset } = getPaginationParams(params)
-          const extraConditions = buildPlantFilters(params)
+          const extraConditions = buildPlantFilters(params, db)
           const orderBy = buildPlantOrderBy(params.sort)
 
           // Owned plants query
@@ -284,7 +370,12 @@ export const PlantRepositoryLive = Layer.effect(
             .where(ownedConditions)
             .orderBy(orderBy)
 
-          const ownedItems = Array.map(ownedRows, toOwnedPlant)
+          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
+          const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
+          const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
+          const ownedItems = Array.map(ownedRows, (row) =>
+            toOwnedPlant(row, ownedScheduleMap.get(row.plant.id) ?? [])
+          )
 
           if (!params.includeCaretaking) {
             const paginated = pipe(
@@ -330,7 +421,19 @@ export const PlantRepositoryLive = Layer.effect(
             .where(caretakingConditions)
             .orderBy(orderBy)
 
-          const caretakingItems = Array.map(caretakingRows, toCaretakingPlant)
+          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
+          const caretakingPlantIds = Array.map(
+            caretakingRows,
+            (r) => r.plant.id
+          )
+          const caretakingScheduleMap =
+            yield* fetchSchedulesForPlants(caretakingPlantIds)
+          const caretakingItems = Array.map(caretakingRows, (row) =>
+            toCaretakingPlant(
+              row,
+              caretakingScheduleMap.get(row.plant.id) ?? []
+            )
+          )
 
           // Merge owned + caretaking, apply sort, paginate
           const allItems = Array.appendAll(ownedItems, caretakingItems)
@@ -371,30 +474,25 @@ export const PlantRepositoryLive = Layer.effect(
             .leftJoin(rooms, eq(plants.roomId, rooms.id))
             .where(eq(plants.id, id))
 
-          return pipe(
-            Option.fromNullable(row),
-            Option.map(toOwnedPlant),
-            Option.getOrNull
-          )
-        }).pipe(Effect.withSpan('PlantRepository.findById')),
+          if (!row) return null
 
-      findPlantsWithPendingCare: (userId: string, cutoffDate: Date) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ plant: plants, room: roomSelect })
-            .from(plants)
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .where(
-              and(
-                eq(plants.userId, userId),
-                or(
-                  lte(plants.nextWateringAt, cutoffDate),
-                  lte(plants.nextFertilizationAt, cutoffDate)
-                )
-              )
-            )
-          return Array.map(rows, toOwnedPlant)
-        }).pipe(Effect.withSpan('PlantRepository.findPlantsWithPendingCare')),
+          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
+          const scheduleRows = yield* db
+            .select()
+            .from(plantCareSchedules)
+            .where(eq(plantCareSchedules.plantId, id))
+          const schedules: PlantCareScheduleRef[] = Array.map(
+            scheduleRows,
+            (r) => ({
+              careType: r.careType,
+              frequencyDays: r.frequencyDays,
+              lastCareAt: r.lastCareAt,
+              nextCareAt: r.nextCareAt,
+            })
+          )
+
+          return toOwnedPlant(row, schedules)
+        }).pipe(Effect.withSpan('PlantRepository.findById')),
 
       create: (data: CreatePlantData) =>
         Effect.gen(function* () {
@@ -483,25 +581,23 @@ export const PlantRepositoryLive = Layer.effect(
       markOverduePlantsAsNeedsAttention: () =>
         Effect.gen(function* () {
           const now = nowAsDate()
-          // Find plants that are overdue (watering OR fertilization is past due)
-          // and currently HEALTHY or THRIVING
           const result = yield* db
             .update(plants)
             .set({ health: 'NEEDS_ATTENTION' })
             .where(
               and(
                 or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
-                or(
-                  // Watering is overdue
-                  and(
-                    isNotNull(plants.nextWateringAt),
-                    lte(plants.nextWateringAt, now)
-                  ),
-                  // Fertilization is overdue
-                  and(
-                    isNotNull(plants.nextFertilizationAt),
-                    lte(plants.nextFertilizationAt, now)
-                  )
+                inArray(
+                  plants.id,
+                  db
+                    .select({ plantId: plantCareSchedules.plantId })
+                    .from(plantCareSchedules)
+                    .where(
+                      and(
+                        isNotNull(plantCareSchedules.nextCareAt),
+                        lte(plantCareSchedules.nextCareAt, now)
+                      )
+                    )
                 )
               )
             )
@@ -514,68 +610,30 @@ export const PlantRepositoryLive = Layer.effect(
       markHealthyPlantsInOrder: () =>
         Effect.gen(function* () {
           const now = nowAsDate()
-          // Find plants that are NEEDS_ATTENTION but ALL their schedules are in order
-          // Both watering AND fertilization must be OK (null or in the future)
+          // Plants that are NEEDS_ATTENTION but have no overdue schedules
           const result = yield* db
             .update(plants)
             .set({ health: 'HEALTHY' })
             .where(
               and(
                 eq(plants.health, 'NEEDS_ATTENTION'),
-                // Watering is OK (null or in the future)
-                or(
-                  isNull(plants.nextWateringAt),
-                  gt(plants.nextWateringAt, now)
-                ),
-                // Fertilization is OK (null or in the future)
-                or(
-                  isNull(plants.nextFertilizationAt),
-                  gt(plants.nextFertilizationAt, now)
+                isNull(
+                  db
+                    .select({ plantId: plantCareSchedules.plantId })
+                    .from(plantCareSchedules)
+                    .where(
+                      and(
+                        eq(plantCareSchedules.plantId, plants.id),
+                        isNotNull(plantCareSchedules.nextCareAt),
+                        lte(plantCareSchedules.nextCareAt, now)
+                      )
+                    )
                 )
               )
             )
             .returning()
           return Array.length(result)
         }).pipe(Effect.withSpan('PlantRepository.markHealthyPlantsInOrder')),
-
-      findOverduePlantsByUser: () =>
-        Effect.gen(function* () {
-          const now = nowAsDate()
-          const rows = yield* db
-            .select({
-              id: plants.id,
-              name: plants.name,
-              userId: plants.userId,
-              nextWateringAt: plants.nextWateringAt,
-              nextFertilizationAt: plants.nextFertilizationAt,
-            })
-            .from(plants)
-            .where(
-              or(
-                and(
-                  isNotNull(plants.nextWateringAt),
-                  lte(plants.nextWateringAt, now)
-                ),
-                and(
-                  isNotNull(plants.nextFertilizationAt),
-                  lte(plants.nextFertilizationAt, now)
-                )
-              )
-            )
-            .orderBy(asc(plants.userId))
-
-          const mapped = Array.map(rows, (p) => ({
-            id: p.id,
-            name: p.name,
-            userId: p.userId,
-            overdueAt: earliestOverdueDate(
-              [p.nextWateringAt, p.nextFertilizationAt],
-              now
-            ),
-          }))
-
-          return Array.groupBy(mapped, (p) => p.userId)
-        }).pipe(Effect.withSpan('PlantRepository.findOverduePlantsByUser')),
     }
   })
 )

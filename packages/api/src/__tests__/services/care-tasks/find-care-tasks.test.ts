@@ -1,16 +1,16 @@
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
+import type { TestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
-import type { plants } from '@lily/db/schema'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-type PlantRecord = typeof plants.$inferSelect
-
 // Create fixture dates dynamically based on a fixed reference time
-const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
+const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
   const yesterday = new Date(referenceDate)
   yesterday.setDate(yesterday.getDate() - 1)
 
@@ -150,7 +150,7 @@ const createMockPlantsForCareTasks = (referenceDate: Date): PlantRecord[] => {
   ]
 }
 
-const createMockPlantsNoCare = (referenceDate: Date): PlantRecord[] => {
+const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
   const nextWeek = new Date(referenceDate)
   nextWeek.setDate(nextWeek.getDate() + 10)
 
@@ -203,6 +203,10 @@ describe('findCareTasks', () => {
   ) =>
     Layer.mergeAll(
       createMockPlantRepository({ plants }),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants(plants),
+        plants,
+      }),
       createMockCurrentUser({ id: userId }),
       createMockUserRepository(mockUsers)
     )
@@ -463,6 +467,10 @@ describe('findCareTasks', () => {
       // Test with UTC user (user-1 has timezone: 'UTC')
       const utcLayer = Layer.mergeAll(
         createMockPlantRepository({ plants: tzPlants }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(tzPlants),
+          plants: tzPlants,
+        }),
         createMockCurrentUser({ id: 'user-1' }),
         createMockUserRepository(mockUsers)
       )
@@ -492,6 +500,10 @@ describe('findCareTasks', () => {
       }))
       const parisLayer = Layer.mergeAll(
         createMockPlantRepository({ plants: parisTzPlants }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(parisTzPlants),
+          plants: parisTzPlants,
+        }),
         createMockCurrentUser({ id: 'user-paris' }),
         createMockUserRepository([...mockUsers, parisUser])
       )

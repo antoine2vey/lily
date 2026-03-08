@@ -1,44 +1,27 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type CareTask,
   type CareTasksResponse,
+  type CareTaskType,
   endOfDay,
   isOverdueByDay,
   isToday,
   isUpcoming,
 } from '@lily/shared'
-import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
+import { Array, DateTime, Effect, Match, Option, Order, pipe } from 'effect'
 
-interface PlantWithSchedule {
-  id: string
-  name: string
-  imageUrl: string | null
-  nextWateringAt: Date | null
-  nextFertilizationAt: Date | null
-  room: { id: string; name: string; icon: string } | null
-}
-
-/**
- * Create task from plant and date
- */
-const createTask = (
-  plant: PlantWithSchedule,
-  type: 'water' | 'fertilize',
-  dueDate: Date
-): CareTask => ({
-  id: `${plant.id}-${type}`,
-  plantId: plant.id,
-  plantName: plant.name,
-  plantImageUrl: plant.imageUrl,
-  roomName: plant.room?.name ?? null,
-  roomIcon: plant.room?.icon ?? null,
-  type,
-  dueDate,
-  completed: false,
-})
+// Map schedule care_type → task type (backward compat with app)
+const toTaskType = (careType: 'watering' | 'fertilization'): CareTaskType =>
+  pipe(
+    Match.value(careType),
+    Match.when('watering', () => 'water' as const),
+    Match.when('fertilization', () => 'fertilize' as const),
+    Match.exhaustive
+  )
 
 /**
  * Order for sorting tasks by due date (earliest first)
@@ -54,10 +37,10 @@ const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
 export const findCareTasks = (): Effect.Effect<
   CareTasksResponse,
   SqlError,
-  PlantRepository | UserRepository | CurrentUser
+  CareScheduleRepository | PlantRepository | UserRepository | CurrentUser
 > =>
   Effect.gen(function* () {
-    const repo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
     const userRepo = yield* UserRepository
     const { id: userId } = yield* CurrentUser
 
@@ -72,29 +55,32 @@ export const findCareTasks = (): Effect.Effect<
     const cutoffDt = endOfDay(DateTime.add(now, { days: 7 }), timezone)
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
-    // Get plants with pending care (rolling 7-day window)
-    const plants = yield* repo.findPlantsWithPendingCare(userId, cutoffDate)
+    // Get pending schedules with plant info from schedule table
+    const schedules = yield* scheduleRepo.findPendingByUser(userId, cutoffDate)
 
-    // Generate tasks from plants
-    const waterTasks = Array.filterMap(plants, (plant) =>
+    // Generate tasks from schedules
+    const tasks = Array.filterMap(schedules, (s) =>
       pipe(
-        Option.fromNullable(plant.nextWateringAt),
+        Option.fromNullable(s.schedule.nextCareAt),
         Option.filter((date) =>
           DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
         ),
-        Option.map((date) => createTask(plant, 'water', date))
+        Option.map((date) => {
+          const taskType = toTaskType(s.schedule.careType)
+          return {
+            id: `${s.plant.id}-${taskType}`,
+            plantId: s.plant.id,
+            plantName: s.plant.name,
+            plantImageUrl: s.plant.imageUrl,
+            roomName: s.plant.room?.name ?? null,
+            roomIcon: s.plant.room?.icon ?? null,
+            type: taskType,
+            dueDate: date,
+            completed: false,
+          } satisfies CareTask
+        })
       )
     )
-    const fertilizeTasks = Array.filterMap(plants, (plant) =>
-      pipe(
-        Option.fromNullable(plant.nextFertilizationAt),
-        Option.filter((date) =>
-          DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
-        ),
-        Option.map((date) => createTask(plant, 'fertilize', date))
-      )
-    )
-    const tasks = Array.appendAll(waterTasks, fertilizeTasks)
 
     // Group tasks by date category using user's timezone
     const overdue = Array.filter(tasks, (task) =>

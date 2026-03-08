@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -37,6 +38,7 @@ export const readjustCareSchedules = (
   void,
   never,
   | PlantRepository
+  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository
@@ -73,6 +75,7 @@ const readjustUserPlants = (
   void,
   SqlError,
   | PlantRepository
+  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository
@@ -138,13 +141,7 @@ const readjustPlantSchedule = (
     id: string
     name: string
     category: string | null
-    wateringFrequencyDays: number
     wateringRating: number
-    lastWateredAt: Date | null
-    nextWateringAt: Date | null
-    lastFertilizedAt: Date | null
-    nextFertilizationAt: Date | null
-    fertilizationFrequencyDays: number | null
     remindersEnabled: boolean
     userId: string
     room: {
@@ -164,21 +161,41 @@ const readjustPlantSchedule = (
   void,
   SqlError,
   | PlantRepository
+  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository
 > =>
   Effect.gen(function* () {
-    // Skip plants without a last watering date or next watering date
-    if (!plant.lastWateredAt || !plant.nextWateringAt) {
+    const scheduleRepo = yield* CareScheduleRepository
+
+    // Fetch care schedules for this plant
+    const schedules = yield* scheduleRepo.findByPlant(plant.id)
+
+    const wateringSchedule = pipe(
+      Array.findFirst(schedules, (s) => s.careType === 'watering'),
+      Option.getOrNull
+    )
+
+    const fertSchedule = pipe(
+      Array.findFirst(schedules, (s) => s.careType === 'fertilization'),
+      Option.getOrNull
+    )
+
+    // Skip plants without a watering schedule or missing lastCareAt/nextCareAt
+    if (
+      !wateringSchedule ||
+      !wateringSchedule.lastCareAt ||
+      !wateringSchedule.nextCareAt
+    ) {
       yield* Effect.log(
-        `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no lastWateredAt or nextWateringAt`
+        `[Readjust] Skipping plant "${plant.name}" (${plant.id}) — no watering schedule or missing lastCareAt/nextCareAt`
       )
       return
     }
 
     yield* Effect.log(
-      `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${plant.wateringFrequencyDays}d, lastWatered=${plant.lastWateredAt.toISOString()}, nextWatering=${plant.nextWateringAt.toISOString()}`
+      `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${wateringSchedule.frequencyDays}d, lastWatered=${wateringSchedule.lastCareAt.toISOString()}, nextWatering=${wateringSchedule.nextCareAt.toISOString()}`
     )
 
     const nowDt = DateTime.unsafeNow()
@@ -189,13 +206,13 @@ const readjustPlantSchedule = (
       {
         id: plant.id,
         category: plant.category,
-        wateringFrequencyDays: plant.wateringFrequencyDays,
+        wateringFrequencyDays: wateringSchedule.frequencyDays,
         wateringRating: plant.wateringRating,
         isOutdoor: plant.room?.isOutdoor ?? false,
-        lastWateredAt: plant.lastWateredAt,
-        nextWateringAt: plant.nextWateringAt,
-        nextFertilizationAt: plant.nextFertilizationAt,
-        fertilizationFrequencyDays: plant.fertilizationFrequencyDays,
+        lastWateredAt: wateringSchedule.lastCareAt,
+        nextWateringAt: wateringSchedule.nextCareAt,
+        nextFertilizationAt: fertSchedule?.nextCareAt ?? null,
+        fertilizationFrequencyDays: fertSchedule?.frequencyDays ?? null,
       },
       weatherCtx,
       nowMs
@@ -205,12 +222,11 @@ const readjustPlantSchedule = (
       `[Readjust] Delta for "${plant.name}": watering=${delta.wateringDaysDelta}d${delta.wateringReason ? ` (${delta.wateringReason})` : ''}, fertilization=${delta.fertilizationDaysDelta}d`
     )
 
-    const plantRepo = yield* PlantRepository
     const oneDayMs = Duration.toMillis(Duration.days(1))
 
     // Compute schedule changes as immutable result
     const newNextWateringAt = pipe(
-      Option.fromNullable(plant.nextWateringAt),
+      Option.fromNullable(wateringSchedule.nextCareAt),
       Option.filter(() => delta.wateringDaysDelta !== 0),
       Option.map(
         (wateringDate) =>
@@ -219,7 +235,7 @@ const readjustPlantSchedule = (
     )
 
     const newNextFertilizationAt = pipe(
-      Option.fromNullable(plant.nextFertilizationAt),
+      Option.fromNullable(fertSchedule?.nextCareAt ?? null),
       Option.filter(() => delta.fertilizationDaysDelta !== 0),
       Option.map(
         (fertDate) =>
@@ -232,17 +248,20 @@ const readjustPlantSchedule = (
 
     // Apply updates if anything changed
     if (wateringChanged || fertilizationChanged) {
-      const updateData = {
-        ...(wateringChanged ? { nextWateringAt: newNextWateringAt.value } : {}),
-        ...(fertilizationChanged
-          ? { nextFertilizationAt: newNextFertilizationAt.value }
-          : {}),
+      if (wateringChanged) {
+        yield* scheduleRepo.updateByPlantAndType(plant.id, 'watering', {
+          nextCareAt: newNextWateringAt.value,
+        })
       }
 
-      yield* plantRepo.update(plant.id, updateData)
+      if (fertilizationChanged) {
+        yield* scheduleRepo.updateByPlantAndType(plant.id, 'fertilization', {
+          nextCareAt: newNextFertilizationAt.value,
+        })
+      }
 
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${plant.nextWateringAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${fertilizationChanged ? ` (${plant.nextFertilizationAt?.toISOString()} → ${newNextFertilizationAt.value.toISOString()})` : ''}`
+        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${fertilizationChanged ? ` (${fertSchedule?.nextCareAt?.toISOString()} → ${newNextFertilizationAt.value.toISOString()})` : ''}`
       )
 
       // Reschedule notifications
