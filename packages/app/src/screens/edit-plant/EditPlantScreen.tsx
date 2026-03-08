@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { getFertilizationSchedule, getWateringSchedule } from '@lily/shared'
 import { Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
@@ -91,11 +92,25 @@ export function EditPlantScreen() {
         Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50)
       )
       setPetSafe(plant.petToxicityRating === 0)
-      setWateringFrequencyDays(plant.wateringFrequencyDays)
-      setFertilizationFrequencyDays(
-        Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays))
+      const schedules = Option.getOrElse(
+        Option.fromNullable(plant.schedules),
+        () => [] as NonNullable<typeof plant.schedules>
       )
-      setFertilizationEnabled(plant.fertilizationFrequencyDays != null)
+      const ws = getWateringSchedule(schedules)
+      const fs = getFertilizationSchedule(schedules)
+      setWateringFrequencyDays(
+        Option.match(ws, {
+          onNone: () => 7,
+          onSome: (s) => s.frequencyDays,
+        })
+      )
+      setFertilizationFrequencyDays(
+        Option.match(fs, {
+          onNone: () => null,
+          onSome: (s) => s.frequencyDays,
+        })
+      )
+      setFertilizationEnabled(Option.isSome(fs))
       setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
     }
   }, [plant])
@@ -177,9 +192,26 @@ export function EditPlantScreen() {
       Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50) ||
     petSafe !== (plant.petToxicityRating === 0) ||
     photo !== Option.getOrUndefined(Option.fromNullable(plant.imageUrl)) ||
-    wateringFrequencyDays !== plant.wateringFrequencyDays ||
+    wateringFrequencyDays !==
+      Option.match(
+        getWateringSchedule(
+          Option.getOrElse(
+            Option.fromNullable(plant.schedules),
+            () => [] as NonNullable<typeof plant.schedules>
+          )
+        ),
+        { onNone: () => 7, onSome: (s) => s.frequencyDays }
+      ) ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
-      Option.getOrNull(Option.fromNullable(plant.fertilizationFrequencyDays)) ||
+      Option.match(
+        getFertilizationSchedule(
+          Option.getOrElse(
+            Option.fromNullable(plant.schedules),
+            () => [] as NonNullable<typeof plant.schedules>
+          )
+        ),
+        { onNone: () => null, onSome: (s) => s.frequencyDays }
+      ) ||
     selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
 
   return (

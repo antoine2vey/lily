@@ -43,31 +43,7 @@ export const Plant = Schema.Struct({
   ownerName: Schema.optionalWith(Schema.NullOr(Schema.String), {
     default: () => null,
   }),
-  schedules: Schema.optionalWith(Schema.Array(PlantCareSchedule), {
-    default: () => [],
-  }),
-  // TODO(deprecated): Remove these 6 fields after the app is updated to use
-  // the `schedules` array. They are derived from schedules for backward
-  // compatibility with the current app release.
-  wateringFrequencyDays: Schema.optionalWith(Schema.NullOr(Schema.Number), {
-    default: () => null,
-  }),
-  lastWateredAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
-    default: () => null,
-  }),
-  nextWateringAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
-    default: () => null,
-  }),
-  fertilizationFrequencyDays: Schema.optionalWith(
-    Schema.NullOr(Schema.Number),
-    { default: () => null }
-  ),
-  lastFertilizedAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
-    default: () => null,
-  }),
-  nextFertilizationAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
-    default: () => null,
-  }),
+  schedules: Schema.Array(PlantCareSchedule),
 })
 
 export const PlantCreateRequest = Schema.Struct({

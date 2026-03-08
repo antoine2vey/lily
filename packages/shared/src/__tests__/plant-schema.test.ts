@@ -28,17 +28,25 @@ const validPlant = {
   petToxicityRating: 4,
   wateringRating: 3,
   health: 'HEALTHY' as const,
-  wateringFrequencyDays: 7,
-  lastWateredAt: '2024-01-10T00:00:00.000Z',
-  nextWateringAt: '2024-01-17T00:00:00.000Z',
-  fertilizationFrequencyDays: 30,
-  lastFertilizedAt: '2024-01-01T00:00:00.000Z',
-  nextFertilizationAt: '2024-01-31T00:00:00.000Z',
   remindersEnabled: true,
   isFavorite: false,
   userId: 'user-456',
   roomId: null,
   room: null,
+  schedules: [
+    {
+      careType: 'watering' as const,
+      frequencyDays: 7,
+      lastCareAt: '2024-01-10T00:00:00.000Z',
+      nextCareAt: '2024-01-17T00:00:00.000Z',
+    },
+    {
+      careType: 'fertilization' as const,
+      frequencyDays: 30,
+      lastCareAt: '2024-01-01T00:00:00.000Z',
+      nextCareAt: '2024-01-31T00:00:00.000Z',
+    },
+  ],
 }
 
 describe('Plant Schemas', () => {
@@ -79,11 +87,6 @@ describe('Plant Schemas', () => {
         description: null,
         imageUrl: null,
         category: null,
-        lastWateredAt: null,
-        nextWateringAt: null,
-        fertilizationFrequencyDays: null,
-        lastFertilizedAt: null,
-        nextFertilizationAt: null,
       }
 
       const result = Schema.decodeSync(Plant)(plant)

@@ -70,61 +70,11 @@ export type PlantCareScheduleRef = {
   nextCareAt: Date | null
 }
 
-// TODO(deprecated): Remove DeprecatedCareFields after the app reads from
-// `schedules` array. These are derived from schedules for backward compat.
-type DeprecatedCareFields = {
-  wateringFrequencyDays: number | null
-  lastWateredAt: Date | null
-  nextWateringAt: Date | null
-  fertilizationFrequencyDays: number | null
-  lastFertilizedAt: Date | null
-  nextFertilizationAt: Date | null
-}
-
 export type PlantWithRoom = typeof plants.$inferSelect & {
   room: RoomRef
   ownership: 'owned' | 'caretaking'
   ownerName: string | null
   schedules: PlantCareScheduleRef[]
-} & DeprecatedCareFields
-
-// TODO(deprecated): Remove once the app reads `schedules` array directly.
-// Derives the 6 legacy flat fields from a schedules array so the current
-// app release keeps working after the column drop.
-export function deriveDeprecatedCareFields(
-  schedules: PlantCareScheduleRef[]
-): DeprecatedCareFields {
-  const watering = Array.findFirst(schedules, (s) => s.careType === 'watering')
-  const fertilization = Array.findFirst(
-    schedules,
-    (s) => s.careType === 'fertilization'
-  )
-  return {
-    wateringFrequencyDays: Option.match(watering, {
-      onNone: () => null,
-      onSome: (s) => s.frequencyDays,
-    }),
-    lastWateredAt: Option.match(watering, {
-      onNone: () => null,
-      onSome: (s) => s.lastCareAt,
-    }),
-    nextWateringAt: Option.match(watering, {
-      onNone: () => null,
-      onSome: (s) => s.nextCareAt,
-    }),
-    fertilizationFrequencyDays: Option.match(fertilization, {
-      onNone: () => null,
-      onSome: (s) => s.frequencyDays,
-    }),
-    lastFertilizedAt: Option.match(fertilization, {
-      onNone: () => null,
-      onSome: (s) => s.lastCareAt,
-    }),
-    nextFertilizationAt: Option.match(fertilization, {
-      onNone: () => null,
-      onSome: (s) => s.nextCareAt,
-    }),
-  }
 }
 
 export type FindPlantsResult = PaginatedResponse<PlantWithRoom>
@@ -289,7 +239,6 @@ function toOwnedPlant(
     ownership: 'owned' as const,
     ownerName: null,
     schedules,
-    ...deriveDeprecatedCareFields(schedules),
   }
 }
 
@@ -308,7 +257,6 @@ function toCaretakingPlant(
     ownership: 'caretaking' as const,
     ownerName: row.ownerName,
     schedules,
-    ...deriveDeprecatedCareFields(schedules),
   }
 }
 
@@ -318,8 +266,6 @@ export const PlantRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
-    // TODO(deprecated): Remove once the app reads `schedules` array.
-    // Batch-fetches care schedules for a set of plant IDs, grouped by plantId.
     const fetchSchedulesForPlants = (plantIds: readonly string[]) =>
       Effect.gen(function* () {
         if (Array.isEmptyReadonlyArray(plantIds)) {
@@ -370,7 +316,6 @@ export const PlantRepositoryLive = Layer.effect(
             .where(ownedConditions)
             .orderBy(orderBy)
 
-          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
           const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
           const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
           const ownedItems = Array.map(ownedRows, (row) =>
@@ -421,7 +366,6 @@ export const PlantRepositoryLive = Layer.effect(
             .where(caretakingConditions)
             .orderBy(orderBy)
 
-          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
           const caretakingPlantIds = Array.map(
             caretakingRows,
             (r) => r.plant.id
@@ -476,7 +420,6 @@ export const PlantRepositoryLive = Layer.effect(
 
           if (!row) return null
 
-          // TODO(deprecated): Remove schedule fetch once app reads `schedules`
           const scheduleRows = yield* db
             .select()
             .from(plantCareSchedules)

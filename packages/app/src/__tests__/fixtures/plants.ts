@@ -1,6 +1,33 @@
-import type { Plant, PlantPhoto } from '@lily/shared/plant'
+import type { Plant, PlantCareSchedule, PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = Plant
+
+const makeSchedules = (opts: {
+  wateringFrequencyDays: number
+  lastWateredAt: Date | null
+  nextWateringAt: Date | null
+  fertilizationFrequencyDays: number | null
+  lastFertilizedAt: Date | null
+  nextFertilizationAt: Date | null
+}): PlantCareSchedule[] => {
+  const schedules: PlantCareSchedule[] = [
+    {
+      careType: 'watering',
+      frequencyDays: opts.wateringFrequencyDays,
+      lastCareAt: opts.lastWateredAt,
+      nextCareAt: opts.nextWateringAt,
+    },
+  ]
+  if (opts.fertilizationFrequencyDays !== null) {
+    schedules.push({
+      careType: 'fertilization',
+      frequencyDays: opts.fertilizationFrequencyDays,
+      lastCareAt: opts.lastFertilizedAt,
+      nextCareAt: opts.nextFertilizationAt,
+    })
+  }
+  return schedules
+}
 
 export const mockPlants: PlantRecord[] = [
   {
@@ -16,19 +43,21 @@ export const mockPlants: PlantRecord[] = [
     petToxicityRating: 2,
     wateringRating: 3,
     health: 'HEALTHY',
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date('2024-01-10'),
-    nextWateringAt: new Date('2024-01-17'),
     remindersEnabled: true,
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date('2024-01-01'),
-    nextFertilizationAt: new Date('2024-01-31'),
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 7,
+      lastWateredAt: new Date('2024-01-10'),
+      nextWateringAt: new Date('2024-01-17'),
+      fertilizationFrequencyDays: 30,
+      lastFertilizedAt: new Date('2024-01-01'),
+      nextFertilizationAt: new Date('2024-01-31'),
+    }),
   },
   {
     id: 'plant-2',
@@ -43,19 +72,21 @@ export const mockPlants: PlantRecord[] = [
     petToxicityRating: 3,
     wateringRating: 1,
     health: 'THRIVING',
-    wateringFrequencyDays: 14,
-    lastWateredAt: null,
-    nextWateringAt: null,
     remindersEnabled: true,
-    fertilizationFrequencyDays: null,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-1',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 14,
+      lastWateredAt: null,
+      nextWateringAt: null,
+      fertilizationFrequencyDays: null,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
   {
     id: 'plant-3',
@@ -70,19 +101,21 @@ export const mockPlants: PlantRecord[] = [
     petToxicityRating: 2,
     wateringRating: 4,
     health: 'NEEDS_ATTENTION',
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date('2024-01-01'),
-    nextWateringAt: new Date('2024-01-11'),
     remindersEnabled: false,
-    fertilizationFrequencyDays: 14,
-    lastFertilizedAt: null,
-    nextFertilizationAt: null,
     isFavorite: false,
     userId: 'user-2',
     roomId: null,
     room: null,
     ownership: 'owned' as const,
     ownerName: null,
+    schedules: makeSchedules({
+      wateringFrequencyDays: 10,
+      lastWateredAt: new Date('2024-01-01'),
+      nextWateringAt: new Date('2024-01-11'),
+      fertilizationFrequencyDays: 14,
+      lastFertilizedAt: null,
+      nextFertilizationAt: null,
+    }),
   },
 ]
 
@@ -116,18 +149,20 @@ export const createTestPlant = (
   petToxicityRating: 0,
   wateringRating: 3,
   health: 'HEALTHY',
-  wateringFrequencyDays: 7,
-  lastWateredAt: null,
-  nextWateringAt: null,
   remindersEnabled: true,
-  fertilizationFrequencyDays: null,
-  lastFertilizedAt: null,
-  nextFertilizationAt: null,
   isFavorite: false,
   userId: 'user-1',
   roomId: null,
   room: null,
   ownership: 'owned' as const,
   ownerName: null,
+  schedules: makeSchedules({
+    wateringFrequencyDays: 7,
+    lastWateredAt: null,
+    nextWateringAt: null,
+    fertilizationFrequencyDays: null,
+    lastFertilizedAt: null,
+    nextFertilizationAt: null,
+  }),
   ...overrides,
 })

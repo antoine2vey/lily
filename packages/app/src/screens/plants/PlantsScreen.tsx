@@ -1,5 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { type DateInput, daysUntil, parseApiDate } from '@lily/shared'
+import {
+  type DateInput,
+  daysUntil,
+  getFertilizationSchedule,
+  getWateringSchedule,
+  parseApiDate,
+} from '@lily/shared'
 import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -157,23 +163,41 @@ export function PlantsScreen() {
       Option.fromNullable(plantsData?.items),
       () => [] as NonNullable<typeof plantsData>['items']
     )
-    return Array.map(items, (plant) => ({
-      id: plant.id,
-      name: plant.name,
-      imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
-      health: mapApiHealthToCardHealth(plant.health),
-      watering: getCareStatus(plant.nextWateringAt),
-      fertilization: getCareStatus(plant.nextFertilizationAt),
-      isFavorite: plant.isFavorite,
-      roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),
-      roomName: Option.getOrUndefined(Option.fromNullable(plant.room?.name)),
-      roomIcon: Option.getOrUndefined(Option.fromNullable(plant.room?.icon)),
-      ownership: Option.getOrElse(
-        Option.fromNullable(plant.ownership),
-        () => 'owned' as const
-      ),
-      ownerName: Option.getOrUndefined(Option.fromNullable(plant.ownerName)),
-    }))
+    return Array.map(items, (plant) => {
+      const schedules = Option.getOrElse(
+        Option.fromNullable(plant.schedules),
+        () => [] as NonNullable<typeof plant.schedules>
+      )
+      const nextWateringAt = pipe(
+        getWateringSchedule(schedules),
+        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+      )
+      const nextFertilizationAt = pipe(
+        getFertilizationSchedule(schedules),
+        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+      )
+      return {
+        id: plant.id,
+        name: plant.name,
+        imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
+        health: mapApiHealthToCardHealth(plant.health),
+        watering: getCareStatus(
+          Option.getOrElse(nextWateringAt, () => null as DateInput)
+        ),
+        fertilization: getCareStatus(
+          Option.getOrElse(nextFertilizationAt, () => null as DateInput)
+        ),
+        isFavorite: plant.isFavorite,
+        roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),
+        roomName: Option.getOrUndefined(Option.fromNullable(plant.room?.name)),
+        roomIcon: Option.getOrUndefined(Option.fromNullable(plant.room?.icon)),
+        ownership: Option.getOrElse(
+          Option.fromNullable(plant.ownership),
+          () => 'owned' as const
+        ),
+        ownerName: Option.getOrUndefined(Option.fromNullable(plant.ownerName)),
+      }
+    })
   }, [plantsData])
 
   const filteredPlants = useMemo(() => {

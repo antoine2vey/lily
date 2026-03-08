@@ -1,6 +1,5 @@
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
-  deriveDeprecatedCareFields,
   type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
@@ -120,7 +119,6 @@ export const createMockPlantRepository = (
         ownership: 'owned' as const,
         ownerName: null,
         schedules: [],
-        ...deriveDeprecatedCareFields([]),
       }))
 
       // Add caretaking plants when requested
@@ -143,7 +141,6 @@ export const createMockPlantRepository = (
                   Option.getOrNull
                 ),
                 schedules: [],
-                ...deriveDeprecatedCareFields([]),
               }))
             )
           : []
@@ -185,7 +182,6 @@ export const createMockPlantRepository = (
             ownership: 'owned' as const,
             ownerName: null,
             schedules: [],
-            ...deriveDeprecatedCareFields([]),
           })),
           Option.getOrNull
         )

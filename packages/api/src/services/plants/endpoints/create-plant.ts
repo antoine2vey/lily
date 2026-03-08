@@ -1,10 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import {
-  deriveDeprecatedCareFields,
-  PlantRepository,
-} from '@lily/api/repositories/plant.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { type LimitExceededError, luxToLuminosityLevel } from '@lily/shared'
@@ -92,7 +89,5 @@ export const createPlant = (
       ownership: 'owned' as const,
       ownerName: null,
       schedules,
-      // TODO(deprecated): Remove once app reads `schedules` array
-      ...deriveDeprecatedCareFields(schedules),
     }
   }).pipe(Effect.withSpan('PlantsService.createPlant'))
