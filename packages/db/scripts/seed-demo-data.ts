@@ -12,7 +12,13 @@
 
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
-import { careLogs, plants, userFollows, users } from '@lily/db/schema'
+import {
+  careLogs,
+  plantCareSchedules,
+  plants,
+  userFollows,
+  users,
+} from '@lily/db/schema'
 import { and, eq, or } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option } from 'effect'
 
@@ -24,8 +30,35 @@ const getFirst = <T>(arr: T[]): T => {
   return first.value
 }
 
+// Helper to build a date relative to now
+const daysFromNow = (days: number) =>
+  new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+
+// Care schedule data attached to each plant definition
+interface PlantSchedule {
+  careType: 'watering' | 'fertilization'
+  frequencyDays: number
+  lastCareAt: Date | null
+  nextCareAt: Date
+}
+
+interface DemoPlantData {
+  name: string
+  description: string
+  category: string
+  imageUrl: string
+  humidityRating: number
+  lightingRating: number
+  petToxicityRating: number
+  wateringRating: number
+  health: 'HEALTHY' | 'THRIVING' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
+  dateAdded?: Date
+  isFavorite?: boolean
+  schedules: PlantSchedule[]
+}
+
 // Demo plant data based on design mockup
-const DEMO_PLANTS = [
+const DEMO_PLANTS: DemoPlantData[] = [
   // Plants needing water (shown in Hydration Card)
   {
     name: 'Snake Plant',
@@ -37,13 +70,21 @@ const DEMO_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 3,
     wateringRating: 2,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
-    nextWateringAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), // 25 days ago
-    nextFertilizationAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // In 5 days (this week)
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 14,
+        lastCareAt: daysFromNow(-15),
+        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 30,
+        lastCareAt: daysFromNow(-25),
+        nextCareAt: daysFromNow(5), // In 5 days (this week)
+      },
+    ],
   },
   {
     name: 'Pothos',
@@ -55,10 +96,15 @@ const DEMO_PLANTS = [
     lightingRating: 2,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8 days ago
-    nextWateringAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-8),
+        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+      },
+    ],
   },
   {
     name: 'Fern',
@@ -70,10 +116,15 @@ const DEMO_PLANTS = [
     lightingRating: 2,
     petToxicityRating: 1,
     wateringRating: 5,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 3,
-    lastWateredAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-    nextWateringAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 3,
+        lastCareAt: daysFromNow(-4),
+        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+      },
+    ],
   },
   // Other healthy plants
   {
@@ -86,13 +137,21 @@ const DEMO_PLANTS = [
     lightingRating: 4,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    nextWateringAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // In 4 days
-    fertilizationFrequencyDays: 14,
-    lastFertilizedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 days ago
-    nextFertilizationAt: new Date(), // Today
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-3),
+        nextCareAt: daysFromNow(4),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 14,
+        lastCareAt: daysFromNow(-14),
+        nextCareAt: daysFromNow(0), // Today
+      },
+    ],
   },
   {
     name: 'Cactus',
@@ -104,11 +163,16 @@ const DEMO_PLANTS = [
     lightingRating: 5,
     petToxicityRating: 2,
     wateringRating: 1,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 21,
-    lastWateredAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (newly added)
-    nextWateringAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
-    dateAdded: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday
+    health: 'HEALTHY',
+    dateAdded: daysFromNow(-1), // Yesterday
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 21,
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(20),
+      },
+    ],
   },
   {
     name: 'Aloe Vera',
@@ -120,10 +184,15 @@ const DEMO_PLANTS = [
     lightingRating: 4,
     petToxicityRating: 2,
     wateringRating: 2,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 14,
+        lastCareAt: daysFromNow(-5),
+        nextCareAt: daysFromNow(9),
+      },
+    ],
   },
   {
     name: 'Monstera',
@@ -135,13 +204,21 @@ const DEMO_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-    fertilizationFrequencyDays: 21,
-    lastFertilizedAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000), // 22 days ago
-    nextFertilizationAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday (overdue)
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-2),
+        nextCareAt: daysFromNow(5),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 21,
+        lastCareAt: daysFromNow(-22),
+        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+      },
+    ],
   },
   {
     name: 'Peace Lily',
@@ -153,13 +230,21 @@ const DEMO_PLANTS = [
     lightingRating: 2,
     petToxicityRating: 4,
     wateringRating: 4,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 5,
-    lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), // 28 days ago
-    nextFertilizationAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // In 2 days (this week)
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 5,
+        lastCareAt: daysFromNow(-2),
+        nextCareAt: daysFromNow(3),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 30,
+        lastCareAt: daysFromNow(-28),
+        nextCareAt: daysFromNow(2), // In 2 days (this week)
+      },
+    ],
   },
   {
     name: 'Spider Plant',
@@ -171,10 +256,15 @@ const DEMO_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 1,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-4),
+        nextCareAt: daysFromNow(3),
+      },
+    ],
   },
   {
     name: 'Rubber Plant',
@@ -186,10 +276,15 @@ const DEMO_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 10,
+        lastCareAt: daysFromNow(-3),
+        nextCareAt: daysFromNow(7),
+      },
+    ],
   },
   // Plants needing attention (2)
   {
@@ -202,10 +297,15 @@ const DEMO_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 1,
     wateringRating: 3,
-    health: 'NEEDS_ATTENTION' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    health: 'NEEDS_ATTENTION',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-10),
+        nextCareAt: daysFromNow(-3),
+      },
+    ],
   },
   {
     name: 'Calathea',
@@ -217,14 +317,19 @@ const DEMO_PLANTS = [
     lightingRating: 2,
     petToxicityRating: 1,
     wateringRating: 4,
-    health: 'NEEDS_ATTENTION' as const,
-    wateringFrequencyDays: 5,
-    lastWateredAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    health: 'NEEDS_ATTENTION',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 5,
+        lastCareAt: daysFromNow(-8),
+        nextCareAt: daysFromNow(-3),
+      },
+    ],
   },
 ]
 
-const LILY_PLANTS = [
+const LILY_PLANTS: DemoPlantData[] = [
   {
     name: 'Bird of Paradise',
     description: 'Dramatic tropical plant with large paddle-shaped leaves',
@@ -235,14 +340,22 @@ const LILY_PLANTS = [
     lightingRating: 5,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'THRIVING' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    nextFertilizationAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+    health: 'THRIVING',
     isFavorite: true,
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-3),
+        nextCareAt: daysFromNow(4),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 30,
+        lastCareAt: daysFromNow(-10),
+        nextCareAt: daysFromNow(20),
+      },
+    ],
   },
   {
     name: 'Heartleaf Philodendron',
@@ -254,11 +367,16 @@ const LILY_PLANTS = [
     lightingRating: 2,
     petToxicityRating: 3,
     wateringRating: 3,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 7,
-    lastWateredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
     isFavorite: true,
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 7,
+        lastCareAt: daysFromNow(-5),
+        nextCareAt: daysFromNow(2),
+      },
+    ],
   },
   {
     name: 'Jade Plant',
@@ -270,13 +388,21 @@ const LILY_PLANTS = [
     lightingRating: 4,
     petToxicityRating: 3,
     wateringRating: 2,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    fertilizationFrequencyDays: 60,
-    lastFertilizedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    nextFertilizationAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 14,
+        lastCareAt: daysFromNow(-7),
+        nextCareAt: daysFromNow(7),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 60,
+        lastCareAt: daysFromNow(-30),
+        nextCareAt: daysFromNow(30),
+      },
+    ],
   },
   {
     name: 'Lavender',
@@ -288,10 +414,15 @@ const LILY_PLANTS = [
     lightingRating: 5,
     petToxicityRating: 2,
     wateringRating: 2,
-    health: 'HEALTHY' as const,
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+    health: 'HEALTHY',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 10,
+        lastCareAt: daysFromNow(-2),
+        nextCareAt: daysFromNow(8),
+      },
+    ],
   },
   {
     name: 'String of Pearls',
@@ -303,10 +434,15 @@ const LILY_PLANTS = [
     lightingRating: 4,
     petToxicityRating: 3,
     wateringRating: 2,
-    health: 'NEEDS_ATTENTION' as const,
-    wateringFrequencyDays: 14,
-    lastWateredAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    health: 'NEEDS_ATTENTION',
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 14,
+        lastCareAt: daysFromNow(-18),
+        nextCareAt: daysFromNow(-4),
+      },
+    ],
   },
   {
     name: 'Hoya',
@@ -318,14 +454,22 @@ const LILY_PLANTS = [
     lightingRating: 3,
     petToxicityRating: 1,
     wateringRating: 2,
-    health: 'THRIVING' as const,
-    wateringFrequencyDays: 10,
-    lastWateredAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-    nextWateringAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
-    fertilizationFrequencyDays: 30,
-    lastFertilizedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    nextFertilizationAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+    health: 'THRIVING',
     isFavorite: true,
+    schedules: [
+      {
+        careType: 'watering',
+        frequencyDays: 10,
+        lastCareAt: daysFromNow(-4),
+        nextCareAt: daysFromNow(6),
+      },
+      {
+        careType: 'fertilization',
+        frequencyDays: 30,
+        lastCareAt: daysFromNow(-5),
+        nextCareAt: daysFromNow(25),
+      },
+    ],
   },
 ]
 
@@ -349,9 +493,12 @@ const seedDemoData = Effect.gen(function* () {
       .where(eq(plants.userId, userId))
     for (const plant of existingPlants) {
       yield* db.delete(careLogs).where(eq(careLogs.plantId, plant.id))
+      yield* db
+        .delete(plantCareSchedules)
+        .where(eq(plantCareSchedules.plantId, plant.id))
     }
     yield* db.delete(plants).where(eq(plants.userId, userId))
-    yield* Console.log('  Wiped existing plants and care logs')
+    yield* Console.log('  Wiped existing plants, care logs, and schedules')
   } else {
     yield* Console.log('  No existing data found')
   }
@@ -391,15 +538,16 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log(`  Created user: ${user.name} (${user.email})`)
   yield* Console.log(`  User ID: ${user.id}`)
 
-  // Create plants
+  // Create plants with care schedules
   yield* Console.log('Creating 12 demo plants...')
   const createdPlants: Array<{ id: string; name: string }> = []
 
   for (const plantData of DEMO_PLANTS) {
+    const { schedules, ...plantFields } = plantData
     const result = yield* db
       .insert(plants)
       .values({
-        ...plantData,
+        ...plantFields,
         userId: user.id,
         dateAdded: Option.getOrElse(
           Option.fromNullable(plantData.dateAdded),
@@ -410,7 +558,20 @@ const seedDemoData = Effect.gen(function* () {
 
     const plant = getFirst(result)
     createdPlants.push(plant)
-    yield* Console.log(`  Created plant: ${plant.name}`)
+
+    // Create care schedules for this plant
+    for (const schedule of schedules) {
+      yield* db.insert(plantCareSchedules).values({
+        plantId: plant.id,
+        careType: schedule.careType,
+        frequencyDays: schedule.frequencyDays,
+        lastCareAt: schedule.lastCareAt,
+        nextCareAt: schedule.nextCareAt,
+      })
+    }
+    yield* Console.log(
+      `  Created plant: ${plant.name} (${schedules.length} schedules)`
+    )
   }
 
   // Create comprehensive care log history for testing various scenarios
@@ -1010,9 +1171,12 @@ const seedDemoData = Effect.gen(function* () {
       .where(eq(plants.userId, lilyId))
     for (const plant of lilyPlants) {
       yield* db.delete(careLogs).where(eq(careLogs.plantId, plant.id))
+      yield* db
+        .delete(plantCareSchedules)
+        .where(eq(plantCareSchedules.plantId, plant.id))
     }
     yield* db.delete(plants).where(eq(plants.userId, lilyId))
-    yield* Console.log('  Wiped existing Lily plants and care logs')
+    yield* Console.log('  Wiped existing Lily plants, care logs, and schedules')
   }
 
   // Upsert Lily
@@ -1050,17 +1214,31 @@ const seedDemoData = Effect.gen(function* () {
   const lily = getFirst(lilyResult)
   yield* Console.log(`  Upserted user: ${lily.name} (${lily.email})`)
 
-  // Insert Lily's plants
+  // Insert Lily's plants with care schedules
   yield* Console.log('  Creating 6 plants for Lily...')
   const lilyCreatedPlants: Array<{ id: string; name: string }> = []
   for (const plantData of LILY_PLANTS) {
+    const { schedules, ...plantFields } = plantData
     const result = yield* db
       .insert(plants)
-      .values({ ...plantData, userId: lily.id, dateAdded: new Date() })
+      .values({ ...plantFields, userId: lily.id, dateAdded: new Date() })
       .returning({ id: plants.id, name: plants.name })
     const plant = getFirst(result)
     lilyCreatedPlants.push(plant)
-    yield* Console.log(`    Created plant: ${plant.name}`)
+
+    // Create care schedules for this plant
+    for (const schedule of schedules) {
+      yield* db.insert(plantCareSchedules).values({
+        plantId: plant.id,
+        careType: schedule.careType,
+        frequencyDays: schedule.frequencyDays,
+        lastCareAt: schedule.lastCareAt,
+        nextCareAt: schedule.nextCareAt,
+      })
+    }
+    yield* Console.log(
+      `    Created plant: ${plant.name} (${schedules.length} schedules)`
+    )
   }
 
   // Care logs for Lily's plants
