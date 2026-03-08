@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
@@ -69,6 +70,7 @@ export const AIChatApiLive = (api: Api) =>
     Layer.provide(SubscriptionRepositoryLive),
     Layer.provide(AchievementRepositoryLive),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareScheduleRepositoryLive),
     Layer.provide(DelegationRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(DiagnosisRepositoryLive),

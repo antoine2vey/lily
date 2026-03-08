@@ -3,7 +3,20 @@ import type { PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = typeof plants.$inferSelect
 
-export const mockPlants: PlantRecord[] = [
+// Extended type for test fixtures — includes care fields that
+// schedulesFromPlants uses to derive CareScheduleRow entries.
+// These fields no longer exist on the DB schema but are needed
+// so tests can declare care state in one place.
+export interface TestPlant extends PlantRecord {
+  wateringFrequencyDays: number
+  lastWateredAt: Date | null
+  nextWateringAt: Date | null
+  fertilizationFrequencyDays: number | null
+  lastFertilizedAt: Date | null
+  nextFertilizationAt: Date | null
+}
+
+export const mockPlants: TestPlant[] = [
   {
     id: 'plant-1',
     name: 'Monstera Deliciosa',
@@ -98,7 +111,7 @@ const overdueDate = new Date('2024-01-10T12:00:00Z') // in the past
 const todayDate = new Date() // today
 const tomorrowDate = new Date(Date.now() + 86400000) // tomorrow
 
-export const mockOverduePlants: PlantRecord[] = [
+export const mockOverduePlants: TestPlant[] = [
   {
     id: 'plant-overdue-1',
     name: 'Overdue Fern',
@@ -222,8 +235,8 @@ export const mockOverduePlants: PlantRecord[] = [
 ]
 
 export const createTestPlant = (
-  overrides: Partial<PlantRecord> = {}
-): PlantRecord => ({
+  overrides: Partial<TestPlant> = {}
+): TestPlant => ({
   id: `plant-${crypto.randomUUID()}`,
   name: 'Test Plant',
   description: null,

@@ -1,9 +1,11 @@
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createTestPlant,
-  type PlantRecord,
+  type TestPlant,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -13,12 +15,7 @@ import {
   checkAndCreateOverdueReminders,
   processUserOverdueReminders,
 } from '@lily/api/services/overdue-scheduler/scheduler'
-import {
-  AlreadySentTodayError,
-  CareRemindersDisabledError,
-  DndWindowBlockedError,
-  pickOverdueNotificationTime,
-} from '@lily/shared'
+import { pickOverdueNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array as Arr,
@@ -36,7 +33,7 @@ const daysAgo = (days: number): Date =>
   new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
 const runCheck = (
-  plantsData: PlantRecord[],
+  plantsData: TestPlant[],
   users: ReturnType<typeof createTestUser>[],
   notifications: Notification[] = [],
   delegationData: {
@@ -46,6 +43,12 @@ const runCheck = (
 ) =>
   Effect.runPromise(
     checkAndCreateOverdueReminders.pipe(
+      Effect.provide(
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(plantsData),
+          plants: plantsData,
+        })
+      ),
       Effect.provide(createMockPlantRepository({ plants: plantsData })),
       Effect.provide(createMockNotificationRepository(notifications)),
       Effect.provide(createMockUserRepository(users)),
@@ -57,7 +60,7 @@ const runCheck = (
 // Run processUserOverdueReminders directly to assert on tagged error exits
 const runProcessUser = (
   userId: string,
-  plantsData: PlantRecord[],
+  plantsData: TestPlant[],
   users: ReturnType<typeof createTestUser>[],
   notifications: Notification[] = [],
   delegationData: {
@@ -727,6 +730,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'plant-fert-1',
         name: 'Hungry Monstera',
         userId: 'user-1',
+        fertilizationFrequencyDays: 30,
         nextFertilizationAt: daysAgo(3),
         nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
@@ -747,6 +751,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-fert-today',
         userId: 'user-1',
+        fertilizationFrequencyDays: 30,
         nextFertilizationAt: new Date(), // today, not strictly overdue
         nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
@@ -765,6 +770,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-both-overdue',
         userId: 'user-1',
+        fertilizationFrequencyDays: 30,
         nextWateringAt: daysAgo(2),
         nextFertilizationAt: daysAgo(4),
       })
@@ -791,6 +797,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const fertPlant = createTestPlant({
         id: 'plant-fert-only',
         userId: 'user-1',
+        fertilizationFrequencyDays: 30,
         nextFertilizationAt: daysAgo(3),
         nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })

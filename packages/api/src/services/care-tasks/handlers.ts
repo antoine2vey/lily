@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
@@ -19,6 +20,7 @@ export const CareTasksApiLive = (api: Api) =>
     })
   ).pipe(
     Layer.provide(CareTasksService.Default),
+    Layer.provide(CareScheduleRepositoryLive),
     Layer.provide(PlantRepositoryLive),
     Layer.provide(UserRepositoryLive),
     Layer.provide(AuthenticationLive)

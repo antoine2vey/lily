@@ -1,6 +1,16 @@
 import { Schema } from 'effect'
+import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
+
+export const PlantCareSchedule = Schema.Struct({
+  careType: CareType,
+  frequencyDays: Schema.Number,
+  lastCareAt: Schema.NullOr(Schema.Date),
+  nextCareAt: Schema.NullOr(Schema.Date),
+})
+
+export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
 export const Plant = Schema.Struct({
   id: Schema.String,
@@ -21,12 +31,6 @@ export const Plant = Schema.Struct({
     Schema.Literal('SICK'),
     Schema.Literal('RECOVERING')
   ),
-  wateringFrequencyDays: Schema.Number,
-  lastWateredAt: Schema.NullOr(Schema.Date),
-  nextWateringAt: Schema.NullOr(Schema.Date),
-  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
-  lastFertilizedAt: Schema.NullOr(Schema.Date),
-  nextFertilizationAt: Schema.NullOr(Schema.Date),
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
   userId: Schema.String,
@@ -37,6 +41,31 @@ export const Plant = Schema.Struct({
     { default: () => 'owned' as const }
   ),
   ownerName: Schema.optionalWith(Schema.NullOr(Schema.String), {
+    default: () => null,
+  }),
+  schedules: Schema.optionalWith(Schema.Array(PlantCareSchedule), {
+    default: () => [],
+  }),
+  // TODO(deprecated): Remove these 6 fields after the app is updated to use
+  // the `schedules` array. They are derived from schedules for backward
+  // compatibility with the current app release.
+  wateringFrequencyDays: Schema.optionalWith(Schema.NullOr(Schema.Number), {
+    default: () => null,
+  }),
+  lastWateredAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
+    default: () => null,
+  }),
+  nextWateringAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
+    default: () => null,
+  }),
+  fertilizationFrequencyDays: Schema.optionalWith(
+    Schema.NullOr(Schema.Number),
+    { default: () => null }
+  ),
+  lastFertilizedAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
+    default: () => null,
+  }),
+  nextFertilizationAt: Schema.optionalWith(Schema.NullOr(Schema.Date), {
     default: () => null,
   }),
 })
@@ -149,6 +178,34 @@ export const WaterMultiplePlantsResult = Schema.Struct({
 export const WaterMultiplePlantsResponse = Schema.Array(
   WaterMultiplePlantsResult
 )
+
+// Generic care request (for POST /plants/:id/care)
+export const PlantCareRequest = Schema.Struct({
+  careType: CareType,
+  notes: Schema.optional(Schema.String),
+  date: Schema.optional(Schema.Date),
+})
+
+export type PlantCareRequest = typeof PlantCareRequest.Type
+
+// Generic batch care request (for POST /plants/care-multiple)
+export const CareMultiplePlantsRequest = Schema.Struct({
+  plantIds: Schema.Array(Schema.String),
+  careType: CareType,
+})
+
+export type CareMultiplePlantsRequest = typeof CareMultiplePlantsRequest.Type
+
+export const CareMultiplePlantsResult = Schema.Struct({
+  plantId: Schema.String,
+  success: Schema.Boolean,
+  plant: Schema.optional(Plant),
+})
+
+export const CareMultiplePlantsResponse = Schema.Array(CareMultiplePlantsResult)
+
+export type CareMultiplePlantsResult = typeof CareMultiplePlantsResult.Type
+export type CareMultiplePlantsResponse = typeof CareMultiplePlantsResponse.Type
 
 export const PlantCorrectCareDatesRequest = Schema.Struct({
   lastWateredAt: Schema.optional(Schema.Date),

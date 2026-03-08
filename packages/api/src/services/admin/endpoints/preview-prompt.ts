@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
   type ChatMessageRow,
   ChatRepository,
@@ -18,12 +19,17 @@ export const previewPrompt = (
 ): Effect.Effect<
   PromptPreviewResponse,
   SqlError | ChatMessageNotFoundError,
-  ChatRepository | PlantRepository | CareLogRepository | RagService
+  | ChatRepository
+  | PlantRepository
+  | CareLogRepository
+  | CareScheduleRepository
+  | RagService
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
+    const scheduleRepo = yield* CareScheduleRepository
     const ragService = yield* RagService
 
     // 1. Find the message by DB id
@@ -42,7 +48,10 @@ export const previewPrompt = (
       )
     }
 
-    // 3. Load care history (same as plantChat: last 10)
+    // 3. Load care schedules for the plant
+    const schedules = yield* scheduleRepo.findByPlant(plant.id)
+
+    // 4. Load care history (same as plantChat: last 10)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
       plantId: messageRow.plantId,
       limit: 10,
@@ -57,13 +66,13 @@ export const previewPrompt = (
       Array.join('\n')
     )
 
-    // 4. Determine the user message text for RAG query
+    // 5. Determine the user message text for RAG query
     const userMessageText = messageRow.content
 
-    // 4b. Translate to English for RAG retrieval (knowledge base is English-only)
+    // 5b. Translate to English for RAG retrieval (knowledge base is English-only)
     const translatedQuery = yield* translateToEnglish(userMessageText)
 
-    // 5. Run RAG retrieval
+    // 6. Run RAG retrieval
     const ragQuery = `${plant.name}: ${translatedQuery}`
     const ragChunks = yield* ragService.retrieve({
       query: ragQuery,
@@ -71,16 +80,16 @@ export const previewPrompt = (
     })
     const formattedRagContext = ragService.formatContext(ragChunks)
 
-    // 6. Build system prompt
+    // 7. Build system prompt
     const daysSinceAdded = daysSince(plant.dateAdded)
     const systemPrompt = buildSystemPrompt({
-      plant,
+      plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
       knowledgeContext: formattedRagContext,
     })
 
-    // 7. Load conversation history (messages before this one)
+    // 8. Load conversation history (messages before this one)
     const previousRows = yield* chatRepo.findMessagesBefore({
       plantId: messageRow.plantId,
       userId: messageRow.userId,
@@ -96,7 +105,7 @@ export const previewPrompt = (
       })
     )
 
-    // 8. Determine model and image status
+    // 9. Determine model and image status
     const hasImage = Boolean(messageRow.imageKey)
     const model = hasImage ? 'gpt-4o' : 'gpt-4o-mini'
 
@@ -117,28 +126,6 @@ export const previewPrompt = (
         lightingRating: plant.lightingRating,
         wateringRating: plant.wateringRating,
         petToxicityRating: plant.petToxicityRating,
-        wateringFrequencyDays: plant.wateringFrequencyDays,
-        lastWateredAt: pipe(
-          Option.fromNullable(plant.lastWateredAt),
-          Option.map((d) => d.toISOString()),
-          Option.getOrNull
-        ),
-        nextWateringAt: pipe(
-          Option.fromNullable(plant.nextWateringAt),
-          Option.map((d) => d.toISOString()),
-          Option.getOrNull
-        ),
-        fertilizationFrequencyDays: plant.fertilizationFrequencyDays,
-        lastFertilizedAt: pipe(
-          Option.fromNullable(plant.lastFertilizedAt),
-          Option.map((d) => d.toISOString()),
-          Option.getOrNull
-        ),
-        nextFertilizationAt: pipe(
-          Option.fromNullable(plant.nextFertilizationAt),
-          Option.map((d) => d.toISOString()),
-          Option.getOrNull
-        ),
         dateAdded: plant.dateAdded.toISOString(),
         daysSinceAdded,
       },

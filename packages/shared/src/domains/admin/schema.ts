@@ -52,12 +52,6 @@ export const PromptPreviewPlant = Schema.Struct({
   lightingRating: Schema.Number,
   wateringRating: Schema.Number,
   petToxicityRating: Schema.Number,
-  wateringFrequencyDays: Schema.Number,
-  lastWateredAt: Schema.NullOr(Schema.String),
-  nextWateringAt: Schema.NullOr(Schema.String),
-  fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
-  lastFertilizedAt: Schema.NullOr(Schema.String),
-  nextFertilizationAt: Schema.NullOr(Schema.String),
   dateAdded: Schema.String,
   daysSinceAdded: Schema.Number,
 })

@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
@@ -12,10 +13,11 @@ export const updatePlant = (
 ): Effect.Effect<
   PlantWithRoom,
   SqlError | PlantNotFoundError,
-  PlantRepository
+  PlantRepository | CareScheduleRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
 
     // Get current plant to check if we need to set next care dates
@@ -26,37 +28,50 @@ export const updatePlant = (
 
     const now = DateTime.toDateUtc(DateTime.unsafeNow())
 
-    // Build update data from request
+    // Build update data from request, excluding care-related fields
     const data = pipe(
       Record.fromEntries(Struct.entries(request)),
       Record.remove('id'),
+      Record.remove('wateringFrequencyDays'),
+      Record.remove('fertilizationFrequencyDays'),
       Record.filter((value) => value !== undefined)
     ) as Record<string, unknown>
 
-    // If wateringFrequencyDays is being set and nextWateringAt is null, set it to now
-    if (
-      request.wateringFrequencyDays !== undefined &&
-      currentPlant.nextWateringAt === null
-    ) {
-      data.nextWateringAt = now
-    }
-
-    // Handle fertilization schedule changes
-    if (request.fertilizationFrequencyDays !== undefined) {
-      // If fertilization is being enabled (was null, now has a value)
-      if (
-        request.fertilizationFrequencyDays !== null &&
-        currentPlant.nextFertilizationAt === null
-      ) {
-        data.nextFertilizationAt = now
-      }
-      // If fertilization is being disabled (set to null)
-      if (request.fertilizationFrequencyDays === null) {
-        data.nextFertilizationAt = null
-      }
-    }
-
+    // Update non-care plant fields
     yield* repo.update(request.id, data)
+
+    // Update schedule rows
+    if (request.wateringFrequencyDays !== undefined) {
+      const existingSchedule = yield* scheduleRepo.findByPlantAndType(
+        request.id,
+        'watering'
+      )
+      yield* scheduleRepo.upsert(request.id, 'watering', {
+        frequencyDays: request.wateringFrequencyDays,
+        ...(!existingSchedule || !existingSchedule.nextCareAt
+          ? { nextCareAt: now }
+          : {}),
+      })
+    }
+
+    if (request.fertilizationFrequencyDays !== undefined) {
+      if (request.fertilizationFrequencyDays !== null) {
+        // Enable or update fertilization schedule
+        const existingSchedule = yield* scheduleRepo.findByPlantAndType(
+          request.id,
+          'fertilization'
+        )
+        yield* scheduleRepo.upsert(request.id, 'fertilization', {
+          frequencyDays: request.fertilizationFrequencyDays,
+          ...(!existingSchedule || !existingSchedule.nextCareAt
+            ? { nextCareAt: now }
+            : {}),
+        })
+      } else {
+        // Disable fertilization schedule
+        yield* scheduleRepo.deleteByPlantAndType(request.id, 'fertilization')
+      }
+    }
 
     const updated = yield* repo.findById(request.id)
     return pipe(

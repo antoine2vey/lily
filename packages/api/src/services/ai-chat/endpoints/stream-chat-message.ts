@@ -2,6 +2,7 @@ import { HttpServerResponse } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
@@ -105,6 +106,7 @@ export const streamChatMessage = (
   | CurrentUser
   | PlantRepository
   | CareLogRepository
+  | CareScheduleRepository
   | DiagnosisRepository
   | DelegationRepository
   | LimitChecker

@@ -1,5 +1,5 @@
 import * as schema from '@lily/db/schema'
-import { count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Option, pipe } from 'effect'
 import pg from 'pg'
@@ -20,12 +20,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(
         sql`TRUNCATE TABLE notifications RESTART IDENTITY CASCADE`
       )
-      // Reset plant watering columns
+      // Reset care schedule watering rows
       if (testPlantIds?.length > 0) {
-        await db
-          .update(schema.plants)
-          .set({ lastWateredAt: null, nextWateringAt: null })
-          .where(eq(schema.plants.userId, testUserId))
+        for (const plantId of testPlantIds) {
+          await db
+            .update(schema.plantCareSchedules)
+            .set({ lastCareAt: null, nextCareAt: null })
+            .where(
+              and(
+                eq(schema.plantCareSchedules.plantId, plantId),
+                eq(schema.plantCareSchedules.careType, 'watering')
+              )
+            )
+        }
       }
     }
 
@@ -42,6 +49,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`TRUNCATE TABLE plant_photos RESTART IDENTITY CASCADE`
       )
       await db.execute(sql`TRUNCATE TABLE plant_scans RESTART IDENTITY CASCADE`)
+      await db.execute(
+        sql`TRUNCATE TABLE plant_care_schedules RESTART IDENTITY CASCADE`
+      )
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
 
@@ -72,7 +82,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             userId: testUserId,
             name: 'Water Plant A',
             health: 'HEALTHY',
-            wateringFrequencyDays: 3,
             humidityRating: 3,
             lightingRating: 3,
             petToxicityRating: 1,
@@ -82,7 +91,6 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             userId: testUserId,
             name: 'Water Plant B',
             health: 'HEALTHY',
-            wateringFrequencyDays: 7,
             humidityRating: 3,
             lightingRating: 3,
             petToxicityRating: 1,
@@ -91,7 +99,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ])
         .returning()
 
-      testPlantIds = pipe(plants, (ps) => ps.map((p) => p.id))
+      testPlantIds = Arr.map(plants, (p) => p.id)
+
+      // Create watering schedules for each plant
+      const [firstPlantId, secondPlantId] = testPlantIds
+      await db.insert(schema.plantCareSchedules).values([
+        {
+          plantId: firstPlantId ?? '',
+          careType: 'watering',
+          frequencyDays: 3,
+        },
+        {
+          plantId: secondPlantId ?? '',
+          careType: 'watering',
+          frequencyDays: 7,
+        },
+      ])
     })
 
     afterEach(async () => {
@@ -108,34 +131,40 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         sql`TRUNCATE TABLE plant_photos RESTART IDENTITY CASCADE`
       )
       await db.execute(sql`TRUNCATE TABLE plant_scans RESTART IDENTITY CASCADE`)
+      await db.execute(
+        sql`TRUNCATE TABLE plant_care_schedules RESTART IDENTITY CASCADE`
+      )
       await db.execute(sql`TRUNCATE TABLE plants RESTART IDENTITY CASCADE`)
       await db.execute(sql`TRUNCATE TABLE users RESTART IDENTITY CASCADE`)
       await pool.end()
     })
 
-    it('should atomically update plants and create care logs in a transaction', async () => {
-      // Simulate what waterMultiplePlants does: update plants + insert care logs
-      // Using a raw SQL transaction to verify the DB supports our use case
+    it('should atomically update schedules and create care logs in a transaction', async () => {
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
 
         const now = new Date()
 
-        // Update both plants
+        // Update watering schedules for both plants
         for (const plantId of testPlantIds) {
           await db
-            .update(schema.plants)
+            .update(schema.plantCareSchedules)
             .set({
-              lastWateredAt: now,
-              nextWateringAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+              lastCareAt: now,
+              nextCareAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
             })
-            .where(eq(schema.plants.id, plantId))
+            .where(
+              and(
+                eq(schema.plantCareSchedules.plantId, plantId),
+                eq(schema.plantCareSchedules.careType, 'watering')
+              )
+            )
         }
 
         // Insert care logs
         await db.insert(schema.careLogs).values(
-          testPlantIds.map((plantId) => ({
+          Arr.map(testPlantIds, (plantId) => ({
             type: 'watering' as const,
             plantId,
             date: now,
@@ -144,14 +173,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await client.query('COMMIT')
 
-        // Verify plants were updated
-        const updatedPlants = await db
+        // Verify schedules were updated
+        const updatedSchedules = await db
           .select()
-          .from(schema.plants)
-          .where(eq(schema.plants.userId, testUserId))
+          .from(schema.plantCareSchedules)
+          .where(eq(schema.plantCareSchedules.careType, 'watering'))
 
-        for (const plant of updatedPlants) {
-          expect(plant.lastWateredAt).not.toBeNull()
+        const userSchedules = Arr.filter(updatedSchedules, (s) =>
+          Arr.contains(testPlantIds, s.plantId)
+        )
+
+        for (const schedule of userSchedules) {
+          expect(schedule.lastCareAt).not.toBeNull()
         }
 
         // Verify care logs were created
@@ -177,9 +210,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const now = new Date()
 
-        // Update first plant within the transaction (succeeds)
+        // Update first plant's schedule within the transaction (succeeds)
         await client.query(
-          'UPDATE plants SET last_watered_at = $1, next_watering_at = $2 WHERE id = $3',
+          `UPDATE plant_care_schedules SET last_care_at = $1, next_care_at = $2
+           WHERE plant_id = $3 AND care_type = 'watering'`,
           [
             now,
             new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
@@ -202,17 +236,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         client.release()
       }
 
-      // Verify first plant was NOT updated (rolled back)
+      // Verify first plant's schedule was NOT updated (rolled back)
       const firstPlantId = pipe(
         Arr.head(testPlantIds),
         Option.getOrElse(() => '')
       )
-      const [plant] = await db
+      const [schedule] = await db
         .select()
-        .from(schema.plants)
-        .where(eq(schema.plants.id, firstPlantId))
+        .from(schema.plantCareSchedules)
+        .where(
+          and(
+            eq(schema.plantCareSchedules.plantId, firstPlantId),
+            eq(schema.plantCareSchedules.careType, 'watering')
+          )
+        )
 
-      expect(plant?.lastWateredAt).toBeNull()
+      expect(schedule?.lastCareAt).toBeNull()
 
       // Verify no care logs were created
       const [careLogCount] = await db
@@ -227,29 +266,38 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(logCount).toBe(0)
     })
 
-    it('should handle concurrent plant updates within the same transaction', async () => {
+    it('should handle concurrent schedule updates within the same transaction', async () => {
       const now = new Date()
 
-      // Update all plants concurrently using Promise.all (simulates Effect.forEach with unbounded concurrency)
+      // Update all plant schedules concurrently using Promise.all
       await Promise.all(
-        testPlantIds.map((plantId) =>
+        Arr.map(testPlantIds, (plantId) =>
           db
-            .update(schema.plants)
+            .update(schema.plantCareSchedules)
             .set({
-              lastWateredAt: now,
-              nextWateringAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+              lastCareAt: now,
+              nextCareAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
             })
-            .where(eq(schema.plants.id, plantId))
+            .where(
+              and(
+                eq(schema.plantCareSchedules.plantId, plantId),
+                eq(schema.plantCareSchedules.careType, 'watering')
+              )
+            )
         )
       )
 
-      // Verify all plants have the same lastWateredAt timestamp
-      const updatedPlants = await db
+      // Verify all schedules have the same lastCareAt timestamp
+      const updatedSchedules = await db
         .select()
-        .from(schema.plants)
-        .where(eq(schema.plants.userId, testUserId))
+        .from(schema.plantCareSchedules)
+        .where(eq(schema.plantCareSchedules.careType, 'watering'))
 
-      const timestamps = updatedPlants.map((p) => p.lastWateredAt?.getTime())
+      const userSchedules = Arr.filter(updatedSchedules, (s) =>
+        Arr.contains(testPlantIds, s.plantId)
+      )
+
+      const timestamps = Arr.map(userSchedules, (s) => s.lastCareAt?.getTime())
 
       // All timestamps should be identical (same `now` value)
       expect(new Set(timestamps).size).toBe(1)

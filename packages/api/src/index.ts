@@ -5,6 +5,7 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
@@ -117,6 +118,7 @@ const WeatherSchedulerLive = Layer.scopedDiscard(
   Layer.provide(WeatherRepositoryLive),
   Layer.provide(UserRepositoryLive),
   Layer.provide(PlantRepositoryLive),
+  Layer.provide(CareScheduleRepositoryLive),
   Layer.provide(NotificationRepositoryLive),
   Layer.provide(DelegationRepositoryLive),
   Layer.provide(RedisClientLive)
@@ -146,6 +148,7 @@ const OverdueSchedulerLive = Layer.scopedDiscard(
     yield* startOverdueScheduler
   })
 ).pipe(
+  Layer.provide(CareScheduleRepositoryLive),
   Layer.provide(PlantRepositoryLive),
   Layer.provide(NotificationRepositoryLive),
   Layer.provide(UserRepositoryLive),

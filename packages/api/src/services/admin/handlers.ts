@@ -1,6 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
@@ -49,6 +50,7 @@ export const AdminApiLive = (api: Api) =>
     Layer.provide(UserRepositoryLive),
     Layer.provide(ChatRepositoryLive),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareScheduleRepositoryLive),
     Layer.provide(CareLogRepositoryLive),
     Layer.provide(RagService.Default),
     Layer.provide(ProcessedChunkRepositoryLive),

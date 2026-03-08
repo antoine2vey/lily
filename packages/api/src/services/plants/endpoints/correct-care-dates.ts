@@ -1,5 +1,9 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import {
+  CareScheduleRepository,
+  type CareType,
+} from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -9,10 +13,6 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import {
-  type CareType,
-  getCareTypeConfig,
-} from '@lily/api/services/plants/utils'
 import {
   FutureDateNotAllowedError,
   PlantNotFoundError,
@@ -27,9 +27,8 @@ const correctSingleCareDate = (
   plant: PlantWithRoom
 ) =>
   Effect.gen(function* () {
-    const config = getCareTypeConfig(careType)
     const careLogRepo = yield* CareLogRepository
-    const repo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
 
     const correctedDt = DateTime.unsafeMake(correctedDate)
     const nowDt = DateTime.unsafeNow()
@@ -49,20 +48,23 @@ const correctSingleCareDate = (
     // Find the most recent care log of this type and update it if exists
     const latestLog = yield* careLogRepo.findLatestByPlantAndType(
       plantId,
-      config.careLogType
+      careType
     )
 
     if (latestLog) {
       yield* careLogRepo.update(latestLog.id, { date: careDate })
     }
 
+    // Read original and current dates from the schedule
+    const schedule = yield* scheduleRepo.findByPlantAndType(plantId, careType)
+
+    const originalLastCare = schedule?.lastCareAt
+    const currentNextCare = schedule?.nextCareAt
+
     // Shift nextCareAt by the same delta as the date correction.
     // This preserves any weather adjustment that was already applied.
     // e.g. original: lastWatered=Mon, next=Mon+8 (7 base + 1 weather)
     //      correct to Sun → delta=-1day → next=Mon+8-1=Sun+8
-    const originalLastCare = plant[config.lastCareField]
-    const currentNextCare = plant[config.nextCareField]
-
     const nextCareAt = pipe(
       Option.all({
         original: Option.fromNullable(originalLastCare),
@@ -82,14 +84,11 @@ const correctSingleCareDate = (
       Option.getOrUndefined
     )
 
-    const updatePayload = {
-      [config.lastCareField]: careDate,
-      ...(nextCareAt !== undefined && {
-        [config.nextCareField]: nextCareAt,
-      }),
-    }
-
-    yield* repo.update(plantId, updatePayload)
+    // Update schedule table
+    yield* scheduleRepo.updateByPlantAndType(plantId, careType, {
+      lastCareAt: careDate,
+      ...(nextCareAt !== undefined ? { nextCareAt } : {}),
+    })
 
     // Schedule next reminder if we have a next care date
     if (nextCareAt) {
@@ -97,7 +96,7 @@ const correctSingleCareDate = (
         plantId,
         plantName: plant.name,
         userId: plant.userId,
-        type: config.reminderType,
+        type: `${careType}_reminder` as const,
         scheduledDate: nextCareAt,
         remindersEnabled: plant.remindersEnabled,
       })
@@ -111,6 +110,7 @@ export const correctCareDates = (
   SqlError | PlantNotFoundError | FutureDateNotAllowedError,
   | PlantRepository
   | CareLogRepository
+  | CareScheduleRepository
   | NotificationRepository
   | UserRepository
   | DelegationRepository

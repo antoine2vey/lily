@@ -1,4 +1,6 @@
+import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
+  deriveDeprecatedCareFields,
   type FindPhotosParams,
   type FindPlantsParams,
   type IPlantRepository,
@@ -6,7 +8,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import { earliestOverdueDate, endOfDay, paginate } from '@lily/shared'
+import { endOfDay, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -30,6 +32,7 @@ interface MockPlantRepositoryData {
   photos?: PlantPhoto[]
   rooms?: MockRoom[]
   caretakingPlants?: MockCaretakingPlant[]
+  schedules?: CareScheduleRow[]
 }
 
 export const createMockPlantRepository = (
@@ -50,6 +53,10 @@ export const createMockPlantRepository = (
   const caretakingPlants = Option.getOrElse(
     Option.fromNullable(data.caretakingPlants),
     () => [] as MockCaretakingPlant[]
+  )
+  const schedulesData = Option.getOrElse(
+    Option.fromNullable(data.schedules),
+    () => [] as CareScheduleRow[]
   )
 
   const resolveRoom = (roomId: string | null) =>
@@ -72,11 +79,15 @@ export const createMockPlantRepository = (
     if (params.filter === 'overdue') {
       const endOfTodayDt = endOfDay(DateTime.unsafeNow(), params.timezone)
       const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
-      filtered = Array.filter(
-        filtered,
-        (p) =>
-          p.nextWateringAt !== null &&
-          p.nextWateringAt.getTime() <= Number(endOfTodayMs)
+      // Check schedule table for overdue plants
+      filtered = Array.filter(filtered, (p) =>
+        Array.some(
+          schedulesData,
+          (s) =>
+            s.plantId === p.id &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() <= Number(endOfTodayMs)
+        )
       )
     }
 
@@ -108,6 +119,8 @@ export const createMockPlantRepository = (
         room: resolveRoom(p.roomId),
         ownership: 'owned' as const,
         ownerName: null,
+        schedules: [],
+        ...deriveDeprecatedCareFields([]),
       }))
 
       // Add caretaking plants when requested
@@ -129,6 +142,8 @@ export const createMockPlantRepository = (
                   Option.map((cp) => cp.ownerName),
                   Option.getOrNull
                 ),
+                schedules: [],
+                ...deriveDeprecatedCareFields([]),
               }))
             )
           : []
@@ -169,39 +184,12 @@ export const createMockPlantRepository = (
             room: resolveRoom(p.roomId),
             ownership: 'owned' as const,
             ownerName: null,
+            schedules: [],
+            ...deriveDeprecatedCareFields([]),
           })),
           Option.getOrNull
         )
       ),
-
-    findPlantsWithPendingCare: (userId: string, cutoffDate: Date) => {
-      const filtered = Array.filter(plantsData, (p) => {
-        if (p.userId !== userId) return false
-
-        const wateringDue = pipe(
-          Option.fromNullable(p.nextWateringAt),
-          Option.map((d) => d.getTime() <= cutoffDate.getTime()),
-          Option.getOrElse(() => false)
-        )
-
-        const fertilizationDue = pipe(
-          Option.fromNullable(p.nextFertilizationAt),
-          Option.map((d) => d.getTime() <= cutoffDate.getTime()),
-          Option.getOrElse(() => false)
-        )
-
-        return wateringDue || fertilizationDue
-      })
-
-      return Effect.succeed(
-        Array.map(filtered, (p) => ({
-          ...p,
-          room: resolveRoom(p.roomId),
-          ownership: 'owned' as const,
-          ownerName: null,
-        }))
-      )
-    },
 
     create: (createData) => {
       const newPlant: PlantRecord = {
@@ -217,19 +205,12 @@ export const createMockPlantRepository = (
         petToxicityRating: createData.petToxicityRating,
         wateringRating: createData.wateringRating,
         health: createData.health,
-        wateringFrequencyDays: createData.wateringFrequencyDays,
-        lastWateredAt: null,
-        nextWateringAt: null,
         remindersEnabled: true,
-        fertilizationFrequencyDays: Option.getOrNull(
-          Option.fromNullable(createData.fertilizationFrequencyDays)
-        ),
-        lastFertilizedAt: null,
-        nextFertilizationAt: null,
         isFavorite: false,
         roomId: Option.getOrNull(Option.fromNullable(createData.roomId)),
         userId: createData.userId,
       }
+      plantsData.push(newPlant)
       return Effect.succeed(newPlant)
     },
 
@@ -319,15 +300,17 @@ export const createMockPlantRepository = (
       const now = new Date()
       let count = 0
       for (const plant of plantsData) {
-        const wateringOverdue =
-          plant.nextWateringAt !== null &&
-          plant.nextWateringAt.getTime() <= now.getTime()
-        const fertilizationOverdue =
-          plant.nextFertilizationAt !== null &&
-          plant.nextFertilizationAt.getTime() <= now.getTime()
+        // Check schedule table for overdue
+        const hasOverdueSchedule = Array.some(
+          schedulesData,
+          (s) =>
+            s.plantId === plant.id &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() <= now.getTime()
+        )
 
         if (
-          (wateringOverdue || fertilizationOverdue) &&
+          hasOverdueSchedule &&
           (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
         ) {
           plant.health = 'NEEDS_ATTENTION'
@@ -336,15 +319,16 @@ export const createMockPlantRepository = (
       }
       // Also mutate original array for tests that check it directly
       for (const plant of originalPlantsData) {
-        const wateringOverdue =
-          plant.nextWateringAt !== null &&
-          plant.nextWateringAt.getTime() <= now.getTime()
-        const fertilizationOverdue =
-          plant.nextFertilizationAt !== null &&
-          plant.nextFertilizationAt.getTime() <= now.getTime()
+        const hasOverdueSchedule = Array.some(
+          schedulesData,
+          (s) =>
+            s.plantId === plant.id &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() <= now.getTime()
+        )
 
         if (
-          (wateringOverdue || fertilizationOverdue) &&
+          hasOverdueSchedule &&
           (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
         ) {
           plant.health = 'NEEDS_ATTENTION'
@@ -353,62 +337,35 @@ export const createMockPlantRepository = (
       return Effect.succeed(count)
     },
 
-    findOverduePlantsByUser: () => {
-      const now = new Date()
-      const overdue = Array.filter(
-        plantsData,
-        (p) =>
-          (p.nextWateringAt !== null &&
-            p.nextWateringAt.getTime() <= now.getTime()) ||
-          (p.nextFertilizationAt !== null &&
-            p.nextFertilizationAt.getTime() <= now.getTime())
-      )
-      const mapped = Array.map(overdue, (p) => ({
-        id: p.id,
-        name: p.name,
-        userId: p.userId,
-        overdueAt: earliestOverdueDate(
-          [p.nextWateringAt, p.nextFertilizationAt],
-          now
-        ),
-      }))
-      return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
-    },
-
     markHealthyPlantsInOrder: () => {
       const now = new Date()
       let count = 0
       for (const plant of plantsData) {
-        const wateringOk =
-          plant.nextWateringAt === null ||
-          plant.nextWateringAt.getTime() > now.getTime()
-        const fertilizationOk =
-          plant.nextFertilizationAt === null ||
-          plant.nextFertilizationAt.getTime() > now.getTime()
+        // No overdue schedules
+        const hasOverdueSchedule = Array.some(
+          schedulesData,
+          (s) =>
+            s.plantId === plant.id &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() <= now.getTime()
+        )
 
-        if (
-          plant.health === 'NEEDS_ATTENTION' &&
-          wateringOk &&
-          fertilizationOk
-        ) {
+        if (plant.health === 'NEEDS_ATTENTION' && !hasOverdueSchedule) {
           plant.health = 'HEALTHY'
           count++
         }
       }
       // Also mutate original array for tests that check it directly
       for (const plant of originalPlantsData) {
-        const wateringOk =
-          plant.nextWateringAt === null ||
-          plant.nextWateringAt.getTime() > now.getTime()
-        const fertilizationOk =
-          plant.nextFertilizationAt === null ||
-          plant.nextFertilizationAt.getTime() > now.getTime()
+        const hasOverdueSchedule = Array.some(
+          schedulesData,
+          (s) =>
+            s.plantId === plant.id &&
+            s.nextCareAt !== null &&
+            s.nextCareAt.getTime() <= now.getTime()
+        )
 
-        if (
-          plant.health === 'NEEDS_ATTENTION' &&
-          wateringOk &&
-          fertilizationOk
-        ) {
+        if (plant.health === 'NEEDS_ATTENTION' && !hasOverdueSchedule) {
           plant.health = 'HEALTHY'
         }
       }

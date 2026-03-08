@@ -1,8 +1,10 @@
 import type { HttpServerResponse } from '@effect/platform'
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
@@ -84,7 +86,11 @@ describe('streamChatMessage', () => {
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,
       MockUsageTrackerLive,
-      MockRagServiceLive
+      MockRagServiceLive,
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants(mockPlants),
+        plants: mockPlants,
+      })
     ).pipe(
       Layer.merge(createMockGCSService()),
       Layer.merge(emptyDelegationMock)

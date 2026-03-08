@@ -1,3 +1,4 @@
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestPlant,
   mockOverduePlants,
@@ -256,7 +257,10 @@ describe('findPlants', () => {
   describe('overdue filter', () => {
     const createOverdueTestLayer = (userId = 'user-1') =>
       Layer.mergeAll(
-        createMockPlantRepository({ plants: mockOverduePlants }),
+        createMockPlantRepository({
+          plants: mockOverduePlants,
+          schedules: schedulesFromPlants(mockOverduePlants),
+        }),
         createMockCurrentUser({ id: userId }),
         createMockUserRepository(mockUsers)
       )

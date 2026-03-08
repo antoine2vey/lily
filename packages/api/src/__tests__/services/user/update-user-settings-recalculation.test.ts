@@ -1,5 +1,7 @@
+import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -72,7 +74,11 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] })
+      createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants([testPlant]),
+        plants: [testPlant],
+      })
     )
 
     await Effect.runPromise(
@@ -130,7 +136,11 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] })
+      createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants([testPlant]),
+        plants: [testPlant],
+      })
     )
 
     // Change timezone from UTC to America/New_York (EDT = UTC-4 in June)
@@ -187,7 +197,11 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] })
+      createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants([testPlant]),
+        plants: [testPlant],
+      })
     )
 
     // Send the same preferredNotificationTime as existing (09:00)
@@ -241,7 +255,11 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockUserRepository([testUser]),
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
-      createMockPlantRepository({ plants: [testPlant] })
+      createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants([testPlant]),
+        plants: [testPlant],
+      })
     )
 
     // Update name only - should NOT trigger recalculation

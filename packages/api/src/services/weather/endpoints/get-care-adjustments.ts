@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
@@ -22,6 +23,7 @@ export const getCareAdjustments = (): Effect.Effect<
   | CurrentUser
   | UserRepository
   | PlantRepository
+  | CareScheduleRepository
   | WeatherProvider
   | WeatherCache
   | WeatherRepository
@@ -30,6 +32,7 @@ export const getCareAdjustments = (): Effect.Effect<
     const { id } = yield* CurrentUser
     const userRepo = yield* UserRepository
     const plantRepo = yield* PlantRepository
+    const scheduleRepo = yield* CareScheduleRepository
     const weatherRepo = yield* WeatherRepository
 
     // Get user and verify weather is enabled
@@ -102,19 +105,41 @@ export const getCareAdjustments = (): Effect.Effect<
         }) satisfies WeatherData
     )
 
+    // Fetch watering schedules for all plants and build a lookup
+    const allSchedules = yield* Effect.forEach(
+      plantsResult.items,
+      (plant) => scheduleRepo.findByPlant(plant.id),
+      { concurrency: 10 }
+    )
+
     // Calculate adjustments for each plant
-    return Array.map(plantsResult.items, (plant) =>
-      calculatePlantAdjustment(
-        {
-          id: plant.id,
-          category: plant.category,
-          wateringFrequencyDays: plant.wateringFrequencyDays,
-          wateringRating: plant.wateringRating,
-          isOutdoor: plant.room?.isOutdoor ?? false,
-        },
-        currentWeather,
-        recentHistory,
-        forecast.daily
-      )
+    return Array.filterMap(
+      Array.zip(plantsResult.items, allSchedules),
+      ([plant, schedules]) => {
+        const wateringSchedule = pipe(
+          Array.findFirst(schedules, (s) => s.careType === 'watering'),
+          Option.getOrNull
+        )
+
+        // Skip plants without a watering schedule
+        if (!wateringSchedule) {
+          return Option.none()
+        }
+
+        return Option.some(
+          calculatePlantAdjustment(
+            {
+              id: plant.id,
+              category: plant.category,
+              wateringFrequencyDays: wateringSchedule.frequencyDays,
+              wateringRating: plant.wateringRating,
+              isOutdoor: plant.room?.isOutdoor ?? false,
+            },
+            currentWeather,
+            recentHistory,
+            forecast.daily
+          )
+        )
+      }
     )
   })

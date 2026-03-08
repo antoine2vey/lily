@@ -183,6 +183,13 @@
       "when": 1771330864888,
       "tag": "0025_safe_darwin",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1772986909308,
+      "tag": "0026_freezing_smasher",
+      "breakpoints": true
     }
   ]
 }

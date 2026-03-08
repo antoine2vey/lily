@@ -1,5 +1,5 @@
 import { formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
-import { Option, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 
 export interface SystemPromptPlantData {
   readonly name: string
@@ -10,12 +10,12 @@ export interface SystemPromptPlantData {
   readonly lightingRating: number
   readonly wateringRating: number
   readonly petToxicityRating: number
-  readonly wateringFrequencyDays: number
-  readonly lastWateredAt: Date | null
-  readonly nextWateringAt: Date | null
-  readonly fertilizationFrequencyDays: number | null
-  readonly lastFertilizedAt: Date | null
-  readonly nextFertilizationAt: Date | null
+  readonly schedules: ReadonlyArray<{
+    readonly careType: string
+    readonly frequencyDays: number
+    readonly lastCareAt: Date | null
+    readonly nextCareAt: Date | null
+  }>
 }
 
 export interface BuildSystemPromptParams {
@@ -27,6 +27,16 @@ export interface BuildSystemPromptParams {
 
 export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
   const { plant, daysSinceAdded, careHistoryText, knowledgeContext } = params
+
+  const watering = pipe(
+    Array.findFirst(plant.schedules, (s) => s.careType === 'watering'),
+    Option.getOrUndefined
+  )
+
+  const fertilization = pipe(
+    Array.findFirst(plant.schedules, (s) => s.careType === 'fertilization'),
+    Option.getOrUndefined
+  )
 
   return `
       You are a helpful plant care expert assistant. You help users care for their plants by answering questions about watering, fertilizing, lighting, humidity, pruning, repotting, pest control, disease prevention, and general plant health.
@@ -53,14 +63,14 @@ export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
         Pet toxicity: ${plant.petToxicityRating}/5 (5 = highly toxic)
 
       Watering Schedule:
-        Frequency: Every ${plant.wateringFrequencyDays} days
-        Last watered: ${formatIsoDate(plant.lastWateredAt)}
-        Next watering: ${formatDaysUntilHuman(plant.nextWateringAt)}
+        Frequency: ${watering ? `Every ${watering.frequencyDays} days` : 'Not set'}
+        Last watered: ${formatIsoDate(watering?.lastCareAt ?? null)}
+        Next watering: ${formatDaysUntilHuman(watering?.nextCareAt ?? null)}
 
       Fertilization Schedule:
-        Frequency: ${plant.fertilizationFrequencyDays ? `Every ${plant.fertilizationFrequencyDays} days` : 'Not set'}
-        Last fertilized: ${formatIsoDate(plant.lastFertilizedAt)}
-        Next fertilization: ${formatDaysUntilHuman(plant.nextFertilizationAt)}
+        Frequency: ${fertilization ? `Every ${fertilization.frequencyDays} days` : 'Not set'}
+        Last fertilized: ${formatIsoDate(fertilization?.lastCareAt ?? null)}
+        Next fertilization: ${formatDaysUntilHuman(fertilization?.nextCareAt ?? null)}
 
       Recent Care History:
       ${careHistoryText || 'No care events recorded yet'}

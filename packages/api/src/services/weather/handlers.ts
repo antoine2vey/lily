@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
@@ -30,6 +31,7 @@ export const WeatherApiLive = (api: Api) =>
     Layer.provide(WeatherCacheLive),
     Layer.provide(WeatherRepositoryLive),
     Layer.provide(PlantRepositoryLive),
+    Layer.provide(CareScheduleRepositoryLive),
     Layer.provide(UserRepositoryLive),
     Layer.provide(RedisClientLive),
     Layer.provide(AuthenticationLive)

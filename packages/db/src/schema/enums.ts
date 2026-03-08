@@ -68,3 +68,5 @@ export const delegationStatusEnum = pgEnum('delegation_status', [
 ])
 
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
+
+export const careTypeEnum = pgEnum('care_type', ['watering', 'fertilization'])

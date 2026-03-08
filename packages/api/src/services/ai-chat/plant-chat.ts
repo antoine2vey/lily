@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { buildSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
@@ -63,6 +64,7 @@ export const plantChat = (
   return Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
+    const scheduleRepo = yield* CareScheduleRepository
     const diagnosisRepo = yield* DiagnosisRepository
     const ragService = yield* RagService
     const { id: userId } = yield* CurrentUser
@@ -75,6 +77,9 @@ export const plantChat = (
 
     // Verify the current user owns this plant or is an active caretaker
     yield* assertCanAccessPlant(plant.userId, plant.id)
+
+    // Fetch care schedules for context
+    const schedules = yield* scheduleRepo.findByPlant(plantId)
 
     // Fetch recent care logs for context
     const careLogsResponse = yield* careLogRepo.findByPlantId({
@@ -112,7 +117,7 @@ export const plantChat = (
     const daysSinceAdded = daysSince(plant.dateAdded)
 
     const systemPrompt = buildSystemPrompt({
-      plant,
+      plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
       knowledgeContext,
