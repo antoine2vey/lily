@@ -72,8 +72,16 @@ export const findCareTasks = (): Effect.Effect<
             plantId: s.plant.id,
             plantName: s.plant.name,
             plantImageUrl: s.plant.imageUrl,
-            roomName: s.plant.room?.name ?? null,
-            roomIcon: s.plant.room?.icon ?? null,
+            roomName: pipe(
+              Option.fromNullable(s.plant.room),
+              Option.map((r) => r.name),
+              Option.getOrNull
+            ),
+            roomIcon: pipe(
+              Option.fromNullable(s.plant.room),
+              Option.map((r) => r.icon),
+              Option.getOrNull
+            ),
             type: taskType,
             dueDate: date,
             completed: false,

@@ -1,4 +1,4 @@
-export type { CareType } from '@lily/api/repositories/care-schedule.repository'
+export type { CareType } from '@lily/shared'
 
 // Simple request types
 export type PlantByIdRequest = { id: string }

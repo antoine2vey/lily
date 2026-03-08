@@ -16,7 +16,7 @@ import type {
   CareMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
-import { Array, DateTime, Duration, Effect, Option } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 export const careMultiplePlants = (
   request: CareMultiplePlantsRequest
@@ -65,7 +65,7 @@ export const careMultiplePlants = (
                 onSome: (plant) => canAccessPlant(plant.userId, plant.id),
               })
 
-              if (!hasAccess || Option.isNone(plantOption)) {
+              if (!hasAccess) {
                 return {
                   plantId,
                   success: false,
@@ -73,14 +73,19 @@ export const careMultiplePlants = (
                 }
               }
 
-              const plant = plantOption.value
+              // Safe: hasAccess is false when plantOption is None (onNone branch)
+              const plant = Option.getOrThrow(plantOption)
 
               // Get frequency from schedule
               const schedule = yield* scheduleRepo.findByPlantAndType(
                 plantId,
                 request.careType
               )
-              const frequency = schedule ? schedule.frequencyDays : undefined
+              const frequency = pipe(
+                Option.fromNullable(schedule),
+                Option.map((s) => s.frequencyDays),
+                Option.getOrUndefined
+              )
 
               const nowDayStart = DateTime.startOf(nowDt, 'day')
               const nextCareAt = frequency
@@ -125,10 +130,13 @@ export const careMultiplePlants = (
               return {
                 plantId,
                 success: true,
-                plant: updatedPlant ?? undefined,
+                plant: pipe(
+                  Option.fromNullable(updatedPlant),
+                  Option.getOrUndefined
+                ),
               }
             }),
-          { concurrency: 'unbounded' }
+          { concurrency: 10 }
         )
 
         return results

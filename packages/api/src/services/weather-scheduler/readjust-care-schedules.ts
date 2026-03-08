@@ -100,7 +100,10 @@ const readjustUserPlants = (
     }
 
     yield* Effect.log(
-      `[Readjust] Processing user ${user.id} at ${locationKey} (tz=${user.timezone ?? 'UTC'})`
+      `[Readjust] Processing user ${user.id} at ${locationKey} (tz=${pipe(
+        Option.fromNullable(user.timezone),
+        Option.getOrElse(() => 'UTC')
+      )})`
     )
 
     const timezone = pipe(
@@ -208,11 +211,23 @@ const readjustPlantSchedule = (
         category: plant.category,
         wateringFrequencyDays: wateringSchedule.frequencyDays,
         wateringRating: plant.wateringRating,
-        isOutdoor: plant.room?.isOutdoor ?? false,
+        isOutdoor: pipe(
+          Option.fromNullable(plant.room),
+          Option.map((r) => r.isOutdoor),
+          Option.getOrElse(() => false)
+        ),
         lastWateredAt: wateringSchedule.lastCareAt,
         nextWateringAt: wateringSchedule.nextCareAt,
-        nextFertilizationAt: fertSchedule?.nextCareAt ?? null,
-        fertilizationFrequencyDays: fertSchedule?.frequencyDays ?? null,
+        nextFertilizationAt: pipe(
+          Option.fromNullable(fertSchedule),
+          Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+          Option.getOrNull
+        ),
+        fertilizationFrequencyDays: pipe(
+          Option.fromNullable(fertSchedule),
+          Option.map((s) => s.frequencyDays),
+          Option.getOrNull
+        ),
       },
       weatherCtx,
       nowMs
@@ -235,7 +250,8 @@ const readjustPlantSchedule = (
     )
 
     const newNextFertilizationAt = pipe(
-      Option.fromNullable(fertSchedule?.nextCareAt ?? null),
+      Option.fromNullable(fertSchedule),
+      Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
       Option.filter(() => delta.fertilizationDaysDelta !== 0),
       Option.map(
         (fertDate) =>
@@ -261,7 +277,16 @@ const readjustPlantSchedule = (
       }
 
       yield* Effect.log(
-        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${fertilizationChanged ? ` (${fertSchedule?.nextCareAt?.toISOString()} → ${newNextFertilizationAt.value.toISOString()})` : ''}`
+        `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${
+          fertilizationChanged
+            ? ` (${pipe(
+                Option.fromNullable(fertSchedule),
+                Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+                Option.map((d) => d.toISOString()),
+                Option.getOrElse(() => 'none')
+              )} → ${newNextFertilizationAt.value.toISOString()})`
+            : ''
+        }`
       )
 
       // Reschedule notifications

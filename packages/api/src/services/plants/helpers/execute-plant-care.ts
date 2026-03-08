@@ -1,9 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import {
-  CareScheduleRepository,
-  type CareType,
-} from '@lily/api/repositories/care-schedule.repository'
+import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -19,7 +16,7 @@ import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
-import { roundCoord } from '@lily/shared'
+import { type CareType, roundCoord } from '@lily/shared'
 import {
   FutureDateNotAllowedError,
   PlantNotFoundError,
@@ -27,7 +24,7 @@ import {
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
-export type { CareType } from '@lily/api/repositories/care-schedule.repository'
+export type { CareType } from '@lily/shared'
 
 export interface ExecutePlantCareParams {
   readonly plantId: string
@@ -204,7 +201,11 @@ export const executePlantCare = (
               Option.getOrElse(() => 7)
             ),
             wateringRating: plant.wateringRating,
-            isOutdoor: plant.room?.isOutdoor ?? false,
+            isOutdoor: pipe(
+              Option.fromNullable(plant.room),
+              Option.map((r) => r.isOutdoor),
+              Option.getOrElse(() => false)
+            ),
           },
           params.careType,
           nextCareAt,

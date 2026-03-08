@@ -1,14 +1,18 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantCareSchedules, plants, rooms } from '@lily/db/schema'
-import { earliestOverdueDate, nowAsDate, type OverduePlant } from '@lily/shared'
+import {
+  type CareType,
+  earliestOverdueDate,
+  nowAsDate,
+  type OverduePlant,
+} from '@lily/shared'
 import { and, asc, eq, isNotNull, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types
 export type CareScheduleRow = typeof plantCareSchedules.$inferSelect
-
-export type CareType = 'watering' | 'fertilization'
+export type { CareType } from '@lily/shared'
 
 export interface ScheduleWithPlant {
   schedule: CareScheduleRow
@@ -193,8 +197,14 @@ export const CareScheduleRepositoryLive = Layer.effect(
               plantId,
               careType,
               frequencyDays: data.frequencyDays,
-              lastCareAt: data.lastCareAt ?? null,
-              nextCareAt: data.nextCareAt ?? null,
+              lastCareAt: pipe(
+                Option.fromNullable(data.lastCareAt),
+                Option.getOrNull
+              ),
+              nextCareAt: pipe(
+                Option.fromNullable(data.nextCareAt),
+                Option.getOrNull
+              ),
             })
             .onConflictDoUpdate({
               target: [plantCareSchedules.plantId, plantCareSchedules.careType],

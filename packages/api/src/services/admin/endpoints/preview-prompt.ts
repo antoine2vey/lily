@@ -6,7 +6,10 @@ import {
   ChatRepository,
 } from '@lily/api/repositories/chat.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { buildSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
+import {
+  buildSystemPrompt,
+  formatCareHistoryText,
+} from '@lily/api/services/ai-chat/build-system-prompt'
 import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
 import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatIsoDate } from '@lily/shared'
@@ -57,14 +60,7 @@ export const previewPrompt = (
       limit: 10,
     })
 
-    const careHistoryText = pipe(
-      careLogsResponse.items,
-      Array.map(
-        (log) =>
-          `- ${log.type} on ${formatIsoDate(log.date)}${log.notes ? `: "${log.notes}"` : ''}`
-      ),
-      Array.join('\n')
-    )
+    const careHistoryText = formatCareHistoryText(careLogsResponse.items)
 
     // 5. Determine the user message text for RAG query
     const userMessageText = messageRow.content

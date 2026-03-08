@@ -50,7 +50,10 @@ export const getCareAdjustments = (): Effect.Effect<
     // Get the user's plants
     const plantsResult = yield* plantRepo.findAll({
       userId: id,
-      timezone: user.timezone || 'UTC',
+      timezone: pipe(
+        Option.fromNullable(user.timezone),
+        Option.getOrElse(() => 'UTC')
+      ),
       page: 1,
       limit: 1000,
     })
@@ -133,7 +136,11 @@ export const getCareAdjustments = (): Effect.Effect<
               category: plant.category,
               wateringFrequencyDays: wateringSchedule.frequencyDays,
               wateringRating: plant.wateringRating,
-              isOutdoor: plant.room?.isOutdoor ?? false,
+              isOutdoor: pipe(
+                Option.fromNullable(plant.room),
+                Option.map((r) => r.isOutdoor),
+                Option.getOrElse(() => false)
+              ),
             },
             currentWeather,
             recentHistory,
