@@ -1,5 +1,9 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import {
+  createTestPlant,
+  fertilizationSpec,
+  wateringSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import {
   mockWeatherDataExtremeHeat,
@@ -74,12 +78,16 @@ describe('readjustCareSchedules', () => {
       id: 'plant-adjust-1',
       name: 'Test Monstera',
       category: 'tropical',
-      wateringFrequencyDays: 7,
       wateringRating: 3,
-      lastWateredAt: threeDaysAgo,
-      nextWateringAt: currentNext,
       remindersEnabled: true,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: threeDaysAgo,
+          nextCareAt: currentNext,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -102,12 +110,16 @@ describe('readjustCareSchedules', () => {
       id: 'plant-no-change',
       name: 'Correct Schedule Plant',
       category: 'tropical',
-      wateringFrequencyDays: 7,
       wateringRating: 3,
-      lastWateredAt: threeDaysAgo,
-      nextWateringAt: correctNext,
       remindersEnabled: true,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: threeDaysAgo,
+          nextCareAt: correctNext,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -123,10 +135,14 @@ describe('readjustCareSchedules', () => {
     const plant = createTestPlant({
       id: 'plant-never-watered',
       name: 'New Plant',
-      wateringFrequencyDays: 7,
-      lastWateredAt: null,
-      nextWateringAt: null,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: null,
+          nextCareAt: null,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -142,10 +158,14 @@ describe('readjustCareSchedules', () => {
     const plant = createTestPlant({
       id: 'plant-no-next',
       name: 'No Schedule Plant',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date(),
-      nextWateringAt: null,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date(),
+          nextCareAt: null,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -171,12 +191,16 @@ describe('readjustCareSchedules', () => {
       id: 'plant-skip-water',
       name: 'Rainy Day Plant',
       category: 'tropical',
-      wateringFrequencyDays: 7,
       wateringRating: 3,
-      lastWateredAt: fiveDaysAgo,
-      nextWateringAt: pastDate,
       remindersEnabled: true,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: fiveDaysAgo,
+          nextCareAt: pastDate,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -202,17 +226,23 @@ describe('readjustCareSchedules', () => {
       id: 'plant-skip-fert',
       name: 'Hot Day Plant',
       category: 'tropical',
-      wateringFrequencyDays: 7,
       wateringRating: 3,
-      lastWateredAt: thirtyDaysAgo,
-      nextWateringAt: new Date(
-        thirtyDaysAgo.getTime() + 7 * 24 * 60 * 60 * 1000
-      ),
-      fertilizationFrequencyDays: 30,
-      lastFertilizedAt: thirtyDaysAgo,
-      nextFertilizationAt: pastDate,
       remindersEnabled: true,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: thirtyDaysAgo,
+          nextCareAt: new Date(
+            thirtyDaysAgo.getTime() + 7 * 24 * 60 * 60 * 1000
+          ),
+        }),
+        fertilizationSpec({
+          frequencyDays: 30,
+          lastCareAt: thirtyDaysAgo,
+          nextCareAt: pastDate,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -238,10 +268,14 @@ describe('readjustCareSchedules', () => {
     const plant = createTestPlant({
       id: 'plant-no-ctx',
       name: 'No Context Plant',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date(),
-      nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date(),
+          nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -269,12 +303,16 @@ describe('readjustCareSchedules', () => {
       id: 'plant-indoor-rain',
       name: 'Indoor Plant In Rain',
       category: 'tropical',
-      wateringFrequencyDays: 7,
       wateringRating: 3,
-      lastWateredAt: fiveDaysAgo,
-      nextWateringAt: pastDate,
       remindersEnabled: true,
       userId: weatherUser.id,
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: fiveDaysAgo,
+          nextCareAt: pastDate,
+        }),
+      ],
     })
 
     const layers = buildLayers({ plants: [plant] })
@@ -306,21 +344,29 @@ describe('readjustCareSchedules', () => {
         id: 'plant-multi-1',
         name: 'Plant A',
         category: 'tropical',
-        wateringFrequencyDays: 7,
         wateringRating: 3,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000),
         userId: weatherUser.id,
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000),
+          }),
+        ],
       }),
       createTestPlant({
         id: 'plant-multi-2',
         name: 'Plant B',
         category: 'succulent',
-        wateringFrequencyDays: 14,
         wateringRating: 1,
-        lastWateredAt: threeDaysAgo,
-        nextWateringAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
         userId: weatherUser.id,
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 14,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          }),
+        ],
       }),
     ]
 

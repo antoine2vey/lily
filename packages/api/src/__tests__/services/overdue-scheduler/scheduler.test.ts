@@ -2,7 +2,9 @@ import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import {
   createTestPlant,
+  fertilizationSpec,
   type TestPlant,
+  wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -68,16 +70,28 @@ const runProcessUser = (
     delegationPlants?: Array<{ delegationId: string; plantId: string }>
   } = {}
 ) => {
-  const overdue = Arr.filter(
-    plantsData,
-    (p) => p.nextWateringAt !== null && p.nextWateringAt.getTime() <= Date.now()
-  )
-  const mapped = Arr.map(overdue, (p) => ({
-    id: p.id,
-    name: p.name,
-    userId: p.userId,
-    overdueAt: p.nextWateringAt as Date,
-  }))
+  const overdue = Arr.filter(plantsData, (p) => {
+    const wateringSched = Arr.findFirst(
+      p.scheduleSpecs,
+      (s) => s.careType === 'watering'
+    )
+    return (
+      Option.isSome(wateringSched) &&
+      wateringSched.value.nextCareAt !== null &&
+      wateringSched.value.nextCareAt.getTime() <= Date.now()
+    )
+  })
+  const mapped = Arr.map(overdue, (p) => {
+    const wateringSched = Option.getOrThrow(
+      Arr.findFirst(p.scheduleSpecs, (s) => s.careType === 'watering')
+    )
+    return {
+      id: p.id,
+      name: p.name,
+      userId: p.userId,
+      overdueAt: wateringSched.nextCareAt as Date,
+    }
+  })
 
   return Effect.runPromiseExit(
     processUserOverdueReminders(userId, mapped).pipe(
@@ -318,7 +332,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'plant-1',
         name: 'Thirsty Fern',
         userId: 'user-1',
-        nextWateringAt: daysAgo(3), // 3 days overdue
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(3) })], // 3 days overdue
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -337,7 +351,11 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        scheduleSpecs: [
+          wateringSpec({
+            nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }),
+        ], // 7 days from now
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -356,7 +374,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: new Date(), // right now = today
+        scheduleSpecs: [wateringSpec({ nextCareAt: new Date() })], // right now = today
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -381,7 +399,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       const exit = await runProcessUser(
@@ -413,7 +431,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       // checkAndCreateOverdueReminders catches the error — no new rows
@@ -438,7 +456,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       const exit = await runProcessUser('user-1', [plant], [userWithCareOff])
@@ -463,7 +481,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       await runCheck([plant], [userWithCareOff], notifications)
@@ -488,7 +506,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       const exit = await runProcessUser('user-1', [plant], [userWithFullDnd])
@@ -513,7 +531,7 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-delegated',
         userId: 'user-owner',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
 
       const delegation: DelegationRow = {
@@ -555,19 +573,19 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'plant-1',
         name: 'Fern',
         userId: 'user-1',
-        nextWateringAt: daysAgo(3),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(3) })],
       })
       const plant2 = createTestPlant({
         id: 'plant-2',
         name: 'Cactus',
         userId: 'user-1',
-        nextWateringAt: daysAgo(5),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(5) })],
       })
       const plant3 = createTestPlant({
         id: 'plant-3',
         name: 'Ivy',
         userId: 'user-1',
-        nextWateringAt: daysAgo(1),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(1) })],
       })
 
       await runCheck([plant1, plant2, plant3], [defaultUser], notifications)
@@ -591,12 +609,12 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant1 = createTestPlant({
         id: 'plant-1',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
       const plant2 = createTestPlant({
         id: 'plant-2',
         userId: 'user-1',
-        nextWateringAt: daysAgo(4),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(4) })],
       })
 
       await runCheck([plant1, plant2], [defaultUser], notifications)
@@ -632,24 +650,24 @@ describe('checkAndCreateOverdueReminders', () => {
         createTestPlant({
           id: 'a-plant-1',
           userId: 'user-a',
-          nextWateringAt: daysAgo(2),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
         }),
         createTestPlant({
           id: 'a-plant-2',
           userId: 'user-a',
-          nextWateringAt: daysAgo(3),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(3) })],
         }),
         createTestPlant({
           id: 'a-plant-3',
           userId: 'user-a',
-          nextWateringAt: daysAgo(1),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(1) })],
         }),
       ]
       const plantsB = [
         createTestPlant({
           id: 'b-plant-1',
           userId: 'user-b',
-          nextWateringAt: daysAgo(4),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(4) })],
         }),
       ]
 
@@ -694,12 +712,12 @@ describe('checkAndCreateOverdueReminders', () => {
       const plantA = createTestPlant({
         id: 'a-plant-1',
         userId: 'user-a',
-        nextWateringAt: daysAgo(2),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
       })
       const plantB = createTestPlant({
         id: 'b-plant-1',
         userId: 'user-b',
-        nextWateringAt: daysAgo(3),
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(3) })],
       })
 
       await runCheck([plantA, plantB], [userA, userB], notifications)
@@ -730,9 +748,12 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'plant-fert-1',
         name: 'Hungry Monstera',
         userId: 'user-1',
-        fertilizationFrequencyDays: 30,
-        nextFertilizationAt: daysAgo(3),
-        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        scheduleSpecs: [
+          wateringSpec({
+            nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }),
+          fertilizationSpec({ frequencyDays: 30, nextCareAt: daysAgo(3) }),
+        ],
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -751,9 +772,12 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-fert-today',
         userId: 'user-1',
-        fertilizationFrequencyDays: 30,
-        nextFertilizationAt: new Date(), // today, not strictly overdue
-        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        scheduleSpecs: [
+          wateringSpec({
+            nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }),
+          fertilizationSpec({ frequencyDays: 30, nextCareAt: new Date() }), // today, not strictly overdue
+        ],
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -770,9 +794,10 @@ describe('checkAndCreateOverdueReminders', () => {
       const plant = createTestPlant({
         id: 'plant-both-overdue',
         userId: 'user-1',
-        fertilizationFrequencyDays: 30,
-        nextWateringAt: daysAgo(2),
-        nextFertilizationAt: daysAgo(4),
+        scheduleSpecs: [
+          wateringSpec({ nextCareAt: daysAgo(2) }),
+          fertilizationSpec({ frequencyDays: 30, nextCareAt: daysAgo(4) }),
+        ],
       })
 
       await runCheck([plant], [defaultUser], notifications)
@@ -791,15 +816,22 @@ describe('checkAndCreateOverdueReminders', () => {
       const wateringPlant = createTestPlant({
         id: 'plant-water-only',
         userId: 'user-1',
-        nextWateringAt: daysAgo(2),
-        nextFertilizationAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        scheduleSpecs: [
+          wateringSpec({ nextCareAt: daysAgo(2) }),
+          fertilizationSpec({
+            nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }),
+        ],
       })
       const fertPlant = createTestPlant({
         id: 'plant-fert-only',
         userId: 'user-1',
-        fertilizationFrequencyDays: 30,
-        nextFertilizationAt: daysAgo(3),
-        nextWateringAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        scheduleSpecs: [
+          wateringSpec({
+            nextCareAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          }),
+          fertilizationSpec({ frequencyDays: 30, nextCareAt: daysAgo(3) }),
+        ],
       })
 
       await runCheck([wateringPlant, fertPlant], [defaultUser], notifications)

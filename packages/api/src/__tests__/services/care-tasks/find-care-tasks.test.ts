@@ -1,5 +1,9 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import type { TestPlant } from '@lily/api/__tests__/fixtures/plants'
+import {
+  fertilizationSpec,
+  type TestPlant,
+  wateringSpec,
+} from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -40,13 +44,19 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 2,
       wateringRating: 3,
       health: 'HEALTHY',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-10'),
-      nextWateringAt: yesterday, // Overdue
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-10'),
+          nextCareAt: yesterday, // Overdue
+        }),
+        fertilizationSpec({
+          frequencyDays: 30,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: tomorrow, // Upcoming
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: 30,
-      lastFertilizedAt: new Date('2024-01-01'),
-      nextFertilizationAt: tomorrow, // Upcoming
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -64,13 +74,14 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 3,
       wateringRating: 1,
       health: 'THRIVING',
-      wateringFrequencyDays: 14,
-      lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: today, // Today
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 14,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: today, // Today
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -88,13 +99,19 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 2,
       wateringRating: 4,
       health: 'HEALTHY',
-      wateringFrequencyDays: 10,
-      lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: inThreeDays, // Upcoming
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 10,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: inThreeDays, // Upcoming
+        }),
+        fertilizationSpec({
+          frequencyDays: 14,
+          lastCareAt: null,
+          nextCareAt: inThreeDays, // Upcoming
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: 14,
-      lastFertilizedAt: null,
-      nextFertilizationAt: inThreeDays, // Upcoming
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -112,13 +129,14 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 1,
       wateringRating: 1,
       health: 'THRIVING',
-      wateringFrequencyDays: 30,
-      lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: nextWeek, // Beyond 7-day window
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 30,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: nextWeek, // Beyond 7-day window
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -136,13 +154,14 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 0,
       wateringRating: 3,
       health: 'HEALTHY',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: yesterday, // Overdue but belongs to user-2
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: yesterday, // Overdue but belongs to user-2
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
       isFavorite: false,
       roomId: null,
       userId: 'user-2',
@@ -168,13 +187,14 @@ const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
       petToxicityRating: 0,
       wateringRating: 3,
       health: 'HEALTHY',
-      wateringFrequencyDays: 7,
-      lastWateredAt: new Date('2024-01-01'),
-      nextWateringAt: nextWeek, // Far in the future
+      scheduleSpecs: [
+        wateringSpec({
+          frequencyDays: 7,
+          lastCareAt: new Date('2024-01-01'),
+          nextCareAt: nextWeek, // Far in the future
+        }),
+      ],
       remindersEnabled: true,
-      fertilizationFrequencyDays: null,
-      lastFertilizedAt: null,
-      nextFertilizationAt: null,
       isFavorite: false,
       roomId: null,
       userId: 'user-1',
@@ -403,13 +423,14 @@ describe('findCareTasks', () => {
           petToxicityRating: 0,
           wateringRating: 3,
           health: 'HEALTHY' as const,
-          wateringFrequencyDays: 7,
-          lastWateredAt: new Date('2024-01-01'),
-          nextWateringAt: jan29Late,
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: jan29Late,
+            }),
+          ],
           remindersEnabled: true,
-          fertilizationFrequencyDays: null,
-          lastFertilizedAt: null,
-          nextFertilizationAt: null,
           isFavorite: false,
           roomId: null,
           userId: 'user-1',
@@ -427,13 +448,14 @@ describe('findCareTasks', () => {
           petToxicityRating: 0,
           wateringRating: 3,
           health: 'HEALTHY' as const,
-          wateringFrequencyDays: 7,
-          lastWateredAt: new Date('2024-01-01'),
-          nextWateringAt: jan30Morning,
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: jan30Morning,
+            }),
+          ],
           remindersEnabled: true,
-          fertilizationFrequencyDays: null,
-          lastFertilizedAt: null,
-          nextFertilizationAt: null,
           isFavorite: false,
           roomId: null,
           userId: 'user-1',
@@ -451,13 +473,14 @@ describe('findCareTasks', () => {
           petToxicityRating: 0,
           wateringRating: 3,
           health: 'HEALTHY' as const,
-          wateringFrequencyDays: 7,
-          lastWateredAt: new Date('2024-01-01'),
-          nextWateringAt: feb1,
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: feb1,
+            }),
+          ],
           remindersEnabled: true,
-          fertilizationFrequencyDays: null,
-          lastFertilizedAt: null,
-          nextFertilizationAt: null,
           isFavorite: false,
           roomId: null,
           userId: 'user-1',
