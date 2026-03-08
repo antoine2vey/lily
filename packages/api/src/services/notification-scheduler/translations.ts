@@ -136,6 +136,7 @@ type CareTranslations = {
 type TranslationMap = {
   readonly watering_reminder: CareTranslations
   readonly fertilization_reminder: CareTranslations
+  readonly overdue_reminder: CareTranslations
 }
 
 const translations: Record<LanguageCode, TranslationMap> = {
@@ -150,6 +151,12 @@ const translations: Record<LanguageCode, TranslationMap> = {
       singleTitle: (name) => `Time to fertilize your ${name}`,
       singleBody: (name) => `Your ${name} needs fertilizing today.`,
       pluralTitle: (count) => `${count} plants need fertilizing`,
+      andMore: (count) => `and ${count} more`,
+    },
+    overdue_reminder: {
+      singleTitle: (name) => `Your ${name} is overdue for watering`,
+      singleBody: (name) => `Your ${name} still needs watering — don't forget!`,
+      pluralTitle: (count) => `${count} plants are overdue for watering`,
       andMore: (count) => `and ${count} more`,
     },
   },
@@ -168,6 +175,13 @@ const translations: Record<LanguageCode, TranslationMap> = {
       pluralTitle: (count) => `${count} plantes ont besoin de fertilisant`,
       andMore: (count) => `et ${count} de plus`,
     },
+    overdue_reminder: {
+      singleTitle: (name) => `Votre ${name} a besoin d'eau`,
+      singleBody: (name) =>
+        `Votre ${name} attend toujours d'être arrosé(e) — n'oubliez pas !`,
+      pluralTitle: (count) => `${count} plantes sont en retard d'arrosage`,
+      andMore: (count) => `et ${count} de plus`,
+    },
   },
 }
 
@@ -184,6 +198,10 @@ const getCareTranslations = (
     Match.when(
       'fertilization_reminder',
       () => translations[language].fertilization_reminder
+    ),
+    Match.when(
+      'overdue_reminder',
+      () => translations[language].overdue_reminder
     ),
     Match.orElse(() => translations[language].watering_reminder)
   )

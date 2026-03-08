@@ -194,6 +194,19 @@ export const createMockNotificationRepository = (
           })
         })
       }),
+
+    hasOverdueReminderTodayForUser: (userId: string, _timezone: string) =>
+      Effect.succeed(
+        Array.some(
+          notificationsState,
+          (n) =>
+            n.userId === userId &&
+            n.type === 'overdue_reminder' &&
+            (n.status === 'pending' ||
+              n.status === 'queued' ||
+              n.status === 'sent')
+        )
+      ),
   }
 
   return Layer.succeed(NotificationRepository, repo)

@@ -1,4 +1,8 @@
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import {
+  createTestPlant,
+  type PlantRecord,
+} from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
@@ -6,13 +10,10 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
-import type { plants } from '@lily/db/schema'
 import type { User } from '@lily/shared'
 import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
 import { Array as Arr, Effect, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
-
-type PlantRecord = typeof plants.$inferSelect
 
 // Default user with all notifications enabled and DND off
 const defaultUser = createTestUser({
@@ -20,32 +21,6 @@ const defaultUser = createTestUser({
   careReminders: true,
   doNotDisturb: false,
   timezone: 'UTC',
-})
-
-const createPlant = (overrides: Partial<PlantRecord> = {}): PlantRecord => ({
-  id: `plant-${crypto.randomUUID()}`,
-  name: 'Test Plant',
-  description: 'A test plant',
-  imageUrl: null,
-  category: 'tropical',
-  dateAdded: new Date(),
-  updatedAt: new Date(),
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
-  health: 'HEALTHY',
-  wateringFrequencyDays: 7,
-  lastWateredAt: null,
-  nextWateringAt: null,
-  remindersEnabled: true,
-  fertilizationFrequencyDays: null,
-  lastFertilizedAt: null,
-  nextFertilizationAt: null,
-  isFavorite: false,
-  roomId: null,
-  userId: 'user-1',
-  ...overrides,
 })
 
 const runPollAndEnqueue = (
@@ -81,7 +56,7 @@ describe('Notification Scheduler', () => {
         plantId: 'plant-1',
       })
 
-      const plant = createPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant = createTestPlant({ id: 'plant-1', name: 'Monstera' })
 
       await runPollAndEnqueue(
         [pendingNotification],
@@ -327,9 +302,9 @@ describe('Notification Scheduler', () => {
         message: QueueMessage
       }[] = []
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
-      const plant2 = createPlant({ id: 'plant-2', name: 'Pothos' })
-      const plant3 = createPlant({ id: 'plant-3', name: 'Fern' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+      const plant3 = createTestPlant({ id: 'plant-3', name: 'Fern' })
 
       const notifications = [
         createTestNotification({
@@ -380,8 +355,8 @@ describe('Notification Scheduler', () => {
         message: QueueMessage
       }[] = []
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
-      const plant2 = createPlant({ id: 'plant-2', name: 'Pothos' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
 
       const notifications = [
         createTestNotification({
@@ -428,12 +403,12 @@ describe('Notification Scheduler', () => {
         timezone: 'UTC',
       })
 
-      const plant1 = createPlant({
+      const plant1 = createTestPlant({
         id: 'plant-1',
         name: 'Monstera',
         userId: 'user-1',
       })
-      const plant2 = createPlant({
+      const plant2 = createTestPlant({
         id: 'plant-2',
         name: 'Pothos',
         userId: 'user-2',
@@ -477,7 +452,7 @@ describe('Notification Scheduler', () => {
         message: QueueMessage
       }[] = []
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
 
       const notification = createTestNotification({
         id: 'single-1',
@@ -518,7 +493,7 @@ describe('Notification Scheduler', () => {
         language: 'fr',
       })
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
 
       const notification = createTestNotification({
         id: 'fr-1',
@@ -548,8 +523,8 @@ describe('Notification Scheduler', () => {
         message: QueueMessage
       }[] = []
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
-      const plant2 = createPlant({ id: 'plant-2', name: 'Pothos' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
 
       const notifications = [
         createTestNotification({
@@ -590,8 +565,8 @@ describe('Notification Scheduler', () => {
         message: QueueMessage
       }[] = []
 
-      const plant1 = createPlant({ id: 'plant-1', name: 'Monstera' })
-      const plant2 = createPlant({ id: 'plant-2', name: 'Pothos' })
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
 
       const notifications = [
         createTestNotification({
@@ -623,6 +598,119 @@ describe('Notification Scheduler', () => {
       const payload = enqueuedMessages[0]?.message.payload
       expect(payload?.notificationIds).toEqual(['p-1', 'p-2'])
       expect(payload?.plantIds).toEqual(['plant-1', 'plant-2'])
+    })
+  })
+
+  describe('overdue_reminder grouping', () => {
+    it('should recognize overdue_reminder as care reminder and group by user', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Fern' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'overdue-1',
+          type: 'overdue_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'overdue-2',
+          type: 'overdue_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('overdue_reminder')
+      expect(enqueuedMessages[0]?.message.payload.notificationIds).toEqual([
+        'overdue-1',
+        'overdue-2',
+      ])
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        '2 plants are overdue for watering'
+      )
+    })
+
+    it('should build overdue_reminder title for single plant', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'overdue-single',
+          type: 'overdue_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        'Your Monstera is overdue for watering'
+      )
+      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+        "Your Monstera still needs watering — don't forget!"
+      )
+    })
+
+    it('should skip overdue_reminder when user has careReminders disabled', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const userWithCareOff = createTestUser({
+        id: 'user-1',
+        careReminders: false,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      const notification = createTestNotification({
+        id: 'overdue-care-off',
+        type: 'overdue_reminder',
+        status: 'pending',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+      })
+
+      await runPollAndEnqueue(
+        [notification],
+        [userWithCareOff],
+        (topic, message) => enqueuedMessages.push({ topic, message })
+      )
+
+      expect(enqueuedMessages).toHaveLength(0)
     })
   })
 

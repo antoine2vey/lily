@@ -25,6 +25,7 @@ export * from './domains/knowledge/errors'
 // Knowledge domain
 export * from './domains/knowledge/schema'
 export * from './domains/notification/errors'
+export * from './domains/notification/overdue'
 export * from './domains/notification/schema'
 export * from './domains/notification/timezone'
 export * from './domains/plant/constants'

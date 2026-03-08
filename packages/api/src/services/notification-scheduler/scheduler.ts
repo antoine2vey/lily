@@ -13,6 +13,7 @@ const BATCH_SIZE = 100
 const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
   'watering_reminder',
   'fertilization_reminder',
+  'overdue_reminder',
 ]
 
 const isCareReminderType = (type: string): boolean =>
@@ -29,6 +30,9 @@ export const mapNotificationTypeToTopic = (
     ),
     Match.when('fertilization_reminder', () =>
       Option.some('fertilization_reminder' as const)
+    ),
+    Match.when('overdue_reminder', () =>
+      Option.some('overdue_reminder' as const)
     ),
     Match.when('new_follower', () => Option.some('new_follower' as const)),
     Match.when('nudge_to_water', () => Option.some('nudge_to_water' as const)),

@@ -103,6 +103,10 @@ export interface INotificationRepository {
     ids: readonly string[],
     error: string
   ) => Effect.Effect<void, SqlError>
+  readonly hasOverdueReminderTodayForUser: (
+    userId: string,
+    timezone: string
+  ) => Effect.Effect<boolean, SqlError>
 }
 
 // Tag for dependency injection
@@ -325,6 +329,36 @@ export const NotificationRepositoryLive = Layer.effect(
             })
             .where(inArray(notifications.id, ids as string[]))
         }).pipe(Effect.withSpan('NotificationRepository.markManyAsFailed')),
+
+      hasOverdueReminderTodayForUser: (userId: string, timezone: string) =>
+        Effect.gen(function* () {
+          const today = startOfTodayAsDate(timezone)
+          const tomorrow = startOfTomorrowAsDate(timezone)
+
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(notifications)
+            .where(
+              and(
+                eq(notifications.userId, userId),
+                eq(notifications.type, 'overdue_reminder'),
+                inArray(notifications.status, ['pending', 'queued', 'sent']),
+                sql`${notifications.createdAt} >= ${today}`,
+                sql`${notifications.createdAt} < ${tomorrow}`
+              )
+            )
+          return (
+            pipe(
+              Option.fromNullable(result),
+              Option.flatMap((r) => Option.fromNullable(r.count)),
+              Option.getOrElse(() => 0)
+            ) > 0
+          )
+        }).pipe(
+          Effect.withSpan(
+            'NotificationRepository.hasOverdueReminderTodayForUser'
+          )
+        ),
     }
   })
 )

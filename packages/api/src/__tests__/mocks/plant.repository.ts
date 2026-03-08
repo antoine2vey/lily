@@ -353,6 +353,23 @@ export const createMockPlantRepository = (
       return Effect.succeed(count)
     },
 
+    findOverduePlantsByUser: () => {
+      const now = new Date()
+      const overdue = Array.filter(
+        plantsData,
+        (p) =>
+          p.nextWateringAt !== null &&
+          p.nextWateringAt.getTime() <= now.getTime()
+      )
+      const mapped = Array.map(overdue, (p) => ({
+        id: p.id,
+        name: p.name,
+        userId: p.userId,
+        nextWateringAt: p.nextWateringAt as Date,
+      }))
+      return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
+    },
+
     markHealthyPlantsInOrder: () => {
       const now = new Date()
       let count = 0

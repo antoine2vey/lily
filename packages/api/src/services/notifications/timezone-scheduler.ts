@@ -1,7 +1,9 @@
 import {
   DEFAULT_NOTIFICATION_TIME,
   DEFAULT_TIMEZONE,
+  isInDndWindow,
   parseTime,
+  timeToMinutes,
   validateTimezone,
 } from '@lily/shared'
 import {
@@ -130,37 +132,6 @@ export interface NotificationScheduleUpdate {
 
 const DEFAULT_DND_START = '22:00'
 const DEFAULT_DND_END = '07:00'
-
-/**
- * Parse a HH:mm time string into total minutes since midnight.
- */
-const timeToMinutes = (time: string): number => {
-  const parts = EffectString.split(time, ':')
-  const h = parseInt(parts[0] ?? '0', 10)
-  const m = parseInt(parts[1] ?? '0', 10)
-  return h * 60 + m
-}
-
-/**
- * Check if a time (in minutes since midnight) falls within a DND window.
- * Handles midnight wraparound (e.g. 22:00 → 07:00).
- */
-const isInDndWindow = (
-  timeMinutes: number,
-  startMinutes: number,
-  endMinutes: number
-): boolean => {
-  // If start equals end, no DND window
-  if (startMinutes === endMinutes) return false
-
-  // Wrapping window (e.g., 22:00 → 07:00)
-  if (startMinutes > endMinutes) {
-    return timeMinutes >= startMinutes || timeMinutes < endMinutes
-  }
-
-  // Non-wrapping window (e.g., 01:00 → 06:00)
-  return timeMinutes >= startMinutes && timeMinutes < endMinutes
-}
 
 /**
  * Adjusts a scheduled notification time if it falls within the user's
