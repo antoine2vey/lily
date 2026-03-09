@@ -27,8 +27,8 @@ import {
   eq,
   inArray,
   isNotNull,
-  isNull,
   lte,
+  notInArray,
   or,
 } from 'drizzle-orm'
 import {
@@ -572,13 +572,13 @@ export const PlantRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(plants.health, 'NEEDS_ATTENTION'),
-                isNull(
+                notInArray(
+                  plants.id,
                   db
                     .select({ plantId: plantCareSchedules.plantId })
                     .from(plantCareSchedules)
                     .where(
                       and(
-                        eq(plantCareSchedules.plantId, plants.id),
                         isNotNull(plantCareSchedules.nextCareAt),
                         lte(plantCareSchedules.nextCareAt, now)
                       )
