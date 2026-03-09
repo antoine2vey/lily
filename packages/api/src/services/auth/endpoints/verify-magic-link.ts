@@ -15,7 +15,7 @@ import { users } from '@lily/db/schema/users'
 import { nowAsDate } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
 import { eq } from 'drizzle-orm'
-import { Array, DateTime, Duration, Effect, Option, pipe, Struct } from 'effect'
+import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 /**
  * Verify magic link token and exchange for JWT tokens
@@ -60,45 +60,51 @@ export const verifyMagicLink = ({
       return yield* Effect.fail({ message: 'Invalid or expired code' })
     }
 
-    // Find or create user
-    let user = yield* userRepo.findByEmail(magicLink.email)
+    // Find or create user, syncing device fields on login
+    const existingUser = yield* userRepo.findByEmail(magicLink.email)
 
-    if (!user) {
-      // Create new user with email verified, device timezone and language
-      const newUsers = yield* db
-        .insert(users)
-        .values({
-          email: magicLink.email,
-          emailVerified: true,
-          ...(timezone ? { timezone } : {}),
-          ...(language ? { language } : {}),
-        })
-        .returning()
+    const user = yield* pipe(
+      Option.fromNullable(existingUser),
+      Option.match({
+        onNone: () =>
+          Effect.gen(function* () {
+            const created = yield* db
+              .insert(users)
+              .values({
+                email: magicLink.email,
+                emailVerified: true,
+                ...(timezone ? { timezone } : {}),
+                ...(language ? { language } : {}),
+              })
+              .returning()
 
-      user = pipe(newUsers, Array.head, Option.getOrNull)
-    } else {
-      // Sync emailVerified and language from device on each login
-      const needsEmailVerify = !user.emailVerified
-      const needsLanguageSync = language && user.language !== language
+            return pipe(created, Array.head, Option.getOrNull)
+          }),
+        onSome: (existing) =>
+          Effect.gen(function* () {
+            const needsEmailVerify = !existing.emailVerified
+            const needsLanguageSync = language && existing.language !== language
 
-      if (needsEmailVerify || needsLanguageSync) {
-        yield* db
-          .update(users)
-          .set({
-            updatedAt: nowAsDate(),
-            ...(needsEmailVerify ? { emailVerified: true } : {}),
-            ...(needsLanguageSync ? { language } : {}),
-          })
-          .where(eq(users.id, user.id))
+            if (!needsEmailVerify && !needsLanguageSync) return existing
 
-        if (needsEmailVerify) {
-          user = Struct.evolve(user, { emailVerified: () => true })
-        }
-        if (needsLanguageSync) {
-          user = Struct.evolve(user, { language: () => language })
-        }
-      }
-    }
+            const updated = yield* db
+              .update(users)
+              .set({
+                updatedAt: nowAsDate(),
+                ...(needsEmailVerify ? { emailVerified: true } : {}),
+                ...(needsLanguageSync ? { language } : {}),
+              })
+              .where(eq(users.id, existing.id))
+              .returning()
+
+            return pipe(
+              updated,
+              Array.head,
+              Option.getOrElse(() => existing)
+            )
+          }),
+      })
+    )
 
     if (!user) {
       return yield* Effect.fail({ message: 'Failed to create user' })
