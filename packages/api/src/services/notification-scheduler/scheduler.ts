@@ -188,7 +188,16 @@ export const pollAndEnqueue = Effect.gen(function* () {
           ),
           language
         )
-      : { title: first.value.title, body: first.value.body }
+      : {
+          title: Option.getOrElse(
+            Option.fromNullable(first.value.title),
+            () => ''
+          ),
+          body: Option.getOrElse(
+            Option.fromNullable(first.value.body),
+            () => ''
+          ),
+        }
 
     yield* queue.enqueue(topic, {
       id: crypto.randomUUID(),

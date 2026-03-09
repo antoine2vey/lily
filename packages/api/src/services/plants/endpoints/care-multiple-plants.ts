@@ -119,7 +119,6 @@ export const careMultiplePlants = (
               if (nextCareAt) {
                 yield* scheduleCareReminder({
                   plantId,
-                  plantName: plant.name,
                   userId: plant.userId,
                   type: `${request.careType}_reminder` as const,
                   scheduledDate: nextCareAt,

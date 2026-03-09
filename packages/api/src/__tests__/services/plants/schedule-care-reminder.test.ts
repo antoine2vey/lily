@@ -59,7 +59,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -83,7 +83,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -106,7 +106,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -128,7 +128,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -156,7 +156,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -185,7 +185,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -213,7 +213,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -241,7 +241,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -270,7 +270,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -297,7 +297,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -322,7 +322,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: user.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -368,7 +368,7 @@ describe('scheduleCareReminder', () => {
       const pending = await runAndGetPendingNotifications(
         {
           plantId: 'plant-1',
-          plantName: 'Monstera',
+
           userId: owner.id,
           type: 'watering_reminder',
           scheduledDate: createFutureDate(7),
@@ -405,7 +405,7 @@ describe('scheduleCareReminder', () => {
         Effect.gen(function* () {
           yield* scheduleCareReminder({
             plantId: 'plant-1',
-            plantName: 'Monstera',
+
             userId: owner.id,
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
@@ -456,7 +456,7 @@ describe('scheduleCareReminder', () => {
         Effect.gen(function* () {
           yield* scheduleCareReminder({
             plantId: 'plant-1',
-            plantName: 'Monstera',
+
             userId: owner.id,
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
@@ -507,7 +507,7 @@ describe('scheduleCareReminder', () => {
         Effect.gen(function* () {
           yield* scheduleCareReminder({
             plantId: 'plant-1',
-            plantName: 'Monstera',
+
             userId: owner.id,
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),
@@ -555,7 +555,7 @@ describe('scheduleCareReminder', () => {
         Effect.gen(function* () {
           yield* scheduleCareReminder({
             plantId: 'plant-1',
-            plantName: 'Monstera',
+
             userId: owner.id,
             type: 'watering_reminder',
             scheduledDate: createFutureDate(7),

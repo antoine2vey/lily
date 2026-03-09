@@ -237,7 +237,6 @@ export const executePlantCare = (
     if (finalNextCareAt) {
       yield* scheduleCareReminder({
         plantId: params.plantId,
-        plantName: plant.name,
         userId: plant.userId,
         type: `${params.careType}_reminder` as const,
         scheduledDate: finalNextCareAt,

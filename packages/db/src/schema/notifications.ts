@@ -37,8 +37,8 @@ export const notifications = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     type: text('type').notNull(),
-    title: text('title').notNull(),
-    body: text('body').notNull(),
+    title: text('title'),
+    body: text('body'),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
     sentAt: timestamp('sent_at', { withTimezone: true }),
     isRead: boolean('is_read').notNull().default(false),

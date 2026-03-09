@@ -1,9 +1,8 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import type { SimpleNotificationType } from '@lily/api/services/notification-scheduler/translations'
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
@@ -39,7 +38,6 @@ const processDelegationBatch = (
 ) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
-    const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
 
     yield* Effect.forEach(delegations, (d) =>
@@ -49,31 +47,18 @@ const processDelegationBatch = (
         const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
         const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
 
-        const ownerContent = buildSimpleContent(
+        yield* scheduleSimpleNotification(
           notificationType,
+          d.ownerId,
           { plantCount: plants.length },
           ownerLang
         )
-        const caretakerContent = buildSimpleContent(
+        yield* scheduleSimpleNotification(
           notificationType,
+          d.caretakerId,
           { plantCount: plants.length },
           caretakerLang
         )
-
-        yield* notificationRepo.create({
-          userId: d.ownerId,
-          type: notificationType,
-          title: ownerContent.title,
-          body: ownerContent.body,
-          scheduledAt: now,
-        })
-        yield* notificationRepo.create({
-          userId: d.caretakerId,
-          type: notificationType,
-          title: caretakerContent.title,
-          body: caretakerContent.body,
-          scheduledAt: now,
-        })
       })
     )
   })
