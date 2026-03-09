@@ -27,7 +27,6 @@ export interface CreateProcessedChunkData {
 export interface SearchChunksParams {
   embedding: number[]
   queryText: string
-  plantType?: string | undefined
   limit?: number | undefined
   minSimilarity?: number | undefined
 }
@@ -119,14 +118,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
           const candidateLimit = Math.max(limit * 10, 50)
           const vectorStr = `'[${params.embedding.join(',')}]'`
 
-          const plantTypeCondition = pipe(
-            Option.fromNullable(params.plantType),
-            Option.match({
-              onNone: () => sql``,
-              onSome: (pt) => sql`AND plant_type = ${pt}`,
-            })
-          )
-
           const distanceThresholdRaw = sql.raw(String(distanceThreshold))
           const similarityThresholdRaw = sql.raw(String(threshold))
           const candidateLimitRaw = sql.raw(String(candidateLimit))
@@ -144,7 +135,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                 FROM processed_chunks
                 WHERE embedding IS NOT NULL
                   AND (embedding <=> ${sql.raw(vectorStr)}::halfvec) < ${distanceThresholdRaw}
-                  ${plantTypeCondition}
                 ORDER BY embedding <=> ${sql.raw(vectorStr)}::halfvec
                 LIMIT ${candidateLimitRaw}
               ),
@@ -153,7 +143,6 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
                        RANK() OVER (ORDER BY ts_rank(search_vector, fts_query.q) DESC) AS frank
                 FROM processed_chunks, fts_query
                 WHERE search_vector @@ fts_query.q
-                  ${plantTypeCondition}
                 ORDER BY ts_rank(search_vector, fts_query.q) DESC
                 LIMIT ${candidateLimitRaw}
               ),

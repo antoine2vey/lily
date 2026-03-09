@@ -87,7 +87,6 @@ export const PromptPreviewResponse = Schema.Struct({
   message: PromptPreviewMessage,
   plant: PromptPreviewPlant,
   careHistory: Schema.Array(PromptPreviewCareEntry),
-  translatedQuery: Schema.String,
   ragQuery: Schema.String,
   ragChunks: Schema.Array(PromptPreviewRagChunk),
   formattedRagContext: Schema.String,

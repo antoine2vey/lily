@@ -11,6 +11,7 @@ export default {
   quotaExceeded:
     "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱",
   analyzing: 'Analyzing...',
+  searching: 'Searching knowledge base...',
   suggestions: {
     default: {
       leavesYellowing: 'Why are my leaves yellowing?',

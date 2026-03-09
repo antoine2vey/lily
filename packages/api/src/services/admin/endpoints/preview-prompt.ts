@@ -10,7 +10,6 @@ import {
   buildSystemPrompt,
   formatCareHistoryText,
 } from '@lily/api/services/ai-chat/build-system-prompt'
-import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
 import { RagService } from '@lily/api/services/rag/service'
 import { daysSince, formatIsoDate } from '@lily/shared'
 import type { PromptPreviewResponse } from '@lily/shared/admin'
@@ -62,27 +61,19 @@ export const previewPrompt = (
 
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
 
-    // 5. Determine the user message text for RAG query
-    const userMessageText = messageRow.content
-
-    // 5b. Translate to English for RAG retrieval (knowledge base is English-only)
-    const translatedQuery = yield* translateToEnglish(userMessageText)
-
-    // 6. Run RAG retrieval
-    const ragQuery = `${plant.name}: ${translatedQuery}`
+    // 5. Run RAG retrieval for admin preview (without translation — RAG is now tool-driven)
+    const ragQuery = `${plant.name}: ${messageRow.content}`
     const ragChunks = yield* ragService.retrieve({
       query: ragQuery,
-      plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
     })
     const formattedRagContext = ragService.formatContext(ragChunks)
 
-    // 7. Build system prompt
+    // 6. Build system prompt
     const daysSinceAdded = daysSince(plant.dateAdded)
     const systemPrompt = buildSystemPrompt({
       plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
-      knowledgeContext: formattedRagContext,
     })
 
     // 8. Load conversation history (messages before this one)
@@ -130,7 +121,6 @@ export const previewPrompt = (
         date: formatIsoDate(log.date),
         notes: pipe(Option.fromNullable(log.notes), Option.getOrNull),
       })),
-      translatedQuery,
       ragQuery,
       ragChunks: Array.map(ragChunks, (chunk) => ({
         id: chunk.id,

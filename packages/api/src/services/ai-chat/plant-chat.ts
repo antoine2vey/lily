@@ -1,17 +1,17 @@
 import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import {
   buildSystemPrompt,
   formatCareHistoryText,
 } from '@lily/api/services/ai-chat/build-system-prompt'
-import { buildPlantChatTools } from '@lily/api/services/ai-chat/tools'
-import { translateToEnglish } from '@lily/api/services/ai-chat/translate-to-english'
+import {
+  buildPlantChatTools,
+  type ToolContext,
+} from '@lily/api/services/ai-chat/tools'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
-import { RagService } from '@lily/api/services/rag/service'
 import { daysSince } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import {
@@ -67,9 +67,8 @@ export const plantChat = (
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
-    const diagnosisRepo = yield* DiagnosisRepository
-    const ragService = yield* RagService
     const { id: userId } = yield* CurrentUser
+    const runtime = yield* Effect.runtime<ToolContext>()
 
     const plant = yield* plantRepo.findById(plantId)
 
@@ -91,31 +90,12 @@ export const plantChat = (
 
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
 
-    const lastUserMessage = pipe(
-      Array.last(messages),
-      Option.filter((m) => m.role === 'user'),
-      Option.flatMap((m) => Array.findFirst(m.parts, (p) => p.type === 'text')),
-      Option.map((p) => (p as { type: 'text'; text: string }).text),
-      Option.getOrElse(() => '')
-    )
-
-    // Translate to English for RAG retrieval (knowledge base is English-only)
-    const ragQueryText = yield* translateToEnglish(lastUserMessage)
-
-    const ragQuery = `${plant.name}: ${ragQueryText}`
-    const ragChunks = yield* ragService.retrieve({
-      query: ragQuery,
-      plantType: Option.getOrUndefined(Option.fromNullable(plant.category)),
-    })
-    const knowledgeContext = ragService.formatContext(ragChunks)
-
     const daysSinceAdded = daysSince(plant.dateAdded)
 
     const systemPrompt = buildSystemPrompt({
       plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
-      knowledgeContext,
     })
 
     const modelMessages = yield* Effect.promise(() =>
@@ -160,10 +140,11 @@ export const plantChat = (
     const useVisionModel = Boolean(imageOptions?.imageUrl)
 
     const tools = buildPlantChatTools({
-      diagnosisRepo,
+      runtime,
       userId,
       plantId,
       imageKey: imageOptions?.imageKey,
+      plantName: plant.name,
     })
 
     // Deferred that resolves with step data when streaming finishes
@@ -174,7 +155,7 @@ export const plantChat = (
       system: systemPrompt,
       messages: finalModelMessages,
       tools,
-      stopWhen: stepCountIs(2),
+      stopWhen: stepCountIs(3),
       onFinish: ({ steps }) => {
         const stepData: readonly StepData[] = Array.map(steps, (step) => ({
           text: step.text,
