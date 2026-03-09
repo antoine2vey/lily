@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Array as Arr, Match, Option, pipe } from 'effect'
-import * as Localization from 'expo-localization'
+import { Option, pipe } from 'effect'
 import {
   createContext,
   type ReactNode,
@@ -18,6 +17,7 @@ import {
   type LanguageCode,
   SUPPORTED_LANGUAGES,
 } from 'src/i18n/types'
+import { getDeviceLanguage } from 'src/utils/notifications'
 
 interface LocalizationContextValue {
   /** Current language code */
@@ -44,21 +44,6 @@ export function useLocalizationContext(): LocalizationContextValue {
 
 interface LocalizationProviderProps {
   children: ReactNode
-}
-
-const getDeviceLanguage = (): LanguageCode => {
-  const deviceLocale = pipe(
-    Arr.head(Localization.getLocales()),
-    Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
-    Option.getOrElse(() => 'en')
-  )
-
-  return pipe(
-    Match.value(deviceLocale),
-    Match.when('fr', () => 'fr' as LanguageCode),
-    Match.when('en', () => 'en' as LanguageCode),
-    Match.orElse(() => DEFAULT_LANGUAGE)
-  )
 }
 
 const isValidLanguage = (lang: string | null): lang is LanguageCode =>

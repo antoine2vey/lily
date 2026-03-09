@@ -137,20 +137,22 @@ export function getDeviceTimezone(): string {
 }
 
 /**
- * Get the device's preferred language as a supported LanguageCode.
- * Falls back to 'en' if the device language is not supported.
+ * Device's preferred language as a supported LanguageCode.
+ * Computed once at module load — device locale doesn't change during a session.
  */
-export function getDeviceLanguage(): LanguageCode {
-  const deviceCode = pipe(
-    Arr.head(Localization.getLocales()),
-    Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
-    Option.getOrElse(() => 'en')
-  )
+const deviceLanguage: LanguageCode = pipe(
+  Arr.head(Localization.getLocales()),
+  Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
+  Option.match({
+    onNone: () => 'en' as const,
+    onSome: (code) =>
+      pipe(
+        Match.value(code),
+        Match.when('fr', () => 'fr' as const),
+        Match.when('en', () => 'en' as const),
+        Match.orElse(() => 'en' as const)
+      ),
+  })
+)
 
-  return pipe(
-    Match.value(deviceCode),
-    Match.when('fr', () => 'fr' as LanguageCode),
-    Match.when('en', () => 'en' as LanguageCode),
-    Match.orElse(() => 'en' as LanguageCode)
-  )
-}
+export const getDeviceLanguage = (): LanguageCode => deviceLanguage
