@@ -20,31 +20,38 @@ type ToolFullWidthRenderer = (
   plantId?: string
 ) => Option.Option<ReactElement>
 
-const createDiagnosisBubble: ToolBubbleRenderer = (part, index, t) =>
-  pipe(
-    Match.value(part.state),
-    Match.when(
-      'input-streaming',
-      (): Option.Option<ReactElement> =>
-        Option.some(
-          <ToolLoadingIndicator
-            key={`loading-${index}`}
-            label={t('analyzing')}
-          />
-        )
-    ),
-    Match.when(
-      'input-available',
-      (): Option.Option<ReactElement> =>
-        Option.some(
-          <ToolLoadingIndicator
-            key={`loading-${index}`}
-            label={t('analyzing')}
-          />
-        )
-    ),
-    Match.orElse((): Option.Option<ReactElement> => Option.none())
-  )
+const makeLoadingBubble =
+  (
+    labelKey: 'analyzing' | 'searching',
+    keyPrefix: string
+  ): ToolBubbleRenderer =>
+  (part, index, t) =>
+    pipe(
+      Match.value(part.state),
+      Match.when(
+        'input-streaming',
+        (): Option.Option<ReactElement> =>
+          Option.some(
+            <ToolLoadingIndicator
+              key={`${keyPrefix}-${index}`}
+              label={t(labelKey)}
+            />
+          )
+      ),
+      Match.when(
+        'input-available',
+        (): Option.Option<ReactElement> =>
+          Option.some(
+            <ToolLoadingIndicator
+              key={`${keyPrefix}-${index}`}
+              label={t(labelKey)}
+            />
+          )
+      ),
+      Match.orElse((): Option.Option<ReactElement> => Option.none())
+    )
+
+const createDiagnosisBubble = makeLoadingBubble('analyzing', 'loading')
 
 const createDiagnosisFullWidth: ToolFullWidthRenderer = (
   part,
@@ -71,8 +78,11 @@ const createDiagnosisFullWidth: ToolFullWidthRenderer = (
   )
 }
 
+const searchPlantKnowledgeBubble = makeLoadingBubble('searching', 'searching')
+
 export const toolBubbleRenderers: Record<string, ToolBubbleRenderer> = {
   createDiagnosis: createDiagnosisBubble,
+  searchPlantKnowledge: searchPlantKnowledgeBubble,
 }
 
 export const toolFullWidthRenderers: Record<string, ToolFullWidthRenderer> = {

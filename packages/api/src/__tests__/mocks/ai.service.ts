@@ -54,7 +54,6 @@ export const createMockAiService = (
     plantChatStream: (
       _plantId: string,
       _messages: UIMessage[],
-      _knowledgeContext?: string,
       _imageOptions?: { imageUrl?: string; imageKey?: string }
     ) =>
       Effect.gen(function* () {

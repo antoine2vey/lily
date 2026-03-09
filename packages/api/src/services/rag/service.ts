@@ -5,7 +5,6 @@ import { embedText } from './embedding.service'
 
 export interface RagRetrieveParams {
   query: string
-  plantType?: string | undefined
   limit?: number | undefined
 }
 
@@ -29,7 +28,6 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
           return yield* chunkRepo.search({
             embedding,
             queryText: params.query,
-            plantType: params.plantType,
             limit,
             minSimilarity: 0.6,
           })

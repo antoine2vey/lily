@@ -1,6 +1,9 @@
-import type { CreateDiagnosisData } from '@lily/api/repositories/diagnosis.repository'
+import {
+  type CreateDiagnosisData,
+  DiagnosisRepository,
+} from '@lily/api/repositories/diagnosis.repository'
 import { tool } from 'ai'
-import { Effect, Option } from 'effect'
+import { Effect, Option, Runtime } from 'effect'
 import { z } from 'zod'
 
 import type { ToolDeps } from './index'
@@ -32,27 +35,32 @@ export const createDiagnosisTool = (deps: ToolDeps) =>
         .optional()
         .describe('Tips to prevent recurrence'),
     }),
-    execute: async (params) => {
-      const data: CreateDiagnosisData = {
-        plantId: deps.plantId,
-        userId: deps.userId,
-        diseaseName: params.diseaseName,
-        severity: params.severity,
-        confidence: params.confidence,
-        symptoms: params.symptoms,
-        treatmentSteps: params.treatmentSteps,
-        ...Option.match(Option.fromNullable(params.preventionTips), {
-          onNone: () => ({}),
-          onSome: (tips) => ({ preventionTips: tips }),
-        }),
-        ...Option.match(Option.fromNullable(deps.imageKey), {
-          onNone: () => ({}),
-          onSome: (key) => ({ imageKey: key }),
-        }),
-      }
+    execute: async (params) =>
+      Runtime.runPromise(deps.runtime)(
+        Effect.gen(function* () {
+          const repo = yield* DiagnosisRepository
 
-      const diagnosis = await Effect.runPromise(deps.diagnosisRepo.create(data))
+          const data: CreateDiagnosisData = {
+            plantId: deps.plantId,
+            userId: deps.userId,
+            diseaseName: params.diseaseName,
+            severity: params.severity,
+            confidence: params.confidence,
+            symptoms: params.symptoms,
+            treatmentSteps: params.treatmentSteps,
+            ...Option.match(Option.fromNullable(params.preventionTips), {
+              onNone: () => ({}),
+              onSome: (tips) => ({ preventionTips: tips }),
+            }),
+            ...Option.match(Option.fromNullable(deps.imageKey), {
+              onNone: () => ({}),
+              onSome: (key) => ({ imageKey: key }),
+            }),
+          }
 
-      return { diagnosisId: diagnosis.id }
-    },
+          const diagnosis = yield* repo.create(data)
+
+          return { diagnosisId: diagnosis.id }
+        })
+      ),
   })

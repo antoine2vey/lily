@@ -333,21 +333,13 @@ const CareHistorySection = ({
   )
 
 const RagSection = ({
-  translatedQuery,
   ragQuery,
   ragChunks,
 }: {
-  readonly translatedQuery: string
   readonly ragQuery: string
   readonly ragChunks: ReadonlyArray<PromptPreviewRagChunk>
 }) => (
   <div className="space-y-3">
-    <div>
-      <p className="mb-1 text-xs font-medium text-gray-700">Translated Query</p>
-      <p className="rounded bg-amber-50 px-3 py-2 font-mono text-xs text-amber-800">
-        {translatedQuery}
-      </p>
-    </div>
     <div>
       <p className="mb-1 text-xs font-medium text-gray-700">RAG Query</p>
       <p className="rounded bg-purple-50 px-3 py-2 font-mono text-xs text-purple-800">
@@ -500,11 +492,7 @@ export const PromptPreviewPage = () => {
             description="Knowledge chunks retrieved via semantic search to augment the AI's response"
             color="bg-purple-600"
           >
-            <RagSection
-              translatedQuery={data.translatedQuery}
-              ragQuery={data.ragQuery}
-              ragChunks={data.ragChunks}
-            />
+            <RagSection ragQuery={data.ragQuery} ragChunks={data.ragChunks} />
           </CollapsibleSection>
 
           <CollapsibleSection

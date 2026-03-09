@@ -1,6 +1,6 @@
 import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import type { UIMessage } from 'ai'
+import { isToolUIPart, type UIMessage } from 'ai'
 import { Array, Option, pipe } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useRef } from 'react'
@@ -24,15 +24,23 @@ import { SuggestionChips } from 'src/screens/chat/components/SuggestionChips'
 import { TypingIndicator } from 'src/screens/chat/components/TypingIndicator'
 
 /**
- * Returns true when an assistant message has only empty text parts
- * (i.e. the placeholder that appears before streaming content arrives).
- * Returns false if any non-text part exists (e.g. tool invocation).
+ * Returns true when an assistant message has no visible content yet —
+ * either only empty text parts, or completed tool parts with no text.
+ * Returns false if any non-empty text exists or a tool is still loading
+ * (since the tool loading indicator provides visible feedback).
  */
-function hasOnlyEmptyTextParts(msg: UIMessage): boolean {
-  return pipe(
+function hasNoVisibleContent(msg: UIMessage): boolean {
+  const hasText = Array.some(
     msg.parts,
-    Array.every((p) => p.type === 'text' && p.text === '')
+    (p) => p.type === 'text' && p.text !== ''
   )
+  const hasActiveToolLoading = Array.some(
+    msg.parts,
+    (p) =>
+      isToolUIPart(p) &&
+      (p.state === 'input-streaming' || p.state === 'input-available')
+  )
+  return !hasText && !hasActiveToolLoading
 }
 
 export function ChatScreen() {
@@ -72,7 +80,7 @@ export function ChatScreen() {
     chatMessages,
     Array.filter(
       (msg: UIMessage) =>
-        !(isStreaming && msg.role === 'assistant' && hasOnlyEmptyTextParts(msg))
+        !(isStreaming && msg.role === 'assistant' && hasNoVisibleContent(msg))
     ),
     Array.reverse
   )
@@ -172,7 +180,7 @@ export function ChatScreen() {
         status === 'submitted' ||
         (status === 'streaming' &&
           msg.role === 'assistant' &&
-          hasOnlyEmptyTextParts(msg)),
+          hasNoVisibleContent(msg)),
     })
   )
 

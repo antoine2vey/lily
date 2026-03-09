@@ -41,11 +41,10 @@ export interface BuildSystemPromptParams {
   readonly plant: SystemPromptPlantData
   readonly daysSinceAdded: number
   readonly careHistoryText: string
-  readonly knowledgeContext: string
 }
 
 export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
-  const { plant, daysSinceAdded, careHistoryText, knowledgeContext } = params
+  const { plant, daysSinceAdded, careHistoryText } = params
 
   const watering = pipe(
     Array.findFirst(plant.schedules, (s) => s.careType === 'watering'),
@@ -134,16 +133,22 @@ export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
         Option.getOrElse(() => 'No care events recorded yet')
       )}
 
-      ${knowledgeContext}
+      Knowledge Search Tool:
+      - You MUST call searchPlantKnowledge before answering any plant care advice question. This is mandatory — do NOT answer care questions from your own knowledge without searching first
+      - The ONLY questions you may answer without searching are those directly answered by the plant data above: schedule lookups ("when is my next watering?"), health status, or care history
+      - Everything else requires a search: seasonal care, watering tips, lighting, propagation, repotting, soil, pruning, pests, diseases, browning/yellowing leaves, cleaning, environmental stress, dormancy, growth stages, and any "how to" question
+      - Write your search query in English for best results
+      - Call searchPlantKnowledge only ONCE per message. The tool already retries with simplified queries internally. If it returns no results, then answer from your own expertise — but you must search first
 
       Guidelines:
       - Always respond in the same language as the user's message. This includes tool call fields (disease name, symptoms, treatment steps, prevention tips).
-      - Answer any questions related to plant care, even general ones, by applying your knowledge to this specific plant
+      - Always search the knowledge base before giving care advice (see Knowledge Search Tool above)
       - Use the plant data and care history above to personalize your advice
       - If the plant health is NEEDS_ATTENTION or SICK, proactively offer troubleshooting advice
       - Reference the care schedule when answering watering/fertilization questions
       - Always provide actionable solutions, not just problem identification — if you name a cause, follow it with concrete steps the user can take right now
       - Keep responses concise and practical
+      - Use emojis naturally throughout your responses to feel warm and approachable (🌱 🌿 💧 ☀️ 🪴 etc.) — but don't overdo it, 2-4 per message is plenty
       - If asked about topics completely unrelated to plants or gardening, politely redirect: "I'm here to help with plant care questions about ${plant.name}. What would you like to know about caring for it?"
 
       Diagnosis Tool:
