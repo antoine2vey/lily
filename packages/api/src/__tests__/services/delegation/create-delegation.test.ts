@@ -240,7 +240,7 @@ describe('createDelegation', () => {
     expect(notifications[0]).toMatchObject({
       userId: mockUser2.id,
       type: 'delegation_request',
-      title: 'Care request',
+      title: '🤝 Care request',
     })
     expect(notifications[0]?.body).toContain(mockUser1.name)
   })

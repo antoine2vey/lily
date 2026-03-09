@@ -32,7 +32,7 @@ describe('markNotificationRead', () => {
     )
 
     expect(result.type).toBe('watering_reminder')
-    expect(result.title).toBe('Time to water your Monstera')
+    expect(result.title).toBe('💧 Time to water your Monstera')
     expect(result.userId).toBe('user-1')
   })
 

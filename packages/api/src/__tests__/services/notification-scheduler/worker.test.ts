@@ -150,7 +150,7 @@ describe('Notification Worker', () => {
       const message = createTestQueueMessage({
         payload: {
           userId: 'user-1',
-          title: '3 plants need watering',
+          title: '💧 3 plants need watering',
           body: 'Monstera, Pothos, Fern',
           notificationIds: ['notif-1', 'notif-2', 'notif-3'],
           plantIds: ['plant-1', 'plant-2', 'plant-3'],
@@ -190,7 +190,7 @@ describe('Notification Worker', () => {
 
       // Sends 1 push per device (user-1 has 2 active tokens)
       expect(sentMessages).toHaveLength(2)
-      expect(sentMessages[0]?.title).toBe('3 plants need watering')
+      expect(sentMessages[0]?.title).toBe('💧 3 plants need watering')
     })
   })
 
@@ -274,7 +274,7 @@ describe('Notification Worker', () => {
       const message = createTestQueueMessage({
         payload: {
           userId: 'user-1',
-          title: '3 plants need watering',
+          title: '💧 3 plants need watering',
           body: 'Monstera, Pothos, Fern',
           notificationIds: ['notif-1', 'notif-2', 'notif-3'],
           plantIds: ['plant-1', 'plant-2', 'plant-3'],

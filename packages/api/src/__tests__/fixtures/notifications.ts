@@ -4,7 +4,7 @@ export const mockNotifications: Notification[] = [
   {
     id: 'notification-1',
     type: 'watering_reminder',
-    title: 'Time to water your Monstera',
+    title: '💧 Time to water your Monstera',
     body: 'Your Monstera deliciosa needs watering today.',
     scheduledAt: new Date('2024-01-15T10:00:00Z'),
     sentAt: new Date('2024-01-15T10:00:00Z'),
@@ -32,7 +32,7 @@ export const mockNotifications: Notification[] = [
   {
     id: 'notification-3',
     type: 'watering_reminder',
-    title: 'Water your Snake Plant',
+    title: '💧 Water your Snake Plant',
     body: 'Your Snake Plant is due for watering.',
     scheduledAt: new Date('2024-01-17T08:00:00Z'),
     isRead: false,
