@@ -47,7 +47,6 @@ export const KnowledgeIngestionApiLive = (api: Api) =>
             const results = yield* chunkRepo.search({
               embedding,
               queryText: payload.query,
-              plantType: payload.plantType,
               limit: payload.limit,
               minSimilarity: payload.minSimilarity,
             })
