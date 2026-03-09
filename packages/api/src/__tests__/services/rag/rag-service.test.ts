@@ -70,7 +70,7 @@ describe('RagService', () => {
       expect(mockedEmbedText).toHaveBeenCalledWith('test')
     })
 
-    it('should pass custom plantType and limit', async () => {
+    it('should pass custom limit', async () => {
       mockedEmbedText.mockReturnValueOnce(Effect.succeed([0.1]))
 
       const layer = makeTestLayer([])
@@ -80,7 +80,6 @@ describe('RagService', () => {
           const rag = yield* RagService
           return yield* rag.retrieve({
             query: 'watering tips',
-            plantType: 'monstera',
             limit: 3,
           })
         }).pipe(Effect.provide(layer))
