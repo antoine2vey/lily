@@ -29,84 +29,84 @@ type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
 const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
   en: {
     new_follower: {
-      title: () => 'New follower',
+      title: () => '👋 New follower',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} started following you`,
     },
     nudge_to_water: {
-      title: () => 'Nudge from a friend',
+      title: () => '💧 Nudge from a friend',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'A friend')} is reminding you to check on your plants!`,
     },
     delegation_request: {
-      title: () => 'Care request',
+      title: () => '🤝 Care request',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} wants you to care for their plants`,
     },
     delegation_accepted: {
-      title: () => 'Request accepted',
+      title: () => '✅ Request accepted',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} accepted your care delegation`,
     },
     delegation_rejected: {
-      title: () => 'Request declined',
+      title: () => '😔 Request declined',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} declined your care delegation`,
     },
     delegation_canceled: {
-      title: () => 'Delegation canceled',
+      title: () => '🚫 Delegation canceled',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} canceled the care delegation`,
     },
     delegation_activated: {
-      title: () => 'Delegation started',
+      title: () => '🌱 Delegation started',
       body: (p) =>
         `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has started`,
     },
     delegation_completed: {
-      title: () => 'Delegation ended',
+      title: () => '🎉 Delegation ended',
       body: (p) =>
         `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has ended`,
     },
   },
   fr: {
     new_follower: {
-      title: () => 'Nouveau follower',
+      title: () => '👋 Nouveau follower',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a commencé à vous suivre`,
     },
     nudge_to_water: {
-      title: () => "Rappel d'un ami",
+      title: () => "💧 Rappel d'un ami",
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Un ami')} vous rappelle de vous occuper de vos plantes !`,
     },
     delegation_request: {
-      title: () => 'Demande de garde',
+      title: () => '🤝 Demande de garde',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} souhaite que vous gardiez ses plantes`,
     },
     delegation_accepted: {
-      title: () => 'Demande acceptée',
+      title: () => '✅ Demande acceptée',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a accepté votre délégation de soins`,
     },
     delegation_rejected: {
-      title: () => 'Demande refusée',
+      title: () => '😔 Demande refusée',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a refusé votre délégation de soins`,
     },
     delegation_canceled: {
-      title: () => 'Délégation annulée',
+      title: () => '🚫 Délégation annulée',
       body: (p) =>
         `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a annulé la délégation de soins`,
     },
     delegation_activated: {
-      title: () => 'Délégation commencée',
+      title: () => '🌱 Délégation commencée',
       body: (p) =>
         `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes a commencé`,
     },
     delegation_completed: {
-      title: () => 'Délégation terminée',
+      title: () => '🎉 Délégation terminée',
       body: (p) =>
         `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes est terminée`,
     },
@@ -142,44 +142,44 @@ type TranslationMap = {
 const translations: Record<LanguageCode, TranslationMap> = {
   en: {
     watering_reminder: {
-      singleTitle: (name) => `Time to water your ${name}`,
+      singleTitle: (name) => `💧 Time to water your ${name}`,
       singleBody: (name) => `Your ${name} needs watering today.`,
-      pluralTitle: (count) => `${count} plants need watering`,
+      pluralTitle: (count) => `💧 ${count} plants need watering`,
       andMore: (count) => `and ${count} more`,
     },
     fertilization_reminder: {
-      singleTitle: (name) => `Time to fertilize your ${name}`,
+      singleTitle: (name) => `🌿 Time to fertilize your ${name}`,
       singleBody: (name) => `Your ${name} needs fertilizing today.`,
-      pluralTitle: (count) => `${count} plants need fertilizing`,
+      pluralTitle: (count) => `🌿 ${count} plants need fertilizing`,
       andMore: (count) => `and ${count} more`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `Your ${name} needs attention`,
+      singleTitle: (name) => `⚠️ Your ${name} needs attention`,
       singleBody: (name) => `Your ${name} is overdue for care — don't forget!`,
-      pluralTitle: (count) => `${count} plants need attention`,
+      pluralTitle: (count) => `⚠️ ${count} plants need attention`,
       andMore: (count) => `and ${count} more`,
     },
   },
   fr: {
     watering_reminder: {
-      singleTitle: (name) => `Il est temps d'arroser votre ${name}`,
+      singleTitle: (name) => `💧 Il est temps d'arroser votre ${name}`,
       singleBody: (name) =>
         `Votre ${name} a besoin d'être arrosé(e) aujourd'hui.`,
-      pluralTitle: (count) => `${count} plantes ont besoin d'arrosage`,
+      pluralTitle: (count) => `💧 ${count} plantes ont besoin d'arrosage`,
       andMore: (count) => `et ${count} de plus`,
     },
     fertilization_reminder: {
-      singleTitle: (name) => `Il est temps de fertiliser votre ${name}`,
+      singleTitle: (name) => `🌿 Il est temps de fertiliser votre ${name}`,
       singleBody: (name) =>
         `Votre ${name} a besoin d'être fertilisé(e) aujourd'hui.`,
-      pluralTitle: (count) => `${count} plantes ont besoin de fertilisant`,
+      pluralTitle: (count) => `🌿 ${count} plantes ont besoin de fertilisant`,
       andMore: (count) => `et ${count} de plus`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `Votre ${name} a besoin d'attention`,
+      singleTitle: (name) => `⚠️ Votre ${name} a besoin d'attention`,
       singleBody: (name) =>
         `Votre ${name} est en retard de soins — n'oubliez pas !`,
-      pluralTitle: (count) => `${count} plantes ont besoin d'attention`,
+      pluralTitle: (count) => `⚠️ ${count} plantes ont besoin d'attention`,
       andMore: (count) => `et ${count} de plus`,
     },
   },

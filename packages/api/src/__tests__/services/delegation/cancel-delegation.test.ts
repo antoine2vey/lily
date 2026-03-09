@@ -199,7 +199,7 @@ describe('cancelDelegation', () => {
     expect(notifications[0]).toMatchObject({
       userId: mockUser2.id,
       type: 'delegation_canceled',
-      title: 'Delegation canceled',
+      title: '🚫 Delegation canceled',
     })
     expect(notifications[0]?.body).toContain(mockUser1.name)
   })

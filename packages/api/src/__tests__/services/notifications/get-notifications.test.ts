@@ -48,7 +48,7 @@ describe('getNotifications', () => {
     )
     expect(notification).toBeDefined()
     expect(notification?.type).toBe('watering_reminder')
-    expect(notification?.title).toBe('Time to water your Monstera')
+    expect(notification?.title).toBe('💧 Time to water your Monstera')
     expect(notification?.isRead).toBe(false)
     expect(notification?.plantId).toBe('plant-1')
   })
