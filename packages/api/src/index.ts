@@ -132,7 +132,9 @@ const DelegationSchedulerLive = Layer.scopedDiscard(
 ).pipe(
   Layer.provide(DelegationRepositoryLive),
   Layer.provide(NotificationRepositoryLive),
-  Layer.provide(UserRepositoryLive)
+  Layer.provide(UserRepositoryLive),
+  Layer.provide(RedisMessageQueueLive),
+  Layer.provide(RedisClientLive)
 )
 
 // Achievement reconciliation scheduler - catches up missed threshold-based unlocks

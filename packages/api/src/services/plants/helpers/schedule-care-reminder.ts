@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { buildSinglePlantContent } from '@lily/api/services/notification-scheduler/translations'
+import { scheduleDeferredCareNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
   adjustForDoNotDisturb,
   calculateScheduledAt,
@@ -14,7 +14,6 @@ export type CareReminderType = 'watering_reminder' | 'fertilization_reminder'
 
 export interface ScheduleCareReminderParams {
   plantId: string
-  plantName: string
   userId: string
   type: CareReminderType
   scheduledDate: Date
@@ -41,14 +40,7 @@ export const scheduleCareReminder = (
   NotificationRepository | UserRepository | DelegationRepository
 > =>
   Effect.gen(function* () {
-    const {
-      plantId,
-      plantName,
-      userId,
-      type,
-      scheduledDate,
-      remindersEnabled,
-    } = params
+    const { plantId, userId, type, scheduledDate, remindersEnabled } = params
 
     // Skip if reminders are disabled
     if (!remindersEnabled) {
@@ -94,18 +86,10 @@ export const scheduleCareReminder = (
     // Remove any existing pending reminder for this plant and type
     yield* notificationRepo.deletePendingByPlantAndType(plantId, type)
 
-    // Generate notification content based on type and language
-    const { title, body } = buildSinglePlantContent(
+    // Create new reminder — content is resolved by the notification-scheduler
+    // at delivery time, which groups all plants per user into a single push.
+    yield* scheduleDeferredCareNotification({
       type,
-      plantName,
-      settings.language
-    )
-
-    // Create new reminder with timezone-aware scheduling
-    yield* notificationRepo.create({
-      type,
-      title,
-      body,
       scheduledAt: finalScheduledAt,
       userId: recipientId,
       plantId,

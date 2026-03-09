@@ -1,6 +1,7 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { scheduleDeferredCareNotification } from '@lily/api/services/helpers/schedule-notification'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import {
   AlreadySentTodayError,
@@ -87,13 +88,11 @@ export const processUserOverdueReminders = (
           Option.getOrElse(() => userId)
         )
 
-        yield* notificationRepo.create({
+        yield* scheduleDeferredCareNotification({
           type: 'overdue_reminder',
-          title: '',
-          body: '',
-          scheduledAt,
           userId: targetUserId,
           plantId: plant.id,
+          scheduledAt,
         })
       })
     )

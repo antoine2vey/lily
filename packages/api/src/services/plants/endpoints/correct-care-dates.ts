@@ -94,7 +94,6 @@ const correctSingleCareDate = (
     if (nextCareAt) {
       yield* scheduleCareReminder({
         plantId,
-        plantName: plant.name,
         userId: plant.userId,
         type: `${careType}_reminder` as const,
         scheduledDate: nextCareAt,

@@ -17,8 +17,8 @@ export type NotificationStatus = typeof NotificationStatus.Type
 export const Notification = Schema.Struct({
   id: Schema.String,
   type: Schema.String,
-  title: Schema.String,
-  body: Schema.String,
+  title: Schema.optional(Schema.String),
+  body: Schema.optional(Schema.String),
   scheduledAt: Schema.Date,
   sentAt: Schema.optional(Schema.Date),
   isRead: Schema.Boolean,

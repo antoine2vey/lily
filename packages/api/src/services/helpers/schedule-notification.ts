@@ -10,6 +10,39 @@ import { nowAsDate } from '@lily/shared'
 import { MessageQueue } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
 
+export type DeferredCareType =
+  | 'watering_reminder'
+  | 'fertilization_reminder'
+  | 'overdue_reminder'
+
+interface DeferredCareNotificationParams {
+  type: DeferredCareType
+  userId: string
+  plantId: string
+  scheduledAt: Date
+}
+
+/**
+ * Create a deferred care notification record. Content (title/body) is NOT
+ * resolved here — the notification-scheduler will build translated content
+ * at delivery time, grouping all plants for the same user into a single push.
+ *
+ * Use this for care reminder types (watering, fertilization, overdue) where
+ * notifications are batched and content depends on the final set of plants.
+ */
+export const scheduleDeferredCareNotification = (
+  params: DeferredCareNotificationParams
+) =>
+  Effect.gen(function* () {
+    const notificationRepo = yield* NotificationRepository
+    yield* notificationRepo.create({
+      type: params.type,
+      scheduledAt: params.scheduledAt,
+      userId: params.userId,
+      plantId: params.plantId,
+    })
+  })
+
 /**
  * Build translated content, create a notification record, and immediately
  * enqueue it for delivery. Uses the recipient's current language so that

@@ -29,8 +29,8 @@ export interface FindNotificationsParams {
 
 export interface CreateNotificationData {
   type: string
-  title: string
-  body: string
+  title?: string
+  body?: string
   scheduledAt: Date
   userId: string
   plantId?: string
@@ -42,8 +42,8 @@ const mapToNotification = (
 ): Notification => ({
   id: row.id,
   type: row.type,
-  title: row.title,
-  body: row.body,
+  title: Option.getOrUndefined(Option.fromNullable(row.title)),
+  body: Option.getOrUndefined(Option.fromNullable(row.body)),
   scheduledAt: row.scheduledAt,
   sentAt: Option.getOrUndefined(Option.fromNullable(row.sentAt)),
   isRead: row.isRead,

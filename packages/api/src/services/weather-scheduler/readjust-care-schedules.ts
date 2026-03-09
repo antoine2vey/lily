@@ -293,7 +293,7 @@ const readjustPlantSchedule = (
       if (wateringChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
-          plantName: plant.name,
+
           userId: plant.userId,
           type: 'watering_reminder',
           scheduledDate: newNextWateringAt.value,
@@ -304,7 +304,7 @@ const readjustPlantSchedule = (
       if (fertilizationChanged) {
         yield* scheduleCareReminder({
           plantId: plant.id,
-          plantName: plant.name,
+
           userId: plant.userId,
           type: 'fertilization_reminder',
           scheduledDate: newNextFertilizationAt.value,
