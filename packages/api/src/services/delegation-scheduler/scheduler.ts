@@ -33,8 +33,7 @@ const processDelegationBatch = (
   }>,
   newStatus: DelegationStatus,
   notificationType: SimpleNotificationType,
-  timestamps: Record<string, Date> | undefined,
-  now: Date
+  timestamps: Record<string, Date> | undefined
 ) =>
   Effect.gen(function* () {
     const delegationRepo = yield* DelegationRepository
@@ -72,8 +71,7 @@ export const pollAndTransition = Effect.gen(function* () {
     toActivate,
     'active',
     'delegation_activated',
-    undefined,
-    now
+    undefined
   )
 
   if (Array.isNonEmptyArray(toActivate)) {
@@ -85,8 +83,7 @@ export const pollAndTransition = Effect.gen(function* () {
     toComplete,
     'completed',
     'delegation_completed',
-    { completedAt: now },
-    now
+    { completedAt: now }
   )
 
   if (Array.isNonEmptyArray(toComplete)) {
