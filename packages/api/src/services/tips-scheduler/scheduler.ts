@@ -1,8 +1,11 @@
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { nowAsDate } from '@lily/shared'
-import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
+import {
+  DEFAULT_TIMEZONE,
+  DndWindowBlockedError,
+  pickOverdueNotificationTime,
+} from '@lily/shared'
 import { Array, Config, DateTime, Effect, Option } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
@@ -39,7 +42,6 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   const tipRepo = yield* DailyTipRepository
   const userRepo = yield* UserRepository
   const notificationRepo = yield* NotificationRepository
-  const queue = yield* MessageQueue
 
   const today = getTodayDateString()
 
@@ -81,13 +83,31 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     userCount: Array.length(users),
   })
 
-  // Create notification for each user and immediately enqueue
-  const topic: NotificationTopic = 'daily_tip'
-
+  // Create pending notification records with randomized send times
+  // within morning/evening windows, respecting DND — same as overdue reminders
   yield* Effect.forEach(
     users,
     (user) =>
       Effect.gen(function* () {
+        const timezone = Option.getOrElse(
+          Option.fromNullable(user.timezone),
+          () => DEFAULT_TIMEZONE
+        )
+
+        const scheduledAt = yield* Option.match(
+          pickOverdueNotificationTime(
+            timezone,
+            user.doNotDisturb,
+            user.doNotDisturbStart,
+            user.doNotDisturbEnd,
+            Math.random()
+          ),
+          {
+            onNone: () => new DndWindowBlockedError({ userId: user.id }),
+            onSome: Effect.succeed,
+          }
+        )
+
         const language = Option.getOrElse(
           Option.fromNullable(user.language),
           () => 'en' as const
@@ -96,41 +116,21 @@ export const checkAndGenerateTip = Effect.gen(function* () {
         const title = resolveLocalized(tip.title, language)
         const body = resolveLocalized(tip.body, language)
 
-        // Create notification record
-        const notification = yield* notificationRepo.create({
+        yield* notificationRepo.create({
           type: 'daily_tip',
           title,
           body,
-          scheduledAt: nowAsDate(),
+          scheduledAt,
           userId: user.id,
         })
-
-        if (!notification) return
-
-        // Enqueue and mark as queued in parallel (independent operations)
-        yield* Effect.all(
-          [
-            queue.enqueue(topic, {
-              id: crypto.randomUUID(),
-              topic,
-              payload: {
-                userId: user.id,
-                title,
-                body,
-                notificationIds: [notification.id],
-                plantIds: [],
-              },
-              retryCount: 0,
-              createdAt: nowAsDate(),
-              scheduledAt: nowAsDate(),
-            }),
-            notificationRepo.markManyAsQueued([notification.id]),
-          ],
-          { concurrency: 'unbounded' }
-        )
       }).pipe(
+        Effect.catchTag('DndWindowBlockedError', (error) =>
+          Effect.log('Skipping daily tip — both windows blocked by DND', {
+            userId: error.userId,
+          })
+        ),
         Effect.catchAll((error) =>
-          Effect.logWarning('Failed to send tip notification to user', {
+          Effect.logWarning('Failed to create tip notification for user', {
             userId: user.id,
             error: globalThis.String(error),
           })
@@ -139,7 +139,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     { concurrency: 10 }
   )
 
-  yield* Effect.log('Daily tip notifications enqueued', {
+  yield* Effect.log('Daily tip notifications created', {
     userCount: Array.length(users),
   })
 }).pipe(Effect.withSpan('tips-scheduler.check'))

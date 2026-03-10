@@ -187,9 +187,7 @@ const TipsSchedulerLive = Layer.scopedDiscard(
   Layer.provide(UserRepositoryLive),
   Layer.provide(RagService.Default),
   Layer.provide(ProcessedChunkRepositoryLive),
-  Layer.provide(KnowledgeDrizzleLive),
-  Layer.provide(RedisMessageQueueLive),
-  Layer.provide(RedisClientLive)
+  Layer.provide(KnowledgeDrizzleLive)
 )
 
 // Knowledge ingestion worker layer - polls for pending ingest jobs
