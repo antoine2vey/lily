@@ -7,7 +7,6 @@ import {
   AlreadySentTodayError,
   CareRemindersDisabledError,
   DEFAULT_TIMEZONE,
-  DndWindowBlockedError,
   type OverduePlant,
   pickOverdueNotificationTime,
   startOfTodayAsDate,

@@ -3,7 +3,6 @@ import { EngagementRepository } from '@lily/api/repositories/engagement.reposito
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   DEFAULT_TIMEZONE,
-  DndWindowBlockedError,
   daysAgoAsDate,
   pickOverdueNotificationTime,
 } from '@lily/shared'
