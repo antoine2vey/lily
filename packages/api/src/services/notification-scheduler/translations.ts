@@ -18,8 +18,8 @@ export type SimpleNotificationType =
   | 'delegation_canceled'
   | 'delegation_activated'
   | 'delegation_completed'
+  | 'daily_tip'
   | 'inactivity_nudge'
-  | 'plant_tip'
   | 'photo_reminder'
   | 'plant_parent_milestone'
 
@@ -89,7 +89,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           : "It's been a while since you checked in. Your plants are waiting for some love!"
       },
     },
-    plant_tip: {
+    daily_tip: {
       title: (p) =>
         Option.getOrElse(
           Option.fromNullable(p.tipTitle),
@@ -186,7 +186,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           : "Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos plantes attendent un peu d'amour !"
       },
     },
-    plant_tip: {
+    daily_tip: {
       title: (p) =>
         Option.getOrElse(
           Option.fromNullable(p.tipTitle),
