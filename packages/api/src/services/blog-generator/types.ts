@@ -32,18 +32,6 @@ export interface GitHubCommitResult {
   readonly path: string
 }
 
-export const TIP_CATEGORIES = [
-  'watering',
-  'light',
-  'soil',
-  'pests',
-  'propagation',
-  'seasonal',
-  'general',
-] as const
-
-export type TipCategory = (typeof TIP_CATEGORIES)[number]
-
 export const BLOG_CATEGORIES = [
   'care-guide',
   'seasonal',
