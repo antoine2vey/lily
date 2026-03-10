@@ -5,6 +5,7 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
@@ -25,6 +26,7 @@ import { AchievementNotifierLive } from '@lily/api/services/achievements/notifie
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
+import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
@@ -187,6 +189,13 @@ const TipsSchedulerLive = Layer.scopedDiscard(
   Layer.provide(KnowledgeDrizzleLive)
 )
 
+// Blog generator scheduler layer - AI-generated blog posts
+const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startBlogGeneratorScheduler
+  })
+).pipe(Layer.provide(BlogPostRepositoryLive))
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -248,6 +257,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(NotificationWorkerLive),
   Layer.provide(EngagementSchedulerLive),
   Layer.provide(TipsSchedulerLive),
+  Layer.provide(BlogGeneratorSchedulerLive),
   Layer.provide(KnowledgeIngestionWorkerLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
