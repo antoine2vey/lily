@@ -42,7 +42,7 @@ const generateContent = (
 
     const englishTitle = pipe(
       Option.fromNullable(topic.title.en),
-      Option.orElse(() => Array.head(Record.values(topic.title))),
+      Option.orElse(() => Array.head(Record.values(topic.title) as string[])),
       Option.getOrElse(() => 'Untitled')
     )
 
@@ -117,7 +117,9 @@ const reviewContent = (
     // Review the primary (English) content
     const primaryContent = pipe(
       Option.fromNullable(content.content.en),
-      Option.orElse(() => Array.head(Record.values(content.content))),
+      Option.orElse(() =>
+        Array.head(Record.values(content.content) as string[])
+      ),
       Option.getOrElse(() => '')
     )
 
