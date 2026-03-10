@@ -12,7 +12,7 @@ import {
   pickOverdueNotificationTime,
   startOfTodayAsDate,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe, Record } from 'effect'
+import { Array, Effect, Option, pipe, Random, Record } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 
 // Check every hour for overdue plants across timezones
@@ -62,18 +62,14 @@ export const processUserOverdueReminders = (
     if (Array.isEmptyReadonlyArray(strictlyOverdue)) return 0
 
     // Pick a random scheduledAt within the allowed windows
-    const scheduledAt = yield* pipe(
-      pickOverdueNotificationTime(
-        timezone,
-        settings.doNotDisturb,
-        settings.doNotDisturbStart,
-        settings.doNotDisturbEnd,
-        Math.random()
-      ),
-      Option.match({
-        onNone: () => new DndWindowBlockedError({ userId }),
-        onSome: Effect.succeed,
-      })
+    const randomValue = yield* Random.next
+    const scheduledAt = yield* pickOverdueNotificationTime(
+      userId,
+      timezone,
+      settings.doNotDisturb,
+      settings.doNotDisturbStart,
+      settings.doNotDisturbEnd,
+      randomValue
     )
 
     // Create one notification per plant, all sharing the same scheduledAt for grouping

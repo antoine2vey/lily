@@ -110,9 +110,9 @@ const runProcessUser = (
 describe('pickOverdueNotificationTime', () => {
   describe('random window selection', () => {
     it('should pick morning window when randomValue < 0.5', () => {
-      const result = pickOverdueNotificationTime('UTC', false, null, null, 0.25)
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
+      const date = Effect.runSync(
+        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.25)
+      )
       const hours = date.getUTCHours()
       // Morning window: 6:00-8:00
       expect(hours).toBeGreaterThanOrEqual(6)
@@ -120,9 +120,9 @@ describe('pickOverdueNotificationTime', () => {
     })
 
     it('should pick evening window when randomValue >= 0.5', () => {
-      const result = pickOverdueNotificationTime('UTC', false, null, null, 0.75)
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
+      const date = Effect.runSync(
+        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.75)
+      )
       const hours = date.getUTCHours()
       // Evening window: 18:00-22:00
       expect(hours).toBeGreaterThanOrEqual(18)
@@ -130,18 +130,18 @@ describe('pickOverdueNotificationTime', () => {
     })
 
     it('should pick morning window start when randomValue = 0.0', () => {
-      const result = pickOverdueNotificationTime('UTC', false, null, null, 0.0)
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
+      const date = Effect.runSync(
+        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.0)
+      )
       const hours = date.getUTCHours()
       expect(hours).toBe(6)
       expect(date.getUTCMinutes()).toBe(0)
     })
 
     it('should pick evening window near end when randomValue = 0.99', () => {
-      const result = pickOverdueNotificationTime('UTC', false, null, null, 0.99)
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
+      const date = Effect.runSync(
+        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.99)
+      )
       const hours = date.getUTCHours()
       // Near end of evening window (18:00-22:00)
       expect(hours).toBeGreaterThanOrEqual(18)
@@ -152,9 +152,9 @@ describe('pickOverdueNotificationTime', () => {
       // Test a range of random values
       const values = [0.0, 0.1, 0.25, 0.49, 0.5, 0.6, 0.8, 0.99]
       for (const rv of values) {
-        const result = pickOverdueNotificationTime('UTC', false, null, null, rv)
-        expect(Option.isSome(result)).toBe(true)
-        const date = Option.getOrThrow(result)
+        const date = Effect.runSync(
+          pickOverdueNotificationTime('test-user', 'UTC', false, null, null, rv)
+        )
         const hours = date.getUTCHours()
         const inMorning = hours >= 6 && hours < 8
         const inEvening = hours >= 18 && hours < 22
@@ -166,15 +166,16 @@ describe('pickOverdueNotificationTime', () => {
   describe('DND interaction', () => {
     it('should fall back to evening when DND covers morning window', () => {
       // DND 22:00-08:00 covers the entire morning window (6:00-8:00)
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        true,
-        '22:00',
-        '08:00',
-        0.25 // Would normally pick morning
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          true,
+          '22:00',
+          '08:00',
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
       const hours = date.getUTCHours()
       // Should have fallen back to evening
       expect(hours).toBeGreaterThanOrEqual(18)
@@ -183,68 +184,79 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should fall back to morning when DND covers evening window', () => {
       // DND 17:00-23:00 covers the entire evening window (18:00-22:00)
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        true,
-        '17:00',
-        '23:00',
-        0.75 // Would normally pick evening
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          true,
+          '17:00',
+          '23:00',
+          0.75
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
       const hours = date.getUTCHours()
       // Should have fallen back to morning
       expect(hours).toBeGreaterThanOrEqual(6)
       expect(hours).toBeLessThan(8)
     })
 
-    it('should return None when DND covers both windows', () => {
+    it('should fail with DndWindowBlockedError when DND covers both windows', () => {
       // DND 05:00-23:00 covers both morning (6-8) and evening (18-22)
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        true,
-        '05:00',
-        '23:00',
-        0.5
+      const exit = Effect.runSyncExit(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          true,
+          '05:00',
+          '23:00',
+          0.5
+        )
       )
-      expect(Option.isNone(result)).toBe(true)
+      expect(Exit.isFailure(exit)).toBe(true)
     })
 
     it('should ignore DND when disabled', () => {
       // Even though times look like they'd block, dndEnabled=false means no check
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        false,
-        '00:00',
-        '23:59',
-        0.25
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          false,
+          '00:00',
+          '23:59',
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
+      expect(date instanceof Date).toBe(true)
     })
 
     it('should treat same start and end as no DND', () => {
       // DND 22:00-22:00 → no DND window (same start/end is treated as disabled)
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        true,
-        '22:00',
-        '22:00',
-        0.25
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          true,
+          '22:00',
+          '22:00',
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
+      expect(date instanceof Date).toBe(true)
     })
 
     it('should handle midnight wraparound DND', () => {
       // DND 23:00-06:00 → morning window (6:00-8:00) available, evening partially blocked
-      const result = pickOverdueNotificationTime(
-        'UTC',
-        true,
-        '23:00',
-        '06:00',
-        0.25 // Morning window
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'UTC',
+          true,
+          '23:00',
+          '06:00',
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
       const hours = date.getUTCHours()
       // Morning window 6:00-8:00 is partially available (6:00 is the DND end boundary)
       expect(hours).toBeGreaterThanOrEqual(6)
@@ -253,58 +265,62 @@ describe('pickOverdueNotificationTime', () => {
 
   describe('timezone handling', () => {
     it('should convert correctly for America/New_York', () => {
-      const result = pickOverdueNotificationTime(
-        'America/New_York',
-        false,
-        null,
-        null,
-        0.25 // Morning window
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'America/New_York',
+          false,
+          null,
+          null,
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
       // The returned Date is in UTC, but should represent 6:00-8:00 ET
       // ET is UTC-5 or UTC-4, so UTC hours should be 10-12 or 11-13
-      const date = Option.getOrThrow(result)
       expect(date instanceof Date).toBe(true)
     })
 
     it('should convert correctly for Europe/Paris', () => {
-      const result = pickOverdueNotificationTime(
-        'Europe/Paris',
-        false,
-        null,
-        null,
-        0.75 // Evening window
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'Europe/Paris',
+          false,
+          null,
+          null,
+          0.75
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
       // Paris is UTC+1 or UTC+2, so 18:00 Paris = 16:00 or 17:00 UTC
-      const date = Option.getOrThrow(result)
       expect(date instanceof Date).toBe(true)
     })
 
     it('should convert correctly for Asia/Tokyo', () => {
-      const result = pickOverdueNotificationTime(
-        'Asia/Tokyo',
-        false,
-        null,
-        null,
-        0.0 // Morning window start
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'Asia/Tokyo',
+          false,
+          null,
+          null,
+          0.0
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
       // Tokyo is UTC+9, so 6:00 Tokyo = 21:00 UTC (previous day)
       expect(date instanceof Date).toBe(true)
     })
 
     it('should fall back to UTC for invalid timezone', () => {
-      const result = pickOverdueNotificationTime(
-        'Invalid/Timezone',
-        false,
-        null,
-        null,
-        0.25
+      const date = Effect.runSync(
+        pickOverdueNotificationTime(
+          'test-user',
+          'Invalid/Timezone',
+          false,
+          null,
+          null,
+          0.25
+        )
       )
-      expect(Option.isSome(result)).toBe(true)
-      const date = Option.getOrThrow(result)
       const hours = date.getUTCHours()
       // Should use UTC, so morning window is 6:00-8:00 UTC
       expect(hours).toBeGreaterThanOrEqual(6)
