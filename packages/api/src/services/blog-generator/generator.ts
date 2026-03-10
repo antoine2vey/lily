@@ -1,8 +1,8 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import type { LocalizedText } from '@lily/db/schema'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
-import { z } from 'zod'
 import { publishBlogPost } from './github'
 import {
   GENERATION_SYSTEM_PROMPT,
@@ -10,6 +10,7 @@ import {
   REVIEW_SYSTEM_PROMPT,
   TRANSLATION_PROMPT,
 } from './prompts'
+import { ReviewSchema } from './schemas'
 import type {
   GeneratedContent,
   ResearchBrief,
@@ -17,50 +18,7 @@ import type {
   TopicSuggestion,
 } from './types'
 
-const ReviewSchema = z.object({
-  uniqueness: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe(
-      'How original the content is compared to source material. 100 = completely rephrased, 0 = copied verbatim.'
-    ),
-  organicFeel: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe(
-      'How natural and human-written the content reads. 100 = indistinguishable from a human expert, 0 = obviously AI-generated.'
-    ),
-  factualAccuracy: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe(
-      'Whether the plant care advice is scientifically correct and safe to follow. 100 = fully accurate, 0 = contains dangerous misinformation.'
-    ),
-  seoQuality: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe(
-      'SEO readiness: proper heading structure, keyword usage, meta-friendly intro, internal linking opportunities. 100 = perfectly optimized.'
-    ),
-  overallScore: z
-    .number()
-    .min(0)
-    .max(100)
-    .describe(
-      'Weighted overall quality score. Must be >= 95 for the post to be published.'
-    ),
-  feedback: z
-    .string()
-    .describe(
-      'Actionable critique explaining what needs improvement. Be specific about which sentences or sections are problematic.'
-    ),
-})
-
-const MAX_RETRIES = 3
+const MAX_RETRIES = 5
 const MIN_SCORE = 95
 
 /** Languages to generate content for — add new languages here */
@@ -72,6 +30,7 @@ const TARGET_LANGUAGES: ReadonlyArray<{ code: 'en' | 'fr'; name: string }> = [
 const generateContent = (
   topic: TopicSuggestion,
   brief: ResearchBrief,
+  publishedPosts: readonly { slug: string; title: LocalizedText }[],
   previousFeedback?: string
 ) =>
   Effect.gen(function* () {
@@ -81,14 +40,32 @@ const generateContent = (
       Array.join('\n')
     )}`
 
-    const englishTitle = Option.getOrElse(
+    const englishTitle = pipe(
       Option.fromNullable(topic.title.en),
-      () => Record.values(topic.title)[0] ?? 'Untitled'
+      Option.orElse(() => Array.head(Record.values(topic.title))),
+      Option.getOrElse(() => 'Untitled')
+    )
+
+    const existingPostsList = pipe(
+      publishedPosts,
+      Array.filter((p) => p.slug !== topic.slug),
+      Array.map(
+        (p) =>
+          `- /en/blog/${p.slug} — "${Option.getOrElse(Option.fromNullable(p.title.en), () => p.slug)}"`
+      ),
+      Array.join('\n')
+    )
+
+    const basePrompt = GENERATION_USER_PROMPT(
+      englishTitle,
+      topic.outline,
+      researchContext,
+      existingPostsList
     )
 
     const userPrompt = previousFeedback
-      ? `${GENERATION_USER_PROMPT(englishTitle, topic.outline, researchContext)}\n\nPREVIOUS REVIEW FEEDBACK (address these issues):\n${previousFeedback}`
-      : GENERATION_USER_PROMPT(englishTitle, topic.outline, researchContext)
+      ? `${basePrompt}\n\nPREVIOUS REVIEW FEEDBACK (address these issues):\n${previousFeedback}`
+      : basePrompt
 
     // Generate primary (English) content
     const enResult = yield* Effect.tryPromise(() =>
@@ -113,7 +90,7 @@ const generateContent = (
           generateText({
             model: openai('gpt-4o'),
             system: TRANSLATION_PROMPT,
-            prompt: `Translate this blog post to ${lang.name}:\n\n${enResult.text}`,
+            prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
           })
         )
         content[lang.code] = result.text
@@ -123,7 +100,11 @@ const generateContent = (
     return { content } as GeneratedContent
   }).pipe(Effect.withSpan('blog-generator.generateContent'))
 
-const reviewContent = (content: GeneratedContent, brief: ResearchBrief) =>
+const reviewContent = (
+  content: GeneratedContent,
+  brief: ResearchBrief,
+  validSlugs: readonly string[]
+) =>
   Effect.gen(function* () {
     const sourceSnippets = pipe(
       brief.sources,
@@ -134,9 +115,16 @@ const reviewContent = (content: GeneratedContent, brief: ResearchBrief) =>
     )
 
     // Review the primary (English) content
-    const primaryContent = Option.getOrElse(
+    const primaryContent = pipe(
       Option.fromNullable(content.content.en),
-      () => Record.values(content.content)[0] ?? ''
+      Option.orElse(() => Array.head(Record.values(content.content))),
+      Option.getOrElse(() => '')
+    )
+
+    const validLinks = pipe(
+      validSlugs,
+      Array.map((s) => `/en/blog/${s}`),
+      Array.join(', ')
     )
 
     const result = yield* Effect.tryPromise(() =>
@@ -150,7 +138,10 @@ GENERATED CONTENT:
 ${primaryContent}
 
 ORIGINAL SOURCE MATERIAL (compare for uniqueness):
-${sourceSnippets}`,
+${sourceSnippets}
+
+VALID INTERNAL LINK PATHS (any link NOT in this list is broken):
+${validLinks || 'None — no internal links should be present'}`,
       })
     )
 
@@ -164,6 +155,14 @@ export const generateAndReviewBlogPost = (
 ) =>
   Effect.gen(function* () {
     const repo = yield* BlogPostRepository
+
+    // Fetch valid slugs once for link validation across retries
+    const publishedPosts = yield* repo.findPublishedSlugsWithTitles()
+    const validSlugs = pipe(
+      publishedPosts,
+      Array.filter((p) => p.slug !== topic.slug),
+      Array.map((p) => p.slug)
+    )
 
     const result = yield* Effect.iterate(
       {
@@ -180,16 +179,17 @@ export const generateAndReviewBlogPost = (
             const generated = yield* generateContent(
               topic,
               brief,
+              publishedPosts,
               state.feedback
             )
             yield* repo.updateContent(postId, generated.content)
 
             // REVIEW
             yield* repo.updateStatus(postId, 'reviewing')
-            const review = yield* reviewContent(generated, brief)
+            const review = yield* reviewContent(generated, brief, validSlugs)
 
             yield* repo.updateReview(postId, {
-              reviewScore: review.overallScore,
+              reviewScore: Math.round(review.overallScore),
               reviewFeedback: review.feedback,
               retryCount: state.retryCount,
             })
