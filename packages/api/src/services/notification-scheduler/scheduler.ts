@@ -16,8 +16,18 @@ const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
   'overdue_reminder',
 ]
 
+const ENGAGEMENT_TYPES: ReadonlyArray<string> = [
+  'daily_tip',
+  'inactivity_nudge',
+  'photo_reminder',
+  'plant_parent_milestone',
+]
+
 const isCareReminderType = (type: string): boolean =>
   Array.contains(CARE_REMINDER_TYPES, type)
+
+const isEngagementType = (type: string): boolean =>
+  Array.contains(ENGAGEMENT_TYPES, type)
 
 // Map notification type to queue topic using Match
 export const mapNotificationTypeToTopic = (
@@ -55,6 +65,13 @@ export const mapNotificationTypeToTopic = (
       Option.some('delegation_completed' as const)
     ),
     Match.when('daily_tip', () => Option.some('daily_tip' as const)),
+    Match.when('inactivity_nudge', () =>
+      Option.some('inactivity_nudge' as const)
+    ),
+    Match.when('photo_reminder', () => Option.some('photo_reminder' as const)),
+    Match.when('plant_parent_milestone', () =>
+      Option.some('plant_parent_milestone' as const)
+    ),
     Match.orElse(() => Option.none())
   )
 
@@ -112,6 +129,18 @@ export const pollAndEnqueue = Effect.gen(function* () {
         id: notification.id,
         userId: notification.userId,
       })
+      continue
+    }
+
+    // Safety net: skip engagement notifications if user has disabled tips
+    if (isEngagementType(notification.type) && user && !user.tips) {
+      yield* Effect.log(
+        'Skipping engagement notification - user disabled tips',
+        {
+          id: notification.id,
+          userId: notification.userId,
+        }
+      )
       continue
     }
 

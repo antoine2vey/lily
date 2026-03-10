@@ -5,12 +5,12 @@ import { RedisEventBusLive } from '@lily/api/events'
 import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
-import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { EngagementRepositoryLive } from '@lily/api/repositories/engagement.repository'
 import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
@@ -25,13 +25,13 @@ import { AchievementNotifierLive } from '@lily/api/services/achievements/notifie
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
-import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
 import { startDelegationScheduler } from '@lily/api/services/delegation-scheduler/scheduler'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
+import { startEngagementScheduler } from '@lily/api/services/engagement-scheduler/scheduler'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
@@ -162,33 +162,37 @@ const OverdueSchedulerLive = Layer.scopedDiscard(
   Layer.provide(DelegationRepositoryLive)
 )
 
-// Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
-const HealthSchedulerLive = Layer.scopedDiscard(
+// Engagement scheduler layer - inactivity nudges, photo reminders, milestones
+const EngagementSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
-    yield* startHealthScheduler
+    yield* startEngagementScheduler
   })
-).pipe(Layer.provide(PlantRepositoryLive))
+).pipe(
+  Layer.provide(EngagementRepositoryLive),
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive)
+)
 
-// Blog generator scheduler layer - generates SEO blog posts
-const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startBlogGeneratorScheduler
-  })
-).pipe(Layer.provide(BlogPostRepositoryLive))
-
-// Tips scheduler layer - generates daily plant care tips
+// Tips scheduler layer - AI-generated daily tips with fatigue prevention
 const TipsSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startTipsScheduler
   })
 ).pipe(
   Layer.provide(DailyTipRepositoryLive),
+  Layer.provide(EngagementRepositoryLive),
   Layer.provide(NotificationRepositoryLive),
-  Layer.provide(UserRepositoryLive),
   Layer.provide(RagService.Default),
   Layer.provide(ProcessedChunkRepositoryLive),
   Layer.provide(KnowledgeDrizzleLive)
 )
+
+// Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
+const HealthSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startHealthScheduler
+  })
+).pipe(Layer.provide(PlantRepositoryLive))
 
 // Knowledge ingestion worker layer - polls for pending ingest jobs
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
@@ -242,9 +246,9 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
-  Layer.provide(KnowledgeIngestionWorkerLive),
-  Layer.provide(BlogGeneratorSchedulerLive),
+  Layer.provide(EngagementSchedulerLive),
   Layer.provide(TipsSchedulerLive),
+  Layer.provide(KnowledgeIngestionWorkerLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
   Layer.provide(

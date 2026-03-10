@@ -1,16 +1,19 @@
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
+import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
   DEFAULT_TIMEZONE,
-  DndWindowBlockedError,
-  pickOverdueNotificationTime,
+  daysAgoAsDate,
+  pickNotificationTime,
 } from '@lily/shared'
-import { Array, Config, DateTime, Effect, Option } from 'effect'
+import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
 
 const POLL_INTERVAL: DurationInput = '1 hour'
+
+// Tip dedup period: no more than 1 tip per 3 days
+const TIP_DEDUP_DAYS = 3
 
 const getTodayDateString = (): string => {
   const now = DateTime.unsafeNow()
@@ -40,8 +43,8 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   if (enabled !== 'true') return
 
   const tipRepo = yield* DailyTipRepository
-  const userRepo = yield* UserRepository
   const notificationRepo = yield* NotificationRepository
+  const engagementRepo = yield* EngagementRepository
 
   const today = getTodayDateString()
 
@@ -75,9 +78,9 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   })
 
   // Find all users with tips enabled
-  const users = yield* userRepo.findTipsEnabled()
+  const users = yield* engagementRepo.getUsersWithTipsEnabled()
 
-  if (Array.isEmptyArray(users)) return
+  if (Array.isEmptyReadonlyArray(users)) return
 
   yield* Effect.log('Sending daily tip notifications', {
     userCount: Array.length(users),
@@ -94,18 +97,31 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           () => DEFAULT_TIMEZONE
         )
 
-        const scheduledAt = yield* Option.match(
-          pickOverdueNotificationTime(
+        // Fatigue prevention: skip if already sent a tip in last 3 days
+        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
+          user.id,
+          'daily_tip',
+          daysAgoAsDate(TIP_DEDUP_DAYS)
+        )
+        if (alreadySent) return
+
+        // Fatigue prevention: skip if a care reminder was sent today
+        const careReminderToday =
+          yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+            user.id,
             timezone,
-            user.doNotDisturb,
-            user.doNotDisturbStart,
-            user.doNotDisturbEnd,
-            Math.random()
-          ),
-          {
-            onNone: () => new DndWindowBlockedError({ userId: user.id }),
-            onSome: Effect.succeed,
-          }
+            'watering_reminder'
+          )
+        if (careReminderToday) return
+
+        const randomValue = yield* Random.next
+        const scheduledAt = yield* pickNotificationTime(
+          user.id,
+          timezone,
+          user.doNotDisturb,
+          user.doNotDisturbStart,
+          user.doNotDisturbEnd,
+          randomValue
         )
 
         const language = Option.getOrElse(

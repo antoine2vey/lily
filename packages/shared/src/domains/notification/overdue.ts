@@ -1,5 +1,6 @@
-import { Array, DateTime, Option, Order, pipe } from 'effect'
+import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
 
+import { DndWindowBlockedError } from './errors'
 import { DEFAULT_TIMEZONE, isInDndWindow, timeToMinutes } from './timezone'
 
 // Morning window: 6:00-8:00 local time (120 minutes)
@@ -36,23 +37,26 @@ export const earliestOverdueDate = (
   )
 
 /**
- * Pure function to pick a random notification time within the morning or evening
- * window, respecting DND settings. Returns Option.none() if both windows are blocked.
+ * Pick a random notification send time within the morning or evening window,
+ * respecting DND settings. Fails with DndWindowBlockedError if both windows
+ * are blocked.
  *
+ * @param userId - User ID (for error context)
  * @param timezone - IANA timezone string
  * @param dndEnabled - Whether DND is active
  * @param dndStart - DND start time in HH:mm format
  * @param dndEnd - DND end time in HH:mm format
  * @param randomValue - A number in [0, 1) for deterministic testing
- * @returns Option<Date> - UTC Date for the scheduled notification, or None if blocked
+ * @returns Effect<Date, DndWindowBlockedError>
  */
-export const pickOverdueNotificationTime = (
+export const pickNotificationTime = (
+  userId: string,
   timezone: string,
   dndEnabled: boolean,
   dndStart: string | null,
   dndEnd: string | null,
   randomValue: number
-): Option.Option<Date> => {
+): Effect.Effect<Date, DndWindowBlockedError> => {
   const dndStartMinutes = dndEnabled
     ? timeToMinutes(
         Option.getOrElse(Option.fromNullable(dndStart), () => '22:00')
@@ -140,6 +144,10 @@ export const pickOverdueNotificationTime = (
       )
 
       return DateTime.toDateUtc(scheduledZoned)
+    }),
+    Option.match({
+      onNone: () => new DndWindowBlockedError({ userId }),
+      onSome: Effect.succeed,
     })
   )
 }
