@@ -1,6 +1,5 @@
 import { LilyOAuthServerModel } from '@lily/mcp/auth/oauth'
-import { Effect } from 'effect'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 /**
  * Tests for the database-backed OAuth model.
