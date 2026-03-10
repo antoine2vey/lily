@@ -91,6 +91,10 @@ export interface IUserRepository {
     Array<typeof users.$inferSelect>,
     SqlError
   >
+  readonly findTipsEnabled: () => Effect.Effect<
+    Array<typeof users.$inferSelect>,
+    SqlError
+  >
 }
 
 // Tag for dependency injection
@@ -272,6 +276,13 @@ export const UserRepositoryLive = Layer.effect(
             )
           )
           .pipe(Effect.withSpan('UserRepository.findWeatherEnabled')),
+
+      findTipsEnabled: () =>
+        db
+          .select()
+          .from(users)
+          .where(eq(users.tips, true))
+          .pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
     }
   })
 )
