@@ -175,6 +175,7 @@ const validateTopic = Match.type<NotificationTopic>().pipe(
   Match.when('delegation_canceled', () => true),
   Match.when('delegation_activated', () => true),
   Match.when('delegation_completed', () => true),
+  Match.when('daily_tip', () => true),
   Match.exhaustive
 )
 

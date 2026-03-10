@@ -54,6 +54,7 @@ export const mapNotificationTypeToTopic = (
     Match.when('delegation_completed', () =>
       Option.some('delegation_completed' as const)
     ),
+    Match.when('daily_tip', () => Option.some('daily_tip' as const)),
     Match.orElse(() => Option.none())
   )
 

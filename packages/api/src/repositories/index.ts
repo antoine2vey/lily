@@ -1,7 +1,9 @@
 // Repository exports
 export * from '@lily/api/repositories/achievement.repository'
+export * from '@lily/api/repositories/blog-post.repository'
 export * from '@lily/api/repositories/care-log.repository'
 export * from '@lily/api/repositories/chat.repository'
+export * from '@lily/api/repositories/daily-tip.repository'
 export * from '@lily/api/repositories/dead-letter.repository'
 export * from '@lily/api/repositories/device-token.repository'
 export * from '@lily/api/repositories/helpers/pagination'
