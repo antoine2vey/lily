@@ -4,9 +4,10 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import {
   DEFAULT_TIMEZONE,
   DndWindowBlockedError,
+  daysAgoAsDate,
   pickOverdueNotificationTime,
 } from '@lily/shared'
-import { Array, Config, DateTime, Duration, Effect, Option } from 'effect'
+import { Array, Config, DateTime, Effect, Option } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
 
@@ -21,12 +22,6 @@ const getTodayDateString = (): string => {
   const month = globalThis.String(parts.month).padStart(2, '0')
   const day = globalThis.String(parts.day).padStart(2, '0')
   return `${parts.year}-${month}-${day}`
-}
-
-const daysAgo = (days: number): Date => {
-  const dt = DateTime.unsafeNow()
-  const shifted = DateTime.subtractDuration(dt, Duration.days(days))
-  return DateTime.toDateUtc(shifted)
 }
 
 /** Resolve localized text for a given language, falling back to English */
@@ -107,7 +102,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
         const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
           user.id,
           'daily_tip',
-          daysAgo(TIP_DEDUP_DAYS)
+          daysAgoAsDate(TIP_DEDUP_DAYS)
         )
         if (alreadySent) return
 

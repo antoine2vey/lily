@@ -84,9 +84,18 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return count > 0
-          ? `It's been a while since you checked in. Your ${count} plants are waiting for some love!`
-          : "It's been a while since you checked in. Your plants are waiting for some love!"
+        return pipe(
+          Match.value(count > 0),
+          Match.when(
+            true,
+            () =>
+              `It's been a while since you checked in. Your ${count} plants are waiting for some love!`
+          ),
+          Match.orElse(
+            () =>
+              "It's been a while since you checked in. Your plants are waiting for some love!"
+          )
+        )
       },
     },
     daily_tip: {
@@ -181,9 +190,18 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return count > 0
-          ? `Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos ${count} plantes attendent un peu d'amour !`
-          : "Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos plantes attendent un peu d'amour !"
+        return pipe(
+          Match.value(count > 0),
+          Match.when(
+            true,
+            () =>
+              `Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos ${count} plantes attendent un peu d'amour !`
+          ),
+          Match.orElse(
+            () =>
+              "Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos plantes attendent un peu d'amour !"
+          )
+        )
       },
     },
     daily_tip: {
