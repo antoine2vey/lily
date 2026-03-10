@@ -1,0 +1,94 @@
+import { openai } from '@ai-sdk/openai'
+import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { nowAsIsoString } from '@lily/shared'
+import { generateText, Output } from 'ai'
+import { Array as Arr, Effect, String as Str } from 'effect'
+import { TOPIC_SELECTION_PROMPT } from './prompts'
+import { TopicSchema } from './schemas'
+import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
+
+const TOPIC_TEMPLATES = [
+  'Complete care guide for [popular plant]',
+  'How to propagate [plant] from cuttings',
+  'Why your [plant] leaves are turning yellow',
+  'Best indoor plants for low light conditions',
+  'Seasonal plant care checklist for [season]',
+  'How to repot your houseplants step by step',
+  'Common pests and how to treat them naturally',
+  'Understanding soil types for houseplants',
+  'Water quality and its effect on plant health',
+  'How to create a humidity-loving plant corner',
+  'Beginner mistakes to avoid with houseplants',
+  'How to revive a dying plant',
+  'Best plants for air purification',
+  'Fertilizing indoor plants: a complete guide',
+  'How to choose the right pot for your plant',
+  'Understanding plant light requirements',
+  'How to care for succulents and cacti',
+  'Tropical plants that thrive indoors',
+  'Pet-safe houseplants for cat and dog owners',
+  'How to start a kitchen herb garden',
+  'Winter plant care tips',
+  'Summer plant care tips',
+  'Spring plant care tips',
+  'Fall plant care tips',
+  'How to deal with root rot',
+  'Signs your plant needs more light',
+  'How to create a self-watering system',
+  'Best trailing plants for hanging baskets',
+  'How to grow plants in water (hydroponics)',
+  'Understanding plant dormancy',
+  'How to prevent and treat fungal diseases',
+  'Best plants for bathrooms',
+  'How to acclimate new plants to your home',
+  'Companion planting for indoor gardens',
+  'How to prune houseplants correctly',
+  'Understanding NPK ratios in fertilizers',
+  'How to increase humidity for tropical plants',
+  'Best plants for office desks',
+  'How to read plant care labels',
+  'Building a terrarium step by step',
+  'Rare houseplants worth collecting',
+  'How to overwinter outdoor plants indoors',
+  'Natural pest control methods for houseplants',
+  'How to grow edible plants indoors',
+  'Understanding variegation in plants',
+  'How to create a moss pole for climbing plants',
+  'Best tools for plant care',
+  'How to divide and separate root-bound plants',
+  'Understanding photosynthesis for better plant care',
+  'How to create a plant care schedule',
+]
+
+export const selectTopic = Effect.gen(function* () {
+  const repo = yield* BlogPostRepository
+
+  const [existingSlugs, recentCategories] = yield* Effect.all(
+    [repo.findAllSlugs(), repo.findRecentCategories(10)],
+    { concurrency: 'unbounded' }
+  )
+
+  const result = yield* Effect.tryPromise(() =>
+    generateText({
+      model: openai('gpt-4o'),
+      output: Output.object({ schema: TopicSchema }),
+      system: TOPIC_SELECTION_PROMPT,
+      prompt: `Select a blog post topic for a plant care blog.
+
+Available categories: ${Arr.join(BLOG_CATEGORIES, ', ')}
+
+Topic templates for inspiration (pick one or create your own):
+${Arr.join(TOPIC_TEMPLATES, '\n')}
+
+ALREADY PUBLISHED slugs (avoid similar topics):
+${Arr.join(existingSlugs, '\n')}
+
+RECENT categories (vary from these):
+${Arr.join(recentCategories, ', ')}
+
+Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
+    })
+  )
+
+  return result.output as TopicSuggestion
+}).pipe(Effect.withSpan('blog-generator.selectTopic'))

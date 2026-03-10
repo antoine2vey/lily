@@ -179,6 +179,9 @@ export const createMockUserRepository = (
             u.longitude !== null
         )
       ),
+
+    findTipsEnabled: () =>
+      Effect.succeed(Array.filter(users, (u) => u.tips === true)),
   }
 
   return Layer.succeed(UserRepository, repo)

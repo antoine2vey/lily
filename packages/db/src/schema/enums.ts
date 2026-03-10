@@ -70,3 +70,12 @@ export const delegationStatusEnum = pgEnum('delegation_status', [
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
 
 export const careTypeEnum = pgEnum('care_type', ['watering', 'fertilization'])
+
+export const blogPostStatusEnum = pgEnum('blog_post_status', [
+  'pending',
+  'researching',
+  'generating',
+  'reviewing',
+  'published',
+  'rejected',
+])
