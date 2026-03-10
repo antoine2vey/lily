@@ -37,7 +37,7 @@ export const earliestOverdueDate = (
   )
 
 /**
- * Pick a random notification time within the morning or evening window,
+ * Pick a random notification send time within the morning or evening window,
  * respecting DND settings. Fails with DndWindowBlockedError if both windows
  * are blocked.
  *
@@ -49,7 +49,7 @@ export const earliestOverdueDate = (
  * @param randomValue - A number in [0, 1) for deterministic testing
  * @returns Effect<Date, DndWindowBlockedError>
  */
-export const pickOverdueNotificationTime = (
+export const pickNotificationTime = (
   userId: string,
   timezone: string,
   dndEnabled: boolean,

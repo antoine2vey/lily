@@ -17,7 +17,7 @@ import {
   checkAndCreateOverdueReminders,
   processUserOverdueReminders,
 } from '@lily/api/services/overdue-scheduler/scheduler'
-import { pickOverdueNotificationTime } from '@lily/shared'
+import { pickNotificationTime } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array as Arr,
@@ -104,14 +104,14 @@ const runProcessUser = (
 }
 
 // ─────────────────────────────────────────────────
-// A. pickOverdueNotificationTime — pure function tests
+// A. pickNotificationTime — pure function tests
 // ─────────────────────────────────────────────────
 
-describe('pickOverdueNotificationTime', () => {
+describe('pickNotificationTime', () => {
   describe('random window selection', () => {
     it('should pick morning window when randomValue < 0.5', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.25)
+        pickNotificationTime('test-user', 'UTC', false, null, null, 0.25)
       )
       const hours = date.getUTCHours()
       // Morning window: 6:00-8:00
@@ -121,7 +121,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should pick evening window when randomValue >= 0.5', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.75)
+        pickNotificationTime('test-user', 'UTC', false, null, null, 0.75)
       )
       const hours = date.getUTCHours()
       // Evening window: 18:00-22:00
@@ -131,7 +131,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should pick morning window start when randomValue = 0.0', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.0)
+        pickNotificationTime('test-user', 'UTC', false, null, null, 0.0)
       )
       const hours = date.getUTCHours()
       expect(hours).toBe(6)
@@ -140,7 +140,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should pick evening window near end when randomValue = 0.99', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime('test-user', 'UTC', false, null, null, 0.99)
+        pickNotificationTime('test-user', 'UTC', false, null, null, 0.99)
       )
       const hours = date.getUTCHours()
       // Near end of evening window (18:00-22:00)
@@ -153,7 +153,7 @@ describe('pickOverdueNotificationTime', () => {
       const values = [0.0, 0.1, 0.25, 0.49, 0.5, 0.6, 0.8, 0.99]
       for (const rv of values) {
         const date = Effect.runSync(
-          pickOverdueNotificationTime('test-user', 'UTC', false, null, null, rv)
+          pickNotificationTime('test-user', 'UTC', false, null, null, rv)
         )
         const hours = date.getUTCHours()
         const inMorning = hours >= 6 && hours < 8
@@ -167,14 +167,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should fall back to evening when DND covers morning window', () => {
       // DND 22:00-08:00 covers the entire morning window (6:00-8:00)
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          true,
-          '22:00',
-          '08:00',
-          0.25
-        )
+        pickNotificationTime('test-user', 'UTC', true, '22:00', '08:00', 0.25)
       )
       const hours = date.getUTCHours()
       // Should have fallen back to evening
@@ -185,14 +178,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should fall back to morning when DND covers evening window', () => {
       // DND 17:00-23:00 covers the entire evening window (18:00-22:00)
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          true,
-          '17:00',
-          '23:00',
-          0.75
-        )
+        pickNotificationTime('test-user', 'UTC', true, '17:00', '23:00', 0.75)
       )
       const hours = date.getUTCHours()
       // Should have fallen back to morning
@@ -203,14 +189,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should fail with DndWindowBlockedError when DND covers both windows', () => {
       // DND 05:00-23:00 covers both morning (6-8) and evening (18-22)
       const exit = Effect.runSyncExit(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          true,
-          '05:00',
-          '23:00',
-          0.5
-        )
+        pickNotificationTime('test-user', 'UTC', true, '05:00', '23:00', 0.5)
       )
       expect(Exit.isFailure(exit)).toBe(true)
     })
@@ -218,14 +197,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should ignore DND when disabled', () => {
       // Even though times look like they'd block, dndEnabled=false means no check
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          false,
-          '00:00',
-          '23:59',
-          0.25
-        )
+        pickNotificationTime('test-user', 'UTC', false, '00:00', '23:59', 0.25)
       )
       expect(date instanceof Date).toBe(true)
     })
@@ -233,14 +205,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should treat same start and end as no DND', () => {
       // DND 22:00-22:00 → no DND window (same start/end is treated as disabled)
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          true,
-          '22:00',
-          '22:00',
-          0.25
-        )
+        pickNotificationTime('test-user', 'UTC', true, '22:00', '22:00', 0.25)
       )
       expect(date instanceof Date).toBe(true)
     })
@@ -248,14 +213,7 @@ describe('pickOverdueNotificationTime', () => {
     it('should handle midnight wraparound DND', () => {
       // DND 23:00-06:00 → morning window (6:00-8:00) available, evening partially blocked
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'UTC',
-          true,
-          '23:00',
-          '06:00',
-          0.25
-        )
+        pickNotificationTime('test-user', 'UTC', true, '23:00', '06:00', 0.25)
       )
       const hours = date.getUTCHours()
       // Morning window 6:00-8:00 is partially available (6:00 is the DND end boundary)
@@ -266,7 +224,7 @@ describe('pickOverdueNotificationTime', () => {
   describe('timezone handling', () => {
     it('should convert correctly for America/New_York', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
+        pickNotificationTime(
           'test-user',
           'America/New_York',
           false,
@@ -282,7 +240,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should convert correctly for Europe/Paris', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
+        pickNotificationTime(
           'test-user',
           'Europe/Paris',
           false,
@@ -297,14 +255,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should convert correctly for Asia/Tokyo', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
-          'test-user',
-          'Asia/Tokyo',
-          false,
-          null,
-          null,
-          0.0
-        )
+        pickNotificationTime('test-user', 'Asia/Tokyo', false, null, null, 0.0)
       )
       // Tokyo is UTC+9, so 6:00 Tokyo = 21:00 UTC (previous day)
       expect(date instanceof Date).toBe(true)
@@ -312,7 +263,7 @@ describe('pickOverdueNotificationTime', () => {
 
     it('should fall back to UTC for invalid timezone', () => {
       const date = Effect.runSync(
-        pickOverdueNotificationTime(
+        pickNotificationTime(
           'test-user',
           'Invalid/Timezone',
           false,
