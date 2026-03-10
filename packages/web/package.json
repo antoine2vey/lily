@@ -8,8 +8,8 @@
     "start": "bunx http-server out -p $PORT -a 0.0.0.0 --proxy http://0.0.0.0:$PORT?",
     "tsc": "tsc --noEmit",
     "test": "echo 'No tests yet'",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write ."
+    "lint": "bunx --bun biome check .",
+    "lint:fix": "bunx --bun biome check --write ."
   },
   "dependencies": {
     "effect": "^3.17.5",

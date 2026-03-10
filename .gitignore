@@ -114,3 +114,6 @@ android/
 # OS generated files
 Thumbs.db
 gcs-google-credentials.json
+
+# Claude worktrees
+.claude/worktrees/
