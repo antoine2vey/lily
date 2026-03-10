@@ -1,14 +1,12 @@
 import { commitFileToGitHub } from '@lily/api/services/blog-generator/github'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('GitHub API integration', () => {
-  const mockConfig = ConfigProvider.fromMap(
-    new Map([
-      ['GITHUB_TOKEN', 'test-token'],
-      ['GITHUB_REPO', 'owner/repo'],
-    ])
-  )
+  const testCredentials = {
+    token: 'test-token',
+    repo: 'owner/repo',
+  }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -40,7 +38,8 @@ describe('GitHub API integration', () => {
         path: 'packages/web/content/posts/en/test.mdx',
         content: '# Test Content',
         message: 'blog: add test post',
-      }).pipe(Effect.provide(Layer.setConfigProvider(mockConfig)))
+        ...testCredentials,
+      })
     )
 
     expect(result.sha).toBe('new-sha-123')
@@ -85,7 +84,8 @@ describe('GitHub API integration', () => {
         path: 'packages/web/content/posts/en/test.mdx',
         content: '# Updated Content',
         message: 'blog: update test post',
-      }).pipe(Effect.provide(Layer.setConfigProvider(mockConfig)))
+        ...testCredentials,
+      })
     )
 
     expect(result.sha).toBe('updated-sha-789')
@@ -115,7 +115,8 @@ describe('GitHub API integration', () => {
         path: 'packages/web/content/posts/en/test.mdx',
         content: '# Content',
         message: 'blog: add post',
-      }).pipe(Effect.provide(Layer.setConfigProvider(mockConfig)))
+        ...testCredentials,
+      })
     )
 
     expect(result._tag).toBe('Failure')

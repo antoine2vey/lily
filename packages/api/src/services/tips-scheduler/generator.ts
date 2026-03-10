@@ -3,7 +3,7 @@ import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { TIP_CATEGORIES } from '@lily/api/services/blog-generator/types'
 import { RagService } from '@lily/api/services/rag/service'
 import { generateText, Output } from 'ai'
-import { Array, Effect, pipe } from 'effect'
+import { Array, Effect, Option, pipe, Random } from 'effect'
 import { z } from 'zod'
 import type { GeneratedTip } from './types'
 
@@ -43,8 +43,14 @@ export const generateDailyTip = Effect.gen(function* () {
   )
 
   // Pick a random category to guide RAG retrieval
-  const randomIndex = Math.floor(Math.random() * TIP_CATEGORIES.length)
-  const targetCategory = TIP_CATEGORIES[randomIndex]
+  const randomIndex = yield* Random.nextIntBetween(
+    0,
+    Array.length(TIP_CATEGORIES)
+  )
+  const targetCategory = Option.getOrElse(
+    Array.get(TIP_CATEGORIES, randomIndex),
+    () => 'general' as const
+  )
 
   // Use RAG to get relevant knowledge
   const chunks = yield* ragService.retrieve({

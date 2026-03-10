@@ -33,10 +33,11 @@ const ResearchBriefSchema = z.object({
 
 export const researchTopic = (topic: TopicSuggestion) =>
   Effect.gen(function* () {
-    // Use GPT-4o to research and synthesize knowledge on the topic
-    const searchResult = yield* Effect.tryPromise(() =>
+    // Use GPT-4o to research and produce structured output in a single call
+    const result = yield* Effect.tryPromise(() =>
       generateText({
         model: openai('gpt-4o'),
+        output: Output.object({ schema: ResearchBriefSchema }),
         system: RESEARCH_PROMPT,
         prompt: `Research the topic "${topic.title.en}" for a plant care blog post.
 
@@ -49,29 +50,13 @@ Find 5-8 authoritative sources about this topic. For each source, extract:
 - Key facts, unique data points, and expert insights
 
 Then synthesize a research brief with:
-1. Key facts discovered across all sources
-2. Unique angles or perspectives that could make the blog post stand out`,
-      })
-    )
-
-    // Parse the research into structured format
-    const brief = yield* Effect.tryPromise(() =>
-      generateText({
-        model: openai('gpt-4o'),
-        output: Output.object({ schema: ResearchBriefSchema }),
-        prompt: `Parse the following research output into a structured format.
-
-Research output:
-${searchResult.text}
-
-Extract:
 1. sources: Array of { url, title, snippet } for each source found
 2. keyFacts: A bullet-point summary of the most important facts
-3. uniqueAngles: Unique perspectives or angles for the blog post`,
+3. uniqueAngles: Unique perspectives or angles that could make the blog post stand out`,
       })
     )
 
-    return brief.output as ResearchBrief
+    return result.output as ResearchBrief
   }).pipe(
     Effect.withSpan('blog-generator.researchTopic', {
       attributes: { 'topic.slug': topic.slug },

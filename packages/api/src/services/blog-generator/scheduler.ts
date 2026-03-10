@@ -1,5 +1,6 @@
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import type { BlogPostSource } from '@lily/db/schema'
+import { daysAgoAsDate } from '@lily/shared'
 import { Array, Config, Effect } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateAndReviewBlogPost } from './generator'
@@ -22,10 +23,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   const repo = yield* BlogPostRepository
 
   // Check if we've published enough this week
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-  const publishedCount = yield* repo.countPublishedSince(sevenDaysAgo)
+  const publishedCount = yield* repo.countPublishedSince(daysAgoAsDate(7))
 
   if (publishedCount >= MAX_POSTS_PER_WEEK) {
     yield* Effect.log('Blog generation skipped — weekly limit reached', {
@@ -73,7 +71,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
   yield* Effect.log('Research completed', {
     postId: post.id,
-    sourceCount: brief.sources.length,
+    sourceCount: Array.length(brief.sources),
   })
 
   // 4. GENERATE → REVIEW → PUBLISH (or reject)
@@ -82,10 +80,12 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
 // Start the blog generator scheduler as a background process
 export const startBlogGeneratorScheduler = Effect.gen(function* () {
-  // Run once immediately on startup
-  yield* checkAndGenerateBlogPost.pipe(
-    Effect.catchAll((error) =>
-      Effect.logError('Blog scheduler initial error', error)
+  // Run once immediately on startup (forked to not block Layer init)
+  yield* Effect.fork(
+    checkAndGenerateBlogPost.pipe(
+      Effect.catchAll((error) =>
+        Effect.logError('Blog scheduler initial error', error)
+      )
     )
   )
 
