@@ -6,12 +6,11 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   DEFAULT_TIMEZONE,
-  DndWindowBlockedError,
   daysAgoAsDate,
   daysSince,
   pickOverdueNotificationTime,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe, Random, Ref } from 'effect'
+import { Array, Data, Effect, Option, pipe, Random, Ref } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 
 // Check every hour (same cadence as overdue scheduler)
@@ -28,32 +27,13 @@ const MILESTONES = [7, 30, 90, 180, 365] as const
 const INACTIVITY_DEDUP_DAYS = 7
 const PHOTO_DEDUP_DAYS = 30
 
+class SkipUserError extends Data.TaggedError('SkipUserError')<{
+  readonly reason: string
+}> {}
+
 // Resolve timezone from nullable user setting
 const resolveTimezone = (tz: string | null): string =>
   Option.getOrElse(Option.fromNullable(tz), () => DEFAULT_TIMEZONE)
-
-// Pick scheduled time respecting DND windows, or fail
-const pickScheduledTime = (
-  userId: string,
-  timezone: string,
-  doNotDisturb: boolean,
-  doNotDisturbStart: string | null,
-  doNotDisturbEnd: string | null,
-  randomValue: number
-) =>
-  pipe(
-    pickOverdueNotificationTime(
-      timezone,
-      doNotDisturb,
-      doNotDisturbStart,
-      doNotDisturbEnd,
-      randomValue
-    ),
-    Option.match({
-      onNone: () => new DndWindowBlockedError({ userId }),
-      onSome: Effect.succeed,
-    })
-  )
 
 // Process inactivity nudges for all eligible users
 export const processInactivityNudges = (
@@ -76,7 +56,9 @@ export const processInactivityNudges = (
             'inactivity_nudge',
             daysAgoAsDate(INACTIVITY_DEDUP_DAYS)
           )
-          if (alreadySent) return
+          if (alreadySent) {
+            yield* new SkipUserError({ reason: 'already_sent' })
+          }
 
           // Check last care date
           const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
@@ -86,17 +68,19 @@ export const processInactivityNudges = (
               onNone: () => Effect.void,
               onSome: (date) =>
                 daysSince(date) < INACTIVITY_DAYS
-                  ? Effect.fail('recent_care' as const)
+                  ? new SkipUserError({ reason: 'recent_care' })
                   : Effect.void,
             })
           )
 
           // Get plant count for personalized message
           const plantCount = yield* engagementRepo.getPlantCountForUser(user.id)
-          if (plantCount === 0) return // No plants, no nudge
+          if (plantCount === 0) {
+            yield* new SkipUserError({ reason: 'no_plants' })
+          }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickScheduledTime(
+          const scheduledAt = yield* pickOverdueNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,
@@ -122,14 +106,14 @@ export const processInactivityNudges = (
           yield* Ref.update(created, (n) => n + 1)
         }).pipe(
           Effect.catchTags({
+            SkipUserError: () => Effect.void,
             DndWindowBlockedError: () => Effect.void,
             SqlError: (error) =>
               Effect.logWarning('Inactivity nudge error for user', {
                 userId: user.id,
                 error,
               }),
-          }),
-          Effect.catchAll(() => Effect.void)
+          })
         ),
       { concurrency: 10 }
     )
@@ -160,10 +144,12 @@ export const processPhotoReminders = (
             daysAgoAsDate(PHOTO_STALENESS_DAYS)
           )
 
-          if (Array.isEmptyReadonlyArray(stalePlants)) return
+          if (Array.isEmptyReadonlyArray(stalePlants)) {
+            yield* new SkipUserError({ reason: 'no_stale_plants' })
+          }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickScheduledTime(
+          const scheduledAt = yield* pickOverdueNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,
@@ -182,7 +168,9 @@ export const processPhotoReminders = (
                   plant.plantId,
                   daysAgoAsDate(PHOTO_DEDUP_DAYS)
                 )
-              if (alreadySent) return
+              if (alreadySent) {
+                yield* new SkipUserError({ reason: 'already_sent' })
+              }
 
               const daysSincePhotoVal = pipe(
                 Option.fromNullable(plant.lastPhotoAt),
@@ -215,6 +203,7 @@ export const processPhotoReminders = (
           )
         }).pipe(
           Effect.catchTags({
+            SkipUserError: () => Effect.void,
             DndWindowBlockedError: () => Effect.void,
             SqlError: (error) =>
               Effect.logWarning('Photo reminder error for user', {
@@ -249,14 +238,13 @@ export const processPlantParentMilestones = (
           const daysSinceJoin = daysSince(user.createdAt)
 
           // Find matching milestone
-          const matchingMilestone = Array.findFirst(
-            MILESTONES,
-            (m) => m === daysSinceJoin
+          const milestone = yield* pipe(
+            Array.findFirst(MILESTONES, (m) => m === daysSinceJoin),
+            Option.match({
+              onNone: () => new SkipUserError({ reason: 'no_milestone' }),
+              onSome: Effect.succeed,
+            })
           )
-
-          if (Option.isNone(matchingMilestone)) return
-
-          const milestone = matchingMilestone.value
 
           // Dedup: check if we already sent this milestone
           // Use a long lookback (milestone value + 1 day) to prevent re-sends
@@ -265,10 +253,12 @@ export const processPlantParentMilestones = (
             'plant_parent_milestone',
             daysAgoAsDate(milestone + 1)
           )
-          if (alreadySent) return
+          if (alreadySent) {
+            yield* new SkipUserError({ reason: 'already_sent' })
+          }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickScheduledTime(
+          const scheduledAt = yield* pickOverdueNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,
@@ -294,6 +284,7 @@ export const processPlantParentMilestones = (
           yield* Ref.update(created, (n) => n + 1)
         }).pipe(
           Effect.catchTags({
+            SkipUserError: () => Effect.void,
             DndWindowBlockedError: () => Effect.void,
             SqlError: (error) =>
               Effect.logWarning('Milestone error for user', {

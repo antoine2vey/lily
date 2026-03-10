@@ -7,7 +7,7 @@ import {
   daysAgoAsDate,
   pickOverdueNotificationTime,
 } from '@lily/shared'
-import { Array, Config, DateTime, Effect, Option } from 'effect'
+import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
 
@@ -115,18 +115,14 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           )
         if (careReminderToday) return
 
-        const scheduledAt = yield* Option.match(
-          pickOverdueNotificationTime(
-            timezone,
-            user.doNotDisturb,
-            user.doNotDisturbStart,
-            user.doNotDisturbEnd,
-            Math.random()
-          ),
-          {
-            onNone: () => new DndWindowBlockedError({ userId: user.id }),
-            onSome: Effect.succeed,
-          }
+        const randomValue = yield* Random.next
+        const scheduledAt = yield* pickOverdueNotificationTime(
+          user.id,
+          timezone,
+          user.doNotDisturb,
+          user.doNotDisturbStart,
+          user.doNotDisturbEnd,
+          randomValue
         )
 
         const language = Option.getOrElse(
