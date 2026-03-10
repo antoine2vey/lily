@@ -11,6 +11,7 @@ import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.reposit
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { EngagementRepositoryLive } from '@lily/api/repositories/engagement.repository'
 import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
@@ -32,6 +33,7 @@ import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
 import { startDelegationScheduler } from '@lily/api/services/delegation-scheduler/scheduler'
 import { DeviceTokensApiLive } from '@lily/api/services/device-tokens/handlers'
 import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
+import { startEngagementScheduler } from '@lily/api/services/engagement-scheduler/scheduler'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
@@ -162,6 +164,28 @@ const OverdueSchedulerLive = Layer.scopedDiscard(
   Layer.provide(DelegationRepositoryLive)
 )
 
+// Engagement scheduler layer - inactivity nudges, photo reminders, milestones
+const EngagementSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startEngagementScheduler
+  })
+).pipe(
+  Layer.provide(EngagementRepositoryLive),
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive)
+)
+
+// Tips scheduler layer - sends plant care tips during quiet periods
+const TipsSchedulerLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startTipsScheduler
+  })
+).pipe(
+  Layer.provide(EngagementRepositoryLive),
+  Layer.provide(NotificationRepositoryLive),
+  Layer.provide(UserRepositoryLive)
+)
+
 // Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
@@ -242,6 +266,8 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(WeatherSchedulerLive),
   Layer.provide(NotificationSchedulerLive),
   Layer.provide(NotificationWorkerLive),
+  Layer.provide(EngagementSchedulerLive),
+  Layer.provide(TipsSchedulerLive),
   Layer.provide(KnowledgeIngestionWorkerLive),
   Layer.provide(BlogGeneratorSchedulerLive),
   Layer.provide(TipsSchedulerLive),
