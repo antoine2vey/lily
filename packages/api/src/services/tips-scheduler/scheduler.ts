@@ -4,7 +4,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
-  pickOverdueNotificationTime,
+  pickNotificationTime,
 } from '@lily/shared'
 import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
 import type { DurationInput } from 'effect/Duration'
@@ -115,7 +115,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
         if (careReminderToday) return
 
         const randomValue = yield* Random.next
-        const scheduledAt = yield* pickOverdueNotificationTime(
+        const scheduledAt = yield* pickNotificationTime(
           user.id,
           timezone,
           user.doNotDisturb,

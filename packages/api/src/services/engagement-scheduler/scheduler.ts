@@ -8,7 +8,7 @@ import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
   daysSince,
-  pickOverdueNotificationTime,
+  pickNotificationTime,
 } from '@lily/shared'
 import { Array, Data, Effect, Option, pipe, Random, Ref } from 'effect'
 import type { DurationInput } from 'effect/Duration'
@@ -80,7 +80,7 @@ export const processInactivityNudges = (
           }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickOverdueNotificationTime(
+          const scheduledAt = yield* pickNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,
@@ -149,7 +149,7 @@ export const processPhotoReminders = (
           }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickOverdueNotificationTime(
+          const scheduledAt = yield* pickNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,
@@ -258,7 +258,7 @@ export const processPlantParentMilestones = (
           }
 
           const randomValue = yield* Random.next
-          const scheduledAt = yield* pickOverdueNotificationTime(
+          const scheduledAt = yield* pickNotificationTime(
             user.id,
             timezone,
             user.doNotDisturb,

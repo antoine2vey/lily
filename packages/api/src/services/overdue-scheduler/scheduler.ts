@@ -8,7 +8,7 @@ import {
   CareRemindersDisabledError,
   DEFAULT_TIMEZONE,
   type OverduePlant,
-  pickOverdueNotificationTime,
+  pickNotificationTime,
   startOfTodayAsDate,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe, Random, Record } from 'effect'
@@ -62,7 +62,7 @@ export const processUserOverdueReminders = (
 
     // Pick a random scheduledAt within the allowed windows
     const randomValue = yield* Random.next
-    const scheduledAt = yield* pickOverdueNotificationTime(
+    const scheduledAt = yield* pickNotificationTime(
       userId,
       timezone,
       settings.doNotDisturb,
