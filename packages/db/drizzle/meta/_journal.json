@@ -204,6 +204,13 @@
       "when": 1773017862205,
       "tag": "0028_far_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1773139569884,
+      "tag": "0029_tan_sway",
+      "breakpoints": true
     }
   ]
 }
