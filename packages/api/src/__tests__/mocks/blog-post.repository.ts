@@ -4,6 +4,7 @@ import {
   type BlogPostStatus,
   type CreateBlogPostData,
   type IBlogPostRepository,
+  IN_PROGRESS_STATUSES,
 } from '@lily/api/repositories/blog-post.repository'
 import type { BlogPostSource, LocalizedText } from '@lily/db/schema'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -62,13 +63,28 @@ export const createMockBlogPostRepository = (
 
     countPublishedSince: (since: Date) =>
       Effect.succeed(
-        Array.filter(
-          data,
-          (p) =>
-            p.status === 'published' &&
-            p.publishedAt !== null &&
-            p.publishedAt.getTime() >= since.getTime()
-        ).length
+        Array.length(
+          Array.filter(
+            data,
+            (p) =>
+              p.status === 'published' &&
+              p.publishedAt !== null &&
+              p.publishedAt.getTime() >= since.getTime()
+          )
+        )
+      ),
+
+    hasInProgress: () =>
+      Effect.succeed(
+        Array.some(data, (p) => Array.contains(IN_PROGRESS_STATUSES, p.status))
+      ),
+
+    findPublishedSlugsWithTitles: () =>
+      Effect.succeed(
+        pipe(
+          Array.filter(data, (p) => p.status === 'published'),
+          Array.map((p) => ({ slug: p.slug, title: p.title }))
+        )
       ),
 
     updateStatus: (id: string, status: BlogPostStatus) =>

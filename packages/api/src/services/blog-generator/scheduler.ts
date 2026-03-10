@@ -22,6 +22,14 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
   const repo = yield* BlogPostRepository
 
+  // Skip if a post is already being processed
+  const inProgress = yield* repo.hasInProgress()
+
+  if (inProgress) {
+    yield* Effect.log('Blog generation skipped — post already in progress')
+    return
+  }
+
   // Check if we've published enough this week
   const publishedCount = yield* repo.countPublishedSince(daysAgoAsDate(7))
 

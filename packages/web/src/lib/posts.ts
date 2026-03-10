@@ -33,7 +33,8 @@ export function getAllPosts(locale = 'en'): PostMeta[] {
     Array.filter(String.endsWith('.mdx')),
     Array.map((file) => {
       const source = fs.readFileSync(path.join(dir, file), 'utf8')
-      return matter(source).data as PostMeta
+      const slug = pipe(file, String.replace(/\.mdx$/, ''))
+      return { ...matter(source).data, slug } as PostMeta
     }),
     Array.sort(
       Order.reverse(

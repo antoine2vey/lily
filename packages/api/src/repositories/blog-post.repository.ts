@@ -7,10 +7,18 @@ import {
 } from '@lily/db/schema'
 import type { blogPostStatusEnum } from '@lily/db/schema/enums'
 import { nowAsDate } from '@lily/shared'
-import { and, count, desc, eq, gte } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
+
+/** Non-terminal statuses indicating a post is actively being processed */
+export const IN_PROGRESS_STATUSES: readonly BlogPostStatus[] = [
+  'pending',
+  'researching',
+  'generating',
+  'reviewing',
+]
 
 export type BlogPost = typeof blogPosts.$inferSelect
 
@@ -34,6 +42,11 @@ export interface IBlogPostRepository {
     limit: number
   ) => Effect.Effect<string[], SqlError>
   readonly countPublishedSince: (since: Date) => Effect.Effect<number, SqlError>
+  readonly hasInProgress: () => Effect.Effect<boolean, SqlError>
+  readonly findPublishedSlugsWithTitles: () => Effect.Effect<
+    readonly { slug: string; title: LocalizedText }[],
+    SqlError
+  >
   readonly updateStatus: (
     id: string,
     status: BlogPostStatus
@@ -113,6 +126,32 @@ export const BlogPostRepositoryLive = Layer.effect(
             .limit(limit)
           return Array.map(rows, (r) => r.category)
         }).pipe(Effect.withSpan('BlogPostRepository.findRecentCategories')),
+
+      findPublishedSlugsWithTitles: () =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select({ slug: blogPosts.slug, title: blogPosts.title })
+            .from(blogPosts)
+            .where(eq(blogPosts.status, 'published'))
+            .orderBy(desc(blogPosts.publishedAt))
+          return rows as readonly { slug: string; title: LocalizedText }[]
+        }).pipe(
+          Effect.withSpan('BlogPostRepository.findPublishedSlugsWithTitles')
+        ),
+
+      hasInProgress: () =>
+        Effect.gen(function* () {
+          const [result] = yield* db
+            .select({ value: count() })
+            .from(blogPosts)
+            .where(inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]))
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.getOrElse(() => 0),
+            (n) => n > 0
+          )
+        }).pipe(Effect.withSpan('BlogPostRepository.hasInProgress')),
 
       countPublishedSince: (since: Date) =>
         Effect.gen(function* () {

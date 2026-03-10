@@ -1,107 +1,136 @@
 import type { LocalizedText } from '@lily/db/schema'
-import { Config, Effect, Record } from 'effect'
-import type { GitHubCommitResult } from './types'
-
-interface CommitFileParams {
-  readonly path: string
-  readonly content: string
-  readonly message: string
-  readonly token: string
-  readonly repo: string
-}
+import { Array, Config, Effect, pipe, Record, String as Str } from 'effect'
+import { Octokit } from 'octokit'
 
 const encodeBase64 = (str: string): string =>
   Buffer.from(str, 'utf-8').toString('base64')
 
-export const commitFileToGitHub = (params: CommitFileParams) =>
-  Effect.gen(function* () {
-    const { token, repo } = params
-
-    const url = `https://api.github.com/repos/${repo}/contents/${params.path}`
-
-    // Check if file already exists (to get its sha for update)
-    const existingResponse = yield* Effect.tryPromise(() =>
-      fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
-      })
-    )
-
-    const body: Record<string, string> = {
-      message: params.message,
-      content: encodeBase64(params.content),
-    }
-
-    // If file exists, we need to include the sha
-    if (existingResponse.ok) {
-      const existing = yield* Effect.tryPromise(
-        () => existingResponse.json() as Promise<{ sha: string }>
-      )
-      body.sha = existing.sha
-    }
-
-    const response = yield* Effect.tryPromise(() =>
-      fetch(url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-    )
-
-    if (!response.ok) {
-      const errorText = yield* Effect.tryPromise(() => response.text())
-      return yield* Effect.fail(
-        new Error(`GitHub API error ${response.status}: ${errorText}`)
-      )
-    }
-
-    const result = yield* Effect.tryPromise(
-      () =>
-        response.json() as Promise<{
-          content: { sha: string; path: string }
-        }>
-    )
-
-    return {
-      sha: result.content.sha,
-      path: result.content.path,
-    } as GitHubCommitResult
-  }).pipe(
-    Effect.withSpan('blog-generator.commitFile', {
-      attributes: { 'file.path': params.path },
-    })
-  )
-
-/** Publish all localized versions of a blog post to GitHub */
+/**
+ * Publish all localized blog post files via a single commit on a new branch,
+ * then open a pull request targeting the base branch.
+ */
 export const publishBlogPost = (slug: string, content: LocalizedText) =>
   Effect.gen(function* () {
     const token = yield* Config.string('GITHUB_TOKEN')
-    const repo = yield* Config.string('GITHUB_REPO')
+    const fullRepo = yield* Config.string('GITHUB_REPO')
+    const [owner, repo] = yield* pipe(Str.split(fullRepo, '/'), (parts) =>
+      Array.length(parts) === 2
+        ? Effect.succeed(parts as unknown as [string, string])
+        : Effect.fail(new Error(`Invalid GITHUB_REPO: ${fullRepo}`))
+    )
+    const baseBranch = yield* Config.withDefault(
+      Config.string('GITHUB_BRANCH'),
+      'main'
+    )
 
-    // Commit one file per language (in parallel — independent file paths)
-    const results = yield* Effect.forEach(
-      Record.toEntries(content),
+    const octokit = new Octokit({ auth: token })
+    const branchName = `blog/${slug}`
+
+    // 1. Get the base branch HEAD
+    const { data: baseRef } = yield* Effect.tryPromise(() =>
+      octokit.rest.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${baseBranch}`,
+      })
+    )
+    const baseSha = baseRef.object.sha
+
+    // 2. Get the base commit's tree
+    const { data: baseCommit } = yield* Effect.tryPromise(() =>
+      octokit.rest.git.getCommit({
+        owner,
+        repo,
+        commit_sha: baseSha,
+      })
+    )
+
+    // 3. Create blobs for all locale files (in parallel — blobs are independent)
+    const entries = Record.toEntries(content) as Array<[string, string]>
+    const blobs = yield* Effect.forEach(
+      entries,
       ([locale, mdx]) =>
-        Effect.map(
-          commitFileToGitHub({
+        Effect.gen(function* () {
+          const { data: blob } = yield* Effect.tryPromise(() =>
+            octokit.rest.git.createBlob({
+              owner,
+              repo,
+              content: encodeBase64(mdx),
+              encoding: 'base64',
+            })
+          )
+          return {
             path: `packages/web/content/posts/${locale}/${slug}.mdx`,
-            content: mdx,
-            message: `blog: add ${slug} (${locale})`,
-            token,
-            repo,
-          }),
-          (result) => [locale, result.sha] as const
-        ),
+            mode: '100644' as const,
+            type: 'blob' as const,
+            sha: blob.sha,
+          }
+        }),
       { concurrency: 'unbounded' }
     )
 
-    return Object.fromEntries(results) as LocalizedText
+    // 4. Create a new tree with all files
+    const { data: tree } = yield* Effect.tryPromise(() =>
+      octokit.rest.git.createTree({
+        owner,
+        repo,
+        base_tree: baseCommit.tree.sha,
+        tree: [...blobs],
+      })
+    )
+
+    // 5. Create a single commit with all files
+    const { data: commit } = yield* Effect.tryPromise(() =>
+      octokit.rest.git.createCommit({
+        owner,
+        repo,
+        message: `blog: add ${slug}`,
+        tree: tree.sha,
+        parents: [baseSha],
+      })
+    )
+
+    // 6. Create a new branch from the commit
+    yield* Effect.tryPromise(() =>
+      octokit.rest.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/${branchName}`,
+        sha: commit.sha,
+      })
+    )
+
+    // 7. Open a pull request
+    const localeList = pipe(
+      entries,
+      Array.map(([locale]) => locale),
+      Array.join(', ')
+    )
+
+    const { data: pr } = yield* Effect.tryPromise(() =>
+      octokit.rest.pulls.create({
+        owner,
+        repo,
+        title: `blog: add "${slug}"`,
+        head: branchName,
+        base: baseBranch,
+        body: `## New blog post: \`${slug}\`\n\nLocales: ${localeList}\n\nGenerated by the Lily blog pipeline.`,
+      })
+    )
+
+    yield* Effect.log('Pull request created', {
+      slug,
+      prNumber: pr.number,
+      prUrl: pr.html_url,
+      branch: branchName,
+    })
+
+    // Return commit SHA keyed by locale
+    return pipe(
+      entries,
+      Array.map(([locale]) => [locale, commit.sha] as const),
+      Record.fromEntries
+    ) as LocalizedText
   }).pipe(
     Effect.withSpan('blog-generator.publishBlogPost', {
       attributes: { 'post.slug': slug },

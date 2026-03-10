@@ -9,14 +9,20 @@ import type { GeneratedTip } from './types'
 
 const TipSchema = z.object({
   title: z
-    .record(z.string(), z.string())
+    .object({
+      en: z.string().describe('English title'),
+      fr: z.string().describe('French title'),
+    })
     .describe(
-      'Short, catchy tip title keyed by language code (e.g. { "en": "Water in the Morning", "fr": "Arrosez le matin" }). Keep under 60 characters per language.'
+      'Short, catchy tip title. Keep under 60 characters per language.'
     ),
   body: z
-    .record(z.string(), z.string())
+    .object({
+      en: z.string().describe('English body'),
+      fr: z.string().describe('French body'),
+    })
     .describe(
-      'Actionable tip body keyed by language code. Must be 280 characters or less per language (push notification friendly). Be specific and practical.'
+      'Actionable tip body. Must be 280 characters or less per language (push notification friendly). Be specific and practical.'
     ),
   category: z
     .enum(TIP_CATEGORIES)

@@ -1,122 +1,130 @@
-import { commitFileToGitHub } from '@lily/api/services/blog-generator/github'
-import { Effect } from 'effect'
+import { publishBlogPost } from '@lily/api/services/blog-generator/github'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-describe('GitHub API integration', () => {
-  const testCredentials = {
-    token: 'test-token',
-    repo: 'owner/repo',
-  }
+// Mock octokit — vi.hoisted ensures fns are available when vi.mock is hoisted
+const {
+  mockGetRef,
+  mockGetCommit,
+  mockCreateBlob,
+  mockCreateTree,
+  mockCreateCommit,
+  mockCreateRef,
+  mockCreatePull,
+} = vi.hoisted(() => ({
+  mockGetRef: vi.fn(),
+  mockGetCommit: vi.fn(),
+  mockCreateBlob: vi.fn(),
+  mockCreateTree: vi.fn(),
+  mockCreateCommit: vi.fn(),
+  mockCreateRef: vi.fn(),
+  mockCreatePull: vi.fn(),
+}))
+
+vi.mock('octokit', () => ({
+  Octokit: vi.fn().mockImplementation(() => ({
+    rest: {
+      git: {
+        getRef: mockGetRef,
+        getCommit: mockGetCommit,
+        createBlob: mockCreateBlob,
+        createTree: mockCreateTree,
+        createCommit: mockCreateCommit,
+        createRef: mockCreateRef,
+      },
+      pulls: {
+        create: mockCreatePull,
+      },
+    },
+  })),
+}))
+
+describe('GitHub API — publishBlogPost', () => {
+  const mockConfig = ConfigProvider.fromMap(
+    new Map([
+      ['GITHUB_TOKEN', 'test-token'],
+      ['GITHUB_REPO', 'owner/repo'],
+      ['GITHUB_BRANCH', 'main'],
+    ])
+  )
 
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
+
+    mockGetRef.mockResolvedValue({
+      data: { object: { sha: 'head-sha-1' } },
+    })
+    mockGetCommit.mockResolvedValue({
+      data: { tree: { sha: 'tree-sha-1' } },
+    })
+    mockCreateBlob.mockResolvedValue({
+      data: { sha: 'blob-sha' },
+    })
+    mockCreateTree.mockResolvedValue({
+      data: { sha: 'new-tree-sha' },
+    })
+    mockCreateCommit.mockResolvedValue({
+      data: { sha: 'new-commit-sha' },
+    })
+    mockCreateRef.mockResolvedValue({
+      data: { ref: 'refs/heads/blog/test-post' },
+    })
+    mockCreatePull.mockResolvedValue({
+      data: { number: 42, html_url: 'https://github.com/owner/repo/pull/42' },
+    })
   })
 
-  it('should commit a new file successfully', async () => {
-    const mockFetch = vi.fn()
-    // First call: check if file exists (404 = new file)
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-    })
-    // Second call: create file
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          content: {
-            sha: 'new-sha-123',
-            path: 'packages/web/content/posts/en/test.mdx',
-          },
-        }),
-    })
-
-    vi.stubGlobal('fetch', mockFetch)
-
+  it('should create a branch, commit all files, and open a PR', async () => {
     const result = await Effect.runPromise(
-      commitFileToGitHub({
-        path: 'packages/web/content/posts/en/test.mdx',
-        content: '# Test Content',
-        message: 'blog: add test post',
-        ...testCredentials,
+      publishBlogPost('test-post', { en: '# English', fr: '# French' }).pipe(
+        Effect.provide(Layer.setConfigProvider(mockConfig))
+      )
+    )
+
+    // All locales should have the commit SHA
+    expect(result.en).toBe('new-commit-sha')
+    expect(result.fr).toBe('new-commit-sha')
+
+    // Verify branch was created
+    expect(mockCreateRef).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: 'refs/heads/blog/test-post',
+        sha: 'new-commit-sha',
       })
     )
 
-    expect(result.sha).toBe('new-sha-123')
-    expect(result.path).toBe('packages/web/content/posts/en/test.mdx')
-
-    // Verify the PUT request was made with correct params
-    expect(mockFetch).toHaveBeenCalledTimes(2)
-    const putCall = mockFetch.mock.calls[1]
-    expect(putCall?.[0]).toContain('/repos/owner/repo/contents/')
-    expect(putCall?.[1]?.method).toBe('PUT')
-
-    const body = JSON.parse(putCall?.[1]?.body as string)
-    expect(body.message).toBe('blog: add test post')
-    expect(body.content).toBe(Buffer.from('# Test Content').toString('base64'))
-    // No sha for new file
-    expect(body.sha).toBeUndefined()
-  })
-
-  it('should update an existing file with its sha', async () => {
-    const mockFetch = vi.fn()
-    // First call: file exists
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ sha: 'existing-sha-456' }),
-    })
-    // Second call: update file
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          content: {
-            sha: 'updated-sha-789',
-            path: 'packages/web/content/posts/en/test.mdx',
-          },
-        }),
-    })
-
-    vi.stubGlobal('fetch', mockFetch)
-
-    const result = await Effect.runPromise(
-      commitFileToGitHub({
-        path: 'packages/web/content/posts/en/test.mdx',
-        content: '# Updated Content',
-        message: 'blog: update test post',
-        ...testCredentials,
+    // Verify PR was opened
+    expect(mockCreatePull).toHaveBeenCalledWith(
+      expect.objectContaining({
+        head: 'blog/test-post',
+        base: 'main',
+        title: 'blog: add "test-post"',
       })
     )
 
-    expect(result.sha).toBe('updated-sha-789')
-
-    // Verify sha was included in PUT body
-    const putCall = mockFetch.mock.calls[1]
-    const body = JSON.parse(putCall?.[1]?.body as string)
-    expect(body.sha).toBe('existing-sha-456')
+    // Verify tree was created with both locale files
+    expect(mockCreateTree).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base_tree: 'tree-sha-1',
+        tree: expect.arrayContaining([
+          expect.objectContaining({
+            path: 'packages/web/content/posts/en/test-post.mdx',
+          }),
+          expect.objectContaining({
+            path: 'packages/web/content/posts/fr/test-post.mdx',
+          }),
+        ]),
+      })
+    )
   })
 
-  it('should fail when GitHub API returns an error', async () => {
-    const mockFetch = vi.fn()
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-    })
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 422,
-      text: () => Promise.resolve('Validation error'),
-    })
-
-    vi.stubGlobal('fetch', mockFetch)
+  it('should fail when branch ref cannot be fetched', async () => {
+    mockGetRef.mockRejectedValueOnce(new Error('Not found'))
 
     const result = await Effect.runPromiseExit(
-      commitFileToGitHub({
-        path: 'packages/web/content/posts/en/test.mdx',
-        content: '# Content',
-        message: 'blog: add post',
-        ...testCredentials,
-      })
+      publishBlogPost('test-post', { en: '# Content' }).pipe(
+        Effect.provide(Layer.setConfigProvider(mockConfig))
+      )
     )
 
     expect(result._tag).toBe('Failure')

@@ -3,37 +3,9 @@ import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array as Arr, Effect, pipe, String as Str } from 'effect'
-import { z } from 'zod'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
+import { TopicSchema } from './schemas'
 import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
-
-const TopicSchema = z.object({
-  slug: z
-    .string()
-    .describe(
-      'URL-friendly slug for the blog post (e.g. "how-to-propagate-pothos"). Must be unique and lowercase with hyphens.'
-    ),
-  title: z
-    .record(z.string(), z.string())
-    .describe(
-      'Localized blog post titles keyed by language code (e.g. { "en": "How to Propagate Pothos", "fr": "Comment bouturer un Pothos" })'
-    ),
-  category: z
-    .string()
-    .describe(
-      'Blog post category from the available list (e.g. "care-guide", "troubleshooting", "seasonal")'
-    ),
-  tags: z
-    .array(z.string())
-    .describe(
-      'Relevant tags for discoverability (e.g. ["propagation", "pothos", "beginner"])'
-    ),
-  outline: z
-    .string()
-    .describe(
-      'A brief outline of 4-6 main sections the blog post should cover, as a numbered list'
-    ),
-})
 
 const TOPIC_TEMPLATES = [
   'Complete care guide for [popular plant]',
