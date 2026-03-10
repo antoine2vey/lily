@@ -14,11 +14,14 @@ const MAX_POSTS_PER_WEEK = 3
 export const checkAndGenerateBlogPost = Effect.gen(function* () {
   // Feature flag check
   const enabled = yield* Config.withDefault(
-    Config.string('BLOG_GENERATION_ENABLED'),
-    'false'
+    Config.boolean('BLOG_GENERATION_ENABLED'),
+    false
   )
 
-  if (enabled !== 'true') return
+  if (!enabled) {
+    yield* Effect.logWarning('Blog generation skipped — disabled by config')
+    return
+  }
 
   const repo = yield* BlogPostRepository
 
