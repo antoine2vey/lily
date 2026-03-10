@@ -18,10 +18,19 @@ export type SimpleNotificationType =
   | 'delegation_canceled'
   | 'delegation_activated'
   | 'delegation_completed'
+  | 'inactivity_nudge'
+  | 'plant_tip'
+  | 'photo_reminder'
+  | 'plant_parent_milestone'
 
 export type SimpleNotificationParams = {
   readonly senderName?: string
   readonly plantCount?: number
+  readonly plantName?: string
+  readonly daysSinceJoin?: number
+  readonly daysSincePhoto?: number
+  readonly tipTitle?: string
+  readonly tipBody?: string
 }
 
 type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
@@ -68,6 +77,61 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       body: (p) =>
         `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has ended`,
     },
+    inactivity_nudge: {
+      title: () => '🌿 Your plants miss you!',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return count > 0
+          ? `It's been a while since you checked in. Your ${count} plants are waiting for some love!`
+          : "It's been a while since you checked in. Your plants are waiting for some love!"
+      },
+    },
+    plant_tip: {
+      title: (p) =>
+        Option.getOrElse(
+          Option.fromNullable(p.tipTitle),
+          () => '🌱 Did you know?'
+        ),
+      body: (p) =>
+        Option.getOrElse(
+          Option.fromNullable(p.tipBody),
+          () =>
+            'Plants in terracotta pots dry out faster than those in plastic. Check your soil moisture!'
+        ),
+    },
+    photo_reminder: {
+      title: () => '📸 Time for a growth update!',
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Your plant'
+        )
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSincePhoto),
+          () => 30
+        )
+        return `${name} hasn't been photographed in ${days} days. Capture its progress!`
+      },
+    },
+    plant_parent_milestone: {
+      title: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSinceJoin),
+          () => 30
+        )
+        return `🎂 ${days} Days as a Plant Parent!`
+      },
+      body: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSinceJoin),
+          () => 30
+        )
+        return `You joined Lily ${days} days ago. Your plants are lucky to have you!`
+      },
+    },
   },
   fr: {
     new_follower: {
@@ -109,6 +173,61 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🎉 Délégation terminée',
       body: (p) =>
         `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes est terminée`,
+    },
+    inactivity_nudge: {
+      title: () => '🌿 Vos plantes vous attendent !',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return count > 0
+          ? `Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos ${count} plantes attendent un peu d'amour !`
+          : "Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos plantes attendent un peu d'amour !"
+      },
+    },
+    plant_tip: {
+      title: (p) =>
+        Option.getOrElse(
+          Option.fromNullable(p.tipTitle),
+          () => '🌱 Le saviez-vous ?'
+        ),
+      body: (p) =>
+        Option.getOrElse(
+          Option.fromNullable(p.tipBody),
+          () =>
+            "Les plantes en pots de terre cuite sèchent plus vite que celles en plastique. Vérifiez l'humidité du sol !"
+        ),
+    },
+    photo_reminder: {
+      title: () => '📸 Suivi de croissance !',
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Votre plante'
+        )
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSincePhoto),
+          () => 30
+        )
+        return `${name} n'a pas été photographiée depuis ${days} jours. Capturez ses progrès !`
+      },
+    },
+    plant_parent_milestone: {
+      title: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSinceJoin),
+          () => 30
+        )
+        return `🎂 ${days} jours en tant que parent de plantes !`
+      },
+      body: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.daysSinceJoin),
+          () => 30
+        )
+        return `Vous avez rejoint Lily il y a ${days} jours. Vos plantes ont de la chance de vous avoir !`
+      },
     },
   },
 }

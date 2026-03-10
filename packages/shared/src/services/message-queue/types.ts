@@ -15,6 +15,10 @@ export const NOTIFICATION_TOPICS = [
   'delegation_activated',
   'delegation_completed',
   'daily_tip',
+  'inactivity_nudge',
+  'plant_tip',
+  'photo_reminder',
+  'plant_parent_milestone',
 ] as const
 
 export const NotificationTopic = Schema.Union(
