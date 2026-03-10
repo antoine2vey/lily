@@ -5,10 +5,7 @@ import {
   oauthClients,
   oauthRefreshTokens,
 } from '@lily/db/schema'
-import type {
-  OAuthClientInformationFull,
-  OAuthTokenRevocationRequest,
-} from '@modelcontextprotocol/sdk/shared/auth.js'
+import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js'
 import { eq } from 'drizzle-orm'
 import { Array, Effect, Option, pipe } from 'effect'
 import type {

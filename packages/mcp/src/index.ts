@@ -272,9 +272,10 @@ async function main() {
       transport.close()
     })
 
-    const authInfo = req.auth as typeof req.auth & { userId?: string }
+    // biome-ignore lint/style/noNonNullAssertion: auth is guaranteed by requireBearerAuth middleware
+    const authInfo = req.auth! as typeof req.auth & { userId?: string }
     const mcpServer = createMcpServer(
-      authInfo!,
+      authInfo,
       mcpRuntime as Parameters<typeof createMcpServer>[1]
     )
     await mcpServer.connect(
