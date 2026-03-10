@@ -5,16 +5,12 @@ import {
   blogPosts,
   type LocalizedText,
 } from '@lily/db/schema'
+import type { blogPostStatusEnum } from '@lily/db/schema/enums'
+import { nowAsDate } from '@lily/shared'
 import { and, count, desc, eq, gte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
-export type BlogPostStatus =
-  | 'pending'
-  | 'researching'
-  | 'generating'
-  | 'reviewing'
-  | 'published'
-  | 'rejected'
+export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
 
 export type BlogPost = typeof blogPosts.$inferSelect
 
@@ -190,7 +186,7 @@ export const BlogPostRepositoryLive = Layer.effect(
             .set({
               commitShas,
               status: 'published' as const,
-              publishedAt: new Date(),
+              publishedAt: nowAsDate(),
             })
             .where(eq(blogPosts.id, id))
             .returning()

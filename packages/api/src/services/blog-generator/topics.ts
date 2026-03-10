@@ -1,7 +1,8 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
-import { Effect } from 'effect'
+import { Array as Arr, Effect, pipe, String as Str } from 'effect'
 import { z } from 'zod'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
@@ -90,8 +91,10 @@ const TOPIC_TEMPLATES = [
 export const selectTopic = Effect.gen(function* () {
   const repo = yield* BlogPostRepository
 
-  const existingSlugs = yield* repo.findAllSlugs()
-  const recentCategories = yield* repo.findRecentCategories(10)
+  const [existingSlugs, recentCategories] = yield* Effect.all(
+    [repo.findAllSlugs(), repo.findRecentCategories(10)],
+    { concurrency: 'unbounded' }
+  )
 
   const result = yield* Effect.tryPromise(() =>
     generateText({
@@ -100,18 +103,18 @@ export const selectTopic = Effect.gen(function* () {
       system: TOPIC_SELECTION_PROMPT,
       prompt: `Select a blog post topic for a plant care blog.
 
-Available categories: ${BLOG_CATEGORIES.join(', ')}
+Available categories: ${Arr.join(BLOG_CATEGORIES, ', ')}
 
 Topic templates for inspiration (pick one or create your own):
-${TOPIC_TEMPLATES.join('\n')}
+${Arr.join(TOPIC_TEMPLATES, '\n')}
 
 ALREADY PUBLISHED slugs (avoid similar topics):
-${existingSlugs.join('\n')}
+${Arr.join(existingSlugs, '\n')}
 
 RECENT categories (vary from these):
-${recentCategories.join(', ')}
+${Arr.join(recentCategories, ', ')}
 
-Today's date: ${new Date().toISOString().split('T')[0]}`,
+Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
     })
   )
 

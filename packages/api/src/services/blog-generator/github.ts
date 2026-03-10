@@ -6,6 +6,8 @@ interface CommitFileParams {
   readonly path: string
   readonly content: string
   readonly message: string
+  readonly token: string
+  readonly repo: string
 }
 
 const encodeBase64 = (str: string): string =>
@@ -13,8 +15,7 @@ const encodeBase64 = (str: string): string =>
 
 export const commitFileToGitHub = (params: CommitFileParams) =>
   Effect.gen(function* () {
-    const token = yield* Config.string('GITHUB_TOKEN')
-    const repo = yield* Config.string('GITHUB_REPO')
+    const { token, repo } = params
 
     const url = `https://api.github.com/repos/${repo}/contents/${params.path}`
 
@@ -80,21 +81,27 @@ export const commitFileToGitHub = (params: CommitFileParams) =>
 /** Publish all localized versions of a blog post to GitHub */
 export const publishBlogPost = (slug: string, content: LocalizedText) =>
   Effect.gen(function* () {
-    const commitShas: Record<string, string> = {}
+    const token = yield* Config.string('GITHUB_TOKEN')
+    const repo = yield* Config.string('GITHUB_REPO')
 
-    // Commit one file per language
-    yield* Effect.forEach(Record.toEntries(content), ([locale, mdx]) =>
-      Effect.gen(function* () {
-        const result = yield* commitFileToGitHub({
-          path: `packages/web/content/posts/${locale}/${slug}.mdx`,
-          content: mdx,
-          message: `blog: add ${slug} (${locale})`,
-        })
-        commitShas[locale] = result.sha
-      })
+    // Commit one file per language (in parallel — independent file paths)
+    const results = yield* Effect.forEach(
+      Record.toEntries(content),
+      ([locale, mdx]) =>
+        Effect.map(
+          commitFileToGitHub({
+            path: `packages/web/content/posts/${locale}/${slug}.mdx`,
+            content: mdx,
+            message: `blog: add ${slug} (${locale})`,
+            token,
+            repo,
+          }),
+          (result) => [locale, result.sha] as const
+        ),
+      { concurrency: 'unbounded' }
     )
 
-    return commitShas as LocalizedText
+    return Object.fromEntries(results) as LocalizedText
   }).pipe(
     Effect.withSpan('blog-generator.publishBlogPost', {
       attributes: { 'post.slug': slug },

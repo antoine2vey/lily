@@ -3,7 +3,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { nowAsDate } from '@lily/shared'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { Config, DateTime, Effect, Option } from 'effect'
+import { Array, Config, DateTime, Effect, Option } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
 
@@ -75,10 +75,10 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   // Find all users with tips enabled
   const users = yield* userRepo.findTipsEnabled()
 
-  if (users.length === 0) return
+  if (Array.isEmptyArray(users)) return
 
   yield* Effect.log('Sending daily tip notifications', {
-    userCount: users.length,
+    userCount: Array.length(users),
   })
 
   // Create notification for each user and immediately enqueue
@@ -107,23 +107,27 @@ export const checkAndGenerateTip = Effect.gen(function* () {
 
         if (!notification) return
 
-        // Immediately enqueue
-        yield* queue.enqueue(topic, {
-          id: crypto.randomUUID(),
-          topic,
-          payload: {
-            userId: user.id,
-            title,
-            body,
-            notificationIds: [notification.id],
-            plantIds: [],
-          },
-          retryCount: 0,
-          createdAt: nowAsDate(),
-          scheduledAt: nowAsDate(),
-        })
-
-        yield* notificationRepo.markManyAsQueued([notification.id])
+        // Enqueue and mark as queued in parallel (independent operations)
+        yield* Effect.all(
+          [
+            queue.enqueue(topic, {
+              id: crypto.randomUUID(),
+              topic,
+              payload: {
+                userId: user.id,
+                title,
+                body,
+                notificationIds: [notification.id],
+                plantIds: [],
+              },
+              retryCount: 0,
+              createdAt: nowAsDate(),
+              scheduledAt: nowAsDate(),
+            }),
+            notificationRepo.markManyAsQueued([notification.id]),
+          ],
+          { concurrency: 'unbounded' }
+        )
       }).pipe(
         Effect.catchAll((error) =>
           Effect.logWarning('Failed to send tip notification to user', {
@@ -136,16 +140,18 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   )
 
   yield* Effect.log('Daily tip notifications enqueued', {
-    userCount: users.length,
+    userCount: Array.length(users),
   })
 }).pipe(Effect.withSpan('tips-scheduler.check'))
 
 // Start the tips scheduler as a background process
 export const startTipsScheduler = Effect.gen(function* () {
-  // Run once immediately on startup
-  yield* checkAndGenerateTip.pipe(
-    Effect.catchAll((error) =>
-      Effect.logError('Tips scheduler initial error', error)
+  // Run once immediately on startup (forked to not block Layer init)
+  yield* Effect.fork(
+    checkAndGenerateTip.pipe(
+      Effect.catchAll((error) =>
+        Effect.logError('Tips scheduler initial error', error)
+      )
     )
   )
 

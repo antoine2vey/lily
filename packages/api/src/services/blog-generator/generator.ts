@@ -164,67 +164,87 @@ export const generateAndReviewBlogPost = (
 ) =>
   Effect.gen(function* () {
     const repo = yield* BlogPostRepository
-    let retryCount = 0
-    let lastFeedback: string | undefined
 
-    while (retryCount < MAX_RETRIES) {
-      // GENERATE
-      yield* repo.updateStatus(postId, 'generating')
-      const generated = yield* generateContent(topic, brief, lastFeedback)
-      yield* repo.updateContent(postId, generated.content)
+    const result = yield* Effect.iterate(
+      {
+        retryCount: 0,
+        feedback: undefined as string | undefined,
+        published: false,
+      },
+      {
+        while: (state) => !state.published && state.retryCount < MAX_RETRIES,
+        body: (state) =>
+          Effect.gen(function* () {
+            // GENERATE
+            yield* repo.updateStatus(postId, 'generating')
+            const generated = yield* generateContent(
+              topic,
+              brief,
+              state.feedback
+            )
+            yield* repo.updateContent(postId, generated.content)
 
-      // REVIEW
-      yield* repo.updateStatus(postId, 'reviewing')
-      const review = yield* reviewContent(generated, brief)
+            // REVIEW
+            yield* repo.updateStatus(postId, 'reviewing')
+            const review = yield* reviewContent(generated, brief)
 
-      yield* repo.updateReview(postId, {
-        reviewScore: review.overallScore,
-        reviewFeedback: review.feedback,
-        retryCount,
-      })
+            yield* repo.updateReview(postId, {
+              reviewScore: review.overallScore,
+              reviewFeedback: review.feedback,
+              retryCount: state.retryCount,
+            })
 
-      yield* Effect.log('Blog post reviewed', {
-        postId,
-        overallScore: review.overallScore,
-        uniqueness: review.uniqueness,
-        organicFeel: review.organicFeel,
-        factualAccuracy: review.factualAccuracy,
-        seoQuality: review.seoQuality,
-        retryCount,
-      })
+            yield* Effect.log('Blog post reviewed', {
+              postId,
+              overallScore: review.overallScore,
+              uniqueness: review.uniqueness,
+              organicFeel: review.organicFeel,
+              factualAccuracy: review.factualAccuracy,
+              seoQuality: review.seoQuality,
+              retryCount: state.retryCount,
+            })
 
-      // DECIDE
-      const allDimensionsPassing =
-        review.uniqueness >= MIN_SCORE &&
-        review.organicFeel >= MIN_SCORE &&
-        review.factualAccuracy >= MIN_SCORE &&
-        review.seoQuality >= MIN_SCORE
+            // DECIDE
+            const allDimensionsPassing =
+              review.uniqueness >= MIN_SCORE &&
+              review.organicFeel >= MIN_SCORE &&
+              review.factualAccuracy >= MIN_SCORE &&
+              review.seoQuality >= MIN_SCORE
 
-      if (allDimensionsPassing) {
-        // PUBLISH — commit one file per language
-        const commitShas = yield* publishBlogPost(topic.slug, generated.content)
+            if (allDimensionsPassing) {
+              const commitShas = yield* publishBlogPost(
+                topic.slug,
+                generated.content
+              )
 
-        yield* repo.markPublished(postId, commitShas)
+              yield* repo.markPublished(postId, commitShas)
 
-        yield* Effect.log('Blog post published', {
-          postId,
-          slug: topic.slug,
-          overallScore: review.overallScore,
-        })
-        return
+              yield* Effect.log('Blog post published', {
+                postId,
+                slug: topic.slug,
+                overallScore: review.overallScore,
+              })
+
+              return { ...state, published: true }
+            }
+
+            yield* Effect.log('Blog post needs improvement, retrying', {
+              postId,
+              retryCount: state.retryCount + 1,
+              overallScore: review.overallScore,
+              feedback: review.feedback,
+            })
+
+            return {
+              retryCount: state.retryCount + 1,
+              feedback: review.feedback as string | undefined,
+              published: false,
+            }
+          }),
       }
+    )
 
-      // Not good enough — retry with feedback
-      retryCount = retryCount + 1
-      lastFeedback = review.feedback
-
-      yield* Effect.log('Blog post needs improvement, retrying', {
-        postId,
-        retryCount,
-        overallScore: review.overallScore,
-        feedback: review.feedback,
-      })
-    }
+    if (result.published) return
 
     // Max retries reached — reject
     yield* repo.updateStatus(postId, 'rejected')

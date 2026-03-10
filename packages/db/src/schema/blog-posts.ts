@@ -1,4 +1,5 @@
 import { blogPostStatusEnum } from '@lily/db/schema/enums'
+import { nowAsDate } from '@lily/shared'
 import {
   integer,
   jsonb,
@@ -37,5 +38,5 @@ export const blogPosts = pgTable('blog_posts', {
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow()
-    .$onUpdate(() => new Date()),
+    .$onUpdate(() => nowAsDate()),
 })
