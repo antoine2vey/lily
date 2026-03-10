@@ -168,11 +168,17 @@ export const EngagementRepositoryLive = Layer.effect(
           )
 
           // Filter plants with no photo or photo older than threshold
-          return Array.filter(userPlants, (plant) => {
-            const lastPhoto = photoMap.get(plant.plantId)
-            if (!lastPhoto) return true // No photo at all
-            return lastPhoto.getTime() < beforeDate.getTime()
-          })
+          return pipe(
+            Array.filter(userPlants, (plant) => {
+              const lastPhoto = photoMap.get(plant.plantId)
+              if (!lastPhoto) return true // No photo at all
+              return lastPhoto.getTime() < beforeDate.getTime()
+            }),
+            Array.map((plant) => ({
+              ...plant,
+              lastPhotoAt: photoMap.get(plant.plantId) ?? null,
+            }))
+          )
         }).pipe(
           Effect.withSpan('EngagementRepository.getPlantsWithoutRecentPhoto')
         ),
