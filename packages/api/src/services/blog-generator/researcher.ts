@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Array, Effect, pipe } from 'effect'
+import { Effect } from 'effect'
 import { z } from 'zod'
 import { RESEARCH_PROMPT } from './prompts'
 import type { ResearchBrief, TopicSuggestion } from './types'

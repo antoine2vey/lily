@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { LocalizedText } from '@lily/db/schema'
 import { dailyTips } from '@lily/db/schema'
 import { desc, eq } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 
 export type DailyTip = typeof dailyTips.$inferSelect
 

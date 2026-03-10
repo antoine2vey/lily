@@ -3,7 +3,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { nowAsDate } from '@lily/shared'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { Array, Config, DateTime, Effect, Option, pipe } from 'effect'
+import { Config, DateTime, Effect, Option } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
 

@@ -71,32 +71,53 @@ export const createMockBlogPostRepository = (
         ).length
       ),
 
-    updateStatus: (id: string, status: BlogPostStatus) => {
-      const idx = Array.findFirstIndex(data, (p) => p.id === id)
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = data[idx.value]!
-      const updated: BlogPost = { ...existing, status, updatedAt: new Date() }
-      data[idx.value] = updated
-      return Effect.succeed(updated)
-    },
+    updateStatus: (id: string, status: BlogPostStatus) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              status,
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
 
-    updateSources: (id: string, sources: BlogPostSource[]) => {
-      const idx = Array.findFirstIndex(data, (p) => p.id === id)
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = data[idx.value]!
-      const updated: BlogPost = { ...existing, sources, updatedAt: new Date() }
-      data[idx.value] = updated
-      return Effect.succeed(updated)
-    },
+    updateSources: (id: string, sources: BlogPostSource[]) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              sources,
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
 
-    updateContent: (id: string, content: LocalizedText) => {
-      const idx = Array.findFirstIndex(data, (p) => p.id === id)
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = data[idx.value]!
-      const updated: BlogPost = { ...existing, content, updatedAt: new Date() }
-      data[idx.value] = updated
-      return Effect.succeed(updated)
-    },
+    updateContent: (id: string, content: LocalizedText) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              content,
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
 
     updateReview: (
       id: string,
@@ -105,33 +126,39 @@ export const createMockBlogPostRepository = (
         reviewFeedback: string
         retryCount: number
       }
-    ) => {
-      const idx = Array.findFirstIndex(data, (p) => p.id === id)
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = data[idx.value]!
-      const updated: BlogPost = {
-        ...existing,
-        ...review,
-        updatedAt: new Date(),
-      }
-      data[idx.value] = updated
-      return Effect.succeed(updated)
-    },
+    ) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              ...review,
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
 
-    markPublished: (id: string, commitShas: LocalizedText) => {
-      const idx = Array.findFirstIndex(data, (p) => p.id === id)
-      if (Option.isNone(idx)) return Effect.succeed(null)
-      const existing = data[idx.value]!
-      const updated: BlogPost = {
-        ...existing,
-        commitShas,
-        status: 'published' as const,
-        publishedAt: new Date(),
-        updatedAt: new Date(),
-      }
-      data[idx.value] = updated
-      return Effect.succeed(updated)
-    },
+    markPublished: (id: string, commitShas: LocalizedText) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              commitShas,
+              status: 'published' as const,
+              publishedAt: new Date(),
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
   }
 
   return Layer.succeed(BlogPostRepository, repo)

@@ -48,11 +48,11 @@ describe('GitHub API integration', () => {
 
     // Verify the PUT request was made with correct params
     expect(mockFetch).toHaveBeenCalledTimes(2)
-    const putCall = mockFetch.mock.calls[1]!
-    expect(putCall[0]).toContain('/repos/owner/repo/contents/')
-    expect(putCall[1]!.method).toBe('PUT')
+    const putCall = mockFetch.mock.calls[1]
+    expect(putCall?.[0]).toContain('/repos/owner/repo/contents/')
+    expect(putCall?.[1]?.method).toBe('PUT')
 
-    const body = JSON.parse(putCall[1]!.body as string)
+    const body = JSON.parse(putCall?.[1]?.body as string)
     expect(body.message).toBe('blog: add test post')
     expect(body.content).toBe(Buffer.from('# Test Content').toString('base64'))
     // No sha for new file
@@ -91,8 +91,8 @@ describe('GitHub API integration', () => {
     expect(result.sha).toBe('updated-sha-789')
 
     // Verify sha was included in PUT body
-    const putCall = mockFetch.mock.calls[1]!
-    const body = JSON.parse(putCall[1]!.body as string)
+    const putCall = mockFetch.mock.calls[1]
+    const body = JSON.parse(putCall?.[1]?.body as string)
     expect(body.sha).toBe('existing-sha-456')
   })
 
