@@ -1,7 +1,4 @@
-import {
-  mockDailyTips,
-  mockTip1,
-} from '@lily/api/__tests__/fixtures/daily-tips'
+import { mockDailyTips } from '@lily/api/__tests__/fixtures/daily-tips'
 import { createMockDailyTipRepository } from '@lily/api/__tests__/mocks/daily-tip.repository'
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { Effect } from 'effect'

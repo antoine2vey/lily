@@ -1,5 +1,4 @@
 import {
-  mockBlogPost1,
   mockBlogPosts,
   mockPendingBlogPost,
 } from '@lily/api/__tests__/fixtures/blog-posts'

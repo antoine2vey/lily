@@ -1,11 +1,7 @@
-import {
-  mockBlogPost1,
-  mockBlogPost2,
-  mockBlogPosts,
-} from '@lily/api/__tests__/fixtures/blog-posts'
+import { mockBlogPosts } from '@lily/api/__tests__/fixtures/blog-posts'
 import { createMockBlogPostRepository } from '@lily/api/__tests__/mocks/blog-post.repository'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('topic selection dedup', () => {
