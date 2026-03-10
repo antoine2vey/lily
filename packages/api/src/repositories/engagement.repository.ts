@@ -7,7 +7,7 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UserWithSettings {
@@ -136,49 +136,26 @@ export const EngagementRepositoryLive = Layer.effect(
 
       getPlantsWithoutRecentPhoto: (userId: string, beforeDate: Date) =>
         Effect.gen(function* () {
-          // Find plants that have no photo at all, or whose latest photo
-          // is older than beforeDate
-          const userPlants = yield* db
+          // Single query: LEFT JOIN plants with their latest photo,
+          // filter to those with no photo or photo older than threshold
+          const rows = yield* db
             .select({
               plantId: plants.id,
               plantName: plants.name,
               userId: plants.userId,
-            })
-            .from(plants)
-            .where(eq(plants.userId, userId))
-
-          if (userPlants.length === 0) return []
-
-          const plantIds = Array.map(userPlants, (p) => p.plantId)
-
-          // Get latest photo per plant
-          const latestPhotos = yield* db
-            .select({
-              plantId: plantPhotos.plantId,
-              lastPhotoAt: sql<Date>`MAX(${plantPhotos.takenAt})`.as(
+              lastPhotoAt: sql<Date | null>`MAX(${plantPhotos.takenAt})`.as(
                 'last_photo_at'
               ),
             })
-            .from(plantPhotos)
-            .where(inArray(plantPhotos.plantId, plantIds as string[]))
-            .groupBy(plantPhotos.plantId)
+            .from(plants)
+            .leftJoin(plantPhotos, eq(plantPhotos.plantId, plants.id))
+            .where(eq(plants.userId, userId))
+            .groupBy(plants.id, plants.name, plants.userId)
+            .having(
+              sql`MAX(${plantPhotos.takenAt}) IS NULL OR MAX(${plantPhotos.takenAt}) < ${beforeDate}`
+            )
 
-          const photoMap = new Map(
-            Array.map(latestPhotos, (p) => [p.plantId, p.lastPhotoAt] as const)
-          )
-
-          // Filter plants with no photo or photo older than threshold
-          return pipe(
-            Array.filter(userPlants, (plant) => {
-              const lastPhoto = photoMap.get(plant.plantId)
-              if (!lastPhoto) return true // No photo at all
-              return lastPhoto.getTime() < beforeDate.getTime()
-            }),
-            Array.map((plant) => ({
-              ...plant,
-              lastPhotoAt: photoMap.get(plant.plantId) ?? null,
-            }))
-          )
+          return rows
         }).pipe(
           Effect.withSpan('EngagementRepository.getPlantsWithoutRecentPhoto')
         ),
@@ -190,23 +167,21 @@ export const EngagementRepositoryLive = Layer.effect(
       ) =>
         Effect.gen(function* () {
           const [result] = yield* db
-            .select({ value: count() })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.type, type),
-                inArray(notifications.status, ['pending', 'queued', 'sent']),
-                sql`${notifications.createdAt} >= ${sinceDate}`
-              )
-            )
+            .select({
+              value: sql<boolean>`EXISTS (
+                SELECT 1 FROM ${notifications}
+                WHERE ${notifications.userId} = ${userId}
+                  AND ${notifications.type} = ${type}
+                  AND ${notifications.status} IN ('pending', 'queued', 'sent')
+                  AND ${notifications.createdAt} >= ${sinceDate}
+              )`.as('has_notification'),
+            })
+            .from(sql`(VALUES (1)) AS _`)
 
-          return (
-            pipe(
-              Option.fromNullable(result),
-              Option.flatMap((r) => Option.fromNullable(r.value)),
-              Option.getOrElse(() => 0)
-            ) > 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.map((r) => r.value),
+            Option.getOrElse(() => false)
           )
         }).pipe(
           Effect.withSpan('EngagementRepository.hasNotificationInPeriod')
@@ -220,24 +195,22 @@ export const EngagementRepositoryLive = Layer.effect(
       ) =>
         Effect.gen(function* () {
           const [result] = yield* db
-            .select({ value: count() })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.type, type),
-                eq(notifications.plantId, plantId),
-                inArray(notifications.status, ['pending', 'queued', 'sent']),
-                sql`${notifications.createdAt} >= ${sinceDate}`
-              )
-            )
+            .select({
+              value: sql<boolean>`EXISTS (
+                SELECT 1 FROM ${notifications}
+                WHERE ${notifications.userId} = ${userId}
+                  AND ${notifications.type} = ${type}
+                  AND ${notifications.plantId} = ${plantId}
+                  AND ${notifications.status} IN ('pending', 'queued', 'sent')
+                  AND ${notifications.createdAt} >= ${sinceDate}
+              )`.as('has_notification'),
+            })
+            .from(sql`(VALUES (1)) AS _`)
 
-          return (
-            pipe(
-              Option.fromNullable(result),
-              Option.flatMap((r) => Option.fromNullable(r.value)),
-              Option.getOrElse(() => 0)
-            ) > 0
+          return pipe(
+            Option.fromNullable(result),
+            Option.map((r) => r.value),
+            Option.getOrElse(() => false)
           )
         }).pipe(
           Effect.withSpan(

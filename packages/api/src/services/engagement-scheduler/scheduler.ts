@@ -1,12 +1,17 @@
-import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
+import {
+  EngagementRepository,
+  type UserWithSettings,
+} from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   DEFAULT_TIMEZONE,
   DndWindowBlockedError,
+  daysAgoAsDate,
+  daysSince,
   pickOverdueNotificationTime,
 } from '@lily/shared'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe, Random, Ref } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 
 // Check every hour (same cadence as overdue scheduler)
@@ -23,291 +28,303 @@ const MILESTONES = [7, 30, 90, 180, 365] as const
 const INACTIVITY_DEDUP_DAYS = 7
 const PHOTO_DEDUP_DAYS = 30
 
-const daysAgo = (days: number): Date => {
-  const dt = DateTime.unsafeNow()
-  const shifted = DateTime.subtractDuration(dt, Duration.days(days))
-  return DateTime.toDateUtc(shifted)
-}
+// Resolve timezone from nullable user setting
+const resolveTimezone = (tz: string | null): string =>
+  Option.getOrElse(Option.fromNullable(tz), () => DEFAULT_TIMEZONE)
 
-const daysSince = (date: Date): number => {
-  const now = DateTime.unsafeNow()
-  const then = DateTime.unsafeMake(date)
-  const distMs = DateTime.distance(then, now)
-  return Math.floor(Duration.toMillis(Duration.millis(distMs)) / 86_400_000)
-}
+// Pick scheduled time respecting DND windows, or fail
+const pickScheduledTime = (
+  userId: string,
+  timezone: string,
+  doNotDisturb: boolean,
+  doNotDisturbStart: string | null,
+  doNotDisturbEnd: string | null,
+  randomValue: number
+) =>
+  pipe(
+    pickOverdueNotificationTime(
+      timezone,
+      doNotDisturb,
+      doNotDisturbStart,
+      doNotDisturbEnd,
+      randomValue
+    ),
+    Option.match({
+      onNone: () => new DndWindowBlockedError({ userId }),
+      onSome: Effect.succeed,
+    })
+  )
 
 // Process inactivity nudges for all eligible users
-export const processInactivityNudges = Effect.gen(function* () {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
+export const processInactivityNudges = (
+  usersWithTips: ReadonlyArray<UserWithSettings>
+) =>
+  Effect.gen(function* () {
+    const engagementRepo = yield* EngagementRepository
+    const notificationRepo = yield* NotificationRepository
+    const created = yield* Ref.make(0)
 
-  const usersWithTips = yield* engagementRepo.getUsersWithTipsEnabled()
-  let created = 0
+    yield* Effect.forEach(
+      usersWithTips,
+      (user) =>
+        Effect.gen(function* () {
+          const timezone = resolveTimezone(user.timezone)
 
-  yield* Effect.forEach(
-    usersWithTips,
-    (user) =>
-      Effect.gen(function* () {
-        const timezone = pipe(
-          Option.fromNullable(user.timezone),
-          Option.getOrElse(() => DEFAULT_TIMEZONE)
-        )
+          // Dedup: skip if already sent in last 7 days
+          const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
+            user.id,
+            'inactivity_nudge',
+            daysAgoAsDate(INACTIVITY_DEDUP_DAYS)
+          )
+          if (alreadySent) return
 
-        // Dedup: skip if already sent in last 7 days
-        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
-          user.id,
-          'inactivity_nudge',
-          daysAgo(INACTIVITY_DEDUP_DAYS)
-        )
-        if (alreadySent) return
+          // Check last care date
+          const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
+          yield* pipe(
+            Option.fromNullable(lastCareDate),
+            Option.match({
+              onNone: () => Effect.void,
+              onSome: (date) =>
+                daysSince(date) < INACTIVITY_DAYS
+                  ? Effect.fail('recent_care' as const)
+                  : Effect.void,
+            })
+          )
 
-        // Check last care date
-        const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
-        if (lastCareDate) {
-          const daysSinceLastCare = daysSince(lastCareDate)
-          if (daysSinceLastCare < INACTIVITY_DAYS) return
-        }
-        // If no care date at all, also send (user may have never cared)
+          // Get plant count for personalized message
+          const plantCount = yield* engagementRepo.getPlantCountForUser(user.id)
+          if (plantCount === 0) return // No plants, no nudge
 
-        // Get plant count for personalized message
-        const plantCount = yield* engagementRepo.getPlantCountForUser(user.id)
-        if (plantCount === 0) return // No plants, no nudge
-
-        // Pick random time in morning/evening window
-        const scheduledAt = yield* pipe(
-          pickOverdueNotificationTime(
+          const randomValue = yield* Random.next
+          const scheduledAt = yield* pickScheduledTime(
+            user.id,
             timezone,
             user.doNotDisturb,
             user.doNotDisturbStart,
             user.doNotDisturbEnd,
-            Math.random()
-          ),
-          Option.match({
-            onNone: () => new DndWindowBlockedError({ userId: user.id }),
-            onSome: Effect.succeed,
+            randomValue
+          )
+
+          const { title, body } = buildSimpleContent(
+            'inactivity_nudge',
+            { plantCount },
+            user.language
+          )
+
+          yield* notificationRepo.create({
+            type: 'inactivity_nudge',
+            title,
+            body,
+            scheduledAt,
+            userId: user.id,
           })
-        )
 
-        const { title, body } = buildSimpleContent(
-          'inactivity_nudge',
-          { plantCount },
-          user.language
-        )
+          yield* Ref.update(created, (n) => n + 1)
+        }).pipe(
+          Effect.catchTags({
+            DndWindowBlockedError: () => Effect.void,
+            SqlError: (error) =>
+              Effect.logWarning('Inactivity nudge error for user', {
+                userId: user.id,
+                error,
+              }),
+          }),
+          Effect.catchAll(() => Effect.void)
+        ),
+      { concurrency: 10 }
+    )
 
-        yield* notificationRepo.create({
-          type: 'inactivity_nudge',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-        })
-
-        created += 1
-      }).pipe(
-        Effect.catchTags({
-          DndWindowBlockedError: () => Effect.void,
-          SqlError: (error) =>
-            Effect.logWarning('Inactivity nudge error for user', {
-              userId: user.id,
-              error,
-            }),
-        })
-      ),
-    { concurrency: 10 }
-  )
-
-  if (created > 0) {
-    yield* Effect.log('Created inactivity nudges', { count: created })
-  }
-}).pipe(Effect.withSpan('engagement-scheduler.inactivityNudges'))
+    const total = yield* Ref.get(created)
+    if (total > 0) {
+      yield* Effect.log('Created inactivity nudges', { count: total })
+    }
+  }).pipe(Effect.withSpan('engagement-scheduler.inactivityNudges'))
 
 // Process photo reminders for plants without recent photos
-export const processPhotoReminders = Effect.gen(function* () {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
+export const processPhotoReminders = (
+  usersWithTips: ReadonlyArray<UserWithSettings>
+) =>
+  Effect.gen(function* () {
+    const engagementRepo = yield* EngagementRepository
+    const notificationRepo = yield* NotificationRepository
+    const created = yield* Ref.make(0)
 
-  const usersWithTips = yield* engagementRepo.getUsersWithTipsEnabled()
-  let created = 0
+    yield* Effect.forEach(
+      usersWithTips,
+      (user) =>
+        Effect.gen(function* () {
+          const timezone = resolveTimezone(user.timezone)
 
-  yield* Effect.forEach(
-    usersWithTips,
-    (user) =>
-      Effect.gen(function* () {
-        const timezone = pipe(
-          Option.fromNullable(user.timezone),
-          Option.getOrElse(() => DEFAULT_TIMEZONE)
-        )
+          const stalePlants = yield* engagementRepo.getPlantsWithoutRecentPhoto(
+            user.id,
+            daysAgoAsDate(PHOTO_STALENESS_DAYS)
+          )
 
-        const stalePlants = yield* engagementRepo.getPlantsWithoutRecentPhoto(
-          user.id,
-          daysAgo(PHOTO_STALENESS_DAYS)
-        )
+          if (Array.isEmptyReadonlyArray(stalePlants)) return
 
-        if (Array.isEmptyReadonlyArray(stalePlants)) return
-
-        // Pick random time in morning/evening window
-        const scheduledAt = yield* pipe(
-          pickOverdueNotificationTime(
+          const randomValue = yield* Random.next
+          const scheduledAt = yield* pickScheduledTime(
+            user.id,
             timezone,
             user.doNotDisturb,
             user.doNotDisturbStart,
             user.doNotDisturbEnd,
-            Math.random()
-          ),
-          Option.match({
-            onNone: () => new DndWindowBlockedError({ userId: user.id }),
-            onSome: Effect.succeed,
-          })
-        )
+            randomValue
+          )
 
-        // Send one notification per stale plant (deduped per plant per month)
-        yield* Effect.forEach(stalePlants, (plant) =>
-          Effect.gen(function* () {
-            const alreadySent =
-              yield* engagementRepo.hasNotificationForPlantInPeriod(
-                user.id,
-                'photo_reminder',
-                plant.plantId,
-                daysAgo(PHOTO_DEDUP_DAYS)
+          // Send one notification per stale plant (deduped per plant per month)
+          yield* Effect.forEach(stalePlants, (plant) =>
+            Effect.gen(function* () {
+              const alreadySent =
+                yield* engagementRepo.hasNotificationForPlantInPeriod(
+                  user.id,
+                  'photo_reminder',
+                  plant.plantId,
+                  daysAgoAsDate(PHOTO_DEDUP_DAYS)
+                )
+              if (alreadySent) return
+
+              const daysSincePhotoVal = pipe(
+                Option.fromNullable(plant.lastPhotoAt),
+                Option.match({
+                  onNone: () => PHOTO_STALENESS_DAYS,
+                  onSome: (date) => daysSince(date),
+                })
               )
-            if (alreadySent) return
 
-            const daysSincePhotoVal = plant.lastPhotoAt
-              ? daysSince(plant.lastPhotoAt)
-              : PHOTO_STALENESS_DAYS
+              const { title, body } = buildSimpleContent(
+                'photo_reminder',
+                {
+                  plantName: plant.plantName,
+                  daysSincePhoto: daysSincePhotoVal,
+                },
+                user.language
+              )
 
-            const { title, body } = buildSimpleContent(
-              'photo_reminder',
-              {
-                plantName: plant.plantName,
-                daysSincePhoto: daysSincePhotoVal,
-              },
-              user.language
-            )
+              yield* notificationRepo.create({
+                type: 'photo_reminder',
+                title,
+                body,
+                scheduledAt,
+                userId: user.id,
+                plantId: plant.plantId,
+              })
 
-            yield* notificationRepo.create({
-              type: 'photo_reminder',
-              title,
-              body,
-              scheduledAt,
-              userId: user.id,
-              plantId: plant.plantId,
+              yield* Ref.update(created, (n) => n + 1)
             })
-
-            created += 1
+          )
+        }).pipe(
+          Effect.catchTags({
+            DndWindowBlockedError: () => Effect.void,
+            SqlError: (error) =>
+              Effect.logWarning('Photo reminder error for user', {
+                userId: user.id,
+                error,
+              }),
           })
-        )
-      }).pipe(
-        Effect.catchTags({
-          DndWindowBlockedError: () => Effect.void,
-          SqlError: (error) =>
-            Effect.logWarning('Photo reminder error for user', {
-              userId: user.id,
-              error,
-            }),
-        })
-      ),
-    { concurrency: 10 }
-  )
+        ),
+      { concurrency: 10 }
+    )
 
-  if (created > 0) {
-    yield* Effect.log('Created photo reminders', { count: created })
-  }
-}).pipe(Effect.withSpan('engagement-scheduler.photoReminders'))
+    const total = yield* Ref.get(created)
+    if (total > 0) {
+      yield* Effect.log('Created photo reminders', { count: total })
+    }
+  }).pipe(Effect.withSpan('engagement-scheduler.photoReminders'))
 
 // Process plant parent milestones
-export const processPlantParentMilestones = Effect.gen(function* () {
-  const engagementRepo = yield* EngagementRepository
-  const notificationRepo = yield* NotificationRepository
+export const processPlantParentMilestones = (
+  usersWithTips: ReadonlyArray<UserWithSettings>
+) =>
+  Effect.gen(function* () {
+    const engagementRepo = yield* EngagementRepository
+    const notificationRepo = yield* NotificationRepository
+    const created = yield* Ref.make(0)
 
-  const usersWithTips = yield* engagementRepo.getUsersWithTipsEnabled()
-  let created = 0
+    yield* Effect.forEach(
+      usersWithTips,
+      (user) =>
+        Effect.gen(function* () {
+          const timezone = resolveTimezone(user.timezone)
+          const daysSinceJoin = daysSince(user.createdAt)
 
-  yield* Effect.forEach(
-    usersWithTips,
-    (user) =>
-      Effect.gen(function* () {
-        const timezone = pipe(
-          Option.fromNullable(user.timezone),
-          Option.getOrElse(() => DEFAULT_TIMEZONE)
-        )
+          // Find matching milestone
+          const matchingMilestone = Array.findFirst(
+            MILESTONES,
+            (m) => m === daysSinceJoin
+          )
 
-        const daysSinceJoin = daysSince(user.createdAt)
+          if (Option.isNone(matchingMilestone)) return
 
-        // Find matching milestone
-        const matchingMilestone = Array.findFirst(
-          MILESTONES,
-          (m) => m === daysSinceJoin
-        )
+          const milestone = matchingMilestone.value
 
-        if (Option.isNone(matchingMilestone)) return
+          // Dedup: check if we already sent this milestone
+          // Use a long lookback (milestone value + 1 day) to prevent re-sends
+          const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
+            user.id,
+            'plant_parent_milestone',
+            daysAgoAsDate(milestone + 1)
+          )
+          if (alreadySent) return
 
-        const milestone = matchingMilestone.value
-
-        // Dedup: check if we already sent this milestone
-        // Use a long lookback (milestone value + 1 day) to prevent re-sends
-        const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
-          user.id,
-          'plant_parent_milestone',
-          daysAgo(milestone + 1)
-        )
-        if (alreadySent) return
-
-        // Pick random time in morning/evening window
-        const scheduledAt = yield* pipe(
-          pickOverdueNotificationTime(
+          const randomValue = yield* Random.next
+          const scheduledAt = yield* pickScheduledTime(
+            user.id,
             timezone,
             user.doNotDisturb,
             user.doNotDisturbStart,
             user.doNotDisturbEnd,
-            Math.random()
-          ),
-          Option.match({
-            onNone: () => new DndWindowBlockedError({ userId: user.id }),
-            onSome: Effect.succeed,
+            randomValue
+          )
+
+          const { title, body } = buildSimpleContent(
+            'plant_parent_milestone',
+            { daysSinceJoin: milestone },
+            user.language
+          )
+
+          yield* notificationRepo.create({
+            type: 'plant_parent_milestone',
+            title,
+            body,
+            scheduledAt,
+            userId: user.id,
           })
-        )
 
-        const { title, body } = buildSimpleContent(
-          'plant_parent_milestone',
-          { daysSinceJoin: milestone },
-          user.language
-        )
+          yield* Ref.update(created, (n) => n + 1)
+        }).pipe(
+          Effect.catchTags({
+            DndWindowBlockedError: () => Effect.void,
+            SqlError: (error) =>
+              Effect.logWarning('Milestone error for user', {
+                userId: user.id,
+                error,
+              }),
+          })
+        ),
+      { concurrency: 10 }
+    )
 
-        yield* notificationRepo.create({
-          type: 'plant_parent_milestone',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-        })
-
-        created += 1
-      }).pipe(
-        Effect.catchTags({
-          DndWindowBlockedError: () => Effect.void,
-          SqlError: (error) =>
-            Effect.logWarning('Milestone error for user', {
-              userId: user.id,
-              error,
-            }),
-        })
-      ),
-    { concurrency: 10 }
-  )
-
-  if (created > 0) {
-    yield* Effect.log('Created milestone notifications', { count: created })
-  }
-}).pipe(Effect.withSpan('engagement-scheduler.milestones'))
+    const total = yield* Ref.get(created)
+    if (total > 0) {
+      yield* Effect.log('Created milestone notifications', { count: total })
+    }
+  }).pipe(Effect.withSpan('engagement-scheduler.milestones'))
 
 // Core effect: run all engagement checks
 export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   yield* Effect.log('Running engagement notification check...')
 
-  yield* processInactivityNudges
-  yield* processPhotoReminders
-  yield* processPlantParentMilestones
+  const engagementRepo = yield* EngagementRepository
+  const usersWithTips = yield* engagementRepo.getUsersWithTipsEnabled()
+
+  if (Array.isEmptyReadonlyArray(usersWithTips)) return
+
+  yield* Effect.all([
+    processInactivityNudges(usersWithTips),
+    processPhotoReminders(usersWithTips),
+    processPlantParentMilestones(usersWithTips),
+  ])
 }).pipe(Effect.withSpan('engagement-scheduler.check'))
 
 // Start the engagement scheduler as a background process
