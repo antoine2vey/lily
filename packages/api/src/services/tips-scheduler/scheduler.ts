@@ -36,11 +36,14 @@ const resolveLocalized = (
 export const checkAndGenerateTip = Effect.gen(function* () {
   // Feature flag check
   const enabled = yield* Config.withDefault(
-    Config.string('TIPS_GENERATION_ENABLED'),
-    'false'
+    Config.boolean('TIPS_GENERATION_ENABLED'),
+    false
   )
 
-  if (enabled !== 'true') return
+  if (!enabled) {
+    yield* Effect.logWarning('Tips generation skipped — disabled by config')
+    return
+  }
 
   const tipRepo = yield* DailyTipRepository
   const notificationRepo = yield* NotificationRepository
