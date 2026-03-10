@@ -1,22 +1,27 @@
+import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import {
-  PLANT_TIPS,
-  resolveTipContent,
-} from '@lily/api/services/tips-scheduler/tips-content'
 import {
   DEFAULT_TIMEZONE,
   DndWindowBlockedError,
   pickOverdueNotificationTime,
 } from '@lily/shared'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Array, Config, DateTime, Duration, Effect, Option } from 'effect'
 import type { DurationInput } from 'effect/Duration'
+import { generateDailyTip } from './generator'
 
-// Check every hour (same cadence as other schedulers)
 const POLL_INTERVAL: DurationInput = '1 hour'
 
 // Tip dedup period: no more than 1 tip per 3 days
 const TIP_DEDUP_DAYS = 3
+
+const getTodayDateString = (): string => {
+  const now = DateTime.unsafeNow()
+  const parts = DateTime.toParts(now)
+  const month = globalThis.String(parts.month).padStart(2, '0')
+  const day = globalThis.String(parts.day).padStart(2, '0')
+  return `${parts.year}-${month}-${day}`
+}
 
 const daysAgo = (days: number): Date => {
   const dt = DateTime.unsafeNow()
@@ -24,45 +29,89 @@ const daysAgo = (days: number): Date => {
   return DateTime.toDateUtc(shifted)
 }
 
-// Pick a random tip from the bank, optionally personalized
-const pickRandomTip = (personalized: boolean) => {
-  const eligible = personalized
-    ? PLANT_TIPS
-    : Array.filter(PLANT_TIPS, (t) => !t.personalized)
-
-  const index = Math.floor(Math.random() * eligible.length)
-  return pipe(
-    Array.get(eligible, index),
-    Option.getOrElse(() => Array.unsafeGet(PLANT_TIPS, 0))
+/** Resolve localized text for a given language, falling back to English */
+const resolveLocalized = (
+  localized: Record<string, string>,
+  language: string
+): string =>
+  Option.getOrElse(Option.fromNullable(localized[language]), () =>
+    Option.getOrElse(Option.fromNullable(localized.en), () => '')
   )
-}
 
-// Process plant tips for all eligible users
-export const processPlantTips = Effect.gen(function* () {
-  const engagementRepo = yield* EngagementRepository
+// Core effect: check if tip exists for today, generate if not, send notifications
+export const checkAndGenerateTip = Effect.gen(function* () {
+  // Feature flag check
+  const enabled = yield* Config.withDefault(
+    Config.string('TIPS_GENERATION_ENABLED'),
+    'false'
+  )
+
+  if (enabled !== 'true') return
+
+  const tipRepo = yield* DailyTipRepository
   const notificationRepo = yield* NotificationRepository
+  const engagementRepo = yield* EngagementRepository
 
-  const usersWithTips = yield* engagementRepo.getUsersWithTipsEnabled()
-  let created = 0
+  const today = getTodayDateString()
 
+  // Check if tip already exists for today
+  const existingTip = yield* tipRepo.findByDate(today)
+
+  if (existingTip) return
+
+  yield* Effect.log('Generating daily tip', { date: today })
+
+  // Generate the tip
+  const generatedTip = yield* generateDailyTip
+
+  // Store in database
+  const tip = yield* tipRepo.create({
+    title: { ...generatedTip.title },
+    body: { ...generatedTip.body },
+    category: generatedTip.category,
+    tags: [...generatedTip.tags],
+    publishDate: today,
+  })
+
+  if (!tip) {
+    yield* Effect.logWarning('Failed to create daily tip record')
+    return
+  }
+
+  yield* Effect.log('Daily tip created', {
+    tipId: tip.id,
+    category: tip.category,
+  })
+
+  // Find all users with tips enabled
+  const users = yield* engagementRepo.getUsersWithTipsEnabled()
+
+  if (Array.isEmptyReadonlyArray(users)) return
+
+  yield* Effect.log('Sending daily tip notifications', {
+    userCount: Array.length(users),
+  })
+
+  // Create pending notification records with randomized send times
+  // within morning/evening windows, respecting DND — same as overdue reminders
   yield* Effect.forEach(
-    usersWithTips,
+    users,
     (user) =>
       Effect.gen(function* () {
-        const timezone = pipe(
+        const timezone = Option.getOrElse(
           Option.fromNullable(user.timezone),
-          Option.getOrElse(() => DEFAULT_TIMEZONE)
+          () => DEFAULT_TIMEZONE
         )
 
-        // Dedup: skip if already sent a tip in last 3 days
+        // Fatigue prevention: skip if already sent a tip in last 3 days
         const alreadySent = yield* engagementRepo.hasNotificationInPeriod(
           user.id,
-          'plant_tip',
+          'daily_tip',
           daysAgo(TIP_DEDUP_DAYS)
         )
         if (alreadySent) return
 
-        // Also skip if a care reminder was sent today (avoid notification fatigue)
+        // Fatigue prevention: skip if a care reminder was sent today
         const careReminderToday =
           yield* notificationRepo.hasNotificationOfTypeTodayForUser(
             user.id,
@@ -71,8 +120,7 @@ export const processPlantTips = Effect.gen(function* () {
           )
         if (careReminderToday) return
 
-        // Pick random time in morning/evening window
-        const scheduledAt = yield* pipe(
+        const scheduledAt = yield* Option.match(
           pickOverdueNotificationTime(
             timezone,
             user.doNotDisturb,
@@ -80,62 +128,56 @@ export const processPlantTips = Effect.gen(function* () {
             user.doNotDisturbEnd,
             Math.random()
           ),
-          Option.match({
+          {
             onNone: () => new DndWindowBlockedError({ userId: user.id }),
             onSome: Effect.succeed,
-          })
+          }
         )
 
-        // If personalizedTips, get a random plant name
-        let plantName: string | undefined
-        if (user.personalizedTips) {
-          const plantNames = yield* engagementRepo.getPlantNamesForUser(user.id)
-          if (plantNames.length > 0) {
-            const randomIndex = Math.floor(Math.random() * plantNames.length)
-            plantName = pipe(
-              Array.get(plantNames, randomIndex),
-              Option.getOrUndefined
-            )
-          }
-        }
+        const language = Option.getOrElse(
+          Option.fromNullable(user.language),
+          () => 'en' as const
+        )
 
-        const canPersonalize = user.personalizedTips && !!plantName
-        const tip = pickRandomTip(canPersonalize)
-        const { title, body } = resolveTipContent(tip, user.language, plantName)
+        const title = resolveLocalized(tip.title, language)
+        const body = resolveLocalized(tip.body, language)
 
         yield* notificationRepo.create({
-          type: 'plant_tip',
+          type: 'daily_tip',
           title,
           body,
           scheduledAt,
           userId: user.id,
         })
-
-        created += 1
       }).pipe(
-        Effect.catchTags({
-          DndWindowBlockedError: () => Effect.void,
-          SqlError: (error) =>
-            Effect.logWarning('Plant tip error for user', {
-              userId: user.id,
-              error,
-            }),
-        })
+        Effect.catchTag('DndWindowBlockedError', (error) =>
+          Effect.log('Skipping daily tip — both windows blocked by DND', {
+            userId: error.userId,
+          })
+        ),
+        Effect.catchAll((error) =>
+          Effect.logWarning('Failed to create tip notification for user', {
+            userId: user.id,
+            error: globalThis.String(error),
+          })
+        )
       ),
     { concurrency: 10 }
   )
 
-  if (created > 0) {
-    yield* Effect.log('Created plant tips', { count: created })
-  }
-}).pipe(Effect.withSpan('tips-scheduler.process'))
+  yield* Effect.log('Daily tip notifications created', {
+    userCount: Array.length(users),
+  })
+}).pipe(Effect.withSpan('tips-scheduler.check'))
 
 // Start the tips scheduler as a background process
 export const startTipsScheduler = Effect.gen(function* () {
-  // Run immediately on startup
-  yield* processPlantTips.pipe(
-    Effect.catchTag('SqlError', (error) =>
-      Effect.logError('Tips scheduler initial check error', error)
+  // Run once immediately on startup (forked to not block Layer init)
+  yield* Effect.fork(
+    checkAndGenerateTip.pipe(
+      Effect.catchAll((error) =>
+        Effect.logError('Tips scheduler initial error', error)
+      )
     )
   )
 
@@ -144,8 +186,8 @@ export const startTipsScheduler = Effect.gen(function* () {
     Effect.forever(
       Effect.sleep(POLL_INTERVAL).pipe(
         Effect.zipRight(
-          processPlantTips.pipe(
-            Effect.catchTag('SqlError', (error) =>
+          checkAndGenerateTip.pipe(
+            Effect.catchAll((error) =>
               Effect.logError('Tips scheduler polling error', error)
             )
           )

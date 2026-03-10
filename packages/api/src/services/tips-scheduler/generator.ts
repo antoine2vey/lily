@@ -1,7 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
-import { TIP_CATEGORIES } from '@lily/api/services/blog-generator/types'
 import { RagService } from '@lily/api/services/rag/service'
+import { TIP_CATEGORIES } from '@lily/api/services/tips-scheduler/types'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Random } from 'effect'
 import { z } from 'zod'

@@ -17,8 +17,8 @@ const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
 ]
 
 const ENGAGEMENT_TYPES: ReadonlyArray<string> = [
+  'daily_tip',
   'inactivity_nudge',
-  'plant_tip',
   'photo_reminder',
   'plant_parent_milestone',
 ]
@@ -68,7 +68,6 @@ export const mapNotificationTypeToTopic = (
     Match.when('inactivity_nudge', () =>
       Option.some('inactivity_nudge' as const)
     ),
-    Match.when('plant_tip', () => Option.some('plant_tip' as const)),
     Match.when('photo_reminder', () => Option.some('photo_reminder' as const)),
     Match.when('plant_parent_milestone', () =>
       Option.some('plant_parent_milestone' as const)
