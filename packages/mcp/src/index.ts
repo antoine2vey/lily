@@ -10,7 +10,7 @@ import { confirmHandler } from '@lily/mcp/auth/confirm'
 import { consentHandler } from '@lily/mcp/auth/consent'
 import { OAuthRoutes } from '@lily/mcp/auth/oauth-routes'
 import { verifyHandler } from '@lily/mcp/auth/verify'
-import { MCP_PORT, MCP_SERVER_URL } from '@lily/mcp/config'
+import { MCP_ALLOWED_ORIGINS, MCP_PORT, MCP_SERVER_URL } from '@lily/mcp/config'
 import { McpLive } from '@lily/mcp/layers'
 import {
   CareScheduleResourceLayer,
@@ -18,7 +18,7 @@ import {
 } from '@lily/mcp/resources/layers'
 import { PlantToolkit } from '@lily/mcp/tools/definitions'
 import { PlantToolkitHandlersLive } from '@lily/mcp/tools/handlers'
-import { Effect, String as EffectString, Layer, pipe } from 'effect'
+import { Array, Effect, String as EffectString, Layer, pipe } from 'effect'
 
 // ── MCP Auth Middleware ────────────────────────────────────────────────
 
@@ -29,6 +29,11 @@ const mcpAuthMiddleware = HttpMiddleware.make((app) =>
     const request = yield* HttpServerRequest.HttpServerRequest
 
     if (!pipe(request.url, EffectString.startsWith('/mcp'))) {
+      return yield* app
+    }
+
+    // Allow OPTIONS preflight through without auth (safety net for CORS)
+    if (request.method === 'OPTIONS') {
       return yield* app
     }
 
@@ -50,6 +55,18 @@ const mcpAuthMiddleware = HttpMiddleware.make((app) =>
     return yield* app
   })
 )
+
+// ── CORS Middleware ──────────────────────────────────────────────────
+
+const corsMiddleware = HttpMiddleware.cors({
+  allowedOrigins: Array.isEmptyArray(MCP_ALLOWED_ORIGINS)
+    ? () => true
+    : [...MCP_ALLOWED_ORIGINS],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
+  allowedMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  maxAge: 86400,
+  credentials: true,
+})
 
 // ── Custom Routes (OAuth, consent, health) ─────────────────────────────
 
@@ -103,8 +120,9 @@ const ServerLayer = Layer.mergeAll(
   CareScheduleResourceLayer,
   // Register custom routes on Default router
   CustomRoutesLayer,
-  // Serve the combined Default router with auth middleware
-  HttpRouter.Default.serve(mcpAuthMiddleware)
+  // Serve the combined Default router with auth + CORS middleware
+  // CORS wraps outside auth so CORS headers appear on 401 responses too
+  HttpRouter.Default.serve((app) => corsMiddleware(mcpAuthMiddleware(app)))
 ).pipe(
   // Provide tool handler implementations
   Layer.provide(PlantToolkitHandlersLive),
@@ -134,8 +152,9 @@ BunRuntime.runMain(
     Effect.tap(() =>
       Effect.log(
         `Lily MCP server running on port ${MCP_PORT}\n` +
-          `  OAuth: ${MCP_SERVER_URL}/.well-known/oauth-authorization-server\n` +
-          `  MCP:   ${MCP_SERVER_URL}/mcp`
+          `  OAuth:     ${MCP_SERVER_URL}/.well-known/oauth-authorization-server\n` +
+          `  Discovery: ${MCP_SERVER_URL}/.well-known/mcp.json\n` +
+          `  MCP:       ${MCP_SERVER_URL}/mcp`
       )
     )
   )

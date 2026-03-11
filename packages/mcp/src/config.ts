@@ -1,4 +1,4 @@
-import { Option, pipe } from 'effect'
+import { Array, Option, pipe, String } from 'effect'
 
 /**
  * Shared MCP server configuration constants.
@@ -17,4 +17,12 @@ export const MCP_SERVER_URL = pipe(
   Option.fromNullable(process.env.MCP_SERVER_URL),
   Option.getOrElse(() => `http://localhost:${MCP_PORT}`),
   stripTrailingSlash
+)
+
+export const MCP_ALLOWED_ORIGINS: string[] = pipe(
+  Option.fromNullable(process.env.MCP_ALLOWED_ORIGINS),
+  Option.map(String.split(',')),
+  Option.map(Array.map(String.trim)),
+  Option.map(Array.filter(String.isNonEmpty)),
+  Option.getOrElse((): string[] => [])
 )
