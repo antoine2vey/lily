@@ -1,347 +1,142 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import { McpServer } from '@effect/ai'
 import {
-  RATE_LIMITS,
-  RateLimiterService,
-} from '@lily/api/services/rate-limiter/service'
-import { consentPageHandler } from '@lily/mcp/auth/consent'
-import { LilyOAuthServerModel } from '@lily/mcp/auth/oauth'
-import { mcpRuntime } from '@lily/mcp/runtime'
-import { createMcpServer } from '@lily/mcp/server'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from '@effect/platform'
+import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
+import { confirmHandler } from '@lily/mcp/auth/confirm'
+import { consentHandler } from '@lily/mcp/auth/consent'
+import { OAuthRoutes } from '@lily/mcp/auth/oauth-routes'
+import { verifyHandler } from '@lily/mcp/auth/verify'
+import { MCP_PORT, MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpLive } from '@lily/mcp/layers'
 import {
-  DateTime,
-  Duration,
-  Effect,
-  String as EffectString,
-  pipe,
-} from 'effect'
-import express from 'express'
-import {
-  authenticateHandler,
-  getOAuthProtectedResourceMetadataUrl,
-  mcpAuthRouter,
-  OAuthServer,
-  requireBearerAuth,
-} from 'mcp-oauth-server'
+  CareScheduleResourceLayer,
+  PlantResourceLayer,
+} from '@lily/mcp/resources/layers'
+import { PlantToolkit } from '@lily/mcp/tools/definitions'
+import { PlantToolkitHandlersLive } from '@lily/mcp/tools/handlers'
+import { Effect, String as EffectString, Layer, pipe } from 'effect'
 
-// ── Configuration ────────────────────────────────────────────────────
+// ── MCP Auth Middleware ────────────────────────────────────────────────
 
-const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? 'http://localhost:3001'
-const MCP_PORT = Number(process.env.MCP_PORT ?? '3001')
+const resourceMetadataUrl = `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`
 
-const mcpServerUrl = new URL(`${MCP_SERVER_URL}/mcp`)
-const issuerUrl = new URL(MCP_SERVER_URL)
+const mcpAuthMiddleware = HttpMiddleware.make((app) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest
 
-// ── Bootstrap ────────────────────────────────────────────────────────
-
-async function main() {
-  // Extract a raw PgDrizzle instance for the OAuth model
-  // (the model uses plain async methods, not Effect)
-  const db = await mcpRuntime.runPromise(PgDrizzle.PgDrizzle)
-
-  const oauthModel = new LilyOAuthServerModel(db)
-
-  const oauthServer = new OAuthServer({
-    model: oauthModel,
-    authorizationUrl: new URL(`${MCP_SERVER_URL}/consent`),
-    resourceServerUrl: mcpServerUrl,
-    scopesSupported: ['plants:read', 'plants:write', 'knowledge:read'],
-    accessTokenLifetime: 3600, // 1 hour
-    refreshTokenLifetime: 2592000, // 30 days
-    modifyAuthorizationRedirectUrl: (url, client) => {
-      // Pass client metadata to the consent page
-      if (client.client_name) {
-        url.searchParams.set('client_name', client.client_name)
-      }
-      if (client.client_uri) {
-        url.searchParams.set('client_uri', client.client_uri)
-      }
-      if (client.logo_uri) {
-        url.searchParams.set('logo_uri', client.logo_uri)
-      }
-    },
-  })
-
-  // ── Express App ──────────────────────────────────────────────────
-
-  const app = express()
-  app.use(express.json())
-  app.use(express.urlencoded({ extended: true }))
-
-  // OAuth routes (metadata, authorize, token, register, revoke)
-  app.use(
-    mcpAuthRouter({
-      provider: oauthServer,
-      issuerUrl,
-      resourceServerUrl: mcpServerUrl,
-      scopesSupported: ['plants:read', 'plants:write', 'knowledge:read'],
-      resourceName: 'Lily Plant Care',
-      clientRegistrationOptions: {
-        clientIdGeneration: true,
-      },
-    })
-  )
-
-  // ── Consent Page (GET /consent) ──────────────────────────────────
-
-  app.get('/consent', consentPageHandler)
-
-  // ── Confirm Handler (POST /confirm) ──────────────────────────────
-  //
-  // The authenticateHandler expects getUser to return a userId string.
-  // In our flow, we need to:
-  // 1. Receive the email → send magic link → throw to short-circuit
-  // 2. The /verify endpoint (below) handles the callback after magic link click
-
-  app.use(
-    '/confirm',
-    authenticateHandler({
-      provider: oauthServer,
-      rateLimit: false,
-      getUser: async (req) => {
-        const email = req.body?.email as string | undefined
-        if (!email) {
-          throw new Error('Email is required')
-        }
-
-        const normalizedEmail = pipe(
-          email,
-          EffectString.toLowerCase,
-          EffectString.trim
-        )
-
-        // Build the callback URL pointing to /verify with the OAuth params
-        const oauthParams = new URLSearchParams(
-          req.query as Record<string, string>
-        )
-
-        const token = crypto.randomUUID()
-        const expiresAt = DateTime.toDateUtc(
-          DateTime.addDuration(
-            DateTime.unsafeNow(),
-            Duration.millis(10 * 60 * 1000)
-          )
-        )
-
-        await mcpRuntime.runPromise(
-          Effect.gen(function* () {
-            const magicLinkRepo = yield* MagicLinkRepository
-            const rateLimiter = yield* RateLimiterService
-
-            yield* rateLimiter.checkRateLimit(
-              `mcp-magic-link:${normalizedEmail}`,
-              RATE_LIMITS.MAGIC_LINK
-            )
-
-            yield* magicLinkRepo.deleteByEmail(normalizedEmail)
-            yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)
-          })
-        )
-
-        const callbackUrl = new URL(`${MCP_SERVER_URL}/verify`)
-        callbackUrl.searchParams.set('code', token)
-        for (const [key, value] of oauthParams.entries()) {
-          callbackUrl.searchParams.set(key, value)
-        }
-
-        // Send the magic link email (swallow errors)
-        await mcpRuntime
-          .runPromise(
-            sendMagicLinkEmail({
-              email: normalizedEmail,
-              token,
-              callbackUrl: callbackUrl.toString(),
-            }).pipe(Effect.catchAll(() => Effect.succeed(undefined)))
-          )
-          .catch(() => {})
-
-        // Throw to short-circuit — the user hasn't verified yet
-        throw new SendMagicLinkResponse()
-      },
-    })
-  )
-
-  // ── Verify Handler (GET /verify) ─────────────────────────────────
-  //
-  // Called when the user clicks the magic link in their email.
-  // Verifies the code, resolves the user, then calls oauthServer.authenticate()
-  // to issue an auth code and redirect back to the MCP client.
-
-  app.get('/verify', async (req, res) => {
-    try {
-      const code = req.query.code as string
-      if (!code) {
-        res.status(400).send('Missing verification code')
-        return
-      }
-
-      const userId = await mcpRuntime.runPromise(
-        Effect.gen(function* () {
-          const magicLinkRepo = yield* MagicLinkRepository
-          const userRepo = yield* UserRepository
-
-          const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(code)
-          if (!magicLink) {
-            return yield* Effect.fail(new Error('Invalid or expired code'))
-          }
-
-          const normalizedEmail = pipe(
-            magicLink.email,
-            EffectString.toLowerCase,
-            EffectString.trim
-          )
-
-          const user = yield* userRepo.findByEmail(normalizedEmail)
-          if (!user) {
-            return yield* Effect.fail(
-              new Error('No account found for this email')
-            )
-          }
-
-          return user.id
-        })
-      )
-
-      // Get the client to call authenticate
-      const clientId = req.query.client_id as string
-      if (!clientId) {
-        res.status(400).send('Missing client_id')
-        return
-      }
-
-      const client = await oauthModel.getClient(clientId)
-      if (!client) {
-        res.status(400).send('Unknown client')
-        return
-      }
-
-      // Call oauthServer.authenticate() to create an auth code
-      // and redirect the user back to the MCP client
-      const scopes = (req.query.scope as string | undefined)?.split(' ')
-      const resource = req.query.resource
-        ? new URL(req.query.resource as string)
-        : undefined
-
-      await oauthServer.authenticate(
-        client,
-        {
-          redirectUri: req.query.redirect_uri as string,
-          codeChallenge: req.query.code_challenge as string,
-          scopes: scopes ?? [],
-          ...(req.query.state != null
-            ? { state: req.query.state as string }
-            : {}),
-          ...(resource != null ? { resource } : {}),
-        },
-        userId,
-        res
-      )
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Authentication failed'
-      res.status(400).send(`
-        <html><body style="font-family:sans-serif;padding:2rem;text-align:center">
-          <h2>Authentication failed</h2>
-          <p>${message}</p>
-          <p>Please close this window and try again.</p>
-        </body></html>
-      `)
+    if (!pipe(request.url, EffectString.startsWith('/mcp'))) {
+      return yield* app
     }
-  })
 
-  // ── MCP Endpoint ─────────────────────────────────────────────────
+    const authHeader = request.headers.authorization
 
-  const bearerAuth = requireBearerAuth({
-    verifier: oauthServer,
-    requiredScopes: ['plants:read'],
-    resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpServerUrl),
-  })
-
-  app.post('/mcp', bearerAuth)
-
-  app.post('/mcp', async (req, res) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined as unknown as () => string,
-      enableJsonResponse: true,
-    })
-
-    res.on('close', () => {
-      transport.close()
-    })
-
-    // biome-ignore lint/style/noNonNullAssertion: auth is guaranteed by requireBearerAuth middleware
-    const authInfo = req.auth! as typeof req.auth & { userId?: string }
-    const mcpServer = createMcpServer(
-      authInfo,
-      mcpRuntime as Parameters<typeof createMcpServer>[1]
-    )
-    await mcpServer.connect(
-      transport as Parameters<typeof mcpServer.connect>[0]
-    )
-    await transport.handleRequest(req, res, req.body)
-  })
-
-  app.get('/mcp', bearerAuth)
-
-  app.get('/mcp', async (_req, res) => {
-    res
-      .status(405)
-      .json({ error: 'GET not supported. Use POST for MCP requests.' })
-  })
-
-  // ── Health Check ─────────────────────────────────────────────────
-
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'lily-mcp' })
-  })
-
-  // ── Error Handler ────────────────────────────────────────────────
-  //
-  // Catch the SendMagicLinkResponse thrown by the confirm handler
-  // and return a 200 with a success message.
-
-  app.use(
-    (
-      err: Error,
-      _req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      if (err instanceof SendMagicLinkResponse) {
-        res.status(200).json({ message: 'Magic link sent' })
-        return
-      }
-      next(err)
+    if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
+      return yield* HttpServerResponse.empty({ status: 401 }).pipe(
+        Effect.map((res) =>
+          res.pipe(
+            HttpServerResponse.setHeader(
+              'WWW-Authenticate',
+              `Bearer resource_metadata="${resourceMetadataUrl}"`
+            )
+          )
+        )
+      )
     }
-  )
 
-  // ── Start Server ─────────────────────────────────────────────────
-
-  app.listen(MCP_PORT, '0.0.0.0', () => {
-    console.log(`Lily MCP server running on port ${MCP_PORT}`)
-    console.log(
-      `  OAuth: ${MCP_SERVER_URL}/.well-known/oauth-authorization-server`
-    )
-    console.log(`  MCP:   ${MCP_SERVER_URL}/mcp`)
+    return yield* app
   })
-}
+)
+
+// ── Custom Routes (OAuth, consent, health) ─────────────────────────────
+
+const AppRoutes = OAuthRoutes.pipe(
+  HttpRouter.get('/consent', consentHandler),
+  HttpRouter.post('/confirm', confirmHandler),
+  HttpRouter.get('/verify', verifyHandler),
+  HttpRouter.get(
+    '/health',
+    Effect.succeed(
+      HttpServerResponse.unsafeJson({
+        status: 'ok',
+        service: 'lily-mcp',
+      })
+    )
+  ),
+  // MCP Streamable HTTP spec requires GET (SSE) and DELETE (session close)
+  // at the MCP endpoint. @effect/ai only registers POST, so we add stub
+  // handlers that return 405 to signal the method is not supported.
+  HttpRouter.get(
+    '/mcp',
+    Effect.succeed(HttpServerResponse.empty({ status: 405 }))
+  ),
+  HttpRouter.del(
+    '/mcp',
+    Effect.succeed(HttpServerResponse.empty({ status: 405 }))
+  )
+)
 
 /**
- * Custom error thrown to short-circuit authenticateHandler's getUser
- * callback after sending the magic link email. The Express error handler
- * catches this and returns a 200 (magic link sent) response.
+ * Register custom routes on the Default HttpRouter alongside MCP routes.
+ *
+ * McpServer.layerHttp handles /mcp internally on the Default router.
+ * This layer adds OAuth, consent, and health routes to the same router.
+ *
+ * The type assertion is needed because Service.concat constrains the argument
+ * to the same E/R as the Default router (DefaultServices). Our AppRoutes carry
+ * extra service requirements (OAuthService, RateLimiterService, etc.) that are
+ * provided at runtime via McpLive in the layer composition below.
  */
-class SendMagicLinkResponse extends Error {
-  constructor() {
-    super('Magic link sent — awaiting verification')
-    this.name = 'SendMagicLinkResponse'
-  }
-}
+const CustomRoutesLayer = HttpRouter.Default.use((router) =>
+  router.concat(AppRoutes as HttpRouter.HttpRouter)
+)
 
-main().catch((err) => {
-  console.error('Failed to start MCP server:', err)
-  process.exit(1)
-})
+// ── Server Layer ───────────────────────────────────────────────────────
+
+const ServerLayer = Layer.mergeAll(
+  // Register tools + resources with MCP server
+  McpServer.toolkit(PlantToolkit),
+  PlantResourceLayer,
+  CareScheduleResourceLayer,
+  // Register custom routes on Default router
+  CustomRoutesLayer,
+  // Serve the combined Default router with auth middleware
+  HttpRouter.Default.serve(mcpAuthMiddleware)
+).pipe(
+  // Provide tool handler implementations
+  Layer.provide(PlantToolkitHandlersLive),
+  // Provide MCP server with HTTP transport at /mcp
+  Layer.provide(
+    McpServer.layerHttp({
+      name: 'lily-plant-care',
+      version: '1.0.0',
+      path: '/mcp',
+    })
+  ),
+  // Provide all repositories, services, and DB layers
+  Layer.provide(McpLive),
+  // Provide the HTTP server
+  Layer.provide(
+    BunHttpServer.layer({
+      port: MCP_PORT,
+      hostname: '0.0.0.0',
+    })
+  )
+)
+
+// ── Launch ──────────────────────────────────────────────────────────────
+
+BunRuntime.runMain(
+  Layer.launch(ServerLayer).pipe(
+    Effect.tap(() =>
+      Effect.log(
+        `Lily MCP server running on port ${MCP_PORT}\n` +
+          `  OAuth: ${MCP_SERVER_URL}/.well-known/oauth-authorization-server\n` +
+          `  MCP:   ${MCP_SERVER_URL}/mcp`
+      )
+    )
+  )
+)

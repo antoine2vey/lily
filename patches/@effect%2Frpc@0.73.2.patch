@@ -1,0 +1,85 @@
+diff --git a/dist/esm/RpcSerialization.js b/dist/esm/RpcSerialization.js
+index a28fe2f..86fface 100644
+--- a/dist/esm/RpcSerialization.js
++++ b/dist/esm/RpcSerialization.js
+@@ -82,10 +82,11 @@ export const jsonRpc = options => RpcSerialization.of({
+       encode: response => {
+         if (Array.isArray(response)) {
+           if (response.length === 0) return undefined;
+-          return JSON.stringify(response.map(encodeJsonRpcMessage));
++          var items = response.map(encodeJsonRpcMessage);
++          return JSON.stringify(items.length === 1 ? items[0] : items);
+         }
+-        const encoded = encodeJsonRpcRaw(response, batches);
+-        return encoded && JSON.stringify(encoded);
++        var rpcEncoded = encodeJsonRpcRaw(response, batches);
++        return rpcEncoded && JSON.stringify(rpcEncoded);
+       }
+     };
+   }
+@@ -140,6 +141,31 @@ function decodeJsonRpcRaw(decoded, batches) {
+   }
+   return Array.isArray(decoded) ? decoded.map(decodeJsonRpcMessage) : [decodeJsonRpcMessage(decoded)];
+ }
++// Patch: Map to preserve original string JSON-RPC IDs through the
++// BigInt-based internal pipeline. @effect/rpc uses BigInt(id) internally
++// which crashes on non-numeric string IDs (e.g. "init_1") that clients
++// like Claude.ai send per the JSON-RPC 2.0 spec.
++var _stringIdCounter = 900000;
++var _originalIds = new Map();
++function _toNumericId(rawId) {
++  if (rawId == null) return "";
++  if (typeof rawId === "number") return String(rawId);
++  var str = String(rawId);
++  if (/^\d+$/.test(str)) return str;
++  var numId = String(_stringIdCounter++);
++  _originalIds.set(numId, rawId);
++  return numId;
++}
++function _restoreId(numericStr) {
++  if (numericStr == null) return undefined;
++  var str = String(numericStr);
++  var orig = _originalIds.get(str);
++  if (orig !== undefined) {
++    _originalIds.delete(str);
++    return orig;
++  }
++  return Number(str);
++}
+ function decodeJsonRpcMessage(decoded) {
+   if ("method" in decoded) {
+     if (!decoded.id && decoded.method.startsWith("@effect/rpc/")) {
+@@ -154,7 +180,7 @@ function decodeJsonRpcMessage(decoded) {
+     }
+     return {
+       _tag: "Request",
+-      id: decoded.id ? String(decoded.id) : "",
++      id: decoded.id ? _toNumericId(decoded.id) : "",
+       tag: decoded.method,
+       payload: decoded.params,
+       headers: decoded.headers ?? [],
+@@ -211,7 +237,7 @@ function encodeJsonRpcMessage(response) {
+         jsonrpc: "2.0",
+         method: response.tag,
+         params: response.payload,
+-        id: response.id && Number(response.id),
++        id: response.id && _restoreId(response.id),
+         headers: response.headers,
+         traceId: response.traceId,
+         spanId: response.spanId,
+@@ -233,13 +259,13 @@ function encodeJsonRpcMessage(response) {
+       return {
+         jsonrpc: "2.0",
+         chunk: true,
+-        id: Number(response.requestId),
++        id: _restoreId(response.requestId),
+         result: response.values
+       };
+     case "Exit":
+       return {
+         jsonrpc: "2.0",
+-        id: response.requestId ? Number(response.requestId) : undefined,
++        id: response.requestId ? _restoreId(response.requestId) : undefined,
+         result: response.exit._tag === "Success" ? response.exit.value : undefined,
+         error: response.exit._tag === "Failure" ? {
+           _tag: "Cause",

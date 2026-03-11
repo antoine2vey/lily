@@ -1,7 +1,6 @@
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import { Array, Effect, Match, Option, pipe, Struct } from 'effect'
 
 /**
  * Lists all plants for the authenticated user.
@@ -12,20 +11,20 @@ export const listPlantsEffect = (params: {
 }) =>
   Effect.gen(function* () {
     const plantRepo = yield* PlantRepository
-    const userRepo = yield* UserRepository
-    const { id: userId } = yield* CurrentUser
-
-    const user = yield* userRepo.findById(userId)
+    const currentUser = yield* CurrentUser
+    const userId = currentUser.id
     const timezone = pipe(
-      Option.fromNullable(user),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullable(currentUser.timezone),
       Option.getOrElse(() => 'UTC')
     )
 
     const result = yield* plantRepo.findAll({
       userId,
       timezone,
-      filter: params.filter ?? 'all',
+      filter: pipe(
+        Option.fromNullable(params.filter),
+        Option.getOrElse(() => 'all' as const)
+      ),
       limit: 100,
       includeCaretaking: true,
     })

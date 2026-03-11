@@ -1,43 +1,51 @@
-import type { SqlError } from '@effect/sql/SqlError'
+import { HttpServerRequest } from '@effect/platform'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import type { UserProfile } from '@lily/shared/auth'
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
-import { Effect, Option, pipe } from 'effect'
+import { Effect, String as EffectString, Option, pipe } from 'effect'
 
 /**
- * Resolves a full UserProfile from the OAuth AuthInfo attached to each request.
+ * Resolves the authenticated user from the bearer token in the HTTP request.
  *
- * The OAuth access token carries a userId (set during the authorize flow).
- * This function loads the full user record from the database and builds the
- * UserProfile object expected by CurrentUser — the same shape the API uses.
+ * Single source of truth for MCP auth resolution: extracts the bearer token
+ * from the Authorization header, validates it via OAuthService, fetches the
+ * user from the database, and builds a UserProfile.
+ *
+ * HttpServerRequest is accessed from the ambient fiber context — always present
+ * inside @effect/platform's HTTP server request-handling fiber. The type
+ * assertion removes it from R since it cannot propagate through layer
+ * composition but is guaranteed at runtime.
  */
-export const resolveCurrentUser = (
-  authInfo: AuthInfo & { userId?: string }
-): Effect.Effect<UserProfile, SqlError | Error, UserRepository> =>
-  Effect.gen(function* () {
-    const userRepo = yield* UserRepository
-    const userId = pipe(
-      Option.fromNullable(authInfo.userId),
-      Option.getOrElse(() => '')
-    )
+export const resolveAuthFromRequest = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest
+  const oauthService = yield* OAuthService
+  const userRepo = yield* UserRepository
 
-    if (!userId) {
-      return yield* Effect.fail(new Error('No userId in auth token'))
-    }
+  const authHeader = request.headers.authorization
+  if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
+    return yield* Effect.die(new Error('Authentication required'))
+  }
 
-    const user = yield* userRepo.findById(userId)
-    if (!user) {
-      return yield* Effect.fail(new Error('User not found'))
-    }
+  const token = pipe(authHeader, EffectString.slice(7))
+  const validation = yield* oauthService.validateBearerToken(token)
 
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      username: user.name ?? undefined,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      role: user.role,
-      status: user.status,
-    } satisfies UserProfile
-  }).pipe(Effect.withSpan('MCP.resolveCurrentUser'))
+  const user = yield* userRepo.findById(validation.userId)
+  if (!user) {
+    return yield* Effect.die(new Error('Authentication required'))
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    username: Option.getOrUndefined(Option.fromNullable(user.name)),
+    timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    role: user.role,
+    status: user.status,
+  } satisfies UserProfile
+}).pipe(
+  Effect.orDie,
+  Effect.withSpan('MCP.resolveAuthFromRequest')
+) as Effect.Effect<UserProfile, never, OAuthService | UserRepository>

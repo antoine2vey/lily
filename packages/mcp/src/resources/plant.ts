@@ -1,20 +1,15 @@
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
+import { formatIsoDate } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
 
 /**
  * MCP resource handler for plant://{plantId}
- * Returns full plant data as JSON.
+ * Accepts an already-fetched plant to avoid redundant DB queries
+ * (the caller verifies ownership via assertPlantAccess first).
  */
-export const readPlantResource = (plantId: string) =>
-  Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-    const plant = yield* plantRepo.findById(plantId)
-
-    if (!plant) {
-      return JSON.stringify({ error: 'Plant not found' })
-    }
-
-    return JSON.stringify(
+export const readPlantResource = (plant: PlantWithRoom) =>
+  Effect.sync(() =>
+    JSON.stringify(
       {
         id: plant.id,
         name: plant.name,
@@ -41,12 +36,12 @@ export const readPlantResource = (plantId: string) =>
         schedules: Array.map(plant.schedules, (s) => ({
           careType: s.careType,
           frequencyDays: s.frequencyDays,
-          lastCareAt: s.lastCareAt?.toISOString() ?? null,
-          nextCareAt: s.nextCareAt?.toISOString() ?? null,
+          lastCareAt: s.lastCareAt ? formatIsoDate(s.lastCareAt) : null,
+          nextCareAt: s.nextCareAt ? formatIsoDate(s.nextCareAt) : null,
         })),
-        dateAdded: plant.dateAdded.toISOString(),
+        dateAdded: formatIsoDate(plant.dateAdded),
       },
       null,
       2
     )
-  }).pipe(Effect.withSpan('MCP.readPlantResource'))
+  ).pipe(Effect.withSpan('MCP.readPlantResource'))

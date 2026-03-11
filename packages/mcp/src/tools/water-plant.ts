@@ -1,5 +1,5 @@
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { assertPlantAccess } from '@lily/mcp/auth/plant-access'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
 
@@ -9,13 +9,7 @@ import { Array, Effect, Option, pipe } from 'effect'
  */
 export const waterPlantEffect = (params: { plantId: string; notes?: string }) =>
   Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-
-    // Verify plant exists
-    const plant = yield* plantRepo.findById(params.plantId)
-    if (!plant) {
-      return 'Plant not found. Please check the plant ID.'
-    }
+    const plant = yield* assertPlantAccess(params.plantId)
 
     yield* createCareLog(params.plantId, {
       type: 'watering',
@@ -30,4 +24,9 @@ export const waterPlantEffect = (params: { plantId: string; notes?: string }) =>
     )
 
     return `Watered **${plant.name}** successfully! Next watering in ~${nextWatering}.`
-  }).pipe(Effect.withSpan('MCP.waterPlant'))
+  }).pipe(
+    Effect.catchTag('PlantNotFound', () =>
+      Effect.succeed('Plant not found. Please check the plant ID.')
+    ),
+    Effect.withSpan('MCP.waterPlant')
+  )

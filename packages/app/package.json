@@ -16,7 +16,7 @@
   "dependencies": {
     "@ai-sdk/react": "^3.0.0",
     "@callstack/liquid-glass": "^0.7.0",
-    "@effect/platform": "^0.90.0",
+    "@effect/platform": "^0.94.5",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@formatjs/intl-pluralrules": "^6.2.2",
@@ -32,7 +32,7 @@
     "@shopify/react-native-skia": "2.2.12",
     "@tanstack/react-query": "^5.81.5",
     "ai": "^6.0.0",
-    "effect": "^3.17.5",
+    "effect": "^3.19.19",
     "expo": "~54.0.32",
     "expo-blur": "~15.0.8",
     "expo-camera": "^17.0.10",

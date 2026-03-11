@@ -1,5 +1,5 @@
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
+import { assertPlantAccess } from '@lily/mcp/auth/plant-access'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
@@ -13,12 +13,7 @@ export const carePlantEffect = (params: {
   notes?: string
 }) =>
   Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-
-    const plant = yield* plantRepo.findById(params.plantId)
-    if (!plant) {
-      return 'Plant not found. Please check the plant ID.'
-    }
+    const plant = yield* assertPlantAccess(params.plantId)
 
     yield* createCareLog(params.plantId, {
       type: params.type,
@@ -41,4 +36,9 @@ export const carePlantEffect = (params: {
     )
 
     return `${careLabel} **${plant.name}** successfully! ${nextCare}`
-  }).pipe(Effect.withSpan('MCP.carePlant'))
+  }).pipe(
+    Effect.catchTag('PlantNotFound', () =>
+      Effect.succeed('Plant not found. Please check the plant ID.')
+    ),
+    Effect.withSpan('MCP.carePlant')
+  )
