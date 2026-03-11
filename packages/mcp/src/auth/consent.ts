@@ -1,4 +1,7 @@
-import type { Request, Response } from 'express'
+import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
+import { OAuthService } from '@lily/mcp/auth/oauth-service'
+import { MCP_SERVER_URL } from '@lily/mcp/config'
+import { Effect, Option, pipe } from 'effect'
 
 /**
  * Renders the consent/login page for MCP OAuth flow.
@@ -7,13 +10,33 @@ import type { Request, Response } from 'express'
  * redirects here. The page shows the requesting app's name and an email input
  * for magic link authentication. Query params from the OAuth flow are forwarded
  * to the confirm endpoint.
+ *
+ * The client_name is resolved from the database (not from the query string)
+ * to prevent identity spoofing via URL manipulation.
  */
-export const consentPageHandler = (req: Request, res: Response) => {
-  const qs = new URLSearchParams(req.query as Record<string, string>)
-  const clientName = qs.get('client_name') ?? 'MCP Client'
+export const consentHandler = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest
+  const oauthService = yield* OAuthService
+  const url = new URL(request.url, MCP_SERVER_URL)
+  const qs = url.searchParams
 
-  res.setHeader('Content-Type', 'text/html')
-  res.send(`<!DOCTYPE html>
+  // Resolve client_name from DB to prevent identity spoofing
+  const clientName = yield* pipe(
+    Option.fromNullable(qs.get('client_id')),
+    Option.match({
+      onNone: () => Effect.succeed('MCP Client'),
+      onSome: (id) =>
+        Effect.map(oauthService.getClient(id), (opt) =>
+          pipe(
+            opt,
+            Option.flatMap((c) => Option.fromNullable(c.client_name)),
+            Option.getOrElse(() => 'MCP Client')
+          )
+        ),
+    })
+  )
+
+  return HttpServerResponse.html(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -138,7 +161,7 @@ export const consentPageHandler = (req: Request, res: Response) => {
   </script>
 </body>
 </html>`)
-}
+})
 
 function escapeHtml(str: string): string {
   return str

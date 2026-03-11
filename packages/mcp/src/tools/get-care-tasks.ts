@@ -1,6 +1,6 @@
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
-import type { CareTask } from '@lily/shared'
-import { Array, Effect } from 'effect'
+import { type CareTask, formatIsoDate } from '@lily/shared'
+import { Array, Effect, pipe } from 'effect'
 
 /**
  * Returns care tasks grouped by overdue, today, and upcoming.
@@ -10,39 +10,34 @@ export const getCareTasksEffect = () =>
   Effect.gen(function* () {
     const tasks = yield* findCareTasks()
 
-    const formatTask = (task: CareTask) => {
-      const date = task.dueDate.toISOString().split('T')[0] ?? ''
-      return `- **${task.plantName}** — ${task.type} (due: ${date})`
-    }
+    const formatTask = (task: CareTask) =>
+      `- **${task.plantName}** — ${task.type} (due: ${formatIsoDate(task.dueDate, '')})`
 
-    const sections: string[] = []
+    const overdue = tasks.overdue as CareTask[]
+    const today = tasks.today as CareTask[]
+    const upcoming = tasks.upcoming as CareTask[]
 
-    const overdue = [...tasks.overdue]
-    const today = [...tasks.today]
-    const upcoming = [...tasks.upcoming]
-
-    if (Array.isNonEmptyArray(overdue)) {
-      sections.push(
-        `### Overdue (${overdue.length})`,
-        ...Array.map(overdue, formatTask)
-      )
-    }
-
-    if (Array.isNonEmptyArray(today)) {
-      sections.push(
-        '',
-        `### Today (${today.length})`,
-        ...Array.map(today, formatTask)
-      )
-    }
-
-    if (Array.isNonEmptyArray(upcoming)) {
-      sections.push(
-        '',
-        `### Upcoming (${upcoming.length})`,
-        ...Array.map(upcoming, formatTask)
-      )
-    }
+    const sections = pipe(
+      [
+        Array.isNonEmptyArray(overdue)
+          ? [
+              `### Overdue (${overdue.length})`,
+              ...Array.map(overdue, formatTask),
+            ]
+          : [],
+        Array.isNonEmptyArray(today)
+          ? ['', `### Today (${today.length})`, ...Array.map(today, formatTask)]
+          : [],
+        Array.isNonEmptyArray(upcoming)
+          ? [
+              '',
+              `### Upcoming (${upcoming.length})`,
+              ...Array.map(upcoming, formatTask),
+            ]
+          : [],
+      ],
+      Array.flatten
+    )
 
     if (Array.isEmptyArray(sections)) {
       return 'No care tasks pending. All your plants are taken care of!'
