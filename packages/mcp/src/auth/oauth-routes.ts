@@ -64,6 +64,25 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
     )
   ),
 
+  // ── MCP Discovery Metadata ───────────────────────────────────────
+  HttpRouter.get(
+    '/.well-known/mcp.json',
+    Effect.succeed(
+      HttpServerResponse.unsafeJson({
+        name: 'lily-plant-care',
+        version: '1.0.0',
+        protocol_version: '2025-03-26',
+        mcp_endpoint: `${MCP_SERVER_URL}/mcp`,
+        authentication: {
+          type: 'oauth2',
+          authorization_server: `${MCP_SERVER_URL}/.well-known/oauth-authorization-server`,
+          protected_resource: `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`,
+        },
+        capabilities: { tools: true, resources: true },
+      })
+    )
+  ),
+
   // ── Protected Resource Metadata ────────────────────────────────────
   HttpRouter.get(
     '/.well-known/oauth-protected-resource',
