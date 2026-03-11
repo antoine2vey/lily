@@ -28,11 +28,9 @@ describe('MCP config', () => {
   })
 
   describe('MCP_SERVER_URL', () => {
-    it('should default to localhost with port', async () => {
+    it('should throw when not set', async () => {
       delete process.env.MCP_SERVER_URL
-      delete process.env.MCP_PORT
-      const { MCP_SERVER_URL } = await import('@lily/mcp/config')
-      expect(MCP_SERVER_URL).toBe('http://localhost:3001')
+      await expect(import('@lily/mcp/config')).rejects.toThrow()
     })
 
     it('should use env value when set', async () => {

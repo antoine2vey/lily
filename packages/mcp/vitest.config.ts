@@ -7,5 +7,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/__tests__/**/*.test.ts'],
+    env: {
+      MCP_SERVER_URL: 'http://localhost:3001',
+    },
   },
 })
