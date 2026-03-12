@@ -1,0 +1,26 @@
+FROM oven/bun:1.3.8-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy package files first for better caching
+COPY package.json bun.lock ./
+COPY packages/mcp/package.json ./packages/mcp/
+COPY packages/db/package.json ./packages/db/
+COPY packages/shared/package.json ./packages/shared/
+
+RUN bun install --ignore-scripts
+
+# Copy tsconfig files for module resolution
+COPY tsconfig.json ./
+COPY packages/mcp/tsconfig.json ./packages/mcp/
+COPY packages/shared/tsconfig.json ./packages/shared/
+
+# Copy source code
+COPY packages/mcp/src ./packages/mcp/src
+COPY packages/db ./packages/db
+COPY packages/shared/src ./packages/shared/src
+
+EXPOSE 3001
+
+CMD ["bun", "run", "--cwd", "packages/mcp", "src/index.ts"]
