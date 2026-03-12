@@ -14,10 +14,10 @@ import { eq } from 'drizzle-orm'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 /**
- * Issues a service token (JWT) for a user identified by email or magic link code.
+ * Issues a service token (JWT) for an existing user identified via magic link code.
  *
- * Two modes:
- * - `{ magicLinkCode }`: Validates + consumes the magic link, resolves email, issues JWT
+ * Validates + consumes the magic link, resolves the email, and issues a JWT.
+ * Rejects unknown emails — only existing users can authenticate through MCP.
  *
  * This is the core of the MCP → API auth bridge: the MCP server calls this
  * after a user completes the OAuth consent flow to obtain an API JWT.
