@@ -1,4 +1,5 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
   RATE_LIMITS,
@@ -32,11 +33,12 @@ export const sendInternalMagicLink = (input: {
 }): Effect.Effect<
   { message: string },
   { message: string },
-  MagicLinkRepository | RateLimiterService
+  MagicLinkRepository | RateLimiterService | UserRepository
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
     const rateLimiter = yield* RateLimiterService
+    const userRepo = yield* UserRepository
 
     const normalizedEmail = pipe(
       input.email,
@@ -48,6 +50,12 @@ export const sendInternalMagicLink = (input: {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
       return yield* Effect.fail({ message: 'Invalid email format' })
+    }
+
+    // Reject unknown emails — only existing users can authenticate through MCP
+    const existingUser = yield* userRepo.findByEmail(normalizedEmail)
+    if (!existingUser) {
+      return yield* Effect.fail({ message: 'No account found for this email' })
     }
 
     // Rate limit
