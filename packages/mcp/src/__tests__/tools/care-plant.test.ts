@@ -1,13 +1,14 @@
-import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { CurrentJwt } from '@lily/mcp/api-client'
 import { carePlantEffect } from '@lily/mcp/tools/care-plant'
+import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const mockPlant = {
+const JWT = 'test-jwt'
+const JwtLayer = Layer.succeed(CurrentJwt, JWT)
+
+const mockPlant: Plant = {
   id: 'plant-1',
   name: 'Monstera',
   description: 'A tropical plant',
@@ -19,28 +20,41 @@ const mockPlant = {
   lightingRating: 3,
   petToxicityRating: 2,
   wateringRating: 3,
-  health: 'HEALTHY' as const,
-  userId: 'user-1',
-  roomId: null,
+  health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
+  userId: 'user-1',
+  roomId: null,
+  room: null,
+  ownership: 'owned',
+  ownerName: null,
+  schedules: [
+    {
+      careType: 'watering',
+      frequencyDays: 7,
+      lastCareAt: new Date('2024-01-01'),
+      nextCareAt: new Date('2024-01-08'),
+    },
+    {
+      careType: 'fertilization',
+      frequencyDays: 30,
+      lastCareAt: null,
+      nextCareAt: null,
+    },
+  ],
 }
 
 describe('carePlant MCP tool', () => {
-  const testLayer = Layer.mergeAll(
-    createMockCurrentUser({ id: 'user-1' }),
-    createMockPlantRepository({ plants: [mockPlant] }),
-    createMockCareLogRepository([]),
-    createMockEventBus(),
-    createMockNotificationRepository([])
+  const layer = Layer.merge(
+    createMockApiClient({ carePlant: () => Effect.succeed(mockPlant) }),
+    JwtLayer
   )
 
-  it('should return success message for watering', async () => {
+  it('should return "Watered" label for watering', async () => {
     const result = await Effect.runPromise(
-      carePlantEffect({
-        plantId: 'plant-1',
-        type: 'watering',
-      }).pipe(Effect.provide(testLayer))
+      carePlantEffect({ plantId: 'plant-1', type: 'watering' }).pipe(
+        Effect.provide(layer)
+      )
     )
 
     expect(result.text).toContain('Watered')
@@ -48,65 +62,15 @@ describe('carePlant MCP tool', () => {
     expect(result.text).toContain('successfully')
   })
 
-  it('should return success message for fertilization', async () => {
+  it('should return "Fertilized" label for fertilization', async () => {
     const result = await Effect.runPromise(
-      carePlantEffect({
-        plantId: 'plant-1',
-        type: 'fertilization',
-      }).pipe(Effect.provide(testLayer))
+      carePlantEffect({ plantId: 'plant-1', type: 'fertilization' }).pipe(
+        Effect.provide(layer)
+      )
     )
 
     expect(result.text).toContain('Fertilized')
     expect(result.text).toContain('Monstera')
     expect(result.text).toContain('successfully')
-  })
-
-  it('should accept optional notes', async () => {
-    const result = await Effect.runPromise(
-      carePlantEffect({
-        plantId: 'plant-1',
-        type: 'watering',
-        notes: 'Used filtered water',
-      }).pipe(Effect.provide(testLayer))
-    )
-
-    expect(result.text).toContain('Watered')
-    expect(result.text).toContain('Monstera')
-  })
-
-  it('should return not found for non-existent plant', async () => {
-    const result = await Effect.runPromise(
-      carePlantEffect({
-        plantId: 'nonexistent',
-        type: 'watering',
-      }).pipe(Effect.provide(testLayer))
-    )
-
-    expect(result.text).toContain('not found')
-  })
-
-  it('should return not found for other users plant', async () => {
-    const otherUsersPlant = {
-      ...mockPlant,
-      id: 'plant-other',
-      userId: 'user-2',
-    }
-
-    const layer = Layer.mergeAll(
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockPlantRepository({ plants: [otherUsersPlant] }),
-      createMockCareLogRepository([]),
-      createMockEventBus(),
-      createMockNotificationRepository([])
-    )
-
-    const result = await Effect.runPromise(
-      carePlantEffect({
-        plantId: 'plant-other',
-        type: 'fertilization',
-      }).pipe(Effect.provide(layer))
-    )
-
-    expect(result.text).toContain('not found')
   })
 })

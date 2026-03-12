@@ -1,7 +1,6 @@
 import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
-import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { OAuthService } from '@lily/mcp/auth/oauth-service'
+import { ApiClient } from '@lily/mcp/api-client'
+import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
 import { Array, Effect, String as EffectString, Option, pipe } from 'effect'
 
@@ -22,11 +21,19 @@ const errorHtml = (message: string) =>
  * Handles GET /verify — magic link callback.
  *
  * Called when the user clicks the magic link in their email.
- * Verifies the code, resolves the user, creates an authorization code
- * via OAuthService, and redirects back to the MCP client.
+ * The code in the URL is a magic link token created by the API server.
+ *
+ * Flow:
+ * 1. Calls ApiClient.issueServiceToken({ magicLinkCode }) to validate the
+ *    magic link and obtain an API JWT + user profile
+ * 2. Creates an OAuth authorization code (storing the API JWT temporarily)
+ * 3. Redirects back to the MCP client with the auth code
  */
 export const verifyHandler = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
+  const apiClient = yield* ApiClient
+  const oauthService = yield* OAuthService
+
   const url = new URL(request.url, MCP_SERVER_URL)
   const params = url.searchParams
 
@@ -35,27 +42,20 @@ export const verifyHandler = Effect.gen(function* () {
     return errorHtml('Missing verification code')
   }
 
-  const magicLinkRepo = yield* MagicLinkRepository
-  const userRepo = yield* UserRepository
-  const oauthService = yield* OAuthService
-
-  // Verify magic link
-  const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(code)
-  if (!magicLink) {
-    return errorHtml('Invalid or expired code')
-  }
-
-  const normalizedEmail = pipe(
-    magicLink.email,
-    EffectString.toLowerCase,
-    EffectString.trim
-  )
-
-  // Resolve user
-  const user = yield* userRepo.findByEmail(normalizedEmail)
-  if (!user) {
-    return errorHtml('No account found for this email')
-  }
+  // Validate magic link and get API JWT via the API server.
+  // issueServiceToken uses orDie internally, so invalid magic links
+  // surface as defects — catchAllDefect converts them to typed OAuthError.
+  const authResponse = yield* apiClient
+    .issueServiceToken({ magicLinkCode: code })
+    .pipe(
+      Effect.catchAllDefect(
+        () =>
+          new OAuthError({
+            error: 'invalid_code',
+            error_description: 'Invalid or expired code',
+          })
+      )
+    )
 
   // Validate required OAuth params
   const clientId = params.get('client_id')
@@ -102,15 +102,18 @@ export const verifyHandler = Effect.gen(function* () {
     Option.fromNullable(params.get('resource'))
   )
 
-  // Create authorization code
+  // Create authorization code — store API JWT temporarily so it can be
+  // transferred to the access token during code exchange
   const authCode = yield* oauthService.createAuthorizationCode({
     clientId,
-    userId: user.id,
+    userId: authResponse.user.id,
     redirectUri,
     codeChallenge,
     scopes,
     ...(state != null ? { state } : {}),
     ...(resource != null ? { resource } : {}),
+    apiJwt: authResponse.accessToken,
+    apiRefreshToken: authResponse.refreshToken,
   })
 
   // Redirect back to client with auth code
@@ -124,6 +127,9 @@ export const verifyHandler = Effect.gen(function* () {
     status: 302,
   })
 }).pipe(
+  Effect.catchTag('OAuthError', (err) =>
+    Effect.succeed(errorHtml(err.error_description))
+  ),
   Effect.catchTag('SqlError', () =>
     Effect.succeed(errorHtml('Authentication failed'))
   ),

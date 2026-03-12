@@ -6,13 +6,9 @@ import {
   OAuthRepository,
   type RefreshToken,
 } from '@lily/mcp/auth/oauth-repository'
-import {
-  OAuthError,
-  OAuthService,
-  OAuthServiceLive,
-} from '@lily/mcp/auth/oauth-service'
+import { OAuthService, OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
 import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 // ── In-memory repository mock ─────────────────────────────────────────
 

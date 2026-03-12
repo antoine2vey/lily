@@ -1,48 +1,55 @@
-import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
+import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { CurrentJwt } from '@lily/mcp/api-client'
 import { askPlantQuestionEffect } from '@lily/mcp/tools/ask-plant-question'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
+const JWT = 'test-jwt'
+const JwtLayer = Layer.succeed(CurrentJwt, JWT)
+
 describe('askPlantQuestion MCP tool', () => {
-  it('should return knowledge base content when chunks found', async () => {
-    const mockChunks = [
-      {
-        id: 'chunk-1',
-        content: 'Monstera plants prefer bright indirect light.',
-        source: 'plant-guide',
-        similarity: 0.95,
-      },
-      {
-        id: 'chunk-2',
-        content: 'Water your Monstera every 1-2 weeks.',
-        source: 'care-tips',
-        similarity: 0.88,
-      },
-    ]
-
-    const formattedContext =
-      'Monstera plants prefer bright indirect light.\nWater your Monstera every 1-2 weeks.'
-
-    const layer = Layer.succeed(
-      // The RagService mock needs to return formatted context
-      (await import('@lily/api/services/rag/service')).RagService,
-      {
-        retrieve: () => Effect.succeed(mockChunks),
-        formatContext: () => formattedContext,
-      } as never
+  it('should return knowledge with sources', async () => {
+    const layer = Layer.merge(
+      createMockApiClient({
+        queryKnowledge: () =>
+          Effect.succeed({
+            answer: 'Monstera plants prefer bright indirect light.',
+            sources: [
+              {
+                title: 'Plant Guide',
+                content: 'Monstera care tips',
+                similarity: 0.95,
+              },
+              {
+                title: 'Care Tips',
+                content: 'Water every 1-2 weeks',
+                similarity: 0.88,
+              },
+            ],
+          }),
+      }),
+      JwtLayer
     )
 
     const result = await Effect.runPromise(
-      askPlantQuestionEffect({ question: 'How to care for Monstera?' }).pipe(
-        Effect.provide(layer)
-      )
+      askPlantQuestionEffect({
+        question: 'How to care for Monstera?',
+      }).pipe(Effect.provide(layer))
     )
 
     expect(result).toContain('Monstera plants prefer bright indirect light')
+    expect(result).toContain('Sources')
+    expect(result).toContain('Plant Guide')
+    expect(result).toContain('95%')
   })
 
-  it('should return no results message when no chunks found', async () => {
-    const layer = createMockRagService({ chunks: [] })
+  it('should return "no info found" when sources empty', async () => {
+    const layer = Layer.merge(
+      createMockApiClient({
+        queryKnowledge: () => Effect.succeed({ answer: '', sources: [] }),
+      }),
+      JwtLayer
+    )
 
     const result = await Effect.runPromise(
       askPlantQuestionEffect({ question: 'obscure question' }).pipe(
@@ -51,30 +58,5 @@ describe('askPlantQuestion MCP tool', () => {
     )
 
     expect(result).toContain('No relevant information found')
-  })
-
-  it('should include plant name in query when provided', async () => {
-    let capturedQuery = ''
-
-    const layer = Layer.succeed(
-      (await import('@lily/api/services/rag/service')).RagService,
-      {
-        retrieve: (params: { query: string }) => {
-          capturedQuery = params.query
-          return Effect.succeed([])
-        },
-        formatContext: () => '',
-      } as never
-    )
-
-    await Effect.runPromise(
-      askPlantQuestionEffect({
-        question: 'How often to water?',
-        plantName: 'Monstera',
-      }).pipe(Effect.provide(layer))
-    )
-
-    expect(capturedQuery).toContain('Monstera')
-    expect(capturedQuery).toContain('How often to water?')
   })
 })

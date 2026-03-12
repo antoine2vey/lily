@@ -1,10 +1,9 @@
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { readPlantResource } from '@lily/mcp/resources/plant'
+import type { PlantDetail } from '@lily/shared/plant'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const basePlant: PlantWithRoom = {
+const basePlant: PlantDetail = {
   id: 'plant-1',
   name: 'Monstera Deliciosa',
   description: 'A beautiful tropical plant',
@@ -44,6 +43,7 @@ const basePlant: PlantWithRoom = {
       nextCareAt: null,
     },
   ],
+  photos: [],
 }
 
 describe('readPlantResource', () => {
@@ -66,13 +66,11 @@ describe('readPlantResource', () => {
     expect(parsed.room).toEqual({
       name: 'Living Room',
       icon: '🛋️',
-      luminosity: 4,
-      isOutdoor: false,
     })
   })
 
   it('should return null room when plant has no room', async () => {
-    const plantNoRoom: PlantWithRoom = {
+    const plantNoRoom: PlantDetail = {
       ...basePlant,
       roomId: null,
       room: null,
@@ -111,7 +109,6 @@ describe('readPlantResource', () => {
     const result = await Effect.runPromise(readPlantResource(basePlant))
     const parsed = JSON.parse(result)
 
-    // Fertilization schedule has no dates
     const fertSchedule = parsed.schedules[1]
     expect(fertSchedule.careType).toBe('fertilization')
     expect(fertSchedule.lastCareAt).toBeNull()

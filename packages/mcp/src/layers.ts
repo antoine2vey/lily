@@ -1,15 +1,6 @@
-import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
-import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
-import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { InMemoryEventBusLive } from '@lily/api/services/event-bus/memory.provider'
-import { RagService } from '@lily/api/services/rag/service'
-import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
+import { FetchHttpClient } from '@effect/platform'
 import { DrizzleLive, PgLive } from '@lily/db'
-import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
+import { ApiClientLive } from '@lily/mcp/api-client'
 import { OAuthRepositoryLive } from '@lily/mcp/auth/oauth-repository'
 import { OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
 import { Layer } from 'effect'
@@ -17,39 +8,28 @@ import { Layer } from 'effect'
 /**
  * Layer composition for the MCP server.
  *
- * Follows the same pattern as the API server but lighter:
- * - No HTTP API endpoints, no schedulers, no workers
- * - Uses InMemoryEventBus (fire-and-forget, no Redis)
- * - RagService for the ask_plant_question tool
- * - OAuthRepository + OAuthService for the OAuth 2.1 flow
- * - All repositories share the same PgDrizzle connection pool
+ * Dramatically simplified from the original — no @lily/api dependency.
+ * The MCP server is now a thin translation layer that makes HTTP calls
+ * to the API server via ApiClient.
+ *
+ * - OAuthRepository + OAuthService: OAuth 2.1 flow (stored in MCP's own tables)
+ * - ApiClient: HTTP client for all plant/care/knowledge operations
+ * - FetchHttpClient: provides the HttpClient for ApiClient
+ * - DrizzleLive + PgLive: database for OAuth tables only
  */
 
-const RepositoriesLive = Layer.mergeAll(
-  PlantRepositoryLive,
-  CareScheduleRepositoryLive,
-  CareLogRepositoryLive,
-  UserRepositoryLive,
-  NotificationRepositoryLive,
-  MagicLinkRepositoryLive,
-  ProcessedChunkRepositoryLive,
-  OAuthRepositoryLive
-)
+// OAuth infrastructure (MCP owns these tables)
+// OAuthServiceLive depends on OAuthRepository, so use provideMerge
+const OAuthLive = OAuthServiceLive.pipe(Layer.provideMerge(OAuthRepositoryLive))
 
-const ServicesLive = Layer.mergeAll(
-  RagService.Default,
-  InMemoryEventBusLive,
-  RateLimiterServiceLive,
-  OAuthServiceLive
-)
+// API client for all plant/care operations (replaces direct repository access)
+const ApiLive = ApiClientLive
 
-// Database layers — main DB + knowledge DB for RAG embeddings
+// Database layers — only for OAuth tables
 const DbLive = Layer.mergeAll(DrizzleLive, PgLive)
-const KnowledgeDbLive = KnowledgeDrizzleLive
 
-// Chain layers: services → repositories → databases
-export const McpLive = ServicesLive.pipe(
-  Layer.provideMerge(RepositoriesLive),
+// Chain layers: services → databases + HTTP client
+export const McpLive = Layer.mergeAll(OAuthLive, ApiLive).pipe(
   Layer.provideMerge(DbLive),
-  Layer.provideMerge(KnowledgeDbLive)
+  Layer.provideMerge(FetchHttpClient.layer)
 )

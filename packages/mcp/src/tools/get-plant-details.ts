@@ -1,6 +1,4 @@
-import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { assertPlantAccess } from '@lily/mcp/auth/plant-access'
+import { ApiClient } from '@lily/mcp/api-client'
 import { healthColor, healthLabel } from '@lily/mcp/widgets/health'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
@@ -8,23 +6,21 @@ import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 /**
  * Returns detailed information about a specific plant including
- * care schedules and recent care history.
+ * care schedules and recent care history, all fetched via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
 export const getPlantDetailsEffect = (params: { plantId: string }) =>
   Effect.gen(function* () {
-    const careLogRepo = yield* CareLogRepository
-    const currentUser = yield* CurrentUser
-    const timezone = pipe(
-      Option.fromNullable(currentUser.timezone),
-      Option.getOrElse(() => 'UTC')
-    )
-    const plant = yield* assertPlantAccess(params.plantId)
+    const apiClient = yield* ApiClient
 
-    const recentLogs = yield* careLogRepo.findByPlantId({
-      plantId: params.plantId,
-      limit: 5,
-    })
+    // Fetch plant details and recent care logs in parallel
+    const [plant, recentLogs] = yield* Effect.all(
+      [
+        apiClient.getPlant(params.plantId),
+        apiClient.getCareLogs(params.plantId, { limit: '5' }),
+      ],
+      { concurrency: 'unbounded' }
+    )
 
     const health = healthLabel(plant.health)
     const color = healthColor(plant.health)
@@ -113,7 +109,7 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
             Option.flatMap((d) => DateTime.make(d)),
             Option.match({
               onNone: () => false,
-              onSome: (dt) => isOverdue(dt) || isToday(dt, nowDt, timezone),
+              onSome: (dt) => isOverdue(dt) || isToday(dt, nowDt, 'UTC'),
             })
           )
       )
@@ -141,12 +137,4 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
       text: Array.join(sections, '\n'),
       plant: plantDetail,
     }
-  }).pipe(
-    Effect.catchTag('PlantNotFound', () =>
-      Effect.succeed({
-        text: 'Plant not found. Please check the plant ID.',
-        plant: null as PlantDetail | null,
-      })
-    ),
-    Effect.withSpan('MCP.getPlantDetails')
-  )
+  }).pipe(Effect.withSpan('MCP.getPlantDetails'))
