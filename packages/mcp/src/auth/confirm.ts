@@ -1,7 +1,7 @@
 import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
-import { Console, Effect } from 'effect'
+import { Cause, Console, Effect } from 'effect'
 
 /**
  * Handles POST /confirm — email submission for magic link auth.
@@ -47,10 +47,14 @@ export const confirmHandler = Effect.gen(function* () {
 
   return yield* HttpServerResponse.json({ message: 'Magic link sent' })
 }).pipe(
-  Effect.catchTag('RequestError', () =>
-    HttpServerResponse.json(
-      { error: 'Request failed. Please try again.' },
-      { status: 500 }
+  Effect.catchAllCause((cause) =>
+    Effect.flatMap(
+      Effect.log(`POST /confirm failed: ${Cause.pretty(cause)}`),
+      () =>
+        HttpServerResponse.json(
+          { error: 'Request failed. Please try again.' },
+          { status: 500 }
+        )
     )
   ),
   Effect.withSpan('MCP.confirm')
