@@ -39,10 +39,10 @@ describe('listPlants MCP tool', () => {
       listPlantsEffect({ filter: 'all' }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Your Plants')
-    expect(result).toContain('Monstera')
-    expect(result).toContain('[Healthy]')
-    expect(result).toContain('plant-1')
+    expect(result.text).toContain('Your Plants')
+    expect(result.text).toContain('Monstera')
+    expect(result.text).toContain('[Healthy]')
+    expect(result.text).toContain('plant-1')
   })
 
   it('should return friendly message when no plants', async () => {
@@ -56,6 +56,6 @@ describe('listPlants MCP tool', () => {
       listPlantsEffect({ filter: 'all' }).pipe(Effect.provide(emptyLayer))
     )
 
-    expect(result).toContain('no plants yet')
+    expect(result.text).toContain('no plants yet')
   })
 })

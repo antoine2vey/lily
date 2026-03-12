@@ -40,9 +40,9 @@ describe('waterPlant MCP tool', () => {
       waterPlantEffect({ plantId: 'plant-1' }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Watered')
-    expect(result).toContain('Monstera')
-    expect(result).toContain('successfully')
+    expect(result.text).toContain('Watered')
+    expect(result.text).toContain('Monstera')
+    expect(result.text).toContain('successfully')
   })
 
   it('should return not found for invalid plant ID', async () => {
@@ -52,7 +52,7 @@ describe('waterPlant MCP tool', () => {
       )
     )
 
-    expect(result).toContain('not found')
+    expect(result.text).toContain('not found')
   })
 
   it('should include notes when provided', async () => {
@@ -63,7 +63,7 @@ describe('waterPlant MCP tool', () => {
       }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Watered')
-    expect(result).toContain('Monstera')
+    expect(result.text).toContain('Watered')
+    expect(result.text).toContain('Monstera')
   })
 })

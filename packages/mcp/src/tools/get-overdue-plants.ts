@@ -1,11 +1,13 @@
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { toPlantSummary } from '@lily/mcp/widgets/mappers'
+import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
 
 /**
  * Returns plants that are overdue for care.
- * Uses the 'overdue' filter on the plant repository.
+ * Returns both markdown text and structured data for widget rendering.
  */
 export const getOverduePlantsEffect = () =>
   Effect.gen(function* () {
@@ -25,12 +27,19 @@ export const getOverduePlantsEffect = () =>
     })
 
     if (Array.isEmptyArray(result.items)) {
-      return 'No overdue plants! All your plants are on schedule.'
+      return {
+        text: 'No overdue plants! All your plants are on schedule.',
+        plants: [] as readonly PlantSummary[],
+      }
     }
 
-    const lines = Array.map(result.items, (plant) => {
+    // Map to { summary, line } pairs, then extract separately below
+    const mapped = Array.map(result.items, (plant) => {
+      const summary = toPlantSummary(plant)
+
+      const roomOpt = Option.fromNullable(plant.room)
       const room = pipe(
-        Option.fromNullable(plant.room),
+        roomOpt,
         Option.map((r) => ` (${r.icon} ${r.name})`),
         Option.getOrElse(() => '')
       )
@@ -48,8 +57,16 @@ export const getOverduePlantsEffect = () =>
         Array.join(', ')
       )
 
-      return `- **${plant.name}**${room}: ${scheduleInfo} (ID: ${plant.id})`
+      const line = `- **${plant.name}**${room}: ${scheduleInfo} (ID: ${plant.id})`
+
+      return { summary, line }
     })
 
-    return `## Overdue Plants (${result.items.length})\n\n${Array.join(lines, '\n')}`
+    const plants = Array.map(mapped, (m) => m.summary)
+    const lines = Array.map(mapped, (m) => m.line)
+
+    return {
+      text: `## Overdue Plants (${Array.length(result.items)})\n\n${Array.join(lines, '\n')}`,
+      plants,
+    }
   }).pipe(Effect.withSpan('MCP.getOverduePlants'))

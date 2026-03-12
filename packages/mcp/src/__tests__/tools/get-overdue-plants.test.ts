@@ -33,8 +33,8 @@ describe('getOverduePlants MCP tool', () => {
       getOverduePlantsEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('No overdue plants')
-    expect(result).toContain('on schedule')
+    expect(result.text).toContain('No overdue plants')
+    expect(result.text).toContain('on schedule')
   })
 
   it('should list overdue plants with schedule info', async () => {
@@ -81,9 +81,9 @@ describe('getOverduePlants MCP tool', () => {
       getOverduePlantsEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Overdue Plants')
-    expect(result).toContain('Thirsty Fern')
-    expect(result).toContain('plant-overdue-1')
+    expect(result.text).toContain('Overdue Plants')
+    expect(result.text).toContain('Thirsty Fern')
+    expect(result.text).toContain('plant-overdue-1')
   })
 
   it('should show plant count in heading', async () => {
@@ -148,7 +148,7 @@ describe('getOverduePlants MCP tool', () => {
       getOverduePlantsEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Overdue Plants (2)')
+    expect(result.text).toContain('Overdue Plants (2)')
   })
 
   it('should not show other users plants', async () => {
@@ -190,7 +190,7 @@ describe('getOverduePlants MCP tool', () => {
       getOverduePlantsEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('No overdue plants')
+    expect(result.text).toContain('No overdue plants')
   })
 
   it('should show room info when plant has a room', async () => {
@@ -244,6 +244,6 @@ describe('getOverduePlants MCP tool', () => {
       getOverduePlantsEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('🍳 Kitchen')
+    expect(result.text).toContain('🍳 Kitchen')
   })
 })

@@ -7,6 +7,7 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
 import {
+  Console,
   DateTime,
   Duration,
   Effect,
@@ -64,6 +65,14 @@ export const confirmHandler = Effect.gen(function* () {
   callbackUrl.searchParams.set('code', token)
   for (const [key, value] of oauthParams.entries()) {
     callbackUrl.searchParams.set(key, value)
+  }
+
+  // In development, dump the verify link to console for easy testing
+  if (process.env.NODE_ENV === 'development') {
+    yield* Console.log(`\n${'='.repeat(50)}`)
+    yield* Console.log('Verify link:')
+    yield* Console.log(callbackUrl.toString())
+    yield* Console.log(`${'='.repeat(50)}\n`)
   }
 
   // Send magic link email (log errors but don't fail the request)
