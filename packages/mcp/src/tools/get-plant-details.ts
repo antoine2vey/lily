@@ -1,15 +1,24 @@
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertPlantAccess } from '@lily/mcp/auth/plant-access'
-import { formatIsoDate } from '@lily/shared'
-import { Array, Effect, Match, Option, pipe } from 'effect'
+import { healthColor, healthLabel } from '@lily/mcp/widgets/health'
+import type { PlantDetail } from '@lily/mcp/widgets/schemas'
+import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
+import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
 /**
  * Returns detailed information about a specific plant including
  * care schedules and recent care history.
+ * Returns both markdown text and structured data for widget rendering.
  */
 export const getPlantDetailsEffect = (params: { plantId: string }) =>
   Effect.gen(function* () {
     const careLogRepo = yield* CareLogRepository
+    const currentUser = yield* CurrentUser
+    const timezone = pipe(
+      Option.fromNullable(currentUser.timezone),
+      Option.getOrElse(() => 'UTC')
+    )
     const plant = yield* assertPlantAccess(params.plantId)
 
     const recentLogs = yield* careLogRepo.findByPlantId({
@@ -17,35 +26,54 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
       limit: 5,
     })
 
-    const health = pipe(
-      Match.value(plant.health),
-      Match.when('THRIVING', () => 'Thriving'),
-      Match.when('HEALTHY', () => 'Healthy'),
-      Match.when('NEEDS_ATTENTION', () => 'Needs Attention'),
-      Match.when('SICK', () => 'Sick'),
-      Match.when('RECOVERING', () => 'Recovering'),
-      Match.exhaustive
-    )
+    const health = healthLabel(plant.health)
+    const color = healthColor(plant.health)
+    const roomOpt = Option.fromNullable(plant.room)
 
     const room = pipe(
-      Option.fromNullable(plant.room),
+      roomOpt,
       Option.map((r) => `${r.icon} ${r.name}`),
       Option.getOrElse(() => 'No room assigned')
     )
 
-    const scheduleLines = Array.map(plant.schedules, (s) => {
+    const category = pipe(
+      Option.fromNullable(plant.category),
+      Option.getOrElse(() => 'Unknown')
+    )
+
+    // Single pass: build both markdown + structured for schedules
+    const scheduleMapped = Array.map(plant.schedules, (s) => {
       const nextCare = formatIsoDate(s.nextCareAt, 'Not scheduled')
-      return `- **${s.careType}**: every ${s.frequencyDays} days (next: ${nextCare})`
+      return {
+        line: `- **${s.careType}**: every ${s.frequencyDays} days (next: ${nextCare})`,
+        structured: {
+          careType: s.careType,
+          frequencyDays: s.frequencyDays,
+          nextCareAt: Option.getOrNull(
+            Option.map(Option.fromNullable(s.nextCareAt), (d) =>
+              formatIsoDate(d)
+            )
+          ),
+        },
+      }
     })
 
-    const logLines = Array.map(recentLogs.items, (log) => {
+    // Single pass: build both markdown + structured for logs
+    const logMapped = Array.map(recentLogs.items, (log) => {
       const date = formatIsoDate(log.date)
       const notes = pipe(
         Option.fromNullable(log.notes),
         Option.map((n) => ` — ${n}`),
         Option.getOrElse(() => '')
       )
-      return `- ${date}: ${log.type}${notes}`
+      return {
+        line: `- ${date}: ${log.type}${notes}`,
+        structured: {
+          date,
+          type: log.type,
+          notes: Option.getOrNull(Option.fromNullable(log.notes)),
+        },
+      }
     })
 
     const sections = [
@@ -53,10 +81,7 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
       '',
       `- **Health**: ${health}`,
       `- **Room**: ${room}`,
-      `- **Category**: ${pipe(
-        Option.fromNullable(plant.category),
-        Option.getOrElse(() => 'Unknown')
-      )}`,
+      `- **Category**: ${category}`,
       `- **Added**: ${formatIsoDate(plant.dateAdded)}`,
       '',
       '### Care Ratings',
@@ -66,18 +91,62 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
       `- Pet toxicity: ${plant.petToxicityRating}/5`,
     ]
 
+    const scheduleLines = Array.map(scheduleMapped, (m) => m.line)
     if (Array.isNonEmptyArray(scheduleLines)) {
       sections.push('', '### Care Schedule', ...scheduleLines)
     }
 
+    const logLines = Array.map(logMapped, (m) => m.line)
     if (Array.isNonEmptyArray(logLines)) {
       sections.push('', '### Recent Care History', ...logLines)
     }
 
-    return Array.join(sections, '\n')
+    // Check if a care type is due (today or overdue)
+    const nowDt = DateTime.unsafeNow()
+    const isCareTypeDue = (careType: string) =>
+      Array.some(
+        plant.schedules,
+        (s) =>
+          s.careType === careType &&
+          pipe(
+            Option.fromNullable(s.nextCareAt),
+            Option.flatMap((d) => DateTime.make(d)),
+            Option.match({
+              onNone: () => false,
+              onSome: (dt) => isOverdue(dt) || isToday(dt, nowDt, timezone),
+            })
+          )
+      )
+
+    const plantDetail: PlantDetail = {
+      id: plant.id,
+      name: plant.name,
+      healthLabel: health,
+      healthColor: color,
+      category: Option.getOrNull(Option.fromNullable(plant.category)),
+      roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
+      roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),
+      dateAdded: formatIsoDate(plant.dateAdded),
+      wateringRating: plant.wateringRating,
+      lightingRating: plant.lightingRating,
+      humidityRating: plant.humidityRating,
+      petToxicityRating: plant.petToxicityRating,
+      schedules: Array.map(scheduleMapped, (m) => m.structured),
+      needsWatering: isCareTypeDue('watering'),
+      needsFertilizing: isCareTypeDue('fertilization'),
+      recentCare: Array.map(logMapped, (m) => m.structured),
+    }
+
+    return {
+      text: Array.join(sections, '\n'),
+      plant: plantDetail,
+    }
   }).pipe(
     Effect.catchTag('PlantNotFound', () =>
-      Effect.succeed('Plant not found. Please check the plant ID.')
+      Effect.succeed({
+        text: 'Plant not found. Please check the plant ID.',
+        plant: null as PlantDetail | null,
+      })
     ),
     Effect.withSpan('MCP.getPlantDetails')
   )

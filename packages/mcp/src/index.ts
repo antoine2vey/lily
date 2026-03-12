@@ -16,8 +16,13 @@ import {
   CareScheduleResourceLayer,
   PlantResourceLayer,
 } from '@lily/mcp/resources/layers'
-import { PlantToolkit } from '@lily/mcp/tools/definitions'
-import { PlantToolkitHandlersLive } from '@lily/mcp/tools/handlers'
+import { TextToolkit } from '@lily/mcp/tools/definitions'
+import {
+  TextToolkitHandlersLive,
+  WidgetToolsLayer,
+} from '@lily/mcp/tools/handlers'
+import { WidgetResourcesLayer } from '@lily/mcp/widgets/resources'
+import { toolMetaMiddleware } from '@lily/mcp/widgets/tool-meta-middleware'
 import { Array, Effect, String as EffectString, Layer, pipe } from 'effect'
 
 // ── MCP Auth Middleware ────────────────────────────────────────────────
@@ -113,19 +118,55 @@ const CustomRoutesLayer = HttpRouter.Default.use((router) =>
 
 // ── Server Layer ───────────────────────────────────────────────────────
 
+/**
+ * After a client connects and initializes, send `notifications/tools/list_changed`
+ * to force ChatGPT to re-fetch `tools/list` with our injected `_meta`.
+ *
+ * Without this, ChatGPT caches tool definitions from previous sessions and
+ * never sees the `_meta.ui.resourceUri` needed for widget rendering.
+ */
+const ToolsListChangedOnConnectLayer = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    const server = yield* McpServer.McpServer
+    yield* Effect.gen(function* () {
+      // Wait until a client connects
+      while (server.initializedClients.size === 0) {
+        yield* Effect.sleep('100 millis')
+      }
+      // Give client time to send notifications/initialized
+      yield* Effect.sleep('500 millis')
+      yield* server.notifications['notifications/tools/list_changed']({})
+      yield* Effect.log(
+        '[notify] sent tools/list_changed to force ChatGPT refetch'
+      )
+    }).pipe(Effect.forkScoped)
+  })
+)
+
 const ServerLayer = Layer.mergeAll(
-  // Register tools + resources with MCP server
-  McpServer.toolkit(PlantToolkit),
+  // Register text-only tools via toolkit (ask_plant_question)
+  McpServer.toolkit(TextToolkit),
+  // Register widget-enabled tools via addTool (list_plants, etc.)
+  Layer.effectDiscard(WidgetToolsLayer),
+  // Register plant/care-schedule data resources
   PlantResourceLayer,
   CareScheduleResourceLayer,
+  // Register HTML widget template resources for ChatGPT rendering
+  WidgetResourcesLayer,
   // Register custom routes on Default router
   CustomRoutesLayer,
-  // Serve the combined Default router with auth + CORS middleware
-  // CORS wraps outside auth so CORS headers appear on 401 responses too
-  HttpRouter.Default.serve((app) => corsMiddleware(mcpAuthMiddleware(app)))
+  // Force ChatGPT to refetch tools/list after connecting
+  ToolsListChangedOnConnectLayer,
+  // Serve the combined Default router with middleware stack:
+  // CORS → tool-meta injection → auth check
+  // CORS wraps outside so CORS headers appear on 401 responses
+  // tool-meta injects _meta.ui.resourceUri on tools/list responses
+  HttpRouter.Default.serve((app) =>
+    corsMiddleware(toolMetaMiddleware(mcpAuthMiddleware(app)))
+  )
 ).pipe(
-  // Provide tool handler implementations
-  Layer.provide(PlantToolkitHandlersLive),
+  // Provide text toolkit handler implementations
+  Layer.provide(TextToolkitHandlersLive),
   // Provide MCP server with HTTP transport at /mcp
   Layer.provide(
     McpServer.layerHttp({

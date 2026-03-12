@@ -36,7 +36,7 @@ describe('getCareTasks MCP tool', () => {
       getCareTasksEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('No care tasks pending')
+    expect(result.text).toContain('No care tasks pending')
   })
 
   it('should show overdue tasks', async () => {
@@ -84,8 +84,8 @@ describe('getCareTasks MCP tool', () => {
       getCareTasksEffect().pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Care Tasks')
-    expect(result).toContain('Overdue')
-    expect(result).toContain('Overdue Fern')
+    expect(result.text).toContain('Care Tasks')
+    expect(result.text).toContain('Overdue')
+    expect(result.text).toContain('Overdue Fern')
   })
 })

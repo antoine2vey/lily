@@ -43,9 +43,9 @@ describe('carePlant MCP tool', () => {
       }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Watered')
-    expect(result).toContain('Monstera')
-    expect(result).toContain('successfully')
+    expect(result.text).toContain('Watered')
+    expect(result.text).toContain('Monstera')
+    expect(result.text).toContain('successfully')
   })
 
   it('should return success message for fertilization', async () => {
@@ -56,9 +56,9 @@ describe('carePlant MCP tool', () => {
       }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Fertilized')
-    expect(result).toContain('Monstera')
-    expect(result).toContain('successfully')
+    expect(result.text).toContain('Fertilized')
+    expect(result.text).toContain('Monstera')
+    expect(result.text).toContain('successfully')
   })
 
   it('should accept optional notes', async () => {
@@ -70,8 +70,8 @@ describe('carePlant MCP tool', () => {
       }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('Watered')
-    expect(result).toContain('Monstera')
+    expect(result.text).toContain('Watered')
+    expect(result.text).toContain('Monstera')
   })
 
   it('should return not found for non-existent plant', async () => {
@@ -82,7 +82,7 @@ describe('carePlant MCP tool', () => {
       }).pipe(Effect.provide(testLayer))
     )
 
-    expect(result).toContain('not found')
+    expect(result.text).toContain('not found')
   })
 
   it('should return not found for other users plant', async () => {
@@ -107,6 +107,6 @@ describe('carePlant MCP tool', () => {
       }).pipe(Effect.provide(layer))
     )
 
-    expect(result).toContain('not found')
+    expect(result.text).toContain('not found')
   })
 })

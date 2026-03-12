@@ -48,10 +48,10 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('## Monstera Deliciosa')
-    expect(result).toContain('**Health**: Healthy')
-    expect(result).toContain('**Category**: tropical')
-    expect(result).toContain('**Added**: 2024-01-01')
+    expect(result.text).toContain('## Monstera Deliciosa')
+    expect(result.text).toContain('**Health**: Healthy')
+    expect(result.text).toContain('**Category**: tropical')
+    expect(result.text).toContain('**Added**: 2024-01-01')
   })
 
   it('should include care ratings', async () => {
@@ -61,10 +61,10 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('Water needs: 3/5')
-    expect(result).toContain('Light needs: 3/5')
-    expect(result).toContain('Humidity needs: 4/5')
-    expect(result).toContain('Pet toxicity: 2/5')
+    expect(result.text).toContain('Water needs: 3/5')
+    expect(result.text).toContain('Light needs: 3/5')
+    expect(result.text).toContain('Humidity needs: 4/5')
+    expect(result.text).toContain('Pet toxicity: 2/5')
   })
 
   it('should include recent care history', async () => {
@@ -74,9 +74,9 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('Recent Care History')
-    expect(result).toContain('watering')
-    expect(result).toContain('Watered thoroughly')
+    expect(result.text).toContain('Recent Care History')
+    expect(result.text).toContain('watering')
+    expect(result.text).toContain('Watered thoroughly')
   })
 
   it('should show "No room assigned" when plant has no room', async () => {
@@ -86,7 +86,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('No room assigned')
+    expect(result.text).toContain('No room assigned')
   })
 
   it('should show room info when plant has a room', async () => {
@@ -119,7 +119,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('🛋️ Living Room')
+    expect(result.text).toContain('🛋️ Living Room')
   })
 
   it('should handle all health statuses', async () => {
@@ -129,7 +129,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('Needs Attention')
+    expect(result.text).toContain('Needs Attention')
   })
 
   it('should show "Unknown" for null category', async () => {
@@ -139,7 +139,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('**Category**: Unknown')
+    expect(result.text).toContain('**Category**: Unknown')
   })
 
   it('should return not found for non-existent plant', async () => {
@@ -149,7 +149,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('not found')
+    expect(result.text).toContain('not found')
   })
 
   it('should return not found for other users plant', async () => {
@@ -171,7 +171,7 @@ describe('getPlantDetails MCP tool', () => {
       )
     )
 
-    expect(result).toContain('not found')
+    expect(result.text).toContain('not found')
   })
 
   it('should show care history without notes gracefully', async () => {
@@ -198,8 +198,8 @@ describe('getPlantDetails MCP tool', () => {
       getPlantDetailsEffect({ plantId: 'plant-1' }).pipe(Effect.provide(layer))
     )
 
-    expect(result).toContain('2024-01-05: watering')
+    expect(result.text).toContain('2024-01-05: watering')
     // No trailing " — " when no notes
-    expect(result).not.toContain('— ')
+    expect(result.text).not.toContain('— ')
   })
 })
