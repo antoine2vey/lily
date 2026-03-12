@@ -48,16 +48,7 @@ export const issueServiceToken = (input: {
       Option.fromNullable(existingUser),
       Option.match({
         onNone: () =>
-          Effect.gen(function* () {
-            const created = yield* db
-              .insert(users)
-              .values({
-                email,
-                emailVerified: true,
-              })
-              .returning()
-            return pipe(created, Array.head, Option.getOrNull)
-          }),
+          Effect.fail({ message: 'No account found for this email' }),
         onSome: (existing) =>
           Effect.gen(function* () {
             if (existing.emailVerified) return existing
@@ -79,10 +70,6 @@ export const issueServiceToken = (input: {
           }),
       })
     )
-
-    if (!user) {
-      return yield* Effect.fail({ message: 'Failed to create user' })
-    }
 
     if (user.status !== 'active') {
       return yield* Effect.fail({ message: `Account is ${user.status}` })
