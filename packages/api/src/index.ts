@@ -36,6 +36,8 @@ import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { startEngagementScheduler } from '@lily/api/services/engagement-scheduler/scheduler'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
+import { InternalApiLive } from '@lily/api/services/internal/handlers'
+import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
 import { startKnowledgeIngestionWorker } from '@lily/api/services/knowledge-ingestion/worker'
 import {
@@ -216,28 +218,39 @@ const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   Layer.provide(KnowledgeDrizzleLive)
 )
 
+// Group API handler layers to stay under pipe's 20-argument overload limit
+const CoreApiHandlers = Layer.mergeAll(
+  AchievementsApiLive(Api),
+  AdminApiLive(Api),
+  AIChatApiLive(Api),
+  AuthApiLive(Api),
+  CareLogsApiLive(Api),
+  CareTasksApiLive(Api),
+  DiagnosisApiLive(Api),
+  DeviceTokensApiLive(Api),
+  HealthApiLive(Api),
+  NotificationsApiLive(Api),
+  PlantsApiLive(Api),
+  RoomsApiLive(Api),
+  DelegationApiLive(Api),
+  SocialApiLive(Api),
+  SubscriptionsApiLive(Api),
+  SubscriptionWebhooksApiLive(Api),
+  UsernameApiLive(Api),
+  UsersApiLive(Api),
+  WeatherApiLive(Api),
+  KnowledgeIngestionApiLive(Api)
+)
+
+const ExtensionApiHandlers = Layer.mergeAll(
+  InternalApiLive(Api),
+  KnowledgeApiLive(Api)
+)
+
 // Provide the implementation for all APIs
 const ApiLive = HttpApiBuilder.api(Api).pipe(
-  Layer.provide(AchievementsApiLive(Api)),
-  Layer.provide(AdminApiLive(Api)),
-  Layer.provide(AIChatApiLive(Api)),
-  Layer.provide(AuthApiLive(Api)),
-  Layer.provide(CareLogsApiLive(Api)),
-  Layer.provide(CareTasksApiLive(Api)),
-  Layer.provide(DiagnosisApiLive(Api)),
-  Layer.provide(DeviceTokensApiLive(Api)),
-  Layer.provide(HealthApiLive(Api)),
-  Layer.provide(NotificationsApiLive(Api)),
-  Layer.provide(PlantsApiLive(Api)),
-  Layer.provide(RoomsApiLive(Api)),
-  Layer.provide(DelegationApiLive(Api)),
-  Layer.provide(SocialApiLive(Api)),
-  Layer.provide(SubscriptionsApiLive(Api)),
-  Layer.provide(SubscriptionWebhooksApiLive(Api)),
-  Layer.provide(UsernameApiLive(Api)),
-  Layer.provide(UsersApiLive(Api)),
-  Layer.provide(WeatherApiLive(Api)),
-  Layer.provide(KnowledgeIngestionApiLive(Api))
+  Layer.provide(CoreApiHandlers),
+  Layer.provide(ExtensionApiHandlers)
 )
 
 // Set up the server using BunHttpServer on port 3000

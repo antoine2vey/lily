@@ -1,13 +1,12 @@
-import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { formatIsoDate } from '@lily/shared'
+import type { PlantDetail } from '@lily/shared/plant'
 import { Array, Effect, Option, pipe } from 'effect'
 
 /**
  * MCP resource handler for plant://{plantId}
- * Accepts an already-fetched plant to avoid redundant DB queries
- * (the caller verifies ownership via assertPlantAccess first).
+ * Converts an API PlantDetail into a JSON string for the resource response.
  */
-export const readPlantResource = (plant: PlantWithRoom) =>
+export const readPlantResource = (plant: PlantDetail) =>
   Effect.sync(() =>
     JSON.stringify(
       {
@@ -22,8 +21,6 @@ export const readPlantResource = (plant: PlantWithRoom) =>
           Option.map((r) => ({
             name: r.name,
             icon: r.icon,
-            luminosity: r.luminosity,
-            isOutdoor: r.isOutdoor,
           })),
           Option.getOrNull
         ),

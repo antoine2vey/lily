@@ -53,6 +53,8 @@ export interface IOAuthService {
     readonly scopes: readonly string[]
     readonly state?: string
     readonly resource?: string
+    readonly apiJwt?: string
+    readonly apiRefreshToken?: string
   }) => Effect.Effect<string, SqlError>
 
   /** Exchange an authorization code for access + refresh tokens */
@@ -92,11 +94,14 @@ export interface IOAuthService {
     readonly token_type_hint?: 'access_token' | 'refresh_token'
   }) => Effect.Effect<void, SqlError>
 
-  /** Validate a bearer token. Returns userId + scopes if valid */
-  readonly validateBearerToken: (
-    token: string
-  ) => Effect.Effect<
-    { readonly userId: string; readonly scopes: readonly string[] },
+  /** Validate a bearer token. Returns userId, scopes, and API JWT if present */
+  readonly validateBearerToken: (token: string) => Effect.Effect<
+    {
+      readonly userId: string
+      readonly scopes: readonly string[]
+      readonly apiJwt?: string | undefined
+      readonly apiRefreshToken?: string | undefined
+    },
     OAuthError | SqlError
   >
 }
@@ -170,6 +175,10 @@ export const OAuthServiceLive = Layer.effect(
             expiresAt,
             ...(params.state != null ? { state: params.state } : {}),
             ...(params.resource != null ? { resource: params.resource } : {}),
+            ...(params.apiJwt != null ? { apiJwt: params.apiJwt } : {}),
+            ...(params.apiRefreshToken != null
+              ? { apiRefreshToken: params.apiRefreshToken }
+              : {}),
           })
 
           return code
@@ -254,6 +263,10 @@ export const OAuthServiceLive = Layer.effect(
             expiresAt: accessExpiresAt,
             ...(authCode.resource != null
               ? { resource: authCode.resource }
+              : {}),
+            ...(authCode.apiJwt != null ? { apiJwt: authCode.apiJwt } : {}),
+            ...(authCode.apiRefreshToken != null
+              ? { apiRefreshToken: authCode.apiRefreshToken }
               : {}),
           }
 
@@ -430,6 +443,12 @@ export const OAuthServiceLive = Layer.effect(
           return {
             userId: accessToken.userId,
             scopes: accessToken.scopes,
+            ...(accessToken.apiJwt != null
+              ? { apiJwt: accessToken.apiJwt }
+              : {}),
+            ...(accessToken.apiRefreshToken != null
+              ? { apiRefreshToken: accessToken.apiRefreshToken }
+              : {}),
           }
         }).pipe(Effect.withSpan('OAuthService.validateBearerToken')),
     }

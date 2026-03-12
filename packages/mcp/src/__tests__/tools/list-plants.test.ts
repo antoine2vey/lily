@@ -1,12 +1,14 @@
-import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { CurrentJwt } from '@lily/mcp/api-client'
 import { listPlantsEffect } from '@lily/mcp/tools/list-plants'
+import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const mockPlant = {
+const JWT = 'test-jwt'
+const JwtLayer = Layer.succeed(CurrentJwt, JWT)
+
+const mockPlant: Plant = {
   id: 'plant-1',
   name: 'Monstera',
   description: 'A tropical plant',
@@ -18,25 +20,34 @@ const mockPlant = {
   lightingRating: 3,
   petToxicityRating: 2,
   wateringRating: 3,
-  health: 'HEALTHY' as const,
-  userId: 'user-1',
-  roomId: null,
+  health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
+  userId: 'user-1',
+  roomId: null,
+  room: null,
+  ownership: 'owned',
+  ownerName: null,
+  schedules: [],
 }
 
 describe('listPlants MCP tool', () => {
-  const testLayer = Layer.mergeAll(
-    createMockCurrentUser({ id: 'user-1' }),
-    createMockUserRepository([mockUser1]),
-    createMockPlantRepository({
-      plants: [mockPlant],
-    })
-  )
-
   it('should return markdown list of plants', async () => {
+    const layer = createMockApiClient({
+      listPlants: (_params) =>
+        Effect.succeed({
+          items: [mockPlant],
+          hasMore: false,
+          total: 1,
+          page: 1,
+          limit: 100,
+        }),
+    })
+
     const result = await Effect.runPromise(
-      listPlantsEffect({ filter: 'all' }).pipe(Effect.provide(testLayer))
+      listPlantsEffect({ filter: 'all' }).pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
     )
 
     expect(result.text).toContain('Your Plants')
@@ -46,14 +57,12 @@ describe('listPlants MCP tool', () => {
   })
 
   it('should return friendly message when no plants', async () => {
-    const emptyLayer = Layer.mergeAll(
-      createMockCurrentUser({ id: 'user-1' }),
-      createMockUserRepository([mockUser1]),
-      createMockPlantRepository({ plants: [] })
-    )
+    const layer = createMockApiClient()
 
     const result = await Effect.runPromise(
-      listPlantsEffect({ filter: 'all' }).pipe(Effect.provide(emptyLayer))
+      listPlantsEffect({ filter: 'all' }).pipe(
+        Effect.provide(Layer.merge(layer, JwtLayer))
+      )
     )
 
     expect(result.text).toContain('no plants yet')

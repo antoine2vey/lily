@@ -1,13 +1,14 @@
-import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
-import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
-import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
-import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
+import { CurrentJwt } from '@lily/mcp/api-client'
 import { waterPlantEffect } from '@lily/mcp/tools/water-plant'
+import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const mockPlant = {
+const JWT = 'test-jwt'
+const JwtLayer = Layer.succeed(CurrentJwt, JWT)
+
+const mockPlant: Plant = {
   id: 'plant-1',
   name: 'Monstera',
   description: 'A tropical plant',
@@ -19,25 +20,33 @@ const mockPlant = {
   lightingRating: 3,
   petToxicityRating: 2,
   wateringRating: 3,
-  health: 'HEALTHY' as const,
-  userId: 'user-1',
-  roomId: null,
+  health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
+  userId: 'user-1',
+  roomId: null,
+  room: null,
+  ownership: 'owned',
+  ownerName: null,
+  schedules: [
+    {
+      careType: 'watering',
+      frequencyDays: 7,
+      lastCareAt: new Date('2024-01-01'),
+      nextCareAt: new Date('2024-01-08'),
+    },
+  ],
 }
 
 describe('waterPlant MCP tool', () => {
-  const testLayer = Layer.mergeAll(
-    createMockCurrentUser({ id: 'user-1' }),
-    createMockPlantRepository({ plants: [mockPlant] }),
-    createMockCareLogRepository([]),
-    createMockEventBus(),
-    createMockNotificationRepository([])
+  const layer = Layer.merge(
+    createMockApiClient({ waterPlant: () => Effect.succeed(mockPlant) }),
+    JwtLayer
   )
 
   it('should return success message when plant is watered', async () => {
     const result = await Effect.runPromise(
-      waterPlantEffect({ plantId: 'plant-1' }).pipe(Effect.provide(testLayer))
+      waterPlantEffect({ plantId: 'plant-1' }).pipe(Effect.provide(layer))
     )
 
     expect(result.text).toContain('Watered')
@@ -45,25 +54,12 @@ describe('waterPlant MCP tool', () => {
     expect(result.text).toContain('successfully')
   })
 
-  it('should return not found for invalid plant ID', async () => {
+  it('should include next watering estimate from schedule', async () => {
     const result = await Effect.runPromise(
-      waterPlantEffect({ plantId: 'nonexistent' }).pipe(
-        Effect.provide(testLayer)
-      )
+      waterPlantEffect({ plantId: 'plant-1' }).pipe(Effect.provide(layer))
     )
 
-    expect(result.text).toContain('not found')
-  })
-
-  it('should include notes when provided', async () => {
-    const result = await Effect.runPromise(
-      waterPlantEffect({
-        plantId: 'plant-1',
-        notes: 'Used filtered water',
-      }).pipe(Effect.provide(testLayer))
-    )
-
-    expect(result.text).toContain('Watered')
-    expect(result.text).toContain('Monstera')
+    expect(result.text).toContain('7 days')
+    expect(result.feedback.nextCareEstimate).toBe('7 days')
   })
 })

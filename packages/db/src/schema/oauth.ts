@@ -29,6 +29,8 @@ export const oauthClients = pgTable('oauth_clients', {
 
 /**
  * OAuth access tokens — short-lived tokens for MCP requests.
+ * apiJwt/apiRefreshToken store the API server JWT obtained during auth,
+ * enabling the MCP server to make authenticated API calls on behalf of the user.
  */
 export const oauthAccessTokens = pgTable('oauth_access_tokens', {
   token: text('token').primaryKey(),
@@ -40,6 +42,8 @@ export const oauthAccessTokens = pgTable('oauth_access_tokens', {
     .references(() => users.id, { onDelete: 'cascade' }),
   scopes: text('scopes').array().notNull(),
   resource: text('resource'),
+  apiJwt: text('api_jwt'),
+  apiRefreshToken: text('api_refresh_token'),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -80,6 +84,8 @@ export const oauthAuthorizationCodes = pgTable('oauth_authorization_codes', {
   scopes: text('scopes').array().notNull(),
   state: text('state'),
   resource: text('resource'),
+  apiJwt: text('api_jwt'),
+  apiRefreshToken: text('api_refresh_token'),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()

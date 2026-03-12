@@ -1,14 +1,15 @@
-import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
+import { ApiClient } from '@lily/mcp/api-client'
 import type { CareTask } from '@lily/shared'
 import { Array, Effect } from 'effect'
 
 /**
  * MCP resource handler for care-schedule://today
- * Returns today's care tasks as JSON.
+ * Fetches care tasks from the API and returns them as JSON.
  */
 export const readCareScheduleResource = () =>
   Effect.gen(function* () {
-    const tasks = yield* findCareTasks()
+    const apiClient = yield* ApiClient
+    const tasks = yield* apiClient.getCareTasks()
 
     const formatTask = (task: CareTask) => ({
       id: task.id,

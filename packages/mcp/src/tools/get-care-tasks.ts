@@ -1,4 +1,4 @@
-import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
+import { ApiClient } from '@lily/mcp/api-client'
 import type { CareTaskGroups, CareTaskItem } from '@lily/mcp/widgets/schemas'
 import { type CareTask, formatIsoDate } from '@lily/shared'
 import { Array, Effect, Option, pipe } from 'effect'
@@ -22,16 +22,17 @@ const mapTask = (task: CareTask, actionable: boolean) => ({
 })
 
 /**
- * Returns care tasks grouped by overdue, today, and upcoming.
+ * Returns care tasks grouped by overdue, today, and upcoming via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
 export const getCareTasksEffect = () =>
   Effect.gen(function* () {
-    const tasks = yield* findCareTasks()
+    const apiClient = yield* ApiClient
+    const tasks = yield* apiClient.getCareTasks()
 
-    const overdue = tasks.overdue as CareTask[]
-    const today = tasks.today as CareTask[]
-    const upcoming = tasks.upcoming as CareTask[]
+    const overdue = tasks.overdue
+    const today = tasks.today
+    const upcoming = tasks.upcoming
 
     // Map each group to { line, item } pairs, then extract separately below
     const overdueMapped = Array.map(overdue, (t) => mapTask(t, true))

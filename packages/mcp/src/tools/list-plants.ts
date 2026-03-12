@@ -1,77 +1,69 @@
-import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { ApiClient } from '@lily/mcp/api-client'
 import { healthLabel } from '@lily/mcp/widgets/health'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
 /**
- * Lists all plants for the authenticated user.
+ * Lists all plants for the authenticated user via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
 export const listPlantsEffect = (params: {
   filter?: 'all' | 'needsAttention' | 'overdue'
 }) =>
   Effect.gen(function* () {
-    const plantRepo = yield* PlantRepository
-    const currentUser = yield* CurrentUser
-    const userId = currentUser.id
-    const timezone = pipe(
-      Option.fromNullable(currentUser.timezone),
-      Option.getOrElse(() => 'UTC')
+    const apiClient = yield* ApiClient
+
+    const filter = pipe(
+      Option.fromNullable(params.filter),
+      Option.getOrElse(() => 'all' as const)
     )
 
-    const result = yield* plantRepo.findAll({
-      userId,
-      timezone,
-      filter: pipe(
-        Option.fromNullable(params.filter),
-        Option.getOrElse(() => 'all' as const)
-      ),
-      limit: 100,
-      includeCaretaking: true,
+    const result = yield* apiClient.listPlants({
+      filter,
+      includeCaretaking: 'true',
+      limit: '100',
     })
 
-    if (Array.isEmptyArray(result.items)) {
+    if (Array.isEmptyReadonlyArray(result.items)) {
       return {
         text: 'You have no plants yet. Add some plants in the Lily app to get started!',
         plants: [] as readonly PlantSummary[],
       }
     }
 
-    // Map to { summary, line } pairs, then extract separately below
-    const mapped = Array.map(result.items, (plant) => {
-      const summary = toPlantSummary(plant)
+    const { plants, lines } = Array.reduce(
+      result.items,
+      { plants: [] as PlantSummary[], lines: [] as string[] },
+      (acc, plant) => {
+        const healthBadge = `[${healthLabel(plant.health)}]`
 
-      const healthBadge = `[${healthLabel(plant.health)}]`
+        const room = pipe(
+          Option.fromNullable(plant.room),
+          Option.map((r) => ` | ${r.icon} ${r.name}`),
+          Option.getOrElse(() => '')
+        )
 
-      const roomOpt = Option.fromNullable(plant.room)
-      const room = pipe(
-        roomOpt,
-        Option.map((r) => ` | ${r.icon} ${r.name}`),
-        Option.getOrElse(() => '')
-      )
+        const ownership = pipe(
+          Match.value(plant.ownership),
+          Match.when(
+            'caretaking',
+            () =>
+              ` | Caretaking for ${pipe(
+                Option.fromNullable(plant.ownerName),
+                Option.getOrElse(() => 'someone')
+              )}`
+          ),
+          Match.orElse(() => '')
+        )
 
-      const ownership = pipe(
-        Match.value(plant.ownership),
-        Match.when(
-          'caretaking',
-          () =>
-            ` | Caretaking for ${pipe(
-              Option.fromNullable(plant.ownerName),
-              Option.getOrElse(() => 'someone')
-            )}`
-        ),
-        Match.orElse(() => '')
-      )
-
-      const line = `- **${plant.name}** ${healthBadge}${room}${ownership} (ID: ${plant.id})`
-
-      return { summary, line }
-    })
-
-    const plants = Array.map(mapped, (m) => m.summary)
-    const lines = Array.map(mapped, (m) => m.line)
+        acc.plants.push(toPlantSummary(plant))
+        acc.lines.push(
+          `- **${plant.name}** ${healthBadge}${room}${ownership} (ID: ${plant.id})`
+        )
+        return acc
+      }
+    )
 
     return {
       text: `## Your Plants (${Array.length(result.items)})\n\n${Array.join(lines, '\n')}`,

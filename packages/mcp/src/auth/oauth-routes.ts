@@ -5,7 +5,7 @@ import {
 } from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
-import { Array, Effect, Option, pipe, Schema } from 'effect'
+import { Array, Effect, Option, Schema } from 'effect'
 
 const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
 
@@ -48,53 +48,47 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   // ── Server Metadata ────────────────────────────────────────────────
   HttpRouter.get(
     '/.well-known/oauth-authorization-server',
-    Effect.succeed(
-      HttpServerResponse.unsafeJson({
-        issuer: MCP_SERVER_URL,
-        authorization_endpoint: `${MCP_SERVER_URL}/oauth/authorize`,
-        token_endpoint: `${MCP_SERVER_URL}/oauth/token`,
-        registration_endpoint: `${MCP_SERVER_URL}/oauth/register`,
-        revocation_endpoint: `${MCP_SERVER_URL}/oauth/revoke`,
-        scopes_supported: SCOPES_SUPPORTED,
-        response_types_supported: ['code'],
-        grant_types_supported: ['authorization_code', 'refresh_token'],
-        token_endpoint_auth_methods_supported: ['none'],
-        code_challenge_methods_supported: ['S256'],
-      })
-    )
+    HttpServerResponse.json({
+      issuer: MCP_SERVER_URL,
+      authorization_endpoint: `${MCP_SERVER_URL}/oauth/authorize`,
+      token_endpoint: `${MCP_SERVER_URL}/oauth/token`,
+      registration_endpoint: `${MCP_SERVER_URL}/oauth/register`,
+      revocation_endpoint: `${MCP_SERVER_URL}/oauth/revoke`,
+      scopes_supported: SCOPES_SUPPORTED,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      token_endpoint_auth_methods_supported: ['none'],
+      code_challenge_methods_supported: ['S256'],
+    })
   ),
 
   // ── MCP Discovery Metadata ───────────────────────────────────────
   HttpRouter.get(
     '/.well-known/mcp.json',
-    Effect.succeed(
-      HttpServerResponse.unsafeJson({
-        name: 'lily-plant-care',
-        version: '1.0.0',
-        protocol_version: '2025-03-26',
-        mcp_endpoint: `${MCP_SERVER_URL}/mcp`,
-        authentication: {
-          type: 'oauth2',
-          authorization_server: `${MCP_SERVER_URL}/.well-known/oauth-authorization-server`,
-          protected_resource: `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`,
-        },
-        capabilities: { tools: true, resources: true },
-      })
-    )
+    HttpServerResponse.json({
+      name: 'lily-plant-care',
+      version: '1.0.0',
+      protocol_version: '2025-03-26',
+      mcp_endpoint: `${MCP_SERVER_URL}/mcp`,
+      authentication: {
+        type: 'oauth2',
+        authorization_server: `${MCP_SERVER_URL}/.well-known/oauth-authorization-server`,
+        protected_resource: `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`,
+      },
+      capabilities: { tools: true, resources: true },
+    })
   ),
 
   // ── Protected Resource Metadata ────────────────────────────────────
   HttpRouter.get(
     '/.well-known/oauth-protected-resource',
-    Effect.succeed(
-      HttpServerResponse.unsafeJson({
-        resource: `${MCP_SERVER_URL}/mcp`,
-        authorization_servers: [MCP_SERVER_URL],
-        scopes_supported: SCOPES_SUPPORTED,
-        bearer_methods_supported: ['header'],
-        resource_name: 'Lily Plant Care',
-      })
-    )
+    HttpServerResponse.json({
+      resource: `${MCP_SERVER_URL}/mcp`,
+      authorization_servers: [MCP_SERVER_URL],
+      scopes_supported: SCOPES_SUPPORTED,
+      bearer_methods_supported: ['header'],
+      resource_name: 'Lily Plant Care',
+    })
   ),
 
   // ── Client Registration ────────────────────────────────────────────

@@ -81,12 +81,10 @@ const AppRoutes = OAuthRoutes.pipe(
   HttpRouter.get('/verify', verifyHandler),
   HttpRouter.get(
     '/health',
-    Effect.succeed(
-      HttpServerResponse.unsafeJson({
-        status: 'ok',
-        service: 'lily-mcp',
-      })
-    )
+    HttpServerResponse.json({
+      status: 'ok',
+      service: 'lily-mcp',
+    })
   ),
   // MCP Streamable HTTP spec requires GET (SSE) and DELETE (session close)
   // at the MCP endpoint. @effect/ai only registers POST, so we add stub

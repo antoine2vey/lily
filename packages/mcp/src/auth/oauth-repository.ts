@@ -36,6 +36,8 @@ export interface AuthorizationCode {
   readonly expiresAt: Date
   readonly state?: string | undefined
   readonly resource?: string | undefined
+  readonly apiJwt?: string | undefined
+  readonly apiRefreshToken?: string | undefined
 }
 
 export interface AccessToken {
@@ -45,6 +47,8 @@ export interface AccessToken {
   readonly scopes: readonly string[]
   readonly expiresAt: Date
   readonly resource?: string | undefined
+  readonly apiJwt?: string | undefined
+  readonly apiRefreshToken?: string | undefined
 }
 
 export interface RefreshToken {
@@ -141,6 +145,10 @@ const rowToAuthCode = (
   expiresAt: row.expiresAt,
   ...(row.state != null ? { state: row.state } : {}),
   ...(row.resource != null ? { resource: row.resource } : {}),
+  ...(row.apiJwt != null ? { apiJwt: row.apiJwt } : {}),
+  ...(row.apiRefreshToken != null
+    ? { apiRefreshToken: row.apiRefreshToken }
+    : {}),
 })
 
 const rowToAccessToken = (
@@ -152,6 +160,10 @@ const rowToAccessToken = (
   scopes: row.scopes,
   expiresAt: row.expiresAt,
   ...(row.resource != null ? { resource: row.resource } : {}),
+  ...(row.apiJwt != null ? { apiJwt: row.apiJwt } : {}),
+  ...(row.apiRefreshToken != null
+    ? { apiRefreshToken: row.apiRefreshToken }
+    : {}),
 })
 
 const rowToRefreshToken = (
@@ -228,6 +240,8 @@ export const OAuthRepositoryLive = Layer.effect(
             scopes: code.scopes as string[],
             state: code.state ?? null,
             resource: code.resource ?? null,
+            apiJwt: code.apiJwt ?? null,
+            apiRefreshToken: code.apiRefreshToken ?? null,
             expiresAt: code.expiresAt,
           })
         }).pipe(Effect.withSpan('OAuthRepository.saveAuthorizationCode')),
@@ -267,6 +281,8 @@ export const OAuthRepositoryLive = Layer.effect(
             userId: token.userId,
             scopes: token.scopes as string[],
             resource: token.resource ?? null,
+            apiJwt: token.apiJwt ?? null,
+            apiRefreshToken: token.apiRefreshToken ?? null,
             expiresAt: token.expiresAt,
           })
         }).pipe(Effect.withSpan('OAuthRepository.saveAccessToken')),

@@ -1,14 +1,7 @@
 import { Tool as AiTool, McpSchema, McpServer } from '@effect/ai'
-import type * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
-import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import type { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { RagService } from '@lily/api/services/rag/service'
+import type { ApiClient } from '@lily/mcp/api-client'
 import type { OAuthService } from '@lily/mcp/auth/oauth-service'
-import { resolveAuthFromRequest } from '@lily/mcp/auth/resolve-user'
+import { provideAuth } from '@lily/mcp/auth/resolve-user'
 import {
   askPlantQuestionEffect,
   carePlantEffect,
@@ -28,7 +21,6 @@ import {
   WaterPlant,
 } from '@lily/mcp/tools/definitions'
 import { TOOL_WIDGETS } from '@lily/mcp/widgets/constants'
-import type { EventBus } from '@lily/shared/server'
 import {
   Cause,
   Context,
@@ -42,18 +34,9 @@ import * as AST from 'effect/SchemaAST'
 
 /**
  * Global services that tool effects need, provided at layer construction time.
- * OAuthService + UserRepository are included for resolveAuthFromRequest.
+ * Simplified to ApiClient (for HTTP calls) + OAuthService (for auth resolution).
  */
-type ToolDeps =
-  | PlantRepository
-  | UserRepository
-  | CareLogRepository
-  | CareScheduleRepository
-  | NotificationRepository
-  | RagService
-  | EventBus
-  | PgDrizzle.PgDrizzle
-  | OAuthService
+type ToolDeps = ApiClient | OAuthService
 
 /**
  * Generates a JSON Schema from a schema AST, matching the approach used
@@ -156,6 +139,7 @@ const errorResult = (error: unknown) =>
 
 /**
  * Wires the text-only TextToolkit (ask_plant_question) to its handler.
+ * Uses provideAuth to provide CurrentJwt into the effect context.
  */
 export const TextToolkitHandlersLive = TextToolkit.toLayer(
   Effect.gen(function* () {
@@ -163,7 +147,11 @@ export const TextToolkitHandlersLive = TextToolkit.toLayer(
 
     return {
       ask_plant_question: (params) =>
-        askPlantQuestionEffect(params).pipe(Effect.provide(ctx), Effect.orDie),
+        askPlantQuestionEffect(params).pipe(
+          provideAuth,
+          Effect.provide(ctx),
+          Effect.orDie
+        ),
     }
   })
 )
@@ -174,27 +162,16 @@ export const TextToolkitHandlersLive = TextToolkit.toLayer(
  *
  * Each tool handler:
  * 1. Decodes raw JSON-RPC arguments via Schema.decodeUnknown
- * 2. Resolves auth from the bearer token
- * 3. Calls the underlying tool effect
+ * 2. Resolves auth from the bearer token (extracts API JWT)
+ * 3. Calls the underlying tool effect with the JWT
  * 4. Returns CallToolResult with markdown + structured data + widget URI
  *
  * Errors are caught via Effect.matchCauseEffect and returned as
  * CallToolResult with isError: true, matching the toolkit's pattern.
- * This ensures failures are reported as tool-level errors (visible to
- * the LLM for self-correction) instead of RPC-level errors (which
- * clients like ChatGPT treat as "tool not accessible").
  */
 export const WidgetToolsLayer = Effect.gen(function* () {
   const registry = yield* McpServer.McpServer
   const ctx = yield* Effect.context<ToolDeps>()
-
-  const withAuth = <A>(toolEffect: Effect.Effect<A, unknown, unknown>) =>
-    resolveAuthFromRequest.pipe(
-      Effect.flatMap((user) =>
-        toolEffect.pipe(Effect.provideService(CurrentUser, user))
-      ),
-      Effect.provide(ctx)
-    ) as Effect.Effect<A, unknown>
 
   /**
    * Wraps a tool handler effect with error recovery.
@@ -220,8 +197,7 @@ export const WidgetToolsLayer = Effect.gen(function* () {
 
   /**
    * Registers a widget-enabled tool with decode → auth → handle pipeline.
-   * Tools with parameters decode the raw JSON-RPC payload first; parameterless
-   * tools pass a thunk that ignores the payload.
+   * Auth is resolved via provideAuth which provides CurrentJwt into context.
    */
   const register = <P>(
     tool: AiTool.Any,
@@ -238,17 +214,41 @@ export const WidgetToolsLayer = Effect.gen(function* () {
       tool: toMcpTool(tool),
       handle: (payload: unknown) => {
         const pipeline = decode(payload).pipe(
-          Effect.flatMap((params) => withAuth(effect(params as P)))
+          Effect.flatMap((params) =>
+            effect(params as P).pipe(provideAuth, Effect.provide(ctx))
+          )
         ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
         return handleTool(tool.name, pipeline)
       },
     })
   }
 
+  /**
+   * Registers a parameterless tool. Auth is resolved via provideAuth.
+   */
+  const registerNoParams = (
+    tool: AiTool.Any,
+    effect: () => Effect.Effect<
+      { text: string; [key: string]: unknown },
+      unknown,
+      unknown
+    >
+  ) =>
+    registry.addTool({
+      tool: toMcpTool(tool),
+      handle: () => {
+        const pipeline = effect().pipe(
+          provideAuth,
+          Effect.provide(ctx)
+        ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
+        return handleTool(tool.name, pipeline)
+      },
+    })
+
   yield* register(ListPlants, listPlantsEffect)
   yield* register(GetPlantDetails, getPlantDetailsEffect)
-  yield* register(GetCareTasks, () => getCareTasksEffect())
-  yield* register(GetOverduePlants, () => getOverduePlantsEffect())
+  yield* registerNoParams(GetCareTasks, getCareTasksEffect)
+  yield* registerNoParams(GetOverduePlants, getOverduePlantsEffect)
   yield* register(WaterPlant, waterPlantEffect)
   yield* register(CarePlant, carePlantEffect)
 }) as Effect.Effect<void, never, McpServer.McpServer | ToolDeps>

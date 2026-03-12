@@ -1,11 +1,9 @@
-import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
-import { assertPlantAccess } from '@lily/mcp/auth/plant-access'
+import { ApiClient } from '@lily/mcp/api-client'
 import type { CareFeedback } from '@lily/mcp/widgets/schemas'
-import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
 /**
- * Records a care event (watering or fertilization) for a plant.
+ * Records a care event (watering or fertilization) for a plant via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
 export const carePlantEffect = (params: {
@@ -14,12 +12,11 @@ export const carePlantEffect = (params: {
   notes?: string
 }) =>
   Effect.gen(function* () {
-    const plant = yield* assertPlantAccess(params.plantId)
+    const apiClient = yield* ApiClient
 
-    yield* createCareLog(params.plantId, {
-      type: params.type,
+    const plant = yield* apiClient.carePlant(params.plantId, {
+      careType: params.type,
       notes: params.notes,
-      date: nowAsDate(),
     })
 
     const careLabel = pipe(
@@ -47,12 +44,4 @@ export const carePlantEffect = (params: {
       text: `${careLabel} **${plant.name}** successfully! Next ${params.type} in ~${nextCare}.`,
       feedback,
     }
-  }).pipe(
-    Effect.catchTag('PlantNotFound', () =>
-      Effect.succeed({
-        text: 'Plant not found. Please check the plant ID.',
-        feedback: null as CareFeedback | null,
-      })
-    ),
-    Effect.withSpan('MCP.carePlant')
-  )
+  }).pipe(Effect.withSpan('MCP.carePlant'))
