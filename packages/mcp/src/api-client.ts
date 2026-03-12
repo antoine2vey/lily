@@ -9,15 +9,24 @@ import type { CareLogsListResponse } from '@lily/shared/care-log'
 import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
 import { Config, Context, Effect, Layer, Option, pipe, Redacted } from 'effect'
 
-// ── Current JWT (request-scoped) ───────────────────────────────────────
+// ── Request-scoped context ─────────────────────────────────────────────
 
 /**
  * Request-scoped service carrying the authenticated user's API JWT.
- * Provided per-request via Effect.provideServiceEffect so that
- * HttpClient interceptors can read it from context automatically.
+ * Provided per-request via provideAuth so that HttpClient interceptors
+ * can read it from context automatically.
  */
 export class CurrentJwt extends Context.Tag('CurrentJwt')<
   CurrentJwt,
+  string
+>() {}
+
+/**
+ * Request-scoped service carrying the authenticated user's ID.
+ * Provided alongside CurrentJwt by provideAuth.
+ */
+export class CurrentUserId extends Context.Tag('CurrentUserId')<
+  CurrentUserId,
   string
 >() {}
 

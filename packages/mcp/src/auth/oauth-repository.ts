@@ -5,6 +5,7 @@ import {
   oauthAuthorizationCodes,
   oauthClients,
   oauthRefreshTokens,
+  oauthUserApiCredentials,
 } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
@@ -36,8 +37,6 @@ export interface AuthorizationCode {
   readonly expiresAt: Date
   readonly state?: string | undefined
   readonly resource?: string | undefined
-  readonly apiJwt?: string | undefined
-  readonly apiRefreshToken?: string | undefined
 }
 
 export interface AccessToken {
@@ -47,8 +46,6 @@ export interface AccessToken {
   readonly scopes: readonly string[]
   readonly expiresAt: Date
   readonly resource?: string | undefined
-  readonly apiJwt?: string | undefined
-  readonly apiRefreshToken?: string | undefined
 }
 
 export interface RefreshToken {
@@ -58,6 +55,12 @@ export interface RefreshToken {
   readonly scopes: readonly string[]
   readonly expiresAt: Date
   readonly resource?: string | undefined
+}
+
+export interface UserApiCredentials {
+  readonly userId: string
+  readonly apiJwt: string
+  readonly apiRefreshToken: string
 }
 
 // ── Interface ──────────────────────────────────────────────────────────
@@ -103,6 +106,14 @@ export interface IOAuthRepository {
   readonly consumeRefreshToken: (
     token: string
   ) => Effect.Effect<Option.Option<RefreshToken>, SqlError>
+  /** Upsert API credentials for a user. */
+  readonly upsertUserApiCredentials: (
+    creds: UserApiCredentials
+  ) => Effect.Effect<void, SqlError>
+  /** Get API credentials for a user. */
+  readonly getUserApiCredentials: (
+    userId: string
+  ) => Effect.Effect<Option.Option<UserApiCredentials>, SqlError>
 }
 
 // ── Context Tag ────────────────────────────────────────────────────────
@@ -145,10 +156,6 @@ const rowToAuthCode = (
   expiresAt: row.expiresAt,
   ...(row.state != null ? { state: row.state } : {}),
   ...(row.resource != null ? { resource: row.resource } : {}),
-  ...(row.apiJwt != null ? { apiJwt: row.apiJwt } : {}),
-  ...(row.apiRefreshToken != null
-    ? { apiRefreshToken: row.apiRefreshToken }
-    : {}),
 })
 
 const rowToAccessToken = (
@@ -160,10 +167,6 @@ const rowToAccessToken = (
   scopes: row.scopes,
   expiresAt: row.expiresAt,
   ...(row.resource != null ? { resource: row.resource } : {}),
-  ...(row.apiJwt != null ? { apiJwt: row.apiJwt } : {}),
-  ...(row.apiRefreshToken != null
-    ? { apiRefreshToken: row.apiRefreshToken }
-    : {}),
 })
 
 const rowToRefreshToken = (
@@ -240,8 +243,6 @@ export const OAuthRepositoryLive = Layer.effect(
             scopes: code.scopes as string[],
             state: code.state ?? null,
             resource: code.resource ?? null,
-            apiJwt: code.apiJwt ?? null,
-            apiRefreshToken: code.apiRefreshToken ?? null,
             expiresAt: code.expiresAt,
           })
         }).pipe(Effect.withSpan('OAuthRepository.saveAuthorizationCode')),
@@ -281,8 +282,6 @@ export const OAuthRepositoryLive = Layer.effect(
             userId: token.userId,
             scopes: token.scopes as string[],
             resource: token.resource ?? null,
-            apiJwt: token.apiJwt ?? null,
-            apiRefreshToken: token.apiRefreshToken ?? null,
             expiresAt: token.expiresAt,
           })
         }).pipe(Effect.withSpan('OAuthRepository.saveAccessToken')),
@@ -341,6 +340,45 @@ export const OAuthRepositoryLive = Layer.effect(
             .returning()
           return pipe(Array.head(rows), Option.map(rowToRefreshToken))
         }).pipe(Effect.withSpan('OAuthRepository.consumeRefreshToken')),
+
+      // ── User API Credentials ─────────────────────────────────────
+
+      upsertUserApiCredentials: (creds) =>
+        Effect.gen(function* () {
+          const now = DateTime.toDateUtc(DateTime.unsafeNow())
+          yield* db
+            .insert(oauthUserApiCredentials)
+            .values({
+              userId: creds.userId,
+              apiJwt: creds.apiJwt,
+              apiRefreshToken: creds.apiRefreshToken,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: oauthUserApiCredentials.userId,
+              set: {
+                apiJwt: creds.apiJwt,
+                apiRefreshToken: creds.apiRefreshToken,
+                updatedAt: now,
+              },
+            })
+        }).pipe(Effect.withSpan('OAuthRepository.upsertUserApiCredentials')),
+
+      getUserApiCredentials: (userId) =>
+        Effect.gen(function* () {
+          const rows = yield* db
+            .select()
+            .from(oauthUserApiCredentials)
+            .where(eq(oauthUserApiCredentials.userId, userId))
+          return pipe(
+            Array.head(rows),
+            Option.map((row) => ({
+              userId: row.userId,
+              apiJwt: row.apiJwt,
+              apiRefreshToken: row.apiRefreshToken,
+            }))
+          )
+        }).pipe(Effect.withSpan('OAuthRepository.getUserApiCredentials')),
     }
   })
 )

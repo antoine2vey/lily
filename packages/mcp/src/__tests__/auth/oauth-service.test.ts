@@ -5,6 +5,7 @@ import {
   type OAuthClient,
   OAuthRepository,
   type RefreshToken,
+  type UserApiCredentials,
 } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService, OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
 import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
@@ -17,18 +18,11 @@ const createInMemoryOAuthRepository = () => {
   let authCodes: AuthorizationCode[] = []
   let accessTokens: AccessToken[] = []
   let refreshTokens: RefreshToken[] = []
+  let apiCredentials: UserApiCredentials[] = []
 
   const repo: IOAuthRepository = {
     getClient: (clientId) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(clients, (c) => c.client_id === clientId),
-          Option.match({
-            onNone: () => Option.none(),
-            onSome: Option.some,
-          })
-        )
-      ),
+      Effect.succeed(Array.findFirst(clients, (c) => c.client_id === clientId)),
 
     registerClient: (params) =>
       Effect.sync(() => {
@@ -48,13 +42,7 @@ const createInMemoryOAuthRepository = () => {
 
     getAuthorizationCode: (code) =>
       Effect.succeed(
-        pipe(
-          Array.findFirst(authCodes, (c) => c.authorizationCode === code),
-          Option.match({
-            onNone: () => Option.none(),
-            onSome: Option.some,
-          })
-        )
+        Array.findFirst(authCodes, (c) => c.authorizationCode === code)
       ),
 
     revokeAuthorizationCode: (code) =>
@@ -78,15 +66,7 @@ const createInMemoryOAuthRepository = () => {
       }),
 
     getAccessToken: (token) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(accessTokens, (t) => t.token === token),
-          Option.match({
-            onNone: () => Option.none(),
-            onSome: Option.some,
-          })
-        )
-      ),
+      Effect.succeed(Array.findFirst(accessTokens, (t) => t.token === token)),
 
     revokeAccessToken: (token) =>
       Effect.sync(() => {
@@ -99,15 +79,7 @@ const createInMemoryOAuthRepository = () => {
       }),
 
     getRefreshToken: (token) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(refreshTokens, (t) => t.token === token),
-          Option.match({
-            onNone: () => Option.none(),
-            onSome: Option.some,
-          })
-        )
-      ),
+      Effect.succeed(Array.findFirst(refreshTokens, (t) => t.token === token)),
 
     revokeRefreshToken: (token) =>
       Effect.sync(() => {
@@ -131,11 +103,30 @@ const createInMemoryOAuthRepository = () => {
         )
         return found
       }),
+
+    upsertUserApiCredentials: (creds) =>
+      Effect.sync(() => {
+        apiCredentials = pipe(
+          Array.filter(apiCredentials, (c) => c.userId !== creds.userId),
+          Array.append(creds)
+        )
+      }),
+
+    getUserApiCredentials: (userId) =>
+      Effect.succeed(
+        Array.findFirst(apiCredentials, (c) => c.userId === userId)
+      ),
   }
 
   return {
     layer: Layer.succeed(OAuthRepository, repo),
-    getState: () => ({ clients, authCodes, accessTokens, refreshTokens }),
+    getState: () => ({
+      clients,
+      authCodes,
+      accessTokens,
+      refreshTokens,
+      apiCredentials,
+    }),
   }
 }
 
@@ -225,7 +216,6 @@ describe('OAuthService', () => {
     })
 
     it('should fail for expired authorization code', async () => {
-      // Create an auth code that's already expired
       const expiredCode: AuthorizationCode = {
         authorizationCode: 'expired-code',
         clientId: 'client-1',
@@ -233,7 +223,7 @@ describe('OAuthService', () => {
         redirectUri: 'http://localhost:3000/callback',
         codeChallenge: 'challenge',
         scopes: ['plants:read'],
-        expiresAt: new Date('2020-01-01'), // far in the past
+        expiresAt: new Date('2020-01-01'),
       }
       repoMock.getState().authCodes.push(expiredCode)
 

@@ -1,14 +1,23 @@
 import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
+import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
 import { Array, Effect, String as EffectString, Option, pipe } from 'effect'
+
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 const errorHtml = (message: string) =>
   HttpServerResponse.text(
     `<html><body style="font-family:sans-serif;padding:2rem;text-align:center">
       <h2>Authentication failed</h2>
-      <p>${message}</p>
+      <p>${escapeHtml(message)}</p>
       <p>Please close this window and try again.</p>
     </body></html>`,
     {
@@ -26,13 +35,16 @@ const errorHtml = (message: string) =>
  * Flow:
  * 1. Calls ApiClient.issueServiceToken({ magicLinkCode }) to validate the
  *    magic link and obtain an API JWT + user profile
- * 2. Creates an OAuth authorization code (storing the API JWT temporarily)
- * 3. Redirects back to the MCP client with the auth code
+ * 2. Validates OAuth params (client_id, redirect_uri, code_challenge)
+ * 3. Upserts API credentials into oauth_user_api_credentials
+ * 4. Creates an OAuth authorization code
+ * 5. Redirects back to the MCP client with the auth code
  */
 export const verifyHandler = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
   const apiClient = yield* ApiClient
   const oauthService = yield* OAuthService
+  const repo = yield* OAuthRepository
 
   const url = new URL(request.url, MCP_SERVER_URL)
   const params = url.searchParams
@@ -43,8 +55,6 @@ export const verifyHandler = Effect.gen(function* () {
   }
 
   // Validate magic link and get API JWT via the API server.
-  // issueServiceToken uses orDie internally, so invalid magic links
-  // surface as defects — catchAllDefect converts them to typed OAuthError.
   const authResponse = yield* apiClient
     .issueServiceToken({ magicLinkCode: code })
     .pipe(
@@ -57,7 +67,7 @@ export const verifyHandler = Effect.gen(function* () {
       )
     )
 
-  // Validate required OAuth params
+  // Validate required OAuth params before storing credentials
   const clientId = params.get('client_id')
   if (!clientId) {
     return errorHtml('Missing client_id')
@@ -102,19 +112,27 @@ export const verifyHandler = Effect.gen(function* () {
     Option.fromNullable(params.get('resource'))
   )
 
-  // Create authorization code — store API JWT temporarily so it can be
-  // transferred to the access token during code exchange
-  const authCode = yield* oauthService.createAuthorizationCode({
-    clientId,
-    userId: authResponse.user.id,
-    redirectUri,
-    codeChallenge,
-    scopes,
-    ...(state != null ? { state } : {}),
-    ...(resource != null ? { resource } : {}),
-    apiJwt: authResponse.accessToken,
-    apiRefreshToken: authResponse.refreshToken,
-  })
+  // Store API credentials and create authorization code in parallel
+  // (independent DB writes — no ordering dependency)
+  const [, authCode] = yield* Effect.all(
+    [
+      repo.upsertUserApiCredentials({
+        userId: authResponse.user.id,
+        apiJwt: authResponse.accessToken,
+        apiRefreshToken: authResponse.refreshToken,
+      }),
+      oauthService.createAuthorizationCode({
+        clientId,
+        userId: authResponse.user.id,
+        redirectUri,
+        codeChallenge,
+        scopes,
+        ...(state != null ? { state } : {}),
+        ...(resource != null ? { resource } : {}),
+      }),
+    ],
+    { concurrency: 'unbounded' }
+  )
 
   // Redirect back to client with auth code
   const redirectUrl = new URL(redirectUri)

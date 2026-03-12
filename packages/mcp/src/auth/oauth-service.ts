@@ -1,6 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import {
-  type AccessToken,
   type AuthorizationCode,
   type OAuthClient,
   OAuthRepository,
@@ -20,9 +19,9 @@ import {
 
 // ── Configuration ──────────────────────────────────────────────────────
 
-const ACCESS_TOKEN_LIFETIME_MS = 3600 * 1000 // 1 hour
-const REFRESH_TOKEN_LIFETIME_MS = 30 * 24 * 3600 * 1000 // 30 days
-const AUTH_CODE_LIFETIME_MS = 10 * 60 * 1000 // 10 minutes
+const ACCESS_TOKEN_LIFETIME = Duration.hours(1)
+const REFRESH_TOKEN_LIFETIME = Duration.days(365)
+const AUTH_CODE_LIFETIME = Duration.minutes(10)
 
 // ── Interface ──────────────────────────────────────────────────────────
 
@@ -53,8 +52,6 @@ export interface IOAuthService {
     readonly scopes: readonly string[]
     readonly state?: string
     readonly resource?: string
-    readonly apiJwt?: string
-    readonly apiRefreshToken?: string
   }) => Effect.Effect<string, SqlError>
 
   /** Exchange an authorization code for access + refresh tokens */
@@ -84,6 +81,8 @@ export interface IOAuthService {
       readonly expires_in: number
       readonly scope: string
       readonly refresh_token: string
+      /** Internal — not part of the OAuth wire format. */
+      readonly _userId: string
     },
     OAuthError | SqlError
   >
@@ -94,24 +93,38 @@ export interface IOAuthService {
     readonly token_type_hint?: 'access_token' | 'refresh_token'
   }) => Effect.Effect<void, SqlError>
 
-  /** Validate a bearer token. Returns userId, scopes, and API JWT if present */
+  /** Validate a bearer token. Returns userId and scopes. */
   readonly validateBearerToken: (token: string) => Effect.Effect<
     {
       readonly userId: string
       readonly scopes: readonly string[]
-      readonly apiJwt?: string | undefined
-      readonly apiRefreshToken?: string | undefined
     },
-    OAuthError | SqlError
+    AccessTokenNotFound | AccessTokenExpired | SqlError
   >
 }
 
-// ── Error ──────────────────────────────────────────────────────────────
+// ── Errors ─────────────────────────────────────────────────────────────
 
 export class OAuthError extends Schema.TaggedError<OAuthError>()('OAuthError', {
   error: Schema.String,
   error_description: Schema.String,
 }) {}
+
+export class AccessTokenNotFound extends Schema.TaggedError<AccessTokenNotFound>()(
+  'AccessTokenNotFound',
+  {
+    error: Schema.String,
+    error_description: Schema.String,
+  }
+) {}
+
+export class AccessTokenExpired extends Schema.TaggedError<AccessTokenExpired>()(
+  'AccessTokenExpired',
+  {
+    error: Schema.String,
+    error_description: Schema.String,
+  }
+) {}
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
@@ -159,10 +172,7 @@ export const OAuthServiceLive = Layer.effect(
         Effect.gen(function* () {
           const code = generateToken()
           const expiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(
-              DateTime.unsafeNow(),
-              Duration.millis(AUTH_CODE_LIFETIME_MS)
-            )
+            DateTime.addDuration(DateTime.unsafeNow(), AUTH_CODE_LIFETIME)
           )
 
           yield* repo.saveAuthorizationCode({
@@ -175,10 +185,6 @@ export const OAuthServiceLive = Layer.effect(
             expiresAt,
             ...(params.state != null ? { state: params.state } : {}),
             ...(params.resource != null ? { resource: params.resource } : {}),
-            ...(params.apiJwt != null ? { apiJwt: params.apiJwt } : {}),
-            ...(params.apiRefreshToken != null
-              ? { apiRefreshToken: params.apiRefreshToken }
-              : {}),
           })
 
           return code
@@ -186,9 +192,6 @@ export const OAuthServiceLive = Layer.effect(
 
       exchangeAuthorizationCode: (params) =>
         Effect.gen(function* () {
-          // Atomically consume the code (DELETE ... RETURNING) to prevent
-          // TOCTOU race conditions where two concurrent requests exchange
-          // the same code. Only the first caller receives the row.
           const maybeCode = yield* repo.consumeAuthorizationCode(params.code)
           const authCode: AuthorizationCode = yield* Option.match(maybeCode, {
             onNone: () =>
@@ -246,45 +249,34 @@ export const OAuthServiceLive = Layer.effect(
           const now = DateTime.unsafeNow()
 
           const accessExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(now, Duration.millis(ACCESS_TOKEN_LIFETIME_MS))
+            DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
           )
           const refreshExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(
-              now,
-              Duration.millis(REFRESH_TOKEN_LIFETIME_MS)
-            )
+            DateTime.addDuration(now, REFRESH_TOKEN_LIFETIME)
           )
-
-          const accessToken: AccessToken = {
-            token: accessTokenValue,
-            clientId: authCode.clientId,
-            userId: authCode.userId,
-            scopes: authCode.scopes,
-            expiresAt: accessExpiresAt,
-            ...(authCode.resource != null
-              ? { resource: authCode.resource }
-              : {}),
-            ...(authCode.apiJwt != null ? { apiJwt: authCode.apiJwt } : {}),
-            ...(authCode.apiRefreshToken != null
-              ? { apiRefreshToken: authCode.apiRefreshToken }
-              : {}),
-          }
-
-          const refreshToken = {
-            token: refreshTokenValue,
-            clientId: authCode.clientId,
-            userId: authCode.userId,
-            scopes: authCode.scopes,
-            expiresAt: refreshExpiresAt,
-            ...(authCode.resource != null
-              ? { resource: authCode.resource }
-              : {}),
-          }
 
           yield* Effect.all(
             [
-              repo.saveAccessToken(accessToken),
-              repo.saveRefreshToken(refreshToken),
+              repo.saveAccessToken({
+                token: accessTokenValue,
+                clientId: authCode.clientId,
+                userId: authCode.userId,
+                scopes: authCode.scopes,
+                expiresAt: accessExpiresAt,
+                ...(authCode.resource != null
+                  ? { resource: authCode.resource }
+                  : {}),
+              }),
+              repo.saveRefreshToken({
+                token: refreshTokenValue,
+                clientId: authCode.clientId,
+                userId: authCode.userId,
+                scopes: authCode.scopes,
+                expiresAt: refreshExpiresAt,
+                ...(authCode.resource != null
+                  ? { resource: authCode.resource }
+                  : {}),
+              }),
             ],
             { concurrency: 'unbounded' }
           )
@@ -292,7 +284,7 @@ export const OAuthServiceLive = Layer.effect(
           return {
             access_token: accessTokenValue,
             token_type: 'Bearer' as const,
-            expires_in: Math.floor(ACCESS_TOKEN_LIFETIME_MS / 1000),
+            expires_in: Duration.toSeconds(ACCESS_TOKEN_LIFETIME),
             scope: Array.join(authCode.scopes, ' '),
             refresh_token: refreshTokenValue,
           }
@@ -300,9 +292,6 @@ export const OAuthServiceLive = Layer.effect(
 
       refreshAccessToken: (params) =>
         Effect.gen(function* () {
-          // Atomically consume the refresh token (DELETE ... RETURNING)
-          // to prevent race conditions where two concurrent requests
-          // exchange the same token. Only the first caller receives the row.
           const maybeToken = yield* repo.consumeRefreshToken(
             params.refreshToken
           )
@@ -347,13 +336,10 @@ export const OAuthServiceLive = Layer.effect(
           const now = DateTime.unsafeNow()
 
           const accessExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(now, Duration.millis(ACCESS_TOKEN_LIFETIME_MS))
+            DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
           )
           const newRefreshExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(
-              now,
-              Duration.millis(REFRESH_TOKEN_LIFETIME_MS)
-            )
+            DateTime.addDuration(now, REFRESH_TOKEN_LIFETIME)
           )
 
           yield* Effect.all(
@@ -385,9 +371,10 @@ export const OAuthServiceLive = Layer.effect(
           return {
             access_token: accessTokenValue,
             token_type: 'Bearer' as const,
-            expires_in: Math.floor(ACCESS_TOKEN_LIFETIME_MS / 1000),
+            expires_in: Duration.toSeconds(ACCESS_TOKEN_LIFETIME),
             scope: Array.join(refreshToken.scopes, ' '),
             refresh_token: newRefreshTokenValue,
+            _userId: refreshToken.userId,
           }
         }).pipe(Effect.withSpan('OAuthService.refreshAccessToken')),
 
@@ -418,7 +405,7 @@ export const OAuthServiceLive = Layer.effect(
           const accessToken = yield* Option.match(maybeToken, {
             onNone: () =>
               Effect.fail(
-                new OAuthError({
+                new AccessTokenNotFound({
                   error: 'invalid_token',
                   error_description: 'Access token not found',
                 })
@@ -433,7 +420,7 @@ export const OAuthServiceLive = Layer.effect(
           if (tokenExpiresAtMs < validateNowMs) {
             yield* repo.revokeAccessToken(token)
             return yield* Effect.fail(
-              new OAuthError({
+              new AccessTokenExpired({
                 error: 'invalid_token',
                 error_description: 'Access token expired',
               })
@@ -443,12 +430,6 @@ export const OAuthServiceLive = Layer.effect(
           return {
             userId: accessToken.userId,
             scopes: accessToken.scopes,
-            ...(accessToken.apiJwt != null
-              ? { apiJwt: accessToken.apiJwt }
-              : {}),
-            ...(accessToken.apiRefreshToken != null
-              ? { apiRefreshToken: accessToken.apiRefreshToken }
-              : {}),
           }
         }).pipe(Effect.withSpan('OAuthService.validateBearerToken')),
     }
