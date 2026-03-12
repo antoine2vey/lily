@@ -4,6 +4,7 @@ import {
   HttpServerResponse,
 } from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
+import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { MCP_SERVER_URL } from '@lily/mcp/config'
 import { Array, Effect, Option, Schema } from 'effect'
 
@@ -221,7 +222,14 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
           clientId,
         })
 
-        return yield* jsonResponse(result)
+        // Proactively refresh the API JWT if it's stale
+        yield* refreshApiJwtIfNeeded(result._userId).pipe(
+          Effect.catchAll(() => Effect.void)
+        )
+
+        // Strip internal _userId before sending the OAuth response
+        const { _userId: _, ...oauthResponse } = result
+        return yield* jsonResponse(oauthResponse)
       }
 
       return yield* errorResponse(

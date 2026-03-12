@@ -1,5 +1,6 @@
 import { Tool as AiTool, McpSchema, McpServer } from '@effect/ai'
-import type { ApiClient } from '@lily/mcp/api-client'
+import { type ApiClient, CurrentUserId } from '@lily/mcp/api-client'
+import type { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import type { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { provideAuth } from '@lily/mcp/auth/resolve-user'
 import {
@@ -34,9 +35,11 @@ import * as AST from 'effect/SchemaAST'
 
 /**
  * Global services that tool effects need, provided at layer construction time.
- * Simplified to ApiClient (for HTTP calls) + OAuthService (for auth resolution).
+ * - ApiClient: HTTP calls to API server (via CurrentJwt)
+ * - OAuthService: bearer token validation
+ * - OAuthRepository: user API credentials lookup
  */
-type ToolDeps = ApiClient | OAuthService
+type ToolDeps = ApiClient | OAuthService | OAuthRepository
 
 /**
  * Generates a JSON Schema from a schema AST, matching the approach used
@@ -137,6 +140,18 @@ const errorResult = (error: unknown) =>
     ],
   })
 
+/** Pipeable operator that logs tool usage with the current user ID and args. */
+const logToolUsage =
+  (toolName: string, args?: unknown) =>
+  <A, E, R>(self: Effect.Effect<A, E, R>) =>
+    Effect.tap(self, () =>
+      Effect.flatMap(CurrentUserId, (userId) =>
+        Effect.log(
+          `tool=${toolName} userId=${userId} args=${JSON.stringify(args ?? {})}`
+        )
+      )
+    ) as Effect.Effect<A, E, R>
+
 /**
  * Wires the text-only TextToolkit (ask_plant_question) to its handler.
  * Uses provideAuth to provide CurrentJwt into the effect context.
@@ -148,6 +163,7 @@ export const TextToolkitHandlersLive = TextToolkit.toLayer(
     return {
       ask_plant_question: (params) =>
         askPlantQuestionEffect(params).pipe(
+          logToolUsage('ask_plant_question', params),
           provideAuth,
           Effect.provide(ctx),
           Effect.orDie
@@ -185,12 +201,7 @@ export const WidgetToolsLayer = Effect.gen(function* () {
   ) =>
     effect.pipe(
       Effect.matchCauseEffect({
-        onFailure: (cause) =>
-          Effect.succeed(errorResult(Cause.squash(cause))).pipe(
-            Effect.tap(() =>
-              Effect.logError(`Tool ${toolName} failed`, Cause.squash(cause))
-            )
-          ),
+        onFailure: (cause) => Effect.succeed(errorResult(Cause.squash(cause))),
         onSuccess: (result) => Effect.succeed(widgetResult(toolName, result)),
       })
     )
@@ -215,7 +226,11 @@ export const WidgetToolsLayer = Effect.gen(function* () {
       handle: (payload: unknown) => {
         const pipeline = decode(payload).pipe(
           Effect.flatMap((params) =>
-            effect(params as P).pipe(provideAuth, Effect.provide(ctx))
+            effect(params as P).pipe(
+              logToolUsage(tool.name, params),
+              provideAuth,
+              Effect.provide(ctx)
+            )
           )
         ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
         return handleTool(tool.name, pipeline)
@@ -238,6 +253,7 @@ export const WidgetToolsLayer = Effect.gen(function* () {
       tool: toMcpTool(tool),
       handle: () => {
         const pipeline = effect().pipe(
+          logToolUsage(tool.name),
           provideAuth,
           Effect.provide(ctx)
         ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
