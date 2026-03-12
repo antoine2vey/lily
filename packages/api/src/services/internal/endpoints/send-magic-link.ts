@@ -52,10 +52,10 @@ export const sendInternalMagicLink = (input: {
       return yield* Effect.fail({ message: 'Invalid email format' })
     }
 
-    // Reject unknown emails — only existing users can authenticate through MCP
+    // Silently succeed for unknown emails to prevent email enumeration
     const existingUser = yield* userRepo.findByEmail(normalizedEmail)
     if (!existingUser) {
-      return yield* Effect.fail({ message: 'No account found for this email' })
+      return { message: 'Magic link sent' }
     }
 
     // Rate limit
