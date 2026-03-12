@@ -86,13 +86,13 @@ const AppRoutes = OAuthRoutes.pipe(
       service: 'lily-mcp',
     })
   ),
-  // MCP Streamable HTTP spec requires GET (SSE) and DELETE (session close)
-  // at the MCP endpoint. @effect/ai only registers POST, so we add stub
-  // handlers that return 405 to signal the method is not supported.
+  // GET /mcp: accept but return empty 200.
+  // ChatGPT checks this endpoint before sending tools/call.
   HttpRouter.get(
     '/mcp',
-    Effect.succeed(HttpServerResponse.empty({ status: 405 }))
+    Effect.succeed(HttpServerResponse.empty({ status: 200 }))
   ),
+  // DELETE /mcp: session close (not implemented)
   HttpRouter.del(
     '/mcp',
     Effect.succeed(HttpServerResponse.empty({ status: 405 }))
@@ -175,11 +175,12 @@ const ServerLayer = Layer.mergeAll(
   ),
   // Provide all repositories, services, and DB layers
   Layer.provide(McpLive),
-  // Provide the HTTP server
+  // Provide the HTTP server with increased idle timeout for SSE streams
   Layer.provide(
     BunHttpServer.layer({
       port: MCP_PORT,
       hostname: '0.0.0.0',
+      idleTimeout: 120,
     })
   )
 )
