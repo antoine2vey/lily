@@ -1,0 +1,46 @@
+{
+  "name": "@lily/mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Lily plant care",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "tsc": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "bunx --bun biome check .",
+    "lint:fix": "bunx --bun biome check --write .",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@effect/ai": "^0.33.2",
+    "@effect/cluster": "^0.56.4",
+    "@effect/experimental": "^0.58.0",
+    "@effect/platform": "^0.94.5",
+    "@effect/platform-bun": "^0.87.1",
+    "@effect/rpc": "^0.73.2",
+    "@effect/sql": "^0.49.0",
+    "@effect/sql-drizzle": "^0.48.1",
+    "@lily/db": "workspace:*",
+    "@lily/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "effect": "^3.19.19"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.8",
+    "typescript": "^5.9.2",
+    "vite-tsconfig-paths": "^6.0.3",
+    "vitest": "^3.2.4"
+  }
+}

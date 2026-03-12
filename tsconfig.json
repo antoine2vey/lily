@@ -34,6 +34,7 @@
     { "path": "./packages/knowledge-db" },
     { "path": "./packages/api" },
     { "path": "./packages/web" },
-    { "path": "./packages/admin" }
+    { "path": "./packages/admin" },
+    { "path": "./packages/mcp" }
   ]
 }
