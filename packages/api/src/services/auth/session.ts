@@ -1,7 +1,7 @@
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { UserProfile } from '@lily/shared/auth'
 import { SessionNotFoundError } from '@lily/shared/errors/user'
-import { Context, Effect } from 'effect'
+import { Context, Effect, Option } from 'effect'
 
 export interface SessionContext {
   readonly userId: string
@@ -40,6 +40,7 @@ export const withSession = <A, E, R>(
       email: user.email,
       name: user.name,
       username: user.username,
+      timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       role: user.role,

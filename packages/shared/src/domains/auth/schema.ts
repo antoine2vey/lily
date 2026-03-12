@@ -27,6 +27,7 @@ export const UserProfile = Schema.Struct({
   email: Schema.String,
   name: Schema.NullOr(Schema.String),
   username: Schema.optional(Schema.String),
+  timezone: Schema.optional(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
   role: Schema.Literal('user', 'admin'),

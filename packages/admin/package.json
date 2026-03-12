@@ -15,7 +15,7 @@
   "dependencies": {
     "@lily/shared": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
-    "effect": "^3.17.5",
+    "effect": "^3.19.19",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^6.28.0"
