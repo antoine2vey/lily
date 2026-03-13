@@ -41,6 +41,18 @@ const mockPlant: Plant = {
       lastCareAt: null,
       nextCareAt: null,
     },
+    {
+      careType: 'misting',
+      frequencyDays: 2,
+      lastCareAt: new Date('2024-01-01'),
+      nextCareAt: new Date('2024-01-03'),
+    },
+    {
+      careType: 'repotting',
+      frequencyDays: 365,
+      lastCareAt: null,
+      nextCareAt: null,
+    },
   ],
 }
 
@@ -60,6 +72,7 @@ describe('carePlant MCP tool', () => {
     expect(result.text).toContain('Watered')
     expect(result.text).toContain('Monstera')
     expect(result.text).toContain('successfully')
+    expect(result.feedback.nextCareEstimate).toBe('7 days')
   })
 
   it('should return "Fertilized" label for fertilization', async () => {
@@ -71,6 +84,30 @@ describe('carePlant MCP tool', () => {
 
     expect(result.text).toContain('Fertilized')
     expect(result.text).toContain('Monstera')
-    expect(result.text).toContain('successfully')
+    expect(result.feedback.nextCareEstimate).toBe('30 days')
+  })
+
+  it('should return "Misted" label for misting', async () => {
+    const result = await Effect.runPromise(
+      carePlantEffect({ plantId: 'plant-1', type: 'misting' }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(result.text).toContain('Misted')
+    expect(result.text).toContain('Monstera')
+    expect(result.feedback.nextCareEstimate).toBe('2 days')
+  })
+
+  it('should return "Repotted" label for repotting', async () => {
+    const result = await Effect.runPromise(
+      carePlantEffect({ plantId: 'plant-1', type: 'repotting' }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(result.text).toContain('Repotted')
+    expect(result.text).toContain('Monstera')
+    expect(result.feedback.nextCareEstimate).toBe('365 days')
   })
 })

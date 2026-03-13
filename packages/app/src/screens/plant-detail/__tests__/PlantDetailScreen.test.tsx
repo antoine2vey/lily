@@ -30,15 +30,8 @@ jest.mock('@/hooks/useUploadPhoto', () => ({
   }),
 }))
 
-jest.mock('@/hooks/useWaterPlant', () => ({
-  useWaterPlant: () => ({
-    mutate: jest.fn(),
-    isPending: false,
-  }),
-}))
-
-jest.mock('@/hooks/useFertilizePlant', () => ({
-  useFertilizePlant: () => ({
+jest.mock('@/hooks/useCarePlant', () => ({
+  useCarePlant: () => ({
     mutate: jest.fn(),
     isPending: false,
   }),

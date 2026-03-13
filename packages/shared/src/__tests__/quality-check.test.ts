@@ -12,6 +12,8 @@ const makeResult = (overrides: Partial<PlantAIResult> = {}): PlantAIResult => ({
   humidityRating: 60,
   petToxicityRating: 30,
   fertilizationFrequencyDays: 30,
+  mistingFrequencyDays: null,
+  repottingFrequencyDays: null,
   category: 'Tropical',
   description: 'A tropical plant',
   wateringTips: 'Water weekly',

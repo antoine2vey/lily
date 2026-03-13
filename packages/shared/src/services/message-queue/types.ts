@@ -5,6 +5,8 @@ import { Array, Data, Schema } from 'effect'
 export const NOTIFICATION_TOPICS = [
   'watering_reminder',
   'fertilization_reminder',
+  'misting_reminder',
+  'repotting_reminder',
   'overdue_reminder',
   'new_follower',
   'nudge_to_water',

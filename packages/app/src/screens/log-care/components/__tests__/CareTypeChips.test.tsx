@@ -9,7 +9,7 @@ describe('CareTypeChips', () => {
   })
 
   it('renders care type label', () => {
-    render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
+    render(<CareTypeChips value="watering" onValueChange={mockOnValueChange} />)
 
     expect(screen.getByText('Care Type')).toBeTruthy()
   })
@@ -17,7 +17,7 @@ describe('CareTypeChips', () => {
   it('renders custom label', () => {
     render(
       <CareTypeChips
-        value="water"
+        value="watering"
         onValueChange={mockOnValueChange}
         label="Select Action"
       />
@@ -27,32 +27,32 @@ describe('CareTypeChips', () => {
   })
 
   it('renders watering option', () => {
-    render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
+    render(<CareTypeChips value="watering" onValueChange={mockOnValueChange} />)
 
     expect(screen.getByText('Watering')).toBeTruthy()
   })
 
   it('renders fertilization option', () => {
-    render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
+    render(<CareTypeChips value="watering" onValueChange={mockOnValueChange} />)
 
     expect(screen.getByText('Fertilization')).toBeTruthy()
   })
 
   it('calls onValueChange when fertilization is pressed', () => {
-    render(<CareTypeChips value="water" onValueChange={mockOnValueChange} />)
+    render(<CareTypeChips value="watering" onValueChange={mockOnValueChange} />)
 
     fireEvent.press(screen.getByText('Fertilization'))
 
-    expect(mockOnValueChange).toHaveBeenCalledWith('fertilize')
+    expect(mockOnValueChange).toHaveBeenCalledWith('fertilization')
   })
 
-  it('calls onValueChange with water when watering is pressed', () => {
+  it('calls onValueChange with watering when watering is pressed', () => {
     render(
-      <CareTypeChips value="fertilize" onValueChange={mockOnValueChange} />
+      <CareTypeChips value="fertilization" onValueChange={mockOnValueChange} />
     )
 
     fireEvent.press(screen.getByText('Watering'))
 
-    expect(mockOnValueChange).toHaveBeenCalledWith('water')
+    expect(mockOnValueChange).toHaveBeenCalledWith('watering')
   })
 })

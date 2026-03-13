@@ -1,4 +1,5 @@
 import { Data, Schema } from 'effect'
+import { CareType } from '../../domains/care/types'
 
 // Event schemas
 export const PlantCreatedEvent = Schema.Struct({
@@ -12,10 +13,7 @@ export const CareLogCreatedEvent = Schema.Struct({
   userId: Schema.String,
   plantId: Schema.String,
   careLogId: Schema.String,
-  type: Schema.Union(
-    Schema.Literal('watering'),
-    Schema.Literal('fertilization')
-  ),
+  type: CareType,
 })
 
 export const ChatMessageSentEvent = Schema.Struct({

@@ -1,7 +1,7 @@
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
-import type { AchievementKey } from '@lily/shared'
+import type { AchievementKey, CareType } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { Effect, Match, Option, pipe, Queue } from 'effect'
 
@@ -46,10 +46,7 @@ const onPlantCreated = (event: { userId: string }) =>
     }
   })
 
-const onCareLogCreated = (event: {
-  userId: string
-  type: 'watering' | 'fertilization'
-}) =>
+const onCareLogCreated = (event: { userId: string; type: CareType }) =>
   Effect.gen(function* () {
     const repo = yield* AchievementRepository
 

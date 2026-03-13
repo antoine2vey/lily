@@ -38,7 +38,7 @@ describe('getCareIndicator', () => {
   it('returns None when daysUntil is undefined', () => {
     const care: CareStatus = { daysUntil: undefined, isOverdue: false }
 
-    const result = getCareIndicator(care, 'water', mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
     expect(Option.isNone(result)).toBe(true)
   })
@@ -46,12 +46,13 @@ describe('getCareIndicator', () => {
   it('returns overdue indicator when isOverdue is true', () => {
     const care: CareStatus = { daysUntil: 0, isOverdue: true }
 
-    const result = getCareIndicator(care, 'water', mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result)).toEqual({
-      type: 'water',
+      type: 'watering',
       text: 'Overdue',
+      daysUntil: 0,
       isUrgent: true,
       isOverdue: true,
       isToday: false,
@@ -62,12 +63,13 @@ describe('getCareIndicator', () => {
   it('returns correct indicator for water type', () => {
     const care: CareStatus = { daysUntil: 3, isOverdue: false }
 
-    const result = getCareIndicator(care, 'water', mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result)).toEqual({
-      type: 'water',
+      type: 'watering',
       text: '3 days',
+      daysUntil: 3,
       isUrgent: false,
       isOverdue: false,
       isToday: false,
@@ -78,12 +80,13 @@ describe('getCareIndicator', () => {
   it('returns correct indicator for fertilize type', () => {
     const care: CareStatus = { daysUntil: 5, isOverdue: false }
 
-    const result = getCareIndicator(care, 'fertilize', mockT)
+    const result = getCareIndicator(care, 'fertilization', mockT)
 
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result)).toEqual({
-      type: 'fertilize',
+      type: 'fertilization',
       text: '5 days',
+      daysUntil: 5,
       isUrgent: false,
       isOverdue: false,
       isToday: false,
@@ -94,7 +97,7 @@ describe('getCareIndicator', () => {
   it('marks isUrgent true when daysUntil is 0', () => {
     const care: CareStatus = { daysUntil: 0, isOverdue: false }
 
-    const result = getCareIndicator(care, 'water', mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result).isUrgent).toBe(true)
@@ -104,7 +107,7 @@ describe('getCareIndicator', () => {
   it('marks isUrgent false when daysUntil is greater than 0', () => {
     const care: CareStatus = { daysUntil: 1, isOverdue: false }
 
-    const result = getCareIndicator(care, 'water', mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result).isUrgent).toBe(false)
@@ -146,7 +149,7 @@ describe('getCareIndicators', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].isOverdue).toBe(true)
-      expect(result[0].type).toBe('water')
+      expect(result[0].type).toBe('watering')
     })
 
     it('returns fertilize overdue when only fertilization is overdue', () => {
@@ -157,7 +160,7 @@ describe('getCareIndicators', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].isOverdue).toBe(true)
-      expect(result[0].type).toBe('fertilize')
+      expect(result[0].type).toBe('fertilization')
     })
   })
 
@@ -181,7 +184,7 @@ describe('getCareIndicators', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].isToday).toBe(true)
-      expect(result[0].type).toBe('water')
+      expect(result[0].type).toBe('watering')
     })
 
     it('returns fertilize today when only fertilization is due today', () => {
@@ -192,7 +195,7 @@ describe('getCareIndicators', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].isToday).toBe(true)
-      expect(result[0].type).toBe('fertilize')
+      expect(result[0].type).toBe('fertilization')
     })
   })
 
@@ -204,7 +207,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('water')
+      expect(result[0].type).toBe('watering')
       expect(result[0].text).toBe('2 days')
     })
 
@@ -215,7 +218,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilize')
+      expect(result[0].type).toBe('fertilization')
       expect(result[0].text).toBe('Tomorrow')
     })
 
@@ -226,7 +229,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('water')
+      expect(result[0].type).toBe('watering')
     })
   })
 
@@ -241,7 +244,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('water')
+      expect(result[0].type).toBe('watering')
     })
 
     it('returns fertilize indicator when only fertilization has schedule', () => {
@@ -251,7 +254,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilize')
+      expect(result[0].type).toBe('fertilization')
     })
   })
 
@@ -263,7 +266,7 @@ describe('getCareIndicators', () => {
       const result = getCareIndicators(watering, fertilization, mockT)
 
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilize')
+      expect(result[0].type).toBe('fertilization')
       expect(result[0].text).toBe('180 days')
     })
 

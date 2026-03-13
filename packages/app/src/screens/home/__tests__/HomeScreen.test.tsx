@@ -33,8 +33,8 @@ jest.mock('@/hooks/useAchievements', () => ({
   })),
 }))
 
-jest.mock('@/hooks/useWaterAll', () => ({
-  useWaterAll: jest.fn(() => ({
+jest.mock('@/hooks/useCareAll', () => ({
+  useCareAll: jest.fn(() => ({
     mutate: jest.fn(),
     isPending: false,
   })),

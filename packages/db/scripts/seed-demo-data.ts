@@ -36,7 +36,7 @@ const daysFromNow = (days: number) =>
 
 // Care schedule data attached to each plant definition
 interface PlantSchedule {
-  careType: 'watering' | 'fertilization'
+  careType: 'watering' | 'fertilization' | 'misting' | 'repotting'
   frequencyDays: number
   lastCareAt: Date | null
   nextCareAt: Date
@@ -124,6 +124,12 @@ const DEMO_PLANTS: DemoPlantData[] = [
         lastCareAt: daysFromNow(-4),
         nextCareAt: daysFromNow(-1), // Yesterday (overdue)
       },
+      {
+        careType: 'misting',
+        frequencyDays: 2,
+        lastCareAt: daysFromNow(-3),
+        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+      },
     ],
   },
   // Other healthy plants
@@ -150,6 +156,12 @@ const DEMO_PLANTS: DemoPlantData[] = [
         frequencyDays: 14,
         lastCareAt: daysFromNow(-14),
         nextCareAt: daysFromNow(0), // Today
+      },
+      {
+        careType: 'repotting',
+        frequencyDays: 365,
+        lastCareAt: daysFromNow(-300),
+        nextCareAt: daysFromNow(65),
       },
     ],
   },
@@ -218,6 +230,18 @@ const DEMO_PLANTS: DemoPlantData[] = [
         lastCareAt: daysFromNow(-22),
         nextCareAt: daysFromNow(-1), // Yesterday (overdue)
       },
+      {
+        careType: 'misting',
+        frequencyDays: 3,
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(2),
+      },
+      {
+        careType: 'repotting',
+        frequencyDays: 365,
+        lastCareAt: daysFromNow(-200),
+        nextCareAt: daysFromNow(165),
+      },
     ],
   },
   {
@@ -243,6 +267,12 @@ const DEMO_PLANTS: DemoPlantData[] = [
         frequencyDays: 30,
         lastCareAt: daysFromNow(-28),
         nextCareAt: daysFromNow(2), // In 2 days (this week)
+      },
+      {
+        careType: 'misting',
+        frequencyDays: 2,
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(1), // Tomorrow
       },
     ],
   },
@@ -305,6 +335,18 @@ const DEMO_PLANTS: DemoPlantData[] = [
         lastCareAt: daysFromNow(-10),
         nextCareAt: daysFromNow(-3),
       },
+      {
+        careType: 'misting',
+        frequencyDays: 2,
+        lastCareAt: daysFromNow(-5),
+        nextCareAt: daysFromNow(-3), // Overdue
+      },
+      {
+        careType: 'repotting',
+        frequencyDays: 365,
+        lastCareAt: daysFromNow(-400),
+        nextCareAt: daysFromNow(-35), // Overdue
+      },
     ],
   },
   {
@@ -324,6 +366,12 @@ const DEMO_PLANTS: DemoPlantData[] = [
         frequencyDays: 5,
         lastCareAt: daysFromNow(-8),
         nextCareAt: daysFromNow(-3),
+      },
+      {
+        careType: 'misting',
+        frequencyDays: 1,
+        lastCareAt: daysFromNow(-4),
+        nextCareAt: daysFromNow(-3), // Overdue
       },
     ],
   },
@@ -354,6 +402,12 @@ const LILY_PLANTS: DemoPlantData[] = [
         frequencyDays: 30,
         lastCareAt: daysFromNow(-10),
         nextCareAt: daysFromNow(20),
+      },
+      {
+        careType: 'misting',
+        frequencyDays: 3,
+        lastCareAt: daysFromNow(-2),
+        nextCareAt: daysFromNow(1),
       },
     ],
   },
@@ -628,13 +682,19 @@ const seedDemoData = Effect.gen(function* () {
         plantId: snakePlant.id,
       },
       {
+        type: 'repotting',
+        notes: 'Repotted into larger terracotta pot',
+        date: daysAgo(90),
+        plantId: snakePlant.id,
+      },
+      {
         type: 'watering',
-        notes: 'Repotted and watered',
+        notes: 'Watered after repotting',
         date: daysAgo(90),
         plantId: snakePlant.id,
       },
     ])
-    yield* Console.log('  Snake Plant: 7 care logs (15-90 days ago)')
+    yield* Console.log('  Snake Plant: 8 care logs (15-90 days ago)')
   }
 
   // Pothos - Regular watering, trailing vine
@@ -700,8 +760,8 @@ const seedDemoData = Effect.gen(function* () {
         plantId: fern.id,
       },
       {
-        type: 'watering',
-        notes: 'Misted leaves',
+        type: 'misting',
+        notes: 'Misted leaves thoroughly',
         date: daysAgo(8),
         plantId: fern.id,
       },
@@ -712,8 +772,14 @@ const seedDemoData = Effect.gen(function* () {
         plantId: fern.id,
       },
       {
+        type: 'misting',
+        notes: 'Misted fronds',
+        date: daysAgo(11),
+        plantId: fern.id,
+      },
+      {
         type: 'watering',
-        notes: 'Misted and watered',
+        notes: 'Watered and misted',
         date: daysAgo(13),
         plantId: fern.id,
       },
@@ -736,13 +802,13 @@ const seedDemoData = Effect.gen(function* () {
         plantId: fern.id,
       },
       {
-        type: 'watering',
-        notes: 'Misted leaves',
+        type: 'misting',
+        notes: 'Quick mist',
         date: daysAgo(21),
         plantId: fern.id,
       },
     ])
-    yield* Console.log('  Fern: 9 care logs (4-21 days ago, frequent)')
+    yield* Console.log('  Fern: 10 care logs (4-21 days ago, frequent)')
   }
 
   // Fiddle Leaf Fig - Medium maintenance with recent activity
@@ -754,7 +820,7 @@ const seedDemoData = Effect.gen(function* () {
     const fiddleLeafFig = fiddleLeafFigOption.value
     yield* db.insert(careLogs).values([
       {
-        type: 'watering',
+        type: 'misting',
         notes: 'Misted leaves',
         date: hoursAgo(2),
         plantId: fiddleLeafFig.id,
@@ -847,13 +913,19 @@ const seedDemoData = Effect.gen(function* () {
         plantId: aloeVera.id,
       },
       {
+        type: 'repotting',
+        notes: 'Divided pups and repotted',
+        date: daysAgo(60),
+        plantId: aloeVera.id,
+      },
+      {
         type: 'watering',
-        notes: 'Divided pups, repotted and watered',
+        notes: 'Watered after repotting',
         date: daysAgo(60),
         plantId: aloeVera.id,
       },
     ])
-    yield* Console.log('  Aloe Vera: 5 care logs (5-60 days ago)')
+    yield* Console.log('  Aloe Vera: 6 care logs (5-60 days ago)')
   }
 
   // Monstera - Popular plant with good history
@@ -906,8 +978,26 @@ const seedDemoData = Effect.gen(function* () {
         date: daysAgo(45),
         plantId: monstera.id,
       },
+      {
+        type: 'misting',
+        notes: 'Misted aerial roots',
+        date: daysAgo(5),
+        plantId: monstera.id,
+      },
+      {
+        type: 'misting',
+        notes: 'Quick mist',
+        date: daysAgo(12),
+        plantId: monstera.id,
+      },
+      {
+        type: 'repotting',
+        notes: 'Repotted into bigger pot with fresh soil',
+        date: daysAgo(120),
+        plantId: monstera.id,
+      },
     ])
-    yield* Console.log('  Monstera: 7 care logs (2-45 days ago)')
+    yield* Console.log('  Monstera: 10 care logs (2-120 days ago)')
   }
 
   // Peace Lily - Flowering plant with varied care
@@ -960,8 +1050,20 @@ const seedDemoData = Effect.gen(function* () {
         date: daysAgo(22),
         plantId: peaceLily.id,
       },
+      {
+        type: 'misting',
+        notes: 'Misted leaves',
+        date: daysAgo(3),
+        plantId: peaceLily.id,
+      },
+      {
+        type: 'misting',
+        notes: 'Light mist',
+        date: daysAgo(9),
+        plantId: peaceLily.id,
+      },
     ])
-    yield* Console.log('  Peace Lily: 7 care logs (2-35 days ago)')
+    yield* Console.log('  Peace Lily: 9 care logs (2-35 days ago)')
   }
 
   // Spider Plant - Air purifier with propagation
@@ -1033,7 +1135,7 @@ const seedDemoData = Effect.gen(function* () {
         plantId: rubberPlant.id,
       },
       {
-        type: 'watering',
+        type: 'misting',
         notes: 'Wiped leaves clean, misted',
         date: daysAgo(15),
         plantId: rubberPlant.id,
@@ -1089,9 +1191,27 @@ const seedDemoData = Effect.gen(function* () {
         date: daysAgo(45),
         plantId: orchid.id,
       },
+      {
+        type: 'misting',
+        notes: 'Misted aerial roots',
+        date: daysAgo(12),
+        plantId: orchid.id,
+      },
+      {
+        type: 'misting',
+        notes: 'Light mist',
+        date: daysAgo(20),
+        plantId: orchid.id,
+      },
+      {
+        type: 'repotting',
+        notes: 'Repotted in fresh orchid bark',
+        date: daysAgo(180),
+        plantId: orchid.id,
+      },
     ])
     yield* Console.log(
-      '  Orchid: 6 care logs (10-45 days ago, needs attention)'
+      '  Orchid: 9 care logs (10-180 days ago, needs attention)'
     )
   }
 
@@ -1110,8 +1230,8 @@ const seedDemoData = Effect.gen(function* () {
         plantId: calathea.id,
       },
       {
-        type: 'watering',
-        notes: 'Misted heavily',
+        type: 'misting',
+        notes: 'Misted heavily for humidity',
         date: daysAgo(10),
         plantId: calathea.id,
       },
@@ -1251,10 +1371,12 @@ const seedDemoData = Effect.gen(function* () {
       { type: 'watering', plantId: plant.id, date: daysAgoL(13) },
       { type: 'watering', plantId: plant.id, date: daysAgoL(23) },
       { type: 'fertilization', plantId: plant.id, date: daysAgoL(30) },
+      { type: 'misting', plantId: plant.id, date: daysAgoL(2) },
+      { type: 'misting', plantId: plant.id, date: daysAgoL(8) },
     ])
   }
   yield* Console.log(
-    `  Created ${lilyCreatedPlants.length * 4} care logs for Lily`
+    `  Created ${lilyCreatedPlants.length * 6} care logs for Lily`
   )
 
   // ----------------------------------------------------------------
@@ -1283,8 +1405,8 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log('  Alex follows Lily ✓')
   yield* Console.log('  Lily follows Alex ✓')
 
-  // Updated count: 7 + 6 + 9 + 7 + 1 + 5 + 7 + 7 + 5 + 5 + 6 + 7 = 72
-  const totalCareLogs = 72
+  // Updated count: 8 + 6 + 10 + 7 + 1 + 6 + 10 + 9 + 5 + 5 + 9 + 7 = 83
+  const totalCareLogs = 83
 
   yield* Console.log('')
   yield* Console.log('Demo data seeded successfully!')
@@ -1302,28 +1424,36 @@ const seedDemoData = Effect.gen(function* () {
   yield* Console.log(
     '    - 2 fertilization this week (Snake Plant, Peace Lily)'
   )
+  yield* Console.log('    - Overdue misting (Fern, Orchid, Calathea)')
+  yield* Console.log('    - Overdue repotting (Orchid)')
   yield* Console.log('')
   yield* Console.log(
     `  Care logs: ${totalCareLogs} activities across all plants`
   )
-  yield* Console.log('    - Snake Plant: 7 logs (15-90 days ago)')
+  yield* Console.log('    - Snake Plant: 8 logs (15-90 days ago)')
   yield* Console.log('    - Pothos: 6 logs (8-30 days ago)')
-  yield* Console.log('    - Fern: 9 logs (4-21 days ago, high frequency)')
+  yield* Console.log('    - Fern: 10 logs (4-21 days ago, high frequency)')
   yield* Console.log('    - Fiddle Leaf Fig: 7 logs (2h-44 days ago)')
   yield* Console.log('    - Cactus: 1 log (newly added)')
-  yield* Console.log('    - Aloe Vera: 5 logs (5-60 days ago)')
-  yield* Console.log('    - Monstera: 7 logs (2-45 days ago)')
-  yield* Console.log('    - Peace Lily: 7 logs (2-35 days ago)')
+  yield* Console.log('    - Aloe Vera: 6 logs (5-60 days ago)')
+  yield* Console.log('    - Monstera: 10 logs (2-120 days ago)')
+  yield* Console.log('    - Peace Lily: 9 logs (2-35 days ago)')
   yield* Console.log('    - Spider Plant: 5 logs (4-40 days ago)')
   yield* Console.log('    - Rubber Plant: 5 logs (3-50 days ago)')
-  yield* Console.log('    - Orchid: 6 logs (10-45 days ago)')
+  yield* Console.log('    - Orchid: 9 logs (10-180 days ago)')
   yield* Console.log('    - Calathea: 7 logs (8-30 days ago)')
   yield* Console.log('')
   yield* Console.log('  Care log types included:')
   yield* Console.log('    - watering (frequent, with maintenance notes)')
   yield* Console.log('    - fertilization (monthly)')
+  yield* Console.log('    - misting (Fern, Monstera, Peace Lily, Orchid, etc.)')
+  yield* Console.log(
+    '    - repotting (Snake Plant, Aloe Vera, Monstera, Orchid)'
+  )
   yield* Console.log('')
-  yield* Console.log('  Lily (lily@lily.app): 6 plants, follows Alex')
+  yield* Console.log(
+    `  Lily (lily@lily.app): 6 plants, ${lilyCreatedPlants.length * 6} care logs, follows Alex`
+  )
   yield* Console.log('')
   yield* Console.log('Login:')
   yield* Console.log('  Alex: antoine@lily.app')

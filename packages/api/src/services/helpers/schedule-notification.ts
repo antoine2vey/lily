@@ -13,6 +13,8 @@ import { Effect, Option, pipe } from 'effect'
 export type DeferredCareType =
   | 'watering_reminder'
   | 'fertilization_reminder'
+  | 'misting_reminder'
+  | 'repotting_reminder'
   | 'overdue_reminder'
 
 interface DeferredCareNotificationParams {

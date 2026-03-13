@@ -41,32 +41,34 @@ export default {
     completedAt: 'Completed {date}',
   },
   types: {
-    water: {
+    watering: {
       name: 'Water',
       action: 'Water',
       completed: 'Watered',
-      badge: 'WATER',
+      badge: 'WATERING',
     },
-    fertilize: {
+    fertilization: {
       name: 'Fertilize',
       action: 'Fertilize',
       completed: 'Fertilized',
-      badge: 'FERTILIZE',
+      badge: 'FERTILIZATION',
     },
-    repot: {
+    misting: {
+      name: 'Mist',
+      action: 'Mist',
+      completed: 'Misted',
+      badge: 'MISTING',
+    },
+    repotting: {
       name: 'Repot',
       action: 'Repot',
       completed: 'Repotted',
+      badge: 'REPOTTING',
     },
     prune: {
       name: 'Prune',
       action: 'Prune',
       completed: 'Pruned',
-    },
-    mist: {
-      name: 'Mist',
-      action: 'Mist',
-      completed: 'Misted',
     },
     rotate: {
       name: 'Rotate',
@@ -95,8 +97,10 @@ export default {
     filterAll: 'All',
     filterByType: 'Filter by Type',
     filterByPlant: 'By Plant',
-    water: 'Water',
-    fertilize: 'Fertilize',
+    watering: 'Watering',
+    fertilization: 'Fertilization',
+    misting: 'Misting',
+    repotting: 'Repotting',
   },
   reminders: {
     title: 'Reminders',

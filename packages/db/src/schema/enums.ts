@@ -3,6 +3,8 @@ import { pgEnum } from 'drizzle-orm/pg-core'
 export const careLogTypeEnum = pgEnum('care_log_type', [
   'watering',
   'fertilization',
+  'misting',
+  'repotting',
 ])
 
 export const notificationStatusEnum = pgEnum('notification_status', [
@@ -69,7 +71,12 @@ export const delegationStatusEnum = pgEnum('delegation_status', [
 
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
 
-export const careTypeEnum = pgEnum('care_type', ['watering', 'fertilization'])
+export const careTypeEnum = pgEnum('care_type', [
+  'watering',
+  'fertilization',
+  'misting',
+  'repotting',
+])
 
 export const blogPostStatusEnum = pgEnum('blog_post_status', [
   'pending',

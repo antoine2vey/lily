@@ -3,6 +3,8 @@ import {
   type DateInput,
   daysUntil,
   getFertilizationSchedule,
+  getMistingSchedule,
+  getRepottingSchedule,
   getWateringSchedule,
   parseApiDate,
 } from '@lily/shared'
@@ -50,6 +52,8 @@ interface PlantCardData {
   health: HealthStatus
   watering: CareStatus
   fertilization: CareStatus
+  misting: CareStatus
+  repotting: CareStatus
   isFavorite?: boolean
   roomId?: string
   roomName?: string
@@ -172,6 +176,14 @@ export function PlantsScreen() {
         getFertilizationSchedule(plant.schedules),
         Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
       )
+      const nextMistingAt = pipe(
+        getMistingSchedule(plant.schedules),
+        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+      )
+      const nextRepottingAt = pipe(
+        getRepottingSchedule(plant.schedules),
+        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+      )
       return {
         id: plant.id,
         name: plant.name,
@@ -182,6 +194,12 @@ export function PlantsScreen() {
         ),
         fertilization: getCareStatus(
           Option.getOrElse(nextFertilizationAt, () => null as DateInput)
+        ),
+        misting: getCareStatus(
+          Option.getOrElse(nextMistingAt, () => null as DateInput)
+        ),
+        repotting: getCareStatus(
+          Option.getOrElse(nextRepottingAt, () => null as DateInput)
         ),
         isFavorite: plant.isFavorite,
         roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),

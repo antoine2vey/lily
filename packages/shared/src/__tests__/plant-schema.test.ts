@@ -2,16 +2,16 @@ import { Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   AIIdentifyResponse,
+  CareMultiplePlantsRequest,
+  CareMultiplePlantsResult,
   EnhancedPlantCreateRequest,
   Plant,
+  PlantCareRequest,
   PlantCreateRequest,
   PlantDetail,
   PlantPhoto,
   PlantsListResponse,
   PlantUpdateRequest,
-  PlantWaterRequest,
-  WaterMultiplePlantsRequest,
-  WaterMultiplePlantsResult,
 } from '../domains/plant/schema'
 
 // Test fixtures - use ISO strings for dates as that's what the schema expects for decoding
@@ -201,19 +201,36 @@ describe('Plant Schemas', () => {
     })
   })
 
-  describe('PlantWaterRequest', () => {
-    it('should decode empty request', () => {
-      const result = Schema.decodeSync(PlantWaterRequest)({})
-
-      expect(result).toEqual({})
+  describe('PlantCareRequest', () => {
+    it('should decode a watering request', () => {
+      const request = { careType: 'watering' as const }
+      const result = Schema.decodeSync(PlantCareRequest)(request)
+      expect(result.careType).toBe('watering')
     })
 
-    it('should decode request with notes', () => {
-      const request = { notes: 'Added fertilizer too' }
+    it('should decode request with all care types', () => {
+      const careTypes = [
+        'watering',
+        'fertilization',
+        'misting',
+        'repotting',
+      ] as const
 
-      const result = Schema.decodeSync(PlantWaterRequest)(request)
+      for (const careType of careTypes) {
+        const result = Schema.decodeSync(PlantCareRequest)({ careType })
+        expect(result.careType).toBe(careType)
+      }
+    })
 
-      expect(result.notes).toBe('Added fertilizer too')
+    it('should decode request with optional fields', () => {
+      const request = {
+        careType: 'misting' as const,
+        notes: 'Misted the leaves',
+        date: '2024-01-15T00:00:00.000Z',
+      }
+      const result = Schema.decodeSync(PlantCareRequest)(request)
+      expect(result.careType).toBe('misting')
+      expect(result.notes).toBe('Misted the leaves')
     })
   })
 
@@ -270,6 +287,8 @@ describe('Plant Schemas', () => {
         humidityRating: 4,
         petToxicityRating: 3,
         fertilizationFrequencyDays: 30,
+        mistingFrequencyDays: 2,
+        repottingFrequencyDays: 365,
         category: 'Tropical',
         description: 'A popular houseplant with split leaves',
         wateringTips: 'Let soil dry between waterings. Reduce in winter.',
@@ -294,6 +313,8 @@ describe('Plant Schemas', () => {
         humidityRating: null,
         petToxicityRating: null,
         fertilizationFrequencyDays: null,
+        mistingFrequencyDays: null,
+        repottingFrequencyDays: null,
         category: null,
         description: null,
         wateringTips: null,
@@ -317,6 +338,8 @@ describe('Plant Schemas', () => {
         humidityRating: null,
         petToxicityRating: null,
         fertilizationFrequencyDays: null,
+        mistingFrequencyDays: null,
+        repottingFrequencyDays: null,
         category: null,
         description: null,
         // Missing imageUrl
@@ -425,29 +448,38 @@ describe('Plant Schemas', () => {
     })
   })
 
-  describe('WaterMultiplePlantsRequest', () => {
-    it('should decode request with plant IDs', () => {
+  describe('CareMultiplePlantsRequest', () => {
+    it('should decode request with plant IDs and care type', () => {
       const request = {
         plantIds: ['plant-1', 'plant-2', 'plant-3'],
+        careType: 'watering' as const,
       }
 
-      const result = Schema.decodeSync(WaterMultiplePlantsRequest)(request)
+      const result = Schema.decodeSync(CareMultiplePlantsRequest)(request)
 
       expect(result.plantIds).toHaveLength(3)
+      expect(result.careType).toBe('watering')
     })
 
-    it('should decode empty request', () => {
-      const request = {
-        plantIds: [],
+    it('should accept all care types', () => {
+      const careTypes = [
+        'watering',
+        'fertilization',
+        'misting',
+        'repotting',
+      ] as const
+
+      for (const careType of careTypes) {
+        const result = Schema.decodeSync(CareMultiplePlantsRequest)({
+          plantIds: ['plant-1'],
+          careType,
+        })
+        expect(result.careType).toBe(careType)
       }
-
-      const result = Schema.decodeSync(WaterMultiplePlantsRequest)(request)
-
-      expect(result.plantIds).toHaveLength(0)
     })
   })
 
-  describe('WaterMultiplePlantsResult', () => {
+  describe('CareMultiplePlantsResult', () => {
     it('should decode successful result with plant', () => {
       const result = {
         plantId: 'plant-1',
@@ -455,7 +487,7 @@ describe('Plant Schemas', () => {
         plant: validPlant,
       }
 
-      const decoded = Schema.decodeSync(WaterMultiplePlantsResult)(result)
+      const decoded = Schema.decodeSync(CareMultiplePlantsResult)(result)
 
       expect(decoded.success).toBe(true)
       expect(decoded.plant?.name).toBe('Monstera')
@@ -467,7 +499,7 @@ describe('Plant Schemas', () => {
         success: false,
       }
 
-      const decoded = Schema.decodeSync(WaterMultiplePlantsResult)(result)
+      const decoded = Schema.decodeSync(CareMultiplePlantsResult)(result)
 
       expect(decoded.success).toBe(false)
       expect(decoded.plant).toBeUndefined()

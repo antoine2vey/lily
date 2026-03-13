@@ -11,7 +11,11 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import type { DelegationStatus, PlantCareSchedule } from '@lily/shared'
+import type {
+  CareType,
+  DelegationStatus,
+  PlantCareSchedule,
+} from '@lily/shared'
 import { and, count, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
 import {
   Array,
@@ -169,7 +173,7 @@ const scheduleColumns = {
 }
 
 type ScheduleJoinRow = {
-  careType: 'watering' | 'fertilization' | null
+  careType: CareType | null
   frequencyDays: number | null
   lastCareAt: Date | null
   nextCareAt: Date | null

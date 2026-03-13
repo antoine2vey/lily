@@ -9,4 +9,3 @@ export {
   WidgetToolsLayer,
 } from '@lily/mcp/tools/handlers'
 export { listPlantsEffect } from '@lily/mcp/tools/list-plants'
-export { waterPlantEffect } from '@lily/mcp/tools/water-plant'

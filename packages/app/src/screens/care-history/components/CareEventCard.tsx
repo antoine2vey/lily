@@ -7,12 +7,12 @@ import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 
 type CareEventType =
-  | 'water'
-  | 'fertilize'
+  | 'watering'
+  | 'fertilization'
+  | 'misting'
+  | 'repotting'
   | 'prune'
   | 'rotate'
-  | 'mist'
-  | 'repot'
 
 interface CareEvent {
   id: string
@@ -31,47 +31,53 @@ interface EventConfig {
   icon: keyof typeof MaterialIcons.glyphMap
   bgColor: string
   iconColor: string
-  labelKey: 'water' | 'fertilize' | 'prune' | 'rotate' | 'mist' | 'repot'
+  labelKey:
+    | 'watering'
+    | 'fertilization'
+    | 'misting'
+    | 'repotting'
+    | 'prune'
+    | 'rotate'
 }
 
 const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
   pipe(
     Match.value(type),
-    Match.when('water', () => ({
+    Match.when('watering', () => ({
       icon: 'water-drop' as const,
-      bgColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE', // blue-100
-      iconColor: isDark ? '#93C5FD' : '#3B82F6', // blue-500/300
-      labelKey: 'water' as const,
+      bgColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#DBEAFE',
+      iconColor: isDark ? '#93C5FD' : '#3B82F6',
+      labelKey: 'watering' as const,
     })),
-    Match.when('fertilize', () => ({
+    Match.when('fertilization', () => ({
       icon: 'eco' as const,
-      bgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : '#D1FAE5', // green-100
-      iconColor: isDark ? '#9bc76d' : '#5B8C5A', // primary green
-      labelKey: 'fertilize' as const,
+      bgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : '#D1FAE5',
+      iconColor: isDark ? '#9bc76d' : '#5B8C5A',
+      labelKey: 'fertilization' as const,
+    })),
+    Match.when('misting', () => ({
+      icon: 'grain' as const,
+      bgColor: isDark ? 'rgba(8, 145, 178, 0.2)' : '#CFFAFE',
+      iconColor: isDark ? '#22D3EE' : '#0891B2',
+      labelKey: 'misting' as const,
+    })),
+    Match.when('repotting', () => ({
+      icon: 'compost' as const,
+      bgColor: isDark ? 'rgba(146, 64, 14, 0.2)' : '#FEF3C7',
+      iconColor: isDark ? '#FBBF24' : '#92400E',
+      labelKey: 'repotting' as const,
     })),
     Match.when('prune', () => ({
       icon: 'content-cut' as const,
-      bgColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#FFEDD5', // orange-100
-      iconColor: isDark ? '#FB923C' : '#EA580C', // orange-600/400
+      bgColor: isDark ? 'rgba(234, 88, 12, 0.2)' : '#FFEDD5',
+      iconColor: isDark ? '#FB923C' : '#EA580C',
       labelKey: 'prune' as const,
     })),
     Match.when('rotate', () => ({
       icon: 'rotate-right' as const,
-      bgColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF', // purple-100
-      iconColor: isDark ? '#C084FC' : '#9333EA', // purple-600/400
+      bgColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF',
+      iconColor: isDark ? '#C084FC' : '#9333EA',
       labelKey: 'rotate' as const,
-    })),
-    Match.when('mist', () => ({
-      icon: 'water' as const,
-      bgColor: isDark ? 'rgba(8, 145, 178, 0.2)' : '#CFFAFE', // cyan-100
-      iconColor: isDark ? '#22D3EE' : '#0891B2', // cyan-600/400
-      labelKey: 'mist' as const,
-    })),
-    Match.when('repot', () => ({
-      icon: 'yard' as const,
-      bgColor: isDark ? 'rgba(146, 64, 14, 0.2)' : '#FEF3C7', // amber-100
-      iconColor: isDark ? '#FBBF24' : '#92400E', // amber-800/400
-      labelKey: 'repot' as const,
     })),
     Match.exhaustive
   )

@@ -8,7 +8,7 @@ import {
   userAchievements,
   users,
 } from '@lily/db/schema'
-import type { AchievementKey } from '@lily/shared'
+import type { AchievementKey, CareType } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import { unwrapPgRows } from './helpers/pagination'
@@ -30,7 +30,7 @@ export interface IAchievementRepository {
 
   readonly countCareLogsByType: (
     userId: string,
-    type: 'watering' | 'fertilization'
+    type: CareType
   ) => Effect.Effect<number, SqlError>
 
   readonly countPlants: (userId: string) => Effect.Effect<number, SqlError>
@@ -105,10 +105,7 @@ export const AchievementRepositoryLive = Layer.effect(
           return Option.getOrNull(Option.fromNullable(achievement))
         }).pipe(Effect.withSpan('AchievementRepository.unlock')),
 
-      countCareLogsByType: (
-        userId: string,
-        type: 'watering' | 'fertilization'
-      ) =>
+      countCareLogsByType: (userId: string, type: CareType) =>
         Effect.gen(function* () {
           const [result] = yield* db
             .select({ count: count() })

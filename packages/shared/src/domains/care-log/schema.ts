@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 
 // Re-export errors for convenient imports
@@ -7,10 +8,7 @@ export { CareLogNotFoundError } from './errors'
 // Care log schemas
 export const CareLog = Schema.Struct({
   id: Schema.String,
-  type: Schema.Union(
-    Schema.Literal('watering'),
-    Schema.Literal('fertilization')
-  ),
+  type: CareType,
   notes: Schema.optional(Schema.String),
   date: Schema.Date,
   photoUrl: Schema.optional(Schema.String),
@@ -20,10 +18,7 @@ export const CareLog = Schema.Struct({
 })
 
 export const CareLogCreateRequest = Schema.Struct({
-  type: Schema.Union(
-    Schema.Literal('watering'),
-    Schema.Literal('fertilization')
-  ),
+  type: CareType,
   notes: Schema.optional(Schema.String),
   date: Schema.optional(Schema.Date),
   photoUrl: Schema.optional(Schema.String),
@@ -42,10 +37,7 @@ export type CareLogsListResponse = typeof CareLogsListResponse.Type
 // Recent activity schema - includes plant info for display
 export const RecentActivity = Schema.Struct({
   id: Schema.String,
-  type: Schema.Union(
-    Schema.Literal('watering'),
-    Schema.Literal('fertilization')
-  ),
+  type: CareType,
   plantId: Schema.String,
   plantName: Schema.String,
   plantImageUrl: Schema.optional(Schema.String),

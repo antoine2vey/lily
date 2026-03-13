@@ -1,34 +1,21 @@
-import type { CareTaskType } from '@lily/shared'
+import type { CareType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Match, pipe } from 'effect'
 import { apiEffectRunner } from 'src/utils/client'
 import { queryKeys } from 'src/utils/query-keys'
 
 interface CompleteTaskParams {
   taskId: string
   plantId: string
-  type: CareTaskType
+  type: CareType
 }
 
 async function completeTaskApi(params: CompleteTaskParams): Promise<void> {
   const { plantId, type } = params
 
-  await pipe(
-    Match.value(type),
-    Match.when('water', async () => {
-      await apiEffectRunner('plants', 'waterPlant', {
-        path: { id: plantId },
-        payload: {},
-      })
-    }),
-    Match.when('fertilize', async () => {
-      await apiEffectRunner('plants', 'fertilizePlant', {
-        path: { id: plantId },
-        payload: {},
-      })
-    }),
-    Match.exhaustive
-  )
+  await apiEffectRunner('plants', 'carePlant', {
+    path: { id: plantId },
+    payload: { careType: type },
+  })
 }
 
 export function useCompleteTask() {

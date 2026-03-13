@@ -25,7 +25,7 @@ const DEFAULT_SUGGESTION_CONFIGS: SuggestionConfig[] = [
 const PLANT_SUGGESTION_CONFIGS: SuggestionConfig[] = [
   { key: 'howToCare', icon: 'eco' },
   { key: 'whatIsWrong', icon: 'help' },
-  { key: 'whenToRepot', icon: 'yard' },
+  { key: 'whenToRepot', icon: 'compost' },
   { key: 'propagationTips', icon: 'content-cut' },
 ]
 

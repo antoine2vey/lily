@@ -1,10 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { CareType } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
-
-type CareType = 'water' | 'fertilize'
 
 interface CareTypeToggleProps {
   value: CareType
@@ -14,13 +13,15 @@ interface CareTypeToggleProps {
 
 interface CareTypeDefinition {
   type: CareType
-  labelKey: 'water' | 'fertilize'
+  labelKey: CareType
   icon: keyof typeof MaterialIcons.glyphMap
 }
 
 const CARE_TYPES: ReadonlyArray<CareTypeDefinition> = [
-  { type: 'water', labelKey: 'water', icon: 'water-drop' },
-  { type: 'fertilize', labelKey: 'fertilize', icon: 'eco' },
+  { type: 'watering', labelKey: 'watering', icon: 'water-drop' },
+  { type: 'fertilization', labelKey: 'fertilization', icon: 'eco' },
+  { type: 'misting', labelKey: 'misting', icon: 'grain' },
+  { type: 'repotting', labelKey: 'repotting', icon: 'compost' },
 ]
 
 export function CareTypeChips({
@@ -77,6 +78,3 @@ export function CareTypeChips({
     </View>
   )
 }
-
-// Export the CareType for use elsewhere
-export type { CareType }

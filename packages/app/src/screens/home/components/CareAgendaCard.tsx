@@ -31,14 +31,34 @@ function TaskChip({
   const { t } = useTranslation('home')
   const isDark = iconColors.isDark
 
-  const taskColor =
-    task.type === 'water' ? iconColors.waterBlue : iconColors.warning
-  const taskBgColor = pipe(
+  const {
+    color: taskColor,
+    bgColor: taskBgColor,
+    icon: taskIcon,
+  } = pipe(
     Match.value(task.type),
-    Match.when('water', () => (isDark ? 'rgba(96,165,250,0.15)' : '#EFF6FF')),
-    Match.orElse(() => (isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB'))
+    Match.when('watering', () => ({
+      color: iconColors.waterBlue,
+      bgColor: isDark ? 'rgba(96,165,250,0.15)' : '#EFF6FF',
+      icon: 'water-drop' as const,
+    })),
+    Match.when('fertilization', () => ({
+      color: iconColors.warning,
+      bgColor: isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB',
+      icon: 'science' as const,
+    })),
+    Match.when('misting', () => ({
+      color: iconColors.waterBlue,
+      bgColor: isDark ? 'rgba(96,165,250,0.15)' : '#EFF6FF',
+      icon: 'grain' as const,
+    })),
+    Match.when('repotting', () => ({
+      color: iconColors.repotBrown,
+      bgColor: isDark ? 'rgba(160,132,92,0.15)' : '#FDF8F0',
+      icon: 'compost' as const,
+    })),
+    Match.exhaustive
   )
-  const taskIcon = task.type === 'water' ? 'water-drop' : 'science'
 
   return (
     <Pressable
@@ -48,7 +68,7 @@ function TaskChip({
       style={{
         backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
       }}
-      accessibilityLabel={`${task.type === 'water' ? t('tasks.water') : t('tasks.fertilize')} ${task.plantName}`}
+      accessibilityLabel={`${t(`tasks.${task.type}`)} ${task.plantName}`}
       accessibilityRole="button"
     >
       {/* Plant image */}

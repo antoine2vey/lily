@@ -96,6 +96,8 @@ const applyWeatherAdjustment = (
         )
       ),
       Match.when('fertilization', () => nextCareAt),
+      Match.when('misting', () => nextCareAt),
+      Match.when('repotting', () => nextCareAt),
       Match.exhaustive
     )
   }).pipe(

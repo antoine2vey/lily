@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { CareTaskType } from '@lily/shared'
+import type { CareType } from '@lily/shared'
 import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +15,7 @@ interface CareTaskCardProps {
     plantId: string
     plantName: string
     plantImageUrl: string | null
-    type: CareTaskType
+    type: CareType
     completed: boolean
     dueDate: Date
     roomName?: string | null
@@ -32,24 +32,34 @@ interface CareTaskCardProps {
 interface TaskConfig {
   icon: keyof typeof MaterialIcons.glyphMap
   color: string
-  labelKey: 'water' | 'fertilize'
+  labelKey: CareType
 }
 
 const getTaskConfig = (
-  type: CareTaskType,
+  type: CareType,
   iconColors: ReturnType<typeof useIconColors>
 ): TaskConfig =>
   pipe(
     Match.value(type),
-    Match.when('water', () => ({
+    Match.when('watering', () => ({
       icon: 'water-drop' as const,
       color: iconColors.waterBlue,
-      labelKey: 'water' as const,
+      labelKey: 'watering' as const,
     })),
-    Match.when('fertilize', () => ({
+    Match.when('fertilization', () => ({
       icon: 'eco' as const,
       color: iconColors.fertilizerOrange,
-      labelKey: 'fertilize' as const,
+      labelKey: 'fertilization' as const,
+    })),
+    Match.when('misting', () => ({
+      icon: 'grain' as const,
+      color: iconColors.waterBlue,
+      labelKey: 'misting' as const,
+    })),
+    Match.when('repotting', () => ({
+      icon: 'compost' as const,
+      color: iconColors.repotBrown,
+      labelKey: 'repotting' as const,
     })),
     Match.exhaustive
   )

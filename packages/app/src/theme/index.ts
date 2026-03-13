@@ -29,6 +29,7 @@ export const iconColorsLight = {
   slate900: '#0f172a',
   coral: '#E8997E',
   fertilizerOrange: '#F59E0B',
+  repotBrown: '#A0845C',
   mistTeal: '#5EEAD4',
   pruneRed: '#F87171',
   border: '#E5E7EB',
@@ -59,6 +60,7 @@ export const iconColorsDark = {
   slate900: '#F8FAFC', // Inverted for dark mode
   coral: '#F5B89A', // Brighter coral
   fertilizerOrange: '#FBBF24',
+  repotBrown: '#C4A882', // Brighter brown for dark mode
   mistTeal: '#99F6E4', // Brighter teal
   pruneRed: '#FCA5A5', // Brighter red
   border: '#374151', // Dark mode border

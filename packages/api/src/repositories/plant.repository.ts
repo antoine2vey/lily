@@ -14,6 +14,7 @@ import {
   users,
 } from '@lily/db/schema'
 import {
+  type CareType,
   endOfDay,
   nowAsDate,
   type PaginatedResponse,
@@ -64,7 +65,7 @@ export type RoomRef = {
 } | null
 
 export type PlantCareScheduleRef = {
-  careType: 'watering' | 'fertilization'
+  careType: CareType
   frequencyDays: number
   lastCareAt: Date | null
   nextCareAt: Date | null

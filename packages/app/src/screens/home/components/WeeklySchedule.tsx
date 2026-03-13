@@ -19,6 +19,8 @@ interface DayColumn {
   dayNumber: number
   waterCount: number
   fertilizeCount: number
+  mistingCount: number
+  repottingCount: number
   isToday: boolean
 }
 
@@ -69,8 +71,10 @@ function buildWeekColumns(
       dayIndex: i,
       dayLabel: i === 0 ? todayLabel : formatDayOfWeekShort(dayDt, locale),
       dayNumber: parts.day,
-      waterCount: countByType(tasksForDay, 'water'),
-      fertilizeCount: countByType(tasksForDay, 'fertilize'),
+      waterCount: countByType(tasksForDay, 'watering'),
+      fertilizeCount: countByType(tasksForDay, 'fertilization'),
+      mistingCount: countByType(tasksForDay, 'misting'),
+      repottingCount: countByType(tasksForDay, 'repotting'),
       isToday: i === 0,
     }
   })
@@ -137,7 +141,11 @@ export function WeeklySchedule({
         {pipe(
           columns,
           Array.map((col) => {
-            const isActive = col.waterCount > 0 || col.fertilizeCount > 0
+            const isActive =
+              col.waterCount > 0 ||
+              col.fertilizeCount > 0 ||
+              col.mistingCount > 0 ||
+              col.repottingCount > 0
             const bgColor = pipe(
               Match.value(col),
               Match.when({ isToday: true }, () =>
@@ -196,6 +204,18 @@ export function WeeklySchedule({
                     <DayDots
                       count={col.fertilizeCount}
                       color={iconColors.warning}
+                    />
+                  )}
+                  {col.mistingCount > 0 && (
+                    <DayDots
+                      count={col.mistingCount}
+                      color={iconColors.mistTeal}
+                    />
+                  )}
+                  {col.repottingCount > 0 && (
+                    <DayDots
+                      count={col.repottingCount}
+                      color={iconColors.repotBrown}
                     />
                   )}
                   {!isActive && (

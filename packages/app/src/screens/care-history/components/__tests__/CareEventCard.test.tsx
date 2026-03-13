@@ -13,7 +13,7 @@ describe('CareEventCard', () => {
       <CareEventCard
         event={{
           id: 'event-1',
-          type: 'water',
+          type: 'watering',
           createdAt: '2024-01-15T10:30:00Z',
         }}
         onPress={mockOnPress}
@@ -28,7 +28,7 @@ describe('CareEventCard', () => {
       <CareEventCard
         event={{
           id: 'event-1',
-          type: 'fertilize',
+          type: 'fertilization',
           createdAt: '2024-01-15T10:30:00Z',
         }}
         onPress={mockOnPress}
@@ -58,7 +58,7 @@ describe('CareEventCard', () => {
       <CareEventCard
         event={{
           id: 'event-1',
-          type: 'water',
+          type: 'watering',
           notes: 'Used filtered water',
           createdAt: '2024-01-15T10:30:00Z',
         }}
@@ -74,7 +74,7 @@ describe('CareEventCard', () => {
       <CareEventCard
         event={{
           id: 'event-1',
-          type: 'water',
+          type: 'watering',
           createdAt: '2024-01-15T10:30:00Z',
         }}
         onPress={mockOnPress}

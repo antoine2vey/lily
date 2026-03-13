@@ -23,13 +23,12 @@ import { toast } from 'sonner-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { useCarePlant } from 'src/hooks/useCarePlant'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
-import { useFertilizePlant } from 'src/hooks/useFertilizePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
-import { useWaterPlant } from 'src/hooks/useWaterPlant'
 import { CareSchedule } from 'src/screens/plant-detail/components/CareSchedule'
 import { ChatCTA } from 'src/screens/plant-detail/components/ChatCTA'
 import { CorrectCareDatesSheet } from 'src/screens/plant-detail/components/CorrectCareDatesSheet'
@@ -224,8 +223,7 @@ export function PlantDetailScreen() {
   })
 
   const uploadPhoto = useUploadPhoto()
-  const waterPlant = useWaterPlant()
-  const fertilizePlant = useFertilizePlant()
+  const carePlant = useCarePlant()
   const updatePlant = useUpdatePlant(
     Option.getOrElse(Option.fromNullable(plantId), () => '')
   )
@@ -245,27 +243,27 @@ export function PlantDetailScreen() {
 
   const handleWaterNow = useCallback(() => {
     if (!plantId) return
-    waterPlant.mutate(
-      { path: { id: plantId }, payload: {} },
+    carePlant.mutate(
+      { path: { id: plantId }, payload: { careType: 'watering' } },
       {
         onSuccess: () =>
           toast.success(t('detail.toast.watered', { name: plant?.name })),
         onError: () => toast.error(t('detail.toast.waterFailed')),
       }
     )
-  }, [plantId, plant?.name, waterPlant, t])
+  }, [plantId, plant?.name, carePlant, t])
 
   const handleFertilizeNow = useCallback(() => {
     if (!plantId) return
-    fertilizePlant.mutate(
-      { path: { id: plantId }, payload: {} },
+    carePlant.mutate(
+      { path: { id: plantId }, payload: { careType: 'fertilization' } },
       {
         onSuccess: () =>
           toast.success(t('detail.toast.fertilized', { name: plant?.name })),
         onError: () => toast.error(t('detail.toast.fertilizeFailed')),
       }
     )
-  }, [plantId, plant?.name, fertilizePlant, t])
+  }, [plantId, plant?.name, carePlant, t])
 
   const handleWaterPast = useCallback(() => {
     setShowPastWaterSheet(true)
@@ -274,8 +272,11 @@ export function PlantDetailScreen() {
   const handleWaterPastSelect = useCallback(
     (date: Date) => {
       if (!plantId) return
-      waterPlant.mutate(
-        { path: { id: plantId }, payload: { date } },
+      carePlant.mutate(
+        {
+          path: { id: plantId },
+          payload: { careType: 'watering', date },
+        },
         {
           onSuccess: () =>
             toast.success(t('detail.toast.watered', { name: plant?.name })),
@@ -283,7 +284,7 @@ export function PlantDetailScreen() {
         }
       )
     },
-    [plantId, plant?.name, waterPlant, t]
+    [plantId, plant?.name, carePlant, t]
   )
 
   const handleFertilizePast = useCallback(() => {
@@ -293,8 +294,11 @@ export function PlantDetailScreen() {
   const handleFertilizePastSelect = useCallback(
     (date: Date) => {
       if (!plantId) return
-      fertilizePlant.mutate(
-        { path: { id: plantId }, payload: { date } },
+      carePlant.mutate(
+        {
+          path: { id: plantId },
+          payload: { careType: 'fertilization', date },
+        },
         {
           onSuccess: () =>
             toast.success(t('detail.toast.fertilized', { name: plant?.name })),
@@ -302,7 +306,7 @@ export function PlantDetailScreen() {
         }
       )
     },
-    [plantId, plant?.name, fertilizePlant, t]
+    [plantId, plant?.name, carePlant, t]
   )
 
   const handleCorrectDates = useCallback(() => {
@@ -437,6 +441,8 @@ export function PlantDetailScreen() {
           Match.value(log.type),
           Match.when('watering', () => 'watered' as const),
           Match.when('fertilization', () => 'fertilized' as const),
+          Match.when('misting', () => 'misted' as const),
+          Match.when('repotting', () => 'repotted' as const),
           Match.exhaustive
         ),
         date: log.date,
@@ -446,7 +452,7 @@ export function PlantDetailScreen() {
       () =>
         [] as {
           id: string
-          type: 'watered' | 'fertilized'
+          type: 'watered' | 'fertilized' | 'misted' | 'repotted'
           date: Date
           notes?: string
         }[]

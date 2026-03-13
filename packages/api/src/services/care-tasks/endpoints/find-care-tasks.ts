@@ -6,22 +6,12 @@ import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
   type CareTask,
   type CareTasksResponse,
-  type CareTaskType,
   endOfDay,
   isOverdueByDay,
   isToday,
   isUpcoming,
 } from '@lily/shared'
-import { Array, DateTime, Effect, Match, Option, Order, pipe } from 'effect'
-
-// Map schedule care_type → task type (backward compat with app)
-const toTaskType = (careType: 'watering' | 'fertilization'): CareTaskType =>
-  pipe(
-    Match.value(careType),
-    Match.when('watering', () => 'water' as const),
-    Match.when('fertilization', () => 'fertilize' as const),
-    Match.exhaustive
-  )
+import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
 
 /**
  * Order for sorting tasks by due date (earliest first)
@@ -66,9 +56,8 @@ export const findCareTasks = (): Effect.Effect<
           DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
         ),
         Option.map((date) => {
-          const taskType = toTaskType(s.schedule.careType)
           return {
-            id: `${s.plant.id}-${taskType}`,
+            id: `${s.plant.id}-${s.schedule.careType}`,
             plantId: s.plant.id,
             plantName: s.plant.name,
             plantImageUrl: s.plant.imageUrl,
@@ -82,7 +71,7 @@ export const findCareTasks = (): Effect.Effect<
               Option.map((r) => r.icon),
               Option.getOrNull
             ),
-            type: taskType,
+            type: s.schedule.careType,
             dueDate: date,
             completed: false,
           } satisfies CareTask

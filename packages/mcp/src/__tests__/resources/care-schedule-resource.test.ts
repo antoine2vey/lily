@@ -15,7 +15,7 @@ const mockOverdueTask: CareTask = {
   plantImageUrl: null,
   roomName: null,
   roomIcon: null,
-  type: 'water',
+  type: 'watering',
   dueDate: new Date('2024-06-08T00:00:00Z'),
   completed: false,
 }
@@ -68,7 +68,7 @@ describe('readCareScheduleResource', () => {
     expect(parsed.overdue).toHaveLength(1)
     expect(parsed.overdue[0].plantName).toBe('Thirsty Plant')
     expect(parsed.overdue[0].plantId).toBe('plant-overdue')
-    expect(parsed.overdue[0].type).toBe('water')
+    expect(parsed.overdue[0].type).toBe('watering')
     expect(parsed.overdue[0].dueDate).toBeDefined()
   })
 })

@@ -10,6 +10,5 @@ export const TOOL_WIDGETS: Record<string, string> = {
   get_plant_details: 'ui://widget/plant-details',
   get_care_tasks: 'ui://widget/care-tasks',
   get_overdue_plants: 'ui://widget/care-tasks',
-  water_plant: 'ui://widget/care-feedback',
   care_plant: 'ui://widget/care-feedback',
 }

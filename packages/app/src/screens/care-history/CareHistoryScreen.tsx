@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { CareType } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
@@ -20,17 +21,16 @@ import { usePlant } from 'src/hooks/usePlant'
 import { Timeline } from 'src/screens/care-history/components/Timeline'
 import { LogCareSheet } from 'src/screens/log-care/LogCareSheet'
 
-type CareEventType = 'water' | 'fertilize'
-
 export function CareHistoryScreen() {
   const { t } = useTranslation('care')
   const iconColors = useIconColors()
-  const FILTER_OPTIONS: Array<{ type: CareEventType | 'all'; label: string }> =
-    [
-      { type: 'all', label: t('history.filterAll') },
-      { type: 'water', label: t('history.water') },
-      { type: 'fertilize', label: t('history.fertilize') },
-    ]
+  const FILTER_OPTIONS: Array<{ type: CareType | 'all'; label: string }> = [
+    { type: 'all', label: t('history.filterAll') },
+    { type: 'watering', label: t('history.watering') },
+    { type: 'fertilization', label: t('history.fertilization') },
+    { type: 'misting', label: t('history.misting') },
+    { type: 'repotting', label: t('history.repotting') },
+  ]
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = Option.getOrElse(
     Option.fromNullable(params.plantId),
@@ -43,9 +43,7 @@ export function CareHistoryScreen() {
 
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [showLogCareSheet, setShowLogCareSheet] = useState(false)
-  const [selectedFilter, setSelectedFilter] = useState<CareEventType | 'all'>(
-    'all'
-  )
+  const [selectedFilter, setSelectedFilter] = useState<CareType | 'all'>('all')
 
   const handleEventPress = (_event: { id: string }) => {
     // Could navigate to event details in the future

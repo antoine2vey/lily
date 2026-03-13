@@ -3,7 +3,7 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from '@effect/platform'
-import type { CareTasksResponse } from '@lily/shared'
+import type { CareTasksResponse, CareType } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
@@ -75,15 +75,10 @@ export interface IApiClient {
     params?: { readonly limit?: string | undefined } | undefined
   ) => Effect.Effect<CareLogsListResponse, never, CurrentJwt>
 
-  readonly waterPlant: (
-    plantId: string,
-    body?: { readonly notes?: string | undefined } | undefined
-  ) => Effect.Effect<Plant, never, CurrentJwt>
-
   readonly carePlant: (
     plantId: string,
     body: {
-      readonly careType: 'watering' | 'fertilization'
+      readonly careType: CareType
       readonly notes?: string | undefined
     }
   ) => Effect.Effect<Plant, never, CurrentJwt>
@@ -235,15 +230,6 @@ export const ApiClientLive = Layer.unwrapEffect(
               Effect.withSpan('ApiClient.getCareLogs')
             )
           },
-
-          waterPlant: (plantId, body) =>
-            HttpClientRequest.post(
-              `${baseUrl}/api/plants/${plantId}/water`
-            ).pipe(
-              HttpClientRequest.bodyUnsafeJson(body ?? {}),
-              authed<Plant>,
-              Effect.withSpan('ApiClient.waterPlant')
-            ),
 
           carePlant: (plantId, body) =>
             HttpClientRequest.post(

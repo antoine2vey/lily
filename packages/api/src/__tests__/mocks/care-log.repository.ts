@@ -4,7 +4,7 @@ import {
   type FindRecentParams,
   type ICareLogRepository,
 } from '@lily/api/repositories/care-log.repository'
-import { paginate } from '@lily/shared'
+import { type CareType, paginate } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -139,10 +139,7 @@ export const createMockCareLogRepository = (
         )
       ),
 
-    findLatestByPlantAndType: (
-      plantId: string,
-      type: 'watering' | 'fertilization'
-    ) => {
+    findLatestByPlantAndType: (plantId: string, type: CareType) => {
       const byDateDesc = Order.reverse(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )

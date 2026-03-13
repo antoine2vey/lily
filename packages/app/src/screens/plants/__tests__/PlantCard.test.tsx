@@ -10,6 +10,8 @@ describe('PlantCard', () => {
     health: 'healthy' as const,
     watering: { daysUntil: undefined, isOverdue: false },
     fertilization: { daysUntil: undefined, isOverdue: false },
+    misting: { daysUntil: undefined, isOverdue: false },
+    repotting: { daysUntil: undefined, isOverdue: false },
   }
 
   beforeEach(() => {

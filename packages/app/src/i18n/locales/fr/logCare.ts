@@ -2,8 +2,10 @@ export default {
   title: 'Enregistrer un soin',
   careType: 'Type de soin',
   careTypes: {
-    water: 'Arrosage',
-    fertilize: 'Fertilisation',
+    watering: 'Arrosage',
+    fertilization: 'Fertilisation',
+    misting: 'Vaporisation',
+    repotting: 'Rempotage',
   },
   selectPlant: 'Sélectionner une plante',
   selectPlants: 'Sélectionner des plantes',

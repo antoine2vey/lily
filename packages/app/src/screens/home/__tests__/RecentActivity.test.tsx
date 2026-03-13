@@ -136,10 +136,10 @@ describe('RecentActivity', () => {
     expect(screen.getByText('Moved Aloe to light')).toBeTruthy()
   })
 
-  it('formats pruned activity correctly', () => {
-    const prunedActivity = {
+  it('formats repotted activity correctly', () => {
+    const repottedActivity = {
       id: '6',
-      type: 'pruned' as const,
+      type: 'repotted' as const,
       plantId: 'plant-6',
       plantName: 'Rose',
       timestamp: mockNow(),
@@ -147,13 +147,13 @@ describe('RecentActivity', () => {
 
     render(
       <RecentActivity
-        activities={[prunedActivity]}
+        activities={[repottedActivity]}
         onSeeAll={mockOnSeeAll}
         onActivityPress={mockOnActivityPress}
       />
     )
 
-    expect(screen.getByText('Rose pruned')).toBeTruthy()
+    expect(screen.getByText('Rose repotted')).toBeTruthy()
   })
 
   it('calls onSeeAll when See All is pressed', () => {

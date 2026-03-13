@@ -10,12 +10,12 @@ describe('Timeline', () => {
       events: [
         {
           id: 'event-1',
-          type: 'water' as const,
+          type: 'watering' as const,
           createdAt: '2024-01-15T10:30:00Z',
         },
         {
           id: 'event-2',
-          type: 'fertilize' as const,
+          type: 'fertilization' as const,
           createdAt: '2024-01-15T09:00:00Z',
         },
       ],
