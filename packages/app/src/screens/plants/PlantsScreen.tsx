@@ -32,10 +32,6 @@ import {
   type SortOption,
   SortOptionsSheet,
 } from 'src/screens/plants/components/SortOptionsSheet'
-import {
-  type ViewMode,
-  ViewToggle,
-} from 'src/screens/plants/components/ViewToggle'
 import { useEffectQuery } from 'src/utils/client'
 import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
@@ -111,16 +107,12 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
   (plant) => healthOrderMap[plant.health]
 )
 
-function PlantsGridSkeleton() {
+function PlantsListSkeleton() {
   return (
-    <View className="px-3 pt-2">
-      <View className="flex-row flex-wrap">
-        {Array.map([1, 2, 3, 4, 5, 6], (i) => (
-          <View key={i} className="w-1/2 p-2">
-            <PlantCardSkeleton />
-          </View>
-        ))}
-      </View>
+    <View className="px-5 pt-2 gap-3">
+      {Array.map([1, 2, 3, 4, 5, 6], (i) => (
+        <PlantCardSkeleton key={i} />
+      ))}
     </View>
   )
 }
@@ -133,7 +125,6 @@ export function PlantsScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all')
   const [sortOption, setSortOption] = useState<SortOption>('name')
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showAddPlant, setShowAddPlant] = useState(false)
@@ -275,10 +266,6 @@ export function PlantsScreen() {
     [router]
   )
 
-  const handleToggleView = useCallback(() => {
-    setViewMode((current) => (current === 'grid' ? 'list' : 'grid'))
-  }, [])
-
   const handleClearSearch = useCallback(() => {
     setSearchQuery('')
   }, [])
@@ -332,7 +319,6 @@ export function PlantsScreen() {
                 color={iconColors.textPrimary}
               />
             </Pressable>
-            <ViewToggle view={viewMode} onToggle={handleToggleView} />
           </View>
         </View>
 
@@ -418,7 +404,7 @@ export function PlantsScreen() {
                 testID="plants-screen-skeleton"
                 entering={FadeIn.duration(300)}
               >
-                <PlantsGridSkeleton />
+                <PlantsListSkeleton />
               </Animated.View>
             ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(plants) ? (
               <Animated.View
@@ -446,14 +432,8 @@ export function PlantsScreen() {
               >
                 <Animated.FlatList
                   data={filteredPlants}
-                  numColumns={viewMode === 'grid' ? 2 : 1}
-                  key={viewMode}
                   renderItem={({ item }) => (
-                    <View
-                      className={
-                        viewMode === 'grid' ? 'w-1/2 p-2' : 'w-full p-2'
-                      }
-                    >
+                    <View className="w-full px-2 py-1.5">
                       <PlantCard plant={item} onPress={handlePlantPress} />
                     </View>
                   )}

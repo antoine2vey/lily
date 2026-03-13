@@ -4,9 +4,40 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
+import type { CareType } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
-import { DateTime, Effect, Option, pipe, Record, Struct } from 'effect'
+import { Array, DateTime, Effect, Option, pipe, Record, Struct } from 'effect'
+
+/**
+ * Upsert or delete a single optional care schedule.
+ * - `undefined` → no change (skip)
+ * - `null` → disable (delete schedule row)
+ * - `number` → enable/update (upsert with frequency, seed nextCareAt if missing)
+ */
+const syncOptionalSchedule = (
+  scheduleRepo: Effect.Effect.Success<typeof CareScheduleRepository>,
+  existingSchedules: readonly { careType: string; nextCareAt: Date | null }[],
+  plantId: string,
+  careType: CareType,
+  frequencyDays: number | null | undefined,
+  now: Date
+) =>
+  Effect.gen(function* () {
+    if (frequencyDays === undefined) return
+    if (frequencyDays !== null) {
+      const existing = pipe(
+        Array.findFirst(existingSchedules, (s) => s.careType === careType),
+        Option.getOrNull
+      )
+      yield* scheduleRepo.upsert(plantId, careType, {
+        frequencyDays,
+        ...(!existing || !existing.nextCareAt ? { nextCareAt: now } : {}),
+      })
+    } else {
+      yield* scheduleRepo.deleteByPlantAndType(plantId, careType)
+    }
+  })
 
 export const updatePlant = (
   request: PlantUpdateRequest & { id: string }
@@ -34,44 +65,54 @@ export const updatePlant = (
       Record.remove('id'),
       Record.remove('wateringFrequencyDays'),
       Record.remove('fertilizationFrequencyDays'),
+      Record.remove('mistingFrequencyDays'),
+      Record.remove('repottingFrequencyDays'),
       Record.filter((value) => value !== undefined)
     ) as Record<string, unknown>
 
     // Update non-care plant fields
     yield* repo.update(request.id, data)
 
-    // Update schedule rows
+    // Fetch all existing schedules in a single query
+    const existingSchedules = yield* scheduleRepo.findByPlant(request.id)
+
+    // Watering is always-present (non-nullable), handle separately
     if (request.wateringFrequencyDays !== undefined) {
-      const existingSchedule = yield* scheduleRepo.findByPlantAndType(
-        request.id,
-        'watering'
+      const existing = pipe(
+        Array.findFirst(existingSchedules, (s) => s.careType === 'watering'),
+        Option.getOrNull
       )
       yield* scheduleRepo.upsert(request.id, 'watering', {
         frequencyDays: request.wateringFrequencyDays,
-        ...(!existingSchedule || !existingSchedule.nextCareAt
-          ? { nextCareAt: now }
-          : {}),
+        ...(!existing || !existing.nextCareAt ? { nextCareAt: now } : {}),
       })
     }
 
-    if (request.fertilizationFrequencyDays !== undefined) {
-      if (request.fertilizationFrequencyDays !== null) {
-        // Enable or update fertilization schedule
-        const existingSchedule = yield* scheduleRepo.findByPlantAndType(
-          request.id,
-          'fertilization'
-        )
-        yield* scheduleRepo.upsert(request.id, 'fertilization', {
-          frequencyDays: request.fertilizationFrequencyDays,
-          ...(!existingSchedule || !existingSchedule.nextCareAt
-            ? { nextCareAt: now }
-            : {}),
-        })
-      } else {
-        // Disable fertilization schedule
-        yield* scheduleRepo.deleteByPlantAndType(request.id, 'fertilization')
-      }
-    }
+    // Optional care types: null → delete, number → upsert
+    yield* syncOptionalSchedule(
+      scheduleRepo,
+      existingSchedules,
+      request.id,
+      'fertilization',
+      request.fertilizationFrequencyDays,
+      now
+    )
+    yield* syncOptionalSchedule(
+      scheduleRepo,
+      existingSchedules,
+      request.id,
+      'misting',
+      request.mistingFrequencyDays,
+      now
+    )
+    yield* syncOptionalSchedule(
+      scheduleRepo,
+      existingSchedules,
+      request.id,
+      'repotting',
+      request.repottingFrequencyDays,
+      now
+    )
 
     const updated = yield* repo.findById(request.id)
     return pipe(

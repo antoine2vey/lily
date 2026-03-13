@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
+  type CareType,
   daysUntilApiDate,
   formatApiDateAsNextDate,
   getFrequencyDays,
@@ -7,7 +8,7 @@ import {
   getNextCareAt,
   type LuminosityLevel,
 } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, Record } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -43,6 +44,27 @@ import { mapApiHealthToCardHealth } from 'src/utils/health'
 
 type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
+
+const CARE_TOAST_KEYS: Readonly<
+  globalThis.Record<CareType, { success: string; error: string }>
+> = {
+  watering: {
+    success: 'detail.toast.watered',
+    error: 'detail.toast.waterFailed',
+  },
+  fertilization: {
+    success: 'detail.toast.fertilized',
+    error: 'detail.toast.fertilizeFailed',
+  },
+  misting: {
+    success: 'detail.toast.misted',
+    error: 'detail.toast.mistFailed',
+  },
+  repotting: {
+    success: 'detail.toast.repotted',
+    error: 'detail.toast.repotFailed',
+  },
+}
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
@@ -177,8 +199,9 @@ export function PlantDetailScreen() {
 
   const [showOptionsSheet, setShowOptionsSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showPastWaterSheet, setShowPastWaterSheet] = useState(false)
-  const [showPastFertilizeSheet, setShowPastFertilizeSheet] = useState(false)
+  const [activePastCareType, setActivePastCareType] = useState<CareType | null>(
+    null
+  )
   const [showCorrectDatesSheet, setShowCorrectDatesSheet] = useState(false)
 
   // Scroll tracking for header animation
@@ -241,72 +264,69 @@ export function PlantDetailScreen() {
     router.push(`/plant/${plantId}/chat`)
   }, [plantId, router])
 
-  const handleWaterNow = useCallback(() => {
-    if (!plantId) return
-    carePlant.mutate(
-      { path: { id: plantId }, payload: { careType: 'watering' } },
-      {
-        onSuccess: () =>
-          toast.success(t('detail.toast.watered', { name: plant?.name })),
-        onError: () => toast.error(t('detail.toast.waterFailed')),
-      }
-    )
-  }, [plantId, plant?.name, carePlant, t])
-
-  const handleFertilizeNow = useCallback(() => {
-    if (!plantId) return
-    carePlant.mutate(
-      { path: { id: plantId }, payload: { careType: 'fertilization' } },
-      {
-        onSuccess: () =>
-          toast.success(t('detail.toast.fertilized', { name: plant?.name })),
-        onError: () => toast.error(t('detail.toast.fertilizeFailed')),
-      }
-    )
-  }, [plantId, plant?.name, carePlant, t])
-
-  const handleWaterPast = useCallback(() => {
-    setShowPastWaterSheet(true)
-  }, [])
-
-  const handleWaterPastSelect = useCallback(
-    (date: Date) => {
+  const handleCareNow = useCallback(
+    (careType: CareType) => {
       if (!plantId) return
+      const keys = CARE_TOAST_KEYS[careType]
       carePlant.mutate(
-        {
-          path: { id: plantId },
-          payload: { careType: 'watering', date },
-        },
+        { path: { id: plantId }, payload: { careType } },
         {
           onSuccess: () =>
-            toast.success(t('detail.toast.watered', { name: plant?.name })),
-          onError: () => toast.error(t('detail.toast.waterFailed')),
+            toast.success(t(keys.success, { name: plant?.name })),
+          onError: () => toast.error(t(keys.error)),
         }
       )
     },
     [plantId, plant?.name, carePlant, t]
   )
 
+  const handleWaterNow = useCallback(
+    () => handleCareNow('watering'),
+    [handleCareNow]
+  )
+  const handleFertilizeNow = useCallback(
+    () => handleCareNow('fertilization'),
+    [handleCareNow]
+  )
+  const handleMistNow = useCallback(
+    () => handleCareNow('misting'),
+    [handleCareNow]
+  )
+  const handleRepotNow = useCallback(
+    () => handleCareNow('repotting'),
+    [handleCareNow]
+  )
+
+  const handleWaterPast = useCallback(() => {
+    setActivePastCareType('watering')
+  }, [])
   const handleFertilizePast = useCallback(() => {
-    setShowPastFertilizeSheet(true)
+    setActivePastCareType('fertilization')
+  }, [])
+  const handleMistPast = useCallback(() => {
+    setActivePastCareType('misting')
+  }, [])
+  const handleRepotPast = useCallback(() => {
+    setActivePastCareType('repotting')
   }, [])
 
-  const handleFertilizePastSelect = useCallback(
+  const handlePastCareSelect = useCallback(
     (date: Date) => {
-      if (!plantId) return
+      if (!plantId || !activePastCareType) return
+      const keys = CARE_TOAST_KEYS[activePastCareType]
       carePlant.mutate(
         {
           path: { id: plantId },
-          payload: { careType: 'fertilization', date },
+          payload: { careType: activePastCareType, date },
         },
         {
           onSuccess: () =>
-            toast.success(t('detail.toast.fertilized', { name: plant?.name })),
-          onError: () => toast.error(t('detail.toast.fertilizeFailed')),
+            toast.success(t(keys.success, { name: plant?.name })),
+          onError: () => toast.error(t(keys.error)),
         }
       )
     },
-    [plantId, plant?.name, carePlant, t]
+    [plantId, plant?.name, activePastCareType, carePlant, t]
   )
 
   const handleCorrectDates = useCallback(() => {
@@ -393,22 +413,42 @@ export function PlantDetailScreen() {
     const schedules = plant.schedules
     const nextWaterAt = getNextCareAt(schedules, 'watering')
     const nextFertAt = getNextCareAt(schedules, 'fertilization')
+    const nextMistAt = getNextCareAt(schedules, 'misting')
+    const nextRepotAt = getNextCareAt(schedules, 'repotting')
     const lastWaterAt = getLastCareAt(schedules, 'watering')
     const lastFertAt = getLastCareAt(schedules, 'fertilization')
+    const lastMistAt = getLastCareAt(schedules, 'misting')
+    const lastRepotAt = getLastCareAt(schedules, 'repotting')
     const hasFertSchedule =
       getFrequencyDays(schedules, 'fertilization') !== null
+    const hasMistSchedule = getFrequencyDays(schedules, 'misting') !== null
+    const hasRepotSchedule = getFrequencyDays(schedules, 'repotting') !== null
 
     return {
       nextWaterAt,
       nextFertAt,
+      nextMistAt,
+      nextRepotAt,
       lastWaterAt,
       lastFertAt,
+      lastMistAt,
+      lastRepotAt,
       hasFertSchedule,
+      hasMistSchedule,
+      hasRepotSchedule,
       daysUntilWater: daysUntilApiDate(nextWaterAt),
       daysUntilFertilize: hasFertSchedule ? daysUntilApiDate(nextFertAt) : null,
+      daysUntilMist: hasMistSchedule ? daysUntilApiDate(nextMistAt) : null,
+      daysUntilRepot: hasRepotSchedule ? daysUntilApiDate(nextRepotAt) : null,
       isWaterFirstTime: lastWaterAt === null,
       isFertilizeFirstTime: hasFertSchedule && lastFertAt === null,
-      hasAnyCareHistory: lastWaterAt !== null || lastFertAt !== null,
+      isMistFirstTime: hasMistSchedule && lastMistAt === null,
+      isRepotFirstTime: hasRepotSchedule && lastRepotAt === null,
+      hasAnyCareHistory:
+        lastWaterAt !== null ||
+        lastFertAt !== null ||
+        lastMistAt !== null ||
+        lastRepotAt !== null,
     }
   }, [plant])
 
@@ -524,13 +564,23 @@ export function PlantDetailScreen() {
               wateringDate={formatApiDateAsNextDate(scheduleData.nextWaterAt)}
               fertilizingDays={scheduleData.daysUntilFertilize}
               fertilizingDate={formatApiDateAsNextDate(scheduleData.nextFertAt)}
+              mistingDays={scheduleData.daysUntilMist}
+              mistingDate={formatApiDateAsNextDate(scheduleData.nextMistAt)}
+              repottingDays={scheduleData.daysUntilRepot}
+              repottingDate={formatApiDateAsNextDate(scheduleData.nextRepotAt)}
               onEdit={handleEditSchedule}
               onWaterNow={handleWaterNow}
               onFertilizeNow={handleFertilizeNow}
+              onMistNow={handleMistNow}
+              onRepotNow={handleRepotNow}
               onWaterPast={handleWaterPast}
               onFertilizePast={handleFertilizePast}
+              onMistPast={handleMistPast}
+              onRepotPast={handleRepotPast}
               isWaterFirstTime={scheduleData.isWaterFirstTime}
               isFertilizeFirstTime={scheduleData.isFertilizeFirstTime}
+              isMistFirstTime={scheduleData.isMistFirstTime}
+              isRepotFirstTime={scheduleData.isRepotFirstTime}
               onCorrectDates={
                 scheduleData.hasAnyCareHistory ? handleCorrectDates : undefined
               }
@@ -626,16 +676,11 @@ export function PlantDetailScreen() {
         onDelete={handleDelete}
       />
 
-      {/* Past Care Sheets */}
+      {/* Past Care Sheet */}
       <PastCareSheet
-        visible={showPastWaterSheet}
-        onClose={() => setShowPastWaterSheet(false)}
-        onSelect={handleWaterPastSelect}
-      />
-      <PastCareSheet
-        visible={showPastFertilizeSheet}
-        onClose={() => setShowPastFertilizeSheet(false)}
-        onSelect={handleFertilizePastSelect}
+        visible={activePastCareType !== null}
+        onClose={() => setActivePastCareType(null)}
+        onSelect={handlePastCareSelect}
       />
 
       {/* Correct Care Dates Sheet */}

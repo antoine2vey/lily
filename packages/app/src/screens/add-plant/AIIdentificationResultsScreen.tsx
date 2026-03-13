@@ -64,6 +64,12 @@ export function AIIdentificationResultsScreen() {
           fertilizationFrequencyDays: Option.getOrUndefined(
             Option.fromNullable(result.fertilizationFrequencyDays)
           ),
+          mistingFrequencyDays: Option.getOrUndefined(
+            Option.fromNullable(result.mistingFrequencyDays)
+          ),
+          repottingFrequencyDays: Option.getOrUndefined(
+            Option.fromNullable(result.repottingFrequencyDays)
+          ),
           luxNeeded: Option.getOrElse(
             Option.fromNullable(result.luxNeeded),
             () => 2000
@@ -121,12 +127,10 @@ export function AIIdentificationResultsScreen() {
       humidityRating: result.humidityRating,
       petToxicityRating: result.petToxicityRating,
       fertilizationFrequencyDays: result.fertilizationFrequencyDays,
+      mistingFrequencyDays: result.mistingFrequencyDays,
+      repottingFrequencyDays: result.repottingFrequencyDays,
       wateringTips: result.wateringTips,
     }
-    console.log(
-      '[DEBUG AIResults] prefillData:',
-      JSON.stringify(prefillData, null, 2)
-    )
     const categoryParam = result.category
       ? `&prefillCategory=${encodeURIComponent(result.category)}`
       : ''
@@ -406,6 +410,48 @@ export function AIIdentificationResultsScreen() {
                     <Text className="text-xs text-text-secondary">
                       {t('results.everyDays', {
                         count: result.fertilizationFrequencyDays,
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {result.mistingFrequencyDays && (
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 items-center justify-center">
+                    <MaterialIcons
+                      name="grain"
+                      size={20}
+                      color={iconColors.mistTeal}
+                    />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-bold text-text-primary dark:text-white">
+                      {t('results.misting')}
+                    </Text>
+                    <Text className="text-xs text-text-secondary">
+                      {t('results.everyDays', {
+                        count: result.mistingFrequencyDays,
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {result.repottingFrequencyDays && (
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 items-center justify-center">
+                    <MaterialIcons
+                      name="yard"
+                      size={20}
+                      color={iconColors.repotBrown}
+                    />
+                  </View>
+                  <View>
+                    <Text className="text-sm font-bold text-text-primary dark:text-white">
+                      {t('results.repotting')}
+                    </Text>
+                    <Text className="text-xs text-text-secondary">
+                      {t('results.everyDays', {
+                        count: result.repottingFrequencyDays,
                       })}
                     </Text>
                   </View>

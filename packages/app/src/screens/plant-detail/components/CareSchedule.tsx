@@ -5,19 +5,30 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { SectionHeader } from 'src/components/SectionHeader'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { MAX_VISIBLE_DAYS } from 'src/screens/plants/components/PlantCard'
 
 interface CareScheduleProps {
   wateringDays: number
   wateringDate: string
   fertilizingDays: number | null
   fertilizingDate: string
+  mistingDays: number | null
+  mistingDate: string
+  repottingDays: number | null
+  repottingDate: string
   onEdit: () => void
   onWaterNow?: () => void
   onFertilizeNow?: () => void
+  onMistNow?: () => void
+  onRepotNow?: () => void
   onWaterPast?: () => void
   onFertilizePast?: () => void
+  onMistPast?: () => void
+  onRepotPast?: () => void
   isWaterFirstTime?: boolean
   isFertilizeFirstTime?: boolean
+  isMistFirstTime?: boolean
+  isRepotFirstTime?: boolean
   onCorrectDates?: () => void
 }
 
@@ -120,29 +131,9 @@ function CareCard({
 }: CareCardProps) {
   const { t } = useTranslation('plants')
 
-  // Handle "not scheduled" state
-  if (days === null) {
-    return (
-      <View
-        className="flex-1 p-4 rounded-xl bg-surface dark:bg-surface-dark border border-border dark:border-slate-700"
-        testID={`care-card-${String.toLowerCase(label)}`}
-      >
-        <View className="flex-row items-center mb-3">
-          <View className="w-8 h-8 rounded-full items-center justify-center bg-surface-tinted dark:bg-slate-700">
-            <MaterialIcons name={icon} size={18} color={iconColor} />
-          </View>
-          <Text className="text-sm ml-2 font-medium text-text-primary dark:text-white">
-            {label}
-          </Text>
-        </View>
-        <Text className="text-lg font-semibold text-text-muted dark:text-slate-400">
-          {t('detail.notScheduled')}
-        </Text>
-        <Text className="text-xs font-regular text-text-muted dark:text-slate-500 mt-1">
-          {t('detail.setScheduleToTrack')}
-        </Text>
-      </View>
-    )
+  // Hide cards that are not scheduled or beyond 14 days
+  if (days === null || days > MAX_VISIBLE_DAYS) {
+    return null
   }
 
   const urgency = getUrgencyState(days)
@@ -152,32 +143,34 @@ function CareCard({
 
   return (
     <View
-      className={`flex-1 p-4 rounded-xl ${styles.containerClass}`}
+      className={`flex-row items-center p-4 rounded-xl ${styles.containerClass}`}
       testID={`care-card-${String.toLowerCase(label)}`}
     >
-      <View className="flex-row items-center mb-3">
-        <View
-          className={`w-8 h-8 rounded-full items-center justify-center ${styles.iconBgClass}`}
-        >
-          <MaterialIcons name={icon} size={18} color={iconColor} />
-        </View>
-        <Text className="text-sm ml-2 font-medium text-text-primary dark:text-white">
+      {/* Icon */}
+      <View
+        className={`w-10 h-10 rounded-full items-center justify-center ${styles.iconBgClass}`}
+      >
+        <MaterialIcons name={icon} size={20} color={iconColor} />
+      </View>
+
+      {/* Text block */}
+      <View className="flex-1 ml-3">
+        <Text className="text-sm font-medium text-text-primary dark:text-white">
           {label}
+        </Text>
+        <Text className={`text-base font-semibold ${styles.textClass}`}>
+          {timeText}
+        </Text>
+        <Text className="text-xs font-regular text-text-muted dark:text-slate-400 mt-0.5">
+          {nextDate}
         </Text>
       </View>
 
-      <Text className={`text-lg font-semibold ${styles.textClass}`}>
-        {timeText}
-      </Text>
-
-      <Text className="text-xs font-regular text-text-muted dark:text-slate-400 mt-1">
-        {nextDate}
-      </Text>
-
+      {/* Actions */}
       {showDoNow && (
         <Pressable
           onPress={onDoNow}
-          className="mt-3 py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600 self-start"
+          className="py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600"
           testID={`care-card-${String.toLowerCase(label)}-do-now`}
         >
           <Text className="text-xs font-semibold text-primary">
@@ -185,10 +178,10 @@ function CareCard({
           </Text>
         </Pressable>
       )}
-      {isFirstTime && onLogPast && (
+      {isFirstTime && onLogPast && !showDoNow && (
         <Pressable
           onPress={onLogPast}
-          className="mt-2 py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600 self-start"
+          className="py-2 px-3 rounded-lg bg-white/80 dark:bg-slate-700/80 active:bg-white dark:active:bg-slate-600"
           testID={`care-card-${String.toLowerCase(label)}-already-done`}
         >
           <Text className="text-xs font-semibold text-text-secondary dark:text-slate-400">
@@ -205,13 +198,23 @@ export function CareSchedule({
   wateringDate,
   fertilizingDays,
   fertilizingDate,
+  mistingDays,
+  mistingDate,
+  repottingDays,
+  repottingDate,
   onEdit,
   onWaterNow,
   onFertilizeNow,
+  onMistNow,
+  onRepotNow,
   onWaterPast,
   onFertilizePast,
+  onMistPast,
+  onRepotPast,
   isWaterFirstTime,
   isFertilizeFirstTime,
+  isMistFirstTime,
+  isRepotFirstTime,
   onCorrectDates,
 }: CareScheduleProps) {
   const { t } = useTranslation('plants')
@@ -230,7 +233,7 @@ export function CareSchedule({
           </Text>
         </Pressable>
       )}
-      <View className="flex-row gap-3 mt-4">
+      <View className="gap-3 mt-4">
         <CareCard
           icon="water-drop"
           iconColor={iconColors.waterBlue}
@@ -250,6 +253,26 @@ export function CareSchedule({
           onDoNow={onFertilizeNow}
           onLogPast={onFertilizePast}
           isFirstTime={isFertilizeFirstTime}
+        />
+        <CareCard
+          icon="grain"
+          iconColor={iconColors.mistTeal}
+          days={mistingDays}
+          label={t('careTypes.mist')}
+          nextDate={mistingDate}
+          onDoNow={onMistNow}
+          onLogPast={onMistPast}
+          isFirstTime={isMistFirstTime}
+        />
+        <CareCard
+          icon="yard"
+          iconColor={iconColors.repotBrown}
+          days={repottingDays}
+          label={t('careTypes.repot')}
+          nextDate={repottingDate}
+          onDoNow={onRepotNow}
+          onLogPast={onRepotPast}
+          isFirstTime={isRepotFirstTime}
         />
       </View>
     </View>

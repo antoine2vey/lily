@@ -1,7 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CareType } from '@lily/shared'
-import { Array, Match, Number, Option, Order, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
+import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
@@ -32,6 +33,8 @@ interface PlantCardProps {
   }
   onPress: (plantId: string) => void
 }
+
+export const MAX_VISIBLE_DAYS = 14
 
 const getHealthDotClass = (health: HealthStatus): string =>
   pipe(
@@ -77,6 +80,9 @@ export const getCareIndicator = (
 ): Option.Option<CareIndicator> =>
   pipe(
     Option.fromNullable(care.daysUntil),
+    Option.filter(
+      (daysUntil) => care.isOverdue || daysUntil <= MAX_VISIBLE_DAYS
+    ),
     Option.map((daysUntil) => {
       const icon = getIcon(type)
       return pipe(
@@ -103,112 +109,91 @@ export const getCareIndicator = (
     })
   )
 
-type IndicatorPriority = 'overdue' | 'today' | 'soonest' | 'none'
-
-const classifyIndicators = (
-  indicators: ReadonlyArray<CareIndicator>
-): IndicatorPriority => {
-  const overdueCount = Array.countBy(indicators, (i) => i.isOverdue)
-  const todayCount = Array.countBy(indicators, (i) => i.isToday)
-
-  return pipe(
-    Match.value({ overdueCount, todayCount, total: Array.length(indicators) }),
-    Match.when({ total: 0 }, () => 'none' as const),
-    Match.when({ overdueCount: 1 }, () => 'overdue' as const),
-    Match.when({ overdueCount: 2 }, () => 'overdue' as const),
-    Match.when({ todayCount: 1 }, () => 'today' as const),
-    Match.when({ todayCount: 2 }, () => 'today' as const),
-    Match.orElse(() => 'soonest' as const)
-  )
+interface CareIndicatorBadgeProps {
+  indicator: Option.Option<CareIndicator>
+  iconColors: ReturnType<typeof useIconColors>
 }
 
-const selectByPriority = (
-  indicators: ReadonlyArray<CareIndicator>,
-  priority: IndicatorPriority
-): ReadonlyArray<CareIndicator> =>
-  pipe(
-    Match.value(priority),
-    Match.when('none', () => [] as ReadonlyArray<CareIndicator>),
-    Match.when('overdue', () => Array.filter(indicators, (i) => i.isOverdue)),
-    Match.when('today', () => Array.filter(indicators, (i) => i.isToday)),
-    Match.when('soonest', () =>
-      pipe(
-        indicators,
-        Array.sort(
-          Order.mapInput(Number.Order, (i: CareIndicator) =>
-            Option.getOrElse(Option.fromNullable(i.daysUntil), () => 999)
-          )
-        ),
-        Array.head,
-        Option.match({
-          onNone: () => [] as ReadonlyArray<CareIndicator>,
-          onSome: (first) => [first],
-        })
-      )
+function CareIndicatorBadge({
+  indicator,
+  iconColors,
+}: CareIndicatorBadgeProps) {
+  return Option.match(indicator, {
+    onNone: () => null,
+    onSome: (ind) => (
+      <View
+        className="flex-row items-center gap-1"
+        testID={`care-indicator-${ind.type}`}
+      >
+        <MaterialIcons
+          name={ind.icon}
+          size={14}
+          color={ind.isUrgent ? iconColors.warning : iconColors.primary}
+        />
+        <Text
+          className={`text-xs font-semibold ${
+            ind.isUrgent ? 'text-orange-500' : 'text-primary'
+          }`}
+        >
+          {ind.text}
+        </Text>
+      </View>
     ),
-    Match.exhaustive
-  )
-
-export const getCareIndicators = (
-  watering: CareStatus,
-  fertilization: CareStatus,
-  t: TFunction,
-  misting?: CareStatus,
-  repotting?: CareStatus
-): ReadonlyArray<CareIndicator> => {
-  const waterIndicator = getCareIndicator(watering, 'watering', t)
-  const fertilizeIndicator = getCareIndicator(fertilization, 'fertilization', t)
-  const mistingIndicator = pipe(
-    Option.fromNullable(misting),
-    Option.flatMap((m) => getCareIndicator(m, 'misting', t))
-  )
-  const repottingIndicator = pipe(
-    Option.fromNullable(repotting),
-    Option.flatMap((r) => getCareIndicator(r, 'repotting', t))
-  )
-
-  const indicators = pipe(
-    [waterIndicator, fertilizeIndicator, mistingIndicator, repottingIndicator],
-    Array.filterMap((opt) => opt)
-  )
-
-  const priority = classifyIndicators(indicators)
-  return selectByPriority(indicators, priority)
+  })
 }
 
-export function PlantCard({ plant, onPress }: PlantCardProps) {
+export const PlantCard = memo(function PlantCard({
+  plant,
+  onPress,
+}: PlantCardProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   const healthDotClass = getHealthDotClass(plant.health)
-  const indicators = getCareIndicators(
-    plant.watering,
-    plant.fertilization,
-    t,
-    plant.misting,
-    plant.repotting
-  )
+
+  const {
+    waterIndicator,
+    mistingIndicator,
+    fertilizeIndicator,
+    repottingIndicator,
+    hasTopRow,
+    hasBottomRow,
+    hasAnyIndicator,
+  } = useMemo(() => {
+    const water = getCareIndicator(plant.watering, 'watering', t)
+    const misting = pipe(
+      Option.fromNullable(plant.misting),
+      Option.flatMap((m) => getCareIndicator(m, 'misting', t))
+    )
+    const fertilize = getCareIndicator(plant.fertilization, 'fertilization', t)
+    const repotting = pipe(
+      Option.fromNullable(plant.repotting),
+      Option.flatMap((r) => getCareIndicator(r, 'repotting', t))
+    )
+    const top = Option.isSome(water) || Option.isSome(misting)
+    const bottom = Option.isSome(fertilize) || Option.isSome(repotting)
+    return {
+      waterIndicator: water,
+      mistingIndicator: misting,
+      fertilizeIndicator: fertilize,
+      repottingIndicator: repotting,
+      hasTopRow: top,
+      hasBottomRow: bottom,
+      hasAnyIndicator: top || bottom,
+    }
+  }, [plant.watering, plant.fertilization, plant.misting, plant.repotting, t])
 
   return (
     <Pressable
       testID={`plant-card-${plant.id}`}
       onPress={() => onPress(plant.id)}
-      className="flex flex-col gap-3 p-3 bg-white dark:bg-surface-dark rounded-xl shadow-soft"
+      className="flex-row items-center p-3 bg-white dark:bg-surface-dark rounded-xl shadow-soft"
     >
-      {/* Image Container */}
-      <View className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700">
-        {/* Favorite indicator */}
-        {plant.isFavorite && (
-          <View
-            testID="favorite-indicator"
-            className="absolute top-2 left-2 z-10"
-          >
-            <MaterialIcons name="favorite" size={18} color={iconColors.coral} />
-          </View>
-        )}
+      {/* Image */}
+      <View className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-700">
         {/* Health indicator dot */}
         <View
           testID="health-dot"
-          className={`absolute top-2 right-2 z-10 w-3 h-3 rounded-full ${healthDotClass} ring-2 ring-white shadow-sm`}
+          className={`absolute top-1 right-1 z-10 w-2.5 h-2.5 rounded-full ${healthDotClass} ring-1 ring-white`}
         />
         {plant.imageUrl ? (
           <View testID="plant-image" className="w-full h-full">
@@ -219,7 +204,7 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
                 <View className="flex-1 items-center justify-center">
                   <MaterialIcons
                     name="local-florist"
-                    size={48}
+                    size={28}
                     color={iconColors.primary}
                   />
                 </View>
@@ -233,7 +218,7 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
           >
             <MaterialIcons
               name="local-florist"
-              size={48}
+              size={28}
               color={iconColors.primary}
             />
           </View>
@@ -241,15 +226,26 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
       </View>
 
       {/* Content */}
-      <View>
-        <Text
-          numberOfLines={2}
-          className="text-text-primary dark:text-white text-base font-bold leading-tight mb-1"
-        >
-          {plant.name}
-        </Text>
+      <View className="flex-1 ml-3">
+        <View className="flex-row items-center gap-1.5">
+          <Text
+            numberOfLines={1}
+            className="text-text-primary dark:text-white text-base font-bold leading-tight flex-1"
+          >
+            {plant.name}
+          </Text>
+          {plant.isFavorite && (
+            <View testID="favorite-indicator">
+              <MaterialIcons
+                name="favorite"
+                size={14}
+                color={iconColors.coral}
+              />
+            </View>
+          )}
+        </View>
         {plant.ownership === 'caretaking' && plant.ownerName && (
-          <View className="flex-row items-center gap-1 mb-0.5">
+          <View className="flex-row items-center gap-1">
             <MaterialIcons
               name="person"
               size={12}
@@ -261,39 +257,42 @@ export function PlantCard({ plant, onPress }: PlantCardProps) {
           </View>
         )}
         {plant.roomName && (
-          <View className="flex-row items-center gap-1 mb-1">
+          <View className="flex-row items-center gap-1">
             <Text className="text-xs">{plant.roomIcon}</Text>
             <Text className="text-xs text-text-muted dark:text-slate-400">
               {plant.roomName}
             </Text>
           </View>
         )}
-        {Array.isNonEmptyReadonlyArray(indicators) && (
-          <View className="flex-row items-center gap-3">
-            {Array.map(indicators, (indicator) => (
-              <View
-                key={indicator.type}
-                className="flex-row items-center gap-1"
-              >
-                <MaterialIcons
-                  name={indicator.icon}
-                  size={14}
-                  color={
-                    indicator.isUrgent ? iconColors.warning : iconColors.primary
-                  }
+        {hasAnyIndicator && (
+          <View className="mt-1 gap-0.5">
+            {hasTopRow && (
+              <View className="flex-row items-center gap-3">
+                <CareIndicatorBadge
+                  indicator={waterIndicator}
+                  iconColors={iconColors}
                 />
-                <Text
-                  className={`text-xs font-semibold ${
-                    indicator.isUrgent ? 'text-orange-500' : 'text-primary'
-                  }`}
-                >
-                  {indicator.text}
-                </Text>
+                <CareIndicatorBadge
+                  indicator={mistingIndicator}
+                  iconColors={iconColors}
+                />
               </View>
-            ))}
+            )}
+            {hasBottomRow && (
+              <View className="flex-row items-center gap-3">
+                <CareIndicatorBadge
+                  indicator={fertilizeIndicator}
+                  iconColors={iconColors}
+                />
+                <CareIndicatorBadge
+                  indicator={repottingIndicator}
+                  iconColors={iconColors}
+                />
+              </View>
+            )}
           </View>
         )}
       </View>
     </Pressable>
   )
-}
+})

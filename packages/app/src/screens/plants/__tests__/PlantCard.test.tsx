@@ -136,7 +136,56 @@ describe('PlantCard', () => {
     })
   })
 
+  describe('14-day filter', () => {
+    it('hides indicators beyond 14 days', () => {
+      const farFuturePlant = {
+        ...basePlant,
+        watering: { daysUntil: 20, isOverdue: false },
+        fertilization: { daysUntil: 30, isOverdue: false },
+      }
+
+      render(<PlantCard plant={farFuturePlant} onPress={mockOnPress} />)
+
+      expect(screen.queryByText(/days/)).toBeNull()
+    })
+
+    it('shows indicators at exactly 14 days', () => {
+      const boundaryPlant = {
+        ...basePlant,
+        watering: { daysUntil: 14, isOverdue: false },
+      }
+
+      render(<PlantCard plant={boundaryPlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('14 days')).toBeTruthy()
+    })
+
+    it('always shows overdue indicators regardless of days value', () => {
+      const overduePlant = {
+        ...basePlant,
+        watering: { daysUntil: 0, isOverdue: true },
+      }
+
+      render(<PlantCard plant={overduePlant} onPress={mockOnPress} />)
+
+      expect(screen.getByText('Overdue')).toBeTruthy()
+    })
+  })
+
   describe('combined care indicators', () => {
+    it('shows all indicators within 14 days', () => {
+      const multipleCare = {
+        ...basePlant,
+        watering: { daysUntil: 2, isOverdue: false },
+        fertilization: { daysUntil: 5, isOverdue: false },
+      }
+
+      render(<PlantCard plant={multipleCare} onPress={mockOnPress} />)
+
+      expect(screen.getByText('2 days')).toBeTruthy()
+      expect(screen.getByText('5 days')).toBeTruthy()
+    })
+
     it('shows both overdue indicators when both are overdue', () => {
       const bothOverduePlant = {
         ...basePlant,
@@ -149,17 +198,17 @@ describe('PlantCard', () => {
       expect(screen.getAllByText('Overdue')).toHaveLength(2)
     })
 
-    it('shows only overdue indicator when one is overdue and one is not', () => {
-      const oneOverduePlant = {
+    it('shows overdue and upcoming together', () => {
+      const mixedPlant = {
         ...basePlant,
         watering: { daysUntil: 0, isOverdue: true },
         fertilization: { daysUntil: 5, isOverdue: false },
       }
 
-      render(<PlantCard plant={oneOverduePlant} onPress={mockOnPress} />)
+      render(<PlantCard plant={mixedPlant} onPress={mockOnPress} />)
 
       expect(screen.getByText('Overdue')).toBeTruthy()
-      expect(screen.queryByText('5 days')).toBeNull()
+      expect(screen.getByText('5 days')).toBeTruthy()
     })
 
     it('shows both today indicators when both are due today', () => {
@@ -172,47 +221,6 @@ describe('PlantCard', () => {
       render(<PlantCard plant={bothTodayPlant} onPress={mockOnPress} />)
 
       expect(screen.getAllByText('Today')).toHaveLength(2)
-    })
-
-    it('shows only today indicator when one is due today and one is not', () => {
-      const oneTodayPlant = {
-        ...basePlant,
-        watering: { daysUntil: 0, isOverdue: false },
-        fertilization: { daysUntil: 5, isOverdue: false },
-      }
-
-      render(<PlantCard plant={oneTodayPlant} onPress={mockOnPress} />)
-
-      expect(screen.getByText('Today')).toBeTruthy()
-      expect(screen.queryByText('5 days')).toBeNull()
-    })
-
-    it('shows soonest care when neither is overdue (watering sooner)', () => {
-      const wateringSoonerPlant = {
-        ...basePlant,
-        watering: { daysUntil: 2, isOverdue: false },
-        fertilization: { daysUntil: 5, isOverdue: false },
-      }
-
-      render(<PlantCard plant={wateringSoonerPlant} onPress={mockOnPress} />)
-
-      expect(screen.getByText('2 days')).toBeTruthy()
-      expect(screen.queryByText('5 days')).toBeNull()
-    })
-
-    it('shows soonest care when neither is overdue (fertilization sooner)', () => {
-      const fertilizationSoonerPlant = {
-        ...basePlant,
-        watering: { daysUntil: 5, isOverdue: false },
-        fertilization: { daysUntil: 1, isOverdue: false },
-      }
-
-      render(
-        <PlantCard plant={fertilizationSoonerPlant} onPress={mockOnPress} />
-      )
-
-      expect(screen.getByText('Tomorrow')).toBeTruthy()
-      expect(screen.queryByText('5 days')).toBeNull()
     })
   })
 
