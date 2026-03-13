@@ -51,6 +51,42 @@ export function EditPlantScreen() {
   )
   const iconColors = useIconColors()
 
+  const WATERING_PRESETS = useMemo(
+    () => [
+      { days: 3, label: t('addPlant:schedule.presets.everyThreeDays') },
+      { days: 7, label: t('addPlant:schedule.presets.weekly') },
+      { days: 14, label: t('addPlant:schedule.presets.biweekly') },
+      { days: 30, label: t('addPlant:schedule.presets.monthly') },
+    ],
+    [t]
+  )
+  const FERTILIZING_PRESETS = useMemo(
+    () => [
+      { days: 14, label: t('addPlant:schedule.presets.biweekly') },
+      { days: 30, label: t('addPlant:schedule.presets.monthly') },
+      { days: 60, label: t('addPlant:schedule.presets.everyTwoMonths') },
+      { days: 90, label: t('addPlant:schedule.presets.quarterly') },
+    ],
+    [t]
+  )
+  const MISTING_PRESETS = useMemo(
+    () => [
+      { days: 1, label: t('addPlant:schedule.presets.daily') },
+      { days: 2, label: t('addPlant:schedule.presets.twoDays') },
+      { days: 3, label: t('addPlant:schedule.presets.everyThreeDays') },
+      { days: 7, label: t('addPlant:schedule.presets.weekly') },
+    ],
+    [t]
+  )
+  const REPOTTING_PRESETS = useMemo(
+    () => [
+      { days: 180, label: t('addPlant:schedule.presets.sixMonths') },
+      { days: 365, label: t('addPlant:schedule.presets.oneYear') },
+      { days: 730, label: t('addPlant:schedule.presets.twoYears') },
+    ],
+    [t]
+  )
+
   const { data: plant, isLoading } = usePlant(plantId)
   const { mutate: updatePlant, isPending: isSaving } = useUpdatePlant(plantId)
   const { mutate: deletePlant, isPending: isDeleting } = useDeletePlant()
@@ -67,18 +103,35 @@ export function EditPlantScreen() {
   const [fertilizationFrequencyDays, setFertilizationFrequencyDays] = useState<
     number | null
   >(null)
-  const [fertilizationEnabled, setFertilizationEnabled] = useState(false)
+  const [mistingFrequencyDays, setMistingFrequencyDays] = useState<
+    number | null
+  >(null)
+  const [repottingFrequencyDays, setRepottingFrequencyDays] = useState<
+    number | null
+  >(null)
+
+  // Derive enabled state from whether frequencyDays is non-null
+  const fertilizationEnabled = fertilizationFrequencyDays !== null
+  const mistingEnabled = mistingFrequencyDays !== null
+  const repottingEnabled = repottingFrequencyDays !== null
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Derive original schedule values — reused by both useEffect and hasChanges
   const originalScheduleData = useMemo(() => {
     if (!plant)
-      return { wateringFreq: 7, fertilizationFreq: null as number | null }
+      return {
+        wateringFreq: 7,
+        fertilizationFreq: null as number | null,
+        mistingFreq: null as number | null,
+        repottingFreq: null as number | null,
+      }
     const schedules = plant.schedules
     return {
       wateringFreq: getFrequencyDays(schedules, 'watering') ?? 7,
       fertilizationFreq: getFrequencyDays(schedules, 'fertilization'),
+      mistingFreq: getFrequencyDays(schedules, 'misting'),
+      repottingFreq: getFrequencyDays(schedules, 'repotting'),
     }
   }, [plant])
 
@@ -105,7 +158,8 @@ export function EditPlantScreen() {
       setPetSafe(plant.petToxicityRating === 0)
       setWateringFrequencyDays(originalScheduleData.wateringFreq)
       setFertilizationFrequencyDays(originalScheduleData.fertilizationFreq)
-      setFertilizationEnabled(originalScheduleData.fertilizationFreq !== null)
+      setMistingFrequencyDays(originalScheduleData.mistingFreq)
+      setRepottingFrequencyDays(originalScheduleData.repottingFreq)
       setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
     }
   }, [plant, originalScheduleData])
@@ -141,6 +195,10 @@ export function EditPlantScreen() {
           wateringFrequencyDays,
           fertilizationFrequencyDays: fertilizationEnabled
             ? fertilizationFrequencyDays
+            : null,
+          mistingFrequencyDays: mistingEnabled ? mistingFrequencyDays : null,
+          repottingFrequencyDays: repottingEnabled
+            ? repottingFrequencyDays
             : null,
           roomId: selectedRoomId,
           imageUrl:
@@ -190,6 +248,10 @@ export function EditPlantScreen() {
     wateringFrequencyDays !== originalScheduleData.wateringFreq ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
       originalScheduleData.fertilizationFreq ||
+    (mistingEnabled ? mistingFrequencyDays : null) !==
+      originalScheduleData.mistingFreq ||
+    (repottingEnabled ? repottingFrequencyDays : null) !==
+      originalScheduleData.repottingFreq ||
     selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
 
   return (
@@ -372,15 +434,7 @@ export function EditPlantScreen() {
                 label={t('addPlant:schedule.watering')}
                 value={wateringFrequencyDays}
                 onValueChange={setWateringFrequencyDays}
-                presets={[
-                  {
-                    days: 3,
-                    label: t('addPlant:schedule.presets.everyThreeDays'),
-                  },
-                  { days: 7, label: t('addPlant:schedule.presets.weekly') },
-                  { days: 14, label: t('addPlant:schedule.presets.biweekly') },
-                  { days: 30, label: t('addPlant:schedule.presets.monthly') },
-                ]}
+                presets={WATERING_PRESETS}
               />
 
               {/* Fertilizing Schedule with Enable Toggle */}
@@ -395,10 +449,7 @@ export function EditPlantScreen() {
                   <Switch
                     value={fertilizationEnabled}
                     onValueChange={(enabled) => {
-                      setFertilizationEnabled(enabled)
-                      if (enabled && fertilizationFrequencyDays === null) {
-                        setFertilizationFrequencyDays(30)
-                      }
+                      setFertilizationFrequencyDays(enabled ? 30 : null)
                     }}
                     trackColor={{
                       false: iconColors.border,
@@ -409,37 +460,109 @@ export function EditPlantScreen() {
                   />
                 </View>
 
-                {fertilizationEnabled &&
-                  fertilizationFrequencyDays !== null && (
-                    <FrequencyPicker
-                      label=""
-                      value={fertilizationFrequencyDays}
-                      onValueChange={setFertilizationFrequencyDays}
-                      presets={[
-                        {
-                          days: 14,
-                          label: t('addPlant:schedule.presets.biweekly'),
-                        },
-                        {
-                          days: 30,
-                          label: t('addPlant:schedule.presets.monthly'),
-                        },
-                        {
-                          days: 60,
-                          label: t('addPlant:schedule.presets.everyTwoMonths'),
-                        },
-                        {
-                          days: 90,
-                          label: t('addPlant:schedule.presets.quarterly'),
-                        },
-                      ]}
-                    />
-                  )}
+                {fertilizationEnabled && (
+                  <FrequencyPicker
+                    label=""
+                    value={fertilizationFrequencyDays}
+                    onValueChange={setFertilizationFrequencyDays}
+                    presets={FERTILIZING_PRESETS}
+                  />
+                )}
 
                 {!fertilizationEnabled && (
                   <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
                     <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
                       {t('addPlant:schedule.enableFertilizing')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Misting Schedule with Enable Toggle */}
+              <View className="gap-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons
+                      name="grain"
+                      size={20}
+                      color={iconColors.mistTeal}
+                    />
+                    <Text className="text-lg font-bold text-text-primary dark:text-white">
+                      {t('addPlant:schedule.misting')}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={mistingEnabled}
+                    onValueChange={(enabled) => {
+                      setMistingFrequencyDays(enabled ? 2 : null)
+                    }}
+                    trackColor={{
+                      false: iconColors.border,
+                      true: iconColors.primary,
+                    }}
+                    thumbColor={iconColors.white}
+                    ios_backgroundColor={iconColors.border}
+                  />
+                </View>
+
+                {mistingEnabled && (
+                  <FrequencyPicker
+                    label=""
+                    value={mistingFrequencyDays}
+                    onValueChange={setMistingFrequencyDays}
+                    presets={MISTING_PRESETS}
+                  />
+                )}
+
+                {!mistingEnabled && (
+                  <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
+                    <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
+                      {t('addPlant:schedule.enableMisting')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Repotting Schedule with Enable Toggle */}
+              <View className="gap-4">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2">
+                    <MaterialIcons
+                      name="yard"
+                      size={20}
+                      color={iconColors.repotBrown}
+                    />
+                    <Text className="text-lg font-bold text-text-primary dark:text-white">
+                      {t('addPlant:schedule.repotting')}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={repottingEnabled}
+                    onValueChange={(enabled) => {
+                      setRepottingFrequencyDays(enabled ? 365 : null)
+                    }}
+                    trackColor={{
+                      false: iconColors.border,
+                      true: iconColors.primary,
+                    }}
+                    thumbColor={iconColors.white}
+                    ios_backgroundColor={iconColors.border}
+                  />
+                </View>
+
+                {repottingEnabled && (
+                  <FrequencyPicker
+                    label=""
+                    value={repottingFrequencyDays}
+                    onValueChange={setRepottingFrequencyDays}
+                    presets={REPOTTING_PRESETS}
+                  />
+                )}
+
+                {!repottingEnabled && (
+                  <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
+                    <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
+                      {t('addPlant:schedule.enableRepotting')}
                     </Text>
                   </View>
                 )}

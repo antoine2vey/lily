@@ -18,6 +18,8 @@ interface PlantIdentificationResult {
   humidityRating: number | null
   petToxicityRating: number | null
   fertilizationFrequencyDays: number | null
+  mistingFrequencyDays: number | null
+  repottingFrequencyDays: number | null
   category: string | null
   description: string | null
   wateringTips: string | null

@@ -1,11 +1,6 @@
 import { Option } from 'effect'
 import type { TFunction } from 'i18next'
-import {
-  type CareStatus,
-  formatDays,
-  getCareIndicator,
-  getCareIndicators,
-} from '../PlantCard'
+import { type CareStatus, formatDays, getCareIndicator } from '../PlantCard'
 
 // Mock translation function that returns expected values for tests
 const mockT: TFunction = ((key: string, options?: { count?: number }) => {
@@ -112,172 +107,29 @@ describe('getCareIndicator', () => {
     expect(Option.isSome(result)).toBe(true)
     expect(Option.getOrThrow(result).isUrgent).toBe(false)
   })
-})
 
-describe('getCareIndicators', () => {
-  describe('when no indicators are set', () => {
-    it('returns empty array when both daysUntil are undefined', () => {
-      const watering: CareStatus = { daysUntil: undefined, isOverdue: false }
-      const fertilization: CareStatus = {
-        daysUntil: undefined,
-        isOverdue: false,
-      }
+  it('returns None when daysUntil exceeds MAX_VISIBLE_DAYS', () => {
+    const care: CareStatus = { daysUntil: 20, isOverdue: false }
 
-      const result = getCareIndicators(watering, fertilization, mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
-      expect(result).toEqual([])
-    })
+    expect(Option.isNone(result)).toBe(true)
   })
 
-  describe('overdue priority', () => {
-    it('returns both overdue indicators when both are overdue', () => {
-      const watering: CareStatus = { daysUntil: 0, isOverdue: true }
-      const fertilization: CareStatus = { daysUntil: 0, isOverdue: true }
+  it('returns Some at exactly 14 days', () => {
+    const care: CareStatus = { daysUntil: 14, isOverdue: false }
 
-      const result = getCareIndicators(watering, fertilization, mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
-      expect(result).toHaveLength(2)
-      expect(result[0].isOverdue).toBe(true)
-      expect(result[1].isOverdue).toBe(true)
-    })
-
-    it('returns only overdue indicator when one is overdue', () => {
-      const watering: CareStatus = { daysUntil: 0, isOverdue: true }
-      const fertilization: CareStatus = { daysUntil: 5, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].isOverdue).toBe(true)
-      expect(result[0].type).toBe('watering')
-    })
-
-    it('returns fertilize overdue when only fertilization is overdue', () => {
-      const watering: CareStatus = { daysUntil: 3, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 0, isOverdue: true }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].isOverdue).toBe(true)
-      expect(result[0].type).toBe('fertilization')
-    })
+    expect(Option.isSome(result)).toBe(true)
   })
 
-  describe('today priority', () => {
-    it('returns both today indicators when both are due today', () => {
-      const watering: CareStatus = { daysUntil: 0, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 0, isOverdue: false }
+  it('always returns overdue regardless of MAX_VISIBLE_DAYS', () => {
+    const care: CareStatus = { daysUntil: 0, isOverdue: true }
 
-      const result = getCareIndicators(watering, fertilization, mockT)
+    const result = getCareIndicator(care, 'watering', mockT)
 
-      expect(result).toHaveLength(2)
-      expect(result[0].isToday).toBe(true)
-      expect(result[1].isToday).toBe(true)
-    })
-
-    it('returns only today indicator when one is due today', () => {
-      const watering: CareStatus = { daysUntil: 0, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 5, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].isToday).toBe(true)
-      expect(result[0].type).toBe('watering')
-    })
-
-    it('returns fertilize today when only fertilization is due today', () => {
-      const watering: CareStatus = { daysUntil: 3, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 0, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].isToday).toBe(true)
-      expect(result[0].type).toBe('fertilization')
-    })
-  })
-
-  describe('soonest priority', () => {
-    it('returns water indicator when watering is sooner', () => {
-      const watering: CareStatus = { daysUntil: 2, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 5, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('watering')
-      expect(result[0].text).toBe('2 days')
-    })
-
-    it('returns fertilize indicator when fertilization is sooner', () => {
-      const watering: CareStatus = { daysUntil: 5, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 1, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilization')
-      expect(result[0].text).toBe('Tomorrow')
-    })
-
-    it('prefers water when both have same daysUntil', () => {
-      const watering: CareStatus = { daysUntil: 3, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 3, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('watering')
-    })
-  })
-
-  describe('single indicator scenarios', () => {
-    it('returns water indicator when only watering has schedule', () => {
-      const watering: CareStatus = { daysUntil: 3, isOverdue: false }
-      const fertilization: CareStatus = {
-        daysUntil: undefined,
-        isOverdue: false,
-      }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('watering')
-    })
-
-    it('returns fertilize indicator when only fertilization has schedule', () => {
-      const watering: CareStatus = { daysUntil: undefined, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 5, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilization')
-    })
-  })
-
-  describe('edge cases', () => {
-    it('handles large daysUntil values', () => {
-      const watering: CareStatus = { daysUntil: 365, isOverdue: false }
-      const fertilization: CareStatus = { daysUntil: 180, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].type).toBe('fertilization')
-      expect(result[0].text).toBe('180 days')
-    })
-
-    it('overdue takes priority over today', () => {
-      const watering: CareStatus = { daysUntil: 0, isOverdue: true }
-      const fertilization: CareStatus = { daysUntil: 0, isOverdue: false }
-
-      const result = getCareIndicators(watering, fertilization, mockT)
-
-      expect(result).toHaveLength(1)
-      expect(result[0].isOverdue).toBe(true)
-    })
+    expect(Option.isSome(result)).toBe(true)
+    expect(Option.getOrThrow(result).isOverdue).toBe(true)
   })
 })

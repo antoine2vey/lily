@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Either, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Alert,
@@ -61,18 +61,43 @@ export function ManualAddScheduleScreen() {
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
 
-  const WATERING_PRESETS = [
-    { days: 7, label: t('addPlant:schedule.presets.sevenDays') },
-    { days: 3, label: t('addPlant:schedule.presets.threeDays') },
-    { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
-    { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
-  ]
+  const WATERING_PRESETS = useMemo(
+    () => [
+      { days: 7, label: t('addPlant:schedule.presets.sevenDays') },
+      { days: 3, label: t('addPlant:schedule.presets.threeDays') },
+      { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
+      { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
+    ],
+    [t]
+  )
 
-  const FERTILIZING_PRESETS = [
-    { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
-    { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
-    { days: 60, label: t('addPlant:schedule.presets.sixtyDays') },
-  ]
+  const FERTILIZING_PRESETS = useMemo(
+    () => [
+      { days: 14, label: t('addPlant:schedule.presets.fourteenDays') },
+      { days: 30, label: t('addPlant:schedule.presets.thirtyDays') },
+      { days: 60, label: t('addPlant:schedule.presets.sixtyDays') },
+    ],
+    [t]
+  )
+
+  const MISTING_PRESETS = useMemo(
+    () => [
+      { days: 1, label: t('addPlant:schedule.presets.daily') },
+      { days: 2, label: t('addPlant:schedule.presets.twoDays') },
+      { days: 3, label: t('addPlant:schedule.presets.threeDays') },
+      { days: 7, label: t('addPlant:schedule.presets.sevenDays') },
+    ],
+    [t]
+  )
+
+  const REPOTTING_PRESETS = useMemo(
+    () => [
+      { days: 180, label: t('addPlant:schedule.presets.sixMonths') },
+      { days: 365, label: t('addPlant:schedule.presets.oneYear') },
+      { days: 730, label: t('addPlant:schedule.presets.twoYears') },
+    ],
+    [t]
+  )
   const basicInfo = safeDecodeParam<BasicInfo>(
     params.basicInfo,
     DEFAULT_BASIC_INFO
@@ -84,12 +109,6 @@ export function ManualAddScheduleScreen() {
   const prefill = safeDecodeParam<Record<string, unknown> | null>(
     params.prefillData,
     null
-  )
-
-  console.log('[DEBUG Schedule] raw params.prefillData:', params.prefillData)
-  console.log(
-    '[DEBUG Schedule] decoded prefill:',
-    JSON.stringify(prefill, null, 2)
   )
 
   const [roomId, setRoomId] = useState<string | null>(null)
@@ -110,6 +129,30 @@ export function ManualAddScheduleScreen() {
       ),
       Option.getOrElse(() => 30)
     )
+  )
+  const prefillMisting = pipe(
+    Option.fromNullable(prefill),
+    Option.flatMap((p) =>
+      Option.fromNullable(p.mistingFrequencyDays as number | null)
+    )
+  )
+  const prefillRepotting = pipe(
+    Option.fromNullable(prefill),
+    Option.flatMap((p) =>
+      Option.fromNullable(p.repottingFrequencyDays as number | null)
+    )
+  )
+  const [mistingEnabled, setMistingEnabled] = useState(
+    Option.isSome(prefillMisting)
+  )
+  const [mistingDays, setMistingDays] = useState(
+    Option.getOrElse(prefillMisting, () => 2)
+  )
+  const [repottingEnabled, setRepottingEnabled] = useState(
+    Option.isSome(prefillRepotting)
+  )
+  const [repottingDays, setRepottingDays] = useState(
+    Option.getOrElse(prefillRepotting, () => 365)
   )
   const [careReminders, setCareReminders] = useState(true)
   const [notes, setNotes] = useState(
@@ -137,6 +180,8 @@ export function ManualAddScheduleScreen() {
           description: notes || undefined,
           wateringFrequencyDays: wateringDays,
           fertilizationFrequencyDays: fertilizingDays,
+          mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
+          repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
           luxNeeded: careNeeds.luxNeeded,
           humidityRating: careNeeds.humidity,
           petToxicityRating: careNeeds.petSafe ? 0 : 100,
@@ -215,6 +260,86 @@ export function ManualAddScheduleScreen() {
             onValueChange={setFertilizingDays}
             presets={FERTILIZING_PRESETS}
           />
+
+          {/* Misting Section */}
+          <View className="gap-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons
+                  name="grain"
+                  size={22}
+                  color={iconColors.mistTeal}
+                />
+                <Text className="text-lg font-bold text-text-primary dark:text-white">
+                  {t('addPlant:schedule.misting')}
+                </Text>
+              </View>
+              <Switch
+                value={mistingEnabled}
+                onValueChange={setMistingEnabled}
+                trackColor={{
+                  false: iconColors.border,
+                  true: iconColors.primary,
+                }}
+                thumbColor={iconColors.white}
+                ios_backgroundColor={iconColors.border}
+              />
+            </View>
+            {mistingEnabled ? (
+              <FrequencyPicker
+                label=""
+                value={mistingDays}
+                onValueChange={setMistingDays}
+                presets={MISTING_PRESETS}
+              />
+            ) : (
+              <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
+                <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
+                  {t('addPlant:schedule.enableMisting')}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Repotting Section */}
+          <View className="gap-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons
+                  name="yard"
+                  size={22}
+                  color={iconColors.repotBrown}
+                />
+                <Text className="text-lg font-bold text-text-primary dark:text-white">
+                  {t('addPlant:schedule.repotting')}
+                </Text>
+              </View>
+              <Switch
+                value={repottingEnabled}
+                onValueChange={setRepottingEnabled}
+                trackColor={{
+                  false: iconColors.border,
+                  true: iconColors.primary,
+                }}
+                thumbColor={iconColors.white}
+                ios_backgroundColor={iconColors.border}
+              />
+            </View>
+            {repottingEnabled ? (
+              <FrequencyPicker
+                label=""
+                value={repottingDays}
+                onValueChange={setRepottingDays}
+                presets={REPOTTING_PRESETS}
+              />
+            ) : (
+              <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
+                <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
+                  {t('addPlant:schedule.enableRepotting')}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Reminders Toggle */}
           <View className="bg-white dark:bg-surface-dark p-4 px-5 rounded-xl shadow-sm border border-border dark:border-slate-700 flex-row items-center justify-between">
