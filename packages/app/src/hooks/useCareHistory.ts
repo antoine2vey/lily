@@ -1,9 +1,13 @@
-import { getApiDateGroupLabel, StaleTime, toIsoString } from '@lily/shared'
+import {
+  type CareType,
+  getApiDateGroupLabel,
+  StaleTime,
+  toIsoString,
+} from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import {
   Array,
   DateTime,
-  Match,
   Option,
   Order,
   pipe,
@@ -12,13 +16,10 @@ import {
 } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
-type BackendCareType = 'watering' | 'fertilization'
-type AppCareType = 'water' | 'fertilize'
-
 interface CareEvent {
   id: string
   plantId: string
-  type: AppCareType
+  type: CareType
   notes?: string
   photoUrl?: string
   createdAt: string
@@ -28,17 +29,6 @@ interface CareHistoryGroup {
   date: string
   events: CareEvent[]
 }
-
-/**
- * Map backend care type to app care type
- */
-const mapBackendType = (type: BackendCareType): AppCareType =>
-  pipe(
-    Match.value(type),
-    Match.when('watering', () => 'water' as const),
-    Match.when('fertilization', () => 'fertilize' as const),
-    Match.exhaustive
-  )
 
 /**
  * Get date key for grouping (YYYY-MM-DD format)
@@ -74,7 +64,7 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
       const event: CareEvent = {
         id: log.id,
         plantId: log.plantId,
-        type: mapBackendType(log.type),
+        type: log.type,
         notes: log.notes,
         photoUrl: log.photoUrl,
         createdAt: createdAtIso,
@@ -129,7 +119,7 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
 
 interface UseCareHistoryParams {
   plantId: string
-  type?: 'all' | 'watering' | 'fertilization'
+  type?: 'all' | CareType
   page?: number
   limit?: number
 }

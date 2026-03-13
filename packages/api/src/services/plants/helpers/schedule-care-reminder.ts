@@ -10,7 +10,11 @@ import {
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import { Effect, Option, pipe } from 'effect'
 
-export type CareReminderType = 'watering_reminder' | 'fertilization_reminder'
+export type CareReminderType =
+  | 'watering_reminder'
+  | 'fertilization_reminder'
+  | 'misting_reminder'
+  | 'repotting_reminder'
 
 export interface ScheduleCareReminderParams {
   plantId: string

@@ -52,28 +52,19 @@ export const GetOverduePlants = Tool.make('get_overdue_plants', {
   success: Schema.String,
 }).annotate(Tool.Readonly, true)
 
-export const WaterPlant = Tool.make('water_plant', {
-  description: 'Record that you watered a plant. Creates a care log entry.',
-  parameters: {
-    plantId: Schema.String.annotations({
-      description: 'The plant ID to water',
-    }),
-    notes: Schema.optionalWith(Schema.String, {
-      exact: true,
-    }).annotations({
-      description: 'Optional notes about the watering',
-    }),
-  },
-  success: Schema.String,
-})
-
 export const CarePlant = Tool.make('care_plant', {
-  description: 'Record a care action (watering or fertilization) for a plant.',
+  description:
+    'Record a care action (watering, fertilization, misting, or repotting) for a plant.',
   parameters: {
     plantId: Schema.String.annotations({
       description: 'The plant ID to care for',
     }),
-    type: Schema.Literal('watering', 'fertilization').annotations({
+    type: Schema.Literal(
+      'watering',
+      'fertilization',
+      'misting',
+      'repotting'
+    ).annotations({
       description: 'Type of care action',
     }),
     notes: Schema.optionalWith(Schema.String, {

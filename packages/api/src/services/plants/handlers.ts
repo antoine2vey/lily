@@ -118,21 +118,6 @@ export const PlantsApiLive = (api: Api) =>
             .careMultiplePlants(payload)
             .pipe(withInfraErrorsAsDefect)
         )
-        .handle('waterPlant', ({ path: { id }, payload }) =>
-          plantsService
-            .waterPlant({ ...payload, id })
-            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
-        )
-        .handle('waterMultiplePlants', ({ payload }) =>
-          plantsService
-            .waterMultiplePlants(payload)
-            .pipe(withInfraErrorsAsDefect)
-        )
-        .handle('fertilizePlant', ({ path: { id }, payload }) =>
-          plantsService
-            .fertilizePlant({ ...payload, id })
-            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
-        )
         .handle('correctCareDates', ({ path: { id }, payload }) =>
           plantsService
             .correctCareDates({ ...payload, id })

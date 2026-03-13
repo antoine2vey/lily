@@ -42,32 +42,34 @@ export default {
     completedAt: 'Terminé le {date}',
   },
   types: {
-    water: {
+    watering: {
       name: 'Arrosage',
       action: 'Arroser',
       completed: 'Arrosé',
       badge: 'ARROSAGE',
     },
-    fertilize: {
+    fertilization: {
       name: 'Fertilisation',
       action: 'Fertiliser',
       completed: 'Fertilisé',
       badge: 'FERTILISATION',
     },
-    repot: {
+    misting: {
+      name: 'Vaporisation',
+      action: 'Vaporiser',
+      completed: 'Vaporisé',
+      badge: 'VAPORISATION',
+    },
+    repotting: {
       name: 'Rempotage',
       action: 'Rempoter',
       completed: 'Rempoté',
+      badge: 'REMPOTAGE',
     },
     prune: {
       name: 'Taille',
       action: 'Tailler',
       completed: 'Taillé',
-    },
-    mist: {
-      name: 'Vaporisation',
-      action: 'Vaporiser',
-      completed: 'Vaporisé',
     },
     rotate: {
       name: 'Rotation',
@@ -96,8 +98,10 @@ export default {
     filterAll: 'Tous',
     filterByType: 'Filtrer par type',
     filterByPlant: 'Par plante',
-    water: 'Arrosage',
-    fertilize: 'Fertilisation',
+    watering: 'Arrosage',
+    fertilization: 'Fertilisation',
+    misting: 'Vaporisation',
+    repotting: 'Rempotage',
   },
   reminders: {
     title: 'Rappels',

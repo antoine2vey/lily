@@ -4,7 +4,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
-import { compact } from '@lily/shared'
+import { type CareType, compact } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Match, Option, pipe } from 'effect'
@@ -91,7 +91,13 @@ export const updateUserSettings = (
               Match.when('fertilization_reminder', () =>
                 Option.some('fertilization' as const)
               ),
-              Match.orElse(() => Option.none<'watering' | 'fertilization'>())
+              Match.when('misting_reminder', () =>
+                Option.some('misting' as const)
+              ),
+              Match.when('repotting_reminder', () =>
+                Option.some('repotting' as const)
+              ),
+              Match.orElse(() => Option.none<CareType>())
             )
 
             const baseDate = pipe(

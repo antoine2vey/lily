@@ -3,7 +3,7 @@ import {
   type IAchievementRepository,
 } from '@lily/api/repositories/achievement.repository'
 import type { userAchievements } from '@lily/db/schema'
-import type { AchievementKey } from '@lily/shared'
+import type { AchievementKey, CareType } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type UserAchievement = typeof userAchievements.$inferSelect
@@ -11,7 +11,7 @@ type UserAchievement = typeof userAchievements.$inferSelect
 export interface MockAchievementRepositoryData {
   achievements: UserAchievement[]
   plantCount?: number
-  careLogCounts?: { watering: number; fertilization: number }
+  careLogCounts?: Partial<Record<CareType, number>>
   photoCount?: number
   careStreak?: number
   scanCount?: number
@@ -56,10 +56,7 @@ export const createMockAchievementRepository = (
       return Effect.succeed(newAchievement)
     },
 
-    countCareLogsByType: (
-      _userId: string,
-      type: 'watering' | 'fertilization'
-    ) =>
+    countCareLogsByType: (_userId: string, type: CareType) =>
       Effect.succeed(
         pipe(
           Option.fromNullable(data.careLogCounts),

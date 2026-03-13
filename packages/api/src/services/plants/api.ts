@@ -25,13 +25,9 @@ import {
   PlantCareRequest,
   PlantCorrectCareDatesRequest,
   PlantDetail,
-  PlantFertilizeRequest,
   PlantPhotosListResponse,
   PlantsListResponse,
   PlantUpdateRequest,
-  PlantWaterRequest,
-  WaterMultiplePlantsRequest,
-  WaterMultiplePlantsResponse,
 } from '@lily/shared/plant'
 import {
   FileTooLargeError,
@@ -168,14 +164,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // POST /plants/water-multiple - Water multiple plants at once
-    HttpApiEndpoint.post('waterMultiplePlants')`/water-multiple`
-      .setPayload(WaterMultiplePlantsRequest)
-      .addSuccess(WaterMultiplePlantsResponse)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
-  )
-  .add(
     // GET /plants/:id - Get plant by ID (includes recent photos)
     HttpApiEndpoint.get('getPlant')`/${plantIdParam}`
       .addSuccess(PlantDetail)
@@ -241,26 +229,6 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/:id/care - Generic care action
     HttpApiEndpoint.post('carePlant')`/${plantIdParam}/care`
       .setPayload(PlantCareRequest)
-      .addSuccess(Plant)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(FutureDateNotAllowedError, { status: 400 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
-  )
-  .add(
-    // POST /plants/:id/water - Water plant
-    HttpApiEndpoint.post('waterPlant')`/${plantIdParam}/water`
-      .setPayload(PlantWaterRequest)
-      .addSuccess(Plant)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(FutureDateNotAllowedError, { status: 400 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
-  )
-  .add(
-    // POST /plants/:plantId/fertilize - "Fertilize Now" shortcut
-    HttpApiEndpoint.post('fertilizePlant')`/${plantIdParam}/fertilize`
-      .setPayload(PlantFertilizeRequest)
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })

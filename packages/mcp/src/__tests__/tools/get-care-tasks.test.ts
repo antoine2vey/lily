@@ -15,7 +15,7 @@ const mockOverdueTask: CareTask = {
   plantImageUrl: null,
   roomName: null,
   roomIcon: null,
-  type: 'water',
+  type: 'watering',
   dueDate: new Date('2024-06-14'),
   completed: false,
 }

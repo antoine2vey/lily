@@ -7,7 +7,7 @@
  * 1. A test user for Apple App Store reviewers
  * 2. A magic link with extended expiry for verification
  * 3. Demo plants with various health states
- * 4. Care history (watering, fertilization)
+ * 4. Care history (watering, fertilization, misting, repotting)
  * 5. Achievements
  * 6. Sample chat messages
  * 7. Sample notifications
@@ -293,7 +293,7 @@ const seedAppleReviewer = Effect.gen(function* () {
     A.flatMap(([created, demo]) => {
       const entries: Array<{
         plantId: string
-        careType: 'watering' | 'fertilization'
+        careType: 'watering' | 'fertilization' | 'misting' | 'repotting'
         frequencyDays: number
         lastCareAt: Date
         nextCareAt: Date
@@ -313,6 +313,16 @@ const seedAppleReviewer = Effect.gen(function* () {
           frequencyDays: demo.fertilizationFrequencyDays,
           lastCareAt: demo.lastFertilizedAt,
           nextCareAt: demo.nextFertilizationAt,
+        })
+      }
+      // Add misting for tropical/high-humidity plants
+      if (demo.humidityRating >= 4) {
+        entries.push({
+          plantId: created.id,
+          careType: 'misting',
+          frequencyDays: 2,
+          lastCareAt: daysAgo(1),
+          nextCareAt: daysFromNow(1),
         })
       }
       return entries
@@ -345,6 +355,18 @@ const seedAppleReviewer = Effect.gen(function* () {
             plantId: plant.id,
             date: daysAgo(i * demo.fertilizationFrequencyDays),
             notes: i === 0 ? 'Used balanced 10-10-10 fertilizer' : undefined,
+          })
+        }
+      }
+
+      // Add misting history for tropical plants
+      if (demo.humidityRating >= 4) {
+        for (let i = 0; i < 5; i++) {
+          logs.push({
+            type: 'misting' as const,
+            plantId: plant.id,
+            date: daysAgo(i * 2),
+            notes: i === 0 ? 'Misted leaves thoroughly' : undefined,
           })
         }
       }

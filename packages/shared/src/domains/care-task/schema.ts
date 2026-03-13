@@ -1,9 +1,5 @@
 import { Schema } from 'effect'
-
-export const CareTaskType = Schema.Union(
-  Schema.Literal('water'),
-  Schema.Literal('fertilize')
-)
+import { CareType } from '../care/types'
 
 export const CareTask = Schema.Struct({
   id: Schema.String,
@@ -12,7 +8,7 @@ export const CareTask = Schema.Struct({
   plantImageUrl: Schema.NullOr(Schema.String),
   roomName: Schema.NullOr(Schema.String),
   roomIcon: Schema.NullOr(Schema.String),
-  type: CareTaskType,
+  type: CareType,
   dueDate: Schema.Date,
   completed: Schema.Boolean,
 })
@@ -24,6 +20,5 @@ export const CareTasksResponse = Schema.Struct({
 })
 
 // Type exports
-export type CareTaskType = typeof CareTaskType.Type
 export type CareTask = typeof CareTask.Type
 export type CareTasksResponse = typeof CareTasksResponse.Type

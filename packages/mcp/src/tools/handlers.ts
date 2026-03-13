@@ -10,7 +10,6 @@ import {
   getOverduePlantsEffect,
   getPlantDetailsEffect,
   listPlantsEffect,
-  waterPlantEffect,
 } from '@lily/mcp/tools'
 import {
   CarePlant,
@@ -19,7 +18,6 @@ import {
   GetPlantDetails,
   ListPlants,
   TextToolkit,
-  WaterPlant,
 } from '@lily/mcp/tools/definitions'
 import { TOOL_WIDGETS } from '@lily/mcp/widgets/constants'
 import {
@@ -265,6 +263,5 @@ export const WidgetToolsLayer = Effect.gen(function* () {
   yield* register(GetPlantDetails, getPlantDetailsEffect)
   yield* registerNoParams(GetCareTasks, getCareTasksEffect)
   yield* registerNoParams(GetOverduePlants, getOverduePlantsEffect)
-  yield* register(WaterPlant, waterPlantEffect)
   yield* register(CarePlant, carePlantEffect)
 }) as Effect.Effect<void, never, McpServer.McpServer | ToolDeps>

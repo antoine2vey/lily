@@ -1,31 +1,18 @@
+import type { CareType } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, DateTime, Match, pipe } from 'effect'
+import { Array, DateTime, pipe } from 'effect'
 import { apiEffectRunner } from 'src/utils/client'
 import { queryKeys } from 'src/utils/query-keys'
 
-type AppCareType = 'water' | 'fertilize'
-type BackendCareType = 'watering' | 'fertilization'
-
 interface SaveCareLogInput {
   plantIds: string[]
-  type: AppCareType
+  type: CareType
   date: Date
   time: Date
   notes?: string
   photoUrl?: string
 }
-
-/**
- * Map app care type to backend care type
- */
-const mapAppTypeToBackend = (type: AppCareType): BackendCareType =>
-  pipe(
-    Match.value(type),
-    Match.when('water', () => 'watering' as const),
-    Match.when('fertilize', () => 'fertilization' as const),
-    Match.exhaustive
-  )
 
 /**
  * Combine date and time into a single Date object
@@ -47,7 +34,6 @@ const combineDateAndTime = (date: Date, time: Date): Date => {
 
 async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {
   const combinedDate = combineDateAndTime(input.date, input.time)
-  const backendType = mapAppTypeToBackend(input.type)
 
   // Create care logs for each plant in parallel
   const results = await Promise.all(
@@ -57,7 +43,7 @@ async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {
         apiEffectRunner('careLogs', 'createCareLog', {
           path: { plantId },
           payload: {
-            type: backendType,
+            type: input.type,
             notes: input.notes,
             date: combinedDate,
             photoUrl: input.photoUrl,
@@ -87,4 +73,4 @@ export function useSaveCareLog() {
 }
 
 // Export types for consumers
-export type { SaveCareLogInput, AppCareType }
+export type { SaveCareLogInput }

@@ -76,6 +76,20 @@ export const createPlant = (
       })
     }
 
+    if (request.mistingFrequencyDays) {
+      yield* scheduleRepo.upsert(plant.id, 'misting', {
+        frequencyDays: request.mistingFrequencyDays,
+        nextCareAt: now,
+      })
+    }
+
+    if (request.repottingFrequencyDays) {
+      yield* scheduleRepo.upsert(plant.id, 'repotting', {
+        frequencyDays: request.repottingFrequencyDays,
+        nextCareAt: now,
+      })
+    }
+
     yield* publishWithRetry(
       eventBus.publish({ _tag: 'PlantCreated', userId, plantId: plant.id })
     )

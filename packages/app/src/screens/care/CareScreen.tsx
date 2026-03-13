@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   CARE_TASK_UNDO_TIMEOUT_MS,
   type CareTask,
-  type CareTaskType,
+  type CareType,
   daysUntil,
   formatDateHeader,
   formatDayOfWeek,
@@ -57,14 +57,6 @@ const calculateDaysUntilDue = (dueDate: Date): number =>
     parseApiDate(dueDate),
     Option.map(daysUntil),
     Option.getOrElse(() => 0)
-  )
-
-const getTaskActionKey = (type: CareTaskType): 'water' | 'fertilize' =>
-  pipe(
-    Match.value(type),
-    Match.when('water', () => 'water' as const),
-    Match.when('fertilize', () => 'fertilize' as const),
-    Match.exhaustive
   )
 
 function CareContentSkeleton() {
@@ -137,7 +129,7 @@ export function CareScreen() {
   const handleCompleteTaskApi = (
     taskId: string,
     plantId: string,
-    type: CareTaskType
+    type: CareType
   ) => {
     completeTask({ taskId, plantId, type })
   }
@@ -160,9 +152,7 @@ export function CareScreen() {
 
     const timeoutId = setTimeout(() => {
       handleCompleteTaskApi(task.id, task.plantId, task.type)
-      toast.success(
-        `${task.plantName} ${t(`types.${getTaskActionKey(task.type)}.completed`)}!`
-      )
+      toast.success(`${task.plantName} ${t(`types.${task.type}.completed`)}!`)
       pendingTimeouts.current.delete(task.id)
       setPendingTaskIds((prev) => {
         const next = new Set(prev)

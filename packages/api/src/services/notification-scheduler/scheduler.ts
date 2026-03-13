@@ -13,6 +13,8 @@ const BATCH_SIZE = 100
 const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
   'watering_reminder',
   'fertilization_reminder',
+  'misting_reminder',
+  'repotting_reminder',
   'overdue_reminder',
 ]
 

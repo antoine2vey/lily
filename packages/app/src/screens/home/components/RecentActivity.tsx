@@ -13,7 +13,7 @@ type ActivityType =
   | 'added'
   | 'moved'
   | 'misted'
-  | 'pruned'
+  | 'repotted'
 
 interface Activity {
   id: string
@@ -95,8 +95,8 @@ const formatActivityTitle = (
     Match.when('fertilized', () =>
       t('home:activity.plantFertilized', { name: plantName })
     ),
-    Match.when('pruned', () =>
-      t('home:activity.plantPruned', { name: plantName })
+    Match.when('repotted', () =>
+      t('home:activity.plantRepotted', { name: plantName })
     ),
     Match.exhaustive
   )

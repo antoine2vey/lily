@@ -1,10 +1,11 @@
 import type { plants } from '@lily/db/schema'
+import type { CareType } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 
 export type PlantRecord = typeof plants.$inferSelect
 
 export interface ScheduleSpec {
-  careType: 'watering' | 'fertilization'
+  careType: CareType
   frequencyDays: number
   lastCareAt: Date | null
   nextCareAt: Date | null

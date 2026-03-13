@@ -52,6 +52,14 @@ export const plantSchema = z.object({
     .number()
     .describe('How often to fertilize in days')
     .nullable(),
+  mistingFrequencyDays: z
+    .number()
+    .describe('How often to mist in days')
+    .nullable(),
+  repottingFrequencyDays: z
+    .number()
+    .describe('How often to repot in days')
+    .nullable(),
   category: z
     .string()
     .describe('Plant category like Tropical, Succulent, etc.')

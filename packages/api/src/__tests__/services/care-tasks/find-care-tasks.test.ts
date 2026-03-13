@@ -249,7 +249,7 @@ describe('findCareTasks', () => {
     // plant-1 has nextWateringAt = yesterday (overdue)
     const overdueWater = Array.findFirst(
       result.overdue,
-      (t) => t.plantId === 'plant-1' && t.type === 'water'
+      (t) => t.plantId === 'plant-1' && t.type === 'watering'
     )
 
     expect(overdueWater._tag).toBe('Some')
@@ -263,7 +263,7 @@ describe('findCareTasks', () => {
     // plant-2 has nextWateringAt = today
     const todayWater = Array.findFirst(
       result.today,
-      (t) => t.plantId === 'plant-2' && t.type === 'water'
+      (t) => t.plantId === 'plant-2' && t.type === 'watering'
     )
 
     expect(todayWater._tag).toBe('Some')
@@ -277,7 +277,7 @@ describe('findCareTasks', () => {
     // plant-1 has nextFertilizationAt = tomorrow (upcoming)
     const weekFertilize = Array.findFirst(
       result.upcoming,
-      (t) => t.plantId === 'plant-1' && t.type === 'fertilize'
+      (t) => t.plantId === 'plant-1' && t.type === 'fertilization'
     )
 
     expect(weekFertilize._tag).toBe('Some')

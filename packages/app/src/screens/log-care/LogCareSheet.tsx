@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import {
+  type CareType,
   formatShortDate,
   formatTime,
   nowAsDate,
@@ -27,10 +28,7 @@ import { Button } from 'src/components/ui/Button'
 import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSaveCareLog } from 'src/hooks/useSaveCareLog'
-import {
-  type CareType,
-  CareTypeChips,
-} from 'src/screens/log-care/components/CareTypeChips'
+import { CareTypeChips } from 'src/screens/log-care/components/CareTypeChips'
 import { PlantSelector } from 'src/screens/log-care/components/PlantSelector'
 
 interface Plant {
@@ -57,7 +55,7 @@ export function LogCareSheet({
   const [plantIds, setPlantIds] = useState<string[]>(
     defaultPlantId ? [defaultPlantId] : []
   )
-  const [careType, setCareType] = useState<CareType>('water')
+  const [careType, setCareType] = useState<CareType>('watering')
   const [date, setDate] = useState(nowAsDate)
   const [time, setTime] = useState(nowAsDate)
   const [notes, setNotes] = useState('')
@@ -130,7 +128,7 @@ export function LogCareSheet({
         onSuccess: () => {
           // Reset form
           setPlantIds(defaultPlantId ? [defaultPlantId] : [])
-          setCareType('water')
+          setCareType('watering')
           setDate(nowAsDate())
           setTime(nowAsDate())
           setNotes('')

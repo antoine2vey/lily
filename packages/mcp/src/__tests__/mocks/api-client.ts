@@ -18,7 +18,6 @@ export const createMockApiClient = (
     listPlants: () => Effect.succeed(emptyPaginated),
     getPlant: () => Effect.die(new Error('Not mocked')),
     getCareLogs: () => Effect.succeed(emptyPaginated),
-    waterPlant: () => Effect.die(new Error('Not mocked')),
     carePlant: () => Effect.die(new Error('Not mocked')),
     getCareTasks: () =>
       Effect.succeed({ overdue: [], today: [], upcoming: [] }),

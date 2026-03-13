@@ -12,7 +12,7 @@ describe('CareTaskCard', () => {
     plantId: 'plant-1',
     plantName: 'Monstera Deliciosa',
     plantImageUrl: 'https://example.com/monstera.jpg',
-    type: 'water' as const,
+    type: 'watering' as const,
     completed: false,
     dueDate: mockNow(),
   }
@@ -33,7 +33,7 @@ describe('CareTaskCard', () => {
     expect(screen.getByText('Monstera Deliciosa')).toBeTruthy()
   })
 
-  it('displays water badge for water task', () => {
+  it('displays watering badge for watering task', () => {
     render(
       <CareTaskCard
         task={baseTask}
@@ -42,13 +42,13 @@ describe('CareTaskCard', () => {
       />
     )
 
-    expect(screen.getByText('WATER')).toBeTruthy()
+    expect(screen.getByText('WATERING')).toBeTruthy()
   })
 
-  it('displays fertilize badge for fertilize task', () => {
+  it('displays fertilization badge for fertilization task', () => {
     const fertilizeTask = {
       ...baseTask,
-      type: 'fertilize' as const,
+      type: 'fertilization' as const,
     }
 
     render(
@@ -59,7 +59,7 @@ describe('CareTaskCard', () => {
       />
     )
 
-    expect(screen.getByText('FERTILIZE')).toBeTruthy()
+    expect(screen.getByText('FERTILIZATION')).toBeTruthy()
   })
 
   it('calls onCardPress when card is pressed', () => {

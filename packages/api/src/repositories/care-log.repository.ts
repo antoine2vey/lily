@@ -5,6 +5,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import { careLogs, plants } from '@lily/db/schema'
+import type { CareType } from '@lily/shared'
 import { nowAsDate, paginate } from '@lily/shared'
 import type {
   CareLog,
@@ -17,7 +18,7 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface CreateCareLogData {
-  type: 'watering' | 'fertilization'
+  type: CareType
   notes?: string | undefined
   date?: Date | undefined
   photoUrl?: string | undefined
@@ -34,7 +35,7 @@ export interface FindCareLogsParams {
   plantId: string
   page?: number
   limit?: number
-  type?: 'watering' | 'fertilization' | 'all'
+  type?: CareType | 'all'
 }
 
 // Helper to map database row to API CareLog type (null -> undefined)
@@ -79,7 +80,7 @@ export interface ICareLogRepository {
   readonly delete: (id: string) => Effect.Effect<CareLog | null, SqlError>
   readonly findLatestByPlantAndType: (
     plantId: string,
-    type: 'watering' | 'fertilization'
+    type: CareType
   ) => Effect.Effect<CareLog | null, SqlError>
 }
 
@@ -231,10 +232,7 @@ export const CareLogRepositoryLive = Layer.effect(
           return row ? mapToCareLog(row) : null
         }).pipe(Effect.withSpan('CareLogRepository.delete')),
 
-      findLatestByPlantAndType: (
-        plantId: string,
-        type: 'watering' | 'fertilization'
-      ) =>
+      findLatestByPlantAndType: (plantId: string, type: CareType) =>
         Effect.gen(function* () {
           const [row] = yield* db
             .select()

@@ -43,18 +43,54 @@ export interface BuildSystemPromptParams {
   readonly careHistoryText: string
 }
 
+type ScheduleEntry = SystemPromptPlantData['schedules'][number]
+
+const schedulesByType = (
+  schedules: SystemPromptPlantData['schedules']
+): Record<string, ScheduleEntry> =>
+  pipe(
+    schedules,
+    Array.reduce({} as Record<string, ScheduleEntry>, (acc, s) => {
+      acc[s.careType] = s
+      return acc
+    })
+  )
+
+const formatScheduleBlock = (
+  label: string,
+  lastLabel: string,
+  nextLabel: string,
+  schedule: ScheduleEntry | undefined
+): string => {
+  const opt = Option.fromNullable(schedule)
+  return `${label} Schedule:
+        Frequency: ${pipe(
+          opt,
+          Option.match({
+            onNone: () => 'Not set',
+            onSome: (s) => `Every ${s.frequencyDays} days`,
+          })
+        )}
+        ${lastLabel}: ${formatIsoDate(
+          pipe(
+            opt,
+            Option.flatMap((s) => Option.fromNullable(s.lastCareAt)),
+            Option.getOrNull
+          )
+        )}
+        ${nextLabel}: ${formatDaysUntilHuman(
+          pipe(
+            opt,
+            Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+            Option.getOrNull
+          )
+        )}`
+}
+
 export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
   const { plant, daysSinceAdded, careHistoryText } = params
 
-  const watering = pipe(
-    Array.findFirst(plant.schedules, (s) => s.careType === 'watering'),
-    Option.getOrUndefined
-  )
-
-  const fertilization = pipe(
-    Array.findFirst(plant.schedules, (s) => s.careType === 'fertilization'),
-    Option.getOrUndefined
-  )
+  const byType = schedulesByType(plant.schedules)
 
   return `
       You are a helpful plant care expert assistant. You help users care for their plants by answering questions about watering, fertilizing, lighting, humidity, pruning, repotting, pest control, disease prevention, and general plant health.
@@ -80,51 +116,13 @@ export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
         Watering needs: ${plant.wateringRating}/5
         Pet toxicity: ${plant.petToxicityRating}/5 (5 = highly toxic)
 
-      Watering Schedule:
-        Frequency: ${pipe(
-          Option.fromNullable(watering),
-          Option.match({
-            onNone: () => 'Not set',
-            onSome: (w) => `Every ${w.frequencyDays} days`,
-          })
-        )}
-        Last watered: ${formatIsoDate(
-          pipe(
-            Option.fromNullable(watering),
-            Option.flatMap((w) => Option.fromNullable(w.lastCareAt)),
-            Option.getOrNull
-          )
-        )}
-        Next watering: ${formatDaysUntilHuman(
-          pipe(
-            Option.fromNullable(watering),
-            Option.flatMap((w) => Option.fromNullable(w.nextCareAt)),
-            Option.getOrNull
-          )
-        )}
+      ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType['watering'])}
 
-      Fertilization Schedule:
-        Frequency: ${pipe(
-          Option.fromNullable(fertilization),
-          Option.match({
-            onNone: () => 'Not set',
-            onSome: (f) => `Every ${f.frequencyDays} days`,
-          })
-        )}
-        Last fertilized: ${formatIsoDate(
-          pipe(
-            Option.fromNullable(fertilization),
-            Option.flatMap((f) => Option.fromNullable(f.lastCareAt)),
-            Option.getOrNull
-          )
-        )}
-        Next fertilization: ${formatDaysUntilHuman(
-          pipe(
-            Option.fromNullable(fertilization),
-            Option.flatMap((f) => Option.fromNullable(f.nextCareAt)),
-            Option.getOrNull
-          )
-        )}
+      ${formatScheduleBlock('Fertilization', 'Last fertilized', 'Next fertilization', byType['fertilization'])}
+
+      ${formatScheduleBlock('Misting', 'Last misted', 'Next misting', byType['misting'])}
+
+      ${formatScheduleBlock('Repotting', 'Last repotted', 'Next repotting', byType['repotting'])}
 
       Recent Care History:
       ${pipe(

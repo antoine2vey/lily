@@ -129,8 +129,8 @@ describe('CareHistoryScreen', () => {
 
     expect(screen.getByText('Filter by Type')).toBeTruthy()
     expect(screen.getByText('All')).toBeTruthy()
-    expect(screen.getByText('Water')).toBeTruthy()
-    expect(screen.getByText('Fertilize')).toBeTruthy()
+    expect(screen.getByText('Watering')).toBeTruthy()
+    expect(screen.getByText('Fertilization')).toBeTruthy()
   })
 
   it('displays timeline when history exists', () => {
@@ -140,7 +140,7 @@ describe('CareHistoryScreen', () => {
         events: [
           {
             id: '1',
-            type: 'water',
+            type: 'watering',
             timestamp: mockFixedDate(2024, 1, 15, 10, 0),
           },
         ],

@@ -65,21 +65,14 @@ export const PlantUpdateRequest = Schema.Struct({
   imageUrl: Schema.optional(Schema.String),
   wateringFrequencyDays: Schema.optional(Schema.Number),
   fertilizationFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),
+  mistingFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),
+  repottingFrequencyDays: Schema.optional(Schema.NullOr(Schema.Number)),
   humidityRating: Schema.optional(Schema.Number),
   lightingRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
   isFavorite: Schema.optional(Schema.Boolean),
   roomId: Schema.optional(Schema.NullOr(Schema.String)),
-})
-
-export const PlantWaterRequest = Schema.Struct({
-  notes: Schema.optional(Schema.String),
-  date: Schema.optional(Schema.Date),
-})
-
-export const PlantFertilizeRequest = Schema.Struct({
-  date: Schema.optional(Schema.Date),
 })
 
 // Enhanced plant creation request
@@ -91,6 +84,8 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   plantingDate: Schema.optional(Schema.Date),
   wateringFrequencyDays: Schema.Number,
   fertilizationFrequencyDays: Schema.optional(Schema.Number),
+  mistingFrequencyDays: Schema.optional(Schema.Number),
+  repottingFrequencyDays: Schema.optional(Schema.Number),
   luxNeeded: Schema.Number,
   humidityRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.Number,
@@ -114,6 +109,8 @@ export const AIIdentifyResponse = Schema.Struct({
   humidityRating: Schema.NullOr(Schema.Number),
   petToxicityRating: Schema.NullOr(Schema.Number),
   fertilizationFrequencyDays: Schema.NullOr(Schema.Number),
+  mistingFrequencyDays: Schema.NullOr(Schema.Number),
+  repottingFrequencyDays: Schema.NullOr(Schema.Number),
   category: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
   wateringTips: Schema.NullOr(Schema.String),
@@ -139,21 +136,6 @@ export const PlantDetail = Schema.Struct({
   ...Plant.fields,
   photos: Schema.Array(PlantPhoto),
 })
-
-// Water multiple plants request/response
-export const WaterMultiplePlantsRequest = Schema.Struct({
-  plantIds: Schema.Array(Schema.String),
-})
-
-export const WaterMultiplePlantsResult = Schema.Struct({
-  plantId: Schema.String,
-  success: Schema.Boolean,
-  plant: Schema.optional(Plant),
-})
-
-export const WaterMultiplePlantsResponse = Schema.Array(
-  WaterMultiplePlantsResult
-)
 
 // Generic care request (for POST /plants/:id/care)
 export const PlantCareRequest = Schema.Struct({
@@ -191,15 +173,9 @@ export const PlantCorrectCareDatesRequest = Schema.Struct({
 // Type exports
 export type PlantCorrectCareDatesRequest =
   typeof PlantCorrectCareDatesRequest.Type
-export type WaterMultiplePlantsRequest = typeof WaterMultiplePlantsRequest.Type
-export type WaterMultiplePlantsResult = typeof WaterMultiplePlantsResult.Type
-export type WaterMultiplePlantsResponse =
-  typeof WaterMultiplePlantsResponse.Type
 export type Plant = typeof Plant.Type
 export type PlantCreateRequest = typeof PlantCreateRequest.Type
 export type PlantUpdateRequest = typeof PlantUpdateRequest.Type
-export type PlantWaterRequest = typeof PlantWaterRequest.Type
-export type PlantFertilizeRequest = typeof PlantFertilizeRequest.Type
 export type EnhancedPlantCreateRequest = typeof EnhancedPlantCreateRequest.Type
 export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, Match, Option, pipe } from 'effect'
+import type { CareType } from '@lily/shared'
+import { Array, Match, Number, Option, Order, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
@@ -21,6 +22,8 @@ interface PlantCardProps {
     health: HealthStatus
     watering: CareStatus
     fertilization: CareStatus
+    misting: CareStatus
+    repotting: CareStatus
     isFavorite?: boolean
     roomName?: string
     roomIcon?: string
@@ -39,15 +42,14 @@ const getHealthDotClass = (health: HealthStatus): string =>
     Match.exhaustive
   )
 
-export type CareType = 'water' | 'fertilize'
-
 export interface CareIndicator {
   type: CareType
   text: string
+  daysUntil: number | undefined
   isUrgent: boolean
   isOverdue: boolean
   isToday: boolean
-  icon: 'water-drop' | 'spa'
+  icon: 'water-drop' | 'spa' | 'grain' | 'compost'
 }
 
 export const formatDays = (days: number, t: TFunction): string =>
@@ -58,11 +60,13 @@ export const formatDays = (days: number, t: TFunction): string =>
     Match.orElse(() => t('card.daysCount', { count: days }))
   )
 
-const getIcon = (type: CareType): 'water-drop' | 'spa' =>
+const getIcon = (type: CareType): 'water-drop' | 'spa' | 'grain' | 'compost' =>
   pipe(
     Match.value(type),
-    Match.when('water', () => 'water-drop' as const),
-    Match.when('fertilize', () => 'spa' as const),
+    Match.when('watering', () => 'water-drop' as const),
+    Match.when('fertilization', () => 'spa' as const),
+    Match.when('misting', () => 'grain' as const),
+    Match.when('repotting', () => 'compost' as const),
     Match.exhaustive
   )
 
@@ -80,6 +84,7 @@ export const getCareIndicator = (
         Match.when(true, () => ({
           type,
           text: t('card.overdue'),
+          daysUntil,
           isUrgent: true,
           isOverdue: true,
           isToday: false,
@@ -88,6 +93,7 @@ export const getCareIndicator = (
         Match.orElse(() => ({
           type,
           text: formatDays(daysUntil, t),
+          daysUntil,
           isUrgent: daysUntil === 0,
           isOverdue: false,
           isToday: daysUntil === 0,
@@ -118,69 +124,69 @@ const classifyIndicators = (
 
 const selectByPriority = (
   indicators: ReadonlyArray<CareIndicator>,
-  priority: IndicatorPriority,
-  watering: CareStatus,
-  fertilization: CareStatus
+  priority: IndicatorPriority
 ): ReadonlyArray<CareIndicator> =>
   pipe(
     Match.value(priority),
     Match.when('none', () => [] as ReadonlyArray<CareIndicator>),
     Match.when('overdue', () => Array.filter(indicators, (i) => i.isOverdue)),
     Match.when('today', () => Array.filter(indicators, (i) => i.isToday)),
-    Match.when('soonest', () => {
-      const waterDays = Option.getOrElse(
-        Option.fromNullable(watering.daysUntil),
-        () => 999
-      )
-      const fertilizeDays = Option.getOrElse(
-        Option.fromNullable(fertilization.daysUntil),
-        () => 999
-      )
-
-      return pipe(
-        Array.findFirst(indicators, (i) =>
-          waterDays <= fertilizeDays
-            ? i.type === 'water'
-            : i.type === 'fertilize'
+    Match.when('soonest', () =>
+      pipe(
+        indicators,
+        Array.sort(
+          Order.mapInput(Number.Order, (i: CareIndicator) =>
+            Option.getOrElse(Option.fromNullable(i.daysUntil), () => 999)
+          )
         ),
+        Array.head,
         Option.match({
-          onNone: () =>
-            pipe(
-              Array.head(indicators),
-              Option.match({
-                onNone: () => [] as ReadonlyArray<CareIndicator>,
-                onSome: (first) => [first],
-              })
-            ),
-          onSome: (indicator) => [indicator],
+          onNone: () => [] as ReadonlyArray<CareIndicator>,
+          onSome: (first) => [first],
         })
       )
-    }),
+    ),
     Match.exhaustive
   )
 
 export const getCareIndicators = (
   watering: CareStatus,
   fertilization: CareStatus,
-  t: TFunction
+  t: TFunction,
+  misting?: CareStatus,
+  repotting?: CareStatus
 ): ReadonlyArray<CareIndicator> => {
-  const waterIndicator = getCareIndicator(watering, 'water', t)
-  const fertilizeIndicator = getCareIndicator(fertilization, 'fertilize', t)
+  const waterIndicator = getCareIndicator(watering, 'watering', t)
+  const fertilizeIndicator = getCareIndicator(fertilization, 'fertilization', t)
+  const mistingIndicator = pipe(
+    Option.fromNullable(misting),
+    Option.flatMap((m) => getCareIndicator(m, 'misting', t))
+  )
+  const repottingIndicator = pipe(
+    Option.fromNullable(repotting),
+    Option.flatMap((r) => getCareIndicator(r, 'repotting', t))
+  )
 
   const indicators = pipe(
-    [waterIndicator, fertilizeIndicator],
+    [waterIndicator, fertilizeIndicator, mistingIndicator, repottingIndicator],
     Array.filterMap((opt) => opt)
   )
 
   const priority = classifyIndicators(indicators)
-  return selectByPriority(indicators, priority, watering, fertilization)
+  return selectByPriority(indicators, priority)
 }
 
 export function PlantCard({ plant, onPress }: PlantCardProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   const healthDotClass = getHealthDotClass(plant.health)
-  const indicators = getCareIndicators(plant.watering, plant.fertilization, t)
+  const indicators = getCareIndicators(
+    plant.watering,
+    plant.fertilization,
+    t,
+    plant.misting,
+    plant.repotting
+  )
 
   return (
     <Pressable

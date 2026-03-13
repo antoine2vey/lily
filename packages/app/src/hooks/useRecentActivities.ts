@@ -1,4 +1,4 @@
-import { parseApiDate, StaleTime } from '@lily/shared'
+import { type CareType, parseApiDate, StaleTime } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { useEffectQuery } from 'src/utils/client'
 
@@ -9,7 +9,7 @@ export type ActivityType =
   | 'added'
   | 'moved'
   | 'misted'
-  | 'pruned'
+  | 'repotted'
 
 export interface UIActivity {
   id: string
@@ -21,13 +21,13 @@ export interface UIActivity {
 }
 
 // Map API care log types to UI activity types
-const mapCareLogTypeToActivityType = (
-  type: 'watering' | 'fertilization'
-): ActivityType =>
+const mapCareLogTypeToActivityType = (type: CareType): ActivityType =>
   pipe(
     Match.value(type),
     Match.when('watering', () => 'watered' as const),
     Match.when('fertilization', () => 'fertilized' as const),
+    Match.when('misting', () => 'misted' as const),
+    Match.when('repotting', () => 'repotted' as const),
     Match.exhaustive
   )
 
