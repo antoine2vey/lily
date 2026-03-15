@@ -67,6 +67,11 @@ const getActivityConfig = (
     color: isDark ? '#93C5FD' : '#60A5FA',
     bgColor: isDark ? 'rgba(96, 165, 250, 0.2)' : '#DBEAFE',
   },
+  repotted: {
+    icon: 'yard',
+    color: isDark ? '#A7F3D0' : '#059669',
+    bgColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#D1FAE5',
+  },
   pruned: {
     icon: 'content-cut',
     color: isDark ? '#F9A8D4' : '#E91E63',
