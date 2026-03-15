@@ -3,8 +3,8 @@ import { Array, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface Plant {
   id: string
@@ -145,6 +145,7 @@ export function HydrationCard({
         shadowOpacity: isDark ? 0.3 : 0.06,
         shadowRadius: 20,
         elevation: 4,
+        marginBottom: 16,
       }}
     >
       {/* Header */}

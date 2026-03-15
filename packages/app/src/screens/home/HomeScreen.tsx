@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { now } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useAchievements } from '@/hooks/useAchievements'
+import { useCareAll } from '@/hooks/useCareAll'
 import { useCareTasks } from '@/hooks/useCareTasks'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -22,6 +23,8 @@ import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
 import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
+import { HydrationCard } from '@/screens/home/components/HydrationCard'
+import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
 import { StreakCard } from '@/screens/home/components/StreakCard'
 import { WeatherCard } from '@/screens/home/components/WeatherCard'
@@ -56,6 +59,29 @@ function HomeContentSkeleton() {
           </View>
           <SkeletonBox width={90} height={22} rounded="full" />
         </View>
+      </View>
+
+      {/* HydrationCard skeleton */}
+      <View
+        className="rounded-[32px] p-6 mb-4"
+        style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
+      >
+        <View className="flex-row items-start justify-between mb-6">
+          <View className="gap-1.5">
+            <SkeletonBox width={140} height={18} rounded="sm" />
+            <SkeletonBox width={180} height={14} rounded="sm" />
+          </View>
+          <SkeletonCircle size={40} />
+        </View>
+        <View className="flex-row gap-5 mb-7">
+          {Array.map([1, 2, 3], (i) => (
+            <View key={i} className="items-center gap-2">
+              <SkeletonCircle size={72} />
+              <SkeletonBox width={48} height={10} rounded="sm" />
+            </View>
+          ))}
+        </View>
+        <SkeletonBox width="100%" height={48} rounded="full" />
       </View>
 
       {/* Weekly Schedule */}
@@ -195,6 +221,37 @@ export function HomeScreen() {
     () => [] as NonNullable<typeof careTasksData>['upcoming']
   )
 
+  const wateringPlants = useMemo(
+    () =>
+      pipe(
+        Array.appendAll(careTasksOverdue, careTasksToday),
+        Array.filter((task) => task.type === 'watering'),
+        Array.dedupeWith((a, b) => a.plantId === b.plantId),
+        Array.map((task) => ({
+          id: task.plantId,
+          name: task.plantName,
+          imageUrl: Option.getOrUndefined(
+            Option.fromNullable(task.plantImageUrl)
+          ),
+        }))
+      ),
+    [careTasksOverdue, careTasksToday]
+  )
+
+  const careAll = useCareAll()
+
+  const handleWaterAll = useCallback(() => {
+    const plantIds = Array.map(wateringPlants, (p) => p.id)
+    careAll.mutate({ payload: { plantIds, careType: 'watering' } })
+  }, [wateringPlants, careAll])
+
+  const handlePlantPress = useCallback(
+    (plantId: string) => {
+      router.push(`/plant/${plantId}`)
+    },
+    [router]
+  )
+
   const onRefresh = async () => {
     await Promise.all([
       refetchPlants(),
@@ -307,6 +364,15 @@ export function HomeScreen() {
                   {achievementsData && <StreakCard data={achievementsData} />}
 
                   <WeatherCard weather={weather} />
+
+                  <HydrationCard
+                    plants={wateringPlants}
+                    onWaterAll={handleWaterAll}
+                    onPlantPress={handlePlantPress}
+                    isLoading={careAll.isPending}
+                  />
+
+                  <PlantHealthAlert />
 
                   <WeeklySchedule
                     overdue={careTasksOverdue}

@@ -9,32 +9,36 @@ import {
   parseApiDate,
 } from '@lily/shared'
 import { Array, Match, Option, Order, pipe, String } from 'effect'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { EmptyState } from 'src/components/EmptyState'
-import { PullToRefresh } from 'src/components/PullToRefresh'
-import { PlantCardSkeleton } from 'src/components/skeletons'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useRooms } from 'src/hooks/useRooms'
-import { AddPlantOptionsSheet } from 'src/screens/add-plant/AddPlantOptionsSheet'
-import { PlantCard } from 'src/screens/plants/components/PlantCard'
+import { EmptyState } from '@/components/EmptyState'
+import { PullToRefresh } from '@/components/PullToRefresh'
+import { PlantCardSkeleton } from '@/components/skeletons'
+import { useTabBarInset } from '@/contexts/TabBarInsetContext'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useRooms } from '@/hooks/useRooms'
+import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
+import { PlantCard } from '@/screens/plants/components/PlantCard'
 import {
   type FilterOption,
   PlantFilters,
-} from 'src/screens/plants/components/PlantFilters'
-import { PlantSearchBar } from 'src/screens/plants/components/PlantSearchBar'
+} from '@/screens/plants/components/PlantFilters'
+import { PlantSearchBar } from '@/screens/plants/components/PlantSearchBar'
 import {
   type SortOption,
   SortOptionsSheet,
-} from 'src/screens/plants/components/SortOptionsSheet'
-import { useEffectQuery } from 'src/utils/client'
-import { type HealthStatus, mapApiHealthToCardHealth } from 'src/utils/health'
-import { useTabBarInset } from '@/contexts/TabBarInsetContext'
+} from '@/screens/plants/components/SortOptionsSheet'
+import { useEffectQuery } from '@/utils/client'
+import {
+  type HealthStatus,
+  isUnhealthy,
+  mapApiHealthToCardHealth,
+} from '@/utils/health'
 
 interface CareStatus {
   daysUntil?: number
@@ -122,8 +126,13 @@ export function PlantsScreen() {
   const router = useRouter()
   const iconColors = useIconColors()
   const tabBarInset = useTabBarInset()
+  const { filter: initialFilter } = useLocalSearchParams<{
+    filter?: string
+  }>()
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState<FilterOption>('all')
+  const [selectedFilter, setSelectedFilter] = useState<FilterOption>(
+    initialFilter === 'needsAttention' ? 'needsAttention' : 'all'
+  )
   const [sortOption, setSortOption] = useState<SortOption>('name')
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
@@ -231,6 +240,9 @@ export function PlantsScreen() {
       Match.when('fertilizing', () =>
         Array.filter(result, (plant) => plant.fertilization.daysUntil === 0)
       ),
+      Match.when('needsAttention', () =>
+        Array.filter(result, (plant) => isUnhealthy(plant.health))
+      ),
       Match.exhaustive
     )
 
@@ -254,6 +266,9 @@ export function PlantsScreen() {
       ),
       fertilizing: Array.length(
         Array.filter(plants, (p) => p.fertilization.daysUntil === 0)
+      ),
+      needsAttention: Array.length(
+        Array.filter(plants, (p) => isUnhealthy(p.health))
       ),
     }),
     [plants]

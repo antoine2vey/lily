@@ -19,6 +19,12 @@ export const mapApiHealthToCardHealth = (health: string): HealthStatus =>
   )
 
 /**
+ * Whether a plant needs attention (attention or critical health)
+ */
+export const isUnhealthy = (health: HealthStatus): boolean =>
+  health === 'attention' || health === 'critical'
+
+/**
  * Get Tailwind background class for health status dot
  */
 export const getHealthDotClass = (health: HealthStatus): string =>
