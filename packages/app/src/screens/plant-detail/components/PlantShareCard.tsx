@@ -1,12 +1,23 @@
 import { daysUntilApiDate } from '@lily/shared'
-import { Match, Option, pipe } from 'effect'
+import { String as EffectString, Match, Option, pipe } from 'effect'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Image, Text, View } from 'react-native'
-import { Badge } from '@/components/Badge'
+import {
+  Image,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
+import { AnimatedMeshGradient } from '@/components/ui/organisms/mesh-gradient'
 import { mapApiHealthToCardHealth } from '@/utils/health'
 
-type HealthStatus = 'healthy' | 'attention' | 'critical'
+const MESH_COLORS = [
+  { r: 0.36, g: 0.55, b: 0.35 },
+  { r: 0.42, g: 0.61, b: 0.42 },
+  { r: 0.22, g: 0.48, b: 0.45 },
+  { r: 0.29, g: 0.49, b: 0.29 },
+]
 
 interface PlantShareCardProps {
   plant: {
@@ -15,29 +26,19 @@ interface PlantShareCardProps {
     category?: string | null
     health: string
     dateAdded: Date
+    photoCount: number
   }
 }
 
-interface HealthBadgeConfig {
-  labelKey: 'healthy' | 'attention' | 'critical'
-  variant: 'success' | 'warning' | 'error'
-}
-
-const getHealthBadgeConfig = (health: HealthStatus): HealthBadgeConfig =>
+const getHealthLabel = (
+  health: 'healthy' | 'attention' | 'critical',
+  t: (key: string) => string
+): string =>
   pipe(
     Match.value(health),
-    Match.when('healthy', () => ({
-      labelKey: 'healthy' as const,
-      variant: 'success' as const,
-    })),
-    Match.when('attention', () => ({
-      labelKey: 'attention' as const,
-      variant: 'warning' as const,
-    })),
-    Match.when('critical', () => ({
-      labelKey: 'critical' as const,
-      variant: 'error' as const,
-    })),
+    Match.when('healthy', () => t('healthBadge.healthy')),
+    Match.when('attention', () => t('healthBadge.attention')),
+    Match.when('critical', () => t('healthBadge.critical')),
     Match.exhaustive
   )
 
@@ -53,80 +54,129 @@ export const PlantShareCard = forwardRef<View, PlantShareCardProps>(
   ({ plant }, ref) => {
     const { t } = useTranslation('plants')
     const healthStatus = mapApiHealthToCardHealth(plant.health)
-    const badgeConfig = getHealthBadgeConfig(healthStatus)
+    const healthLabel = getHealthLabel(healthStatus, t)
     const ageDays = computeAgeDays(plant.dateAdded)
+    const { width } = useWindowDimensions()
 
     return (
       <View
         ref={ref}
-        className="absolute -top-[1000px] left-0 w-[360px] bg-background rounded-2xl overflow-hidden"
-        style={{ opacity: 0 }}
+        className="absolute left-0 w-[360px] h-[640px] overflow-hidden"
+        style={{ top: -2000 }}
         pointerEvents="none"
         collapsable={false}
       >
-        {/* Plant Photo */}
-        {pipe(
-          Option.fromNullable(plant.imageUrl),
-          Option.match({
-            onNone: () => (
-              <View className="h-[240px] bg-primary-tint items-center justify-center">
-                <Text className="text-6xl">🌿</Text>
-              </View>
-            ),
-            onSome: (url) => (
-              <Image
-                source={{ uri: url }}
-                className="w-full h-[240px]"
-                resizeMode="cover"
-              />
-            ),
-          })
-        )}
+        {/* Mesh gradient background — same as login */}
+        <AnimatedMeshGradient
+          colors={MESH_COLORS}
+          speed={1}
+          noise={0.3}
+          blur={0.5}
+          contrast={1.1}
+          style={StyleSheet.absoluteFill}
+        />
 
-        {/* Card Content */}
-        <View className="p-5">
-          {/* Plant Name */}
-          <Text
-            className="text-2xl font-bold text-text-primary"
-            style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-            numberOfLines={2}
+        {/* Content overlay */}
+        <View className="flex-1 items-start justify-center px-8">
+          {/* Square plant photo — full width matching text (360 - 2*32px padding) */}
+          <View
+            className="rounded-3xl overflow-hidden bg-white/10 aspect-square"
+            style={{ height: width / 2 - 2 * 32 }}
           >
-            {plant.name}
-          </Text>
+            {pipe(
+              Option.fromNullable(plant.imageUrl),
+              Option.match({
+                onNone: () => (
+                  <View className="flex-1 items-center justify-center">
+                    <Text className="text-6xl">🌿</Text>
+                  </View>
+                ),
+                onSome: (url) => (
+                  <Image
+                    source={{ uri: url }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ),
+              })
+            )}
+          </View>
 
-          {/* Badges Row */}
-          <View className="flex-row items-center gap-2 mt-3">
+          {/* Plant name + category — left aligned */}
+          <View className="w-full mt-2">
+            <Text
+              className="text-5xl font-bold text-white"
+              style={{
+                fontFamily: 'SpaceGrotesk_700Bold',
+                lineHeight: 56,
+                letterSpacing: -1.5,
+              }}
+              numberOfLines={2}
+            >
+              {EffectString.toUpperCase(plant.name)}
+            </Text>
             {pipe(
               Option.fromNullable(plant.category),
               Option.match({
                 onNone: () => null,
                 onSome: (category) => (
-                  <Badge label={category} variant="neutral" size="sm" />
+                  <Text
+                    className="text-2xl text-white -mt-3"
+                    style={{
+                      fontFamily: 'SpaceGrotesk_500Medium',
+                      letterSpacing: -0.5,
+                    }}
+                  >
+                    {EffectString.toUpperCase(category)}
+                  </Text>
                 ),
               })
             )}
-            <Badge
-              label={t(`healthBadge.${badgeConfig.labelKey}`)}
-              variant={badgeConfig.variant}
-              size="sm"
-            />
           </View>
 
-          {/* Age */}
-          <Text
-            className="text-sm text-text-muted mt-3"
-            style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-          >
-            {t('shareCard.growingFor', { count: ageDays })}
-          </Text>
-
-          {/* Branding */}
-          <View className="flex-row items-center justify-end mt-4 pt-3 border-t border-border">
+          {/* Info lines — left aligned */}
+          <View className="w-full mt-3 gap-0.5">
             <Text
-              className="text-xs text-text-muted"
+              className="text-sm text-white/70"
               style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
             >
-              🌱 Lily
+              {'💚 '}
+              {EffectString.toUpperCase(healthLabel)}
+            </Text>
+            <Text
+              className="text-sm text-white/70"
+              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+            >
+              {'🌱 '}
+              {EffectString.toUpperCase(
+                t('shareCard.growingFor', { count: ageDays })
+              )}
+            </Text>
+            <Text
+              className="text-sm text-white/70"
+              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+            >
+              {'📸 '}
+              {EffectString.toUpperCase(
+                t('shareCard.photos', { count: plant.photoCount })
+              )}
+              {plant.photoCount === 0 ? ' 😢' : ''}
+            </Text>
+          </View>
+
+          {/* Bottom bar — catchphrase left, branding right */}
+          <View className="absolute bottom-8 left-8 right-8 flex-row items-center justify-between">
+            <Text
+              className="text-xs text-white/50"
+              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+            >
+              {t('shareCard.catchphrase')}
+            </Text>
+            <Text
+              className="text-xs text-white/50"
+              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+            >
+              🌿 Lily
             </Text>
           </View>
         </View>

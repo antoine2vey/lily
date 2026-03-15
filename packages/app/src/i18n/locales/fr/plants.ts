@@ -199,6 +199,11 @@ export default {
     daysCount: '{count} jours',
     overdue: 'En retard',
   },
+  shareCard: {
+    growingFor: 'Grandit depuis {count, plural, one {# jour} other {# jours}}',
+    photos: '{count, plural, one {# photo} other {# photos}}',
+    catchphrase: 'Grow with love',
+  },
   careTypes: {
     water: 'Arrosage',
     fertilize: 'Fertilisation',
