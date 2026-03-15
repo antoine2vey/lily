@@ -7,6 +7,7 @@ describe('PlantFilters', () => {
     all: 10,
     watering: 4,
     fertilizing: 2,
+    needsAttention: 1,
   }
 
   beforeEach(() => {
@@ -60,6 +61,7 @@ describe('PlantFilters', () => {
       all: 25,
       watering: 8,
       fertilizing: 3,
+      needsAttention: 2,
     }
 
     render(
@@ -80,6 +82,7 @@ describe('PlantFilters', () => {
       all: 0,
       watering: 0,
       fertilizing: 0,
+      needsAttention: 0,
     }
 
     render(
