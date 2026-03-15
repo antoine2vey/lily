@@ -98,4 +98,22 @@ export default {
     xMore: '{count} de plus pour débloquer',
     viewAll: 'Tout voir',
   },
+  weather: {
+    conditionSunny: 'Ensoleillé',
+    conditionCloudy: 'Nuageux',
+    conditionRainy: 'Pluvieux',
+    conditionHot: 'Chaud',
+    skipWatering:
+      '{count, plural, one {# plante sans arrosage} other {# plantes sans arrosage}}',
+    skipFertilization:
+      '{count, plural, one {# plante sans engrais} other {# plantes sans engrais}}',
+    adjustedPlants:
+      '{count, plural, one {# plante ajustée} other {# plantes ajustées}}',
+    noImpact: 'Aucun ajustement',
+    enableTitle: 'Soin guidé par la météo',
+    enableSubtitle:
+      "Obtenez des calendriers d'arrosage plus intelligents basés sur vos prévisions locales",
+    enableButton: 'Activer la météo',
+    fetchError: 'Météo indisponible',
+  },
 } as const

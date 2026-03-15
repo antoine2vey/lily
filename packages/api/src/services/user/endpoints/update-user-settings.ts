@@ -45,6 +45,7 @@ export const updateUserSettings = (
       publicProfile: data.privacy?.publicProfile,
       shareGrowthData: data.privacy?.shareGrowthData,
       personalizedTips: data.privacy?.personalizedTips,
+      temperatureUnit: data.temperatureUnit,
       weatherEnabled: data.weather?.enabled,
       latitude: data.weather?.latitude,
       longitude: data.weather?.longitude,
@@ -157,6 +158,7 @@ export const updateUserSettings = (
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
+      temperatureUnit: user.temperatureUnit,
       weather: {
         enabled: user.weatherEnabled,
         latitude: pipe(Option.fromNullable(user.latitude), Option.getOrNull),

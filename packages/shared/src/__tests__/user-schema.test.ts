@@ -43,6 +43,7 @@ const validUser = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius' as const,
 }
 
 describe('User Schemas', () => {
@@ -235,6 +236,7 @@ describe('User Schemas', () => {
         timezone: 'America/New_York',
         preferredNotificationTime: '09:00',
         language: 'en' as const,
+        temperatureUnit: 'celsius' as const,
         weather: {
           enabled: false,
           latitude: null,
@@ -272,6 +274,7 @@ describe('User Schemas', () => {
         timezone: null,
         preferredNotificationTime: null,
         language: 'en' as const,
+        temperatureUnit: 'celsius' as const,
         weather: {
           enabled: false,
           latitude: null,
@@ -310,6 +313,7 @@ describe('User Schemas', () => {
         timezone: null,
         preferredNotificationTime: null,
         language: 'fr' as const,
+        temperatureUnit: 'celsius' as const,
         weather: {
           enabled: false,
           latitude: null,

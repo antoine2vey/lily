@@ -3,6 +3,7 @@ import { magicLinks, refreshTokens } from '@lily/db/schema/auth'
 import { careDelegations } from '@lily/db/schema/delegation'
 import {
   languageCodeEnum,
+  temperatureUnitEnum,
   userRoleEnum,
   userStatusEnum,
 } from '@lily/db/schema/enums'
@@ -64,6 +65,9 @@ export const users = pgTable('users', {
   latitude: doublePrecision('latitude'),
   longitude: doublePrecision('longitude'),
   weatherEnabled: boolean('weather_enabled').notNull().default(false),
+  temperatureUnit: temperatureUnitEnum('temperature_unit')
+    .notNull()
+    .default('celsius'),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({

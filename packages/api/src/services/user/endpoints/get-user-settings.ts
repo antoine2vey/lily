@@ -44,6 +44,7 @@ export const getUserSettings = (): Effect.Effect<
       timezone: user.timezone,
       preferredNotificationTime: user.preferredNotificationTime,
       language: user.language,
+      temperatureUnit: user.temperatureUnit,
       weather: {
         enabled: user.weatherEnabled,
         latitude: user.latitude ?? null,

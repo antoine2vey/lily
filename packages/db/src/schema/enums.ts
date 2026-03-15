@@ -78,6 +78,11 @@ export const careTypeEnum = pgEnum('care_type', [
   'repotting',
 ])
 
+export const temperatureUnitEnum = pgEnum('temperature_unit', [
+  'celsius',
+  'fahrenheit',
+])
+
 export const blogPostStatusEnum = pgEnum('blog_post_status', [
   'pending',
   'researching',

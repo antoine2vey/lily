@@ -4,10 +4,12 @@ import { Schema } from 'effect'
 export const UserRole = Schema.Literal('user', 'admin')
 export const UserStatus = Schema.Literal('active', 'suspended', 'banned')
 export const LanguageCode = Schema.Literal('en', 'fr')
+export const TemperatureUnit = Schema.Literal('celsius', 'fahrenheit')
 
 export type UserRole = typeof UserRole.Type
 export type UserStatus = typeof UserStatus.Type
 export type LanguageCode = typeof LanguageCode.Type
+export type TemperatureUnit = typeof TemperatureUnit.Type
 
 export const User = Schema.Struct({
   id: Schema.String,
@@ -39,6 +41,7 @@ export const User = Schema.Struct({
   weatherEnabled: Schema.Boolean,
   latitude: Schema.NullOr(Schema.Number),
   longitude: Schema.NullOr(Schema.Number),
+  temperatureUnit: TemperatureUnit,
 })
 
 export const UserCreateRequest = Schema.Struct({
@@ -76,6 +79,7 @@ export const UserSettings = Schema.Struct({
   timezone: Schema.NullOr(Schema.String),
   preferredNotificationTime: Schema.NullOr(Schema.String),
   language: LanguageCode,
+  temperatureUnit: TemperatureUnit,
   weather: Schema.Struct({
     enabled: Schema.Boolean,
     latitude: Schema.NullOr(Schema.Number),
@@ -110,6 +114,7 @@ export const UserSettingsUpdateRequest = Schema.Struct({
   timezone: Schema.optional(Schema.String),
   preferredNotificationTime: Schema.optional(Schema.String),
   language: Schema.optional(LanguageCode),
+  temperatureUnit: Schema.optional(TemperatureUnit),
   weather: Schema.optional(
     Schema.Struct({
       enabled: Schema.optional(Schema.Boolean),

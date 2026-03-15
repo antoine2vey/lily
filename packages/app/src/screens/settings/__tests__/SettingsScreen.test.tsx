@@ -1,6 +1,21 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { mockUsers } from 'src/__tests__/fixtures/users'
 
+const mockInvalidateQueries = jest.fn()
+jest.mock('@tanstack/react-query', () => {
+  const actual = jest.requireActual('@tanstack/react-query')
+  return {
+    ...actual,
+    useQueryClient: () => ({
+      invalidateQueries: mockInvalidateQueries,
+    }),
+  }
+})
+
+jest.mock('@/utils/client', () => ({
+  apiEffectRunner: jest.fn(),
+}))
+
 // Mock dependencies
 jest.mock('@/hooks/useUser', () => ({
   useUser: jest.fn(),

@@ -36,6 +36,7 @@ const mockUser: User = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
 }
 
 const adminUser: User = {
