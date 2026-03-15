@@ -30,6 +30,7 @@ export default {
     plantWatered: '{name} arrosée',
     plantFertilized: '{name} fertilisée',
     plantRepotted: '{name} rempotée',
+    plantPruned: '{name} taillée',
     unknownTime: 'Inconnu',
   },
   tasks: {

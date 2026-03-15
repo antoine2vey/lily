@@ -29,6 +29,7 @@ export default {
     plantWatered: '{name} watered',
     plantFertilized: '{name} fertilized',
     plantRepotted: '{name} repotted',
+    plantPruned: '{name} pruned',
     unknownTime: 'Unknown',
   },
   tasks: {
