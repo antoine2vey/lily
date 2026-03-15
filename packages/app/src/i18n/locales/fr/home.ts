@@ -98,6 +98,11 @@ export default {
     xMore: '{count} de plus pour débloquer',
     viewAll: 'Tout voir',
   },
+  healthAlert: {
+    title:
+      "{count, plural, one {# plante a besoin d'attention} other {# plantes ont besoin d'attention}}",
+    action: 'Voir',
+  },
   weather: {
     conditionSunny: 'Ensoleillé',
     conditionCloudy: 'Nuageux',

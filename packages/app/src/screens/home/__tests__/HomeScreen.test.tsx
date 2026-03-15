@@ -17,9 +17,32 @@ jest.mock('@/hooks/useRecentActivities', () => ({
   })),
 }))
 
+jest.mock('@/hooks/useCareAll', () => ({
+  useCareAll: jest.fn(() => ({
+    mutate: jest.fn(),
+    isPending: false,
+  })),
+}))
+
 jest.mock('@/hooks/useCareTasks', () => ({
   useCareTasks: jest.fn(() => ({
-    data: { overdue: [], today: [], upcoming: [] },
+    data: {
+      overdue: [],
+      today: [
+        {
+          id: 'task-1',
+          plantId: 'p1',
+          plantName: 'Fern',
+          plantImageUrl: null,
+          roomName: null,
+          roomIcon: null,
+          type: 'watering',
+          dueDate: new Date(),
+          completed: false,
+        },
+      ],
+      upcoming: [],
+    },
     isLoading: false,
     refetch: jest.fn(),
   })),

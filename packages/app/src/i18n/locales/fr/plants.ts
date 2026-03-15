@@ -5,6 +5,7 @@ export default {
     filterAll: 'Toutes',
     filterNeedsWatering: 'À arroser',
     filterNeedsFertilizing: 'À fertiliser',
+    filterNeedsAttention: 'À surveiller',
     sortBy: 'Trier par',
     sortName: 'Nom (A-Z)',
     sortRecent: 'Ajoutées récemment',
