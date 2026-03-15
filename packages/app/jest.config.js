@@ -1,3 +1,8 @@
+// Provide EXPO_PUBLIC_* env vars that client.tsx reads at module scope.
+// Expo's Metro bundler loads .env automatically, but Jest does not.
+process.env.EXPO_PUBLIC_API_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
+
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['./src/__tests__/setup.ts'],

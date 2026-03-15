@@ -21,6 +21,11 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
+  useEffectMutation: jest.fn(() => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isPending: false,
+  })),
 }))
 
 jest.mock('@/hooks/useUploadPhoto', () => ({
