@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   PlantRepository,
   type PlantWithRoom,
@@ -125,6 +125,7 @@ export const executePlantCare = (
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
+    const notificationRepo = yield* NotificationRepository
 
     // Fetch the plant
     const plant = yield* repo.findById(params.plantId)
@@ -245,6 +246,12 @@ export const executePlantCare = (
         remindersEnabled: plant.remindersEnabled,
       })
     }
+
+    // Clear any pending overdue reminders — the user just performed care
+    yield* notificationRepo.deletePendingByPlantAndType(
+      params.plantId,
+      'overdue_reminder'
+    )
 
     return updatedPlant
   })

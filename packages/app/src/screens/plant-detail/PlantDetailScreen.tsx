@@ -10,9 +10,10 @@ import {
 } from '@lily/shared'
 import { Array, Match, Option, pipe, Record } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useMemo, useState } from 'react'
+import * as Sharing from 'expo-sharing'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dimensions, Pressable, Share, Text, View } from 'react-native'
+import { Dimensions, Pressable, Text, View } from 'react-native'
 import Animated, {
   interpolateColor,
   useAnimatedScrollHandler,
@@ -20,6 +21,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { captureRef } from 'react-native-view-shot'
 import { toast } from 'sonner-native'
 import { AnimatedImage } from 'src/components/AnimatedImage'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
@@ -27,6 +29,7 @@ import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 import { useCarePlant } from 'src/hooks/useCarePlant'
 import { useDeletePlant } from 'src/hooks/useDeletePlant'
 import { useIconColors } from 'src/hooks/useIconColors'
+import { useSharePlant } from 'src/hooks/useSharePlant'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUpdatePlant } from 'src/hooks/useUpdatePlant'
 import { useUploadPhoto } from 'src/hooks/useUploadPhoto'
@@ -38,6 +41,7 @@ import { IdealEnvironment } from 'src/screens/plant-detail/components/IdealEnvir
 import { PastCareSheet } from 'src/screens/plant-detail/components/PastCareSheet'
 import { PlantHeader } from 'src/screens/plant-detail/components/PlantHeader'
 import { PlantOptionsSheet } from 'src/screens/plant-detail/components/PlantOptionsSheet'
+import { PlantShareCard } from 'src/screens/plant-detail/components/PlantShareCard'
 import { RecentHistory } from 'src/screens/plant-detail/components/RecentHistory'
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
@@ -245,8 +249,11 @@ export function PlantDetailScreen() {
     urlParams: { page: '1', limit: '3', type: 'all' },
   })
 
+  const shareCardRef = useRef<View>(null)
+
   const uploadPhoto = useUploadPhoto()
   const carePlant = useCarePlant()
+  const sharePlant = useSharePlant()
   const updatePlant = useUpdatePlant(
     Option.getOrElse(Option.fromNullable(plantId), () => '')
   )
@@ -378,11 +385,19 @@ export function PlantDetailScreen() {
   }, [plantId, plant, updatePlant, t])
 
   const handleShare = useCallback(async () => {
-    if (!plant) return
-    await Share.share({
-      message: t('detail.toast.shareMessage', { name: plant.name }),
-    })
-  }, [plant, t])
+    if (!plant || !plantId) return
+    try {
+      const uri = await captureRef(shareCardRef, {
+        format: 'png',
+        quality: 1,
+      })
+      await Sharing.shareAsync(uri, { mimeType: 'image/png' })
+      // Fire-and-forget: notify backend for SHARE_SPROUT achievement
+      sharePlant.mutate({ path: { id: plantId } })
+    } catch {
+      // User cancelled or capture failed — no action needed
+    }
+  }, [plant, plantId, sharePlant])
 
   const handleDelete = useCallback(() => {
     setShowOptionsSheet(false)
@@ -691,6 +706,18 @@ export function PlantDetailScreen() {
         lastWateredAt={scheduleData.lastWaterAt}
         lastFertilizedAt={scheduleData.lastFertAt}
         hasFertilization={scheduleData.hasFertSchedule}
+      />
+
+      {/* Off-screen Share Card (captured by view-shot) */}
+      <PlantShareCard
+        ref={shareCardRef}
+        plant={{
+          name: plant.name,
+          imageUrl: plant.imageUrl,
+          category: plant.category,
+          health: plant.health,
+          dateAdded: plant.dateAdded,
+        }}
       />
 
       {/* Delete Confirmation */}

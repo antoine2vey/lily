@@ -245,5 +245,13 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(FutureDateNotAllowedError, { status: 400 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
+  .add(
+    // POST /plants/:id/share - Notify that plant was shared
+    HttpApiEndpoint.post('sharePlant')`/${plantIdParam}/share`
+      .addSuccess(Schema.Void)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
   .prefix('/plants')
   .middleware(Authentication)
