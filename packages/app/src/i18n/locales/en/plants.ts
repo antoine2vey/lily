@@ -197,6 +197,9 @@ export default {
     daysCount: '{count} days',
     overdue: 'Overdue',
   },
+  shareCard: {
+    growingFor: 'Growing for {count, plural, one {# day} other {# days}}',
+  },
   careTypes: {
     water: 'Watering',
     fertilize: 'Fertilizing',

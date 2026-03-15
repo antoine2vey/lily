@@ -123,6 +123,11 @@ export const PlantsApiLive = (api: Api) =>
             .correctCareDates({ ...payload, id })
             .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
         )
+        .handle('sharePlant', ({ path: { id } }) =>
+          plantsService
+            .sharePlant(id)
+            .pipe(withPlantAuth(id), withInfraErrorsAsDefect)
+        )
     })
   ).pipe(
     Layer.provide(PlantsService.Default),
