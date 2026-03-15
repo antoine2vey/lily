@@ -97,4 +97,22 @@ export default {
     xMore: '{count} more to unlock',
     viewAll: 'View All',
   },
+  weather: {
+    conditionSunny: 'Sunny',
+    conditionCloudy: 'Cloudy',
+    conditionRainy: 'Rainy',
+    conditionHot: 'Hot',
+    skipWatering:
+      '{count, plural, one {# plant skips watering} other {# plants skip watering}}',
+    skipFertilization:
+      '{count, plural, one {# plant skips fertilization} other {# plants skip fertilization}}',
+    adjustedPlants:
+      '{count, plural, one {# plant adjusted} other {# plants adjusted}}',
+    noImpact: 'No adjustments',
+    enableTitle: 'Weather-powered care',
+    enableSubtitle:
+      'Get smarter watering schedules based on your local forecast',
+    enableButton: 'Enable Weather',
+    fetchError: 'Weather unavailable',
+  },
 } as const

@@ -18,6 +18,11 @@ export default {
     language: 'Language',
     languageDescription: 'Choose your preferred language',
     languageFallback: 'English',
+    temperatureUnit: 'Temperature',
+    temperatureUnitTitle: 'Temperature Unit',
+    celsius: '°C — Celsius',
+    fahrenheit: '°F — Fahrenheit',
+    temperatureUnitDone: 'Done',
   },
   notifications: {
     title: 'Notification Settings',

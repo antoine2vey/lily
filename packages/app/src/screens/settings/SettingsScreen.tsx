@@ -1,4 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { TemperatureUnit } from '@lily/shared'
+import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
@@ -18,19 +20,42 @@ import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
 import { LanguageSelectionModal } from 'src/screens/settings/components/LanguageSelectionModal'
 import { SettingsMenuItem } from 'src/screens/settings/components/SettingsMenuItem'
+import { TemperatureUnitModal } from 'src/screens/settings/components/TemperatureUnitModal'
 import { ThemeSelectionModal } from 'src/screens/settings/components/ThemeSelectionModal'
+import { apiEffectRunner } from 'src/utils/client'
+import { queryKeys } from 'src/utils/query-keys'
 
 type Theme = 'light' | 'dark' | 'system'
 
 export function SettingsScreen() {
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
-  const { isLoading: isLoadingUser } = useUser()
+  const queryClient = useQueryClient()
+  const { data: userSettings, isLoading: isLoadingUser } = useUser()
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
   const [showThemeModal, setShowThemeModal] = useState(false)
   const [showLanguageModal, setShowLanguageModal] = useState(false)
+  const [showTempUnitModal, setShowTempUnitModal] = useState(false)
+
+  const currentTempUnit: TemperatureUnit =
+    userSettings?.temperatureUnit ?? 'celsius'
+
+  const getTempUnitLabel = (): string =>
+    pipe(
+      Match.value(currentTempUnit),
+      Match.when('celsius', () => '°C'),
+      Match.when('fahrenheit', () => '°F'),
+      Match.exhaustive
+    )
+
+  const handleTempUnitSelect = async (unit: TemperatureUnit) => {
+    await apiEffectRunner('users', 'updateUserSettings', {
+      payload: { temperatureUnit: unit },
+    })
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.settings() })
+  }
 
   const getThemeLabel = (themeValue: Theme): string =>
     pipe(
@@ -123,7 +148,20 @@ export function SettingsScreen() {
               }
               title={t('settings:appearance.language')}
               value={getLanguageLabel()}
+              showBorder
               onPress={() => setShowLanguageModal(true)}
+            />
+            <SettingsMenuItem
+              icon={
+                <MaterialIcons
+                  name="thermostat"
+                  size={22}
+                  color={iconColors.primary}
+                />
+              }
+              title={t('settings:appearance.temperatureUnit')}
+              value={getTempUnitLabel()}
+              onPress={() => setShowTempUnitModal(true)}
             />
           </View>
         </View>
@@ -265,6 +303,14 @@ export function SettingsScreen() {
       <LanguageSelectionModal
         visible={showLanguageModal}
         onClose={() => setShowLanguageModal(false)}
+      />
+
+      {/* Temperature Unit Modal */}
+      <TemperatureUnitModal
+        visible={showTempUnitModal}
+        onClose={() => setShowTempUnitModal(false)}
+        currentUnit={currentTempUnit}
+        onSelect={handleTempUnitSelect}
       />
     </View>
   )

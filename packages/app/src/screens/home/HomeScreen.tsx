@@ -19,11 +19,12 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
+import { useWeather } from '@/hooks/useWeather'
 import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
-import { CareAgendaCard } from '@/screens/home/components/CareAgendaCard'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
 import { StreakCard } from '@/screens/home/components/StreakCard'
+import { WeatherCard } from '@/screens/home/components/WeatherCard'
 import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
 import { useEffectQuery } from '@/utils/client'
 
@@ -45,31 +46,15 @@ function HomeContentSkeleton() {
         </View>
       </View>
 
-      {/* Care Agenda Card */}
-      <View className="mb-8 mt-2">
-        <View className="bg-surface dark:bg-surface-dark rounded-[32px] p-6">
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="gap-1.5">
-              <SkeletonBox width={130} height={20} rounded="sm" />
-              <SkeletonBox width={90} height={14} rounded="sm" />
-            </View>
-            <SkeletonCircle size={40} />
+      {/* Weather Card */}
+      <View className="bg-surface dark:bg-surface-dark rounded-[24px] p-4 mb-4">
+        <View className="flex-row items-center gap-4">
+          <SkeletonCircle size={48} />
+          <View className="flex-1 gap-1.5">
+            <SkeletonBox width={60} height={10} rounded="sm" />
+            <SkeletonBox width={100} height={14} rounded="sm" />
           </View>
-          <View className="gap-2">
-            {Array.map([1, 2, 3], (i) => (
-              <View
-                key={i}
-                className="flex-row items-center gap-3 p-3 rounded-2xl"
-                style={{ backgroundColor: 'rgba(0,0,0,0.03)' }}
-              >
-                <SkeletonCircle size={36} />
-                <View className="flex-1 gap-1">
-                  <SkeletonBox width="60%" height={13} rounded="sm" />
-                </View>
-                <SkeletonCircle size={32} />
-              </View>
-            ))}
-          </View>
+          <SkeletonBox width={90} height={22} rounded="full" />
         </View>
       </View>
 
@@ -170,6 +155,7 @@ export function HomeScreen() {
   const { data: careTasksData, refetch: refetchCareTasks } = useCareTasks()
   const { data: achievementsData, refetch: refetchAchievements } =
     useAchievements()
+  const weather = useWeather()
 
   const userName = pipe(
     Match.value(state),
@@ -215,6 +201,7 @@ export function HomeScreen() {
       refetchActivities(),
       refetchCareTasks(),
       refetchAchievements(),
+      weather.refetch(),
     ])
   }
 
@@ -319,12 +306,7 @@ export function HomeScreen() {
                 >
                   {achievementsData && <StreakCard data={achievementsData} />}
 
-                  <View className="mb-8 mt-2">
-                    <CareAgendaCard
-                      overdue={careTasksOverdue}
-                      today={careTasksToday}
-                    />
-                  </View>
+                  <WeatherCard weather={weather} />
 
                   <WeeklySchedule
                     overdue={careTasksOverdue}

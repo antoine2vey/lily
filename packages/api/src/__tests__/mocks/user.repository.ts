@@ -73,6 +73,7 @@ export const createMockUserRepository = (
         weatherEnabled: false,
         latitude: null,
         longitude: null,
+        temperatureUnit: 'celsius',
       }
       return Effect.succeed(newUser)
     },

@@ -31,6 +31,7 @@ export const mockUser1: User = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
 }
 
 export const mockUser2: User = {
@@ -63,6 +64,7 @@ export const mockUser2: User = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
 }
 
 export const mockUsers: User[] = [mockUser1, mockUser2]
@@ -97,6 +99,7 @@ export const mockAdminUser: User = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
 }
 
 export const mockSuspendedUser: User = {
@@ -129,6 +132,7 @@ export const mockSuspendedUser: User = {
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
 }
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
