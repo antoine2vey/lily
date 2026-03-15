@@ -165,5 +165,6 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   weatherEnabled: false,
   latitude: null,
   longitude: null,
+  temperatureUnit: 'celsius',
   ...overrides,
 })
