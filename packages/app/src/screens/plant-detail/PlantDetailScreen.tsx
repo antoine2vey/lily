@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dimensions, Pressable, Text, View } from 'react-native'
+import { Dimensions, Image, Pressable, Text, View } from 'react-native'
 import Animated, {
   interpolateColor,
   useAnimatedScrollHandler,
@@ -387,6 +387,12 @@ export function PlantDetailScreen() {
   const handleShare = useCallback(async () => {
     if (!plant || !plantId) return
     try {
+      // Prefetch the plant image so it's rendered before capture
+      if (plant.imageUrl) {
+        await Image.prefetch(plant.imageUrl)
+      }
+      // Small delay to let the image render into the off-screen view
+      await new Promise((resolve) => setTimeout(resolve, 100))
       const uri = await captureRef(shareCardRef, {
         format: 'png',
         quality: 1,
@@ -717,6 +723,10 @@ export function PlantDetailScreen() {
           category: plant.category,
           health: plant.health,
           dateAdded: plant.dateAdded,
+          photoCount: Option.getOrElse(
+            Option.map(Option.fromNullable(plant.photos), (p) => p.length),
+            () => 0
+          ),
         }}
       />
 

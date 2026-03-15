@@ -199,6 +199,8 @@ export default {
   },
   shareCard: {
     growingFor: 'Growing for {count, plural, one {# day} other {# days}}',
+    photos: '{count, plural, one {# photo} other {# photos}}',
+    catchphrase: 'Grow with love',
   },
   careTypes: {
     water: 'Watering',
