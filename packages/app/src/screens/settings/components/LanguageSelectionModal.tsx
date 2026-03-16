@@ -1,11 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { LanguageCode } from '@lily/shared'
 import { Array } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { BottomSheet } from 'src/components/BottomSheet'
 import { Button } from 'src/components/ui/Button'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
-import type { LanguageCode } from 'src/i18n/types'
 
 interface LanguageSelectionModalProps {
   visible: boolean

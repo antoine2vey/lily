@@ -12,6 +12,25 @@ export const PlantCareSchedule = Schema.Struct({
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
+// Named plant domain schemas
+export const PlantHealthStatus = Schema.Literal(
+  'THRIVING',
+  'HEALTHY',
+  'NEEDS_ATTENTION',
+  'SICK',
+  'RECOVERING'
+)
+export type PlantHealthStatus = typeof PlantHealthStatus.Type
+
+export const PlantOwnership = Schema.Literal('owned', 'caretaking')
+export type PlantOwnership = typeof PlantOwnership.Type
+
+export const PlantFilter = Schema.Literal('needsAttention', 'overdue', 'all')
+export type PlantFilter = typeof PlantFilter.Type
+
+export const PlantSort = Schema.Literal('added', 'name')
+export type PlantSort = typeof PlantSort.Type
+
 export const Plant = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -24,22 +43,15 @@ export const Plant = Schema.Struct({
   lightingRating: Schema.Number,
   petToxicityRating: Schema.Number,
   wateringRating: Schema.Number,
-  health: Schema.Union(
-    Schema.Literal('THRIVING'),
-    Schema.Literal('HEALTHY'),
-    Schema.Literal('NEEDS_ATTENTION'),
-    Schema.Literal('SICK'),
-    Schema.Literal('RECOVERING')
-  ),
+  health: PlantHealthStatus,
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
   userId: Schema.String,
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
-  ownership: Schema.optionalWith(
-    Schema.Union(Schema.Literal('owned'), Schema.Literal('caretaking')),
-    { default: () => 'owned' as const }
-  ),
+  ownership: Schema.optionalWith(PlantOwnership, {
+    default: () => 'owned' as const,
+  }),
   ownerName: Schema.optionalWith(Schema.NullOr(Schema.String), {
     default: () => null,
   }),

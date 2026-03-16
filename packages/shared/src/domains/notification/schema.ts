@@ -34,5 +34,12 @@ export const Notification = Schema.Struct({
 export const NotificationsListResponse = PaginatedResponse(Notification)
 export type NotificationsListResponse = typeof NotificationsListResponse.Type
 
+// Filter type extending status with 'all'
+export const NotificationStatusFilter = Schema.Union(
+  NotificationStatus,
+  Schema.Literal('all')
+)
+export type NotificationStatusFilter = typeof NotificationStatusFilter.Type
+
 // Type exports
 export type Notification = typeof Notification.Type

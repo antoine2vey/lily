@@ -1,7 +1,6 @@
+import type { LanguageCode } from '@lily/shared'
 import type { ParseKeys } from 'i18next'
 import type en from './locales/en'
-
-export type LanguageCode = 'en' | 'fr'
 
 export type LocalizationState =
   | { _tag: 'Loading' }

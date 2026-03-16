@@ -2,15 +2,14 @@ import { ApiClient } from '@lily/mcp/api-client'
 import { healthLabel } from '@lily/mcp/widgets/health'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
+import type { PlantFilter } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
 /**
  * Lists all plants for the authenticated user via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
-export const listPlantsEffect = (params: {
-  filter?: 'all' | 'needsAttention' | 'overdue'
-}) =>
+export const listPlantsEffect = (params: { filter?: PlantFilter }) =>
   Effect.gen(function* () {
     const apiClient = yield* ApiClient
 

@@ -18,6 +18,10 @@ import {
   endOfDay,
   nowAsDate,
   type PaginatedResponse,
+  type PlantFilter,
+  type PlantHealthStatus,
+  type PlantOwnership,
+  type PlantSort,
   paginate,
 } from '@lily/shared'
 import {
@@ -48,8 +52,8 @@ import {
 export interface FindPlantsParams {
   page?: number
   limit?: number
-  filter?: 'needsAttention' | 'overdue' | 'all'
-  sort?: 'added' | 'name'
+  filter?: PlantFilter
+  sort?: PlantSort
   roomId?: string
   userId: string
   timezone: string
@@ -73,7 +77,7 @@ export type PlantCareScheduleRef = {
 
 export type PlantWithRoom = typeof plants.$inferSelect & {
   room: RoomRef
-  ownership: 'owned' | 'caretaking'
+  ownership: PlantOwnership
   ownerName: string | null
   schedules: PlantCareScheduleRef[]
 }
@@ -89,7 +93,7 @@ export interface CreatePlantData {
   lightingRating: number
   petToxicityRating: number
   wateringRating: number
-  health: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
+  health: PlantHealthStatus
   userId: string
   roomId?: string | null
 }
@@ -103,7 +107,7 @@ export interface UpdatePlantData {
   lightingRating?: number
   petToxicityRating?: number
   wateringRating?: number
-  health?: 'THRIVING' | 'HEALTHY' | 'NEEDS_ATTENTION' | 'SICK' | 'RECOVERING'
+  health?: PlantHealthStatus
   roomId?: string | null
 }
 

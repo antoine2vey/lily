@@ -4,12 +4,6 @@ import { Either } from 'effect'
 import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
-interface PrivacySettings {
-  publicProfile: boolean
-  shareGrowthData: boolean
-  personalizedTips: boolean
-}
-
 // Query key used for optimistic updates (matches useEffectQuery format)
 const USER_SETTINGS_QUERY_KEY = ['users', 'getUserSettings', {}]
 
@@ -25,7 +19,7 @@ export function useUpdatePrivacySettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: Partial<PrivacySettings>) => {
+    mutationFn: async (settings: Partial<UserSettings['privacy']>) => {
       const result = await apiEffectRunner('users', 'updateUserSettings', {
         payload: { privacy: settings },
       })

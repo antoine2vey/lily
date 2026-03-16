@@ -1,7 +1,7 @@
+import type { LanguageCode } from '@lily/shared'
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
-  type LanguageCode,
   SUPPORTED_LANGUAGES,
 } from '../types'
 

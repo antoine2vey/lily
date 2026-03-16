@@ -1,13 +1,16 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import type { NotificationsListResponse } from '@lily/shared/notification'
+import type {
+  NotificationStatusFilter,
+  NotificationsListResponse,
+} from '@lily/shared/notification'
 import { Effect } from 'effect'
 
 export const getNotifications = (params: {
   page?: number
   limit?: number
-  status?: 'pending' | 'queued' | 'sent' | 'failed' | 'all'
+  status?: NotificationStatusFilter
 }): Effect.Effect<
   NotificationsListResponse,
   SqlError,
