@@ -1,6 +1,6 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import { SubscriptionService } from '@lily/api/services/subscriptions/service'
+import { getTiers } from '@lily/api/services/subscriptions/endpoints/get-tiers'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -12,13 +12,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     expect(result).toHaveLength(2)
@@ -37,13 +31,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     const freeTier = result.find((t) => t.tier === 'free')
@@ -63,13 +51,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     const paidTier = result.find((t) => t.tier === 'paid')
@@ -90,13 +72,7 @@ describe('getAllTiers', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     for (const tier of result) {
@@ -117,23 +93,11 @@ describe('getAllTiers', () => {
     )
 
     const result1 = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     const result2 = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getAllTiers()
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getTiers().pipe(Effect.provide(testLayer))
     )
 
     expect(result1).toEqual(result2)

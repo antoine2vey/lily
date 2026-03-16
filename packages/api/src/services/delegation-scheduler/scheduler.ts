@@ -1,13 +1,12 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import type { SimpleNotificationType } from '@lily/api/services/notification-scheduler/translations'
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
-
-const POLL_INTERVAL = '5 minutes'
 
 const getUserLanguage = (
   userRepo: {
@@ -39,7 +38,7 @@ const processDelegationBatch = (
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
 
-    yield* Effect.forEach(delegations, (d) =>
+    const results = yield* Effect.forEach(delegations, (d) =>
       Effect.gen(function* () {
         yield* delegationRepo.updateStatus(d.id, newStatus, timestamps)
         const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
@@ -58,8 +57,24 @@ const processDelegationBatch = (
           { plantCount: plants.length },
           caretakerLang
         )
-      })
+        return 1 as const
+      }).pipe(
+        Effect.catchTags({
+          SqlError: (e) =>
+            Effect.logWarning(
+              '[delegation-scheduler] Failed to process delegation',
+              { delegationId: d.id, error: String(e) }
+            ).pipe(Effect.as(0 as const)),
+        })
+      )
     )
+
+    const succeeded = Array.reduce(results, 0, (acc, n) => acc + n)
+    if (delegations.length > 0 && succeeded < delegations.length) {
+      yield* Effect.logWarning(
+        `[delegation-scheduler] Processed ${succeeded}/${delegations.length} delegations`
+      )
+    }
   })
 
 export const pollAndTransition = Effect.gen(function* () {
@@ -91,17 +106,9 @@ export const pollAndTransition = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('DelegationScheduler.pollAndTransition'))
 
-export const startDelegationScheduler = Effect.gen(function* () {
-  yield* Effect.fork(
-    Effect.forever(
-      pollAndTransition.pipe(
-        Effect.catchTag('SqlError', (error) =>
-          Effect.logError('Delegation scheduler error', error)
-        ),
-        Effect.zipRight(Effect.sleep(POLL_INTERVAL))
-      )
-    )
-  )
-
-  yield* Effect.log('Delegation scheduler started')
+export const startDelegationScheduler = createScheduler({
+  name: 'delegation-scheduler',
+  interval: '5 minutes',
+  runOnStartup: false,
+  task: pollAndTransition,
 })

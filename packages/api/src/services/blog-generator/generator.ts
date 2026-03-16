@@ -3,6 +3,7 @@ import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import type { LocalizedText } from '@lily/db/schema'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
+import { BlogGenerationError } from './errors'
 import { publishBlogPost } from './github'
 import {
   GENERATION_SYSTEM_PROMPT,
@@ -68,13 +69,19 @@ const generateContent = (
       : basePrompt
 
     // Generate primary (English) content
-    const enResult = yield* Effect.tryPromise(() =>
-      generateText({
-        model: openai('gpt-4o'),
-        system: GENERATION_SYSTEM_PROMPT,
-        prompt: userPrompt,
-      })
-    )
+    const enResult = yield* Effect.tryPromise({
+      try: () =>
+        generateText({
+          model: openai('gpt-4o'),
+          system: GENERATION_SYSTEM_PROMPT,
+          prompt: userPrompt,
+        }),
+      catch: (e) =>
+        new BlogGenerationError({
+          message: 'Failed to generate English content',
+          cause: e,
+        }),
+    })
 
     const content: Record<string, string> = { en: enResult.text }
 
@@ -86,13 +93,19 @@ const generateContent = (
 
     yield* Effect.forEach(translationLanguages, (lang) =>
       Effect.gen(function* () {
-        const result = yield* Effect.tryPromise(() =>
-          generateText({
-            model: openai('gpt-4o'),
-            system: TRANSLATION_PROMPT,
-            prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
-          })
-        )
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            generateText({
+              model: openai('gpt-4o'),
+              system: TRANSLATION_PROMPT,
+              prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
+            }),
+          catch: (e) =>
+            new BlogGenerationError({
+              message: `Failed to translate to ${lang.name}`,
+              cause: e,
+            }),
+        })
         content[lang.code] = result.text
       })
     )
@@ -129,12 +142,13 @@ const reviewContent = (
       Array.join(', ')
     )
 
-    const result = yield* Effect.tryPromise(() =>
-      generateText({
-        model: openai('gpt-4o'),
-        output: Output.object({ schema: ReviewSchema }),
-        system: REVIEW_SYSTEM_PROMPT,
-        prompt: `Review this blog post for quality and originality.
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        generateText({
+          model: openai('gpt-4o'),
+          output: Output.object({ schema: ReviewSchema }),
+          system: REVIEW_SYSTEM_PROMPT,
+          prompt: `Review this blog post for quality and originality.
 
 GENERATED CONTENT:
 ${primaryContent}
@@ -144,8 +158,13 @@ ${sourceSnippets}
 
 VALID INTERNAL LINK PATHS (any link NOT in this list is broken):
 ${validLinks || 'None — no internal links should be present'}`,
-      })
-    )
+        }),
+      catch: (e) =>
+        new BlogGenerationError({
+          message: 'Failed to review content',
+          cause: e,
+        }),
+    })
 
     return result.output as ReviewResult
   }).pipe(Effect.withSpan('blog-generator.reviewContent'))

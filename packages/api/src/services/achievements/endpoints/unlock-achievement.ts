@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
@@ -40,9 +41,11 @@ export const unlockAchievement = (
       return yield* Option.match(foundOption, {
         onNone: () =>
           Effect.die(
-            new Error(
-              `Achievement ${request.achievement} not found after unlock returned null`
-            )
+            new EntityMutationDefect({
+              message: `Achievement ${request.achievement} not found after unlock returned null`,
+              entity: 'achievement',
+              operation: `unlock(${request.achievement})`,
+            })
           ),
         onSome: (found) =>
           Effect.succeed({

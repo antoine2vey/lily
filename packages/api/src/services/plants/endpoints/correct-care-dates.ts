@@ -13,10 +13,7 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import {
-  FutureDateNotAllowedError,
-  PlantNotFoundError,
-} from '@lily/shared/errors/plant'
+import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 
@@ -103,10 +100,11 @@ const correctSingleCareDate = (
   })
 
 export const correctCareDates = (
+  plant: PlantWithRoom,
   request: PlantCorrectCareDatesRequest & { id: string }
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | PlantNotFoundError | FutureDateNotAllowedError,
+  SqlError | FutureDateNotAllowedError,
   | PlantRepository
   | CareLogRepository
   | CareScheduleRepository
@@ -117,13 +115,6 @@ export const correctCareDates = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
-
-    // Fetch the plant
-    const plant = yield* repo.findById(request.id)
-
-    if (!plant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
 
     // Correct watering date if provided
     if (request.lastWateredAt) {
@@ -148,11 +139,10 @@ export const correctCareDates = (
     // Re-fetch to get updated plant with room data
     const updatedPlant = yield* repo.findById(request.id)
 
-    if (!updatedPlant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
-
-    return updatedPlant
+    return pipe(
+      Option.fromNullable(updatedPlant),
+      Option.getOrElse(() => plant)
+    )
   }).pipe(
     Effect.withSpan('PlantsService.correctCareDates', {
       attributes: { 'plant.id': request.id },

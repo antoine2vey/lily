@@ -224,7 +224,12 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
 
         // Proactively refresh the API JWT if it's stale
         yield* refreshApiJwtIfNeeded(result._userId).pipe(
-          Effect.catchAll(() => Effect.void)
+          Effect.tapError((err) =>
+            Effect.logWarning('JWT refresh failed', {
+              error: err.message,
+            })
+          ),
+          Effect.ignore
         )
 
         // Strip internal _userId before sending the OAuth response

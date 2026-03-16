@@ -1,11 +1,8 @@
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { AchievementKey } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { Array, Effect, Match, pipe, Record } from 'effect'
-import type { DurationInput } from 'effect/Duration'
-
-// Reconcile every 12 hours — achievements aren't time-critical
-const POLL_INTERVAL: DurationInput = '12 hours'
 
 interface ProgressCounts {
   plants: number
@@ -94,10 +91,10 @@ export const reconcileAchievements = Effect.gen(function* () {
     userIds,
     (userId) =>
       reconcileUserAchievements(userId).pipe(
-        Effect.catchTag('SqlError', (error) =>
-          Effect.logError(
-            'Failed to reconcile achievements for user',
-            error
+        Effect.catchTag('SqlError', (e) =>
+          Effect.logWarning(
+            '[achievement-scheduler] Failed to reconcile achievements',
+            { userId, error: String(e) }
           ).pipe(Effect.as(0))
         )
       ),
@@ -118,29 +115,9 @@ export const reconcileAchievements = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('achievement-scheduler.reconcile'))
 
-// Start the achievement reconciliation scheduler as a background process
-export const startAchievementReconciliationScheduler = Effect.gen(function* () {
-  // Run immediately on startup
-  yield* reconcileAchievements.pipe(
-    Effect.catchTag('SqlError', (error) =>
-      Effect.logError('Achievement reconciliation initial check error', error)
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          reconcileAchievements.pipe(
-            Effect.catchTag('SqlError', (error) =>
-              Effect.logError('Achievement reconciliation polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Achievement reconciliation scheduler started')
+export const startAchievementReconciliationScheduler = createScheduler({
+  name: 'achievement-reconciliation',
+  interval: '12 hours',
+  runOnStartup: true,
+  task: reconcileAchievements,
 })

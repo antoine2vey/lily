@@ -1,17 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
-import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
-import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import type { KnowledgeQueryRequest } from '@lily/api/services/knowledge/api'
 import { RagService } from '@lily/api/services/rag/service'
-import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 
-/**
- * Handles knowledge queries by delegating to RagService.
- * Returns the answer (formatted context) and source chunks.
- */
 const queryKnowledge = (params: KnowledgeQueryRequest) =>
   Effect.gen(function* () {
     const ragService = yield* RagService
@@ -41,14 +34,7 @@ const queryKnowledge = (params: KnowledgeQueryRequest) =>
 
 export const KnowledgeApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'knowledge', (handlers) =>
-    Effect.gen(function* () {
-      return handlers.handle('queryKnowledge', ({ payload }) =>
-        queryKnowledge(payload).pipe(withInfraErrorsAsDefect)
-      )
-    })
-  ).pipe(
-    Layer.provide(AuthenticationLive),
-    Layer.provide(RagService.Default),
-    Layer.provide(ProcessedChunkRepositoryLive),
-    Layer.provide(KnowledgeDrizzleLive)
+    handlers.handle('queryKnowledge', ({ payload }) =>
+      queryKnowledge(payload).pipe(withInfraErrorsAsDefect)
+    )
   )

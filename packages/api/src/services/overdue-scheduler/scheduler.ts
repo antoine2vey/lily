@@ -1,6 +1,7 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { scheduleDeferredCareNotification } from '@lily/api/services/helpers/schedule-notification'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import {
@@ -12,10 +13,6 @@ import {
   startOfTodayAsDate,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe, Random, Record } from 'effect'
-import type { DurationInput } from 'effect/Duration'
-
-// Check every hour for overdue plants across timezones
-const POLL_INTERVAL: DurationInput = '1 hour'
 
 // Process a single user's overdue plants — fails with skip errors when the
 // user should not receive a notification.
@@ -115,16 +112,21 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
       processUserOverdueReminders(userId, plants).pipe(
         Effect.catchTags({
           CareRemindersDisabledError: (e) =>
-            Effect.log('Skipping overdue reminder — care reminders disabled', {
+            Effect.log('[overdue-scheduler] Skipped — reminders disabled', {
               userId: e.userId,
             }).pipe(Effect.as(0)),
           AlreadySentTodayError: (e) =>
-            Effect.log('Skipping overdue reminder — already sent today', {
+            Effect.log('[overdue-scheduler] Skipped — already sent', {
               userId: e.userId,
             }).pipe(Effect.as(0)),
           DndWindowBlockedError: (e) =>
-            Effect.log('Skipping overdue reminder — both windows in DND', {
+            Effect.log('[overdue-scheduler] Skipped — DND window', {
               userId: e.userId,
+            }).pipe(Effect.as(0)),
+          SqlError: (e) =>
+            Effect.logWarning('[overdue-scheduler] Failed to process user', {
+              userId,
+              error: String(e),
             }).pipe(Effect.as(0)),
         })
       ),
@@ -138,29 +140,9 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   }
 }).pipe(Effect.withSpan('overdue-scheduler.check'))
 
-// Start the overdue reminder scheduler as a background process
-export const startOverdueScheduler = Effect.gen(function* () {
-  // Run immediately on startup
-  yield* checkAndCreateOverdueReminders.pipe(
-    Effect.catchTag('SqlError', (error) =>
-      Effect.logError('Overdue scheduler initial check error', error)
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          checkAndCreateOverdueReminders.pipe(
-            Effect.catchTag('SqlError', (error) =>
-              Effect.logError('Overdue scheduler polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Overdue reminder scheduler started')
+export const startOverdueScheduler = createScheduler({
+  name: 'overdue-scheduler',
+  interval: '1 hour',
+  runOnStartup: true,
+  task: checkAndCreateOverdueReminders,
 })

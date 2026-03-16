@@ -1,6 +1,6 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { getWeatherForLocation } from '@lily/api/services/weather/endpoints/get-weather'
 import {
   getWeatherContext,
@@ -9,10 +9,6 @@ import {
 import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import { roundCoord, WEATHER_FETCH_HOURS } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
-import type { DurationInput } from 'effect/Duration'
-
-// Check every hour whether we should fetch weather
-const POLL_INTERVAL: DurationInput = '1 hour'
 
 // Cleanup snapshots older than this many days (once per day)
 const CLEANUP_OLDER_THAN_DAYS = 30
@@ -95,8 +91,8 @@ const refreshWeatherData = Effect.gen(function* () {
         ),
         Effect.catchTag('WeatherFetchError', (error) =>
           Effect.logWarning(
-            `Weather refresh failed for ${loc.lat},${loc.lng}`,
-            { error }
+            `[weather-scheduler] Fetch failed for ${loc.lat},${loc.lng}`,
+            { error: String(error) }
           )
         )
       ),
@@ -113,8 +109,8 @@ const refreshWeatherData = Effect.gen(function* () {
         ),
         Effect.catchTag('WeatherFetchError', (error) =>
           Effect.logWarning(
-            `Weather context build failed for ${loc.lat},${loc.lng}`,
-            { error }
+            `[weather-scheduler] Context build failed for ${loc.lat},${loc.lng}`,
+            { error: String(error) }
           ).pipe(
             Effect.map(() => Option.none<readonly [string, WeatherContext]>())
           )
@@ -136,9 +132,9 @@ const refreshWeatherData = Effect.gen(function* () {
       .cleanupOldSnapshots(CLEANUP_OLDER_THAN_DAYS)
       .pipe(
         Effect.catchTag('SqlError', (error) =>
-          Effect.logWarning('Snapshot cleanup failed', { error }).pipe(
-            Effect.map(() => 0)
-          )
+          Effect.logWarning('[weather-scheduler] Snapshot cleanup failed', {
+            error: String(error),
+          }).pipe(Effect.map(() => 0))
         )
       )
     if (cleaned > 0) {
@@ -147,29 +143,9 @@ const refreshWeatherData = Effect.gen(function* () {
   }
 })
 
-// Start the weather scheduler as a background process
-export const startWeatherScheduler = Effect.gen(function* () {
-  // Run immediately on startup
-  yield* refreshWeatherData.pipe(
-    Effect.catchTag('SqlError', (error: SqlError) =>
-      Effect.logError('Weather scheduler initial refresh error', error)
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          refreshWeatherData.pipe(
-            Effect.catchTag('SqlError', (error: SqlError) =>
-              Effect.logError('Weather scheduler polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Weather scheduler started')
+export const startWeatherScheduler = createScheduler({
+  name: 'weather-scheduler',
+  interval: '1 hour',
+  runOnStartup: true,
+  task: refreshWeatherData,
 })

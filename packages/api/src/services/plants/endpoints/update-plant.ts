@@ -5,7 +5,6 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { CareType } from '@lily/shared'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Option, pipe, Record, Struct } from 'effect'
 
@@ -40,22 +39,17 @@ const syncOptionalSchedule = (
   })
 
 export const updatePlant = (
+  plant: PlantWithRoom,
   request: PlantUpdateRequest & { id: string }
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | PlantNotFoundError,
+  SqlError,
   PlantRepository | CareScheduleRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
-
-    // Get current plant to check if we need to set next care dates
-    const currentPlant = yield* repo.findById(request.id)
-    if (!currentPlant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
 
     const now = DateTime.toDateUtc(DateTime.unsafeNow())
 
@@ -117,6 +111,6 @@ export const updatePlant = (
     const updated = yield* repo.findById(request.id)
     return pipe(
       Option.fromNullable(updated),
-      Option.getOrElse(() => currentPlant)
+      Option.getOrElse(() => plant)
     )
   }).pipe(Effect.withSpan('PlantsService.updatePlant'))

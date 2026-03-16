@@ -195,10 +195,21 @@ export const startNotificationWorker = Effect.gen(function* () {
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({
-            SqlError: (error) =>
-              Effect.logError(`Worker error for topic ${topic}`, error),
-            QueueOperationError: (error) =>
-              Effect.logError(`Worker error for topic ${topic}`, error),
+            SqlError: (e) =>
+              Effect.logError('[notification-worker] SQL error', {
+                topic,
+                error: String(e),
+              }),
+            QueueOperationError: (e) =>
+              Effect.logError('[notification-worker] Queue operation error', {
+                topic,
+                error: String(e),
+              }),
+            QueueConnectionError: (e) =>
+              Effect.logError('[notification-worker] Queue connection error', {
+                topic,
+                error: String(e),
+              }),
           }),
           // Delay between polls when queue is empty
           Effect.zipRight(Effect.sleep('30 seconds'))

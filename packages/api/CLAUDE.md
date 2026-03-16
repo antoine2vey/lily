@@ -1,260 +1,84 @@
 # API Package Architecture
 
-This document describes the architecture and patterns specific to the API package.
+> Global rules (Effect patterns, formatting) in root `/CLAUDE.md`
 
-> **Global rules** (Effect patterns, code conventions) are in the root `/CLAUDE.md`
-
-## Service File Structure
-
-Each service domain follows this structure:
+## Service Structure
 
 ```
 services/{domain}/
-├── api.ts              # HttpApiEndpoint definitions
-├── handlers.ts         # HttpApiBuilder.group implementation
-├── service.ts          # Effect.Service aggregator
-├── middleware.ts       # Auth/permission middleware (if needed)
-└── endpoints/          # Individual endpoint functions
-    ├── find-{entity}s.ts
-    ├── find-{entity}-by-id.ts
-    ├── create-{entity}.ts
-    ├── update-{entity}.ts
-    └── delete-{entity}.ts
+├── api.ts          # HttpApiEndpoint definitions
+├── handlers.ts     # HttpApiBuilder.group — imports endpoints directly
+├── helpers/        # Domain helpers (if needed)
+└── endpoints/      # Individual endpoint functions
 ```
 
-## Repository Pattern
+**No `service.ts` files.** Handlers call endpoint functions directly. 21 HTTP domains, 10 schedulers, 8 infrastructure services (`ai`, `email`, `event-bus`, `jwt`, `message-queue`, `push`, `rag`, `rate-limiter`), 24 repositories.
 
-Repositories handle database operations and are injected via Effect Layers:
+## Handlers
 
-```typescript
-// Define interface
-export interface IPlantRepository {
-  findById: (id: string) => Effect.Effect<Plant, PlantNotFoundError>
-}
-
-// Create context tag
-export class PlantRepository extends Context.Tag('PlantRepository')<
-  PlantRepository,
-  IPlantRepository
->() {}
-
-// Implement live layer
-export const PlantRepositoryLive = Layer.effect(
-  PlantRepository,
-  Effect.gen(function* () {
-    const db = yield* DrizzleClient
-    return {
-      findById: (id) => // implementation
-    }
-  })
-)
-```
-
-## API Endpoint Definition
-
-Endpoints use Effect Platform's HttpApiEndpoint:
-
-```typescript
-HttpApiEndpoint.get('findPlants', '/plants')
-  .addSuccess(Schema.Array(Plant))
-  .addError(DatabaseError, { status: 500 })
-```
-
-## Handler Implementation
+Import endpoints directly. **No `Layer.provide` chains** — all deps come from `AppLive` at root.
 
 ```typescript
 export const PlantsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'plants', (handlers) =>
-    Effect.gen(function* () {
-      const service = yield* PlantsService
-      return handlers
-        .handle('findPlants', () => service.findPlants())
-        .handle('createPlant', ({ payload }) => service.createPlant(payload))
-    })
-  ).pipe(
-    Layer.provide(PlantsService.Default),
-    Layer.provide(PlantRepositoryLive)
+    handlers
+      .handle('getPlant', ({ path: { id } }) =>
+        withPlantAuth(id).pipe(
+          Effect.flatMap((plant) => findPlantById(plant)),
+          withInfraErrorsAsDefect,
+        )
+      )
   )
-```
-
-## Service Definition
-
-```typescript
-export class MyService extends Effect.Service<MyService>()('MyService', {
-  effect: Effect.gen(function* () {
-    const dep = yield* SomeDependency
-    return {
-      myMethod: () => Effect.succeed('result'),
-    }
-  }),
-}) {}
 ```
 
 ## Layer Composition
 
-```typescript
-Layer.provide(MyServiceLive),
-Layer.provide(RepositoryLive),
-```
+`AppLive` in `src/layers/index.ts` merges all repositories + infrastructure. Provided once at server root in `src/index.ts`.
 
-## Middleware Pattern
+- **EventBus** (Redis pub/sub): ephemeral, fire-and-forget (achievement events)
+- **MessageQueue** (Redis lists): reliable, at-least-once (notification delivery)
 
-Use `HttpApiMiddleware.Tag` for cross-cutting concerns:
+## `withPlantAuth`
 
-```typescript
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
-  'Authentication',
-  {
-    failure: Unauthorized,
-    provides: CurrentUser,
-    security: { bearer: HttpApiSecurity.bearer },
-  }
-) {}
-```
+Returns the authorized plant. Use `Effect.flatMap` when endpoint needs the plant, `Effect.zipRight` for auth-only. **Endpoints must not re-fetch a plant received from `withPlantAuth`.**
 
-## Request/Response Naming
+## Schedulers
 
-Follow these naming conventions for API DTOs:
-- **Requests**: `{Entity}CreateRequest`, `{Entity}UpdateRequest`
-- **Responses**: `{Entity}ListResponse`, `{Entity}Response`
-- **Params**: `Find{Entity}sParams`, `PaginationParams`
-- **Data types**: `Create{Entity}Data`, `Update{Entity}Data` (suffixed with `Data`)
-
-## Pagination Pattern
-
-- Use `PaginationParams` schema with `page` and `limit` as strings (for URL encoding)
-- Use `parsePaginationParams()` to convert to numbers
-- Use `paginate()` helper for building responses
-- Return `PaginatedResponse<T>` with `hasMore` field
-
-## Event Publishing
-
-Events are discriminated unions with `_tag` field:
+Use `createScheduler()` from `services/helpers/create-scheduler.ts`:
 
 ```typescript
-eventBus.publish({
-  _tag: 'PlantCreated',
-  userId,
-  plantId: plant.id,
+export const startMyScheduler = createScheduler({
+  name: 'my-scheduler',
+  interval: '1 hour',
+  runOnStartup: true,
+  task: myTask,
 })
 ```
 
-Use `publishWithRetry()` for resilient event publishing.
+Error isolation built-in: catch + log + continue, never crash server.
 
-## Logging
+## Naming Conventions
 
-Use Effect's built-in logger:
-
-```typescript
-yield* Effect.log('message', { context: value })
-yield* Effect.logWarning('warning message')
-```
+- Requests: `{Entity}CreateRequest`, `{Entity}UpdateRequest`
+- Responses: `{Entity}ListResponse`, `{Entity}Response`
+- Data types: `Create{Entity}Data`, `Update{Entity}Data`
 
 ## Error Handling
 
-Define typed errors using Schema.TaggedError:
-
-```typescript
-export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()(
-  'PlantNotFoundError',
-  { id: Schema.String }
-) {}
-```
-
----
+Typed errors via `Schema.TaggedError`. Use `publishWithRetry()` for event publishing.
 
 ## Testing
 
-**Tests are mandatory when writing any new feature or endpoint.**
+**Tests are mandatory for new features.**
 
-### Test Structure
-
-Tests are centralized in `src/__tests__/`:
-
-```
-__tests__/
-├── setup.ts                    # Global test setup
-├── fixtures/                   # Reusable test data
-│   ├── users.ts
-│   ├── plants.ts
-│   └── care-logs.ts
-├── mocks/                      # Mock repository layers
-│   ├── user.repository.ts
-│   ├── plant.repository.ts
-│   └── care-log.repository.ts
-└── services/                   # Test files by domain
-    ├── user/
-    │   ├── find-users.test.ts
-    │   ├── find-user-by-id.test.ts
-    │   ├── create-user.test.ts
-    │   ├── update-user.test.ts
-    │   └── delete-user.test.ts
-    ├── plants/
-    │   └── ...
-    └── care-logs/
-        └── ...
-```
-
-### Mock Pattern
-
-Mock at the **Repository level**, not at the database level:
+- Mock at **repository level**, not DB level
+- Tests live in `src/__tests__/services/{domain}/`
+- Fixtures in `src/__tests__/fixtures/`, mocks in `src/__tests__/mocks/`
 
 ```typescript
-// __tests__/mocks/user.repository.ts
-export const createMockUserRepository = (
-  users: User[]
-): Layer.Layer<UserRepository> => {
-  const repo: IUserRepository = {
-    findAll: () => Effect.succeed(users),
-    findById: (id) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(users, (u) => u.id === id),
-          Option.getOrNull
-        )
-      ),
-    // ... other methods
-  }
-  return Layer.succeed(UserRepository, repo)
-}
+const result = await Effect.runPromise(
+  findUserById('user-1').pipe(
+    Effect.provide(createMockUserRepository(mockUsers))
+  )
+)
 ```
-
-### Writing Tests
-
-```typescript
-// __tests__/services/user/find-user-by-id.test.ts
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import { mockUsers } from '@lily/api/__tests__/fixtures/users'
-import { findUserById } from '@lily/api/services/user/endpoints/find-user-by-id'
-import { Effect } from 'effect'
-import { describe, expect, it } from 'vitest'
-
-describe('findUserById', () => {
-  it('should return user when found', async () => {
-    const result = await Effect.runPromise(
-      findUserById('user-1').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
-      )
-    )
-    expect(result).toEqual(mockUsers[0])
-  })
-
-  it('should fail with UserNotFoundError when not found', async () => {
-    const result = await Effect.runPromiseExit(
-      findUserById('non-existent').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
-      )
-    )
-    expect(result._tag).toBe('Failure')
-  })
-})
-```
-
-### Adding Tests for New Features
-
-When adding a new domain/service:
-
-1. Create fixtures in `__tests__/fixtures/{domain}.ts`
-2. Create mock repository in `__tests__/mocks/{domain}.repository.ts`
-3. Create test files in `__tests__/services/{domain}/`
-4. Test all CRUD operations and error cases

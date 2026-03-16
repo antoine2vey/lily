@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
@@ -28,7 +29,13 @@ export const updateRoom = (params: {
     const room = yield* repo.update(params.id, params.data)
 
     if (!room) {
-      return yield* Effect.die(new Error('Failed to update room'))
+      return yield* Effect.die(
+        new EntityMutationDefect({
+          message: 'Room update returned null',
+          entity: 'room',
+          operation: 'update',
+        })
+      )
     }
 
     return room

@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -58,7 +59,13 @@ export const createPlant = (
     })
 
     if (!plantOrNull) {
-      return yield* Effect.die(new Error('Failed to create plant'))
+      return yield* Effect.die(
+        new EntityMutationDefect({
+          message: 'Plant create returned null',
+          entity: 'plant',
+          operation: 'create',
+        })
+      )
     }
 
     const plant = plantOrNull

@@ -1,12 +1,9 @@
 import { HttpApiBuilder } from '@effect/platform'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import type { Api } from '@lily/api/api'
-import {
-  RedisClient,
-  RedisClientLive,
-} from '@lily/api/services/message-queue/redis.provider'
+import { RedisClient } from '@lily/api/services/message-queue/redis.provider'
 import { sql } from 'drizzle-orm'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 
 export const HealthApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'health', (handlers) =>
@@ -16,7 +13,6 @@ export const HealthApiLive = (api: Api) =>
 
       return handlers.handle('check', () =>
         Effect.gen(function* () {
-          // Check database
           const dbStatus = yield* Effect.tryPromise(() =>
             db.execute(sql`SELECT 1`)
           ).pipe(
@@ -26,7 +22,6 @@ export const HealthApiLive = (api: Api) =>
             )
           )
 
-          // Check redis
           const redisStatus = yield* Effect.tryPromise(() => redis.ping()).pipe(
             Effect.map(() => 'ok' as const),
             Effect.catchTag('UnknownException', () =>
@@ -41,4 +36,4 @@ export const HealthApiLive = (api: Api) =>
         })
       )
     })
-  ).pipe(Layer.provide(RedisClientLive))
+  )

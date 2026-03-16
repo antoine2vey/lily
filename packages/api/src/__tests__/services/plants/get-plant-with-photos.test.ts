@@ -3,10 +3,20 @@ import {
   mockPlants,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { findPlantById } from '@lily/api/services/plants/endpoints/find-plant-by-id'
-import { PlantNotFoundError } from '@lily/shared/errors/plant'
-import { Effect, Exit, pipe } from 'effect'
+import { Effect, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const toPlantWithRoom = (
+  plant: (typeof mockPlants)[number]
+): PlantWithRoom => ({
+  ...plant,
+  room: null,
+  ownership: 'owned' as const,
+  ownerName: null,
+  schedules: [],
+})
 
 describe('findPlantById (with photos)', () => {
   it('should return plant with photos array when plant exists', async () => {
@@ -15,8 +25,9 @@ describe('findPlantById (with photos)', () => {
       photos: mockPlantPhotos,
     })
 
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      pipe(findPlantById({ id: 'plant-1' }), Effect.provide(layer))
+      pipe(findPlantById(plant), Effect.provide(layer))
     )
 
     expect(result.id).toBe('plant-1')
@@ -34,8 +45,9 @@ describe('findPlantById (with photos)', () => {
       photos: [],
     })
 
+    const plant = toPlantWithRoom(mockPlants[1]!)
     const result = await Effect.runPromise(
-      pipe(findPlantById({ id: 'plant-2' }), Effect.provide(layer))
+      pipe(findPlantById(plant), Effect.provide(layer))
     )
 
     expect(result.id).toBe('plant-2')
@@ -45,7 +57,6 @@ describe('findPlantById (with photos)', () => {
   })
 
   it('should limit photos to 10 most recent', async () => {
-    // Create 15 photos for plant-1
     const manyPhotos = Array.from({ length: 15 }, (_, i) => ({
       id: `photo-${i + 1}`,
       url: `https://example.com/photo${i + 1}.jpg`,
@@ -58,28 +69,12 @@ describe('findPlantById (with photos)', () => {
       photos: manyPhotos,
     })
 
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      pipe(findPlantById({ id: 'plant-1' }), Effect.provide(layer))
+      pipe(findPlantById(plant), Effect.provide(layer))
     )
 
     expect(result.photos).toBeDefined()
     expect(result.photos).toHaveLength(10)
-  })
-
-  it('should fail with PlantNotFoundError when plant does not exist', async () => {
-    const layer = createMockPlantRepository({
-      plants: mockPlants,
-      photos: [],
-    })
-
-    const exit = await Effect.runPromiseExit(
-      pipe(findPlantById({ id: 'non-existent' }), Effect.provide(layer))
-    )
-
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : null
-      expect(error).toBeInstanceOf(PlantNotFoundError)
-    }
   })
 })

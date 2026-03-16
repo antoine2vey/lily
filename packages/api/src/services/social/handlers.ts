@@ -1,66 +1,48 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
-import { RedisEventBusLive } from '@lily/api/events'
-import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
-import {
-  RedisClientLive,
-  RedisMessageQueueLive,
-} from '@lily/api/services/message-queue/redis.provider'
-import { SocialService } from '@lily/api/services/social/service'
-import { Effect, Layer } from 'effect'
+import { followUser } from '@lily/api/services/social/endpoints/follow-user'
+import { getFollowers } from '@lily/api/services/social/endpoints/get-followers'
+import { getFollowing } from '@lily/api/services/social/endpoints/get-following'
+import { getPublicProfile } from '@lily/api/services/social/endpoints/get-public-profile'
+import { getSuggestedUsers } from '@lily/api/services/social/endpoints/get-suggested-users'
+import { getUserFollowers } from '@lily/api/services/social/endpoints/get-user-followers'
+import { getUserFollowing } from '@lily/api/services/social/endpoints/get-user-following'
+import { searchUsers } from '@lily/api/services/social/endpoints/search-users'
+import { sendNudge } from '@lily/api/services/social/endpoints/send-nudge'
+import { unfollowUser } from '@lily/api/services/social/endpoints/unfollow-user'
 
 export const SocialApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'social', (handlers) =>
-    Effect.gen(function* () {
-      const socialService = yield* SocialService
-
-      return handlers
-        .handle('followUser', ({ path: { userId } }) =>
-          socialService.followUser(userId).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('unfollowUser', ({ path: { userId } }) =>
-          socialService.unfollowUser(userId).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getFollowers', ({ urlParams }) =>
-          socialService.getFollowers(urlParams).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getFollowing', ({ urlParams }) =>
-          socialService.getFollowing(urlParams).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getUserFollowers', ({ path: { userId }, urlParams }) =>
-          socialService
-            .getUserFollowers(userId, urlParams)
-            .pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getUserFollowing', ({ path: { userId }, urlParams }) =>
-          socialService
-            .getUserFollowing(userId, urlParams)
-            .pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getPublicProfile', ({ path: { userId } }) =>
-          socialService.getPublicProfile(userId).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('searchUsers', ({ urlParams }) =>
-          socialService.searchUsers(urlParams).pipe(withInfraErrorsAsDefect)
-        )
-        .handle('getSuggestedUsers', () =>
-          socialService.getSuggestedUsers().pipe(withInfraErrorsAsDefect)
-        )
-        .handle('sendNudge', ({ payload }) =>
-          socialService.sendNudge(payload).pipe(withInfraErrorsAsDefect)
-        )
-    })
-  ).pipe(
-    Layer.provide(SocialService.Default),
-    Layer.provide(FollowRepositoryLive),
-    Layer.provide(UserRepositoryLive),
-    Layer.provide(NotificationRepositoryLive),
-    Layer.provide(RedisEventBusLive),
-    Layer.provide(RedisMessageQueueLive),
-    Layer.provide(RedisClientLive),
-    Layer.provide(AuthenticationLive)
+    handlers
+      .handle('followUser', ({ path: { userId } }) =>
+        followUser(userId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('unfollowUser', ({ path: { userId } }) =>
+        unfollowUser(userId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getFollowers', ({ urlParams }) =>
+        getFollowers(urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getFollowing', ({ urlParams }) =>
+        getFollowing(urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getUserFollowers', ({ path: { userId }, urlParams }) =>
+        getUserFollowers(userId, urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getUserFollowing', ({ path: { userId }, urlParams }) =>
+        getUserFollowing(userId, urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getPublicProfile', ({ path: { userId } }) =>
+        getPublicProfile(userId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('searchUsers', ({ urlParams }) =>
+        searchUsers(urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getSuggestedUsers', () =>
+        getSuggestedUsers().pipe(withInfraErrorsAsDefect)
+      )
+      .handle('sendNudge', ({ payload }) =>
+        sendNudge(payload).pipe(withInfraErrorsAsDefect)
+      )
   )

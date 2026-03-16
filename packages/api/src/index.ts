@@ -2,28 +2,12 @@
 import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
-import { RedisEventBusLive } from '@lily/api/events'
+import { AppLive } from '@lily/api/layers'
 import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
-import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
-import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
-import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
-import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
-import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
-import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
-import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
-import { EngagementRepositoryLive } from '@lily/api/repositories/engagement.repository'
-import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
-import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
-import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
-import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
-import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
-import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
-import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
-import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
@@ -41,17 +25,11 @@ import { InternalApiLive } from '@lily/api/services/internal/handlers'
 import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
 import { startKnowledgeIngestionWorker } from '@lily/api/services/knowledge-ingestion/worker'
-import {
-  RedisClientLive,
-  RedisMessageQueueLive,
-} from '@lily/api/services/message-queue/redis.provider'
 import { startNotificationScheduler } from '@lily/api/services/notification-scheduler/scheduler'
 import { startNotificationWorker } from '@lily/api/services/notification-scheduler/worker'
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/scheduler'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
-import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
-import { RagService } from '@lily/api/services/rag/service'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { SocialApiLive } from '@lily/api/services/social/handlers'
 import {
@@ -61,162 +39,103 @@ import {
 import { startTipsScheduler } from '@lily/api/services/tips-scheduler/scheduler'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
-import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
 import { WeatherApiLive } from '@lily/api/services/weather/handlers'
-import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { startWeatherScheduler } from '@lily/api/services/weather-scheduler/scheduler'
 import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
-import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { Effect, Layer } from 'effect'
 
-// Shared infrastructure layers.
+// Shared database layers
 const SharedLive = Layer.mergeAll(DrizzleLive, PgLive)
 
-// Redis event bus layer with its dependency
-const RedisEventBusFullLive = RedisEventBusLive.pipe(
-  Layer.provide(RedisClientLive)
-)
-
-// Achievement subscriber layer - starts the background event processor
+// Background schedulers and workers — deps come from AppLive at root
 const AchievementSubscriberLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startAchievementSubscriber
     yield* Effect.log('Achievement subscriber started')
   })
-).pipe(
-  Layer.provide(AchievementRepositoryLive),
-  Layer.provide(RedisEventBusFullLive)
 )
 
-// Notification scheduler layer - polls DB and enqueues to Redis
 const NotificationSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startNotificationScheduler
   })
-).pipe(
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(PlantRepositoryLive),
-  Layer.provide(UserRepositoryLive),
-  Layer.provide(RedisMessageQueueLive),
-  Layer.provide(RedisClientLive)
 )
 
-// Notification worker layer - consumes from Redis and sends via Expo Push
 const NotificationWorkerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startNotificationWorker
   })
-).pipe(
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(DeviceTokenRepositoryLive),
-  Layer.provide(DeadLetterRepositoryLive),
-  Layer.provide(RedisMessageQueueLive),
-  Layer.provide(RedisClientLive),
-  Layer.provide(ExpoPushServiceLive)
 )
 
-// Weather scheduler layer - fetches weather data for users with weather enabled
-// Also readjusts plant care schedules based on latest weather
 const WeatherSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startWeatherScheduler
   })
-).pipe(
-  Layer.provide(WeatherCacheLive),
-  Layer.provide(WeatherProviderLive),
-  Layer.provide(WeatherRepositoryLive),
-  Layer.provide(UserRepositoryLive),
-  Layer.provide(PlantRepositoryLive),
-  Layer.provide(CareScheduleRepositoryLive),
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(DelegationRepositoryLive),
-  Layer.provide(RedisClientLive)
 )
 
-// Delegation scheduler layer - auto-transitions accepted→active and active→completed
 const DelegationSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startDelegationScheduler
   })
-).pipe(
-  Layer.provide(DelegationRepositoryLive),
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(UserRepositoryLive),
-  Layer.provide(RedisMessageQueueLive),
-  Layer.provide(RedisClientLive)
 )
 
-// Achievement reconciliation scheduler - catches up missed threshold-based unlocks
 const AchievementReconciliationSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startAchievementReconciliationScheduler
   })
-).pipe(Layer.provide(AchievementRepositoryLive))
+)
 
-// Overdue reminder scheduler layer - sends daily overdue watering reminders
 const OverdueSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startOverdueScheduler
   })
-).pipe(
-  Layer.provide(CareScheduleRepositoryLive),
-  Layer.provide(PlantRepositoryLive),
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(UserRepositoryLive),
-  Layer.provide(DelegationRepositoryLive)
 )
 
-// Engagement scheduler layer - inactivity nudges, photo reminders, milestones
 const EngagementSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startEngagementScheduler
   })
-).pipe(
-  Layer.provide(EngagementRepositoryLive),
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(UserRepositoryLive)
 )
 
-// Tips scheduler layer - AI-generated daily tips with fatigue prevention
 const TipsSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startTipsScheduler
   })
-).pipe(
-  Layer.provide(DailyTipRepositoryLive),
-  Layer.provide(EngagementRepositoryLive),
-  Layer.provide(NotificationRepositoryLive),
-  Layer.provide(RagService.Default),
-  Layer.provide(ProcessedChunkRepositoryLive),
-  Layer.provide(KnowledgeDrizzleLive)
 )
 
-// Blog generator scheduler layer - AI-generated blog posts
 const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startBlogGeneratorScheduler
   })
-).pipe(Layer.provide(BlogPostRepositoryLive))
+)
 
-// Health scheduler layer - marks overdue plants as NEEDS_ATTENTION
 const HealthSchedulerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startHealthScheduler
   })
-).pipe(Layer.provide(PlantRepositoryLive))
+)
 
-// Knowledge ingestion worker layer - polls for pending ingest jobs
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   Effect.gen(function* () {
     yield* startKnowledgeIngestionWorker
   })
-).pipe(
-  Layer.provide(IngestJobRepositoryLive),
-  Layer.provide(RawDocumentRepositoryLive),
-  Layer.provide(ProcessedChunkRepositoryLive),
-  Layer.provide(DeadLetterRepositoryLive),
-  Layer.provide(KnowledgeDrizzleLive)
+)
+
+// Group all background schedulers into one layer
+const AllSchedulersLive = Layer.mergeAll(
+  AchievementReconciliationSchedulerLive,
+  AchievementSubscriberLive,
+  DelegationSchedulerLive,
+  HealthSchedulerLive,
+  OverdueSchedulerLive,
+  WeatherSchedulerLive,
+  NotificationSchedulerLive,
+  NotificationWorkerLive,
+  EngagementSchedulerLive,
+  TipsSchedulerLive,
+  BlogGeneratorSchedulerLive,
+  KnowledgeIngestionWorkerLive
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
@@ -260,19 +179,8 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
-  Layer.provide(AchievementReconciliationSchedulerLive),
-  Layer.provide(AchievementSubscriberLive),
-  Layer.provide(AchievementNotifierLive),
-  Layer.provide(DelegationSchedulerLive),
-  Layer.provide(HealthSchedulerLive),
-  Layer.provide(OverdueSchedulerLive),
-  Layer.provide(WeatherSchedulerLive),
-  Layer.provide(NotificationSchedulerLive),
-  Layer.provide(NotificationWorkerLive),
-  Layer.provide(EngagementSchedulerLive),
-  Layer.provide(TipsSchedulerLive),
-  Layer.provide(BlogGeneratorSchedulerLive),
-  Layer.provide(KnowledgeIngestionWorkerLive),
+  Layer.provide(AllSchedulersLive),
+  Layer.provide(AppLive),
   Layer.provide(SharedLive),
   HttpServer.withLogAddress,
   Layer.provide(

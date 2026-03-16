@@ -68,8 +68,10 @@ export const WeatherCacheLive = Layer.effect(
 
           return Option.some(JSON.parse(data) as WeatherForecast)
         }).pipe(
-          Effect.catchTag('UnknownException', () =>
-            Effect.succeed(Option.none<WeatherForecast>())
+          Effect.catchTag('UnknownException', (e) =>
+            Effect.logWarning('[weather-cache] findNearest failed', {
+              error: String(e),
+            }).pipe(Effect.as(Option.none<WeatherForecast>()))
           )
         ),
 
@@ -91,7 +93,11 @@ export const WeatherCacheLive = Layer.effect(
             WEATHER_DATA_TTL_SECONDS
           )
         }).pipe(
-          Effect.catchTag('UnknownException', () => Effect.void),
+          Effect.catchTag('UnknownException', (e) =>
+            Effect.logWarning('[weather-cache] store failed', {
+              error: String(e),
+            })
+          ),
           Effect.asVoid
         ),
 
@@ -111,9 +117,17 @@ export const WeatherCacheLive = Layer.effect(
             )
           )
         }).pipe(
-          Effect.catchTag('UnknownException', () =>
-            Effect.succeed(
-              [] as Array<{ latitude: number; longitude: number; id: string }>
+          Effect.catchTag('UnknownException', (e) =>
+            Effect.logWarning('[weather-cache] getAllLocations failed', {
+              error: String(e),
+            }).pipe(
+              Effect.as(
+                [] as Array<{
+                  latitude: number
+                  longitude: number
+                  id: string
+                }>
+              )
             )
           )
         ),
@@ -123,7 +137,11 @@ export const WeatherCacheLive = Layer.effect(
           await redis.zrem(WEATHER_GEO_KEY, id)
           await redis.del(`${WEATHER_DATA_PREFIX}${id}`)
         }).pipe(
-          Effect.catchTag('UnknownException', () => Effect.void),
+          Effect.catchTag('UnknownException', (e) =>
+            Effect.logWarning('[weather-cache] removeLocation failed', {
+              error: String(e),
+            })
+          ),
           Effect.asVoid
         ),
     }

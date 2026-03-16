@@ -1,5 +1,6 @@
 import { HttpServerResponse } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
+import { StreamTransformError } from '@lily/api/errors/defects'
 import { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -67,10 +68,14 @@ const SSE_HEADERS = {
 const uiStreamToSse = (
   stream: AsyncIterable<unknown>,
   onComplete?: Effect.Effect<void>
-): Stream.Stream<Uint8Array, Error> => {
+): Stream.Stream<Uint8Array, StreamTransformError> => {
   const sseChunks = Stream.fromAsyncIterable(
     stream,
-    (e) => new Error(String(e))
+    (e) =>
+      new StreamTransformError({
+        message: String(e),
+        cause: e,
+      })
   ).pipe(
     Stream.map((chunk) => encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
   )
@@ -85,7 +90,9 @@ const uiStreamToSse = (
   return pipe(sseChunks, Stream.concat(afterStream))
 }
 
-const makeSseResponse = (sseStream: Stream.Stream<Uint8Array, Error>) =>
+const makeSseResponse = (
+  sseStream: Stream.Stream<Uint8Array, StreamTransformError>
+) =>
   pipe(
     HttpServerResponse.stream(sseStream, {
       contentType: 'text/event-stream; charset=utf-8',

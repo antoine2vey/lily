@@ -1,92 +1,197 @@
 /**
- * Shared Layer Exports
+ * Shared Layer Exports & Composite App Layer
  *
  * Re-exports layers from their original locations for convenient importing.
- * This module provides a single import point for common layer dependencies.
+ * Provides `AppLive` — a single composite layer that bundles all repositories
+ * and infrastructure, so handlers and schedulers never need their own
+ * `Layer.provide` chains.
  *
  * Usage:
  * ```typescript
- * import { AuthenticationLive, RedisClientLive } from '@lily/api/layers'
+ * import { AppLive } from '@lily/api/layers'
  * ```
+ *
+ * ## EventBus vs MessageQueue
+ *
+ * - **EventBus** (Redis pub/sub, `RedisEventBusLive`): Ephemeral, fire-and-forget.
+ *   Used for achievement events — if a subscriber is offline the event is lost.
+ *
+ * - **MessageQueue** (Redis lists, `RedisMessageQueueLive`): Reliable, at-least-once.
+ *   Used for notification delivery — messages persist until consumed.
  */
 
 import { BunContext } from '@effect/platform-bun'
 import { RedisEventBusLive } from '@lily/api/events'
-import { RedisClientLive } from '@lily/api/services/message-queue/redis.provider'
+import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
+import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
+import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
+import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
+import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
+import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
+import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
+import { EngagementRepositoryLive } from '@lily/api/repositories/engagement.repository'
+import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
+import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
+import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
+import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
+import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
+import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
+import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { ScanRepositoryLive } from '@lily/api/repositories/scan.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
+import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository'
+import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
+import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
+import { AiService } from '@lily/api/services/ai/service'
+import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
+import { JWTServiceLive } from '@lily/api/services/jwt/service'
+import {
+  RedisClientLive,
+  RedisMessageQueueLive,
+} from '@lily/api/services/message-queue/redis.provider'
+import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
+import { RagService } from '@lily/api/services/rag/service'
+import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
+import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
+import { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
+import { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
+import { WeatherCacheLive } from '@lily/api/services/weather/cache.live'
+import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
+import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import { Layer } from 'effect'
 
 // ============================================================================
-// Auth Layers
+// Re-exports for direct access
 // ============================================================================
 
+export { BunContext } from '@effect/platform-bun'
+export { RedisEventBusLive } from '@lily/api/events'
 export { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
+export { AiService } from '@lily/api/services/ai/service'
 export { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 export { JWTServiceLive } from '@lily/api/services/jwt/service'
-export { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
-
-// ============================================================================
-// Infrastructure Layers
-// ============================================================================
-
-export { RedisEventBusLive } from '@lily/api/events'
 export {
   RedisClientLive,
   RedisMessageQueueLive,
 } from '@lily/api/services/message-queue/redis.provider'
 export { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
-
-// ============================================================================
-// Subscription Layers
-// ============================================================================
-
+export { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 export { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 export { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 export { UsageTrackerLive } from '@lily/api/services/subscriptions/usage-tracker'
-
-// ============================================================================
-// AI Layers
-// ============================================================================
-
-export { AiService } from '@lily/api/services/ai/service'
-
-// ============================================================================
-// File Storage Layers
-// ============================================================================
-
 export { FileService } from '@lily/shared/services/file/fileservice'
 export { GCSService } from '@lily/shared/services/file/gcs'
 
 // ============================================================================
-// Platform Layers
+// Composite Layer: AllRepositoriesLive
+// All repository implementations — depend on PgDrizzle (from SharedLive)
+// and KnowledgeDrizzle for knowledge-specific repos.
 // ============================================================================
 
-export { BunContext } from '@effect/platform-bun'
+// Split into two groups to stay under Layer.mergeAll's 20-argument overload limit
+const RepositoriesGroup1 = Layer.mergeAll(
+  AchievementRepositoryLive,
+  BlogPostRepositoryLive,
+  CareLogRepositoryLive,
+  CareScheduleRepositoryLive,
+  ChatRepositoryLive,
+  DailyTipRepositoryLive,
+  DeadLetterRepositoryLive,
+  DelegationRepositoryLive,
+  DeviceTokenRepositoryLive,
+  DiagnosisRepositoryLive,
+  EngagementRepositoryLive,
+  FollowRepositoryLive,
+  IngestJobRepositoryLive,
+  MagicLinkRepositoryLive,
+  NotificationRepositoryLive,
+  PlantRepositoryLive,
+  ProcessedChunkRepositoryLive,
+  RawDocumentRepositoryLive,
+  RefreshTokenRepositoryLive,
+  RoomRepositoryLive
+)
+
+const RepositoriesGroup2 = Layer.mergeAll(
+  ScanRepositoryLive,
+  SubscriptionRepositoryLive,
+  UserRepositoryLive,
+  WeatherRepositoryLive
+)
+
+export const AllRepositoriesLive = Layer.mergeAll(
+  RepositoriesGroup1,
+  RepositoriesGroup2
+)
 
 // ============================================================================
-// Pre-composed Layer Groups
-// These are commonly used together and don't have interdependencies
+// Composite Layer: AllInfrastructureLive
+// Auth, Redis, AI, file storage, subscriptions, weather, push notifications.
+// Some of these depend on repositories or RedisClient — the dependency
+// ordering is handled via Layer.provideMerge in AppLive below.
 // ============================================================================
 
-/**
- * File storage services (GCS + FileService abstraction)
- * These layers don't depend on any other application layers
- */
-export const FileStorageLayers = Layer.mergeAll(
+// Self-contained layers (only depend on Config, not on app repos/infra)
+const SelfContainedInfraLive = Layer.mergeAll(
+  AuthenticationLive,
+  AdminAuthLive,
+  ServiceAuthenticationLive,
+  AchievementNotifierLive,
+  AiService.Default,
   GCSService.Default,
-  FileService.Default
+  FileService.Default,
+  BunContext.layer,
+  RevenueCatProviderLive,
+  WeatherProviderLive,
+  ExpoPushServiceLive,
+  JWTServiceLive,
+  RateLimiterServiceLive
 )
 
-/**
- * Redis-based infrastructure layers
- * RedisEventBusLive depends on RedisClientLive, so we provide it here
- */
-export const RedisInfrastructureLayers = RedisEventBusLive.pipe(
-  Layer.provideMerge(RedisClientLive)
+// Redis-dependent layers: EventBus, MessageQueue, and WeatherCache all need RedisClient.
+// Layer.provideMerge provides RedisClient to the three AND outputs it for downstream use.
+const RedisFullLive = Layer.mergeAll(
+  RedisEventBusLive,
+  RedisMessageQueueLive,
+  WeatherCacheLive
+).pipe(Layer.provideMerge(RedisClientLive))
+
+// Repo-dependent infra: these need specific repositories to be available.
+// LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
+// UsageTrackerLive needs SubscriptionRepository.
+// RagService.Default needs ProcessedChunkRepository.
+const RepoDependentInfraLive = Layer.mergeAll(
+  LimitCheckerLive,
+  UsageTrackerLive,
+  RagService.Default
 )
 
-/**
- * Platform context (Bun)
- */
-export const PlatformLayers = BunContext.layer
+const AllInfrastructureLive = Layer.mergeAll(
+  SelfContainedInfraLive,
+  RedisFullLive,
+  RepoDependentInfraLive
+)
+
+// ============================================================================
+// AppLive — The single composite layer for the entire application.
+//
+// Provides ALL repositories + ALL infrastructure. Handlers and schedulers
+// declare their dependencies via Effect's R type parameter and get them
+// satisfied automatically from AppLive at the root.
+//
+// Requires: PgDrizzle (from SharedLive = DrizzleLive + PgLive)
+// ============================================================================
+
+export const AppLive = AllInfrastructureLive.pipe(
+  Layer.provideMerge(AllRepositoriesLive),
+  Layer.provideMerge(KnowledgeDrizzleLive)
+)

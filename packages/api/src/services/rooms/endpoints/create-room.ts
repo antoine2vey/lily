@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { Room, RoomCreateRequest } from '@lily/shared'
@@ -23,7 +24,13 @@ export const createRoom = (
     })
 
     if (!room) {
-      return yield* Effect.die(new Error('Failed to create room'))
+      return yield* Effect.die(
+        new EntityMutationDefect({
+          message: 'Room create returned null',
+          entity: 'room',
+          operation: 'create',
+        })
+      )
     }
 
     return room

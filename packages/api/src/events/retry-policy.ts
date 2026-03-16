@@ -1,4 +1,4 @@
-import { Effect, Schedule } from 'effect'
+import { Cause, Effect, Schedule } from 'effect'
 
 // Exponential backoff: 100ms -> 200ms -> 400ms (max 3 retries)
 export const eventRetryPolicy = Schedule.exponential('100 millis').pipe(
@@ -11,6 +11,10 @@ export const publishWithRetry = <E, R>(
 ): Effect.Effect<void, never, R> =>
   effect.pipe(
     Effect.retry(eventRetryPolicy),
-    Effect.ignore,
+    Effect.catchAllCause((cause) =>
+      Effect.logWarning('[event-bus] Event publish failed after retries', {
+        cause: Cause.pretty(cause),
+      })
+    ),
     Effect.withSpan('EventBus.publish')
   )

@@ -220,8 +220,10 @@ export const startAchievementSubscriber = Effect.gen(function* () {
             Effect.annotateCurrentSpan('event._tag', event._tag)
           ),
           Effect.withSpan('achievement-checker.process'),
-          Effect.catchTag('SqlError', (error) =>
-            Effect.logError('Achievement check failed', error)
+          Effect.catchTag('SqlError', (e) =>
+            Effect.logWarning('[achievement-checker] Event processing failed', {
+              error: String(e),
+            })
           )
         )
       })
