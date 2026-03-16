@@ -3,6 +3,7 @@ import {
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import {
   DEFAULT_TIMEZONE,
@@ -11,10 +12,6 @@ import {
   pickNotificationTime,
 } from '@lily/shared'
 import { Array, Data, Effect, Option, pipe, Random, Ref } from 'effect'
-import type { DurationInput } from 'effect/Duration'
-
-// Check every hour (same cadence as overdue scheduler)
-const POLL_INTERVAL: DurationInput = '1 hour'
 
 // Inactivity threshold: 7 days without care
 const INACTIVITY_DAYS = 7
@@ -106,13 +103,21 @@ export const processInactivityNudges = (
           yield* Ref.update(created, (n) => n + 1)
         }).pipe(
           Effect.catchTags({
-            SkipUserError: () => Effect.void,
-            DndWindowBlockedError: () => Effect.void,
-            SqlError: (error) =>
-              Effect.logWarning('Inactivity nudge error for user', {
+            SkipUserError: (e) =>
+              Effect.log('[engagement-scheduler] Skipped user (inactivity)', {
+                reason: e.reason,
                 userId: user.id,
-                error,
               }),
+            DndWindowBlockedError: () =>
+              Effect.log(
+                '[engagement-scheduler] Skipped — DND window (inactivity)',
+                { userId: user.id }
+              ),
+            SqlError: (e) =>
+              Effect.logWarning(
+                '[engagement-scheduler] Item failed (inactivity)',
+                { userId: user.id, error: String(e) }
+              ),
           })
         ),
       { concurrency: 10 }
@@ -120,7 +125,9 @@ export const processInactivityNudges = (
 
     const total = yield* Ref.get(created)
     if (total > 0) {
-      yield* Effect.log('Created inactivity nudges', { count: total })
+      yield* Effect.log('[engagement-scheduler] Created inactivity nudges', {
+        count: total,
+      })
     }
   }).pipe(Effect.withSpan('engagement-scheduler.inactivityNudges'))
 
@@ -199,16 +206,42 @@ export const processPhotoReminders = (
               })
 
               yield* Ref.update(created, (n) => n + 1)
-            })
+            }).pipe(
+              Effect.catchTags({
+                SkipUserError: (e) =>
+                  Effect.log('[engagement-scheduler] Skipped plant (photo)', {
+                    reason: e.reason,
+                    plantId: plant.plantId,
+                    userId: user.id,
+                  }),
+                SqlError: (e) =>
+                  Effect.logWarning(
+                    '[engagement-scheduler] Plant failed (photo)',
+                    {
+                      plantId: plant.plantId,
+                      userId: user.id,
+                      error: String(e),
+                    }
+                  ),
+              })
+            )
           )
         }).pipe(
           Effect.catchTags({
-            SkipUserError: () => Effect.void,
-            DndWindowBlockedError: () => Effect.void,
-            SqlError: (error) =>
-              Effect.logWarning('Photo reminder error for user', {
+            SkipUserError: (e) =>
+              Effect.log('[engagement-scheduler] Skipped user (photo)', {
+                reason: e.reason,
                 userId: user.id,
-                error,
+              }),
+            DndWindowBlockedError: () =>
+              Effect.log(
+                '[engagement-scheduler] Skipped — DND window (photo)',
+                { userId: user.id }
+              ),
+            SqlError: (e) =>
+              Effect.logWarning('[engagement-scheduler] Item failed (photo)', {
+                userId: user.id,
+                error: String(e),
               }),
           })
         ),
@@ -217,7 +250,9 @@ export const processPhotoReminders = (
 
     const total = yield* Ref.get(created)
     if (total > 0) {
-      yield* Effect.log('Created photo reminders', { count: total })
+      yield* Effect.log('[engagement-scheduler] Created photo reminders', {
+        count: total,
+      })
     }
   }).pipe(Effect.withSpan('engagement-scheduler.photoReminders'))
 
@@ -284,13 +319,21 @@ export const processPlantParentMilestones = (
           yield* Ref.update(created, (n) => n + 1)
         }).pipe(
           Effect.catchTags({
-            SkipUserError: () => Effect.void,
-            DndWindowBlockedError: () => Effect.void,
-            SqlError: (error) =>
-              Effect.logWarning('Milestone error for user', {
+            SkipUserError: (e) =>
+              Effect.log('[engagement-scheduler] Skipped user (milestone)', {
+                reason: e.reason,
                 userId: user.id,
-                error,
               }),
+            DndWindowBlockedError: () =>
+              Effect.log(
+                '[engagement-scheduler] Skipped — DND window (milestone)',
+                { userId: user.id }
+              ),
+            SqlError: (e) =>
+              Effect.logWarning(
+                '[engagement-scheduler] Item failed (milestone)',
+                { userId: user.id, error: String(e) }
+              ),
           })
         ),
       { concurrency: 10 }
@@ -298,7 +341,10 @@ export const processPlantParentMilestones = (
 
     const total = yield* Ref.get(created)
     if (total > 0) {
-      yield* Effect.log('Created milestone notifications', { count: total })
+      yield* Effect.log(
+        '[engagement-scheduler] Created milestone notifications',
+        { count: total }
+      )
     }
   }).pipe(Effect.withSpan('engagement-scheduler.milestones'))
 
@@ -318,29 +364,9 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   ])
 }).pipe(Effect.withSpan('engagement-scheduler.check'))
 
-// Start the engagement scheduler as a background process
-export const startEngagementScheduler = Effect.gen(function* () {
-  // Run immediately on startup
-  yield* checkAndCreateEngagementNotifications.pipe(
-    Effect.catchTag('SqlError', (error) =>
-      Effect.logError('Engagement scheduler initial check error', error)
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          checkAndCreateEngagementNotifications.pipe(
-            Effect.catchTag('SqlError', (error) =>
-              Effect.logError('Engagement scheduler polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Engagement scheduler started')
+export const startEngagementScheduler = createScheduler({
+  name: 'engagement-scheduler',
+  interval: '1 hour',
+  runOnStartup: true,
+  task: checkAndCreateEngagementNotifications,
 })

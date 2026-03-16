@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -38,7 +39,13 @@ export const createCareLog = (
     })
 
     if (!logOrNull) {
-      return yield* Effect.die(new Error('Failed to create care log'))
+      return yield* Effect.die(
+        new EntityMutationDefect({
+          message: 'Care log create returned null',
+          entity: 'care-log',
+          operation: 'create',
+        })
+      )
     }
 
     const log = logOrNull

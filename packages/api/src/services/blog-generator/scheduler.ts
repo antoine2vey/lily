@@ -1,13 +1,12 @@
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { BlogPostSource } from '@lily/db/schema'
 import { daysAgoAsDate } from '@lily/shared'
 import { Array, Config, Effect } from 'effect'
-import type { DurationInput } from 'effect/Duration'
 import { generateAndReviewBlogPost } from './generator'
 import { researchTopic } from './researcher'
 import { selectTopic } from './topics'
 
-const POLL_INTERVAL: DurationInput = '4 hours'
 const MAX_POSTS_PER_WEEK = 3
 
 // Check if we should generate a blog post and run the pipeline
@@ -89,31 +88,9 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   yield* generateAndReviewBlogPost(post.id, topic, brief)
 }).pipe(Effect.withSpan('blog-generator.check'))
 
-// Start the blog generator scheduler as a background process
-export const startBlogGeneratorScheduler = Effect.gen(function* () {
-  // Run once immediately on startup (forked to not block Layer init)
-  yield* Effect.fork(
-    checkAndGenerateBlogPost.pipe(
-      Effect.catchAll((error) =>
-        Effect.logError('Blog scheduler initial error', error)
-      )
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          checkAndGenerateBlogPost.pipe(
-            Effect.catchAll((error) =>
-              Effect.logError('Blog scheduler polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Blog generator scheduler started')
+export const startBlogGeneratorScheduler = createScheduler({
+  name: 'blog-generator',
+  interval: '4 hours',
+  runOnStartup: true,
+  task: checkAndGenerateBlogPost,
 })

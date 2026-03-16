@@ -1,3 +1,4 @@
+import type { TestPlant } from '@lily/api/__tests__/fixtures/plants'
 import {
   createTestPlant,
   wateringSpec,
@@ -16,12 +17,21 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
+
+const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
+  ...plant,
+  room: null,
+  ownership: 'owned' as const,
+  ownerName: null,
+  schedules: [],
+})
 
 const createSchedule = (
   plantId: string,
@@ -59,7 +69,7 @@ const createOverdueNotification = (
 describe('executePlantCare', () => {
   describe('overdue reminder cleanup', () => {
     it('should clear pending overdue_reminder notifications when care is performed', async () => {
-      const plant = createTestPlant({
+      const testPlant = createTestPlant({
         id: 'plant-1',
         userId,
         remindersEnabled: true,
@@ -71,6 +81,7 @@ describe('executePlantCare', () => {
           }),
         ],
       })
+      const plant = toPlantWithRoom(testPlant)
 
       const schedule = createSchedule('plant-1')
       const overdueNotification = createOverdueNotification('plant-1')
@@ -86,7 +97,7 @@ describe('executePlantCare', () => {
 
       await Effect.runPromise(
         Effect.gen(function* () {
-          yield* executePlantCare({
+          yield* executePlantCare(plant, {
             plantId: 'plant-1',
             careType: 'watering',
           })
@@ -103,14 +114,14 @@ describe('executePlantCare', () => {
         }).pipe(
           Effect.provide(
             createMockPlantRepository({
-              plants: [plant],
+              plants: [testPlant],
               schedules: [schedule],
             })
           ),
           Effect.provide(
             createMockCareScheduleRepository({
               schedules: [schedule],
-              plants: [plant],
+              plants: [testPlant],
             })
           ),
           Effect.provide(createMockNotificationRepository(notifications)),
@@ -139,7 +150,7 @@ describe('executePlantCare', () => {
     })
 
     it('should not clear overdue_reminder notifications for other plants', async () => {
-      const plant = createTestPlant({
+      const testPlant = createTestPlant({
         id: 'plant-1',
         userId,
         remindersEnabled: true,
@@ -151,6 +162,7 @@ describe('executePlantCare', () => {
           }),
         ],
       })
+      const plant = toPlantWithRoom(testPlant)
 
       const schedule = createSchedule('plant-1')
       const overdueForOtherPlant = createOverdueNotification('plant-2')
@@ -166,7 +178,7 @@ describe('executePlantCare', () => {
 
       await Effect.runPromise(
         Effect.gen(function* () {
-          yield* executePlantCare({
+          yield* executePlantCare(plant, {
             plantId: 'plant-1',
             careType: 'watering',
           })
@@ -183,14 +195,14 @@ describe('executePlantCare', () => {
         }).pipe(
           Effect.provide(
             createMockPlantRepository({
-              plants: [plant],
+              plants: [testPlant],
               schedules: [schedule],
             })
           ),
           Effect.provide(
             createMockCareScheduleRepository({
               schedules: [schedule],
-              plants: [plant],
+              plants: [testPlant],
             })
           ),
           Effect.provide(createMockNotificationRepository(notifications)),
@@ -219,12 +231,13 @@ describe('executePlantCare', () => {
     })
 
     it('should clear overdue reminders even when no next care date exists', async () => {
-      const plant = createTestPlant({
+      const testPlant = createTestPlant({
         id: 'plant-1',
         userId,
         remindersEnabled: true,
         scheduleSpecs: [],
       })
+      const plant = toPlantWithRoom(testPlant)
 
       // No schedule means no frequency, so no nextCareAt will be computed
       const overdueNotification = createOverdueNotification('plant-1')
@@ -240,7 +253,7 @@ describe('executePlantCare', () => {
 
       await Effect.runPromise(
         Effect.gen(function* () {
-          yield* executePlantCare({
+          yield* executePlantCare(plant, {
             plantId: 'plant-1',
             careType: 'watering',
           })
@@ -257,12 +270,12 @@ describe('executePlantCare', () => {
         }).pipe(
           Effect.provide(
             createMockPlantRepository({
-              plants: [plant],
+              plants: [testPlant],
             })
           ),
           Effect.provide(
             createMockCareScheduleRepository({
-              plants: [plant],
+              plants: [testPlant],
             })
           ),
           Effect.provide(createMockNotificationRepository(notifications)),

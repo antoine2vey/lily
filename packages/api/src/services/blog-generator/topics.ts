@@ -3,6 +3,7 @@ import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array as Arr, Effect, String as Str } from 'effect'
+import { BlogGenerationError } from './errors'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { TopicSchema } from './schemas'
 import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
@@ -68,12 +69,13 @@ export const selectTopic = Effect.gen(function* () {
     { concurrency: 'unbounded' }
   )
 
-  const result = yield* Effect.tryPromise(() =>
-    generateText({
-      model: openai('gpt-4o'),
-      output: Output.object({ schema: TopicSchema }),
-      system: TOPIC_SELECTION_PROMPT,
-      prompt: `Select a blog post topic for a plant care blog.
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      generateText({
+        model: openai('gpt-4o'),
+        output: Output.object({ schema: TopicSchema }),
+        system: TOPIC_SELECTION_PROMPT,
+        prompt: `Select a blog post topic for a plant care blog.
 
 Available categories: ${Arr.join(BLOG_CATEGORIES, ', ')}
 
@@ -87,8 +89,13 @@ RECENT categories (vary from these):
 ${Arr.join(recentCategories, ', ')}
 
 Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
-    })
-  )
+      }),
+    catch: (e) =>
+      new BlogGenerationError({
+        message: 'Failed to select topic',
+        cause: e,
+      }),
+  })
 
   return result.output as TopicSuggestion
 }).pipe(Effect.withSpan('blog-generator.selectTopic'))

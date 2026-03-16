@@ -24,21 +24,19 @@ const AdminAuthBase = Layer.effect(
     return AdminAuth.of({
       bearer: (token) =>
         Effect.gen(function* () {
-          const { profile } = yield* Effect.catchAll(
-            validateUserFromToken({
-              token,
-              createError: (message) => new ForbiddenError({ message }),
-              requireAdmin: true,
-            }).pipe(
-              Effect.provideService(JWTService, jwtService),
-              Effect.provideService(UserRepository, userRepo)
-            ),
-            (error) =>
-              Effect.fail(
-                new ForbiddenError({
-                  message: 'message' in error ? error.message : 'Access denied',
-                })
-              )
+          const { profile } = yield* validateUserFromToken({
+            token,
+            createError: (message) => new ForbiddenError({ message }),
+            requireAdmin: true,
+          }).pipe(
+            Effect.provideService(JWTService, jwtService),
+            Effect.provideService(UserRepository, userRepo),
+            Effect.catchTags({
+              SqlError: () =>
+                Effect.fail(new ForbiddenError({ message: 'Access denied' })),
+              JWTError: (e) =>
+                Effect.fail(new ForbiddenError({ message: e.message })),
+            })
           )
 
           return profile

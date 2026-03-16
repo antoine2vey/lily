@@ -1,6 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
 import { Effect } from 'effect'
+import { BlogGenerationError } from './errors'
 import { RESEARCH_PROMPT } from './prompts'
 import { ResearchBriefSchema } from './schemas'
 import type { ResearchBrief, TopicSuggestion } from './types'
@@ -8,12 +9,13 @@ import type { ResearchBrief, TopicSuggestion } from './types'
 export const researchTopic = (topic: TopicSuggestion) =>
   Effect.gen(function* () {
     // Use GPT-4o to research and produce structured output in a single call
-    const result = yield* Effect.tryPromise(() =>
-      generateText({
-        model: openai('gpt-4o'),
-        output: Output.object({ schema: ResearchBriefSchema }),
-        system: RESEARCH_PROMPT,
-        prompt: `Research the topic "${topic.title.en}" for a plant care blog post.
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        generateText({
+          model: openai('gpt-4o'),
+          output: Output.object({ schema: ResearchBriefSchema }),
+          system: RESEARCH_PROMPT,
+          prompt: `Research the topic "${topic.title.en}" for a plant care blog post.
 
 Topic category: ${topic.category}
 Suggested outline: ${topic.outline}
@@ -27,8 +29,13 @@ Then synthesize a research brief with:
 1. sources: Array of { url, title, snippet } for each source found
 2. keyFacts: A bullet-point summary of the most important facts
 3. uniqueAngles: Unique perspectives or angles that could make the blog post stand out`,
-      })
-    )
+        }),
+      catch: (e) =>
+        new BlogGenerationError({
+          message: 'Failed to research topic',
+          cause: e,
+        }),
+    })
 
     return result.output as ResearchBrief
   }).pipe(

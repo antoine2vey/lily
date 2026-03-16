@@ -17,10 +17,7 @@ import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import { type CareType, roundCoord } from '@lily/shared'
-import {
-  FutureDateNotAllowedError,
-  PlantNotFoundError,
-} from '@lily/shared/errors/plant'
+import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
@@ -101,15 +98,20 @@ const applyWeatherAdjustment = (
       Match.exhaustive
     )
   }).pipe(
-    // If anything fails in weather adjustment, silently return original date
-    Effect.catchTag('SqlError', () => Effect.succeed(nextCareAt))
+    Effect.catchTag('SqlError', (e) =>
+      Effect.logWarning(
+        '[execute-plant-care] Weather adjustment failed, using original date',
+        { plantId: plant.id, error: String(e) }
+      ).pipe(Effect.as(nextCareAt))
+    )
   )
 
 export const executePlantCare = (
+  plant: PlantWithRoom,
   params: ExecutePlantCareParams
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | PlantNotFoundError | FutureDateNotAllowedError,
+  SqlError | FutureDateNotAllowedError,
   | PlantRepository
   | CareLogRepository
   | CareScheduleRepository
@@ -126,13 +128,6 @@ export const executePlantCare = (
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
-
-    // Fetch the plant
-    const plant = yield* repo.findById(params.plantId)
-
-    if (!plant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
 
     const nowDt = DateTime.unsafeNow()
 
@@ -230,11 +225,11 @@ export const executePlantCare = (
     }
 
     // Re-fetch to include room data
-    const updatedPlant = yield* repo.findById(params.plantId)
-
-    if (!updatedPlant) {
-      return yield* Effect.fail(new PlantNotFoundError())
-    }
+    const refetched = yield* repo.findById(params.plantId)
+    const updatedPlant = pipe(
+      Option.fromNullable(refetched),
+      Option.getOrElse(() => plant)
+    )
 
     // Schedule next reminder if we have a next care date
     if (finalNextCareAt) {

@@ -23,20 +23,22 @@ const AuthenticationBase = Layer.effect(
     return Authentication.of({
       bearer: (token) =>
         Effect.gen(function* () {
-          const { profile } = yield* Effect.catchAll(
-            validateUserFromToken({
-              token,
-              createError: (message) => new UnauthorizedError({ message }),
-            }).pipe(
-              Effect.provideService(JWTService, jwtService),
-              Effect.provideService(UserRepository, userRepo)
-            ),
-            (error) =>
-              Effect.fail(
-                new UnauthorizedError({
-                  message: 'message' in error ? error.message : 'Invalid token',
-                })
-              )
+          const { profile } = yield* validateUserFromToken({
+            token,
+            createError: (message) => new UnauthorizedError({ message }),
+          }).pipe(
+            Effect.provideService(JWTService, jwtService),
+            Effect.provideService(UserRepository, userRepo),
+            Effect.catchTags({
+              SqlError: () =>
+                Effect.fail(
+                  new UnauthorizedError({
+                    message: 'Authentication failed',
+                  })
+                ),
+              JWTError: (e) =>
+                Effect.fail(new UnauthorizedError({ message: e.message })),
+            })
           )
 
           return profile

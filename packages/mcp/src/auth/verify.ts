@@ -58,12 +58,18 @@ export const verifyHandler = Effect.gen(function* () {
   const authResponse = yield* apiClient
     .issueServiceToken({ magicLinkCode: code })
     .pipe(
-      Effect.catchAllDefect(
-        () =>
+      Effect.catchTag('ExternalServiceError', (err) =>
+        Effect.fail(
           new OAuthError({
             error: 'invalid_code',
-            error_description: 'Invalid or expired code',
+            error_description:
+              err.statusCode === 401 || err.statusCode === 404
+                ? 'Invalid or expired code'
+                : err.statusCode != null
+                  ? `API error (${err.statusCode})`
+                  : 'Service unavailable — please try again',
           })
+        )
       )
     )
 

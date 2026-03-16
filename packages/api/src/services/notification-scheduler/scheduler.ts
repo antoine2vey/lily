@@ -1,13 +1,13 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
 import { Array, DateTime, Effect, Match, Option, pipe, Record } from 'effect'
 
-const POLL_INTERVAL = '1 minute'
 const BATCH_SIZE = 100
 
 const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
@@ -188,89 +188,96 @@ export const pollAndEnqueue = Effect.gen(function* () {
   )
 
   // Phase 4: Enqueue one message per group
-  for (const [_key, group] of Record.toEntries(grouped)) {
-    const first = Array.head(group)
-    if (Option.isNone(first)) continue
+  yield* Effect.forEach(Record.toEntries(grouped), ([_key, group]) =>
+    Effect.gen(function* () {
+      const first = Array.head(group)
+      if (Option.isNone(first)) return
 
-    const notificationIds = Array.map(group, (n) => n.id)
-    const userId = first.value.userId
-    const type = first.value.type
+      const notificationIds = Array.map(group, (n) => n.id)
+      const userId = first.value.userId
+      const type = first.value.type
 
-    const topicOption = mapNotificationTypeToTopic(type)
-    if (Option.isNone(topicOption)) continue
-    const topic = topicOption.value
+      const topicOption = mapNotificationTypeToTopic(type)
+      if (Option.isNone(topicOption)) return
+      const topic = topicOption.value
 
-    const plantIds = Array.filterMap(group, (n) =>
-      Option.fromNullable(n.plantId)
-    )
-
-    const user = userSettingsMap.get(userId)
-    const language = Option.getOrElse(
-      Option.fromNullable(user?.language),
-      () => 'en' as const
-    )
-
-    // Care reminders: resolve plant names and build translated content
-    // Simple notifications: use pre-built title/body from the DB record
-    const { title, body } = isCareReminderType(type)
-      ? buildNotificationContent(
-          type,
-          Array.filterMap(plantIds, (id) =>
-            Option.fromNullable(plantNameMap.get(id))
-          ),
-          language
-        )
-      : {
-          title: Option.getOrElse(
-            Option.fromNullable(first.value.title),
-            () => ''
-          ),
-          body: Option.getOrElse(
-            Option.fromNullable(first.value.body),
-            () => ''
-          ),
-        }
-
-    yield* queue.enqueue(topic, {
-      id: crypto.randomUUID(),
-      topic,
-      payload: {
-        userId,
-        title,
-        body,
-        notificationIds,
-        plantIds,
-      },
-      retryCount: 0,
-      createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
-      scheduledAt: first.value.scheduledAt,
-    })
-
-    yield* notificationRepo.markManyAsQueued(notificationIds)
-
-    yield* Effect.log('Enqueued grouped notification', {
-      notificationIds,
-      topic,
-      count: group.length,
-    })
-  }
-}).pipe(Effect.withSpan('notification-scheduler.poll'))
-
-// Start the notification scheduler as a background process
-export const startNotificationScheduler = Effect.gen(function* () {
-  yield* Effect.fork(
-    Effect.forever(
-      pollAndEnqueue.pipe(
-        Effect.catchTags({
-          SqlError: (error) =>
-            Effect.logError('Scheduler polling error', error),
-          QueueOperationError: (error) =>
-            Effect.logError('Scheduler polling error', error),
-        }),
-        Effect.zipRight(Effect.sleep(POLL_INTERVAL))
+      const plantIds = Array.filterMap(group, (n) =>
+        Option.fromNullable(n.plantId)
       )
+
+      const user = userSettingsMap.get(userId)
+      const language = Option.getOrElse(
+        Option.fromNullable(user?.language),
+        () => 'en' as const
+      )
+
+      // Care reminders: resolve plant names and build translated content
+      // Simple notifications: use pre-built title/body from the DB record
+      const { title, body } = isCareReminderType(type)
+        ? buildNotificationContent(
+            type,
+            Array.filterMap(plantIds, (id) =>
+              Option.fromNullable(plantNameMap.get(id))
+            ),
+            language
+          )
+        : {
+            title: Option.getOrElse(
+              Option.fromNullable(first.value.title),
+              () => ''
+            ),
+            body: Option.getOrElse(
+              Option.fromNullable(first.value.body),
+              () => ''
+            ),
+          }
+
+      yield* queue.enqueue(topic, {
+        id: crypto.randomUUID(),
+        topic,
+        payload: {
+          userId,
+          title,
+          body,
+          notificationIds,
+          plantIds,
+        },
+        retryCount: 0,
+        createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
+        scheduledAt: first.value.scheduledAt,
+      })
+
+      yield* notificationRepo.markManyAsQueued(notificationIds)
+
+      yield* Effect.log('[notification-scheduler] Enqueued group', {
+        notificationIds,
+        topic,
+        count: group.length,
+      })
+    }).pipe(
+      Effect.catchTags({
+        SqlError: (e) =>
+          Effect.logWarning(
+            '[notification-scheduler] Failed to enqueue group',
+            { error: String(e) }
+          ),
+        QueueOperationError: (e) =>
+          Effect.logWarning('[notification-scheduler] Queue operation failed', {
+            error: String(e),
+          }),
+        QueueConnectionError: (e) =>
+          Effect.logWarning(
+            '[notification-scheduler] Queue connection failed',
+            { error: String(e) }
+          ),
+      })
     )
   )
+}).pipe(Effect.withSpan('notification-scheduler.poll'))
 
-  yield* Effect.log('Notification scheduler started')
+export const startNotificationScheduler = createScheduler({
+  name: 'notification-scheduler',
+  interval: '1 minute',
+  runOnStartup: false,
+  task: pollAndEnqueue,
 })

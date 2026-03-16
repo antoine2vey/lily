@@ -1,6 +1,6 @@
 import { MockRevenueCatProviderLive } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
-import { SubscriptionService } from '@lily/api/services/subscriptions/service'
+import { getCurrentSubscription } from '@lily/api/services/subscriptions/endpoints/get-current-subscription'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -19,13 +19,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription).toBeNull()
@@ -58,13 +52,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription).not.toBeNull()
@@ -100,13 +88,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('trialing')
@@ -141,13 +123,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('expired')
@@ -174,13 +150,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.usage).not.toBeNull()
@@ -196,13 +166,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.usage).toBeNull()
@@ -234,13 +198,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('canceled')
@@ -273,13 +231,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('canceled')
@@ -312,13 +264,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('trialing')
@@ -352,13 +298,7 @@ describe('getCurrentSubscription', () => {
     )
 
     const result = await Effect.runPromise(
-      Effect.gen(function* () {
-        const service = yield* SubscriptionService
-        return yield* service.getCurrentSubscription('user-1')
-      }).pipe(
-        Effect.provide(SubscriptionService.Default),
-        Effect.provide(testLayer)
-      )
+      getCurrentSubscription('user-1').pipe(Effect.provide(testLayer))
     )
 
     expect(result.subscription?.status).toBe('trialing')

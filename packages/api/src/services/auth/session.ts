@@ -1,6 +1,5 @@
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { UserProfile } from '@lily/shared/auth'
-import { SessionNotFoundError } from '@lily/shared/errors/user'
 import { Context, Effect, Option } from 'effect'
 
 export interface SessionContext {
@@ -24,16 +23,10 @@ export class Session extends Context.Tag('Session')<
  */
 export const withSession = <A, E, R>(
   effect: Effect.Effect<A, E, R | Session>
-): Effect.Effect<
-  A,
-  E | SessionNotFoundError,
-  Exclude<R, Session> | CurrentUser
-> =>
+): Effect.Effect<A, E, Exclude<R, Session> | CurrentUser> =>
   Effect.gen(function* () {
     // CurrentUser is provided by the auth middleware
-    const user = yield* Effect.catchAll(CurrentUser, () =>
-      Effect.fail(new SessionNotFoundError())
-    )
+    const user = yield* CurrentUser
 
     const userProfile: UserProfile = {
       id: user.id,

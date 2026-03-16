@@ -3,9 +3,20 @@ import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const toPlantWithRoom = (
+  plant: (typeof mockPlants)[number]
+): PlantWithRoom => ({
+  ...plant,
+  room: null,
+  ownership: 'owned' as const,
+  ownerName: null,
+  schedules: [],
+})
 
 const findSchedule = (
   schedules: CareScheduleRow[],
@@ -34,8 +45,9 @@ describe('updatePlant', () => {
 
   it('should update plant fields', async () => {
     const { layer } = createTestLayer()
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant({ id: 'plant-1', name: 'Updated Name' }).pipe(
+      updatePlant(plant, { id: 'plant-1', name: 'Updated Name' }).pipe(
         Effect.provide(layer)
       )
     )
@@ -43,21 +55,11 @@ describe('updatePlant', () => {
     expect(result.name).toBe('Updated Name')
   })
 
-  it('should fail with PlantNotFoundError when plant not found', async () => {
-    const { layer } = createTestLayer([])
-    const result = await Effect.runPromiseExit(
-      updatePlant({ id: 'non-existent', name: 'Test' }).pipe(
-        Effect.provide(layer)
-      )
-    )
-
-    expect(result._tag).toBe('Failure')
-  })
-
   it('should preserve other fields when updating', async () => {
     const { layer } = createTestLayer()
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant({ id: 'plant-1', name: 'Updated Name' }).pipe(
+      updatePlant(plant, { id: 'plant-1', name: 'Updated Name' }).pipe(
         Effect.provide(layer)
       )
     )
@@ -68,8 +70,9 @@ describe('updatePlant', () => {
 
   it('should update multiple fields at once', async () => {
     const { layer, schedules } = createTestLayer()
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant({
+      updatePlant(plant, {
         id: 'plant-1',
         name: 'Updated Name',
         description: 'Updated description',
@@ -85,10 +88,11 @@ describe('updatePlant', () => {
 
   it('should update health status', async () => {
     const { layer } = createTestLayer()
+    const plant = toPlantWithRoom(mockPlants[0]!)
     const result = await Effect.runPromise(
-      updatePlant({ id: 'plant-1', health: 'THRIVING' } as Parameters<
+      updatePlant(plant, { id: 'plant-1', health: 'THRIVING' } as Parameters<
         typeof updatePlant
-      >[0]).pipe(Effect.provide(layer))
+      >[1]).pipe(Effect.provide(layer))
     )
 
     expect(result.health).toBe('THRIVING')

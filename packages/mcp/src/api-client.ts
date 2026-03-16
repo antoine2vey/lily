@@ -1,9 +1,11 @@
 import {
   HttpClient,
+  type HttpClientError,
   HttpClientRequest,
   HttpClientResponse,
 } from '@effect/platform'
 import type { CareTasksResponse, CareType } from '@lily/shared'
+import { ExternalServiceError } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
@@ -49,11 +51,11 @@ export interface IApiClient {
     readonly email: string
     readonly callbackUrl: string
     readonly language?: 'en' | 'fr' | undefined
-  }) => Effect.Effect<{ message: string }>
+  }) => Effect.Effect<{ message: string }, ExternalServiceError>
 
   readonly issueServiceToken: (params: {
     magicLinkCode: string
-  }) => Effect.Effect<AuthResponse>
+  }) => Effect.Effect<AuthResponse, ExternalServiceError>
 
   // ── Authenticated endpoints (JWT injected via HttpClient interceptor)
   readonly listPlants: (
@@ -64,16 +66,16 @@ export interface IApiClient {
           readonly limit?: string | undefined
         }
       | undefined
-  ) => Effect.Effect<PlantsListResponse, never, CurrentJwt>
+  ) => Effect.Effect<PlantsListResponse, ExternalServiceError, CurrentJwt>
 
   readonly getPlant: (
     plantId: string
-  ) => Effect.Effect<PlantDetail, never, CurrentJwt>
+  ) => Effect.Effect<PlantDetail, ExternalServiceError, CurrentJwt>
 
   readonly getCareLogs: (
     plantId: string,
     params?: { readonly limit?: string | undefined } | undefined
-  ) => Effect.Effect<CareLogsListResponse, never, CurrentJwt>
+  ) => Effect.Effect<CareLogsListResponse, ExternalServiceError, CurrentJwt>
 
   readonly carePlant: (
     plantId: string,
@@ -81,22 +83,22 @@ export interface IApiClient {
       readonly careType: CareType
       readonly notes?: string | undefined
     }
-  ) => Effect.Effect<Plant, never, CurrentJwt>
+  ) => Effect.Effect<Plant, ExternalServiceError, CurrentJwt>
 
   readonly getCareTasks: () => Effect.Effect<
     CareTasksResponse,
-    never,
+    ExternalServiceError,
     CurrentJwt
   >
 
   readonly queryKnowledge: (
     question: string,
     plantName?: string | undefined
-  ) => Effect.Effect<KnowledgeQueryResult, never, CurrentJwt>
+  ) => Effect.Effect<KnowledgeQueryResult, ExternalServiceError, CurrentJwt>
 
   readonly refreshToken: (
     refreshToken: string
-  ) => Effect.Effect<RefreshTokenResponse>
+  ) => Effect.Effect<RefreshTokenResponse, ExternalServiceError>
 }
 
 // ── Context Tag ────────────────────────────────────────────────────────
@@ -151,6 +153,17 @@ export const ApiClientLive = Layer.unwrapEffect(
 
         // ── Execute + parse pipelines ────────────────────────────
 
+        const wrapHttpError = (err: HttpClientError.HttpClientError) =>
+          new ExternalServiceError({
+            service: 'lily-api',
+            method: err.request.method,
+            url: err.request.url,
+            ...(err._tag === 'ResponseError'
+              ? { statusCode: err.response.status }
+              : {}),
+            message: err.message,
+          })
+
         /**
          * Pipe operator: request → execute via internal client → JSON.
          * Uses X-Service-Secret auth.
@@ -162,8 +175,8 @@ export const ApiClientLive = Layer.unwrapEffect(
             Effect.flatMap(HttpClientResponse.filterStatusOk),
             Effect.flatMap((res) => res.json),
             Effect.scoped,
-            Effect.orDie
-          ) as Effect.Effect<T>
+            Effect.mapError(wrapHttpError)
+          ) as Effect.Effect<T, ExternalServiceError>
 
         /**
          * Pipe operator: request → execute via authed client → JSON.
@@ -176,8 +189,24 @@ export const ApiClientLive = Layer.unwrapEffect(
             Effect.flatMap(HttpClientResponse.filterStatusOk),
             Effect.flatMap((res) => res.json),
             Effect.scoped,
-            Effect.orDie
-          ) as Effect.Effect<T, never, CurrentJwt>
+            Effect.mapError(wrapHttpError)
+          ) as Effect.Effect<T, ExternalServiceError, CurrentJwt>
+
+        /**
+         * Pipe operator: request → execute via base client → JSON.
+         * No auth headers — used for public endpoints like token refresh.
+         */
+        const unauthenticated = <T>(
+          request: HttpClientRequest.HttpClientRequest
+        ) =>
+          pipe(
+            request,
+            baseClient.execute,
+            Effect.flatMap(HttpClientResponse.filterStatusOk),
+            Effect.flatMap((res) => res.json),
+            Effect.scoped,
+            Effect.mapError(wrapHttpError)
+          ) as Effect.Effect<T, ExternalServiceError>
 
         return {
           // ── Internal ──────────────────────────────────────────
@@ -263,23 +292,14 @@ export const ApiClientLive = Layer.unwrapEffect(
             )
           },
 
-          refreshToken: (refreshTokenValue) => {
-            const request = HttpClientRequest.post(
-              `${baseUrl}/api/auth/refresh`
-            ).pipe(
+          refreshToken: (refreshTokenValue) =>
+            HttpClientRequest.post(`${baseUrl}/api/auth/refresh`).pipe(
               HttpClientRequest.bodyUnsafeJson({
                 refreshToken: refreshTokenValue,
-              })
-            )
-            return pipe(
-              request,
-              baseClient.execute,
-              Effect.flatMap(HttpClientResponse.filterStatusOk),
-              Effect.flatMap((res) => res.json),
-              Effect.scoped,
-              Effect.orDie
-            ) as Effect.Effect<RefreshTokenResponse>
-          },
+              }),
+              unauthenticated<RefreshTokenResponse>,
+              Effect.withSpan('ApiClient.refreshToken')
+            ),
         }
       })
     )

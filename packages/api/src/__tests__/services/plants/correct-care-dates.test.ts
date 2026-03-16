@@ -3,6 +3,7 @@ import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules
 import {
   createTestPlant,
   fertilizationSpec,
+  type TestPlant,
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
@@ -14,9 +15,18 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-care-dates'
 import { Array, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const toPlantWithRoom = (plant: TestPlant): PlantWithRoom => ({
+  ...plant,
+  room: null,
+  ownership: 'owned' as const,
+  ownerName: null,
+  schedules: [],
+})
 
 const findSchedule = (
   schedules: CareScheduleRow[],
@@ -65,6 +75,7 @@ describe('correctCareDates', () => {
         createMockCareScheduleRepository({ schedules, plants })
       ),
       schedules,
+      plants,
     }
   }
 
@@ -74,9 +85,9 @@ describe('correctCareDates', () => {
     // lastWateredAt=Jan 10, nextWateringAt=Jan 17
     // Correct to Jan 12 → delta=+2 days → next shifts to Jan 19
     const correctedDate = new Date('2024-01-12')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -95,9 +106,9 @@ describe('correctCareDates', () => {
     // lastFertilizedAt=Jan 1, nextFertilizationAt=Jan 31
     // Correct to Jan 5 → delta=+4 days → next shifts to Feb 4
     const correctedDate = new Date('2024-01-05')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastFertilizedAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -115,9 +126,9 @@ describe('correctCareDates', () => {
   it('should correct both dates at once in a single request', async () => {
     const waterDate = new Date('2024-01-12') // delta=+2 days
     const fertilizeDate = new Date('2024-01-03') // delta=+2 days
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: waterDate,
         lastFertilizedAt: fertilizeDate,
@@ -143,9 +154,9 @@ describe('correctCareDates', () => {
 
   it('should update the most recent care log date when a care log exists', async () => {
     const correctedDate = new Date('2024-01-09')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -159,9 +170,9 @@ describe('correctCareDates', () => {
 
   it('should reject future watering date with FutureDateNotAllowedError', async () => {
     const futureDate = new Date(Date.now() + 86400000 * 7)
-    const { layer } = createTestLayer()
+    const { layer, plants } = createTestLayer()
     const exit = await Effect.runPromiseExit(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: futureDate,
       }).pipe(Effect.provide(layer))
@@ -175,9 +186,9 @@ describe('correctCareDates', () => {
 
   it('should reject future fertilization date with FutureDateNotAllowedError', async () => {
     const futureDate = new Date(Date.now() + 86400000 * 7)
-    const { layer } = createTestLayer()
+    const { layer, plants } = createTestLayer()
     const exit = await Effect.runPromiseExit(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastFertilizedAt: futureDate,
       }).pipe(Effect.provide(layer))
@@ -189,25 +200,10 @@ describe('correctCareDates', () => {
     }
   })
 
-  it('should fail with PlantNotFoundError when plant does not exist', async () => {
-    const { layer } = createTestLayer()
-    const exit = await Effect.runPromiseExit(
-      correctCareDates({
-        id: 'non-existent',
-        lastWateredAt: new Date('2024-01-10'),
-      }).pipe(Effect.provide(layer))
-    )
-
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(exit.cause._tag).toBe('Fail')
-    }
-  })
-
   it('should return plant unchanged when neither date is provided', async () => {
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
       }).pipe(Effect.provide(layer))
     )
@@ -236,7 +232,7 @@ describe('correctCareDates', () => {
     const correctedDate = new Date('2024-01-12')
     const { layer, schedules } = createTestLayer([plant], [])
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plant), {
         id: 'no-dates-plant',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -255,20 +251,14 @@ describe('correctCareDates', () => {
     })
 
     const correctedDate = new Date('2024-01-12')
-    const { layer, schedules } = createTestLayer([plant], [])
+    const { layer } = createTestLayer([plant], [])
     const result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plant), {
         id: 'no-fert-plant',
         lastFertilizedAt: correctedDate,
       }).pipe(Effect.provide(layer))
     )
 
-    const _fertSched = findSchedule(schedules, 'no-fert-plant', 'fertilization')
-    // No fertilization schedule exists (frequencyDays was null)
-    // The service may create one or not — if it does, check lastCareAt
-    // If no schedule, the correctedDate is just stored somewhere
-    // No fertilization scheduleSpec, so no schedule was created
-    // The service should handle this gracefully
     expect(result.id).toBe('no-fert-plant')
   })
 
@@ -276,9 +266,9 @@ describe('correctCareDates', () => {
     // lastWateredAt=Jan 10, nextWateringAt=Jan 17
     // Correct to Jan 5 → delta=-5 days → next shifts to Jan 12
     const pastDate = new Date('2024-01-05')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: pastDate,
       }).pipe(Effect.provide(layer))
@@ -295,9 +285,9 @@ describe('correctCareDates', () => {
 
   it('should not shift nextWateringAt when corrected date equals original (zero delta)', async () => {
     const sameDate = new Date('2024-01-10')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: sameDate,
       }).pipe(Effect.provide(layer))
@@ -330,7 +320,7 @@ describe('correctCareDates', () => {
     const correctedDate = new Date('2024-01-09')
     const { layer, schedules } = createTestLayer([plant], [])
     const _result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plant), {
         id: 'weather-plant',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -339,7 +329,6 @@ describe('correctCareDates', () => {
     const wateringSched = findSchedule(schedules, 'weather-plant', 'watering')
     expect(wateringSched?.lastCareAt).toEqual(correctedDate)
     // 8-day gap preserved: Jan 18 - 1 day = Jan 17
-    // Still 8 days from corrected date (Jan 9 + 8 = Jan 17)
     const expectedNext = new Date('2024-01-17')
     expect(wateringSched?.nextCareAt?.getTime()).toBeCloseTo(
       expectedNext.getTime(),
@@ -349,9 +338,9 @@ describe('correctCareDates', () => {
 
   it('should schedule reminder when remindersEnabled is true', async () => {
     const correctedDate = new Date('2024-01-12')
-    const { layer, schedules } = createTestLayer()
+    const { layer, schedules, plants } = createTestLayer()
     const result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plants[0]!), {
         id: 'plant-1',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))
@@ -378,7 +367,7 @@ describe('correctCareDates', () => {
     const correctedDate = new Date('2024-01-12')
     const { layer, schedules } = createTestLayer([plant], [])
     const result = await Effect.runPromise(
-      correctCareDates({
+      correctCareDates(toPlantWithRoom(plant), {
         id: 'no-reminder-plant',
         lastWateredAt: correctedDate,
       }).pipe(Effect.provide(layer))

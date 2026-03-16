@@ -109,9 +109,18 @@ export const sendMagicLink = ({
       language: language ?? 'en',
     }).pipe(
       Effect.catchTags({
-        EmailSendError: () => Effect.succeed(undefined),
-        EmailConfigError: () => Effect.succeed(undefined),
-        ConfigError: () => Effect.succeed(undefined),
+        EmailSendError: (e) =>
+          Effect.logWarning('[auth] Magic link email send failed', {
+            error: String(e),
+          }),
+        EmailConfigError: (e) =>
+          Effect.logWarning('[auth] Magic link email config error', {
+            error: String(e),
+          }),
+        ConfigError: (e) =>
+          Effect.logWarning('[auth] Magic link config error', {
+            error: String(e),
+          }),
       })
     )
 

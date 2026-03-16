@@ -1,41 +1,37 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
-import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
-import {
-  ProcessedChunkRepository,
-  ProcessedChunkRepositoryLive,
-} from '@lily/api/repositories/processed-chunk.repository'
-import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
-import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
+import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
-import { KnowledgeIngestionService } from '@lily/api/services/knowledge-ingestion/service'
+import { createIngestJob } from '@lily/api/services/knowledge-ingestion/endpoints/create-ingest-job'
+import { deleteIngestJob } from '@lily/api/services/knowledge-ingestion/endpoints/delete-ingest-job'
+import { getIngestJob } from '@lily/api/services/knowledge-ingestion/endpoints/get-ingest-job'
+import { getKnowledgeStats } from '@lily/api/services/knowledge-ingestion/endpoints/get-knowledge-stats'
+import { listIngestJobs } from '@lily/api/services/knowledge-ingestion/endpoints/list-ingest-jobs'
 import { embedText } from '@lily/api/services/rag/embedding.service'
-import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 
 export const KnowledgeIngestionApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'knowledgeIngestion', (handlers) =>
     Effect.gen(function* () {
-      const service = yield* KnowledgeIngestionService
       const chunkRepo = yield* ProcessedChunkRepository
 
       return handlers
         .handle('createIngestJob', ({ payload }) =>
-          service
-            .createIngestJob(payload.adapter, payload.config)
-            .pipe(withInfraErrorsAsDefect)
+          createIngestJob(payload.adapter, payload.config).pipe(
+            withInfraErrorsAsDefect
+          )
         )
         .handle('listIngestJobs', () =>
-          service.listIngestJobs.pipe(withInfraErrorsAsDefect)
+          listIngestJobs.pipe(withInfraErrorsAsDefect)
         )
         .handle('getIngestJob', ({ path: { id } }) =>
-          service.getIngestJob(id).pipe(withInfraErrorsAsDefect)
+          getIngestJob(id).pipe(withInfraErrorsAsDefect)
         )
         .handle('deleteIngestJob', ({ path: { id } }) =>
-          service.deleteIngestJob(id).pipe(withInfraErrorsAsDefect)
+          deleteIngestJob(id).pipe(withInfraErrorsAsDefect)
         )
         .handle('getKnowledgeStats', () =>
-          service.getKnowledgeStats.pipe(withInfraErrorsAsDefect)
+          getKnowledgeStats.pipe(withInfraErrorsAsDefect)
         )
         .handle('searchKnowledge', ({ payload }) =>
           Effect.gen(function* () {
@@ -62,11 +58,4 @@ export const KnowledgeIngestionApiLive = (api: Api) =>
           )
         )
     })
-  ).pipe(
-    Layer.provide(KnowledgeIngestionService.Default),
-    Layer.provide(IngestJobRepositoryLive),
-    Layer.provide(RawDocumentRepositoryLive),
-    Layer.provide(ProcessedChunkRepositoryLive),
-    Layer.provide(KnowledgeDrizzleLive),
-    Layer.provide(AdminAuthLive)
   )

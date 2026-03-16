@@ -14,21 +14,17 @@ describe('withPlantAuth', () => {
       createMockDelegationRepository(delegationData)
     )
 
-  it('should allow the plant owner to access their plant', async () => {
+  it('should return the plant when the owner accesses it', async () => {
     const result = await Effect.runPromise(
-      Effect.succeed('ok').pipe(
-        withPlantAuth('plant-1'),
-        Effect.provide(createLayer('user-1'))
-      )
+      withPlantAuth('plant-1').pipe(Effect.provide(createLayer('user-1')))
     )
 
-    expect(result).toBe('ok')
+    expect(result.id).toBe('plant-1')
   })
 
-  it('should allow an active caretaker to access a delegated plant', async () => {
+  it('should return the plant when an active caretaker accesses it', async () => {
     const result = await Effect.runPromise(
-      Effect.succeed('ok').pipe(
-        withPlantAuth('plant-1'),
+      withPlantAuth('plant-1').pipe(
         Effect.provide(
           createLayer('user-3', {
             delegations: [
@@ -55,15 +51,12 @@ describe('withPlantAuth', () => {
       )
     )
 
-    expect(result).toBe('ok')
+    expect(result.id).toBe('plant-1')
   })
 
   it('should fail with PlantNotAuthorizedError for unauthorized user', async () => {
     const exit = await Effect.runPromiseExit(
-      Effect.succeed('ok').pipe(
-        withPlantAuth('plant-1'),
-        Effect.provide(createLayer('user-3'))
-      )
+      withPlantAuth('plant-1').pipe(Effect.provide(createLayer('user-3')))
     )
 
     expect(Exit.isFailure(exit)).toBe(true)
@@ -71,10 +64,7 @@ describe('withPlantAuth', () => {
 
   it('should fail with PlantNotFoundError for non-existent plant', async () => {
     const exit = await Effect.runPromiseExit(
-      Effect.succeed('ok').pipe(
-        withPlantAuth('non-existent'),
-        Effect.provide(createLayer('user-1'))
-      )
+      withPlantAuth('non-existent').pipe(Effect.provide(createLayer('user-1')))
     )
 
     expect(Exit.isFailure(exit)).toBe(true)
@@ -82,8 +72,7 @@ describe('withPlantAuth', () => {
 
   it('should deny access for caretaker with non-active delegation', async () => {
     const exit = await Effect.runPromiseExit(
-      Effect.succeed('ok').pipe(
-        withPlantAuth('plant-1'),
+      withPlantAuth('plant-1').pipe(
         Effect.provide(
           createLayer('user-3', {
             delegations: [

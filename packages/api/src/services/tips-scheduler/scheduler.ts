@@ -1,16 +1,14 @@
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { EngagementRepository } from '@lily/api/repositories/engagement.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
   pickNotificationTime,
 } from '@lily/shared'
 import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
-import type { DurationInput } from 'effect/Duration'
 import { generateDailyTip } from './generator'
-
-const POLL_INTERVAL: DurationInput = '1 hour'
 
 // Tip dedup period: no more than 1 tip per 3 days
 const TIP_DEDUP_DAYS = 3
@@ -143,17 +141,17 @@ export const checkAndGenerateTip = Effect.gen(function* () {
           userId: user.id,
         })
       }).pipe(
-        Effect.catchTag('DndWindowBlockedError', (error) =>
-          Effect.log('Skipping daily tip — both windows blocked by DND', {
-            userId: error.userId,
-          })
-        ),
-        Effect.catchAll((error) =>
-          Effect.logWarning('Failed to create tip notification for user', {
-            userId: user.id,
-            error: globalThis.String(error),
-          })
-        )
+        Effect.catchTags({
+          DndWindowBlockedError: () =>
+            Effect.log('[tips-scheduler] Skipped — DND window', {
+              userId: user.id,
+            }),
+          SqlError: (e) =>
+            Effect.logWarning('[tips-scheduler] Failed for user', {
+              userId: user.id,
+              error: String(e),
+            }),
+        })
       ),
     { concurrency: 10 }
   )
@@ -163,31 +161,9 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   })
 }).pipe(Effect.withSpan('tips-scheduler.check'))
 
-// Start the tips scheduler as a background process
-export const startTipsScheduler = Effect.gen(function* () {
-  // Run once immediately on startup (forked to not block Layer init)
-  yield* Effect.fork(
-    checkAndGenerateTip.pipe(
-      Effect.catchAll((error) =>
-        Effect.logError('Tips scheduler initial error', error)
-      )
-    )
-  )
-
-  // Then run periodically
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          checkAndGenerateTip.pipe(
-            Effect.catchAll((error) =>
-              Effect.logError('Tips scheduler polling error', error)
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Tips scheduler started')
+export const startTipsScheduler = createScheduler({
+  name: 'tips-scheduler',
+  interval: '1 hour',
+  runOnStartup: true,
+  task: checkAndGenerateTip,
 })

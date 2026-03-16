@@ -1,6 +1,6 @@
 import { FileSystem } from '@effect/platform/FileSystem'
 import type { PersistedFile } from '@effect/platform/Multipart'
-import { Array as Arr, Effect, Match, Schema } from 'effect'
+import { Array as Arr, Effect, Schema } from 'effect'
 
 export class MultipleFilesError extends Schema.Class<MultipleFilesError>(
   'MultipleFilesError'
@@ -87,20 +87,7 @@ export class FileService extends Effect.Service<FileService>()('FileService', {
           }
 
           // At this point we know files.length === 1, so files[0] is guaranteed to exist
-          const ensureFile = Match.type<PersistedFile | undefined>().pipe(
-            Match.withReturnType<PersistedFile>(),
-            Match.when(Match.undefined, () => {
-              throw new Error('No files provided')
-            }),
-            Match.when({ path: Match.string }, (file) => {
-              return file
-            }),
-            Match.orElse(() => {
-              throw new Error('No files provided')
-            })
-          )
-
-          const file = ensureFile(files[0])
+          const file = Arr.unsafeGet(files, 0)
           const buffer = yield* fileSystem.readFile(file.path)
 
           return {

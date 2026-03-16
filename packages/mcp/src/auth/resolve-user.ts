@@ -1,4 +1,4 @@
-import { HttpClientError, HttpServerRequest } from '@effect/platform'
+import { HttpServerRequest } from '@effect/platform'
 import { ApiClient, CurrentJwt, CurrentUserId } from '@lily/mcp/api-client'
 import type { UserApiCredentials } from '@lily/mcp/auth/oauth-repository'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
@@ -51,17 +51,6 @@ const isJwtExpired = (jwt: string): boolean => {
   )
 }
 
-// ── 401 detection ──────────────────────────────────────────────────────
-
-/**
- * Check whether a defect is an HTTP 401 from the API server.
- * ApiClient uses `Effect.orDie` after `filterStatusOk`, so non-2xx
- * responses surface as defects carrying a `ResponseError` value.
- */
-const isUnauthorizedDefect = (defect: unknown): boolean =>
-  defect instanceof HttpClientError.ResponseError &&
-  defect.response.status === 401
-
 // ── API JWT refresh ────────────────────────────────────────────────────
 
 /**
@@ -74,8 +63,8 @@ const refreshApiJwt = (creds: UserApiCredentials) =>
     const repo = yield* OAuthRepository
 
     const result = yield* apiClient.refreshToken(creds.apiRefreshToken).pipe(
-      Effect.catchAllDefect((defect) =>
-        isUnauthorizedDefect(defect)
+      Effect.catchTag('ExternalServiceError', (err) =>
+        err.statusCode === 401
           ? Effect.fail(
               new OAuthError({
                 error: 'api_refresh_failed',
@@ -83,7 +72,7 @@ const refreshApiJwt = (creds: UserApiCredentials) =>
                   'API token refresh failed — please re-authenticate',
               })
             )
-          : Effect.die(defect)
+          : Effect.die(err)
       )
     )
 
@@ -190,21 +179,14 @@ const resolveAuth = (forceRefresh: boolean) =>
 // ── Auth provider ──────────────────────────────────────────────────────
 
 /**
- * Resolve auth with automatic 401 retry.
- * Catches defects only on the auth resolution step (not the downstream effect)
- * to avoid masking unrelated defects from tool handlers.
+ * Resolve auth — refreshApiJwt handles 401 retry internally.
  */
-const resolveAuthWithRetry = pipe(
-  resolveAuth(false),
-  Effect.catchAllDefect((defect) =>
-    isUnauthorizedDefect(defect) ? resolveAuth(true) : Effect.die(defect)
-  )
-)
+const resolveAuthWithRetry = resolveAuth(false)
 
 /**
  * Provide `CurrentJwt` and `CurrentUserId` into context by resolving
- * the bearer token. On API 401 during resolution, force-refreshes and
- * retries once.
+ * the bearer token. If the stored API JWT is expired, refreshes it
+ * transparently via `refreshApiJwt`.
  */
 export const provideAuth = <A, E, R>(
   self: Effect.Effect<A, E, R>

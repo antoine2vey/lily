@@ -1,9 +1,7 @@
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { processIngestJob } from '@lily/api/services/knowledge-ingestion/processor'
 import { Array, Effect } from 'effect'
-import type { DurationInput } from 'effect/Duration'
-
-const POLL_INTERVAL: DurationInput = '30 seconds'
 
 const pollPendingJobs = Effect.gen(function* () {
   const jobRepo = yield* IngestJobRepository
@@ -22,24 +20,9 @@ const pollPendingJobs = Effect.gen(function* () {
   yield* Effect.forEach(pendingJobs, (job) => processIngestJob(job))
 })
 
-export const startKnowledgeIngestionWorker = Effect.gen(function* () {
-  yield* Effect.log('Knowledge ingestion worker starting...')
-
-  yield* Effect.fork(
-    Effect.forever(
-      Effect.sleep(POLL_INTERVAL).pipe(
-        Effect.zipRight(
-          pollPendingJobs.pipe(
-            Effect.catchTag('SqlError', (error) =>
-              Effect.logError('Knowledge ingestion worker error', {
-                error: String(error),
-              })
-            )
-          )
-        )
-      )
-    )
-  )
-
-  yield* Effect.log('Knowledge ingestion worker started')
+export const startKnowledgeIngestionWorker = createScheduler({
+  name: 'knowledge-ingestion-worker',
+  interval: '30 seconds',
+  runOnStartup: false,
+  task: pollPendingJobs,
 })

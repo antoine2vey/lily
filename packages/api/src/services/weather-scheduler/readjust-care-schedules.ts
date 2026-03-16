@@ -57,9 +57,10 @@ export const readjustCareSchedules = (
       (user) =>
         readjustUserPlants(user, weatherContextMap).pipe(
           Effect.catchTag('SqlError', (error) =>
-            Effect.logWarning(`Care readjustment failed for user ${user.id}`, {
-              error,
-            })
+            Effect.logWarning(
+              `[weather-scheduler] Care readjustment failed for user ${user.id}`,
+              { error: String(error) }
+            )
           )
         ),
       { concurrency: 5 }
@@ -130,9 +131,10 @@ const readjustUserPlants = (
       (plant) =>
         readjustPlantSchedule(plant, user, weatherCtx).pipe(
           Effect.catchTag('SqlError', (error) =>
-            Effect.logWarning(`Readjustment failed for plant ${plant.id}`, {
-              error,
-            })
+            Effect.logWarning(
+              `[weather-scheduler] Readjustment failed for plant ${plant.id}`,
+              { error: String(error) }
+            )
           )
         ),
       { concurrency: 10 }

@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { plantScans } from '@lily/db/schema'
 import { Context, Effect, Layer } from 'effect'
 
@@ -33,7 +34,11 @@ export const ScanRepositoryLive = Layer.effect(
           const scan = results[0]
           if (!scan) {
             return yield* Effect.die(
-              new Error('Insert did not return a result')
+              new EntityMutationDefect({
+                message: 'Scan insert returned null',
+                entity: 'scan',
+                operation: 'create',
+              })
             )
           }
           return scan

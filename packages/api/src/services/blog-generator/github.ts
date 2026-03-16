@@ -1,6 +1,7 @@
 import type { LocalizedText } from '@lily/db/schema'
 import { Array, Config, Effect, pipe, Record, String as Str } from 'effect'
 import { Octokit } from 'octokit'
+import { GitHubPublishError } from './errors'
 
 const encodeBase64 = (str: string): string =>
   Buffer.from(str, 'utf-8').toString('base64')
@@ -16,7 +17,11 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
     const [owner, repo] = yield* pipe(Str.split(fullRepo, '/'), (parts) =>
       Array.length(parts) === 2
         ? Effect.succeed(parts as unknown as [string, string])
-        : Effect.fail(new Error(`Invalid GITHUB_REPO: ${fullRepo}`))
+        : Effect.fail(
+            new GitHubPublishError({
+              message: `Invalid GITHUB_REPO format: ${fullRepo}`,
+            })
+          )
     )
     const baseBranch = yield* Config.withDefault(
       Config.string('GITHUB_BRANCH'),
@@ -27,23 +32,35 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
     const branchName = `blog/${slug}`
 
     // 1. Get the base branch HEAD
-    const { data: baseRef } = yield* Effect.tryPromise(() =>
-      octokit.rest.git.getRef({
-        owner,
-        repo,
-        ref: `heads/${baseBranch}`,
-      })
-    )
+    const { data: baseRef } = yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.git.getRef({
+          owner,
+          repo,
+          ref: `heads/${baseBranch}`,
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to get base branch ref',
+          cause: e,
+        }),
+    })
     const baseSha = baseRef.object.sha
 
     // 2. Get the base commit's tree
-    const { data: baseCommit } = yield* Effect.tryPromise(() =>
-      octokit.rest.git.getCommit({
-        owner,
-        repo,
-        commit_sha: baseSha,
-      })
-    )
+    const { data: baseCommit } = yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.git.getCommit({
+          owner,
+          repo,
+          commit_sha: baseSha,
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to get base commit',
+          cause: e,
+        }),
+    })
 
     // 3. Create blobs for all locale files (in parallel — blobs are independent)
     const entries = Record.toEntries(content) as Array<[string, string]>
@@ -51,14 +68,20 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
       entries,
       ([locale, mdx]) =>
         Effect.gen(function* () {
-          const { data: blob } = yield* Effect.tryPromise(() =>
-            octokit.rest.git.createBlob({
-              owner,
-              repo,
-              content: encodeBase64(mdx),
-              encoding: 'base64',
-            })
-          )
+          const { data: blob } = yield* Effect.tryPromise({
+            try: () =>
+              octokit.rest.git.createBlob({
+                owner,
+                repo,
+                content: encodeBase64(mdx),
+                encoding: 'base64',
+              }),
+            catch: (e) =>
+              new GitHubPublishError({
+                message: `Failed to create blob for ${locale}`,
+                cause: e,
+              }),
+          })
           return {
             path: `packages/web/content/posts/${locale}/${slug}.mdx`,
             mode: '100644' as const,
@@ -70,35 +93,53 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
     )
 
     // 4. Create a new tree with all files
-    const { data: tree } = yield* Effect.tryPromise(() =>
-      octokit.rest.git.createTree({
-        owner,
-        repo,
-        base_tree: baseCommit.tree.sha,
-        tree: [...blobs],
-      })
-    )
+    const { data: tree } = yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.git.createTree({
+          owner,
+          repo,
+          base_tree: baseCommit.tree.sha,
+          tree: [...blobs],
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to create tree',
+          cause: e,
+        }),
+    })
 
     // 5. Create a single commit with all files
-    const { data: commit } = yield* Effect.tryPromise(() =>
-      octokit.rest.git.createCommit({
-        owner,
-        repo,
-        message: `blog: add ${slug}`,
-        tree: tree.sha,
-        parents: [baseSha],
-      })
-    )
+    const { data: commit } = yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.git.createCommit({
+          owner,
+          repo,
+          message: `blog: add ${slug}`,
+          tree: tree.sha,
+          parents: [baseSha],
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to create commit',
+          cause: e,
+        }),
+    })
 
     // 6. Create a new branch from the commit
-    yield* Effect.tryPromise(() =>
-      octokit.rest.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branchName}`,
-        sha: commit.sha,
-      })
-    )
+    yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.git.createRef({
+          owner,
+          repo,
+          ref: `refs/heads/${branchName}`,
+          sha: commit.sha,
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to create branch',
+          cause: e,
+        }),
+    })
 
     // 7. Open a pull request
     const localeList = pipe(
@@ -107,16 +148,22 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
       Array.join(', ')
     )
 
-    const { data: pr } = yield* Effect.tryPromise(() =>
-      octokit.rest.pulls.create({
-        owner,
-        repo,
-        title: `blog: add "${slug}"`,
-        head: branchName,
-        base: baseBranch,
-        body: `## New blog post: \`${slug}\`\n\nLocales: ${localeList}\n\nGenerated by the Lily blog pipeline.`,
-      })
-    )
+    const { data: pr } = yield* Effect.tryPromise({
+      try: () =>
+        octokit.rest.pulls.create({
+          owner,
+          repo,
+          title: `blog: add "${slug}"`,
+          head: branchName,
+          base: baseBranch,
+          body: `## New blog post: \`${slug}\`\n\nLocales: ${localeList}\n\nGenerated by the Lily blog pipeline.`,
+        }),
+      catch: (e) =>
+        new GitHubPublishError({
+          message: 'Failed to create pull request',
+          cause: e,
+        }),
+    })
 
     yield* Effect.log('Pull request created', {
       slug,

@@ -96,12 +96,23 @@ export const sendInternalMagicLink = (input: {
       callbackUrl: fullCallbackUrl,
       language: input.language ?? 'en',
     }).pipe(
-      Effect.catchAll((err) =>
-        Effect.logError('Failed to send magic link email').pipe(
-          Effect.annotateLogs('error', String(err)),
-          Effect.annotateLogs('email', normalizedEmail)
-        )
-      )
+      Effect.catchTags({
+        EmailSendError: (e) =>
+          Effect.logWarning('[internal] Magic link email send failed', {
+            email: normalizedEmail,
+            error: String(e),
+          }),
+        EmailConfigError: (e) =>
+          Effect.logWarning('[internal] Magic link email config error', {
+            email: normalizedEmail,
+            error: String(e),
+          }),
+        ConfigError: (e) =>
+          Effect.logWarning('[internal] Magic link config error', {
+            email: normalizedEmail,
+            error: String(e),
+          }),
+      })
     )
 
     return { message: 'Magic link sent' }
