@@ -7,7 +7,8 @@ import {
   plants,
   users,
 } from '@lily/db/schema'
-import { and, count, desc, eq, sql } from 'drizzle-orm'
+import type { LanguageCode } from '@lily/shared'
+import { count, desc, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UserWithSettings {
@@ -18,7 +19,7 @@ export interface UserWithSettings {
   readonly doNotDisturb: boolean
   readonly doNotDisturbStart: string | null
   readonly doNotDisturbEnd: string | null
-  readonly language: 'en' | 'fr'
+  readonly language: LanguageCode
   readonly createdAt: Date
 }
 

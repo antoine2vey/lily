@@ -1,6 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import type { LocalizedText } from '@lily/db/schema'
+import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
 import { BlogGenerationError } from './errors'
@@ -23,7 +24,7 @@ const MAX_RETRIES = 5
 const MIN_SCORE = 95
 
 /** Languages to generate content for — add new languages here */
-const TARGET_LANGUAGES: ReadonlyArray<{ code: 'en' | 'fr'; name: string }> = [
+const TARGET_LANGUAGES: ReadonlyArray<{ code: LanguageCode; name: string }> = [
   { code: 'en', name: 'English' },
   { code: 'fr', name: 'French' },
 ]

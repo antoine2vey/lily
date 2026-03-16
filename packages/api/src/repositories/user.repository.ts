@@ -1,7 +1,7 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db/schema'
-import { nowAsDate } from '@lily/shared'
+import { type LanguageCode, nowAsDate } from '@lily/shared'
 import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -29,7 +29,7 @@ export interface UpdateUserData {
   emailVerified?: boolean
   role?: 'user' | 'admin'
   status?: 'active' | 'suspended' | 'banned'
-  language?: 'en' | 'fr'
+  language?: LanguageCode
   timezone?: string | null
   preferredNotificationTime?: string | null
   weatherEnabled?: boolean
