@@ -4,7 +4,7 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from '@effect/platform'
-import type { CareTasksResponse, CareType } from '@lily/shared'
+import type { CareTasksResponse, CareType, LanguageCode } from '@lily/shared'
 import { ExternalServiceError } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
@@ -50,7 +50,7 @@ export interface IApiClient {
   readonly sendMagicLink: (params: {
     readonly email: string
     readonly callbackUrl: string
-    readonly language?: 'en' | 'fr' | undefined
+    readonly language?: LanguageCode | undefined
   }) => Effect.Effect<{ message: string }, ExternalServiceError>
 
   readonly issueServiceToken: (params: {

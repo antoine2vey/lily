@@ -5,6 +5,7 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
+import type { LanguageCode } from '@lily/shared'
 import {
   Console,
   DateTime,
@@ -29,7 +30,7 @@ const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
 export const sendInternalMagicLink = (input: {
   email: string
   callbackUrl: string
-  language?: 'en' | 'fr' | undefined
+  language?: LanguageCode | undefined
 }): Effect.Effect<
   { message: string },
   { message: string },

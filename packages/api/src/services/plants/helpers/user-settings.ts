@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import type { LanguageCode } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 
 export interface UserNotificationSettings {
@@ -9,7 +10,7 @@ export interface UserNotificationSettings {
   doNotDisturb: boolean
   doNotDisturbStart: string | null
   doNotDisturbEnd: string | null
-  language: 'en' | 'fr'
+  language: LanguageCode
 }
 
 /**
