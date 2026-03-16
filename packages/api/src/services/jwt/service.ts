@@ -1,3 +1,4 @@
+import type { UserRole, UserStatus } from '@lily/shared'
 import {
   Array,
   Config,
@@ -17,8 +18,8 @@ import { JWTError } from './errors'
 export interface JWTPayload {
   sub: string // User ID (UUID)
   email: string
-  role: 'user' | 'admin'
-  status: 'active' | 'suspended' | 'banned'
+  role: UserRole
+  status: UserStatus
 }
 
 /**
@@ -27,8 +28,8 @@ export interface JWTPayload {
 export interface SignAccessTokenInput {
   userId: string
   email: string
-  role: 'user' | 'admin'
-  status: 'active' | 'suspended' | 'banned'
+  role: UserRole
+  status: UserStatus
 }
 
 /**
@@ -126,11 +127,9 @@ export const JWTServiceLive = Layer.effect(
           const payload = result.payload
           const sub = Option.fromNullable(payload.sub)
           const email = Option.fromNullable(payload.email as string | undefined)
-          const role = Option.fromNullable(
-            payload.role as 'user' | 'admin' | undefined
-          )
+          const role = Option.fromNullable(payload.role as UserRole | undefined)
           const status = Option.fromNullable(
-            payload.status as 'active' | 'suspended' | 'banned' | undefined
+            payload.status as UserStatus | undefined
           )
 
           if (

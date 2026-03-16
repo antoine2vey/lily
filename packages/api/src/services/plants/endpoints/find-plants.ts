@@ -6,14 +6,15 @@ import {
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { getUserTimezone } from '@lily/api/services/plants/helpers/user-settings'
+import type { PlantFilter, PlantSort } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 
 // Get plants with pagination and filtering
 export const findPlants = (params: {
   page?: number
   limit?: number
-  filter?: 'needsAttention' | 'overdue' | 'all'
-  sort?: 'added' | 'name'
+  filter?: PlantFilter
+  sort?: PlantSort
   roomId?: string
   includeCaretaking?: boolean
 }): Effect.Effect<

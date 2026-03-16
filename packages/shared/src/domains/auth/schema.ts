@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { LanguageCode } from '../user/schema'
+import { LanguageCode, UserRole, UserStatus } from '../user/schema'
 
 // Auth request schemas
 export const MagicLinkRequest = Schema.Struct({
@@ -30,8 +30,8 @@ export const UserProfile = Schema.Struct({
   timezone: Schema.optional(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
-  role: Schema.Literal('user', 'admin'),
-  status: Schema.Literal('active', 'suspended', 'banned'),
+  role: UserRole,
+  status: UserStatus,
 })
 
 // Auth response schemas

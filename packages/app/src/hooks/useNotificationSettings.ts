@@ -4,18 +4,6 @@ import { Either } from 'effect'
 import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
-interface NotificationSettings {
-  careReminders: boolean
-  weeklyDigest: boolean
-  achievements: boolean
-  tips: boolean
-  productUpdates: boolean
-  ads: boolean
-  doNotDisturb: boolean
-  doNotDisturbStart: string
-  doNotDisturbEnd: string
-}
-
 // Query key used for optimistic updates (matches useEffectQuery format)
 const USER_SETTINGS_QUERY_KEY = ['users', 'getUserSettings', {}]
 
@@ -31,7 +19,7 @@ export function useUpdateNotificationSettings() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (settings: Partial<NotificationSettings>) => {
+    mutationFn: async (settings: Partial<UserSettings['notifications']>) => {
       const result = await apiEffectRunner('users', 'updateUserSettings', {
         payload: { notifications: settings },
       })

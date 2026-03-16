@@ -1,4 +1,5 @@
 import { Tool, Toolkit } from '@effect/ai'
+import { PlantFilter } from '@lily/shared'
 import { Schema } from 'effect'
 
 // ── Read-only Tools ────────────────────────────────────────────────────
@@ -19,10 +20,7 @@ export const ListPlants = Tool.make('list_plants', {
   description:
     'Lists all your plants with their health status, room, and care info.',
   parameters: {
-    filter: Schema.optionalWith(
-      Schema.Literal('all', 'needsAttention', 'overdue'),
-      { exact: true }
-    ).annotations({
+    filter: Schema.optionalWith(PlantFilter, { exact: true }).annotations({
       description: 'Filter plants: all (default), needsAttention, or overdue',
     }),
   },

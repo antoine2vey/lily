@@ -1,3 +1,4 @@
+import type { LanguageCode } from '@lily/shared'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Option, pipe } from 'effect'
 import {
@@ -10,11 +11,9 @@ import {
   useState,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
-  type LanguageCode,
   SUPPORTED_LANGUAGES,
 } from 'src/i18n/types'
 import { getDeviceLanguage } from 'src/utils/notifications'
