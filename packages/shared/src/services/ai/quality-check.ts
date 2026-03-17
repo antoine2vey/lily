@@ -1,4 +1,4 @@
-import { Effect, Match, pipe } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 
 import type { PlantAIResult } from './plant-schema'
 
@@ -15,7 +15,7 @@ export const isPlantResultSufficient = (result: PlantAIResult): boolean =>
 
 interface RetryState {
   readonly attempt: number
-  readonly best: PlantAIResult
+  readonly best: Option.Option<PlantAIResult>
   readonly done: boolean
 }
 
@@ -32,7 +32,7 @@ export const withQualityRetry = <E>(
     Effect.iterate(
       {
         attempt: 0,
-        best: null as unknown as PlantAIResult,
+        best: Option.none<PlantAIResult>(),
         done: false,
       } as RetryState,
       {
@@ -43,21 +43,22 @@ export const withQualityRetry = <E>(
               Match.value(isPlantResultSufficient(result)),
               Match.when(true, () => ({
                 attempt: state.attempt + 1,
-                best: result,
+                best: Option.some(result),
                 done: true,
               })),
               Match.orElse(() => ({
                 attempt: state.attempt + 1,
                 best: pipe(
-                  Match.value(state.attempt === 0),
-                  Match.when(true, () => result),
-                  Match.orElse(() =>
-                    pipe(
-                      Match.value(result.confidence > state.best.confidence),
-                      Match.when(true, () => result),
-                      Match.orElse(() => state.best)
-                    )
-                  )
+                  state.best,
+                  Option.match({
+                    onNone: () => Option.some(result),
+                    onSome: (prev) =>
+                      pipe(
+                        Match.value(result.confidence > prev.confidence),
+                        Match.when(true, () => Option.some(result)),
+                        Match.orElse(() => Option.some(prev))
+                      ),
+                  })
                 ),
                 done: false,
               }))
@@ -65,5 +66,5 @@ export const withQualityRetry = <E>(
           ),
       }
     ),
-    Effect.map((state) => state.best)
+    Effect.map((state) => Option.getOrThrow(state.best))
   )

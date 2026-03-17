@@ -1,3 +1,4 @@
+import { Record } from 'effect'
 import type {
   AchievementCategory,
   AchievementKey,
@@ -142,3 +143,7 @@ export const ACHIEVEMENTS: Record<AchievementKey, AchievementDefinition> = {
     rarity: 'rare',
   },
 }
+
+export const ACHIEVEMENT_KEYS: ReadonlyArray<AchievementKey> = Record.keys(
+  ACHIEVEMENTS
+) as ReadonlyArray<AchievementKey>

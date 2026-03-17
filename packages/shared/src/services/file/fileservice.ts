@@ -135,13 +135,13 @@ export class FileService extends Effect.Service<FileService>()('FileService', {
               Effect.gen(function* () {
                 // Validate content type
                 const isAllowed = Arr.contains(
-                  ALLOWED_IMAGE_TYPES as unknown as string[],
+                  ALLOWED_IMAGE_TYPES,
                   file.contentType
                 )
                 if (!isAllowed) {
                   return yield* Effect.fail(
                     new InvalidFileTypeError({
-                      message: `Invalid file type: ${file.contentType}. Allowed: ${Arr.join(ALLOWED_IMAGE_TYPES as unknown as string[], ', ')}`,
+                      message: `Invalid file type: ${file.contentType}. Allowed: ${Arr.join(ALLOWED_IMAGE_TYPES, ', ')}`,
                       fileName: file.name,
                       contentType: file.contentType,
                     })
