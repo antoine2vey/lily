@@ -18,6 +18,7 @@ import { sharePlant } from '@lily/api/services/plants/endpoints/share-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 
 export const PlantsApiLive = (api: Api) =>
@@ -25,8 +26,7 @@ export const PlantsApiLive = (api: Api) =>
     handlers
       .handle('getPlants', ({ urlParams }) =>
         findPlants({
-          page: parseInt(urlParams.page, 10) || 1,
-          limit: parseInt(urlParams.limit, 10) || 20,
+          ...parsePaginationParams(urlParams),
           filter: pipe(
             Match.value(urlParams.filter),
             Match.when('needsAttention', () => 'needsAttention' as const),
@@ -82,8 +82,7 @@ export const PlantsApiLive = (api: Api) =>
           Effect.zipRight(
             getPlantPhotos({
               plantId: id,
-              page: parseInt(urlParams.page, 10) || 1,
-              limit: parseInt(urlParams.limit, 10) || 20,
+              ...parsePaginationParams(urlParams),
             })
           ),
           withInfraErrorsAsDefect

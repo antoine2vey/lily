@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai'
+import { CHAT_MODEL } from '@lily/api/services/ai/models'
 import { generateText, Output } from 'ai'
 import { Effect } from 'effect'
 import { BlogGenerationError } from './errors'
@@ -12,7 +13,7 @@ export const researchTopic = (topic: TopicSuggestion) =>
     const result = yield* Effect.tryPromise({
       try: () =>
         generateText({
-          model: openai('gpt-4o'),
+          model: openai(CHAT_MODEL),
           output: Output.object({ schema: ResearchBriefSchema }),
           system: RESEARCH_PROMPT,
           prompt: `Research the topic "${topic.title.en}" for a plant care blog post.

@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { CHAT_MODEL } from '@lily/api/services/ai/models'
 import type { LocalizedText } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
@@ -73,7 +74,7 @@ const generateContent = (
     const enResult = yield* Effect.tryPromise({
       try: () =>
         generateText({
-          model: openai('gpt-4o'),
+          model: openai(CHAT_MODEL),
           system: GENERATION_SYSTEM_PROMPT,
           prompt: userPrompt,
         }),
@@ -97,7 +98,7 @@ const generateContent = (
         const result = yield* Effect.tryPromise({
           try: () =>
             generateText({
-              model: openai('gpt-4o'),
+              model: openai(CHAT_MODEL),
               system: TRANSLATION_PROMPT,
               prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
             }),
@@ -146,7 +147,7 @@ const reviewContent = (
     const result = yield* Effect.tryPromise({
       try: () =>
         generateText({
-          model: openai('gpt-4o'),
+          model: openai(CHAT_MODEL),
           output: Output.object({ schema: ReviewSchema }),
           system: REVIEW_SYSTEM_PROMPT,
           prompt: `Review this blog post for quality and originality.

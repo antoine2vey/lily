@@ -1,8 +1,8 @@
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { AchievementKey } from '@lily/shared'
-import { ACHIEVEMENTS } from '@lily/shared'
-import { Array, Effect, Match, pipe, Record } from 'effect'
+import { ACHIEVEMENT_KEYS, ACHIEVEMENTS } from '@lily/shared'
+import { Array, Effect, Match, pipe } from 'effect'
 
 interface ProgressCounts {
   plants: number
@@ -55,7 +55,7 @@ const reconcileUserAchievements = (userId: string) =>
       }),
     ])
 
-    const allKeys = Record.keys(ACHIEVEMENTS) as unknown as AchievementKey[]
+    const allKeys = ACHIEVEMENT_KEYS
 
     const missedKeys = pipe(
       allKeys,

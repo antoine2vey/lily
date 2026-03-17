@@ -2,6 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
   buildSystemPrompt,
   formatCareHistoryText,
@@ -151,7 +152,7 @@ export const plantChat = (
     const completionDeferred = yield* Deferred.make<readonly StepData[]>()
 
     const stream: PlantChatStreamResult = streamText({
-      model: openai(useVisionModel ? 'gpt-4o' : 'gpt-4o-mini'),
+      model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
       system: systemPrompt,
       messages: finalModelMessages,
       tools,

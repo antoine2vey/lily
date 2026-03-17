@@ -40,8 +40,18 @@ const refreshWeatherData = Effect.gen(function* () {
       { lat: number; lng: number; timezones: ReadonlyArray<string> }
     >,
     (acc, user) => {
-      const lat = roundCoord(user.latitude as number)
-      const lng = roundCoord(user.longitude as number)
+      const lat = roundCoord(
+        pipe(
+          Option.fromNullable(user.latitude),
+          Option.getOrElse(() => 0)
+        )
+      )
+      const lng = roundCoord(
+        pipe(
+          Option.fromNullable(user.longitude),
+          Option.getOrElse(() => 0)
+        )
+      )
       const key = `${lat}_${lng}`
       const tz = user.timezone || 'UTC'
       const existing = acc[key]

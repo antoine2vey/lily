@@ -76,7 +76,7 @@ const correctSingleCareDate = (
         // Signed delta in ms (positive = corrected is later, negative = earlier)
         const deltaMs = DateTime.distance(originalDayStart, correctedDayStart)
         const nextMs = DateTime.toEpochMillis(DateTime.unsafeMake(next))
-        return new Date(Number(nextMs) + deltaMs)
+        return DateTime.toDateUtc(DateTime.unsafeMake(Number(nextMs) + deltaMs))
       }),
       Option.getOrUndefined
     )

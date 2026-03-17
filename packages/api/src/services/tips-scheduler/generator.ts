@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
+import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { RagService } from '@lily/api/services/rag/service'
 import { TIP_CATEGORIES } from '@lily/api/services/tips-scheduler/types'
 import { generateText, Output } from 'ai'
@@ -69,7 +70,7 @@ export const generateDailyTip = Effect.gen(function* () {
   // Generate the tip
   const result = yield* Effect.tryPromise(() =>
     generateText({
-      model: openai('gpt-4o-mini'),
+      model: openai(FAST_MODEL),
       output: Output.object({ schema: TipSchema }),
       system: `You are a plant care expert generating a daily tip for a plant care app.
 

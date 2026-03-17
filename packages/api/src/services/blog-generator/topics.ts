@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { CHAT_MODEL } from '@lily/api/services/ai/models'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array as Arr, Effect, String as Str } from 'effect'
@@ -72,7 +73,7 @@ export const selectTopic = Effect.gen(function* () {
   const result = yield* Effect.tryPromise({
     try: () =>
       generateText({
-        model: openai('gpt-4o'),
+        model: openai(CHAT_MODEL),
         output: Output.object({ schema: TopicSchema }),
         system: TOPIC_SELECTION_PROMPT,
         prompt: `Select a blog post topic for a plant care blog.
