@@ -55,7 +55,8 @@ describe('SettingsScreen', () => {
 
     render(<SettingsScreen />)
 
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
+    // Screen returns null during initial loading (before skeleton delay)
+    expect(screen.queryByText('Settings')).toBeNull()
   })
 
   it('displays settings title', () => {

@@ -43,7 +43,8 @@ describe('PrivacySettingsScreen', () => {
 
     render(<PrivacySettingsScreen />)
 
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
+    // Screen returns null during initial loading (before skeleton delay)
+    expect(screen.queryByText('Privacy & Data')).toBeNull()
   })
 
   it('displays privacy & data title', () => {
