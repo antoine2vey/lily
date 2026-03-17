@@ -61,7 +61,8 @@ describe('AchievementsScreen', () => {
 
     render(<AchievementsScreen />)
 
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
+    // Screen returns null during initial loading (before skeleton delay)
+    expect(screen.queryByText('Achievements')).toBeNull()
   })
 
   it('displays achievements title', () => {
