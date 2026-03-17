@@ -26,10 +26,16 @@ const idToCoord = (
 ): Option.Option<{ latitude: number; longitude: number }> =>
   pipe(EffectString.split(id, '_'), (parts) =>
     parts.length === 2
-      ? Option.some({
-          latitude: Number.parseFloat(parts[0] as string),
-          longitude: Number.parseFloat(parts[1] as string),
-        })
+      ? Option.map(
+          Option.all({
+            lat: Array.head(parts),
+            lng: Array.get(parts, 1),
+          }),
+          ({ lat, lng }) => ({
+            latitude: Number.parseFloat(lat),
+            longitude: Number.parseFloat(lng),
+          })
+        )
       : Option.none()
   )
 
@@ -59,7 +65,10 @@ export const WeatherCacheLive = Layer.effect(
             return Option.none<WeatherForecast>()
           }
 
-          const memberId = results[0] as string
+          const memberId = pipe(
+            Array.head(results),
+            Option.getOrElse(() => '' as string)
+          )
           const data = await redis.get(`${WEATHER_DATA_PREFIX}${memberId}`)
 
           if (!data) {

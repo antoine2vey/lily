@@ -8,6 +8,7 @@ import { getRecentActivities } from '@lily/api/services/care-logs/endpoints/get-
 import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
 
 export const CareLogsApiLive = (api: Api) =>
@@ -23,8 +24,7 @@ export const CareLogsApiLive = (api: Api) =>
           Effect.zipRight(
             getCareLogs({
               plantId,
-              page: parseInt(urlParams.page, 10) || 1,
-              limit: parseInt(urlParams.limit, 10) || 20,
+              ...parsePaginationParams(urlParams),
               type:
                 urlParams.type === 'watering' ||
                 urlParams.type === 'fertilization'

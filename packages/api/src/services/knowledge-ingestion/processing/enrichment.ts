@@ -1,9 +1,10 @@
 import { openai } from '@ai-sdk/openai'
+import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { generateText, Output } from 'ai'
 import { Effect, Option, pipe, Schedule, Schema } from 'effect'
 import { z } from 'zod'
 
-const enrichmentModel = openai('gpt-4o-mini')
+const enrichmentModel = openai(FAST_MODEL)
 
 const EnrichmentSchema = z.object({
   keywords: z

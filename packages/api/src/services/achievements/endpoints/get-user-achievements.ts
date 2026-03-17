@@ -6,8 +6,8 @@ import type {
   AchievementsResponse,
   AchievementWithProgress,
 } from '@lily/shared'
-import { ACHIEVEMENTS } from '@lily/shared'
-import { Array, Effect, Match, Option, pipe, Record } from 'effect'
+import { ACHIEVEMENT_KEYS, ACHIEVEMENTS } from '@lily/shared'
+import { Array, Effect, Match, Option, pipe } from 'effect'
 
 interface ProgressCounts {
   plants: number
@@ -67,7 +67,7 @@ export const getUserAchievements = (): Effect.Effect<
       }),
     ])
 
-    const allKeys = Record.keys(ACHIEVEMENTS) as unknown as AchievementKey[]
+    const allKeys = ACHIEVEMENT_KEYS
 
     const achievements: AchievementWithProgress[] = Array.map(
       allKeys,

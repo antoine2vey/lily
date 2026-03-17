@@ -4,6 +4,7 @@ import { getChatHistory } from '@lily/api/services/ai-chat/endpoints/get-chat-hi
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { parsePaginationParams } from '@lily/shared'
 
 export const AIChatApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'aiChat', (handlers) =>
@@ -25,8 +26,7 @@ export const AIChatApiLive = (api: Api) =>
       .handle('getChatHistory', ({ path: { plantId }, urlParams }) =>
         getChatHistory({
           plantId,
-          page: parseInt(urlParams.page, 10) || 1,
-          limit: parseInt(urlParams.limit, 10) || 20,
+          ...parsePaginationParams(urlParams),
         }).pipe(withInfraErrorsAsDefect)
       )
   )
