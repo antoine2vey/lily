@@ -16,6 +16,7 @@ import type {
   NotificationStatus,
   NotificationsListResponse,
 } from '@lily/shared/notification'
+import type { NotificationTopic } from '@lily/shared/server'
 import { and, count, desc, eq, inArray, lte, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -28,7 +29,7 @@ export interface FindNotificationsParams {
 }
 
 export interface CreateNotificationData {
-  type: string
+  type: NotificationTopic
   title?: string
   body?: string
   scheduledAt: Date
@@ -79,7 +80,7 @@ export interface INotificationRepository {
   ) => Effect.Effect<Notification | null, SqlError>
   readonly deletePendingByPlantAndType: (
     plantId: string,
-    type: string
+    type: NotificationTopic
   ) => Effect.Effect<void, SqlError>
   readonly hasNotificationToday: (
     userId: string,
@@ -106,7 +107,7 @@ export interface INotificationRepository {
   readonly hasNotificationOfTypeTodayForUser: (
     userId: string,
     timezone: string,
-    type: string
+    type: NotificationTopic
   ) => Effect.Effect<boolean, SqlError>
 }
 
@@ -231,7 +232,7 @@ export const NotificationRepositoryLive = Layer.effect(
           return row ? mapToNotification(row) : null
         }).pipe(Effect.withSpan('NotificationRepository.incrementRetryCount')),
 
-      deletePendingByPlantAndType: (plantId: string, type: string) =>
+      deletePendingByPlantAndType: (plantId: string, type: NotificationTopic) =>
         Effect.gen(function* () {
           yield* db
             .delete(notifications)
@@ -334,7 +335,7 @@ export const NotificationRepositoryLive = Layer.effect(
       hasNotificationOfTypeTodayForUser: (
         userId: string,
         timezone: string,
-        type: string
+        type: NotificationTopic
       ) =>
         Effect.gen(function* () {
           const today = startOfTodayAsDate(timezone)

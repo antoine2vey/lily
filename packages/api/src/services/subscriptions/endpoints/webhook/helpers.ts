@@ -1,11 +1,16 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import type { SubscriptionStatus } from '@lily/shared'
+import type {
+  RevenueCatEventType,
+  RevenueCatPeriodType,
+  RevenueCatStore,
+  SubscriptionStatus,
+} from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 
 // Helper to map RevenueCat store to our store type
 export const mapRevenueCatStore = (
-  store: string
+  store: RevenueCatStore
 ): 'APP_STORE' | 'PLAY_STORE' | null =>
   pipe(
     Match.value(store),
@@ -16,8 +21,8 @@ export const mapRevenueCatStore = (
 
 // Helper to map RevenueCat event type to subscription status
 export const mapEventToStatus = (
-  eventType: string,
-  periodType: string | null | undefined
+  eventType: RevenueCatEventType,
+  periodType: RevenueCatPeriodType | null | undefined
 ): SubscriptionStatus =>
   pipe(
     Match.value(eventType),
@@ -91,12 +96,12 @@ export interface WebhookEventContext {
   readonly purchasedAt: Date
   readonly expiresAt: Date
   readonly eventData: {
-    readonly type: string
-    readonly period_type?: string | null | undefined
+    readonly type: RevenueCatEventType
+    readonly period_type?: RevenueCatPeriodType | null | undefined
     readonly cancel_reason?: string | null | undefined
     readonly original_transaction_id?: string | null | undefined
     readonly id: string
     readonly original_app_user_id: string
-    readonly store: string
+    readonly store: RevenueCatStore
   }
 }

@@ -23,7 +23,7 @@ const mapToDeviceToken = (
 ): DeviceToken => ({
   id: row.id,
   token: row.token,
-  platform: row.platform as 'ios' | 'android' | 'web',
+  platform: row.platform,
   isActive: row.isActive,
   userId: row.userId,
   createdAt: row.createdAt,
