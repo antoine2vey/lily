@@ -1,11 +1,8 @@
 import {
   PaymentProviderError,
-  RevenueCatEnvironment,
-  RevenueCatEventType,
-  RevenueCatPeriodType,
-  RevenueCatStore,
   type RevenueCatSubscriberInfo,
   type RevenueCatWebhookEvent,
+  RevenueCatWebhookEventData,
 } from '@lily/shared'
 import { Config, Context, Effect, Layer, pipe, Schema } from 'effect'
 
@@ -28,40 +25,18 @@ export class RevenueCatProvider extends Context.Tag('RevenueCatProvider')<
   IRevenueCatProvider
 >() {}
 
-// RevenueCat webhook event inner schema — uses shared literal types
-// for type, store, environment, and period_type instead of Schema.String.
-const RevenueCatEventDataSchema = Schema.Struct({
-  type: RevenueCatEventType,
-  id: Schema.String,
-  app_user_id: Schema.String,
-  original_app_user_id: Schema.String,
-  aliases: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
-  product_id: Schema.String,
-  entitlement_ids: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
-  store: RevenueCatStore,
-  environment: RevenueCatEnvironment,
-  purchased_at_ms: Schema.Number,
-  expiration_at_ms: Schema.NullOr(Schema.Number),
-  is_trial_period: Schema.optional(Schema.NullOr(Schema.Boolean)),
-  period_type: Schema.optional(Schema.NullOr(RevenueCatPeriodType)),
-  price: Schema.optional(Schema.NullOr(Schema.Number)),
-  price_in_purchased_currency: Schema.optional(Schema.NullOr(Schema.Number)),
-  currency: Schema.optional(Schema.NullOr(Schema.String)),
-  cancel_reason: Schema.optional(Schema.NullOr(Schema.String)),
-  subscriber_attributes: Schema.optional(
-    Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.Unknown }))
-  ),
-  transaction_id: Schema.optional(Schema.NullOr(Schema.String)),
-  original_transaction_id: Schema.optional(Schema.NullOr(Schema.String)),
-})
+// Extend the shared schema with a lenient Record so unknown properties from
+// RevenueCat don't cause decode failures. We also override `type` to
+// Schema.String so that new/unknown event types are accepted at decode time
+// (the downstream Match.orElse in helpers.ts handles them gracefully).
+const LenientEventDataSchema = Schema.extend(
+  Schema.Struct({ ...RevenueCatWebhookEventData.fields, type: Schema.String }),
+  Schema.Record({ key: Schema.String, value: Schema.Unknown })
+)
 
-// Use a lenient struct that allows extra properties via Record
 const RevenueCatWebhookEventSchema = Schema.Struct({
   api_version: Schema.String,
-  event: Schema.extend(
-    RevenueCatEventDataSchema,
-    Schema.Record({ key: Schema.String, value: Schema.Unknown })
-  ),
+  event: LenientEventDataSchema,
 })
 
 export const RevenueCatProviderLive = Layer.effect(

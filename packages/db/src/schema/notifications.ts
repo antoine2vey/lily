@@ -60,7 +60,6 @@ export const notifications = pgTable(
   },
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
-    index('notifications_status_idx').on(table.status),
     index('notifications_status_scheduled_at_idx').on(
       table.status,
       table.scheduledAt

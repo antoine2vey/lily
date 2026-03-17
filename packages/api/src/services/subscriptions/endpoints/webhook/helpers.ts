@@ -44,7 +44,7 @@ export const mapEventToStatus = (
  */
 export const ensureSubscriptionActive = (
   ctx: WebhookEventContext,
-  eventType: string,
+  eventType: RevenueCatEventType,
   updateFields: Record<string, unknown> = {}
 ): Effect.Effect<void, SqlError, SubscriptionRepository> =>
   Effect.gen(function* () {
