@@ -279,7 +279,7 @@ export const PlantRepositoryLive = Layer.effect(
         const rows = yield* db
           .select()
           .from(plantCareSchedules)
-          .where(inArray(plantCareSchedules.plantId, plantIds as string[]))
+          .where(inArray(plantCareSchedules.plantId, [...plantIds]))
 
         const grouped = new Map<string, PlantCareScheduleRef[]>()
         Array.forEach(rows, (r) => {
@@ -423,7 +423,7 @@ export const PlantRepositoryLive = Layer.effect(
           const items = yield* db
             .select()
             .from(plants)
-            .where(inArray(plants.id, ids as string[]))
+            .where(inArray(plants.id, [...ids]))
           return items
         }).pipe(Effect.withSpan('PlantRepository.findByIds')),
 

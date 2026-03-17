@@ -1,7 +1,12 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { users } from '@lily/db/schema'
-import { type LanguageCode, nowAsDate } from '@lily/shared'
+import {
+  type LanguageCode,
+  nowAsDate,
+  type UserRole,
+  type UserStatus,
+} from '@lily/shared'
 import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -27,8 +32,8 @@ export interface UpdateUserData {
   doNotDisturbStart?: string | null
   doNotDisturbEnd?: string | null
   emailVerified?: boolean
-  role?: 'user' | 'admin'
-  status?: 'active' | 'suspended' | 'banned'
+  role?: UserRole
+  status?: UserStatus
   language?: LanguageCode
   timezone?: string | null
   preferredNotificationTime?: string | null
@@ -40,8 +45,8 @@ export interface UpdateUserData {
 export interface FindUsersFilters {
   page: number
   limit: number
-  role?: 'user' | 'admin'
-  status?: 'active' | 'suspended' | 'banned'
+  role?: UserRole
+  status?: UserStatus
   search?: string
 }
 
@@ -81,11 +86,11 @@ export interface IUserRepository {
   ) => Effect.Effect<number, SqlError>
   readonly updateRole: (
     id: string,
-    role: 'user' | 'admin'
+    role: UserRole
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly updateStatus: (
     id: string,
-    status: 'active' | 'suspended' | 'banned'
+    status: UserStatus
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly findWeatherEnabled: () => Effect.Effect<
     Array<typeof users.$inferSelect>,
@@ -95,6 +100,23 @@ export interface IUserRepository {
     Array<typeof users.$inferSelect>,
     SqlError
   >
+}
+
+const buildUserFilterConditions = (
+  filters: Omit<FindUsersFilters, 'page' | 'limit'>
+) => {
+  const conditions = []
+  if (filters.role) conditions.push(eq(users.role, filters.role))
+  if (filters.status) conditions.push(eq(users.status, filters.status))
+  if (filters.search) {
+    conditions.push(
+      or(
+        ilike(users.email, `%${filters.search}%`),
+        ilike(users.name, `%${filters.search}%`)
+      )
+    )
+  }
+  return conditions.length > 0 ? and(...conditions) : undefined
 }
 
 // Tag for dependency injection
@@ -182,24 +204,10 @@ export const UserRepositoryLive = Layer.effect(
 
       findAllPaginated: (filters: FindUsersFilters) =>
         Effect.gen(function* () {
-          const { page, limit, role, status, search } = filters
+          const { page, limit } = filters
           const offset = (page - 1) * limit
 
-          // Build where conditions
-          const conditions = []
-          if (role) conditions.push(eq(users.role, role))
-          if (status) conditions.push(eq(users.status, status))
-          if (search) {
-            conditions.push(
-              or(
-                ilike(users.email, `%${search}%`),
-                ilike(users.name, `%${search}%`)
-              )
-            )
-          }
-
-          const whereClause =
-            conditions.length > 0 ? and(...conditions) : undefined
+          const whereClause = buildUserFilterConditions(filters)
 
           const results = yield* db
             .select()
@@ -214,23 +222,7 @@ export const UserRepositoryLive = Layer.effect(
 
       countUsers: (filters: Omit<FindUsersFilters, 'page' | 'limit'>) =>
         Effect.gen(function* () {
-          const { role, status, search } = filters
-
-          // Build where conditions
-          const conditions = []
-          if (role) conditions.push(eq(users.role, role))
-          if (status) conditions.push(eq(users.status, status))
-          if (search) {
-            conditions.push(
-              or(
-                ilike(users.email, `%${search}%`),
-                ilike(users.name, `%${search}%`)
-              )
-            )
-          }
-
-          const whereClause =
-            conditions.length > 0 ? and(...conditions) : undefined
+          const whereClause = buildUserFilterConditions(filters)
 
           const result = yield* db
             .select({ count: sql<number>`count(*)::int` })
@@ -244,7 +236,7 @@ export const UserRepositoryLive = Layer.effect(
           )
         }).pipe(Effect.withSpan('UserRepository.countUsers')),
 
-      updateRole: (id: string, role: 'user' | 'admin') =>
+      updateRole: (id: string, role: UserRole) =>
         Effect.gen(function* () {
           const [user] = yield* db
             .update(users)
@@ -254,7 +246,7 @@ export const UserRepositoryLive = Layer.effect(
           return Option.getOrNull(Option.fromNullable(user))
         }).pipe(Effect.withSpan('UserRepository.updateRole')),
 
-      updateStatus: (id: string, status: 'active' | 'suspended' | 'banned') =>
+      updateStatus: (id: string, status: UserStatus) =>
         Effect.gen(function* () {
           const [user] = yield* db
             .update(users)

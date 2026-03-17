@@ -304,7 +304,7 @@ export const NotificationRepositoryLive = Layer.effect(
           yield* db
             .update(notifications)
             .set({ status: 'queued' })
-            .where(inArray(notifications.id, ids as string[]))
+            .where(inArray(notifications.id, [...ids]))
         }).pipe(Effect.withSpan('NotificationRepository.markManyAsQueued')),
 
       markManyAsSent: (ids: readonly string[]) =>
@@ -316,7 +316,7 @@ export const NotificationRepositoryLive = Layer.effect(
               status: 'sent',
               sentAt: nowAsDate(),
             })
-            .where(inArray(notifications.id, ids as string[]))
+            .where(inArray(notifications.id, [...ids]))
         }).pipe(Effect.withSpan('NotificationRepository.markManyAsSent')),
 
       markManyAsFailed: (ids: readonly string[], error: string) =>
@@ -328,7 +328,7 @@ export const NotificationRepositoryLive = Layer.effect(
               status: 'failed',
               lastError: error,
             })
-            .where(inArray(notifications.id, ids as string[]))
+            .where(inArray(notifications.id, [...ids]))
         }).pipe(Effect.withSpan('NotificationRepository.markManyAsFailed')),
 
       hasNotificationOfTypeTodayForUser: (

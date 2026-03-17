@@ -1,5 +1,7 @@
+import type { SqlError } from '@effect/sql/SqlError'
+import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { SubscriptionStatus } from '@lily/shared'
-import { Match, pipe } from 'effect'
+import { Effect, Match, Option, pipe } from 'effect'
 
 // Helper to map RevenueCat store to our store type
 export const mapRevenueCatStore = (
@@ -30,6 +32,55 @@ export const mapEventToStatus = (
     Match.when('PRODUCT_CHANGE', () => 'active' as const),
     Match.orElse(() => 'active' as const)
   )
+
+/**
+ * Ensure a subscription exists for the user — update if present, create if
+ * missing.  Shared across RENEWAL, UNCANCELLATION, and similar handlers.
+ */
+export const ensureSubscriptionActive = (
+  ctx: WebhookEventContext,
+  eventType: string,
+  updateFields: Record<string, unknown> = {}
+): Effect.Effect<void, SqlError, SubscriptionRepository> =>
+  Effect.gen(function* () {
+    const subRepo = yield* SubscriptionRepository
+    const existingSub = yield* subRepo.findByUserId(ctx.userId)
+
+    if (existingSub) {
+      yield* subRepo.updateByUserId(ctx.userId, {
+        status: 'active',
+        ...updateFields,
+      })
+      yield* subRepo.logEvent(ctx.userId, 'subscription_updated', {
+        status: 'active',
+        eventType,
+      })
+    } else {
+      yield* subRepo.create({
+        userId: ctx.userId,
+        tier: 'paid',
+        status: 'active',
+        trialStartsAt: null,
+        trialEndsAt: null,
+        currentPeriodStart: ctx.purchasedAt,
+        currentPeriodEnd: ctx.expiresAt,
+        externalSubscriptionId: pipe(
+          Option.fromNullable(ctx.eventData.original_transaction_id),
+          Option.getOrElse(() => ctx.eventData.id)
+        ),
+        externalCustomerId: ctx.eventData.original_app_user_id,
+        provider: 'revenuecat',
+        productId: ctx.productId,
+        store: ctx.store,
+      })
+      yield* subRepo.logEvent(ctx.userId, 'subscription_created', {
+        tier: 'paid',
+        status: 'active',
+        eventType,
+        note: `Created from ${eventType} event (subscription was missing)`,
+      })
+    }
+  })
 
 // Type for parsed webhook event data that handlers receive
 export interface WebhookEventContext {
