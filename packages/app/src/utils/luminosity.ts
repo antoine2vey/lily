@@ -1,4 +1,4 @@
-import { Option, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 
 interface ExifData {
   BrightnessValue?: number
@@ -20,9 +20,7 @@ const luxFromExposure = (exif: ExifData): Option.Option<number> =>
       exposureTime: Option.fromNullable(exif.ExposureTime),
       iso: pipe(
         Option.fromNullable(exif.ISOSpeedRatings),
-        Option.flatMap((arr) =>
-          arr.length > 0 ? Option.fromNullable(arr[0]) : Option.none()
-        )
+        Option.flatMap(Array.head)
       ),
     }),
     Option.filter(({ exposureTime, iso }) => exposureTime > 0 && iso > 0),

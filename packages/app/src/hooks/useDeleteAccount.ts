@@ -1,21 +1,22 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-
-async function deleteAccount(): Promise<void> {
-  // TODO: Implement actual API call when backend is ready
-  // await api.user.delete()
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-}
+import { Alert } from 'react-native'
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: deleteAccount,
+    mutationFn: async () => {
+      // TODO: Wire to DELETE /users/me endpoint when backend supports it
+      throw new Error('Account deletion is not yet available')
+    },
     onSuccess: () => {
-      // Clear all cached data
       queryClient.clear()
+    },
+    onError: () => {
+      Alert.alert(
+        'Not Available',
+        'Account deletion is not yet available. Please contact support.'
+      )
     },
   })
 }

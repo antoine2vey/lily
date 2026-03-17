@@ -1,17 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
 import { Alert } from 'react-native'
 
-async function exportData(): Promise<void> {
-  // TODO: Implement actual API call when backend is ready
-  // await api.user.exportData()
-
-  // Mock delay
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-}
-
 export function useExportData() {
   return useMutation({
-    mutationFn: exportData,
+    mutationFn: async () => {
+      // TODO: Wire to POST /users/me/export endpoint when backend supports it
+      throw new Error('Data export is not yet available')
+    },
     onSuccess: () => {
       Alert.alert(
         'Export Requested',
@@ -20,8 +15,8 @@ export function useExportData() {
     },
     onError: () => {
       Alert.alert(
-        'Export Failed',
-        'Unable to request data export. Please try again later.'
+        'Not Available',
+        'Data export is not yet available. Please try again later.'
       )
     },
   })

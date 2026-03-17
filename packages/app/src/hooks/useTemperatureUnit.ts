@@ -1,10 +1,13 @@
-import { Match, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import { useUser } from '@/hooks/useUser'
 
 export function useTemperatureUnit() {
   const { data } = useUser()
 
-  const unit = data?.temperatureUnit ?? 'celsius'
+  const unit = pipe(
+    Option.fromNullable(data?.temperatureUnit),
+    Option.getOrElse(() => 'celsius' as const)
+  )
 
   const formatTemp = (celsius: number | null): string => {
     if (celsius === null) return '--'

@@ -42,14 +42,12 @@ export const initialize = (): void => {
     Purchases.setLogLevel(LOG_LEVEL.VERBOSE)
     Purchases.configure({ apiKey })
     isConfigured = true
-    console.log('[RevenueCat] Initialized successfully')
-    // Log the App User ID for dashboard lookup
-    Purchases.getAppUserID().then((userId) => {
-      console.log(`[RevenueCat] App User ID: ${userId}`)
-      console.log(
-        '[RevenueCat] Use this ID to find the customer in RevenueCat dashboard'
-      )
-    })
+    if (__DEV__) {
+      console.log('[RevenueCat] Initialized successfully')
+      Purchases.getAppUserID().then((userId) => {
+        console.log(`[RevenueCat] App User ID: ${userId}`)
+      })
+    }
   } else {
     isDevMode = true
     console.log(
@@ -196,20 +194,12 @@ export const getOfferings = async (): Promise<PurchasesOfferings | null> => {
     console.log('[RevenueCat DEV] getOfferings() - returning mock data')
     return mockOfferings
   }
-  if (!isConfigured) {
-    console.log('[RevenueCat] getOfferings() - not configured, returning null')
-    return null
-  }
+  if (!isConfigured) return null
   try {
-    console.log('[RevenueCat] Fetching offerings from RevenueCat...')
     const offerings = await Purchases.getOfferings()
-    console.log('[RevenueCat] Offerings received:', {
-      current: offerings.current?.identifier ?? null,
-      allKeys: Record.keys(offerings.all),
-    })
     return offerings
   } catch (error) {
-    console.error('[RevenueCat] Failed to fetch offerings:', error)
+    if (__DEV__) console.error('[RevenueCat] Failed to fetch offerings:', error)
     return null
   }
 }
@@ -259,26 +249,14 @@ export const restorePurchases = async (): Promise<CustomerInfo> => {
  * Useful for debugging subscription status.
  */
 export const getCustomerInfo = async (): Promise<CustomerInfo | null> => {
-  if (isDevMode) {
-    console.log('[RevenueCat DEV] getCustomerInfo() - returning mock')
-    return {} as CustomerInfo
-  }
-  if (!isConfigured) {
-    console.log('[RevenueCat] getCustomerInfo() - not configured')
-    return null
-  }
+  if (isDevMode) return {} as CustomerInfo
+  if (!isConfigured) return null
   try {
     const customerInfo = await Purchases.getCustomerInfo()
-    console.log('[RevenueCat] Customer Info:', {
-      appUserId: await Purchases.getAppUserID(),
-      activeEntitlements: Record.keys(customerInfo.entitlements.active),
-      allEntitlements: Record.keys(customerInfo.entitlements.all),
-      activeSubscriptions: customerInfo.activeSubscriptions,
-      managementURL: customerInfo.managementURL,
-    })
     return customerInfo
   } catch (error) {
-    console.error('[RevenueCat] Failed to get customer info:', error)
+    if (__DEV__)
+      console.error('[RevenueCat] Failed to get customer info:', error)
     return null
   }
 }

@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { iconColors } from 'src/theme'
+import { iconColorsLight as iconColors } from 'src/theme'
 
 export default function AuthLayout() {
   return (
