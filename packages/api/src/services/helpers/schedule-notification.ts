@@ -7,15 +7,8 @@ import type {
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import type { LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
-import { MessageQueue } from '@lily/shared/server'
+import { type DeferredCareType, MessageQueue } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
-
-export type DeferredCareType =
-  | 'watering_reminder'
-  | 'fertilization_reminder'
-  | 'misting_reminder'
-  | 'repotting_reminder'
-  | 'overdue_reminder'
 
 interface DeferredCareNotificationParams {
   type: DeferredCareType

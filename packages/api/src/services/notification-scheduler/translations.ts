@@ -1,4 +1,5 @@
 import type { LanguageCode } from '@lily/shared'
+import type { DeferredCareType } from '@lily/shared/server'
 import { Array, Match, Option, pipe } from 'effect'
 
 const MAX_PLANT_NAMES_IN_BODY = 5
@@ -270,11 +271,7 @@ type CareTranslations = {
   readonly andMore: (count: number) => string
 }
 
-type TranslationMap = {
-  readonly watering_reminder: CareTranslations
-  readonly fertilization_reminder: CareTranslations
-  readonly overdue_reminder: CareTranslations
-}
+type TranslationMap = Record<DeferredCareType, CareTranslations>
 
 const translations: Record<LanguageCode, TranslationMap> = {
   en: {
@@ -288,6 +285,18 @@ const translations: Record<LanguageCode, TranslationMap> = {
       singleTitle: (name) => `🌿 Time to fertilize your ${name}`,
       singleBody: (name) => `Your ${name} needs fertilizing today.`,
       pluralTitle: (count) => `🌿 ${count} plants need fertilizing`,
+      andMore: (count) => `and ${count} more`,
+    },
+    misting_reminder: {
+      singleTitle: (name) => `🌫️ Time to mist your ${name}`,
+      singleBody: (name) => `Your ${name} needs misting today.`,
+      pluralTitle: (count) => `🌫️ ${count} plants need misting`,
+      andMore: (count) => `and ${count} more`,
+    },
+    repotting_reminder: {
+      singleTitle: (name) => `🪴 Time to repot your ${name}`,
+      singleBody: (name) => `Your ${name} is ready for repotting.`,
+      pluralTitle: (count) => `🪴 ${count} plants need repotting`,
       andMore: (count) => `and ${count} more`,
     },
     overdue_reminder: {
@@ -312,6 +321,19 @@ const translations: Record<LanguageCode, TranslationMap> = {
       pluralTitle: (count) => `🌿 ${count} plantes ont besoin de fertilisant`,
       andMore: (count) => `et ${count} de plus`,
     },
+    misting_reminder: {
+      singleTitle: (name) => `🌫️ Il est temps de brumiser votre ${name}`,
+      singleBody: (name) =>
+        `Votre ${name} a besoin d'être brumisé(e) aujourd'hui.`,
+      pluralTitle: (count) => `🌫️ ${count} plantes ont besoin de brumisation`,
+      andMore: (count) => `et ${count} de plus`,
+    },
+    repotting_reminder: {
+      singleTitle: (name) => `🪴 Il est temps de rempoter votre ${name}`,
+      singleBody: (name) => `Votre ${name} est prêt(e) pour le rempotage.`,
+      pluralTitle: (count) => `🪴 ${count} plantes ont besoin de rempotage`,
+      andMore: (count) => `et ${count} de plus`,
+    },
     overdue_reminder: {
       singleTitle: (name) => `⚠️ Votre ${name} a besoin d'attention`,
       singleBody: (name) =>
@@ -324,34 +346,18 @@ const translations: Record<LanguageCode, TranslationMap> = {
 
 const getCareTranslations = (
   language: LanguageCode,
-  type: string
-): CareTranslations =>
-  pipe(
-    Match.value(type),
-    Match.when(
-      'watering_reminder',
-      () => translations[language].watering_reminder
-    ),
-    Match.when(
-      'fertilization_reminder',
-      () => translations[language].fertilization_reminder
-    ),
-    Match.when(
-      'overdue_reminder',
-      () => translations[language].overdue_reminder
-    ),
-    Match.orElse(() => translations[language].watering_reminder)
-  )
+  type: DeferredCareType
+): CareTranslations => translations[language][type]
 
 export const buildSinglePlantContent = (
-  type: string,
+  type: DeferredCareType,
   plantName: string,
   language: LanguageCode
 ): { title: string; body: string } =>
   buildNotificationContent(type, [plantName], language)
 
 export const buildNotificationContent = (
-  type: string,
+  type: DeferredCareType,
   plantNames: readonly string[],
   language: LanguageCode
 ): { title: string; body: string } => {
