@@ -1,4 +1,5 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
 import { Effect } from 'effect'
 
 /**
@@ -34,7 +35,7 @@ export const magicLinkCallback = ({
 
     // Don't mark as used here - the verify endpoint will do that
     // Just redirect to app with the code
-    const redirectUrl = `lily://verify?code=${token}`
+    const redirectUrl = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
 
     // Return redirect URL - the handler will perform the actual redirect
     return { redirectUrl }

@@ -1,20 +1,17 @@
-import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import type { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
+import {
+  createMagicLinkToken,
+  normalizeEmail,
+  validateEmail,
+} from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import {
-  Config,
-  type ConfigError,
-  Console,
-  DateTime,
-  Duration,
-  Effect,
-  String as EffectString,
-  pipe,
-} from 'effect'
+import { Config, type ConfigError, Console, Effect } from 'effect'
 import qrcode from 'qrcode-terminal'
 
 // Feature flag - MUST be explicitly set in environment
@@ -22,9 +19,6 @@ import qrcode from 'qrcode-terminal'
 const DisableMagicLinkVerification = Config.boolean(
   'DISABLE_MAGIC_LINK_VERIFICATION'
 )
-
-// 10 minutes expiry
-const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
 
 /**
  * Send magic link email to user
@@ -38,46 +32,26 @@ export const sendMagicLink = ({
   MagicLinkRepository | RateLimiterService
 > =>
   Effect.gen(function* () {
-    const magicLinkRepo = yield* MagicLinkRepository
     const rateLimiter = yield* RateLimiterService
     const disableVerification = yield* DisableMagicLinkVerification
 
     // Normalize email
-    const normalizedEmail = pipe(
-      email,
-      EffectString.toLowerCase,
-      EffectString.trim
-    )
+    const normalized = normalizeEmail(email)
 
     // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
-      return yield* Effect.fail({ message: 'Invalid email format' })
-    }
+    yield* validateEmail(normalized)
 
     // Check rate limit
     yield* rateLimiter.checkRateLimit(
-      `magic-link:${normalizedEmail}`,
+      `magic-link:${normalized}`,
       RATE_LIMITS.MAGIC_LINK
     )
 
-    // Delete any existing magic links for this email
-    yield* magicLinkRepo.deleteByEmail(normalizedEmail)
-
-    // Generate secure token
-    const token = crypto.randomUUID()
-    const expiresAt = DateTime.toDateUtc(
-      DateTime.addDuration(
-        DateTime.unsafeNow(),
-        Duration.millis(MAGIC_LINK_EXPIRY_MS)
-      )
-    )
-
-    // Store magic link in database
-    yield* magicLinkRepo.create(normalizedEmail, token, expiresAt)
+    // Create magic link token
+    const { token } = yield* createMagicLinkToken(normalized)
 
     // Build callback URL for email
-    const deepLink = `lily://verify?code=${token}`
+    const deepLink = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
 
     // If verification is disabled, skip email and return code for instant login
     // This is used for TestFlight/App Review testing
@@ -103,9 +77,9 @@ export const sendMagicLink = ({
     }
 
     yield* sendMagicLinkEmail({
-      email: normalizedEmail,
+      email: normalized,
       token,
-      callbackUrl: `lily://verify?code=${token}`,
+      callbackUrl: `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`,
       language: language ?? 'en',
     }).pipe(
       Effect.catchTags({

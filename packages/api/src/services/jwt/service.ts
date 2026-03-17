@@ -1,4 +1,4 @@
-import type { UserRole, UserStatus } from '@lily/shared'
+import { UserRole, UserStatus } from '@lily/shared'
 import {
   Array,
   Config,
@@ -8,19 +8,22 @@ import {
   Option,
   pipe,
   Redacted,
+  Schema,
 } from 'effect'
 import * as jose from 'jose'
 import { JWTError } from './errors'
 
+const JWTPayloadSchema = Schema.Struct({
+  sub: Schema.String,
+  email: Schema.String,
+  role: UserRole,
+  status: UserStatus,
+})
+
 /**
  * JWT payload structure - minimal claims
  */
-export interface JWTPayload {
-  sub: string // User ID (UUID)
-  email: string
-  role: UserRole
-  status: UserStatus
-}
+export type JWTPayload = typeof JWTPayloadSchema.Type
 
 /**
  * Input for signing access tokens
@@ -28,8 +31,8 @@ export interface JWTPayload {
 export interface SignAccessTokenInput {
   userId: string
   email: string
-  role: UserRole
-  status: UserStatus
+  role: typeof UserRole.Type
+  status: typeof UserStatus.Type
 }
 
 /**
@@ -124,34 +127,15 @@ export const JWTServiceLive = Layer.effect(
             },
           })
 
-          const payload = result.payload
-          const sub = Option.fromNullable(payload.sub)
-          const email = Option.fromNullable(payload.email as string | undefined)
-          const role = Option.fromNullable(payload.role as UserRole | undefined)
-          const status = Option.fromNullable(
-            payload.status as UserStatus | undefined
-          )
-
-          if (
-            Option.isNone(sub) ||
-            Option.isNone(email) ||
-            Option.isNone(role) ||
-            Option.isNone(status)
-          ) {
-            return yield* Effect.fail(
+          return yield* Effect.try({
+            try: () =>
+              Schema.decodeUnknownSync(JWTPayloadSchema)(result.payload),
+            catch: () =>
               new JWTError({
                 message: 'Token payload missing required fields',
                 code: 'INVALID_TOKEN',
-              })
-            )
-          }
-
-          return {
-            sub: sub.value,
-            email: email.value,
-            role: role.value,
-            status: status.value,
-          }
+              }),
+          })
         }).pipe(Effect.withSpan('JWTService.verifyAccessToken')),
 
       generateRefreshToken: () =>
