@@ -27,8 +27,8 @@ const workerRetryPolicy = Schedule.exponential('1 second').pipe(
 )
 
 // Process a single message - send push notification
-export const processMessage = (message: QueueMessage) =>
-  Effect.gen(function* () {
+export const processMessage = Effect.fn('notification-worker.process')(
+  function* (message: QueueMessage) {
     const { notificationIds } = message.payload
     yield* Effect.annotateCurrentSpan('notification.ids', notificationIds)
     yield* Effect.annotateCurrentSpan('userId', message.payload.userId)
@@ -76,11 +76,12 @@ export const processMessage = (message: QueueMessage) =>
       notificationIds,
       devices: activeTokens.length,
     })
-  }).pipe(Effect.withSpan('notification-worker.process'))
+  }
+)
 
 // Handle a message that failed after all retries
-export const handleFailedMessage = (message: QueueMessage, error: unknown) =>
-  Effect.gen(function* () {
+export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
+  function* (message: QueueMessage, error: unknown) {
     const { notificationIds } = message.payload
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationRepository
@@ -109,11 +110,12 @@ export const handleFailedMessage = (message: QueueMessage, error: unknown) =>
       notificationIds,
       error: String(error),
     })
-  }).pipe(Effect.withSpan('notification-worker.deadLetter'))
+  }
+)
 
 // Consume and process messages from a single topic
-export const consumeFromTopic = (topic: NotificationTopic) =>
-  Effect.gen(function* () {
+export const consumeFromTopic = Effect.fn('notification-worker.consume')(
+  function* (topic: NotificationTopic) {
     yield* Effect.annotateCurrentSpan('topic', topic)
     const queue = yield* MessageQueue
     const notificationRepo = yield* NotificationRepository
@@ -159,7 +161,8 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
     )
 
     yield* queue.ack(topic, message.id)
-  }).pipe(Effect.withSpan('notification-worker.consume'))
+  }
+)
 
 // Exhaustive topic validation using Effect Match
 // Fails at compile time if a topic is not handled, throws at runtime

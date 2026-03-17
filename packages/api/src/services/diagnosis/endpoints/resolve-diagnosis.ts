@@ -22,7 +22,7 @@ export const resolveDiagnosis = (
     const result = yield* repo.markResolved(diagnosisId, userId)
 
     if (!result) {
-      return yield* Effect.fail(new DiagnosisNotFoundError({ diagnosisId }))
+      return yield* new DiagnosisNotFoundError({ diagnosisId })
     }
 
     // Resolve raw GCS key to signed URL

@@ -15,7 +15,7 @@ export const deleteIngestJob = (
     const deleted = yield* repo.delete(id)
 
     if (!deleted) {
-      return yield* Effect.fail(new IngestJobNotFoundError({ jobId: id }))
+      return yield* new IngestJobNotFoundError({ jobId: id })
     }
   }).pipe(
     Effect.withSpan('KnowledgeIngestion.deleteIngestJob', {

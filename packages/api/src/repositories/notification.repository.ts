@@ -123,193 +123,196 @@ export const NotificationRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByUserId: (params: FindNotificationsParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+      findByUserId: Effect.fn('NotificationRepository.findByUserId')(function* (
+        params: FindNotificationsParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
 
-          const filterConditions =
-            params.status && params.status !== 'all'
-              ? and(
-                  eq(notifications.userId, params.userId),
-                  eq(notifications.status, params.status)
-                )
-              : eq(notifications.userId, params.userId)
+        const filterConditions =
+          params.status && params.status !== 'all'
+            ? and(
+                eq(notifications.userId, params.userId),
+                eq(notifications.status, params.status)
+              )
+            : eq(notifications.userId, params.userId)
 
-          const countResult = yield* db
-            .select({ value: count() })
-            .from(notifications)
-            .where(filterConditions)
-          const total = extractCount(countResult)
+        const countResult = yield* db
+          .select({ value: count() })
+          .from(notifications)
+          .where(filterConditions)
+        const total = extractCount(countResult)
 
-          const rows = yield* db
-            .select()
-            .from(notifications)
-            .where(filterConditions)
-            .offset(offset)
-            .limit(limit)
-            .orderBy(desc(notifications.createdAt))
+        const rows = yield* db
+          .select()
+          .from(notifications)
+          .where(filterConditions)
+          .offset(offset)
+          .limit(limit)
+          .orderBy(desc(notifications.createdAt))
 
-          return paginate(
-            Array.map(rows, mapToNotification),
-            total,
-            page,
-            limit
-          )
-        }).pipe(Effect.withSpan('NotificationRepository.findByUserId')),
+        return paginate(Array.map(rows, mapToNotification), total, page, limit)
+      }),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(notifications)
-            .where(eq(notifications.id, id))
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.findById')),
+      findById: Effect.fn('NotificationRepository.findById')(function* (
+        id: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.id, id))
+        return row ? mapToNotification(row) : null
+      }),
 
-      markAsRead: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(notifications)
-            .set({ isRead: true })
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.markAsRead')),
+      markAsRead: Effect.fn('NotificationRepository.markAsRead')(function* (
+        id: string
+      ) {
+        const [row] = yield* db
+          .update(notifications)
+          .set({ isRead: true })
+          .where(eq(notifications.id, id))
+          .returning()
+        return row ? mapToNotification(row) : null
+      }),
 
-      create: (data: CreateNotificationData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(notifications)
-            .values({
-              type: data.type,
-              title: data.title,
-              body: data.body,
-              scheduledAt: data.scheduledAt,
-              userId: data.userId,
-              plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
-            })
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.create')),
+      create: Effect.fn('NotificationRepository.create')(function* (
+        data: CreateNotificationData
+      ) {
+        const [row] = yield* db
+          .insert(notifications)
+          .values({
+            type: data.type,
+            title: data.title,
+            body: data.body,
+            scheduledAt: data.scheduledAt,
+            userId: data.userId,
+            plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
+          })
+          .returning()
+        return row ? mapToNotification(row) : null
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .delete(notifications)
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.delete')),
+      delete: Effect.fn('NotificationRepository.delete')(function* (
+        id: string
+      ) {
+        const [row] = yield* db
+          .delete(notifications)
+          .where(eq(notifications.id, id))
+          .returning()
+        return row ? mapToNotification(row) : null
+      }),
 
       // Scheduler methods
-      findPendingToSchedule: (limit: number) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.status, 'pending'),
-                lte(notifications.scheduledAt, nowAsDate())
-              )
+      findPendingToSchedule: Effect.fn(
+        'NotificationRepository.findPendingToSchedule'
+      )(function* (limit: number) {
+        const rows = yield* db
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.status, 'pending'),
+              lte(notifications.scheduledAt, nowAsDate())
             )
-            .orderBy(notifications.scheduledAt)
-            .limit(limit)
-          return Array.map(rows, mapToNotification)
-        }).pipe(
-          Effect.withSpan('NotificationRepository.findPendingToSchedule')
-        ),
-
-      incrementRetryCount: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(notifications)
-            .set({
-              retryCount: sql`${notifications.retryCount} + 1`,
-            })
-            .where(eq(notifications.id, id))
-            .returning()
-          return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.incrementRetryCount')),
-
-      deletePendingByPlantAndType: (plantId: string, type: NotificationTopic) =>
-        Effect.gen(function* () {
-          yield* db
-            .delete(notifications)
-            .where(
-              and(
-                eq(notifications.plantId, plantId),
-                eq(notifications.type, type),
-                eq(notifications.status, 'pending')
-              )
-            )
-        }).pipe(
-          Effect.withSpan('NotificationRepository.deletePendingByPlantAndType')
-        ),
-
-      hasNotificationToday: (userId: string, plantId: string) =>
-        Effect.gen(function* () {
-          const today = startOfTodayAsDate()
-          const tomorrow = startOfTomorrowAsDate()
-
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.plantId, plantId),
-                eq(notifications.status, 'sent'),
-                sql`${notifications.sentAt} >= ${today}`,
-                sql`${notifications.sentAt} < ${tomorrow}`
-              )
-            )
-          return (
-            pipe(
-              Option.fromNullable(result),
-              Option.flatMap((r) => Option.fromNullable(r.count)),
-              Option.getOrElse(() => 0)
-            ) > 0
           )
-        }).pipe(Effect.withSpan('NotificationRepository.hasNotificationToday')),
+          .orderBy(notifications.scheduledAt)
+          .limit(limit)
+        return Array.map(rows, mapToNotification)
+      }),
 
-      findPendingByUserId: (userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.status, 'pending')
-              )
+      incrementRetryCount: Effect.fn(
+        'NotificationRepository.incrementRetryCount'
+      )(function* (id: string) {
+        const [row] = yield* db
+          .update(notifications)
+          .set({
+            retryCount: sql`${notifications.retryCount} + 1`,
+          })
+          .where(eq(notifications.id, id))
+          .returning()
+        return row ? mapToNotification(row) : null
+      }),
+
+      deletePendingByPlantAndType: Effect.fn(
+        'NotificationRepository.deletePendingByPlantAndType'
+      )(function* (plantId: string, type: NotificationTopic) {
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.plantId, plantId),
+              eq(notifications.type, type),
+              eq(notifications.status, 'pending')
             )
-            .orderBy(notifications.scheduledAt)
-          return Array.map(rows, mapToNotification)
-        }).pipe(Effect.withSpan('NotificationRepository.findPendingByUserId')),
+          )
+      }),
 
-      updateScheduledAt: (id: string, scheduledAt: Date) =>
-        Effect.gen(function* () {
+      hasNotificationToday: Effect.fn(
+        'NotificationRepository.hasNotificationToday'
+      )(function* (userId: string, plantId: string) {
+        const today = startOfTodayAsDate()
+        const tomorrow = startOfTomorrowAsDate()
+
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.plantId, plantId),
+              eq(notifications.status, 'sent'),
+              sql`${notifications.sentAt} >= ${today}`,
+              sql`${notifications.sentAt} < ${tomorrow}`
+            )
+          )
+        return (
+          pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          ) > 0
+        )
+      }),
+
+      findPendingByUserId: Effect.fn(
+        'NotificationRepository.findPendingByUserId'
+      )(function* (userId: string) {
+        const rows = yield* db
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.status, 'pending')
+            )
+          )
+          .orderBy(notifications.scheduledAt)
+        return Array.map(rows, mapToNotification)
+      }),
+
+      updateScheduledAt: Effect.fn('NotificationRepository.updateScheduledAt')(
+        function* (id: string, scheduledAt: Date) {
           const [row] = yield* db
             .update(notifications)
             .set({ scheduledAt })
             .where(eq(notifications.id, id))
             .returning()
           return row ? mapToNotification(row) : null
-        }).pipe(Effect.withSpan('NotificationRepository.updateScheduledAt')),
+        }
+      ),
 
       // Batch scheduler methods
-      markManyAsQueued: (ids: readonly string[]) =>
-        Effect.gen(function* () {
+      markManyAsQueued: Effect.fn('NotificationRepository.markManyAsQueued')(
+        function* (ids: readonly string[]) {
           if (ids.length === 0) return
           yield* db
             .update(notifications)
             .set({ status: 'queued' })
             .where(inArray(notifications.id, [...ids]))
-        }).pipe(Effect.withSpan('NotificationRepository.markManyAsQueued')),
+        }
+      ),
 
-      markManyAsSent: (ids: readonly string[]) =>
-        Effect.gen(function* () {
+      markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(
+        function* (ids: readonly string[]) {
           if (ids.length === 0) return
           yield* db
             .update(notifications)
@@ -318,10 +321,11 @@ export const NotificationRepositoryLive = Layer.effect(
               sentAt: nowAsDate(),
             })
             .where(inArray(notifications.id, [...ids]))
-        }).pipe(Effect.withSpan('NotificationRepository.markManyAsSent')),
+        }
+      ),
 
-      markManyAsFailed: (ids: readonly string[], error: string) =>
-        Effect.gen(function* () {
+      markManyAsFailed: Effect.fn('NotificationRepository.markManyAsFailed')(
+        function* (ids: readonly string[], error: string) {
           if (ids.length === 0) return
           yield* db
             .update(notifications)
@@ -330,41 +334,35 @@ export const NotificationRepositoryLive = Layer.effect(
               lastError: error,
             })
             .where(inArray(notifications.id, [...ids]))
-        }).pipe(Effect.withSpan('NotificationRepository.markManyAsFailed')),
+        }
+      ),
 
-      hasNotificationOfTypeTodayForUser: (
-        userId: string,
-        timezone: string,
-        type: NotificationTopic
-      ) =>
-        Effect.gen(function* () {
-          const today = startOfTodayAsDate(timezone)
-          const tomorrow = startOfTomorrowAsDate(timezone)
+      hasNotificationOfTypeTodayForUser: Effect.fn(
+        'NotificationRepository.hasNotificationOfTypeTodayForUser'
+      )(function* (userId: string, timezone: string, type: NotificationTopic) {
+        const today = startOfTodayAsDate(timezone)
+        const tomorrow = startOfTomorrowAsDate(timezone)
 
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(notifications)
-            .where(
-              and(
-                eq(notifications.userId, userId),
-                eq(notifications.type, type),
-                inArray(notifications.status, ['pending', 'queued', 'sent']),
-                sql`${notifications.createdAt} >= ${today}`,
-                sql`${notifications.createdAt} < ${tomorrow}`
-              )
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.type, type),
+              inArray(notifications.status, ['pending', 'queued', 'sent']),
+              sql`${notifications.createdAt} >= ${today}`,
+              sql`${notifications.createdAt} < ${tomorrow}`
             )
-          return (
-            pipe(
-              Option.fromNullable(result),
-              Option.flatMap((r) => Option.fromNullable(r.count)),
-              Option.getOrElse(() => 0)
-            ) > 0
           )
-        }).pipe(
-          Effect.withSpan(
-            'NotificationRepository.hasNotificationOfTypeTodayForUser'
-          )
-        ),
+        return (
+          pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          ) > 0
+        )
+      }),
     }
   })
 )

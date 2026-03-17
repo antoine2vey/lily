@@ -104,21 +104,20 @@ export const ChatRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(chatMessages)
-            .where(eq(chatMessages.id, id))
-          return pipe(Option.fromNullable(row), Option.getOrNull)
-        }).pipe(Effect.withSpan('ChatRepository.findById')),
+      findById: Effect.fn('ChatRepository.findById')(function* (id: string) {
+        const [row] = yield* db
+          .select()
+          .from(chatMessages)
+          .where(eq(chatMessages.id, id))
+        return pipe(Option.fromNullable(row), Option.getOrNull)
+      }),
 
-      findMessagesBefore: (params: {
-        plantId: string
-        userId: string
-        beforeDate: Date
-      }) =>
-        Effect.gen(function* () {
+      findMessagesBefore: Effect.fn('ChatRepository.findMessagesBefore')(
+        function* (params: {
+          plantId: string
+          userId: string
+          beforeDate: Date
+        }) {
           const rows = yield* db
             .select()
             .from(chatMessages)
@@ -131,202 +130,209 @@ export const ChatRepositoryLive = Layer.effect(
             )
             .orderBy(asc(chatMessages.createdAt))
           return rows
-        }).pipe(Effect.withSpan('ChatRepository.findMessagesBefore')),
+        }
+      ),
 
-      findByPlantId: (params: FindChatHistoryParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+      findByPlantId: Effect.fn('ChatRepository.findByPlantId')(function* (
+        params: FindChatHistoryParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
 
-          const filterConditions = and(
-            eq(chatMessages.plantId, params.plantId),
-            eq(chatMessages.userId, params.userId)
+        const filterConditions = and(
+          eq(chatMessages.plantId, params.plantId),
+          eq(chatMessages.userId, params.userId)
+        )
+
+        const countResult = yield* db
+          .select({ value: count() })
+          .from(chatMessages)
+          .where(filterConditions)
+        const total = extractCount(countResult)
+
+        const rows = yield* db
+          .select()
+          .from(chatMessages)
+          .where(filterConditions)
+          .offset(offset)
+          .limit(limit)
+          .orderBy(asc(chatMessages.createdAt))
+
+        return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
+      }),
+
+      create: Effect.fn('ChatRepository.create')(function* (
+        data: CreateChatMessageData
+      ) {
+        const [row] = yield* db
+          .insert(chatMessages)
+          .values({
+            role: data.role,
+            content: data.content,
+            imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
+            plantId: data.plantId,
+            userId: data.userId,
+          })
+          .returning()
+        return row ? mapToChatMessage(row) : null
+      }),
+
+      getMessagesAsUIMessages: Effect.fn(
+        'ChatRepository.getMessagesAsUIMessages'
+      )(function* (plantId: string, userId: string) {
+        const rows = yield* db
+          .select()
+          .from(chatMessages)
+          .where(
+            and(
+              eq(chatMessages.plantId, plantId),
+              eq(chatMessages.userId, userId)
+            )
+          )
+          .orderBy(asc(chatMessages.createdAt))
+
+        // Only text and file parts are safe for convertToModelMessages.
+        // Tool UI parts (e.g. "tool-createDiagnosis") are for frontend
+        // rendering only — the assistant text already captures tool output.
+        const modelPartTypes = new Set(['text', 'file'])
+
+        return Array.map(rows, (row): UIMessage => {
+          // If parts are stored, keep only model-compatible parts;
+          // otherwise construct from content
+          const parts = pipe(
+            Option.fromNullable(row.parts as unknown),
+            Option.filter((p): p is Array<{ type: string; text?: string }> =>
+              globalThis.Array.isArray(p)
+            ),
+            Option.map(Array.filter((p) => modelPartTypes.has(p.type))),
+            Option.filter(Array.isNonEmptyArray),
+            Option.getOrElse(() => [
+              { type: 'text' as const, text: row.content },
+            ])
           )
 
-          const countResult = yield* db
-            .select({ value: count() })
-            .from(chatMessages)
-            .where(filterConditions)
-          const total = extractCount(countResult)
+          return {
+            id: pipe(
+              Option.fromNullable(row.messageId),
+              Option.getOrElse(() => row.id)
+            ),
+            role: row.role as 'user' | 'assistant',
+            parts: parts as UIMessage['parts'],
+          }
+        })
+      }),
 
-          const rows = yield* db
-            .select()
-            .from(chatMessages)
-            .where(filterConditions)
-            .offset(offset)
-            .limit(limit)
-            .orderBy(asc(chatMessages.createdAt))
-
-          return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
-        }).pipe(Effect.withSpan('ChatRepository.findByPlantId')),
-
-      create: (data: CreateChatMessageData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(chatMessages)
-            .values({
-              role: data.role,
-              content: data.content,
-              imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
-              plantId: data.plantId,
-              userId: data.userId,
-            })
-            .returning()
-          return row ? mapToChatMessage(row) : null
-        }).pipe(Effect.withSpan('ChatRepository.create')),
-
-      getMessagesAsUIMessages: (plantId: string, userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(chatMessages)
-            .where(
-              and(
-                eq(chatMessages.plantId, plantId),
-                eq(chatMessages.userId, userId)
+      saveChat: Effect.fn('ChatRepository.saveChat')(function* (
+        params: SaveChatParams
+      ) {
+        // Process each message, upserting by messageId
+        const saved = yield* Effect.forEach(
+          params.messages,
+          (msg) =>
+            Effect.gen(function* () {
+              // Extract text content from parts for backwards compatibility
+              const textContent = pipe(
+                msg.parts,
+                Array.filter((p) => p.type === 'text'),
+                Array.map((p) => ('text' in p ? p.text : '')),
+                Array.join('')
               )
-            )
-            .orderBy(asc(chatMessages.createdAt))
 
-          // Only text and file parts are safe for convertToModelMessages.
-          // Tool UI parts (e.g. "tool-createDiagnosis") are for frontend
-          // rendering only — the assistant text already captures tool output.
-          const modelPartTypes = new Set(['text', 'file'])
-
-          return Array.map(rows, (row): UIMessage => {
-            // If parts are stored, keep only model-compatible parts;
-            // otherwise construct from content
-            const parts = pipe(
-              Option.fromNullable(row.parts as unknown),
-              Option.filter((p): p is Array<{ type: string; text?: string }> =>
-                globalThis.Array.isArray(p)
-              ),
-              Option.map(Array.filter((p) => modelPartTypes.has(p.type))),
-              Option.filter(Array.isNonEmptyArray),
-              Option.getOrElse(() => [
-                { type: 'text' as const, text: row.content },
-              ])
-            )
-
-            return {
-              id: pipe(
-                Option.fromNullable(row.messageId),
-                Option.getOrElse(() => row.id)
-              ),
-              role: row.role as 'user' | 'assistant',
-              parts: parts as UIMessage['parts'],
-            }
-          })
-        }).pipe(Effect.withSpan('ChatRepository.getMessagesAsUIMessages')),
-
-      saveChat: (params: SaveChatParams) =>
-        Effect.gen(function* () {
-          // Process each message, upserting by messageId
-          const saved = yield* Effect.forEach(
-            params.messages,
-            (msg) =>
-              Effect.gen(function* () {
-                // Extract text content from parts for backwards compatibility
-                const textContent = pipe(
-                  msg.parts,
-                  Array.filter((p) => p.type === 'text'),
-                  Array.map((p) => ('text' in p ? p.text : '')),
-                  Array.join('')
+              // Check if message exists by messageId
+              const existing = yield* db
+                .select({ id: chatMessages.id })
+                .from(chatMessages)
+                .where(
+                  and(
+                    eq(chatMessages.messageId, msg.id),
+                    eq(chatMessages.plantId, params.plantId),
+                    eq(chatMessages.userId, params.userId)
+                  )
                 )
 
-                // Check if message exists by messageId
-                const existing = yield* db
-                  .select({ id: chatMessages.id })
-                  .from(chatMessages)
-                  .where(
-                    and(
-                      eq(chatMessages.messageId, msg.id),
-                      eq(chatMessages.plantId, params.plantId),
-                      eq(chatMessages.userId, params.userId)
-                    )
-                  )
+              if (Array.isEmptyArray(existing)) {
+                // Extract imageKey from file parts (stored as raw GCS key)
+                const imageKey = pipe(
+                  msg.parts,
+                  Array.findFirst(
+                    (
+                      p
+                    ): p is {
+                      type: 'file'
+                      mediaType: string
+                      url: string
+                    } =>
+                      p.type === 'file' &&
+                      'mediaType' in p &&
+                      typeof (p as { mediaType?: string }).mediaType ===
+                        'string' &&
+                      (p as { mediaType: string }).mediaType.startsWith(
+                        'image/'
+                      )
+                  ),
+                  Option.map((p) => p.url),
+                  Option.getOrUndefined
+                )
 
-                if (Array.isEmptyArray(existing)) {
-                  // Extract imageKey from file parts (stored as raw GCS key)
-                  const imageKey = pipe(
-                    msg.parts,
-                    Array.findFirst(
-                      (
-                        p
-                      ): p is {
-                        type: 'file'
-                        mediaType: string
-                        url: string
-                      } =>
-                        p.type === 'file' &&
-                        'mediaType' in p &&
-                        typeof (p as { mediaType?: string }).mediaType ===
-                          'string' &&
-                        (p as { mediaType: string }).mediaType.startsWith(
-                          'image/'
-                        )
-                    ),
-                    Option.map((p) => p.url),
-                    Option.getOrUndefined
-                  )
-
-                  // Insert new message and return DB row
-                  const [row] = yield* db
-                    .insert(chatMessages)
-                    .values({
-                      messageId: msg.id,
-                      role: msg.role,
-                      content: textContent,
-                      parts: msg.parts as unknown as Record<string, unknown>,
-                      imageKey,
-                      plantId: params.plantId,
-                      userId: params.userId,
-                    })
-                    .returning({
-                      id: chatMessages.id,
-                      messageId: chatMessages.messageId,
-                      role: chatMessages.role,
-                    })
-
-                  return pipe(
-                    Option.fromNullable(row),
-                    Option.map((r) => ({
-                      id: r.id,
-                      messageId: pipe(
-                        Option.fromNullable(r.messageId),
-                        Option.getOrElse(() => msg.id)
-                      ),
-                      role: r.role,
-                    }))
-                  )
-                }
-
-                // Already exists — return existing row info
-                return pipe(
-                  Array.head(existing),
-                  Option.map((row) => ({
-                    id: row.id,
+                // Insert new message and return DB row
+                const [row] = yield* db
+                  .insert(chatMessages)
+                  .values({
                     messageId: msg.id,
                     role: msg.role,
+                    content: textContent,
+                    parts: msg.parts as unknown as Record<string, unknown>,
+                    imageKey,
+                    plantId: params.plantId,
+                    userId: params.userId,
+                  })
+                  .returning({
+                    id: chatMessages.id,
+                    messageId: chatMessages.messageId,
+                    role: chatMessages.role,
+                  })
+
+                return pipe(
+                  Option.fromNullable(row),
+                  Option.map((r) => ({
+                    id: r.id,
+                    messageId: pipe(
+                      Option.fromNullable(r.messageId),
+                      Option.getOrElse(() => msg.id)
+                    ),
+                    role: r.role,
                   }))
                 )
-              }),
-            { concurrency: 1 }
-          )
+              }
 
-          return Array.getSomes(saved)
-        }).pipe(Effect.withSpan('ChatRepository.saveChat')),
-
-      deleteByPlantId: (plantId: string, userId: string) =>
-        Effect.gen(function* () {
-          yield* db
-            .delete(chatMessages)
-            .where(
-              and(
-                eq(chatMessages.plantId, plantId),
-                eq(chatMessages.userId, userId)
+              // Already exists — return existing row info
+              return pipe(
+                Array.head(existing),
+                Option.map((row) => ({
+                  id: row.id,
+                  messageId: msg.id,
+                  role: msg.role,
+                }))
               )
+            }),
+          { concurrency: 1 }
+        )
+
+        return Array.getSomes(saved)
+      }),
+
+      deleteByPlantId: Effect.fn('ChatRepository.deleteByPlantId')(function* (
+        plantId: string,
+        userId: string
+      ) {
+        yield* db
+          .delete(chatMessages)
+          .where(
+            and(
+              eq(chatMessages.plantId, plantId),
+              eq(chatMessages.userId, userId)
             )
-        }).pipe(Effect.withSpan('ChatRepository.deleteByPlantId')),
+          )
+      }),
     }
   })
 )

@@ -3,13 +3,13 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { paginate, parsePaginationParams } from '@lily/shared'
 import { Array, Effect, pipe, String } from 'effect'
 
-export const getMyDelegations = (params: {
-  page?: string | undefined
-  limit?: string | undefined
-  role?: string | undefined
-  status?: string | undefined
-}) =>
-  Effect.gen(function* () {
+export const getMyDelegations = Effect.fn('DelegationService.getMyDelegations')(
+  function* (params: {
+    page?: string | undefined
+    limit?: string | undefined
+    role?: string | undefined
+    status?: string | undefined
+  }) {
     const { id: currentUserId } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
     const { page, limit } = parsePaginationParams({
@@ -39,4 +39,5 @@ export const getMyDelegations = (params: {
     })
 
     return paginate(items, total, page, limit)
-  }).pipe(Effect.withSpan('DelegationService.getMyDelegations'))
+  }
+)

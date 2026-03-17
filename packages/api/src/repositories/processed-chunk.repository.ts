@@ -93,37 +93,39 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
             Effect.withSpan('ProcessedChunkRepository.create')
           ),
 
-      createMany: (chunks: CreateProcessedChunkData[]) =>
-        Effect.gen(function* () {
-          if (Array.isEmptyArray(chunks)) {
-            return
-          }
+      createMany: Effect.fn('ProcessedChunkRepository.createMany')(function* (
+        chunks: CreateProcessedChunkData[]
+      ) {
+        if (Array.isEmptyArray(chunks)) {
+          return
+        }
 
-          yield* db
-            .insert(processedChunks)
-            .values(Array.map(chunks, toInsertValues))
-        }).pipe(Effect.withSpan('ProcessedChunkRepository.createMany')),
+        yield* db
+          .insert(processedChunks)
+          .values(Array.map(chunks, toInsertValues))
+      }),
 
-      search: (params: SearchChunksParams) =>
-        Effect.gen(function* () {
-          const limit = Option.getOrElse(
-            Option.fromNullable(params.limit),
-            () => 5
-          )
-          const threshold = Option.getOrElse(
-            Option.fromNullable(params.minSimilarity),
-            () => 0.5
-          )
-          const distanceThreshold = 1 - threshold
-          const candidateLimit = Math.max(limit * 10, 50)
-          const vectorStr = `'[${params.embedding.join(',')}]'`
+      search: Effect.fn('ProcessedChunkRepository.search')(function* (
+        params: SearchChunksParams
+      ) {
+        const limit = Option.getOrElse(
+          Option.fromNullable(params.limit),
+          () => 5
+        )
+        const threshold = Option.getOrElse(
+          Option.fromNullable(params.minSimilarity),
+          () => 0.5
+        )
+        const distanceThreshold = 1 - threshold
+        const candidateLimit = Math.max(limit * 10, 50)
+        const vectorStr = `'[${params.embedding.join(',')}]'`
 
-          const distanceThresholdRaw = sql.raw(String(distanceThreshold))
-          const similarityThresholdRaw = sql.raw(String(threshold))
-          const candidateLimitRaw = sql.raw(String(candidateLimit))
-          const limitRaw = sql.raw(String(limit))
+        const distanceThresholdRaw = sql.raw(String(distanceThreshold))
+        const similarityThresholdRaw = sql.raw(String(threshold))
+        const candidateLimitRaw = sql.raw(String(candidateLimit))
+        const limitRaw = sql.raw(String(limit))
 
-          const dbResult = yield* db.execute(sql`
+        const dbResult = yield* db.execute(sql`
 
               WITH fts_query AS (
                 SELECT plainto_tsquery('english', ${params.queryText}) AS q
@@ -184,22 +186,22 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
               ORDER BY rrf_score DESC LIMIT ${limitRaw}
             `)
 
-          const rawRows = unwrapPgRows<SearchRow>(dbResult)
+        const rawRows = unwrapPgRows<SearchRow>(dbResult)
 
-          return Array.map(
-            rawRows,
-            (r): ChunkSearchResult => ({
-              id: r.id,
-              content: r.content,
-              source: r.source,
-              sourceUrl: toUndefined(r.source_url),
-              plantType: toUndefined(r.plant_type),
-              category: toUndefined(r.category) as ContentCategory | undefined,
-              metadata: toUndefined(r.metadata),
-              similarity: Number(r.similarity),
-            })
-          )
-        }).pipe(Effect.withSpan('ProcessedChunkRepository.search')),
+        return Array.map(
+          rawRows,
+          (r): ChunkSearchResult => ({
+            id: r.id,
+            content: r.content,
+            source: r.source,
+            sourceUrl: toUndefined(r.source_url),
+            plantType: toUndefined(r.plant_type),
+            category: toUndefined(r.category) as ContentCategory | undefined,
+            metadata: toUndefined(r.metadata),
+            similarity: Number(r.similarity),
+          })
+        )
+      }),
 
       count: () =>
         db

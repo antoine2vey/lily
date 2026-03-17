@@ -42,12 +42,10 @@ const createResendService = (config: {
         })
 
         if (result.error) {
-          return yield* Effect.fail(
-            new EmailSendError({
-              message: result.error.message,
-              cause: result.error,
-            })
-          )
+          return yield* new EmailSendError({
+            message: result.error.message,
+            cause: result.error,
+          })
         }
       }),
   }

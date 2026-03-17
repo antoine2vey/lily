@@ -21,7 +21,7 @@ export const markNotificationRead = (
     const notification = yield* repo.findById(notificationId)
 
     if (!notification || notification.userId !== userId) {
-      return yield* Effect.fail(new NotificationNotFoundError())
+      return yield* new NotificationNotFoundError()
     }
 
     // Mark as read

@@ -53,19 +53,20 @@ export const RawDocumentRepositoryLive = Layer.effect(
     const db = yield* KnowledgeDrizzle
 
     return {
-      create: (data: CreateRawDocumentData) =>
-        Effect.gen(function* () {
-          const rows = yield* db.insert(rawDocuments).values(data).returning()
+      create: Effect.fn('RawDocumentRepository.create')(function* (
+        data: CreateRawDocumentData
+      ) {
+        const rows = yield* db.insert(rawDocuments).values(data).returning()
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToRawDocument),
-            Option.getOrThrow
-          )
-        }).pipe(Effect.withSpan('RawDocumentRepository.create')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToRawDocument),
+          Option.getOrThrow
+        )
+      }),
 
-      findBySourceId: (sourceId: string) =>
-        Effect.gen(function* () {
+      findBySourceId: Effect.fn('RawDocumentRepository.findBySourceId')(
+        function* (sourceId: string) {
           const rows = yield* db
             .select()
             .from(rawDocuments)
@@ -77,21 +78,23 @@ export const RawDocumentRepositoryLive = Layer.effect(
             Option.map(mapToRawDocument),
             Option.getOrNull
           )
-        }).pipe(Effect.withSpan('RawDocumentRepository.findBySourceId')),
+        }
+      ),
 
-      countByJobId: (jobId: string) =>
-        Effect.gen(function* () {
-          const result = yield* db
-            .select({ value: count() })
-            .from(rawDocuments)
-            .where(eq(rawDocuments.ingestJobId, jobId))
+      countByJobId: Effect.fn('RawDocumentRepository.countByJobId')(function* (
+        jobId: string
+      ) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(rawDocuments)
+          .where(eq(rawDocuments.ingestJobId, jobId))
 
-          return pipe(
-            Array.head(result),
-            Option.map((r) => r.value),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('RawDocumentRepository.countByJobId')),
+        return pipe(
+          Array.head(result),
+          Option.map((r) => r.value),
+          Option.getOrElse(() => 0)
+        )
+      }),
     }
   })
 )

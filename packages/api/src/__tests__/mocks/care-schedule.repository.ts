@@ -206,7 +206,7 @@ export const createMockCareScheduleRepository = (
       if (Option.isSome(idx)) {
         schedulesData.splice(idx.value, 1)
       }
-      return Effect.succeed(undefined)
+      return Effect.void
     },
   }
 

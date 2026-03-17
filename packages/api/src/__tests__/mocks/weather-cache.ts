@@ -14,11 +14,11 @@ export const createMockWeatherCache = (
         cachedForecast ? Option.some(cachedForecast) : Option.none()
       ),
 
-    store: () => Effect.succeed(undefined),
+    store: () => Effect.void,
 
     getAllLocations: () => Effect.succeed([]),
 
-    removeLocation: () => Effect.succeed(undefined),
+    removeLocation: () => Effect.void,
   }
 
   return Layer.succeed(WeatherCache, cache)

@@ -115,30 +115,27 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
     }
 
     // Insert parent if present (no embedding — stored for LLM context only)
-    const parentId = yield* pipe(
-      Option.fromNullable(chunkResult.parent),
-      Option.match({
-        onNone: () => Effect.succeed(undefined as string | undefined),
-        onSome: (parent) =>
-          Effect.gen(function* () {
-            const id = crypto.randomUUID()
-            const plantMentions = extractPlantMentions(parent.content)
-            yield* chunkRepo.create({
-              id,
-              documentId: insertedDoc.id,
-              content: parent.content,
-              chunkIndex: 0,
-              source: insertedDoc.source,
-              plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
-              category: categorize(parent.content),
-              plantMentions,
-              metadata: parent.metadata,
-              embedding: undefined,
-            })
-            return id as string | undefined
-          }),
-      })
-    )
+    const parentOption = Option.fromNullable(chunkResult.parent)
+    const parentId: string | undefined = Option.isSome(parentOption)
+      ? yield* Effect.gen(function* () {
+          const parent = parentOption.value
+          const id = crypto.randomUUID()
+          const plantMentions = extractPlantMentions(parent.content)
+          yield* chunkRepo.create({
+            id,
+            documentId: insertedDoc.id,
+            content: parent.content,
+            chunkIndex: 0,
+            source: insertedDoc.source,
+            plantType: pipe(Array.head(plantMentions), Option.getOrUndefined),
+            category: categorize(parent.content),
+            plantMentions,
+            metadata: parent.metadata,
+            embedding: undefined,
+          })
+          return id
+        })
+      : undefined
 
     // Enrich child chunks with keywords, up to 5 in parallel
     const enrichedChildren = yield* Effect.forEach(

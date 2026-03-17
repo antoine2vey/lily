@@ -11,7 +11,11 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
 import { users } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
-import { Array, Console, Effect, Option, pipe, String } from 'effect'
+import { Array, Console, Data, Effect, Option, pipe, String } from 'effect'
+
+class SeedAdminError extends Data.TaggedError('SeedAdminError')<{
+  message: string
+}> {}
 
 const getEmail = (): string => {
   const email = pipe(
@@ -44,7 +48,7 @@ const seedAdmin = Effect.gen(function* () {
   if (!updated) {
     yield* Console.error(`Error: User with email ${email} not found`)
     yield* Console.error('Make sure the user has registered first')
-    return yield* Effect.fail(new Error('User not found'))
+    return yield* new SeedAdminError({ message: 'User not found' })
   }
 
   yield* Console.log(

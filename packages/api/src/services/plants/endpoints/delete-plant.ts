@@ -17,7 +17,7 @@ export const deletePlant = ({
     const plant = yield* repo.delete(id)
 
     if (!plant) {
-      return yield* Effect.fail(new PlantNotFoundError())
+      return yield* new PlantNotFoundError()
     }
 
     return {

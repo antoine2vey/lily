@@ -231,7 +231,7 @@ describe('processIngestJob', () => {
           const updated = { ...job, status, ...counts, updatedAt: new Date() }
           return Effect.succeed(updated)
         },
-        updateError: () => Effect.succeed(undefined as undefined),
+        updateError: () => Effect.void,
         count: () => Effect.succeed(1),
         delete: () => Effect.succeed(false),
       }

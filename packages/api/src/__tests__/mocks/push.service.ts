@@ -25,14 +25,12 @@ export const createMockPushService = (
         }
 
         if (options.shouldFail) {
-          return yield* Effect.fail(
-            new PushSendError({
-              message: pipe(
-                Option.fromNullable(options.failureMessage),
-                Option.getOrElse(() => 'Mock push failure')
-              ),
-            })
-          )
+          return yield* new PushSendError({
+            message: pipe(
+              Option.fromNullable(options.failureMessage),
+              Option.getOrElse(() => 'Mock push failure')
+            ),
+          })
         }
 
         return {
@@ -48,14 +46,12 @@ export const createMockPushService = (
         }
 
         if (options.shouldFail) {
-          return yield* Effect.fail(
-            new PushSendError({
-              message: pipe(
-                Option.fromNullable(options.failureMessage),
-                Option.getOrElse(() => 'Mock push batch failure')
-              ),
-            })
-          )
+          return yield* new PushSendError({
+            message: pipe(
+              Option.fromNullable(options.failureMessage),
+              Option.getOrElse(() => 'Mock push batch failure')
+            ),
+          })
         }
 
         return Array.map(messages, () => ({

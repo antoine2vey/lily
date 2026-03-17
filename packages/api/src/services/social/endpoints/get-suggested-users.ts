@@ -2,8 +2,8 @@ import { FollowRepository } from '@lily/api/repositories/follow.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect } from 'effect'
 
-export const getSuggestedUsers = () =>
-  Effect.gen(function* () {
+export const getSuggestedUsers = Effect.fn('SocialService.getSuggestedUsers')(
+  function* () {
     const { id: currentUserId } = yield* CurrentUser
     const followRepo = yield* FollowRepository
 
@@ -13,4 +13,5 @@ export const getSuggestedUsers = () =>
     })
 
     return items
-  }).pipe(Effect.withSpan('SocialService.getSuggestedUsers'))
+  }
+)

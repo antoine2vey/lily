@@ -21,11 +21,9 @@ export const unlockAchievement = (
 
     // Only admins can manually unlock achievements
     if (currentUser.role !== 'admin') {
-      return yield* Effect.fail(
-        new ForbiddenError({
-          message: 'Only admins can manually unlock achievements',
-        })
-      )
+      return yield* new ForbiddenError({
+        message: 'Only admins can manually unlock achievements',
+      })
     }
     const repo = yield* AchievementRepository
     const unlocked = yield* repo.unlock(userId, request.achievement)

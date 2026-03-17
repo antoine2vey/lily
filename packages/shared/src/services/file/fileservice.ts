@@ -59,17 +59,16 @@ export type PersistedFileBuffer = Schema.Schema.Type<typeof PersistedFileBuffer>
 
 export class FileService extends Effect.Service<FileService>()('FileService', {
   effect: Effect.gen(function* () {
+    const fileSystem = yield* FileSystem
+
     return {
       getFirstUploadedFile: (
         files: readonly PersistedFile[]
       ): Effect.Effect<
         PersistedFileBuffer,
-        MultipleFilesError | NoFilesError,
-        FileSystem
+        MultipleFilesError | NoFilesError
       > =>
         Effect.gen(function* () {
-          const fileSystem = yield* FileSystem
-
           if (files.length === 0) {
             return yield* Effect.fail(
               new NoFilesError({
@@ -107,11 +106,9 @@ export class FileService extends Effect.Service<FileService>()('FileService', {
         | NoFilesError
         | TooManyFilesError
         | InvalidFileTypeError
-        | FileTooLargeError,
-        FileSystem
+        | FileTooLargeError
       > =>
         Effect.gen(function* () {
-          const fileSystem = yield* FileSystem
           const maxFiles = opts?.maxFiles ?? MAX_SCAN_FILES
 
           if (files.length === 0) {

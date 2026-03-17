@@ -51,12 +51,10 @@ const fetchWebPage = (
     })
 
     if (!response.ok) {
-      return yield* Effect.fail(
-        new AdapterError({
-          message: `Web page returned ${response.status}: ${response.statusText} for ${url}`,
-          adapter: 'web',
-        })
-      )
+      return yield* new AdapterError({
+        message: `Web page returned ${response.status}: ${response.statusText} for ${url}`,
+        adapter: 'web',
+      })
     }
 
     const html = yield* Effect.tryPromise({
@@ -73,12 +71,10 @@ const fetchWebPage = (
     const article = reader.parse()
 
     if (article === null) {
-      return yield* Effect.fail(
-        new AdapterError({
-          message: `Readability could not extract article from ${url}`,
-          adapter: 'web',
-        })
-      )
+      return yield* new AdapterError({
+        message: `Readability could not extract article from ${url}`,
+        adapter: 'web',
+      })
     }
 
     const rawText = pipe(
@@ -88,12 +84,10 @@ const fetchWebPage = (
     const content = sanitizeText(rawText.trim())
 
     if (content.length < MIN_CONTENT_LENGTH) {
-      return yield* Effect.fail(
-        new AdapterError({
-          message: `Content too short (${content.length} chars) for ${url}`,
-          adapter: 'web',
-        })
-      )
+      return yield* new AdapterError({
+        message: `Content too short (${content.length} chars) for ${url}`,
+        adapter: 'web',
+      })
     }
 
     const title = pipe(

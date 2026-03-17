@@ -81,62 +81,63 @@ export const JWTServiceLive = Layer.effect(
     const secretBytes = new TextEncoder().encode(secretValue)
 
     return {
-      signAccessToken: (input: SignAccessTokenInput) =>
-        Effect.gen(function* () {
-          const token = yield* Effect.tryPromise({
-            try: () =>
-              new jose.SignJWT({
-                sub: input.userId,
-                email: input.email,
-                role: input.role,
-                status: input.status,
-              })
-                .setProtectedHeader({ alg: 'HS256' })
-                .setIssuedAt()
-                .setIssuer(config.issuer)
-                .setExpirationTime(config.accessTokenExpiry)
-                .sign(secretBytes),
-            catch: (error) =>
-              new JWTError({
-                message: `Failed to sign token: ${String(error)}`,
-                code: 'INVALID_TOKEN',
-              }),
-          })
+      signAccessToken: Effect.fn('JWTService.signAccessToken')(function* (
+        input: SignAccessTokenInput
+      ) {
+        const token = yield* Effect.tryPromise({
+          try: () =>
+            new jose.SignJWT({
+              sub: input.userId,
+              email: input.email,
+              role: input.role,
+              status: input.status,
+            })
+              .setProtectedHeader({ alg: 'HS256' })
+              .setIssuedAt()
+              .setIssuer(config.issuer)
+              .setExpirationTime(config.accessTokenExpiry)
+              .sign(secretBytes),
+          catch: (error) =>
+            new JWTError({
+              message: `Failed to sign token: ${String(error)}`,
+              code: 'INVALID_TOKEN',
+            }),
+        })
 
-          return token
-        }).pipe(Effect.withSpan('JWTService.signAccessToken')),
+        return token
+      }),
 
-      verifyAccessToken: (token: string) =>
-        Effect.gen(function* () {
-          const result = yield* Effect.tryPromise({
-            try: () =>
-              jose.jwtVerify(token, secretBytes, {
-                issuer: config.issuer,
-              }),
-            catch: (error) => {
-              if (error instanceof jose.errors.JWTExpired) {
-                return new JWTError({
-                  message: 'Token has expired',
-                  code: 'EXPIRED_TOKEN',
-                })
-              }
+      verifyAccessToken: Effect.fn('JWTService.verifyAccessToken')(function* (
+        token: string
+      ) {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            jose.jwtVerify(token, secretBytes, {
+              issuer: config.issuer,
+            }),
+          catch: (error) => {
+            if (error instanceof jose.errors.JWTExpired) {
               return new JWTError({
-                message: `Invalid token: ${String(error)}`,
-                code: 'INVALID_TOKEN',
+                message: 'Token has expired',
+                code: 'EXPIRED_TOKEN',
               })
-            },
-          })
+            }
+            return new JWTError({
+              message: `Invalid token: ${String(error)}`,
+              code: 'INVALID_TOKEN',
+            })
+          },
+        })
 
-          return yield* Effect.try({
-            try: () =>
-              Schema.decodeUnknownSync(JWTPayloadSchema)(result.payload),
-            catch: () =>
-              new JWTError({
-                message: 'Token payload missing required fields',
-                code: 'INVALID_TOKEN',
-              }),
-          })
-        }).pipe(Effect.withSpan('JWTService.verifyAccessToken')),
+        return yield* Effect.try({
+          try: () => Schema.decodeUnknownSync(JWTPayloadSchema)(result.payload),
+          catch: () =>
+            new JWTError({
+              message: 'Token payload missing required fields',
+              code: 'INVALID_TOKEN',
+            }),
+        })
+      }),
 
       generateRefreshToken: () =>
         Effect.sync(() => {
@@ -144,21 +145,22 @@ export const JWTServiceLive = Layer.effect(
           return `${crypto.randomUUID()}${crypto.randomUUID()}`
         }).pipe(Effect.withSpan('JWTService.generateRefreshToken')),
 
-      hashRefreshToken: (token: string) =>
-        Effect.gen(function* () {
-          const encoder = new TextEncoder()
-          const data = encoder.encode(token)
-          const hashBuffer = yield* Effect.promise(() =>
-            crypto.subtle.digest('SHA-256', data)
-          )
-          const hashArray = [...new Uint8Array(hashBuffer)]
-          // Convert to hex string
-          const hashHex = pipe(
-            Array.map(hashArray, (b) => b.toString(16).padStart(2, '0')),
-            Array.join('')
-          )
-          return hashHex
-        }).pipe(Effect.withSpan('JWTService.hashRefreshToken')),
+      hashRefreshToken: Effect.fn('JWTService.hashRefreshToken')(function* (
+        token: string
+      ) {
+        const encoder = new TextEncoder()
+        const data = encoder.encode(token)
+        const hashBuffer = yield* Effect.promise(() =>
+          crypto.subtle.digest('SHA-256', data)
+        )
+        const hashArray = [...new Uint8Array(hashBuffer)]
+        // Convert to hex string
+        const hashHex = pipe(
+          Array.map(hashArray, (b) => b.toString(16).padStart(2, '0')),
+          Array.join('')
+        )
+        return hashHex
+      }),
     }
   })
 )

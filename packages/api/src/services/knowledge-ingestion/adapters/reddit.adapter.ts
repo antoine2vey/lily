@@ -123,12 +123,10 @@ const fetchRedditJson = <T>(url: string) =>
     }
 
     if (!response.ok) {
-      return yield* Effect.fail(
-        new AdapterError({
-          message: `Reddit returned ${response.status}: ${response.statusText}`,
-          adapter: 'reddit',
-        })
-      )
+      return yield* new AdapterError({
+        message: `Reddit returned ${response.status}: ${response.statusText}`,
+        adapter: 'reddit',
+      })
     }
 
     const json = yield* Effect.tryPromise({

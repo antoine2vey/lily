@@ -271,329 +271,331 @@ export const PlantRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
-    const fetchSchedulesForPlants = (plantIds: readonly string[]) =>
-      Effect.gen(function* () {
-        if (Array.isEmptyReadonlyArray(plantIds)) {
-          return new Map<string, PlantCareScheduleRef[]>()
+    const fetchSchedulesForPlants = Effect.fn(
+      'PlantRepository.fetchSchedulesForPlants'
+    )(function* (plantIds: readonly string[]) {
+      if (Array.isEmptyReadonlyArray(plantIds)) {
+        return new Map<string, PlantCareScheduleRef[]>()
+      }
+      const rows = yield* db
+        .select()
+        .from(plantCareSchedules)
+        .where(inArray(plantCareSchedules.plantId, [...plantIds]))
+
+      const grouped = new Map<string, PlantCareScheduleRef[]>()
+      Array.forEach(rows, (r) => {
+        const existing = pipe(
+          Option.fromNullable(grouped.get(r.plantId)),
+          Option.getOrElse(() => [] as PlantCareScheduleRef[])
+        )
+        existing.push({
+          careType: r.careType,
+          frequencyDays: r.frequencyDays,
+          lastCareAt: r.lastCareAt,
+          nextCareAt: r.nextCareAt,
+        })
+        grouped.set(r.plantId, existing)
+      })
+      return grouped
+    })
+
+    return {
+      findAll: Effect.fn('PlantRepository.findAll')(function* (
+        params: FindPlantsParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
+        const extraConditions = buildPlantFilters(params, db)
+        const orderBy = buildPlantOrderBy(params.sort)
+
+        // Owned plants query
+        const ownedConditions = and(
+          eq(plants.userId, params.userId),
+          ...extraConditions
+        )
+
+        const ownedCountResult = yield* db
+          .select({ value: count() })
+          .from(plants)
+          .where(ownedConditions)
+        const ownedTotal = extractCount(ownedCountResult)
+
+        const ownedRows = yield* db
+          .select({ plant: plants, room: roomSelect })
+          .from(plants)
+          .leftJoin(rooms, eq(plants.roomId, rooms.id))
+          .where(ownedConditions)
+          .orderBy(orderBy)
+
+        const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
+        const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
+        const ownedItems = Array.map(ownedRows, (row) =>
+          toOwnedPlant(
+            row,
+            pipe(
+              Option.fromNullable(ownedScheduleMap.get(row.plant.id)),
+              Option.getOrElse(() => [] as PlantCareScheduleRef[])
+            )
+          )
+        )
+
+        if (!params.includeCaretaking) {
+          const paginated = pipe(
+            ownedItems,
+            Array.drop(offset),
+            Array.take(limit)
+          )
+          return paginate(paginated, ownedTotal, page, limit)
         }
-        const rows = yield* db
+
+        // Caretaking plants query
+        const caretakingConditions = and(
+          eq(careDelegations.caretakerId, params.userId),
+          eq(careDelegations.status, 'active'),
+          ...extraConditions
+        )
+
+        const caretakingCountResult = yield* db
+          .select({ value: count() })
+          .from(careDelegations)
+          .innerJoin(
+            delegationPlants,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
+          .where(caretakingConditions)
+        const caretakingTotal = extractCount(caretakingCountResult)
+
+        const caretakingRows = yield* db
+          .select({
+            plant: plants,
+            room: roomSelect,
+            ownerName: users.name,
+          })
+          .from(careDelegations)
+          .innerJoin(
+            delegationPlants,
+            eq(careDelegations.id, delegationPlants.delegationId)
+          )
+          .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
+          .leftJoin(rooms, eq(plants.roomId, rooms.id))
+          .innerJoin(users, eq(careDelegations.ownerId, users.id))
+          .where(caretakingConditions)
+          .orderBy(orderBy)
+
+        const caretakingPlantIds = Array.map(caretakingRows, (r) => r.plant.id)
+        const caretakingScheduleMap =
+          yield* fetchSchedulesForPlants(caretakingPlantIds)
+        const caretakingItems = Array.map(caretakingRows, (row) =>
+          toCaretakingPlant(
+            row,
+            pipe(
+              Option.fromNullable(caretakingScheduleMap.get(row.plant.id)),
+              Option.getOrElse(() => [] as PlantCareScheduleRef[])
+            )
+          )
+        )
+
+        // Merge owned + caretaking, apply sort, paginate
+        const allItems = Array.appendAll(ownedItems, caretakingItems)
+        const sortOrder = pipe(
+          Match.value(params.sort),
+          Match.when('name', () =>
+            Order.mapInput(Order.string, (p: PlantWithRoom) => p.name)
+          ),
+          Match.orElse(() =>
+            Order.mapInput(Order.reverse(Order.number), (p: PlantWithRoom) =>
+              p.dateAdded.getTime()
+            )
+          )
+        )
+        const sorted = Array.sort(allItems, sortOrder)
+
+        const total = ownedTotal + caretakingTotal
+        const paginated = pipe(sorted, Array.drop(offset), Array.take(limit))
+
+        return paginate(paginated, total, page, limit)
+      }),
+
+      findByIds: Effect.fn('PlantRepository.findByIds')(function* (
+        ids: readonly string[]
+      ) {
+        if (Array.isEmptyReadonlyArray(ids)) return []
+        const items = yield* db
+          .select()
+          .from(plants)
+          .where(inArray(plants.id, [...ids]))
+        return items
+      }),
+
+      findById: Effect.fn('PlantRepository.findById')(function* (id: string) {
+        const [row] = yield* db
+          .select({ plant: plants, room: roomSelect })
+          .from(plants)
+          .leftJoin(rooms, eq(plants.roomId, rooms.id))
+          .where(eq(plants.id, id))
+
+        if (!row) return null
+
+        const scheduleRows = yield* db
           .select()
           .from(plantCareSchedules)
-          .where(inArray(plantCareSchedules.plantId, [...plantIds]))
-
-        const grouped = new Map<string, PlantCareScheduleRef[]>()
-        Array.forEach(rows, (r) => {
-          const existing = pipe(
-            Option.fromNullable(grouped.get(r.plantId)),
-            Option.getOrElse(() => [] as PlantCareScheduleRef[])
-          )
-          existing.push({
+          .where(eq(plantCareSchedules.plantId, id))
+        const schedules: PlantCareScheduleRef[] = Array.map(
+          scheduleRows,
+          (r) => ({
             careType: r.careType,
             frequencyDays: r.frequencyDays,
             lastCareAt: r.lastCareAt,
             nextCareAt: r.nextCareAt,
           })
-          grouped.set(r.plantId, existing)
-        })
-        return grouped
-      })
+        )
 
-    return {
-      findAll: (params: FindPlantsParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
-          const extraConditions = buildPlantFilters(params, db)
-          const orderBy = buildPlantOrderBy(params.sort)
+        return toOwnedPlant(row, schedules)
+      }),
 
-          // Owned plants query
-          const ownedConditions = and(
-            eq(plants.userId, params.userId),
-            ...extraConditions
-          )
+      create: Effect.fn('PlantRepository.create')(function* (
+        data: CreatePlantData
+      ) {
+        const [plant] = yield* db.insert(plants).values(data).returning()
+        return pipe(Option.fromNullable(plant), Option.getOrNull)
+      }),
 
-          const ownedCountResult = yield* db
-            .select({ value: count() })
-            .from(plants)
-            .where(ownedConditions)
-          const ownedTotal = extractCount(ownedCountResult)
+      update: Effect.fn('PlantRepository.update')(function* (
+        id: string,
+        data: UpdatePlantData
+      ) {
+        const [plant] = yield* db
+          .update(plants)
+          .set(data)
+          .where(eq(plants.id, id))
+          .returning()
+        return pipe(Option.fromNullable(plant), Option.getOrNull)
+      }),
 
-          const ownedRows = yield* db
-            .select({ plant: plants, room: roomSelect })
-            .from(plants)
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .where(ownedConditions)
-            .orderBy(orderBy)
+      delete: Effect.fn('PlantRepository.delete')(function* (id: string) {
+        const [plant] = yield* db
+          .delete(plants)
+          .where(eq(plants.id, id))
+          .returning()
+        return pipe(Option.fromNullable(plant), Option.getOrNull)
+      }),
 
-          const ownedPlantIds = Array.map(ownedRows, (r) => r.plant.id)
-          const ownedScheduleMap = yield* fetchSchedulesForPlants(ownedPlantIds)
-          const ownedItems = Array.map(ownedRows, (row) =>
-            toOwnedPlant(
-              row,
-              pipe(
-                Option.fromNullable(ownedScheduleMap.get(row.plant.id)),
-                Option.getOrElse(() => [] as PlantCareScheduleRef[])
-              )
-            )
-          )
+      findPhotos: Effect.fn('PlantRepository.findPhotos')(function* (
+        params: FindPhotosParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
 
-          if (!params.includeCaretaking) {
-            const paginated = pipe(
-              ownedItems,
-              Array.drop(offset),
-              Array.take(limit)
-            )
-            return paginate(paginated, ownedTotal, page, limit)
-          }
+        const countResult = yield* db
+          .select({ value: count() })
+          .from(plantPhotos)
+          .where(eq(plantPhotos.plantId, params.plantId))
+        const total = extractCount(countResult)
 
-          // Caretaking plants query
-          const caretakingConditions = and(
-            eq(careDelegations.caretakerId, params.userId),
-            eq(careDelegations.status, 'active'),
-            ...extraConditions
-          )
+        const items = yield* db
+          .select()
+          .from(plantPhotos)
+          .where(eq(plantPhotos.plantId, params.plantId))
+          .offset(offset)
+          .limit(limit)
+          .orderBy(desc(plantPhotos.takenAt))
 
-          const caretakingCountResult = yield* db
-            .select({ value: count() })
-            .from(careDelegations)
-            .innerJoin(
-              delegationPlants,
-              eq(careDelegations.id, delegationPlants.delegationId)
-            )
-            .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
-            .where(caretakingConditions)
-          const caretakingTotal = extractCount(caretakingCountResult)
+        return paginate(items, total, page, limit)
+      }),
 
-          const caretakingRows = yield* db
-            .select({
-              plant: plants,
-              room: roomSelect,
-              ownerName: users.name,
-            })
-            .from(careDelegations)
-            .innerJoin(
-              delegationPlants,
-              eq(careDelegations.id, delegationPlants.delegationId)
-            )
-            .innerJoin(plants, eq(delegationPlants.plantId, plants.id))
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .innerJoin(users, eq(careDelegations.ownerId, users.id))
-            .where(caretakingConditions)
-            .orderBy(orderBy)
+      addPhoto: Effect.fn('PlantRepository.addPhoto')(function* (
+        plantId: string,
+        url: string
+      ) {
+        const [photo] = yield* db
+          .insert(plantPhotos)
+          .values({ plantId, url })
+          .returning()
+        return pipe(Option.fromNullable(photo), Option.getOrNull)
+      }),
 
-          const caretakingPlantIds = Array.map(
-            caretakingRows,
-            (r) => r.plant.id
-          )
-          const caretakingScheduleMap =
-            yield* fetchSchedulesForPlants(caretakingPlantIds)
-          const caretakingItems = Array.map(caretakingRows, (row) =>
-            toCaretakingPlant(
-              row,
-              pipe(
-                Option.fromNullable(caretakingScheduleMap.get(row.plant.id)),
-                Option.getOrElse(() => [] as PlantCareScheduleRef[])
-              )
-            )
-          )
-
-          // Merge owned + caretaking, apply sort, paginate
-          const allItems = Array.appendAll(ownedItems, caretakingItems)
-          const sortOrder = pipe(
-            Match.value(params.sort),
-            Match.when('name', () =>
-              Order.mapInput(Order.string, (p: PlantWithRoom) => p.name)
-            ),
-            Match.orElse(() =>
-              Order.mapInput(Order.reverse(Order.number), (p: PlantWithRoom) =>
-                p.dateAdded.getTime()
-              )
-            )
-          )
-          const sorted = Array.sort(allItems, sortOrder)
-
-          const total = ownedTotal + caretakingTotal
-          const paginated = pipe(sorted, Array.drop(offset), Array.take(limit))
-
-          return paginate(paginated, total, page, limit)
-        }).pipe(Effect.withSpan('PlantRepository.findAll')),
-
-      findByIds: (ids: readonly string[]) =>
-        Effect.gen(function* () {
-          if (Array.isEmptyReadonlyArray(ids)) return []
-          const items = yield* db
-            .select()
-            .from(plants)
-            .where(inArray(plants.id, [...ids]))
-          return items
-        }).pipe(Effect.withSpan('PlantRepository.findByIds')),
-
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select({ plant: plants, room: roomSelect })
-            .from(plants)
-            .leftJoin(rooms, eq(plants.roomId, rooms.id))
-            .where(eq(plants.id, id))
-
-          if (!row) return null
-
-          const scheduleRows = yield* db
-            .select()
-            .from(plantCareSchedules)
-            .where(eq(plantCareSchedules.plantId, id))
-          const schedules: PlantCareScheduleRef[] = Array.map(
-            scheduleRows,
-            (r) => ({
-              careType: r.careType,
-              frequencyDays: r.frequencyDays,
-              lastCareAt: r.lastCareAt,
-              nextCareAt: r.nextCareAt,
-            })
-          )
-
-          return toOwnedPlant(row, schedules)
-        }).pipe(Effect.withSpan('PlantRepository.findById')),
-
-      create: (data: CreatePlantData) =>
-        Effect.gen(function* () {
-          const [plant] = yield* db.insert(plants).values(data).returning()
-          return pipe(Option.fromNullable(plant), Option.getOrNull)
-        }).pipe(Effect.withSpan('PlantRepository.create')),
-
-      update: (id: string, data: UpdatePlantData) =>
-        Effect.gen(function* () {
-          const [plant] = yield* db
-            .update(plants)
-            .set(data)
-            .where(eq(plants.id, id))
-            .returning()
-          return pipe(Option.fromNullable(plant), Option.getOrNull)
-        }).pipe(Effect.withSpan('PlantRepository.update')),
-
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [plant] = yield* db
-            .delete(plants)
-            .where(eq(plants.id, id))
-            .returning()
-          return pipe(Option.fromNullable(plant), Option.getOrNull)
-        }).pipe(Effect.withSpan('PlantRepository.delete')),
-
-      findPhotos: (params: FindPhotosParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
-
-          const countResult = yield* db
-            .select({ value: count() })
-            .from(plantPhotos)
-            .where(eq(plantPhotos.plantId, params.plantId))
-          const total = extractCount(countResult)
-
-          const items = yield* db
-            .select()
-            .from(plantPhotos)
-            .where(eq(plantPhotos.plantId, params.plantId))
-            .offset(offset)
-            .limit(limit)
-            .orderBy(desc(plantPhotos.takenAt))
-
-          return paginate(items, total, page, limit)
-        }).pipe(Effect.withSpan('PlantRepository.findPhotos')),
-
-      addPhoto: (plantId: string, url: string) =>
-        Effect.gen(function* () {
-          const [photo] = yield* db
-            .insert(plantPhotos)
-            .values({ plantId, url })
-            .returning()
-          return pipe(Option.fromNullable(photo), Option.getOrNull)
-        }).pipe(Effect.withSpan('PlantRepository.addPhoto')),
-
-      addPhotos: (
+      addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
         photos: Array<{ plantId: string; url: string; takenAt: Date }>
-      ) =>
-        Effect.gen(function* () {
-          const result = yield* db
-            .insert(plantPhotos)
-            .values(photos)
-            .returning()
-          return result
-        }).pipe(Effect.withSpan('PlantRepository.addPhotos')),
+      ) {
+        const result = yield* db.insert(plantPhotos).values(photos).returning()
+        return result
+      }),
 
-      deletePhoto: (photoId: string) =>
-        Effect.gen(function* () {
-          const [photo] = yield* db
-            .delete(plantPhotos)
-            .where(eq(plantPhotos.id, photoId))
-            .returning()
-          return pipe(Option.fromNullable(photo), Option.getOrNull)
-        }).pipe(Effect.withSpan('PlantRepository.deletePhoto')),
+      deletePhoto: Effect.fn('PlantRepository.deletePhoto')(function* (
+        photoId: string
+      ) {
+        const [photo] = yield* db
+          .delete(plantPhotos)
+          .where(eq(plantPhotos.id, photoId))
+          .returning()
+        return pipe(Option.fromNullable(photo), Option.getOrNull)
+      }),
 
-      deletePhotoByPlantId: (plantId: string, photoId: string) =>
-        Effect.gen(function* () {
+      deletePhotoByPlantId: Effect.fn('PlantRepository.deletePhotoByPlantId')(
+        function* (plantId: string, photoId: string) {
           yield* db
             .delete(plantPhotos)
             .where(
               and(eq(plantPhotos.id, photoId), eq(plantPhotos.plantId, plantId))
             )
-        }).pipe(Effect.withSpan('PlantRepository.deletePhotoByPlantId')),
+        }
+      ),
 
-      markOverduePlantsAsNeedsAttention: () =>
-        Effect.gen(function* () {
-          const now = nowAsDate()
-          const result = yield* db
-            .update(plants)
-            .set({ health: 'NEEDS_ATTENTION' })
-            .where(
-              and(
-                or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
-                inArray(
-                  plants.id,
-                  db
-                    .select({ plantId: plantCareSchedules.plantId })
-                    .from(plantCareSchedules)
-                    .where(
-                      and(
-                        isNotNull(plantCareSchedules.nextCareAt),
-                        lte(plantCareSchedules.nextCareAt, now)
-                      )
+      markOverduePlantsAsNeedsAttention: Effect.fn(
+        'PlantRepository.markOverduePlantsAsNeedsAttention'
+      )(function* () {
+        const now = nowAsDate()
+        const result = yield* db
+          .update(plants)
+          .set({ health: 'NEEDS_ATTENTION' })
+          .where(
+            and(
+              or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
+              inArray(
+                plants.id,
+                db
+                  .select({ plantId: plantCareSchedules.plantId })
+                  .from(plantCareSchedules)
+                  .where(
+                    and(
+                      isNotNull(plantCareSchedules.nextCareAt),
+                      lte(plantCareSchedules.nextCareAt, now)
                     )
-                )
+                  )
               )
             )
-            .returning()
-          return Array.length(result)
-        }).pipe(
-          Effect.withSpan('PlantRepository.markOverduePlantsAsNeedsAttention')
-        ),
+          )
+          .returning()
+        return Array.length(result)
+      }),
 
-      markHealthyPlantsInOrder: () =>
-        Effect.gen(function* () {
-          const now = nowAsDate()
-          // Plants that are NEEDS_ATTENTION but have no overdue schedules
-          const result = yield* db
-            .update(plants)
-            .set({ health: 'HEALTHY' })
-            .where(
-              and(
-                eq(plants.health, 'NEEDS_ATTENTION'),
-                notInArray(
-                  plants.id,
-                  db
-                    .select({ plantId: plantCareSchedules.plantId })
-                    .from(plantCareSchedules)
-                    .where(
-                      and(
-                        isNotNull(plantCareSchedules.nextCareAt),
-                        lte(plantCareSchedules.nextCareAt, now)
-                      )
+      markHealthyPlantsInOrder: Effect.fn(
+        'PlantRepository.markHealthyPlantsInOrder'
+      )(function* () {
+        const now = nowAsDate()
+        // Plants that are NEEDS_ATTENTION but have no overdue schedules
+        const result = yield* db
+          .update(plants)
+          .set({ health: 'HEALTHY' })
+          .where(
+            and(
+              eq(plants.health, 'NEEDS_ATTENTION'),
+              notInArray(
+                plants.id,
+                db
+                  .select({ plantId: plantCareSchedules.plantId })
+                  .from(plantCareSchedules)
+                  .where(
+                    and(
+                      isNotNull(plantCareSchedules.nextCareAt),
+                      lte(plantCareSchedules.nextCareAt, now)
                     )
-                )
+                  )
               )
             )
-            .returning()
-          return Array.length(result)
-        }).pipe(Effect.withSpan('PlantRepository.markHealthyPlantsInOrder')),
+          )
+          .returning()
+        return Array.length(result)
+      }),
     }
   })
 )

@@ -4,24 +4,25 @@ import type { PaginationParams } from '@lily/shared'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
 
-export const getFollowers = (params: PaginationParams) =>
-  Effect.gen(function* () {
-    const { id: currentUserId } = yield* CurrentUser
-    const followRepo = yield* FollowRepository
-    const { page, limit } = parsePaginationParams(params)
+export const getFollowers = Effect.fn('SocialService.getFollowers')(function* (
+  params: PaginationParams
+) {
+  const { id: currentUserId } = yield* CurrentUser
+  const followRepo = yield* FollowRepository
+  const { page, limit } = parsePaginationParams(params)
 
-    const { items, total } = yield* followRepo.getFollowers({
-      userId: currentUserId,
-      currentUserId,
-      page,
-      limit,
-    })
+  const { items, total } = yield* followRepo.getFollowers({
+    userId: currentUserId,
+    currentUserId,
+    page,
+    limit,
+  })
 
-    return {
-      items,
-      total,
-      page,
-      limit,
-      hasMore: page * limit < total,
-    }
-  }).pipe(Effect.withSpan('SocialService.getFollowers'))
+  return {
+    items,
+    total,
+    page,
+    limit,
+    hasMore: page * limit < total,
+  }
+})

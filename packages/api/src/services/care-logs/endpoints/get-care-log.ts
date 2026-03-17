@@ -14,7 +14,7 @@ export const getCareLog = (
     const log = yield* repo.findById(logId, plantId)
 
     if (!log) {
-      return yield* Effect.fail(new CareLogNotFoundError())
+      return yield* new CareLogNotFoundError()
     }
 
     return log
