@@ -9,11 +9,8 @@ import {
 } from '@lily/shared'
 import { Effect } from 'effect'
 
-export const getUserFollowing = (
-  targetUserId: string,
-  params: PaginationParams
-) =>
-  Effect.gen(function* () {
+export const getUserFollowing = Effect.fn('SocialService.getUserFollowing')(
+  function* (targetUserId: string, params: PaginationParams) {
     const { id: currentUserId } = yield* CurrentUser
     const followRepo = yield* FollowRepository
     const userRepo = yield* UserRepository
@@ -21,13 +18,15 @@ export const getUserFollowing = (
 
     const targetUser = yield* userRepo.findById(targetUserId)
     if (!targetUser) {
-      return yield* Effect.fail(new UserNotFoundError({ userId: targetUserId }))
+      return yield* new UserNotFoundError({
+        userId: targetUserId,
+      })
     }
 
     if (!targetUser.publicProfile) {
-      return yield* Effect.fail(
-        new UserNotPublicError({ userId: targetUserId })
-      )
+      return yield* new UserNotPublicError({
+        userId: targetUserId,
+      })
     }
 
     const { items, total } = yield* followRepo.getFollowing({
@@ -44,4 +43,5 @@ export const getUserFollowing = (
       limit,
       hasMore: page * limit < total,
     }
-  }).pipe(Effect.withSpan('SocialService.getUserFollowing'))
+  }
+)

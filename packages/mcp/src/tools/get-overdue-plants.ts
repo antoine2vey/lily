@@ -8,8 +8,8 @@ import { Array, Effect, Option, pipe } from 'effect'
  * Returns plants that are overdue for care via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
-export const getOverduePlantsEffect = () =>
-  Effect.gen(function* () {
+export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
+  function* () {
     const apiClient = yield* ApiClient
 
     const result = yield* apiClient.listPlants({
@@ -59,4 +59,5 @@ export const getOverduePlantsEffect = () =>
       text: `## Overdue Plants (${Array.length(result.items)})\n\n${Array.join(lines, '\n')}`,
       plants,
     }
-  }).pipe(Effect.withSpan('MCP.getOverduePlants'))
+  }
+)

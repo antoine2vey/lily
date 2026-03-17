@@ -20,13 +20,13 @@ export const updateStatus = (
 
     // Prevent admins from changing their own status
     if (id === currentAdmin.id) {
-      return yield* Effect.fail(new CannotModifySelfError())
+      return yield* new CannotModifySelfError()
     }
 
     const updated = yield* repo.updateStatus(id, status)
 
     if (!updated) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     return updated

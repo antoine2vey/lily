@@ -1,36 +1,36 @@
 import { Schema } from 'effect'
 
 // Achievement key enum - synced with DB achievementKeyEnum
-export const AchievementKey = Schema.Union(
-  Schema.Literal('FIRST_PLANT_ADDED'),
-  Schema.Literal('WATERING_NOVICE'),
-  Schema.Literal('PLANT_COLLECTOR'),
-  Schema.Literal('DEDICATED_CARETAKER'),
-  Schema.Literal('ATTENTION_ALERT'),
-  Schema.Literal('PHOTO_PRO'),
-  Schema.Literal('RARE_COLLECTOR'),
-  Schema.Literal('SCAN_CHAMP'),
-  Schema.Literal('FERTILIZER_GURU'),
-  Schema.Literal('HISTORY_HERO'),
-  Schema.Literal('AI_CONVERSATIONALIST'),
-  Schema.Literal('DISEASE_DETECTIVE'),
-  Schema.Literal('GROWTH_TRACKER'),
-  Schema.Literal('REMINDER_RESCUER'),
-  Schema.Literal('SHARE_SPROUT')
+export const AchievementKey = Schema.Literal(
+  'FIRST_PLANT_ADDED',
+  'WATERING_NOVICE',
+  'PLANT_COLLECTOR',
+  'DEDICATED_CARETAKER',
+  'ATTENTION_ALERT',
+  'PHOTO_PRO',
+  'RARE_COLLECTOR',
+  'SCAN_CHAMP',
+  'FERTILIZER_GURU',
+  'HISTORY_HERO',
+  'AI_CONVERSATIONALIST',
+  'DISEASE_DETECTIVE',
+  'GROWTH_TRACKER',
+  'REMINDER_RESCUER',
+  'SHARE_SPROUT'
 )
 
-export const AchievementCategory = Schema.Union(
-  Schema.Literal('plants'),
-  Schema.Literal('care'),
-  Schema.Literal('streaks'),
-  Schema.Literal('special')
+export const AchievementCategory = Schema.Literal(
+  'plants',
+  'care',
+  'streaks',
+  'special'
 )
 
-export const AchievementRarity = Schema.Union(
-  Schema.Literal('common'),
-  Schema.Literal('rare'),
-  Schema.Literal('epic'),
-  Schema.Literal('legendary')
+export const AchievementRarity = Schema.Literal(
+  'common',
+  'rare',
+  'epic',
+  'legendary'
 )
 
 export const Achievement = Schema.Struct({

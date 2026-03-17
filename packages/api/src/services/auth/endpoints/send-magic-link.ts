@@ -11,29 +11,35 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
-import { Config, type ConfigError, Console, Effect } from 'effect'
+import { Config, Console, Context, Effect, Layer } from 'effect'
 import qrcode from 'qrcode-terminal'
 
-// Feature flag - MUST be explicitly set in environment
-// App will fail to start if not configured
-const DisableMagicLinkVerification = Config.boolean(
-  'DISABLE_MAGIC_LINK_VERIFICATION'
+export class MagicLinkConfig extends Context.Tag('MagicLinkConfig')<
+  MagicLinkConfig,
+  { readonly disableVerification: boolean }
+>() {}
+
+export const MagicLinkConfigLive = Layer.effect(
+  MagicLinkConfig,
+  Effect.gen(function* () {
+    const disableVerification = yield* Config.boolean(
+      'DISABLE_MAGIC_LINK_VERIFICATION'
+    )
+    return { disableVerification }
+  })
 )
 
-/**
- * Send magic link email to user
- */
 export const sendMagicLink = ({
   email,
   language,
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
-  { message: string } | ConfigError.ConfigError,
-  MagicLinkRepository | RateLimiterService
+  { message: string },
+  MagicLinkRepository | RateLimiterService | MagicLinkConfig
 > =>
   Effect.gen(function* () {
     const rateLimiter = yield* RateLimiterService
-    const disableVerification = yield* DisableMagicLinkVerification
+    const { disableVerification } = yield* MagicLinkConfig
 
     // Normalize email
     const normalized = normalizeEmail(email)

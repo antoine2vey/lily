@@ -23,8 +23,9 @@ describe('updateRole', () => {
   it('should update user role', async () => {
     const result = await Effect.runPromise(
       updateRole('user-1', 'admin').pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -34,8 +35,9 @@ describe('updateRole', () => {
   it('should fail when user not found', async () => {
     const result = await Effect.runPromiseExit(
       updateRole('non-existent', 'admin').pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -45,8 +47,9 @@ describe('updateRole', () => {
   it('should fail when trying to modify own role', async () => {
     const result = await Effect.runPromiseExit(
       updateRole(mockAdminUser.id, 'user').pipe(
-        Effect.provide(createMockUserRepository([mockAdminUser])),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository([mockAdminUser]), mockAdminLayer)
+        )
       )
     )
 

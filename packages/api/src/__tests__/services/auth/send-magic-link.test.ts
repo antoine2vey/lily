@@ -5,22 +5,24 @@ import {
   getMagicLinkStore,
 } from '@lily/api/__tests__/mocks/magic-link.repository'
 import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
-import { sendMagicLink } from '@lily/api/services/auth/endpoints/send-magic-link'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import {
+  MagicLinkConfig,
+  sendMagicLink,
+} from '@lily/api/services/auth/endpoints/send-magic-link'
+import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
-
-// Config provider for tests - defaults to false (normal magic link flow)
-const testConfigProvider = (disableMagicLink = false) =>
-  ConfigProvider.fromMap(
-    new Map([['DISABLE_MAGIC_LINK_VERIFICATION', String(disableMagicLink)]])
-  )
 
 describe('sendMagicLink', () => {
   afterEach(() => {
     clearMagicLinkStore()
   })
 
-  const createTestLayer = (options: { shouldExceedRateLimit?: boolean } = {}) =>
+  const createTestLayer = (
+    options: {
+      shouldExceedRateLimit?: boolean
+      disableMagicLink?: boolean
+    } = {}
+  ) =>
     Layer.mergeAll(
       createMockMagicLinkRepository({ magicLinks: [] }),
       createMockRateLimiterService(
@@ -28,28 +30,17 @@ describe('sendMagicLink', () => {
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
       ),
-      createMockCommandExecutor()
+      createMockCommandExecutor(),
+      Layer.succeed(MagicLinkConfig, {
+        disableVerification: options.disableMagicLink ?? false,
+      })
     )
 
-  const runWithConfig = <A, E>(
-    effect: Effect.Effect<A, E, never>,
-    disableMagicLink = false
-  ) =>
-    Effect.runPromise(
-      effect.pipe(
-        Effect.withConfigProvider(testConfigProvider(disableMagicLink))
-      )
-    )
+  const runWithConfig = <A, E>(effect: Effect.Effect<A, E, never>) =>
+    Effect.runPromise(effect)
 
-  const runExitWithConfig = <A, E>(
-    effect: Effect.Effect<A, E, never>,
-    disableMagicLink = false
-  ) =>
-    Effect.runPromiseExit(
-      effect.pipe(
-        Effect.withConfigProvider(testConfigProvider(disableMagicLink))
-      )
-    )
+  const runExitWithConfig = <A, E>(effect: Effect.Effect<A, E, never>) =>
+    Effect.runPromiseExit(effect)
 
   it('should send magic link email successfully', async () => {
     const result = await runWithConfig(
@@ -120,9 +111,14 @@ describe('sendMagicLink', () => {
       sendMagicLink({ email: 'test@example.com' }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockMagicLinkRepository({ magicLinks: getMagicLinkStore() }),
+            createMockMagicLinkRepository({
+              magicLinks: getMagicLinkStore(),
+            }),
             createMockRateLimiterService(),
-            createMockCommandExecutor()
+            createMockCommandExecutor(),
+            Layer.succeed(MagicLinkConfig, {
+              disableVerification: false,
+            })
           )
         )
       )
@@ -186,9 +182,8 @@ describe('sendMagicLink', () => {
     it('should return instantCode for immediate verification', async () => {
       const result = await runWithConfig(
         sendMagicLink({ email: 'test@example.com' }).pipe(
-          Effect.provide(createTestLayer())
-        ),
-        true // disableMagicLink = true
+          Effect.provide(createTestLayer({ disableMagicLink: true }))
+        )
       )
 
       expect(result.message).toBe(
@@ -205,9 +200,8 @@ describe('sendMagicLink', () => {
     it('should still validate email format when instant login is enabled', async () => {
       const result = await runExitWithConfig(
         sendMagicLink({ email: 'not-an-email' }).pipe(
-          Effect.provide(createTestLayer())
-        ),
-        true
+          Effect.provide(createTestLayer({ disableMagicLink: true }))
+        )
       )
 
       expect(result._tag).toBe('Failure')
@@ -216,9 +210,13 @@ describe('sendMagicLink', () => {
     it('should still check rate limits when instant login is enabled', async () => {
       const result = await runExitWithConfig(
         sendMagicLink({ email: 'test@example.com' }).pipe(
-          Effect.provide(createTestLayer({ shouldExceedRateLimit: true }))
-        ),
-        true
+          Effect.provide(
+            createTestLayer({
+              shouldExceedRateLimit: true,
+              disableMagicLink: true,
+            })
+          )
+        )
       )
 
       expect(result._tag).toBe('Failure')

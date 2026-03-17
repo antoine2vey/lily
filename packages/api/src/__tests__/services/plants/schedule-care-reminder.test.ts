@@ -5,7 +5,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { Effect, Logger, LogLevel } from 'effect'
+import { Effect, Layer, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helper to create a future date for scheduling
@@ -33,13 +33,15 @@ const runAndGetPendingNotifications = (
       const repo = yield* NotificationRepository
       return yield* repo.findPendingByUserId(user.id)
     }).pipe(
-      Effect.provide(createMockNotificationRepository([])),
-      Effect.provide(createMockUserRepository(allUsers)),
       Effect.provide(
-        createMockDelegationRepository({
-          delegations: options?.delegations ?? [],
-          delegationPlants: options?.delegationPlants ?? [],
-        })
+        Layer.mergeAll(
+          createMockNotificationRepository([]),
+          createMockUserRepository(allUsers),
+          createMockDelegationRepository({
+            delegations: options?.delegations ?? [],
+            delegationPlants: options?.delegationPlants ?? [],
+          })
+        )
       ),
       Logger.withMinimumLogLevel(LogLevel.None)
     )
@@ -414,15 +416,17 @@ describe('scheduleCareReminder', () => {
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
         }).pipe(
-          Effect.provide(createMockNotificationRepository([])),
-          Effect.provide(createMockUserRepository([owner, caretaker])),
           Effect.provide(
-            createMockDelegationRepository({
-              delegations: [delegation],
-              delegationPlants: [
-                { delegationId: delegation.id, plantId: 'plant-1' },
-              ],
-            })
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
@@ -465,15 +469,17 @@ describe('scheduleCareReminder', () => {
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(owner.id)
         }).pipe(
-          Effect.provide(createMockNotificationRepository([])),
-          Effect.provide(createMockUserRepository([owner, caretaker])),
           Effect.provide(
-            createMockDelegationRepository({
-              delegations: [delegation],
-              delegationPlants: [
-                { delegationId: delegation.id, plantId: 'plant-1' },
-              ],
-            })
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
@@ -516,15 +522,17 @@ describe('scheduleCareReminder', () => {
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
         }).pipe(
-          Effect.provide(createMockNotificationRepository([])),
-          Effect.provide(createMockUserRepository([owner, caretaker])),
           Effect.provide(
-            createMockDelegationRepository({
-              delegations: [delegation],
-              delegationPlants: [
-                { delegationId: delegation.id, plantId: 'plant-1' },
-              ],
-            })
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
@@ -564,15 +572,17 @@ describe('scheduleCareReminder', () => {
           const repo = yield* NotificationRepository
           return yield* repo.findPendingByUserId(caretaker.id)
         }).pipe(
-          Effect.provide(createMockNotificationRepository([])),
-          Effect.provide(createMockUserRepository([owner, caretaker])),
           Effect.provide(
-            createMockDelegationRepository({
-              delegations: [delegation],
-              delegationPlants: [
-                { delegationId: delegation.id, plantId: 'plant-1' },
-              ],
-            })
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )

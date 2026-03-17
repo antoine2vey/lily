@@ -23,7 +23,7 @@ export const updateRoom = (params: {
 
     const existing = yield* repo.findById(params.id)
     if (!existing || existing.userId !== userId) {
-      return yield* Effect.fail(new RoomNotFoundError({ roomId: params.id }))
+      return yield* new RoomNotFoundError({ roomId: params.id })
     }
 
     const room = yield* repo.update(params.id, params.data)

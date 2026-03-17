@@ -49,6 +49,7 @@ import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository
 import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
 import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AiService } from '@lily/api/services/ai/service'
+import { MagicLinkConfigLive } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
@@ -154,7 +155,8 @@ const SelfContainedInfraLive = Layer.mergeAll(
   WeatherProviderLive,
   ExpoPushServiceLive,
   JWTServiceLive,
-  RateLimiterServiceLive
+  RateLimiterServiceLive,
+  MagicLinkConfigLive
 )
 
 // Redis-dependent layers: EventBus, MessageQueue, and WeatherCache all need RedisClient.

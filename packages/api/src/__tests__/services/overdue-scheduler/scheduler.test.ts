@@ -24,6 +24,7 @@ import {
   Cause,
   Effect,
   Exit,
+  Layer,
   Logger,
   LogLevel,
   Option,
@@ -46,15 +47,17 @@ const runCheck = (
   Effect.runPromise(
     checkAndCreateOverdueReminders.pipe(
       Effect.provide(
-        createMockCareScheduleRepository({
-          schedules: schedulesFromPlants(plantsData),
-          plants: plantsData,
-        })
+        Layer.mergeAll(
+          createMockCareScheduleRepository({
+            schedules: schedulesFromPlants(plantsData),
+            plants: plantsData,
+          }),
+          createMockPlantRepository({ plants: plantsData }),
+          createMockNotificationRepository(notifications),
+          createMockUserRepository(users),
+          createMockDelegationRepository(delegationData)
+        )
       ),
-      Effect.provide(createMockPlantRepository({ plants: plantsData })),
-      Effect.provide(createMockNotificationRepository(notifications)),
-      Effect.provide(createMockUserRepository(users)),
-      Effect.provide(createMockDelegationRepository(delegationData)),
       Logger.withMinimumLogLevel(LogLevel.None)
     )
   )
@@ -95,9 +98,13 @@ const runProcessUser = (
 
   return Effect.runPromiseExit(
     processUserOverdueReminders(userId, mapped).pipe(
-      Effect.provide(createMockNotificationRepository(notifications)),
-      Effect.provide(createMockUserRepository(users)),
-      Effect.provide(createMockDelegationRepository(delegationData)),
+      Effect.provide(
+        Layer.mergeAll(
+          createMockNotificationRepository(notifications),
+          createMockUserRepository(users),
+          createMockDelegationRepository(delegationData)
+        )
+      ),
       Logger.withMinimumLogLevel(LogLevel.None)
     )
   )

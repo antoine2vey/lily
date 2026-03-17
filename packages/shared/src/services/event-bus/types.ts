@@ -2,77 +2,71 @@ import { Data, Schema } from 'effect'
 import { CareType } from '../../domains/care/types'
 
 // Event schemas
-export const PlantCreatedEvent = Schema.Struct({
-  _tag: Schema.Literal('PlantCreated'),
+export const PlantCreatedEvent = Schema.TaggedStruct('PlantCreated', {
   userId: Schema.String,
   plantId: Schema.String,
 })
 
-export const CareLogCreatedEvent = Schema.Struct({
-  _tag: Schema.Literal('CareLogCreated'),
+export const CareLogCreatedEvent = Schema.TaggedStruct('CareLogCreated', {
   userId: Schema.String,
   plantId: Schema.String,
   careLogId: Schema.String,
   type: CareType,
 })
 
-export const ChatMessageSentEvent = Schema.Struct({
-  _tag: Schema.Literal('ChatMessageSent'),
+export const ChatMessageSentEvent = Schema.TaggedStruct('ChatMessageSent', {
   userId: Schema.String,
   plantId: Schema.String,
   messageId: Schema.String,
 })
 
-export const PhotoUploadedEvent = Schema.Struct({
-  _tag: Schema.Literal('PhotoUploaded'),
+export const PhotoUploadedEvent = Schema.TaggedStruct('PhotoUploaded', {
   userId: Schema.String,
   plantId: Schema.String,
   photoId: Schema.String,
 })
 
-export const PlantScannedEvent = Schema.Struct({
-  _tag: Schema.Literal('PlantScanned'),
+export const PlantScannedEvent = Schema.TaggedStruct('PlantScanned', {
   userId: Schema.String,
   scanId: Schema.String,
 })
 
-export const AttentionRespondedEvent = Schema.Struct({
-  _tag: Schema.Literal('AttentionResponded'),
+export const AttentionRespondedEvent = Schema.TaggedStruct(
+  'AttentionResponded',
+  {
+    userId: Schema.String,
+    plantId: Schema.String,
+  }
+)
+
+export const CareHistoryViewedEvent = Schema.TaggedStruct('CareHistoryViewed', {
+  userId: Schema.String,
+})
+
+export const DiseaseIdentifiedEvent = Schema.TaggedStruct('DiseaseIdentified', {
   userId: Schema.String,
   plantId: Schema.String,
 })
 
-export const CareHistoryViewedEvent = Schema.Struct({
-  _tag: Schema.Literal('CareHistoryViewed'),
-  userId: Schema.String,
-})
+export const RarePlantIdentifiedEvent = Schema.TaggedStruct(
+  'RarePlantIdentified',
+  {
+    userId: Schema.String,
+    plantId: Schema.String,
+  }
+)
 
-export const DiseaseIdentifiedEvent = Schema.Struct({
-  _tag: Schema.Literal('DiseaseIdentified'),
-  userId: Schema.String,
-  plantId: Schema.String,
-})
-
-export const RarePlantIdentifiedEvent = Schema.Struct({
-  _tag: Schema.Literal('RarePlantIdentified'),
+export const ReminderRespondedEvent = Schema.TaggedStruct('ReminderResponded', {
   userId: Schema.String,
   plantId: Schema.String,
 })
 
-export const ReminderRespondedEvent = Schema.Struct({
-  _tag: Schema.Literal('ReminderResponded'),
+export const PlantSharedEvent = Schema.TaggedStruct('PlantShared', {
   userId: Schema.String,
   plantId: Schema.String,
 })
 
-export const PlantSharedEvent = Schema.Struct({
-  _tag: Schema.Literal('PlantShared'),
-  userId: Schema.String,
-  plantId: Schema.String,
-})
-
-export const UserFollowedEvent = Schema.Struct({
-  _tag: Schema.Literal('UserFollowed'),
+export const UserFollowedEvent = Schema.TaggedStruct('UserFollowed', {
   followerId: Schema.String,
   followingId: Schema.String,
 })

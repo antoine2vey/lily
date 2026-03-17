@@ -59,7 +59,7 @@ export const uploadAvatar = (
     const updated = yield* repo.update(userId, { image: url })
 
     if (!updated) {
-      return yield* Effect.fail(new UserNotFoundError({ userId }))
+      return yield* new UserNotFoundError({ userId })
     }
 
     return { url }

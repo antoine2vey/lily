@@ -37,7 +37,7 @@ const correctSingleCareDate = (
         DateTime.addDuration(nowDt, Duration.minutes(1))
       )
     ) {
-      return yield* Effect.fail(new FutureDateNotAllowedError())
+      return yield* new FutureDateNotAllowedError()
     }
 
     const careDate = DateTime.toDateUtc(correctedDt)

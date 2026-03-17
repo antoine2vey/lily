@@ -1,8 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { Array, DateTime, Option, Order, pipe, String } from 'effect'
+import { Array, DateTime, Option, Order, pipe, Schema, String } from 'effect'
 import matter from 'gray-matter'
 import readingTime from 'reading-time'
+
+const PostMetaSchema = Schema.Struct({
+  title: Schema.String,
+  description: Schema.String,
+  date: Schema.String,
+  slug: Schema.String,
+  category: Schema.String,
+  tags: Schema.mutable(Schema.Array(Schema.String)),
+  coverImage: Schema.optional(Schema.String),
+  readingTime: Schema.optional(Schema.Number),
+})
 
 export interface PostMeta {
   title: string
@@ -12,7 +23,7 @@ export interface PostMeta {
   category: string
   tags: string[]
   coverImage?: string
-  readingTime: number
+  readingTime?: number
 }
 
 export interface Post extends PostMeta {
@@ -34,7 +45,10 @@ export function getAllPosts(locale = 'en'): PostMeta[] {
     Array.map((file) => {
       const source = fs.readFileSync(path.join(dir, file), 'utf8')
       const slug = pipe(file, String.replace(/\.mdx$/, ''))
-      return { ...matter(source).data, slug } as PostMeta
+      return Schema.decodeUnknownSync(PostMetaSchema)({
+        ...matter(source).data,
+        slug,
+      })
     }),
     Array.sort(
       Order.reverse(
@@ -65,7 +79,7 @@ export function getPostBySlug(
   const stats = readingTime(content)
 
   return Option.some({
-    ...(data as PostMeta),
+    ...Schema.decodeUnknownSync(PostMetaSchema)({ ...data, slug }),
     content,
     readingTimeMinutes: Math.ceil(stats.minutes),
   })

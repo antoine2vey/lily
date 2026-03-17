@@ -1,19 +1,16 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
-export const DiagnosisSeverity = Schema.Union(
-  Schema.Literal('LOW'),
-  Schema.Literal('MODERATE'),
-  Schema.Literal('HIGH'),
-  Schema.Literal('CRITICAL')
+export const DiagnosisSeverity = Schema.Literal(
+  'LOW',
+  'MODERATE',
+  'HIGH',
+  'CRITICAL'
 )
 
 export type DiagnosisSeverity = typeof DiagnosisSeverity.Type
 
-export const DiagnosisStatus = Schema.Union(
-  Schema.Literal('ACTIVE'),
-  Schema.Literal('RESOLVED')
-)
+export const DiagnosisStatus = Schema.Literal('ACTIVE', 'RESOLVED')
 
 export type DiagnosisStatus = typeof DiagnosisStatus.Type
 

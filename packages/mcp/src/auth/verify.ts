@@ -2,7 +2,7 @@ import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
-import { MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpServerUrl } from '@lily/mcp/config'
 import { Array, Effect, String as EffectString, Option, pipe } from 'effect'
 
 const escapeHtml = (s: string) =>
@@ -46,7 +46,8 @@ export const verifyHandler = Effect.gen(function* () {
   const oauthService = yield* OAuthService
   const repo = yield* OAuthRepository
 
-  const url = new URL(request.url, MCP_SERVER_URL)
+  const serverUrl = yield* McpServerUrl
+  const url = new URL(request.url, serverUrl)
   const params = url.searchParams
 
   const code = params.get('code')

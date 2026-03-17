@@ -12,9 +12,11 @@ import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
 export interface CreateUserData {
-  name: string
+  name?: string
   email: string
   emailVerified?: boolean
+  timezone?: string
+  language?: LanguageCode
 }
 
 export interface UpdateUserData {
@@ -135,126 +137,136 @@ export const UserRepositoryLive = Layer.effect(
       findAll: () =>
         db.select().from(users).pipe(Effect.withSpan('UserRepository.findAll')),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [user] = yield* db.select().from(users).where(eq(users.id, id))
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findById')),
+      findById: Effect.fn('UserRepository.findById')(function* (id: string) {
+        const [user] = yield* db.select().from(users).where(eq(users.id, id))
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      findByIds: (ids: ReadonlyArray<string>) =>
-        Effect.gen(function* () {
-          if (ids.length === 0) return [] as Array<typeof users.$inferSelect>
-          return yield* db
-            .select()
-            .from(users)
-            .where(inArray(users.id, [...ids]))
-        }).pipe(Effect.withSpan('UserRepository.findByIds')),
+      findByIds: Effect.fn('UserRepository.findByIds')(function* (
+        ids: ReadonlyArray<string>
+      ) {
+        if (ids.length === 0) return [] as Array<typeof users.$inferSelect>
+        return yield* db
+          .select()
+          .from(users)
+          .where(inArray(users.id, [...ids]))
+      }),
 
-      findByEmail: (email: string) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .select()
-            .from(users)
-            .where(eq(users.email, email))
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findByEmail')),
+      findByEmail: Effect.fn('UserRepository.findByEmail')(function* (
+        email: string
+      ) {
+        const [user] = yield* db
+          .select()
+          .from(users)
+          .where(eq(users.email, email))
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      findByUsername: (username: string) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .select()
-            .from(users)
-            .where(eq(users.name, username))
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.findByUsername')),
+      findByUsername: Effect.fn('UserRepository.findByUsername')(function* (
+        username: string
+      ) {
+        const [user] = yield* db
+          .select()
+          .from(users)
+          .where(eq(users.name, username))
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      create: (data: CreateUserData) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .insert(users)
-            .values({
-              ...data,
-              emailVerified: pipe(
-                Option.fromNullable(data.emailVerified),
-                Option.getOrElse(() => false)
-              ),
-            })
-            .returning()
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.create')),
+      create: Effect.fn('UserRepository.create')(function* (
+        data: CreateUserData
+      ) {
+        const [user] = yield* db
+          .insert(users)
+          .values({
+            ...data,
+            emailVerified: pipe(
+              Option.fromNullable(data.emailVerified),
+              Option.getOrElse(() => false)
+            ),
+          })
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      update: (id: string, data: UpdateUserData) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .update(users)
-            .set(data)
-            .where(eq(users.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.update')),
+      update: Effect.fn('UserRepository.update')(function* (
+        id: string,
+        data: UpdateUserData
+      ) {
+        const [user] = yield* db
+          .update(users)
+          .set(data)
+          .where(eq(users.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .delete(users)
-            .where(eq(users.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.delete')),
+      delete: Effect.fn('UserRepository.delete')(function* (id: string) {
+        const [user] = yield* db
+          .delete(users)
+          .where(eq(users.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      findAllPaginated: (filters: FindUsersFilters) =>
-        Effect.gen(function* () {
-          const { page, limit } = filters
-          const offset = (page - 1) * limit
+      findAllPaginated: Effect.fn('UserRepository.findAllPaginated')(function* (
+        filters: FindUsersFilters
+      ) {
+        const { page, limit } = filters
+        const offset = (page - 1) * limit
 
-          const whereClause = buildUserFilterConditions(filters)
+        const whereClause = buildUserFilterConditions(filters)
 
-          const results = yield* db
-            .select()
-            .from(users)
-            .where(whereClause)
-            .orderBy(desc(users.createdAt))
-            .limit(limit)
-            .offset(offset)
+        const results = yield* db
+          .select()
+          .from(users)
+          .where(whereClause)
+          .orderBy(desc(users.createdAt))
+          .limit(limit)
+          .offset(offset)
 
-          return results
-        }).pipe(Effect.withSpan('UserRepository.findAllPaginated')),
+        return results
+      }),
 
-      countUsers: (filters: Omit<FindUsersFilters, 'page' | 'limit'>) =>
-        Effect.gen(function* () {
-          const whereClause = buildUserFilterConditions(filters)
+      countUsers: Effect.fn('UserRepository.countUsers')(function* (
+        filters: Omit<FindUsersFilters, 'page' | 'limit'>
+      ) {
+        const whereClause = buildUserFilterConditions(filters)
 
-          const result = yield* db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(users)
-            .where(whereClause)
+        const result = yield* db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(users)
+          .where(whereClause)
 
-          return pipe(
-            Array.head(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('UserRepository.countUsers')),
+        return pipe(
+          Array.head(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      updateRole: (id: string, role: UserRole) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .update(users)
-            .set({ role, updatedAt: nowAsDate() })
-            .where(eq(users.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.updateRole')),
+      updateRole: Effect.fn('UserRepository.updateRole')(function* (
+        id: string,
+        role: UserRole
+      ) {
+        const [user] = yield* db
+          .update(users)
+          .set({ role, updatedAt: nowAsDate() })
+          .where(eq(users.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
-      updateStatus: (id: string, status: UserStatus) =>
-        Effect.gen(function* () {
-          const [user] = yield* db
-            .update(users)
-            .set({ status, updatedAt: nowAsDate() })
-            .where(eq(users.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(user))
-        }).pipe(Effect.withSpan('UserRepository.updateStatus')),
+      updateStatus: Effect.fn('UserRepository.updateStatus')(function* (
+        id: string,
+        status: UserStatus
+      ) {
+        const [user] = yield* db
+          .update(users)
+          .set({ status, updatedAt: nowAsDate() })
+          .where(eq(users.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
 
       findWeatherEnabled: () =>
         db

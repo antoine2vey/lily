@@ -42,7 +42,7 @@ export const createMockUserRepository = (
     create: (data) => {
       const newUser: User = {
         id: `user-${crypto.randomUUID()}`,
-        name: data.name,
+        name: data.name ?? null,
         email: data.email,
         emailVerified: pipe(
           Option.fromNullable(data.emailVerified),

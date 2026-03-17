@@ -19,13 +19,13 @@ export const deleteUser = (
 
     // Prevent admins from deleting themselves
     if (id === currentAdmin.id) {
-      return yield* Effect.fail(new CannotModifySelfError())
+      return yield* new CannotModifySelfError()
     }
 
     const deleted = yield* repo.delete(id)
 
     if (!deleted) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     return deleted

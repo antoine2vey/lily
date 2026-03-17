@@ -56,69 +56,33 @@ const AchievementSubscriberLive = Layer.scopedDiscard(
 )
 
 const NotificationSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startNotificationScheduler
-  })
+  startNotificationScheduler
 )
 
-const NotificationWorkerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startNotificationWorker
-  })
-)
+const NotificationWorkerLive = Layer.scopedDiscard(startNotificationWorker)
 
-const WeatherSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startWeatherScheduler
-  })
-)
+const WeatherSchedulerLive = Layer.scopedDiscard(startWeatherScheduler)
 
-const DelegationSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startDelegationScheduler
-  })
-)
+const DelegationSchedulerLive = Layer.scopedDiscard(startDelegationScheduler)
 
 const AchievementReconciliationSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startAchievementReconciliationScheduler
-  })
+  startAchievementReconciliationScheduler
 )
 
-const OverdueSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startOverdueScheduler
-  })
-)
+const OverdueSchedulerLive = Layer.scopedDiscard(startOverdueScheduler)
 
-const EngagementSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startEngagementScheduler
-  })
-)
+const EngagementSchedulerLive = Layer.scopedDiscard(startEngagementScheduler)
 
-const TipsSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startTipsScheduler
-  })
-)
+const TipsSchedulerLive = Layer.scopedDiscard(startTipsScheduler)
 
 const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startBlogGeneratorScheduler
-  })
+  startBlogGeneratorScheduler
 )
 
-const HealthSchedulerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startHealthScheduler
-  })
-)
+const HealthSchedulerLive = Layer.scopedDiscard(startHealthScheduler)
 
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
-  Effect.gen(function* () {
-    yield* startKnowledgeIngestionWorker
-  })
+  startKnowledgeIngestionWorker
 )
 
 // Group all background schedulers into one layer
@@ -190,8 +154,7 @@ const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
 // Launch the server with optional telemetry
 BunRuntime.runMain(
   Layer.launch(ServerLive).pipe(
-    Effect.provide(TelemetryLive),
-    Effect.provide(LoggerLayer)
+    Effect.provide(Layer.merge(TelemetryLive, LoggerLayer))
   ),
   { disablePrettyLogger: true }
 )

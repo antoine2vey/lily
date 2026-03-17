@@ -154,19 +154,17 @@ export const startOfMonthAsDate = (): Date => {
 export const endOfMonthAsDate = (): Date => {
   const current = DateTime.unsafeNow()
   const parts = DateTime.toParts(current)
-  // Get last day by going to next month day 0
-  const lastDay = new Date(parts.year, parts.month, 0).getDate()
-  return DateTime.toDateUtc(
-    DateTime.unsafeMake({
-      year: parts.year,
-      month: parts.month,
-      day: lastDay,
-      hours: 23,
-      minutes: 59,
-      seconds: 59,
-      millis: 999,
-    })
-  )
+  const nextMonth = DateTime.unsafeMake({
+    year: parts.month === 12 ? parts.year + 1 : parts.year,
+    month: parts.month === 12 ? 1 : parts.month + 1,
+    day: 1,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+    millis: 0,
+  })
+  const lastMoment = DateTime.subtract(nextMonth, { millis: 1 })
+  return DateTime.toDateUtc(lastMoment)
 }
 
 /**

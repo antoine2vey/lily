@@ -57,40 +57,41 @@ const isJwtExpired = (jwt: string): boolean => {
  * Refresh the API JWT via POST /api/auth/refresh (no JWT required)
  * and persist the new credentials.
  */
-const refreshApiJwt = (creds: UserApiCredentials) =>
-  Effect.gen(function* () {
-    const apiClient = yield* ApiClient
-    const repo = yield* OAuthRepository
+const refreshApiJwt = Effect.fn('MCP.refreshApiJwt')(function* (
+  creds: UserApiCredentials
+) {
+  const apiClient = yield* ApiClient
+  const repo = yield* OAuthRepository
 
-    const result = yield* apiClient.refreshToken(creds.apiRefreshToken).pipe(
-      Effect.catchTag('ExternalServiceError', (err) =>
-        err.statusCode === 401
-          ? Effect.fail(
-              new OAuthError({
-                error: 'api_refresh_failed',
-                error_description:
-                  'API token refresh failed — please re-authenticate',
-              })
-            )
-          : Effect.die(err)
-      )
+  const result = yield* apiClient.refreshToken(creds.apiRefreshToken).pipe(
+    Effect.catchTag('ExternalServiceError', (err) =>
+      err.statusCode === 401
+        ? Effect.fail(
+            new OAuthError({
+              error: 'api_refresh_failed',
+              error_description:
+                'API token refresh failed — please re-authenticate',
+            })
+          )
+        : Effect.die(err)
     )
+  )
 
-    yield* repo.upsertUserApiCredentials({
-      userId: creds.userId,
-      apiJwt: result.accessToken,
-      apiRefreshToken: result.refreshToken,
-    })
+  yield* repo.upsertUserApiCredentials({
+    userId: creds.userId,
+    apiJwt: result.accessToken,
+    apiRefreshToken: result.refreshToken,
+  })
 
-    return result.accessToken
-  }).pipe(Effect.withSpan('MCP.refreshApiJwt'))
+  return result.accessToken
+})
 
 /**
  * Refresh the API JWT for a user if it's expired.
  * Called from the OAuth token refresh endpoint.
  */
-export const refreshApiJwtIfNeeded = (userId: string) =>
-  Effect.gen(function* () {
+export const refreshApiJwtIfNeeded = Effect.fn('MCP.refreshApiJwtIfNeeded')(
+  function* (userId: string) {
     const repo = yield* OAuthRepository
     const maybeCreds = yield* repo.getUserApiCredentials(userId)
 
@@ -101,7 +102,8 @@ export const refreshApiJwtIfNeeded = (userId: string) =>
           ? refreshApiJwt(creds).pipe(Effect.asVoid)
           : Effect.void,
     })
-  }).pipe(Effect.withSpan('MCP.refreshApiJwtIfNeeded'))
+  }
+)
 
 // ── Main resolver ──────────────────────────────────────────────────────
 
@@ -119,69 +121,69 @@ interface AuthResult {
  * 3. If the API JWT is expired (or forceRefresh), refresh transparently
  * 4. Return { jwt, userId }
  */
-const resolveAuth = (forceRefresh: boolean) =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest
-    const oauthService = yield* OAuthService
-    const repo = yield* OAuthRepository
+const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
+  forceRefresh: boolean
+) {
+  const request = yield* HttpServerRequest.HttpServerRequest
+  const oauthService = yield* OAuthService
+  const repo = yield* OAuthRepository
 
-    const authHeader = request.headers.authorization
-    if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
-      return yield* new OAuthError({
-        error: 'invalid_token',
-        error_description: 'Authentication required',
-      })
-    }
-
-    const token = pipe(authHeader, EffectString.slice(7))
-    const validation = yield* oauthService.validateBearerToken(token)
-
-    const maybeCreds = yield* repo.getUserApiCredentials(validation.userId)
-    const creds = yield* Option.match(maybeCreds, {
-      onNone: () =>
-        Effect.fail(
-          new OAuthError({
-            error: 'invalid_token',
-            error_description:
-              'No API credentials found — please re-authenticate',
-          })
-        ),
-      onSome: Effect.succeed,
+  const authHeader = request.headers.authorization
+  if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
+    return yield* new OAuthError({
+      error: 'invalid_token',
+      error_description: 'Authentication required',
     })
+  }
 
-    const jwt =
-      forceRefresh || isJwtExpired(creds.apiJwt)
-        ? yield* refreshApiJwt(creds)
-        : creds.apiJwt
+  const token = pipe(authHeader, EffectString.slice(7))
+  const validation = yield* oauthService.validateBearerToken(token)
 
-    return { jwt, userId: validation.userId } satisfies AuthResult
-  }).pipe(
-    Effect.catchTags({
-      AccessTokenNotFound: (err) =>
+  const maybeCreds = yield* repo.getUserApiCredentials(validation.userId)
+  const creds = yield* Option.match(maybeCreds, {
+    onNone: () =>
+      Effect.fail(
         new OAuthError({
-          error: err.error,
-          error_description: err.error_description,
-        }),
-      AccessTokenExpired: (err) =>
-        new OAuthError({
-          error: err.error,
-          error_description: err.error_description,
-        }),
-      SqlError: () =>
-        new OAuthError({
-          error: 'server_error',
-          error_description: 'Authentication failed',
-        }),
-    }),
-    Effect.withSpan('MCP.resolveAuth')
-  )
+          error: 'invalid_token',
+          error_description:
+            'No API credentials found — please re-authenticate',
+        })
+      ),
+    onSome: Effect.succeed,
+  })
+
+  const jwt =
+    forceRefresh || isJwtExpired(creds.apiJwt)
+      ? yield* refreshApiJwt(creds)
+      : creds.apiJwt
+
+  return { jwt, userId: validation.userId } satisfies AuthResult
+})
 
 // ── Auth provider ──────────────────────────────────────────────────────
 
 /**
  * Resolve auth — refreshApiJwt handles 401 retry internally.
  */
-const resolveAuthWithRetry = resolveAuth(false)
+const resolveAuthWithRetry = resolveAuth(false).pipe(
+  Effect.catchTags({
+    AccessTokenNotFound: (err) =>
+      new OAuthError({
+        error: err.error,
+        error_description: err.error_description,
+      }),
+    AccessTokenExpired: (err) =>
+      new OAuthError({
+        error: err.error,
+        error_description: err.error_description,
+      }),
+    SqlError: () =>
+      new OAuthError({
+        error: 'server_error',
+        error_description: 'Authentication failed',
+      }),
+  })
+)
 
 /**
  * Provide `CurrentJwt` and `CurrentUserId` into context by resolving

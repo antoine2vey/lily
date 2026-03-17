@@ -9,8 +9,8 @@ import { Array, DateTime, Effect, Option, pipe } from 'effect'
  * care schedules and recent care history, all fetched via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
-export const getPlantDetailsEffect = (params: { plantId: string }) =>
-  Effect.gen(function* () {
+export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
+  function* (params: { plantId: string }) {
     const apiClient = yield* ApiClient
 
     // Fetch plant details and recent care logs in parallel
@@ -137,4 +137,5 @@ export const getPlantDetailsEffect = (params: { plantId: string }) =>
       text: Array.join(sections, '\n'),
       plant: plantDetail,
     }
-  }).pipe(Effect.withSpan('MCP.getPlantDetails'))
+  }
+)

@@ -12,7 +12,7 @@ export const getUser = (
     const user = yield* repo.findById(id)
 
     if (!user) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     return user

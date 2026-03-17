@@ -12,33 +12,29 @@ import { Array, Effect, Option, pipe } from 'effect'
 
 const CANCELABLE_STATUSES = ['pending', 'accepted', 'active']
 
-export const cancelDelegation = (delegationId: string) =>
-  Effect.gen(function* () {
+export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
+  function* (delegationId: string) {
     const { id: currentUserId } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
 
     const delegation = yield* delegationRepo.findById(delegationId)
     if (!delegation) {
-      return yield* Effect.fail(new DelegationNotFoundError({ delegationId }))
+      return yield* new DelegationNotFoundError({ delegationId })
     }
 
     if (delegation.ownerId !== currentUserId) {
-      return yield* Effect.fail(
-        new DelegationNotAuthorizedError({
-          message: 'Only the delegation owner can cancel',
-        })
-      )
+      return yield* new DelegationNotAuthorizedError({
+        message: 'Only the delegation owner can cancel',
+      })
     }
 
     if (!Array.contains(CANCELABLE_STATUSES, delegation.status)) {
-      return yield* Effect.fail(
-        new DelegationInvalidStatusError({
-          currentStatus: delegation.status,
-          expectedStatus: 'pending, accepted, or active',
-          message: 'This delegation cannot be canceled in its current state',
-        })
-      )
+      return yield* new DelegationInvalidStatusError({
+        currentStatus: delegation.status,
+        expectedStatus: 'pending, accepted, or active',
+        message: 'This delegation cannot be canceled in its current state',
+      })
     }
 
     yield* delegationRepo.updateStatus(delegationId, 'canceled', {
@@ -65,7 +61,8 @@ export const cancelDelegation = (delegationId: string) =>
 
     const updated = yield* delegationRepo.findById(delegationId)
     if (!updated) {
-      return yield* Effect.fail(new DelegationNotFoundError({ delegationId }))
+      return yield* new DelegationNotFoundError({ delegationId })
     }
     return updated
-  }).pipe(Effect.withSpan('DelegationService.cancelDelegation'))
+  }
+)

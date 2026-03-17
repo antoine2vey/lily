@@ -1,6 +1,6 @@
 import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
-import { MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpServerUrl } from '@lily/mcp/config'
 import { Console, Effect } from 'effect'
 
 /**
@@ -15,7 +15,8 @@ export const confirmHandler = Effect.gen(function* () {
   const apiClient = yield* ApiClient
   const body = yield* request.text
   const form = new URLSearchParams(body)
-  const url = new URL(request.url, MCP_SERVER_URL)
+  const serverUrl = yield* McpServerUrl
+  const url = new URL(request.url, serverUrl)
   const oauthParams = url.searchParams
 
   const email = form.get('email')
@@ -27,7 +28,7 @@ export const confirmHandler = Effect.gen(function* () {
   }
 
   // Build callback URL pointing back to MCP's /verify with OAuth params
-  const callbackUrl = new URL(`${MCP_SERVER_URL}/verify`)
+  const callbackUrl = new URL(`${serverUrl}/verify`)
   for (const [key, value] of oauthParams.entries()) {
     callbackUrl.searchParams.set(key, value)
   }

@@ -2,7 +2,7 @@ import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import type { User } from '@lily/shared'
-import { Effect, Exit, Layer, Redacted } from 'effect'
+import { Data, Effect, Exit, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Test fixtures
@@ -54,12 +54,9 @@ const suspendedUser: User = {
 }
 
 // Custom error class for testing
-class TestAuthError extends Error {
-  constructor(override readonly message: string) {
-    super(message)
-    this.name = 'TestAuthError'
-  }
-}
+class TestAuthError extends Data.TaggedError('TestAuthError')<{
+  message: string
+}> {}
 
 describe('validateUserFromToken', () => {
   describe('successful validation', () => {
@@ -79,7 +76,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromise(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -106,7 +103,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromise(
         validateUserFromToken({
           token: Redacted.make('admin-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
           requireAdmin: true,
         }).pipe(Effect.provide(mockLayers))
       )
@@ -130,7 +127,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromise(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -158,7 +155,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('invalid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -177,7 +174,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('expired-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -202,7 +199,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -228,7 +225,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -256,7 +253,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
         }).pipe(Effect.provide(mockLayers))
       )
 
@@ -284,7 +281,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
           requireAdmin: true,
         }).pipe(Effect.provide(mockLayers))
       )
@@ -311,7 +308,7 @@ describe('validateUserFromToken', () => {
       const result = await Effect.runPromiseExit(
         validateUserFromToken({
           token: Redacted.make('valid-token'),
-          createError: (msg) => new TestAuthError(msg),
+          createError: (msg) => new TestAuthError({ message: msg }),
           requireAdmin: true,
         }).pipe(Effect.provide(mockLayers))
       )

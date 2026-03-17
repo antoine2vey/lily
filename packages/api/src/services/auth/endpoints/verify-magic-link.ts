@@ -1,4 +1,3 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -11,11 +10,9 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import { users } from '@lily/db/schema/users'
 import { nowAsDate } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
-import { eq } from 'drizzle-orm'
-import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 /**
  * Verify magic link token and exchange for JWT tokens
@@ -33,7 +30,6 @@ export const verifyMagicLink = ({
   | UserRepository
   | JWTService
   | RateLimiterService
-  | PgDrizzle.PgDrizzle
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
@@ -41,7 +37,6 @@ export const verifyMagicLink = ({
     const userRepo = yield* UserRepository
     const jwtService = yield* JWTService
     const rateLimiter = yield* RateLimiterService
-    const db = yield* PgDrizzle.PgDrizzle
 
     // Validate UUID format
     const uuidRegex =
@@ -67,18 +62,11 @@ export const verifyMagicLink = ({
       Option.fromNullable(existingUser),
       Option.match({
         onNone: () =>
-          Effect.gen(function* () {
-            const created = yield* db
-              .insert(users)
-              .values({
-                email: magicLink.email,
-                emailVerified: true,
-                ...(timezone ? { timezone } : {}),
-                ...(language ? { language } : {}),
-              })
-              .returning()
-
-            return pipe(created, Array.head, Option.getOrNull)
+          userRepo.create({
+            email: magicLink.email,
+            emailVerified: true,
+            ...(timezone ? { timezone } : {}),
+            ...(language ? { language } : {}),
           }),
         onSome: (existing) =>
           Effect.gen(function* () {
@@ -87,19 +75,13 @@ export const verifyMagicLink = ({
 
             if (!needsEmailVerify && !needsLanguageSync) return existing
 
-            const updated = yield* db
-              .update(users)
-              .set({
-                updatedAt: nowAsDate(),
-                ...(needsEmailVerify ? { emailVerified: true } : {}),
-                ...(needsLanguageSync ? { language } : {}),
-              })
-              .where(eq(users.id, existing.id))
-              .returning()
+            const updated = yield* userRepo.update(existing.id, {
+              ...(needsEmailVerify ? { emailVerified: true } : {}),
+              ...(needsLanguageSync ? { language } : {}),
+            })
 
             return pipe(
-              updated,
-              Array.head,
+              Option.fromNullable(updated),
               Option.getOrElse(() => existing)
             )
           }),

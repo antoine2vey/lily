@@ -1,6 +1,6 @@
 import type { LanguageCode } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
-import { Effect, Match, Option, pipe } from 'effect'
+import { Duration, Effect, Match, Option, pipe, Schedule } from 'effect'
 import { useRouter, useSegments } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -11,18 +11,18 @@ import {
   useEffect,
   useState,
 } from 'react'
-import * as RevenueCatService from 'src/services/revenuecat'
+import * as RevenueCatService from '@/services/revenuecat'
 import {
   apiEffectRunner,
   extractErrorMessage,
   setOnAuthFailure,
-} from 'src/utils/client'
+} from '@/utils/client'
 import {
   getDeviceLanguage,
   getDeviceTimezone,
   getExpoPushToken,
   getPlatform,
-} from 'src/utils/notifications'
+} from '@/utils/notifications'
 import {
   clearAuthStorage,
   getStoredAccessToken,
@@ -31,7 +31,7 @@ import {
   storeAccessToken,
   storeRefreshToken,
   storeUserEmail,
-} from 'src/utils/storage'
+} from '@/utils/storage'
 
 const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
 
@@ -148,71 +148,84 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Check for stored token on mount
   useEffect(() => {
-    const checkAuth = async (retries = 2) => {
-      try {
-        const tokenOption = await Effect.runPromise(getStoredAccessToken())
-        const emailOption = await Effect.runPromise(getStoredUserEmail())
+    const checkAuth = Effect.gen(function* () {
+      const tokenOption = yield* getStoredAccessToken()
+      const emailOption = yield* getStoredUserEmail()
 
-        // Set pending email if stored
-        pipe(
-          emailOption,
-          Option.match({
-            onNone: () => {},
-            onSome: (email) => setPendingEmail(email),
-          })
-        )
+      pipe(
+        emailOption,
+        Option.match({
+          onNone: () => {},
+          onSome: (email) => setPendingEmail(email),
+        })
+      )
 
-        await pipe(
-          tokenOption,
-          Option.match({
-            onNone: async () => {
+      yield* pipe(
+        tokenOption,
+        Option.match({
+          onNone: () =>
+            Effect.sync(() => {
               setState({ _tag: 'Unauthenticated' })
-            },
-            onSome: async (accessToken) => {
-              try {
-                const user = await apiEffectRunner('auth', 'getCurrentUser', {})
-                if (!user.username) {
-                  setState({ _tag: 'NeedsUsername', user, accessToken })
-                } else {
-                  setState({ _tag: 'Authenticated', user, accessToken })
-                  // Re-register on every launch to refresh a valid token or
-                  // deactivate a stale one if permission was revoked
-                  registerDeviceForPush().catch((err) => {
-                    console.warn('Push notification registration failed:', err)
+            }),
+          onSome: (accessToken) =>
+            Effect.tryPromise(() =>
+              apiEffectRunner('auth', 'getCurrentUser', {})
+            ).pipe(
+              Effect.tap((user) =>
+                Effect.sync(() => {
+                  if (!user.username) {
+                    setState({
+                      _tag: 'NeedsUsername',
+                      user,
+                      accessToken,
+                    })
+                  } else {
+                    setState({
+                      _tag: 'Authenticated',
+                      user,
+                      accessToken,
+                    })
+                    registerDeviceForPush().catch((err) => {
+                      console.warn(
+                        'Push notification registration failed:',
+                        err
+                      )
+                    })
+                  }
+                })
+              ),
+              Effect.retry(
+                Schedule.intersect(
+                  Schedule.recurs(2),
+                  Schedule.spaced(Duration.millis(1500))
+                ).pipe(
+                  Schedule.whileInput((error: unknown) => {
+                    const isAuthError =
+                      error &&
+                      typeof error === 'object' &&
+                      '_tag' in error &&
+                      (error._tag === 'UnauthorizedError' ||
+                        error._tag === 'SessionNotFoundError')
+                    return !isAuthError
                   })
-                }
-              } catch (error) {
-                const isAuthError =
-                  error &&
-                  typeof error === 'object' &&
-                  '_tag' in error &&
-                  (error._tag === 'UnauthorizedError' ||
-                    error._tag === 'SessionNotFoundError')
-
-                if (isAuthError) {
-                  // Token is truly invalid, clear storage
-                  await Effect.runPromise(removeStoredAccessToken())
+                )
+              ),
+              Effect.catchAll(() =>
+                Effect.gen(function* () {
+                  yield* removeStoredAccessToken()
                   setState({ _tag: 'Unauthenticated' })
-                } else if (retries > 0) {
-                  // Network/server error — retry after a short delay
-                  await new Promise((r) => setTimeout(r, 1500))
-                  await checkAuth(retries - 1)
-                } else {
-                  // Retries exhausted — clear tokens and go to login
-                  // rather than leaving the user stuck on splash screen
-                  await Effect.runPromise(removeStoredAccessToken())
-                  setState({ _tag: 'Unauthenticated' })
-                }
-              }
-            },
-          })
-        )
-      } catch {
-        setState({ _tag: 'Unauthenticated' })
-      }
-    }
+                })
+              )
+            ),
+        })
+      )
+    }).pipe(
+      Effect.catchAll(() =>
+        Effect.sync(() => setState({ _tag: 'Unauthenticated' }))
+      )
+    )
 
-    checkAuth()
+    Effect.runPromise(checkAuth)
   }, [])
 
   // Handle navigation based on auth state

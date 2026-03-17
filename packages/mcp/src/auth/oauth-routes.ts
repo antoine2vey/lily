@@ -5,7 +5,7 @@ import {
 } from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
-import { MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpServerUrl } from '@lily/mcp/config'
 import { Array, Effect, Option, Schema } from 'effect'
 
 const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
@@ -49,46 +49,55 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   // ── Server Metadata ────────────────────────────────────────────────
   HttpRouter.get(
     '/.well-known/oauth-authorization-server',
-    HttpServerResponse.json({
-      issuer: MCP_SERVER_URL,
-      authorization_endpoint: `${MCP_SERVER_URL}/oauth/authorize`,
-      token_endpoint: `${MCP_SERVER_URL}/oauth/token`,
-      registration_endpoint: `${MCP_SERVER_URL}/oauth/register`,
-      revocation_endpoint: `${MCP_SERVER_URL}/oauth/revoke`,
-      scopes_supported: SCOPES_SUPPORTED,
-      response_types_supported: ['code'],
-      grant_types_supported: ['authorization_code', 'refresh_token'],
-      token_endpoint_auth_methods_supported: ['none'],
-      code_challenge_methods_supported: ['S256'],
+    Effect.gen(function* () {
+      const serverUrl = yield* McpServerUrl
+      return yield* HttpServerResponse.json({
+        issuer: serverUrl,
+        authorization_endpoint: `${serverUrl}/oauth/authorize`,
+        token_endpoint: `${serverUrl}/oauth/token`,
+        registration_endpoint: `${serverUrl}/oauth/register`,
+        revocation_endpoint: `${serverUrl}/oauth/revoke`,
+        scopes_supported: SCOPES_SUPPORTED,
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        token_endpoint_auth_methods_supported: ['none'],
+        code_challenge_methods_supported: ['S256'],
+      })
     })
   ),
 
   // ── MCP Discovery Metadata ───────────────────────────────────────
   HttpRouter.get(
     '/.well-known/mcp.json',
-    HttpServerResponse.json({
-      name: 'lily-plant-care',
-      version: '1.0.0',
-      protocol_version: '2025-03-26',
-      mcp_endpoint: `${MCP_SERVER_URL}/mcp`,
-      authentication: {
-        type: 'oauth2',
-        authorization_server: `${MCP_SERVER_URL}/.well-known/oauth-authorization-server`,
-        protected_resource: `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`,
-      },
-      capabilities: { tools: true, resources: true },
+    Effect.gen(function* () {
+      const serverUrl = yield* McpServerUrl
+      return yield* HttpServerResponse.json({
+        name: 'lily-plant-care',
+        version: '1.0.0',
+        protocol_version: '2025-03-26',
+        mcp_endpoint: `${serverUrl}/mcp`,
+        authentication: {
+          type: 'oauth2',
+          authorization_server: `${serverUrl}/.well-known/oauth-authorization-server`,
+          protected_resource: `${serverUrl}/.well-known/oauth-protected-resource`,
+        },
+        capabilities: { tools: true, resources: true },
+      })
     })
   ),
 
   // ── Protected Resource Metadata ────────────────────────────────────
   HttpRouter.get(
     '/.well-known/oauth-protected-resource',
-    HttpServerResponse.json({
-      resource: `${MCP_SERVER_URL}/mcp`,
-      authorization_servers: [MCP_SERVER_URL],
-      scopes_supported: SCOPES_SUPPORTED,
-      bearer_methods_supported: ['header'],
-      resource_name: 'Lily Plant Care',
+    Effect.gen(function* () {
+      const serverUrl = yield* McpServerUrl
+      return yield* HttpServerResponse.json({
+        resource: `${serverUrl}/mcp`,
+        authorization_servers: [serverUrl],
+        scopes_supported: SCOPES_SUPPORTED,
+        bearer_methods_supported: ['header'],
+        resource_name: 'Lily Plant Care',
+      })
     })
   ),
 
@@ -119,7 +128,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
     '/oauth/authorize',
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest
-      const url = new URL(request.url, MCP_SERVER_URL)
+      const serverUrl = yield* McpServerUrl
+      const url = new URL(request.url, serverUrl)
       const params = url.searchParams
       const oauthService = yield* OAuthService
 
@@ -151,7 +161,7 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
         )
       }
 
-      const consentUrl = new URL(`${MCP_SERVER_URL}/consent`)
+      const consentUrl = new URL(`${serverUrl}/consent`)
       for (const [key, value] of params.entries()) {
         consentUrl.searchParams.set(key, value)
       }

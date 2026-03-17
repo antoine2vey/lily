@@ -10,7 +10,7 @@ import { confirmHandler } from '@lily/mcp/auth/confirm'
 import { consentHandler } from '@lily/mcp/auth/consent'
 import { OAuthRoutes } from '@lily/mcp/auth/oauth-routes'
 import { verifyHandler } from '@lily/mcp/auth/verify'
-import { MCP_ALLOWED_ORIGINS, MCP_PORT, MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpAllowedOrigins, McpPort, McpServerUrl } from '@lily/mcp/config'
 import { McpLive } from '@lily/mcp/layers'
 import {
   CareScheduleResourceLayer,
@@ -27,51 +27,41 @@ import { Array, Effect, String as EffectString, Layer, pipe } from 'effect'
 
 // ── MCP Auth Middleware ────────────────────────────────────────────────
 
-const resourceMetadataUrl = `${MCP_SERVER_URL}/.well-known/oauth-protected-resource`
+const makeMcpAuthMiddleware = (resourceMetadataUrl: string) =>
+  HttpMiddleware.make((app) =>
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest
 
-const mcpAuthMiddleware = HttpMiddleware.make((app) =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest
+      if (!pipe(request.url, EffectString.startsWith('/mcp'))) {
+        return yield* app
+      }
 
-    if (!pipe(request.url, EffectString.startsWith('/mcp'))) {
-      return yield* app
-    }
+      // Allow OPTIONS preflight through without auth (safety net for CORS)
+      if (request.method === 'OPTIONS') {
+        return yield* app
+      }
 
-    // Allow OPTIONS preflight through without auth (safety net for CORS)
-    if (request.method === 'OPTIONS') {
-      return yield* app
-    }
+      const authHeader = request.headers.authorization
 
-    const authHeader = request.headers.authorization
-
-    if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
-      return yield* HttpServerResponse.empty({ status: 401 }).pipe(
-        Effect.map((res) =>
-          res.pipe(
-            HttpServerResponse.setHeader(
-              'WWW-Authenticate',
-              `Bearer resource_metadata="${resourceMetadataUrl}"`
+      if (
+        !authHeader ||
+        !pipe(authHeader, EffectString.startsWith('Bearer '))
+      ) {
+        return yield* HttpServerResponse.empty({ status: 401 }).pipe(
+          Effect.map((res) =>
+            res.pipe(
+              HttpServerResponse.setHeader(
+                'WWW-Authenticate',
+                `Bearer resource_metadata="${resourceMetadataUrl}"`
+              )
             )
           )
         )
-      )
-    }
+      }
 
-    return yield* app
-  })
-)
-
-// ── CORS Middleware ──────────────────────────────────────────────────
-
-const corsMiddleware = HttpMiddleware.cors({
-  allowedOrigins: Array.isEmptyArray(MCP_ALLOWED_ORIGINS)
-    ? () => true
-    : [...MCP_ALLOWED_ORIGINS],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
-  allowedMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  maxAge: 86400,
-  credentials: true,
-})
+      return yield* app
+    })
+  )
 
 // ── Custom Routes (OAuth, consent, health) ─────────────────────────────
 
@@ -141,6 +131,28 @@ const ToolsListChangedOnConnectLayer = Layer.scopedDiscard(
   })
 )
 
+const MiddlewareLayer = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const serverUrl = yield* McpServerUrl
+    const origins = yield* McpAllowedOrigins
+    const resourceMetadataUrl = `${serverUrl}/.well-known/oauth-protected-resource`
+    const mcpAuthMiddleware = makeMcpAuthMiddleware(resourceMetadataUrl)
+    const mutableOrigins: string[] = [...origins]
+    const corsMiddleware = HttpMiddleware.cors({
+      allowedOrigins: Array.isEmptyArray(mutableOrigins)
+        ? () => true
+        : mutableOrigins,
+      allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
+      allowedMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+      maxAge: 86400,
+      credentials: true,
+    })
+    return HttpRouter.Default.serve((app) =>
+      corsMiddleware(toolMetaMiddleware(mcpAuthMiddleware(app)))
+    )
+  })
+)
+
 const ServerLayer = Layer.mergeAll(
   // Register text-only tools via toolkit (ask_plant_question)
   McpServer.toolkit(TextToolkit),
@@ -159,9 +171,7 @@ const ServerLayer = Layer.mergeAll(
   // CORS → tool-meta injection → auth check
   // CORS wraps outside so CORS headers appear on 401 responses
   // tool-meta injects _meta.ui.resourceUri on tools/list responses
-  HttpRouter.Default.serve((app) =>
-    corsMiddleware(toolMetaMiddleware(mcpAuthMiddleware(app)))
-  )
+  MiddlewareLayer
 ).pipe(
   // Provide text toolkit handler implementations
   Layer.provide(TextToolkitHandlersLive),
@@ -175,13 +185,18 @@ const ServerLayer = Layer.mergeAll(
   ),
   // Provide all repositories, services, and DB layers
   Layer.provide(McpLive),
-  // Provide the HTTP server with increased idle timeout for SSE streams
+  // Provide the HTTP server with config-driven port
   Layer.provide(
-    BunHttpServer.layer({
-      port: MCP_PORT,
-      hostname: '0.0.0.0',
-      idleTimeout: 120,
-    })
+    Layer.unwrapEffect(
+      Effect.gen(function* () {
+        const port = yield* McpPort
+        return BunHttpServer.layer({
+          port,
+          hostname: '0.0.0.0',
+          idleTimeout: 120,
+        })
+      })
+    )
   )
 )
 
@@ -190,12 +205,16 @@ const ServerLayer = Layer.mergeAll(
 BunRuntime.runMain(
   Layer.launch(ServerLayer).pipe(
     Effect.tap(() =>
-      Effect.log(
-        `Lily MCP server running on port ${MCP_PORT}\n` +
-          `  OAuth:     ${MCP_SERVER_URL}/.well-known/oauth-authorization-server\n` +
-          `  Discovery: ${MCP_SERVER_URL}/.well-known/mcp.json\n` +
-          `  MCP:       ${MCP_SERVER_URL}/mcp`
-      )
+      Effect.gen(function* () {
+        const port = yield* McpPort
+        const serverUrl = yield* McpServerUrl
+        yield* Effect.log(
+          `Lily MCP server running on port ${port}\n` +
+            `  OAuth:     ${serverUrl}/.well-known/oauth-authorization-server\n` +
+            `  Discovery: ${serverUrl}/.well-known/mcp.json\n` +
+            `  MCP:       ${serverUrl}/mcp`
+        )
+      })
     )
   )
 )

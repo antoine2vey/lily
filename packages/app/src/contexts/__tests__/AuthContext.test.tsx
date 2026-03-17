@@ -20,29 +20,22 @@ jest.mock('expo-secure-store', () => ({
 }))
 
 // Mock storage utilities
-jest.mock('src/utils/storage', () => ({
-  clearAuthStorage: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  getStoredAccessToken: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  getStoredUserEmail: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  removeStoredAccessToken: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  storeAccessToken: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  storeRefreshToken: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-  storeUserEmail: jest.fn().mockReturnValue({
-    pipe: jest.fn().mockReturnThis(),
-  }),
-}))
+jest.mock('src/utils/storage', () => {
+  const { Effect, Option } = require('effect')
+  return {
+    clearAuthStorage: jest.fn().mockReturnValue(Effect.void),
+    getStoredAccessToken: jest
+      .fn()
+      .mockReturnValue(Effect.succeed(Option.none())),
+    getStoredUserEmail: jest
+      .fn()
+      .mockReturnValue(Effect.succeed(Option.none())),
+    removeStoredAccessToken: jest.fn().mockReturnValue(Effect.void),
+    storeAccessToken: jest.fn().mockReturnValue(Effect.void),
+    storeRefreshToken: jest.fn().mockReturnValue(Effect.void),
+    storeUserEmail: jest.fn().mockReturnValue(Effect.void),
+  }
+})
 
 // Mock client utilities
 jest.mock('src/utils/client', () => ({

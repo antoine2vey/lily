@@ -1,4 +1,4 @@
-import { Array, pipe, String } from 'effect'
+import { Array, Match, Option, pipe, String } from 'effect'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCreateJob } from '@/hooks/use-create-job'
@@ -28,7 +28,9 @@ export const NewJobPage = () => {
     const text = e.clipboardData.getData('text')
 
     const extracted = pipe(
-      text.match(/https?:\/\/\S+/g) ?? [],
+      text.match(/https?:\/\/\S+/g),
+      Option.fromNullable,
+      Option.getOrElse(() => [] as string[]),
       Array.map((url) => url.replace(/[)>\]'".,;:]+$/, '')),
       Array.filter(String.isNonEmpty)
     )
@@ -46,56 +48,64 @@ export const NewJobPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (adapterType === 'reddit') {
-      const parsedSubreddits = pipe(
-        subreddits,
-        String.split(','),
-        Array.map(String.trim),
-        Array.filter(String.isNonEmpty)
-      )
+    pipe(
+      Match.value(adapterType),
+      Match.when('reddit', () => {
+        const parsedSubreddits = pipe(
+          subreddits,
+          String.split(','),
+          Array.map(String.trim),
+          Array.filter(String.isNonEmpty)
+        )
 
-      if (parsedSubreddits.length === 0) return
+        if (parsedSubreddits.length === 0) return
 
-      createJob.mutate(
-        {
-          adapter: 'reddit',
-          config: {
-            type: 'reddit',
-            subreddits: parsedSubreddits,
-            sort,
-            timeFilter,
-            limit,
+        createJob.mutate(
+          {
+            adapter: 'reddit',
+            config: {
+              type: 'reddit',
+              subreddits: parsedSubreddits,
+              sort,
+              timeFilter,
+              limit,
+            },
           },
-        },
-        { onSuccess: () => navigate('/jobs') }
-      )
-    } else {
-      const parsedUrls = pipe(
-        urls,
-        String.split('\n'),
-        Array.map(String.trim),
-        Array.filter(String.isNonEmpty)
-      )
+          { onSuccess: () => navigate('/jobs') }
+        )
+      }),
+      Match.when('web', () => {
+        const parsedUrls = pipe(
+          urls,
+          String.split('\n'),
+          Array.map(String.trim),
+          Array.filter(String.isNonEmpty)
+        )
 
-      if (parsedUrls.length === 0) return
+        if (parsedUrls.length === 0) return
 
-      createJob.mutate(
-        {
-          adapter: 'web',
-          config: {
-            type: 'web',
-            urls: parsedUrls,
+        createJob.mutate(
+          {
+            adapter: 'web',
+            config: {
+              type: 'web',
+              urls: parsedUrls,
+            },
           },
-        },
-        { onSuccess: () => navigate('/jobs') }
-      )
-    }
+          { onSuccess: () => navigate('/jobs') }
+        )
+      }),
+      Match.exhaustive
+    )
   }
 
   const isSubmitDisabled =
-    (adapterType === 'reddit'
-      ? pipe(subreddits, String.trim, String.isEmpty)
-      : pipe(urls, String.trim, String.isEmpty)) || createJob.isPending
+    pipe(
+      Match.value(adapterType),
+      Match.when('reddit', () => pipe(subreddits, String.trim, String.isEmpty)),
+      Match.when('web', () => pipe(urls, String.trim, String.isEmpty)),
+      Match.exhaustive
+    ) || createJob.isPending
 
   return (
     <div>

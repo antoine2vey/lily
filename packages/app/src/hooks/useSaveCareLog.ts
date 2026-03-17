@@ -1,9 +1,9 @@
 import type { CareType } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, DateTime, pipe } from 'effect'
-import { apiEffectRunner } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import { DateTime, Effect, pipe } from 'effect'
+import { apiEffectRunner } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 interface SaveCareLogInput {
   plantIds: string[]
@@ -14,9 +14,6 @@ interface SaveCareLogInput {
   photoUrl?: string
 }
 
-/**
- * Combine date and time into a single Date object
- */
 const combineDateAndTime = (date: Date, time: Date): Date => {
   const dateParts = DateTime.toParts(DateTime.unsafeMake(date))
   const timeParts = DateTime.toParts(DateTime.unsafeMake(time))
@@ -35,25 +32,24 @@ const combineDateAndTime = (date: Date, time: Date): Date => {
 async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {
   const combinedDate = combineDateAndTime(input.date, input.time)
 
-  // Create care logs for each plant in parallel
-  const results = await Promise.all(
-    pipe(
+  return Effect.runPromise(
+    Effect.forEach(
       input.plantIds,
-      Array.map((plantId) =>
-        apiEffectRunner('careLogs', 'createCareLog', {
-          path: { plantId },
-          payload: {
-            type: input.type,
-            notes: input.notes,
-            date: combinedDate,
-            photoUrl: input.photoUrl,
-          },
-        })
-      )
+      (plantId) =>
+        Effect.tryPromise(() =>
+          apiEffectRunner('careLogs', 'createCareLog', {
+            path: { plantId },
+            payload: {
+              type: input.type,
+              notes: input.notes,
+              date: combinedDate,
+              photoUrl: input.photoUrl,
+            },
+          })
+        ),
+      { concurrency: 'unbounded' }
     )
   )
-
-  return results
 }
 
 export function useSaveCareLog() {
