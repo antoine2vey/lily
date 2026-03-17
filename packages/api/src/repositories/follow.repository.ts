@@ -257,7 +257,7 @@ export const FollowRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(userFollows.followerId, currentUserId),
-                inArray(userFollows.followingId, userIds as string[])
+                inArray(userFollows.followingId, [...userIds])
               )
             )
           return new Set(Array.map(rows, (r) => r.followingId))

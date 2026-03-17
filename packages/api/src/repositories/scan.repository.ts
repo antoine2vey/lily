@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { plantScans } from '@lily/db/schema'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface IScanRepository {
   readonly create: (data: {
@@ -31,7 +31,7 @@ export const ScanRepositoryLive = Layer.effect(
               scanType: data.scanType,
             })
             .returning()
-          const scan = results[0]
+          const scan = pipe(Array.head(results), Option.getOrNull)
           if (!scan) {
             return yield* Effect.die(
               new EntityMutationDefect({

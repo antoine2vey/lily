@@ -262,30 +262,31 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .from(subscriptionTiers)
             .where(eq(subscriptionTiers.tier, tier))
 
-          const config = result[0]
-
-          // If tier not found, return free tier defaults as fallback
-          if (!config) {
-            return {
-              tier: 'free' as const,
-              name: 'Free',
-              priceMonthly: 0,
-              maxPlants: 5,
-              maxAiChatsMonthly: 10,
-              maxCardScansMonthly: 5,
-              maxPlantIdentifiesMonthly: 3,
-            } satisfies TierConfig
-          }
-
-          return {
-            tier: config.tier,
-            name: config.name,
-            priceMonthly: config.priceMonthly,
-            maxPlants: config.maxPlants,
-            maxAiChatsMonthly: config.maxAiChatsMonthly,
-            maxCardScansMonthly: config.maxCardScansMonthly,
-            maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
-          } satisfies TierConfig
+          return pipe(
+            Array.head(result),
+            Option.match({
+              onNone: () =>
+                ({
+                  tier: 'free' as const,
+                  name: 'Free',
+                  priceMonthly: 0,
+                  maxPlants: 5,
+                  maxAiChatsMonthly: 10,
+                  maxCardScansMonthly: 5,
+                  maxPlantIdentifiesMonthly: 3,
+                }) satisfies TierConfig,
+              onSome: (config) =>
+                ({
+                  tier: config.tier,
+                  name: config.name,
+                  priceMonthly: config.priceMonthly,
+                  maxPlants: config.maxPlants,
+                  maxAiChatsMonthly: config.maxAiChatsMonthly,
+                  maxCardScansMonthly: config.maxCardScansMonthly,
+                  maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
+                }) satisfies TierConfig,
+            })
+          )
         }).pipe(Effect.withSpan('SubscriptionRepository.getTier')),
 
       getAllTiers: () =>
@@ -363,7 +364,8 @@ export const SubscriptionRepositoryLive = Layer.effect(
               )
             )
 
-          if (existingResult[0]) return existingResult[0]
+          const existing = Array.head(existingResult)
+          if (Option.isSome(existing)) return existing.value
 
           const insertResult = yield* db
             .insert(subscriptionUsage)
@@ -378,7 +380,8 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .returning()
 
           // Return the inserted record, or fetch it if not returned
-          if (insertResult[0]) return insertResult[0]
+          const inserted = Array.head(insertResult)
+          if (Option.isSome(inserted)) return inserted.value
 
           // Fallback: fetch after insert (rare race condition case)
           const fallbackResult = yield* db
