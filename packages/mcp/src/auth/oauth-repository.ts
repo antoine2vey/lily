@@ -203,14 +203,18 @@ export const OAuthRepositoryLive = Layer.effect(
         Effect.gen(function* () {
           const clientId = client.client_id ?? crypto.randomUUID()
           const clientIdIssuedAt = client.client_id_issued_at
-            ? new Date(client.client_id_issued_at * 1000)
+            ? DateTime.toDateUtc(
+                DateTime.unsafeMake(client.client_id_issued_at * 1000)
+              )
             : DateTime.toDateUtc(DateTime.unsafeNow())
 
           yield* db.insert(oauthClients).values({
             clientId,
             clientSecret: client.client_secret ?? null,
             clientSecretExpiresAt: client.client_secret_expires_at
-              ? new Date(client.client_secret_expires_at * 1000)
+              ? DateTime.toDateUtc(
+                  DateTime.unsafeMake(client.client_secret_expires_at * 1000)
+                )
               : null,
             redirectUris: client.redirect_uris as string[],
             clientName: client.client_name ?? null,
