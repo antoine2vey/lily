@@ -27,6 +27,43 @@ export const NotificationTopic = Schema.Union(
 )
 export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 
+// Topic categories — every NotificationTopic must be classified here.
+// Adding a new topic to NOTIFICATION_TOPICS without categorizing it → tsc error.
+export type TopicCategory = 'care' | 'social' | 'engagement'
+
+// `as const satisfies` preserves literal types for each value while
+// enforcing that every NotificationTopic key is present.
+export const TOPIC_CATEGORY = {
+  watering_reminder: 'care',
+  fertilization_reminder: 'care',
+  misting_reminder: 'care',
+  repotting_reminder: 'care',
+  overdue_reminder: 'care',
+  new_follower: 'social',
+  nudge_to_water: 'social',
+  delegation_request: 'social',
+  delegation_accepted: 'social',
+  delegation_rejected: 'social',
+  delegation_canceled: 'social',
+  delegation_activated: 'social',
+  delegation_completed: 'social',
+  daily_tip: 'engagement',
+  inactivity_nudge: 'engagement',
+  photo_reminder: 'engagement',
+  plant_parent_milestone: 'engagement',
+} as const satisfies Record<NotificationTopic, TopicCategory>
+
+// Derive subset types from the category map — adding a topic to
+// NOTIFICATION_TOPICS requires adding it to TOPIC_CATEGORY, which
+// automatically places it in the correct subset type.
+type TopicsOfCategory<C extends TopicCategory> = {
+  [K in NotificationTopic]: (typeof TOPIC_CATEGORY)[K] extends C ? K : never
+}[NotificationTopic]
+
+export type DeferredCareType = TopicsOfCategory<'care'>
+type SocialNotificationType = TopicsOfCategory<'social'>
+type EngagementNotificationType = TopicsOfCategory<'engagement'>
+
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({
   userId: Schema.String,
