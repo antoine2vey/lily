@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { CareType } from '@lily/shared'
+import type { CareType, PlantOwnership } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { memo, useMemo } from 'react'
@@ -28,7 +28,7 @@ interface PlantCardProps {
     isFavorite?: boolean
     roomName?: string
     roomIcon?: string
-    ownership?: 'owned' | 'caretaking'
+    ownership?: PlantOwnership
     ownerName?: string
   }
   onPress: (plantId: string) => void

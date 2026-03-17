@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { isRoomCompatibleWithPlant, luxToLuminosityLevel } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, String as EffectString, Match, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useRooms } from 'src/hooks/useRooms'
@@ -141,8 +141,8 @@ export function RoomPicker({
                         />
                         <Text className="text-sm text-warning flex-1 flex-shrink">
                           {t('lightWarning', {
-                            roomLight: roomLabel.toLowerCase(),
-                            plantLight: plantLabel.toLowerCase(),
+                            roomLight: EffectString.toLowerCase(roomLabel),
+                            plantLight: EffectString.toLowerCase(plantLabel),
                           })}
                         </Text>
                       </View>

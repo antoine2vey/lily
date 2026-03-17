@@ -88,7 +88,7 @@ export function EditPlantScreen() {
   )
 
   const { data: plant, isLoading } = usePlant(plantId)
-  const { mutate: updatePlant, isPending: isSaving } = useUpdatePlant(plantId)
+  const { mutate: updatePlant, isPending: isSaving } = useUpdatePlant()
   const { mutate: deletePlant, isPending: isDeleting } = useDeletePlant()
 
   const [photo, setPhoto] = useState<string | undefined>()

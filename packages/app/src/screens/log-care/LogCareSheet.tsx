@@ -90,7 +90,7 @@ export function LogCareSheet({
   }
 
   const handleCalendarDayPress = (dateId: string) => {
-    const [year, month, day] = dateId.split('-')
+    const [year, month, day] = String.split(dateId, '-')
     const newDate = new Date(
       Number(year),
       Number(month) - 1,

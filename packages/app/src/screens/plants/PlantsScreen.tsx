@@ -6,6 +6,7 @@ import {
   getMistingSchedule,
   getRepottingSchedule,
   getWateringSchedule,
+  type PlantOwnership,
   parseApiDate,
 } from '@lily/shared'
 import { Array, Match, Option, Order, pipe, String } from 'effect'
@@ -58,7 +59,7 @@ interface PlantCardData {
   roomId?: string
   roomName?: string
   roomIcon?: string
-  ownership: 'owned' | 'caretaking'
+  ownership: PlantOwnership
   ownerName?: string
 }
 

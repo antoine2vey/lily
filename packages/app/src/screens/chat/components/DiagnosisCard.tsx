@@ -1,10 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
-import * as SecureStore from 'expo-secure-store'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { ACCESS_TOKEN_KEY, API_BASE_URL } from 'src/utils/client'
+import { useEffectMutation } from 'src/utils/client'
 
 interface DiagnosisResult {
   diagnosisId: string
@@ -45,22 +44,7 @@ export function DiagnosisCard({ diagnosis, plantId }: DiagnosisCardProps) {
   const iconColors = useIconColors()
   const queryClient = useQueryClient()
 
-  const resolveMutation = useMutation({
-    mutationFn: async () => {
-      const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-      const response = await fetch(
-        `${API_BASE_URL}/api/plants/${plantId}/diagnoses/${diagnosis.diagnosisId}/resolve`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      )
-      if (!response.ok) throw new Error('Failed to resolve diagnosis')
-      return response.json()
-    },
+  const resolveMutation = useEffectMutation('diagnosis', 'resolveDiagnosis', {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagnosis'] })
     },
@@ -180,7 +164,14 @@ export function DiagnosisCard({ diagnosis, plantId }: DiagnosisCardProps) {
       {/* Resolve Button */}
       {!resolveMutation.isSuccess && (
         <Pressable
-          onPress={() => resolveMutation.mutate()}
+          onPress={() =>
+            resolveMutation.mutate({
+              path: {
+                plantId: plantId ?? '',
+                diagnosisId: diagnosis.diagnosisId,
+              },
+            })
+          }
           disabled={resolveMutation.isPending}
           className="flex-row items-center justify-center py-2.5 rounded-md bg-primary-tint dark:bg-primary/20 mt-1"
         >

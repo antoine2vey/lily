@@ -4,17 +4,13 @@ import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SkeletonBox } from '@/components/skeletons'
 import { ToggleRow } from '@/components/ToggleRow'
 import { useAuth } from '@/contexts/AuthContext'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import {
   useNotificationSettings,
@@ -75,7 +71,13 @@ export function NotificationSettingsScreen() {
   const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation(['notifications', 'common'])
   const iconColors = useIconColors()
-  const { data: settings, isLoading } = useNotificationSettings()
+  const {
+    data: settings,
+    isLoading,
+    error,
+    refetch: _refetch,
+  } = useNotificationSettings()
+  const refetch = _refetch as () => void
   const { mutate: updateSettings } = useUpdateNotificationSettings()
   const { state } = useAuth()
 
@@ -227,17 +229,63 @@ export function NotificationSettingsScreen() {
     [handleTimeChange, handleNotificationTimeChange]
   )
 
-  if (isLoading || !settings || isLoadingTimezone) {
+  const isInitialLoading = (isLoading || isLoadingTimezone) && !settings
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (error) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <MaterialIcons
+          name="error-outline"
+          size={48}
+          color={iconColors.coral}
+        />
+        <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
+          {t('error', { defaultValue: 'Failed to load settings' })}
+        </Text>
+        <Pressable
+          onPress={() => refetch()}
+          className="mt-6 px-6 py-3 rounded-full bg-primary"
+        >
+          <Text className="font-semibold text-white">
+            {t('common:buttons.retry', { defaultValue: 'Try Again' })}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
+        <View className="flex-row items-center px-4 py-3">
+          <View className="w-10 h-10" />
+          <View className="flex-1 items-center mr-10">
+            <SkeletonBox width={140} height={20} rounded="sm" />
+          </View>
         </View>
+        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-6">
+          {Array.map([1, 2, 3], (i) => (
+            <View key={i} className="mb-6">
+              <View className="ml-3 mb-2">
+                <SkeletonBox width={100} height={12} rounded="sm" />
+              </View>
+              <SkeletonBox width="100%" height={72} rounded="2xl" />
+            </View>
+          ))}
+        </Animated.View>
       </View>
     )
+  }
+
+  if (isInitialLoading || !settings) {
+    return null
   }
 
   return (

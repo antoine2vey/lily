@@ -4,16 +4,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SkeletonBox } from 'src/components/skeletons'
 import { useAuth } from 'src/contexts/AuthContext'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
 import { useTheme } from 'src/hooks/useTheme'
@@ -31,7 +27,13 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const queryClient = useQueryClient()
-  const { data: userSettings, isLoading: isLoadingUser } = useUser()
+  const {
+    data: userSettings,
+    isLoading: isLoadingUser,
+    error,
+    refetch: _refetch,
+  } = useUser()
+  const refetch = _refetch as () => void
   const { logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
@@ -75,21 +77,63 @@ export function SettingsScreen() {
           : t('settings:appearance.languageFallback')
     )
 
-  if (isLoadingUser) {
+  const isInitialLoading = isLoadingUser && !userSettings
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (error) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <MaterialIcons
+          name="error-outline"
+          size={48}
+          color={iconColors.coral}
+        />
+        <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
+          {t('settings:error', { defaultValue: 'Failed to load settings' })}
+        </Text>
+        <Pressable
+          onPress={() => refetch()}
+          className="mt-6 px-6 py-3 rounded-full bg-primary"
+        >
+          <Text className="font-semibold text-white">
+            {t('common:buttons.retry', { defaultValue: 'Try Again' })}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
+        <View className="flex-row items-center px-4 py-3">
+          <View className="w-10 h-10" />
+          <View className="flex-1 items-center mr-10">
+            <SkeletonBox width={100} height={20} rounded="sm" />
+          </View>
         </View>
+        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-6">
+          {Array.map([1, 2, 3], (i) => (
+            <View key={i} className="mb-6">
+              <View className="ml-3 mb-2">
+                <SkeletonBox width={80} height={12} rounded="sm" />
+              </View>
+              <SkeletonBox width="100%" height={56} rounded="2xl" />
+            </View>
+          ))}
+        </Animated.View>
       </View>
     )
+  }
+
+  if (isInitialLoading) {
+    return null
   }
 
   return (

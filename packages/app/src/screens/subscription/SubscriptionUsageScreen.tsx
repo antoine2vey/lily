@@ -3,16 +3,12 @@ import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SkeletonBox } from 'src/components/skeletons'
 import { useRevenueCat } from 'src/contexts/RevenueCatContext'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
 import { PlanCard } from 'src/screens/subscription/components/PlanCard'
@@ -28,7 +24,7 @@ const USAGE_ICONS = {
 export function SubscriptionUsageScreen() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation(['subscription', 'common'])
-  const { data, isLoading } = useSubscriptionUsage()
+  const { data, isLoading, error } = useSubscriptionUsage()
   const { restore } = useRevenueCat()
   const [isRestoring, setIsRestoring] = useState(false)
   const iconColors = useIconColors()
@@ -77,21 +73,61 @@ export function SubscriptionUsageScreen() {
     router.push('/subscription/cancel')
   }
 
-  if (isLoading || !data) {
+  const isInitialLoading = isLoading && !data
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (error) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <MaterialIcons
+          name="error-outline"
+          size={48}
+          color={iconColors.coral}
+        />
+        <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
+          {t('subscription:error', {
+            defaultValue: 'Failed to load subscription',
+          })}
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          className="mt-6 px-6 py-3 rounded-full bg-primary"
+        >
+          <Text className="font-semibold text-white">
+            {t('common:buttons.goBack', { defaultValue: 'Go Back' })}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
+        <View className="flex-row items-center px-4 py-3">
+          <View className="w-10 h-10" />
+          <View className="flex-1 items-center mr-10">
+            <SkeletonBox width={120} height={20} rounded="sm" />
+          </View>
         </View>
+        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-4">
+          <SkeletonBox width="100%" height={200} rounded="2xl" />
+          <View className="mt-6">
+            <SkeletonBox width="100%" height={160} rounded="2xl" />
+          </View>
+        </Animated.View>
       </View>
     )
+  }
+
+  if (isInitialLoading || !data) {
+    return null
   }
 
   return (
