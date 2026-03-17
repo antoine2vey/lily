@@ -35,7 +35,7 @@ export const enableWeatherForUser = (
     })
 
     if (!user) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     // Trigger initial weather fetch to populate cache
@@ -61,7 +61,7 @@ export const disableWeatherForUser = (): Effect.Effect<
     // Get current user to find their location before clearing
     const existingUser = yield* userRepo.findById(id)
     if (!existingUser) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     // Update user record — clear location
@@ -72,7 +72,7 @@ export const disableWeatherForUser = (): Effect.Effect<
     })
 
     if (!user) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     yield* Effect.log('Weather disabled for user', { userId: id })

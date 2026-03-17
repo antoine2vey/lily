@@ -8,30 +8,30 @@ import {
 } from '@lily/shared'
 import { Effect } from 'effect'
 
-export const unfollowUser = (targetUserId: string) =>
-  Effect.gen(function* () {
-    const { id: currentUserId } = yield* CurrentUser
-    const followRepo = yield* FollowRepository
-    const userRepo = yield* UserRepository
+export const unfollowUser = Effect.fn('SocialService.unfollowUser')(function* (
+  targetUserId: string
+) {
+  const { id: currentUserId } = yield* CurrentUser
+  const followRepo = yield* FollowRepository
+  const userRepo = yield* UserRepository
 
-    if (currentUserId === targetUserId) {
-      return yield* Effect.fail(new CannotFollowSelfError())
-    }
+  if (currentUserId === targetUserId) {
+    return yield* new CannotFollowSelfError()
+  }
 
-    const targetUser = yield* userRepo.findById(targetUserId)
-    if (!targetUser) {
-      return yield* Effect.fail(new UserNotFoundError({ userId: targetUserId }))
-    }
+  const targetUser = yield* userRepo.findById(targetUserId)
+  if (!targetUser) {
+    return yield* new UserNotFoundError({
+      userId: targetUserId,
+    })
+  }
 
-    const isFollowing = yield* followRepo.isFollowing(
-      currentUserId,
-      targetUserId
-    )
-    if (!isFollowing) {
-      return yield* Effect.fail(new NotFollowingError({ targetUserId }))
-    }
+  const isFollowing = yield* followRepo.isFollowing(currentUserId, targetUserId)
+  if (!isFollowing) {
+    return yield* new NotFollowingError({ targetUserId })
+  }
 
-    yield* followRepo.unfollow(currentUserId, targetUserId)
+  yield* followRepo.unfollow(currentUserId, targetUserId)
 
-    return { success: true as const }
-  }).pipe(Effect.withSpan('SocialService.unfollowUser'))
+  return { success: true as const }
+})

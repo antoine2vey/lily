@@ -38,7 +38,7 @@ export const getCareAdjustments = (): Effect.Effect<
     // Get user and verify weather is enabled
     const user = yield* userRepo.findById(id)
     if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-      return yield* Effect.fail(new WeatherNotAvailableError({}))
+      return yield* new WeatherNotAvailableError({})
     }
 
     const rlat = roundCoord(user.latitude)

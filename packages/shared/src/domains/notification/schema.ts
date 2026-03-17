@@ -5,11 +5,11 @@ import { PaginatedResponse } from '../common/pagination'
 export { NotificationNotFoundError } from './errors'
 
 // Notification status enum
-export const NotificationStatus = Schema.Union(
-  Schema.Literal('pending'),
-  Schema.Literal('queued'),
-  Schema.Literal('sent'),
-  Schema.Literal('failed')
+export const NotificationStatus = Schema.Literal(
+  'pending',
+  'queued',
+  'sent',
+  'failed'
 )
 export type NotificationStatus = typeof NotificationStatus.Type
 

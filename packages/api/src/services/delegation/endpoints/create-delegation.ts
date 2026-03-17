@@ -16,8 +16,8 @@ import {
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
-export const createDelegation = (request: CreateDelegationRequest) =>
-  Effect.gen(function* () {
+export const createDelegation = Effect.fn('DelegationService.createDelegation')(
+  function* (request: CreateDelegationRequest) {
     const { id: currentUserId, name: currentUserName } = yield* CurrentUser
     const delegationRepo = yield* DelegationRepository
     const userRepo = yield* UserRepository
@@ -26,23 +26,23 @@ export const createDelegation = (request: CreateDelegationRequest) =>
     yield* limitChecker.checkDelegationAccess(currentUserId)
 
     if (currentUserId === request.caretakerId) {
-      return yield* Effect.fail(new CannotDelegateSelfError())
+      return yield* new CannotDelegateSelfError()
     }
 
     const caretaker = yield* userRepo.findById(request.caretakerId)
     if (!caretaker) {
-      return yield* Effect.fail(
-        new UserNotFoundError({ userId: request.caretakerId })
-      )
+      return yield* new UserNotFoundError({
+        userId: request.caretakerId,
+      })
     }
 
     const startDateTime = DateTime.make(request.startDate)
     const endDateTime = DateTime.make(request.endDate)
 
     if (Option.isNone(startDateTime) || Option.isNone(endDateTime)) {
-      return yield* Effect.fail(
-        new DelegationDateError({ message: 'Invalid date format' })
-      )
+      return yield* new DelegationDateError({
+        message: 'Invalid date format',
+      })
     }
 
     const startDate = DateTime.toDateUtc(startDateTime.value)
@@ -50,36 +50,30 @@ export const createDelegation = (request: CreateDelegationRequest) =>
     const now = nowAsDate()
 
     if (startDate < now) {
-      return yield* Effect.fail(
-        new DelegationDateError({
-          message: 'Start date must be in the future',
-        })
-      )
+      return yield* new DelegationDateError({
+        message: 'Start date must be in the future',
+      })
     }
 
     if (endDate <= startDate) {
-      return yield* Effect.fail(
-        new DelegationDateError({
-          message: 'End date must be after start date',
-        })
-      )
+      return yield* new DelegationDateError({
+        message: 'End date must be after start date',
+      })
     }
 
     const plantRepo = yield* PlantRepository
     const plantIds = request.plantIds as string[]
     if (Array.isEmptyArray(plantIds)) {
-      return yield* Effect.fail(
-        new DelegationDateError({
-          message: 'At least one plant must be selected',
-        })
-      )
+      return yield* new DelegationDateError({
+        message: 'At least one plant must be selected',
+      })
     }
 
     // Verify all plants belong to the current user
     const plants = yield* plantRepo.findByIds(plantIds)
     const allOwned = Array.every(plants, (p) => p.userId === currentUserId)
     if (plants.length !== plantIds.length || !allOwned) {
-      return yield* Effect.fail(new PlantNotAuthorizedError())
+      return yield* new PlantNotAuthorizedError()
     }
 
     const overlapping = yield* delegationRepo.findOverlappingDelegations({
@@ -89,9 +83,9 @@ export const createDelegation = (request: CreateDelegationRequest) =>
     })
 
     if (Array.isNonEmptyArray(overlapping)) {
-      return yield* Effect.fail(
-        new DelegationOverlapError({ plantIds: overlapping })
-      )
+      return yield* new DelegationOverlapError({
+        plantIds: overlapping,
+      })
     }
 
     const delegation = yield* delegationRepo.create({
@@ -123,9 +117,12 @@ export const createDelegation = (request: CreateDelegationRequest) =>
       Option.match({
         onNone: () =>
           Effect.fail(
-            new DelegationNotFoundError({ delegationId: delegation.id })
+            new DelegationNotFoundError({
+              delegationId: delegation.id,
+            })
           ),
         onSome: Effect.succeed,
       })
     )
-  }).pipe(Effect.withSpan('DelegationService.createDelegation'))
+  }
+)

@@ -25,61 +25,60 @@ const mapTask = (task: CareTask, actionable: boolean) => ({
  * Returns care tasks grouped by overdue, today, and upcoming via the API.
  * Returns both markdown text and structured data for widget rendering.
  */
-export const getCareTasksEffect = () =>
-  Effect.gen(function* () {
-    const apiClient = yield* ApiClient
-    const tasks = yield* apiClient.getCareTasks()
+export const getCareTasksEffect = Effect.fn('MCP.getCareTasks')(function* () {
+  const apiClient = yield* ApiClient
+  const tasks = yield* apiClient.getCareTasks()
 
-    const overdue = tasks.overdue
-    const today = tasks.today
-    const upcoming = tasks.upcoming
+  const overdue = tasks.overdue
+  const today = tasks.today
+  const upcoming = tasks.upcoming
 
-    // Map each group to { line, item } pairs, then extract separately below
-    const overdueMapped = Array.map(overdue, (t) => mapTask(t, true))
-    const todayMapped = Array.map(today, (t) => mapTask(t, true))
-    const upcomingMapped = Array.map(upcoming, (t) => mapTask(t, false))
+  // Map each group to { line, item } pairs, then extract separately below
+  const overdueMapped = Array.map(overdue, (t) => mapTask(t, true))
+  const todayMapped = Array.map(today, (t) => mapTask(t, true))
+  const upcomingMapped = Array.map(upcoming, (t) => mapTask(t, false))
 
-    const sections = pipe(
-      [
-        Array.isNonEmptyArray(overdueMapped)
-          ? [
-              `### Overdue (${Array.length(overdue)})`,
-              ...Array.map(overdueMapped, (m) => m.line),
-            ]
-          : [],
-        Array.isNonEmptyArray(todayMapped)
-          ? [
-              '',
-              `### Today (${Array.length(today)})`,
-              ...Array.map(todayMapped, (m) => m.line),
-            ]
-          : [],
-        Array.isNonEmptyArray(upcomingMapped)
-          ? [
-              '',
-              `### Upcoming (${Array.length(upcoming)})`,
-              ...Array.map(upcomingMapped, (m) => m.line),
-            ]
-          : [],
-      ],
-      Array.flatten
-    )
+  const sections = pipe(
+    [
+      Array.isNonEmptyArray(overdueMapped)
+        ? [
+            `### Overdue (${Array.length(overdue)})`,
+            ...Array.map(overdueMapped, (m) => m.line),
+          ]
+        : [],
+      Array.isNonEmptyArray(todayMapped)
+        ? [
+            '',
+            `### Today (${Array.length(today)})`,
+            ...Array.map(todayMapped, (m) => m.line),
+          ]
+        : [],
+      Array.isNonEmptyArray(upcomingMapped)
+        ? [
+            '',
+            `### Upcoming (${Array.length(upcoming)})`,
+            ...Array.map(upcomingMapped, (m) => m.line),
+          ]
+        : [],
+    ],
+    Array.flatten
+  )
 
-    const taskGroups: CareTaskGroups = {
-      overdue: Array.map(overdueMapped, (m) => m.item),
-      today: Array.map(todayMapped, (m) => m.item),
-      upcoming: Array.map(upcomingMapped, (m) => m.item),
-    }
+  const taskGroups: CareTaskGroups = {
+    overdue: Array.map(overdueMapped, (m) => m.item),
+    today: Array.map(todayMapped, (m) => m.item),
+    upcoming: Array.map(upcomingMapped, (m) => m.item),
+  }
 
-    if (Array.isEmptyArray(sections)) {
-      return {
-        text: 'No care tasks pending. All your plants are taken care of!',
-        tasks: taskGroups,
-      }
-    }
-
+  if (Array.isEmptyArray(sections)) {
     return {
-      text: `## Care Tasks\n\n${Array.join(sections, '\n')}`,
+      text: 'No care tasks pending. All your plants are taken care of!',
       tasks: taskGroups,
     }
-  }).pipe(Effect.withSpan('MCP.getCareTasks'))
+  }
+
+  return {
+    text: `## Care Tasks\n\n${Array.join(sections, '\n')}`,
+    tasks: taskGroups,
+  }
+})

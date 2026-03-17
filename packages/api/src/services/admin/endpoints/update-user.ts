@@ -21,7 +21,7 @@ export const updateUser = (
 
     // Prevent admins from modifying their own status
     if (id === currentAdmin.id && data.status !== undefined) {
-      return yield* Effect.fail(new CannotModifySelfError())
+      return yield* new CannotModifySelfError()
     }
 
     const updated = yield* repo.update(id, {
@@ -36,7 +36,7 @@ export const updateUser = (
     })
 
     if (!updated) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     return updated

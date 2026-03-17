@@ -38,8 +38,8 @@ export const validateTimezone = (
 ): Effect.Effect<string, InvalidTimezoneError> =>
   Effect.gen(function* () {
     const result = DateTime.zoneMakeNamed(timezone)
-    if (result._tag === 'None') {
-      return yield* Effect.fail(new InvalidTimezoneError({ timezone }))
+    if (Option.isNone(result)) {
+      return yield* new InvalidTimezoneError({ timezone })
     }
     return timezone
   })

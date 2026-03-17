@@ -23,8 +23,9 @@ describe('updateUser', () => {
   it('should update user name', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { name: 'Updated Name' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -34,8 +35,9 @@ describe('updateUser', () => {
   it('should update user email', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { email: 'newemail@example.com' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -45,8 +47,9 @@ describe('updateUser', () => {
   it('should update user bio', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { bio: 'New bio description' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -56,8 +59,9 @@ describe('updateUser', () => {
   it('should update user status', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { status: 'suspended' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -67,8 +71,9 @@ describe('updateUser', () => {
   it('should fail when user not found', async () => {
     const result = await Effect.runPromiseExit(
       updateUser('non-existent', { name: 'New Name' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -78,8 +83,9 @@ describe('updateUser', () => {
   it('should fail when admin tries to modify own status', async () => {
     const result = await Effect.runPromiseExit(
       updateUser(mockAdminUser.id, { status: 'suspended' }).pipe(
-        Effect.provide(createMockUserRepository([mockAdminUser])),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository([mockAdminUser]), mockAdminLayer)
+        )
       )
     )
 
@@ -89,8 +95,9 @@ describe('updateUser', () => {
   it('should allow admin to modify own non-status fields', async () => {
     const result = await Effect.runPromise(
       updateUser(mockAdminUser.id, { name: 'Updated Admin Name' }).pipe(
-        Effect.provide(createMockUserRepository([mockAdminUser])),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository([mockAdminUser]), mockAdminLayer)
+        )
       )
     )
 
@@ -100,8 +107,9 @@ describe('updateUser', () => {
   it('should allow partial updates', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { name: 'Only Name Updated' }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -116,8 +124,9 @@ describe('updateUser', () => {
         email: 'new@example.com',
         bio: 'New bio',
       }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -131,8 +140,9 @@ describe('updateUser', () => {
       updateUser('user-1', {
         image: 'https://example.com/new-avatar.png',
       }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -142,8 +152,9 @@ describe('updateUser', () => {
   it('should update emailVerified status', async () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { emailVerified: false }).pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 

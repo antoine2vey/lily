@@ -114,10 +114,6 @@ export const scheduleCareReminders = (
   SqlError,
   NotificationRepository | UserRepository | DelegationRepository
 > =>
-  Effect.gen(function* () {
-    yield* Effect.forEach(
-      reminders,
-      (reminder) => scheduleCareReminder(reminder),
-      { concurrency: 'unbounded' }
-    )
+  Effect.forEach(reminders, (reminder) => scheduleCareReminder(reminder), {
+    concurrency: 'unbounded',
   })

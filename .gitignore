@@ -116,4 +116,5 @@ Thumbs.db
 gcs-google-credentials.json
 
 # Claude worktrees
-.claude/worktrees/
+.claude/worktrees/.reference/
+.reference

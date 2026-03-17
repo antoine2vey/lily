@@ -1,23 +1,23 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
-export const IngestJobStatus = Schema.Union(
-  Schema.Literal('pending'),
-  Schema.Literal('in_progress'),
-  Schema.Literal('completed'),
-  Schema.Literal('failed')
+export const IngestJobStatus = Schema.Literal(
+  'pending',
+  'in_progress',
+  'completed',
+  'failed'
 )
 
 export type IngestJobStatus = typeof IngestJobStatus.Type
 
-export const ContentCategory = Schema.Union(
-  Schema.Literal('watering_advice'),
-  Schema.Literal('pest_identification'),
-  Schema.Literal('disease_diagnosis'),
-  Schema.Literal('light_requirements'),
-  Schema.Literal('soil_nutrients'),
-  Schema.Literal('propagation'),
-  Schema.Literal('general_care')
+export const ContentCategory = Schema.Literal(
+  'watering_advice',
+  'pest_identification',
+  'disease_diagnosis',
+  'light_requirements',
+  'soil_nutrients',
+  'propagation',
+  'general_care'
 )
 
 export type ContentCategory = typeof ContentCategory.Type
@@ -25,22 +25,11 @@ export type ContentCategory = typeof ContentCategory.Type
 export const RedditAdapterConfig = Schema.Struct({
   type: Schema.Literal('reddit'),
   subreddits: Schema.Array(Schema.String),
-  sort: Schema.optionalWith(
-    Schema.Union(
-      Schema.Literal('hot'),
-      Schema.Literal('top'),
-      Schema.Literal('new')
-    ),
-    { default: () => 'top' as const }
-  ),
+  sort: Schema.optionalWith(Schema.Literal('hot', 'top', 'new'), {
+    default: () => 'top' as const,
+  }),
   timeFilter: Schema.optionalWith(
-    Schema.Union(
-      Schema.Literal('day'),
-      Schema.Literal('week'),
-      Schema.Literal('month'),
-      Schema.Literal('year'),
-      Schema.Literal('all')
-    ),
+    Schema.Literal('day', 'week', 'month', 'year', 'all'),
     { default: () => 'year' as const }
   ),
   limit: Schema.optionalWith(

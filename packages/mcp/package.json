@@ -29,7 +29,6 @@
     "@effect/experimental": "^0.58.0",
     "@effect/platform": "^0.94.5",
     "@effect/platform-bun": "^0.87.1",
-    "@effect/rpc": "^0.73.2",
     "@effect/sql": "^0.49.0",
     "@effect/sql-drizzle": "^0.48.1",
     "@lily/db": "workspace:*",

@@ -290,82 +290,69 @@ export const createMockPlantRepository = (
         )
       ),
 
-    deletePhotoByPlantId: () => Effect.succeed(undefined),
+    deletePhotoByPlantId: () => Effect.void,
 
     markOverduePlantsAsNeedsAttention: () => {
       const now = new Date()
-      let count = 0
-      for (const plant of plantsData) {
-        // Check schedule table for overdue
-        const hasOverdueSchedule = Array.some(
+
+      const hasOverdue = (plantId: string) =>
+        Array.some(
           schedulesData,
           (s) =>
-            s.plantId === plant.id &&
+            s.plantId === plantId &&
             s.nextCareAt !== null &&
             s.nextCareAt.getTime() <= now.getTime()
         )
 
-        if (
-          hasOverdueSchedule &&
-          (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
-        ) {
-          plant.health = 'NEEDS_ATTENTION'
-          count++
-        }
-      }
+      const shouldMark = (plant: PlantRecord) =>
+        hasOverdue(plant.id) &&
+        (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
+
+      const matched = Array.filter(plantsData, shouldMark)
+      Array.forEach(matched, (p) => {
+        p.health = 'NEEDS_ATTENTION'
+      })
+
       // Also mutate original array for tests that check it directly
-      for (const plant of originalPlantsData) {
-        const hasOverdueSchedule = Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plant.id &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
+      pipe(
+        Array.filter(originalPlantsData, shouldMark),
+        Array.forEach((p) => {
+          p.health = 'NEEDS_ATTENTION'
+        })
+      )
 
-        if (
-          hasOverdueSchedule &&
-          (plant.health === 'HEALTHY' || plant.health === 'THRIVING')
-        ) {
-          plant.health = 'NEEDS_ATTENTION'
-        }
-      }
-      return Effect.succeed(count)
+      return Effect.succeed(Array.length(matched))
     },
 
     markHealthyPlantsInOrder: () => {
       const now = new Date()
-      let count = 0
-      for (const plant of plantsData) {
-        // No overdue schedules
-        const hasOverdueSchedule = Array.some(
+
+      const hasOverdue = (plantId: string) =>
+        Array.some(
           schedulesData,
           (s) =>
-            s.plantId === plant.id &&
+            s.plantId === plantId &&
             s.nextCareAt !== null &&
             s.nextCareAt.getTime() <= now.getTime()
         )
 
-        if (plant.health === 'NEEDS_ATTENTION' && !hasOverdueSchedule) {
-          plant.health = 'HEALTHY'
-          count++
-        }
-      }
+      const shouldMark = (plant: PlantRecord) =>
+        plant.health === 'NEEDS_ATTENTION' && !hasOverdue(plant.id)
+
+      const matched = Array.filter(plantsData, shouldMark)
+      Array.forEach(matched, (p) => {
+        p.health = 'HEALTHY'
+      })
+
       // Also mutate original array for tests that check it directly
-      for (const plant of originalPlantsData) {
-        const hasOverdueSchedule = Array.some(
-          schedulesData,
-          (s) =>
-            s.plantId === plant.id &&
-            s.nextCareAt !== null &&
-            s.nextCareAt.getTime() <= now.getTime()
-        )
+      pipe(
+        Array.filter(originalPlantsData, shouldMark),
+        Array.forEach((p) => {
+          p.health = 'HEALTHY'
+        })
+      )
 
-        if (plant.health === 'NEEDS_ATTENTION' && !hasOverdueSchedule) {
-          plant.health = 'HEALTHY'
-        }
-      }
-      return Effect.succeed(count)
+      return Effect.succeed(Array.length(matched))
     },
   }
 

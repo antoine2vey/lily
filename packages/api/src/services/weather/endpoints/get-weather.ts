@@ -94,7 +94,7 @@ export const getWeatherForUser = (): Effect.Effect<
     const user = yield* userRepo.findById(id)
 
     if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
-      return yield* Effect.fail(new WeatherNotAvailableError({}))
+      return yield* new WeatherNotAvailableError({})
     }
 
     return yield* getWeatherForLocation(user.latitude, user.longitude)

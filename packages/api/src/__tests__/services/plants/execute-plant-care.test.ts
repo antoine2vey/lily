@@ -20,7 +20,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Logger, LogLevel } from 'effect'
+import { Array, Effect, Layer, Logger, LogLevel } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
@@ -113,37 +113,35 @@ describe('executePlantCare', () => {
           expect(overdueReminders).toHaveLength(0)
         }).pipe(
           Effect.provide(
-            createMockPlantRepository({
-              plants: [testPlant],
-              schedules: [schedule],
-            })
+            Layer.mergeAll(
+              createMockPlantRepository({
+                plants: [testPlant],
+                schedules: [schedule],
+              }),
+              createMockCareScheduleRepository({
+                schedules: [schedule],
+                plants: [testPlant],
+              }),
+              createMockNotificationRepository(notifications),
+              createMockCareLogRepository([]),
+              createMockUserRepository([user]),
+              createMockDelegationRepository({}),
+              createMockEventBus(),
+              createMockCurrentUser({
+                id: userId,
+                name: 'Test User',
+                email: 'test@example.com',
+                username: 'testuser',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                role: 'user',
+                status: 'active',
+              }),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
           ),
-          Effect.provide(
-            createMockCareScheduleRepository({
-              schedules: [schedule],
-              plants: [testPlant],
-            })
-          ),
-          Effect.provide(createMockNotificationRepository(notifications)),
-          Effect.provide(createMockCareLogRepository([])),
-          Effect.provide(createMockUserRepository([user])),
-          Effect.provide(createMockDelegationRepository({})),
-          Effect.provide(createMockEventBus()),
-          Effect.provide(
-            createMockCurrentUser({
-              id: userId,
-              name: 'Test User',
-              email: 'test@example.com',
-              username: 'testuser',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user',
-              status: 'active',
-            })
-          ),
-          Effect.provide(createMockWeatherProvider()),
-          Effect.provide(createMockWeatherCache()),
-          Effect.provide(createMockWeatherRepository()),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -194,37 +192,35 @@ describe('executePlantCare', () => {
           expect(overdueReminders).toHaveLength(1)
         }).pipe(
           Effect.provide(
-            createMockPlantRepository({
-              plants: [testPlant],
-              schedules: [schedule],
-            })
+            Layer.mergeAll(
+              createMockPlantRepository({
+                plants: [testPlant],
+                schedules: [schedule],
+              }),
+              createMockCareScheduleRepository({
+                schedules: [schedule],
+                plants: [testPlant],
+              }),
+              createMockNotificationRepository(notifications),
+              createMockCareLogRepository([]),
+              createMockUserRepository([user]),
+              createMockDelegationRepository({}),
+              createMockEventBus(),
+              createMockCurrentUser({
+                id: userId,
+                name: 'Test User',
+                email: 'test@example.com',
+                username: 'testuser',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                role: 'user',
+                status: 'active',
+              }),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
           ),
-          Effect.provide(
-            createMockCareScheduleRepository({
-              schedules: [schedule],
-              plants: [testPlant],
-            })
-          ),
-          Effect.provide(createMockNotificationRepository(notifications)),
-          Effect.provide(createMockCareLogRepository([])),
-          Effect.provide(createMockUserRepository([user])),
-          Effect.provide(createMockDelegationRepository({})),
-          Effect.provide(createMockEventBus()),
-          Effect.provide(
-            createMockCurrentUser({
-              id: userId,
-              name: 'Test User',
-              email: 'test@example.com',
-              username: 'testuser',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user',
-              status: 'active',
-            })
-          ),
-          Effect.provide(createMockWeatherProvider()),
-          Effect.provide(createMockWeatherCache()),
-          Effect.provide(createMockWeatherRepository()),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -269,35 +265,33 @@ describe('executePlantCare', () => {
           expect(overdueReminders).toHaveLength(0)
         }).pipe(
           Effect.provide(
-            createMockPlantRepository({
-              plants: [testPlant],
-            })
+            Layer.mergeAll(
+              createMockPlantRepository({
+                plants: [testPlant],
+              }),
+              createMockCareScheduleRepository({
+                plants: [testPlant],
+              }),
+              createMockNotificationRepository(notifications),
+              createMockCareLogRepository([]),
+              createMockUserRepository([user]),
+              createMockDelegationRepository({}),
+              createMockEventBus(),
+              createMockCurrentUser({
+                id: userId,
+                name: 'Test User',
+                email: 'test@example.com',
+                username: 'testuser',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                role: 'user',
+                status: 'active',
+              }),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
           ),
-          Effect.provide(
-            createMockCareScheduleRepository({
-              plants: [testPlant],
-            })
-          ),
-          Effect.provide(createMockNotificationRepository(notifications)),
-          Effect.provide(createMockCareLogRepository([])),
-          Effect.provide(createMockUserRepository([user])),
-          Effect.provide(createMockDelegationRepository({})),
-          Effect.provide(createMockEventBus()),
-          Effect.provide(
-            createMockCurrentUser({
-              id: userId,
-              name: 'Test User',
-              email: 'test@example.com',
-              username: 'testuser',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              role: 'user',
-              status: 'active',
-            })
-          ),
-          Effect.provide(createMockWeatherProvider()),
-          Effect.provide(createMockWeatherCache()),
-          Effect.provide(createMockWeatherRepository()),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )

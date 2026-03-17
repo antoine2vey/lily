@@ -53,15 +53,18 @@ export default async function BlogPage({ params }: Props) {
       </header>
 
       <section className="max-w-6xl mx-auto px-6">
-        {posts.length === 0 ? (
-          <p className="text-center text-muted py-24">{t('empty')}</p>
-        ) : (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.map(posts, (post) => (
-              <BlogPostCard key={post.slug} post={post} locale={locale} />
-            ))}
-          </div>
-        )}
+        {Array.match(posts, {
+          onEmpty: () => (
+            <p className="text-center text-muted py-24">{t('empty')}</p>
+          ),
+          onNonEmpty: (ps) => (
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.map(ps, (post) => (
+                <BlogPostCard key={post.slug} post={post} locale={locale} />
+              ))}
+            </div>
+          ),
+        })}
       </section>
     </main>
   )

@@ -133,12 +133,17 @@ export const formatRelativeTime = (
 ): string => {
   const result = getRelativeTime(dateTime, locale)
 
-  if (result._tag === 'now') return 'Just now'
-  if (result._tag === 'minutes') return `${String(result.value)}m ago`
-  if (result._tag === 'hours') return `${String(result.value)}h ago`
-  if (result._tag === 'days')
-    return result.value === 1 ? 'Yesterday' : `${String(result.value)} days ago`
-  return result.formatted
+  return pipe(
+    Match.value(result),
+    Match.when({ _tag: 'now' }, () => 'Just now'),
+    Match.when({ _tag: 'minutes' }, ({ value }) => `${String(value)}m ago`),
+    Match.when({ _tag: 'hours' }, ({ value }) => `${String(value)}h ago`),
+    Match.when({ _tag: 'days' }, ({ value }) =>
+      value === 1 ? 'Yesterday' : `${String(value)} days ago`
+    ),
+    Match.when({ _tag: 'date' }, ({ formatted }) => formatted),
+    Match.exhaustive
+  )
 }
 
 /**
@@ -284,9 +289,18 @@ export const getCurrentHour = (): number => {
  */
 export const getTimeBasedGreeting = (): string => {
   const hour = getCurrentHour()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  return pipe(
+    Match.value(hour),
+    Match.when(
+      (h) => h < 12,
+      () => 'Good morning'
+    ),
+    Match.when(
+      (h) => h < 17,
+      () => 'Good afternoon'
+    ),
+    Match.orElse(() => 'Good evening')
+  )
 }
 
 /**

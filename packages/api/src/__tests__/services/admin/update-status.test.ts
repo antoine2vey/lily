@@ -23,8 +23,9 @@ describe('updateStatus', () => {
   it('should update user status to suspended', async () => {
     const result = await Effect.runPromise(
       updateStatus('user-1', 'suspended').pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -34,8 +35,9 @@ describe('updateStatus', () => {
   it('should update user status to banned', async () => {
     const result = await Effect.runPromise(
       updateStatus('user-1', 'banned').pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -45,8 +47,9 @@ describe('updateStatus', () => {
   it('should fail when user not found', async () => {
     const result = await Effect.runPromiseExit(
       updateStatus('non-existent', 'suspended').pipe(
-        Effect.provide(createMockUserRepository(mockUsers)),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+        )
       )
     )
 
@@ -56,8 +59,9 @@ describe('updateStatus', () => {
   it('should fail when trying to modify own status', async () => {
     const result = await Effect.runPromiseExit(
       updateStatus(mockAdminUser.id, 'suspended').pipe(
-        Effect.provide(createMockUserRepository([mockAdminUser])),
-        Effect.provide(mockAdminLayer)
+        Effect.provide(
+          Layer.merge(createMockUserRepository([mockAdminUser]), mockAdminLayer)
+        )
       )
     )
 

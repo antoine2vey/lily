@@ -9,7 +9,12 @@
       "@/*": ["./src/*"],
       "@lily/api": ["../api/src"],
       "@lily/api/*": ["../api/src/*"]
-    }
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
   },
   "include": [
     "**/*.ts",

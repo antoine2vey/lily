@@ -249,7 +249,7 @@ describe('streamChatMessage', () => {
     it('should not publish events when quota is exceeded', async () => {
       const publishedEvents: AppEvent[] = []
 
-      await Effect.runPromise(
+      const _response = await Effect.runPromise(
         streamChatMessage('plant-1', { message: 'Test' }).pipe(
           Effect.provide(
             createTestLayer({
@@ -272,7 +272,7 @@ describe('streamChatMessage', () => {
     it('should include upgrade suggestion in quota exceeded message', async () => {
       const messages: ChatMessage[] = []
 
-      await Effect.runPromise(
+      const _response = await Effect.runPromise(
         streamChatMessage('plant-1', { message: 'Test' }).pipe(
           Effect.provide(
             createTestLayer({

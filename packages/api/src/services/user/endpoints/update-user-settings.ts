@@ -26,7 +26,7 @@ export const updateUserSettings = (
     // Get current user settings to check if timezone/time changed
     const existingUser = yield* repo.findById(id)
     if (!existingUser) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     const updateData = compact({
@@ -57,7 +57,7 @@ export const updateUserSettings = (
     const user = yield* repo.update(id, updateData)
 
     if (!user) {
-      return yield* Effect.fail(new UserNotFoundError())
+      return yield* new UserNotFoundError()
     }
 
     // Check if timezone or preferred time changed

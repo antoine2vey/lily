@@ -18,7 +18,18 @@ import {
   type UsageField,
 } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
-import { Array, Context, Effect, Layer, Match, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  Effect,
+  Layer,
+  Match,
+  Option,
+  pipe,
+  Schema,
+} from 'effect'
+
+const encodeJson = Schema.encodeSync(Schema.parseJson(Schema.Unknown))
 
 export interface CreateSubscriptionData {
   userId: string
@@ -114,17 +125,18 @@ export const SubscriptionRepositoryLive = Layer.effect(
     })
 
     return {
-      findByUserId: (userId: string) =>
-        Effect.gen(function* () {
-          const [subscription] = yield* db
-            .select()
-            .from(userSubscriptions)
-            .where(eq(userSubscriptions.userId, userId))
-          return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.findByUserId')),
+      findByUserId: Effect.fn('SubscriptionRepository.findByUserId')(function* (
+        userId: string
+      ) {
+        const [subscription] = yield* db
+          .select()
+          .from(userSubscriptions)
+          .where(eq(userSubscriptions.userId, userId))
+        return Option.getOrNull(Option.fromNullable(subscription))
+      }),
 
-      findByExternalId: (externalSubscriptionId: string) =>
-        Effect.gen(function* () {
+      findByExternalId: Effect.fn('SubscriptionRepository.findByExternalId')(
+        function* (externalSubscriptionId: string) {
           const [subscription] = yield* db
             .select()
             .from(userSubscriptions)
@@ -135,14 +147,42 @@ export const SubscriptionRepositoryLive = Layer.effect(
               )
             )
           return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.findByExternalId')),
+        }
+      ),
 
-      create: (data: CreateSubscriptionData) =>
-        Effect.gen(function* () {
-          const [subscription] = yield* db
-            .insert(userSubscriptions)
-            .values({
-              userId: data.userId,
+      create: Effect.fn('SubscriptionRepository.create')(function* (
+        data: CreateSubscriptionData
+      ) {
+        const [subscription] = yield* db
+          .insert(userSubscriptions)
+          .values({
+            userId: data.userId,
+            tier: data.tier,
+            status: data.status,
+            trialStartsAt: Option.getOrNull(
+              Option.fromNullable(data.trialStartsAt)
+            ),
+            trialEndsAt: Option.getOrNull(
+              Option.fromNullable(data.trialEndsAt)
+            ),
+            currentPeriodStart: data.currentPeriodStart,
+            currentPeriodEnd: data.currentPeriodEnd,
+            externalSubscriptionId: Option.getOrNull(
+              Option.fromNullable(data.externalSubscriptionId)
+            ),
+            externalCustomerId: Option.getOrNull(
+              Option.fromNullable(data.externalCustomerId)
+            ),
+            provider: pipe(
+              Option.fromNullable(data.provider),
+              Option.getOrElse(() => 'revenuecat' as const)
+            ),
+            productId: Option.getOrNull(Option.fromNullable(data.productId)),
+            store: Option.getOrNull(Option.fromNullable(data.store)),
+          })
+          .onConflictDoUpdate({
+            target: userSubscriptions.userId,
+            set: {
               tier: data.tier,
               status: data.status,
               trialStartsAt: Option.getOrNull(
@@ -165,56 +205,30 @@ export const SubscriptionRepositoryLive = Layer.effect(
               ),
               productId: Option.getOrNull(Option.fromNullable(data.productId)),
               store: Option.getOrNull(Option.fromNullable(data.store)),
-            })
-            .onConflictDoUpdate({
-              target: userSubscriptions.userId,
-              set: {
-                tier: data.tier,
-                status: data.status,
-                trialStartsAt: Option.getOrNull(
-                  Option.fromNullable(data.trialStartsAt)
-                ),
-                trialEndsAt: Option.getOrNull(
-                  Option.fromNullable(data.trialEndsAt)
-                ),
-                currentPeriodStart: data.currentPeriodStart,
-                currentPeriodEnd: data.currentPeriodEnd,
-                externalSubscriptionId: Option.getOrNull(
-                  Option.fromNullable(data.externalSubscriptionId)
-                ),
-                externalCustomerId: Option.getOrNull(
-                  Option.fromNullable(data.externalCustomerId)
-                ),
-                provider: pipe(
-                  Option.fromNullable(data.provider),
-                  Option.getOrElse(() => 'revenuecat' as const)
-                ),
-                productId: Option.getOrNull(
-                  Option.fromNullable(data.productId)
-                ),
-                store: Option.getOrNull(Option.fromNullable(data.store)),
-                updatedAt: nowAsDate(),
-              },
-            })
-            .returning()
-          return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.create')),
+              updatedAt: nowAsDate(),
+            },
+          })
+          .returning()
+        return Option.getOrNull(Option.fromNullable(subscription))
+      }),
 
-      updateStatus: (userId: string, status: SubscriptionStatus) =>
-        Effect.gen(function* () {
-          const [subscription] = yield* db
-            .update(userSubscriptions)
-            .set({ status, updatedAt: nowAsDate() })
-            .where(eq(userSubscriptions.userId, userId))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.updateStatus')),
+      updateStatus: Effect.fn('SubscriptionRepository.updateStatus')(function* (
+        userId: string,
+        status: SubscriptionStatus
+      ) {
+        const [subscription] = yield* db
+          .update(userSubscriptions)
+          .set({ status, updatedAt: nowAsDate() })
+          .where(eq(userSubscriptions.userId, userId))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(subscription))
+      }),
 
-      updateFromWebhook: (
-        externalSubscriptionId: string,
-        data: Partial<CreateSubscriptionData>
-      ) =>
-        Effect.gen(function* () {
+      updateFromWebhook: Effect.fn('SubscriptionRepository.updateFromWebhook')(
+        function* (
+          externalSubscriptionId: string,
+          data: Partial<CreateSubscriptionData>
+        ) {
           const updateData = compact(data, { updatedAt: nowAsDate() })
 
           const [subscription] = yield* db
@@ -228,10 +242,11 @@ export const SubscriptionRepositoryLive = Layer.effect(
             )
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.updateFromWebhook')),
+        }
+      ),
 
-      updateByUserId: (userId: string, data: Partial<CreateSubscriptionData>) =>
-        Effect.gen(function* () {
+      updateByUserId: Effect.fn('SubscriptionRepository.updateByUserId')(
+        function* (userId: string, data: Partial<CreateSubscriptionData>) {
           const updateData = compact(data, { updatedAt: nowAsDate() })
 
           const [subscription] = yield* db
@@ -240,58 +255,61 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .where(eq(userSubscriptions.userId, userId))
             .returning()
           return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.updateByUserId')),
+        }
+      ),
 
-      cancel: (userId: string) =>
-        Effect.gen(function* () {
-          const [subscription] = yield* db
-            .update(userSubscriptions)
-            .set({
-              status: 'canceled',
-              canceledAt: nowAsDate(),
-              updatedAt: nowAsDate(),
-            })
-            .where(eq(userSubscriptions.userId, userId))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(subscription))
-        }).pipe(Effect.withSpan('SubscriptionRepository.cancel')),
+      cancel: Effect.fn('SubscriptionRepository.cancel')(function* (
+        userId: string
+      ) {
+        const [subscription] = yield* db
+          .update(userSubscriptions)
+          .set({
+            status: 'canceled',
+            canceledAt: nowAsDate(),
+            updatedAt: nowAsDate(),
+          })
+          .where(eq(userSubscriptions.userId, userId))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(subscription))
+      }),
 
-      getTier: (tier: SubscriptionTier) =>
-        Effect.gen(function* () {
-          const result = yield* db
-            .select()
-            .from(subscriptionTiers)
-            .where(eq(subscriptionTiers.tier, tier))
+      getTier: Effect.fn('SubscriptionRepository.getTier')(function* (
+        tier: SubscriptionTier
+      ) {
+        const result = yield* db
+          .select()
+          .from(subscriptionTiers)
+          .where(eq(subscriptionTiers.tier, tier))
 
-          return pipe(
-            Array.head(result),
-            Option.match({
-              onNone: () =>
-                ({
-                  tier: 'free' as const,
-                  name: 'Free',
-                  priceMonthly: 0,
-                  maxPlants: 5,
-                  maxAiChatsMonthly: 10,
-                  maxCardScansMonthly: 5,
-                  maxPlantIdentifiesMonthly: 3,
-                }) satisfies TierConfig,
-              onSome: (config) =>
-                ({
-                  tier: config.tier,
-                  name: config.name,
-                  priceMonthly: config.priceMonthly,
-                  maxPlants: config.maxPlants,
-                  maxAiChatsMonthly: config.maxAiChatsMonthly,
-                  maxCardScansMonthly: config.maxCardScansMonthly,
-                  maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
-                }) satisfies TierConfig,
-            })
-          )
-        }).pipe(Effect.withSpan('SubscriptionRepository.getTier')),
+        return pipe(
+          Array.head(result),
+          Option.match({
+            onNone: () =>
+              ({
+                tier: 'free' as const,
+                name: 'Free',
+                priceMonthly: 0,
+                maxPlants: 5,
+                maxAiChatsMonthly: 10,
+                maxCardScansMonthly: 5,
+                maxPlantIdentifiesMonthly: 3,
+              }) satisfies TierConfig,
+            onSome: (config) =>
+              ({
+                tier: config.tier,
+                name: config.name,
+                priceMonthly: config.priceMonthly,
+                maxPlants: config.maxPlants,
+                maxAiChatsMonthly: config.maxAiChatsMonthly,
+                maxCardScansMonthly: config.maxCardScansMonthly,
+                maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
+              }) satisfies TierConfig,
+          })
+        )
+      }),
 
-      getAllTiers: () =>
-        Effect.gen(function* () {
+      getAllTiers: Effect.fn('SubscriptionRepository.getAllTiers')(
+        function* () {
           const tiers = yield* db.select().from(subscriptionTiers)
           return Array.map(tiers, (config) => ({
             tier: config.tier,
@@ -302,10 +320,11 @@ export const SubscriptionRepositoryLive = Layer.effect(
             maxCardScansMonthly: config.maxCardScansMonthly,
             maxPlantIdentifiesMonthly: config.maxPlantIdentifiesMonthly,
           })) as TierConfig[]
-        }).pipe(Effect.withSpan('SubscriptionRepository.getAllTiers')),
+        }
+      ),
 
-      getCurrentUsage: (userId: string) =>
-        Effect.gen(function* () {
+      getCurrentUsage: Effect.fn('SubscriptionRepository.getCurrentUsage')(
+        function* (userId: string) {
           const { periodStart, periodEnd } = getMonthBoundaries()
 
           const [usage] = yield* db
@@ -319,7 +338,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
             )
 
           if (!usage) {
-            // Auto-create usage record for current period
             const [newUsage] = yield* db
               .insert(subscriptionUsage)
               .values({
@@ -333,7 +351,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
               .onConflictDoNothing()
               .returning()
 
-            // If conflict, fetch the existing one
             if (!newUsage) {
               const [existing] = yield* db
                 .select()
@@ -351,10 +368,11 @@ export const SubscriptionRepositoryLive = Layer.effect(
           }
 
           return usage
-        }).pipe(Effect.withSpan('SubscriptionRepository.getCurrentUsage')),
+        }
+      ),
 
-      getOrCreateUsage: (userId: string, periodStart: Date, periodEnd: Date) =>
-        Effect.gen(function* () {
+      getOrCreateUsage: Effect.fn('SubscriptionRepository.getOrCreateUsage')(
+        function* (userId: string, periodStart: Date, periodEnd: Date) {
           const existingResult = yield* db
             .select()
             .from(subscriptionUsage)
@@ -380,11 +398,9 @@ export const SubscriptionRepositoryLive = Layer.effect(
             })
             .returning()
 
-          // Return the inserted record, or fetch it if not returned
           const inserted = Array.head(insertResult)
           if (Option.isSome(inserted)) return inserted.value
 
-          // Fallback: fetch after insert (rare race condition case)
           const fallbackResult = yield* db
             .select()
             .from(subscriptionUsage)
@@ -395,28 +411,17 @@ export const SubscriptionRepositoryLive = Layer.effect(
               )
             )
 
-          // At this point the record must exist - use default values as ultimate fallback
-          return pipe(
+          return Option.getOrThrowWith(
             Array.head(fallbackResult),
-            Option.getOrElse(() => ({
-              id: '',
-              userId,
-              periodStart,
-              periodEnd,
-              aiChatsCount: 0,
-              cardScansCount: 0,
-              plantIdentifiesCount: 0,
-              createdAt: nowAsDate(),
-              updatedAt: nowAsDate(),
-            }))
+            () => new Error('Failed to create or retrieve usage record')
           )
-        }).pipe(Effect.withSpan('SubscriptionRepository.getOrCreateUsage')),
+        }
+      ),
 
-      incrementUsage: (userId: string, field: UsageField) =>
-        Effect.gen(function* () {
+      incrementUsage: Effect.fn('SubscriptionRepository.incrementUsage')(
+        function* (userId: string, field: UsageField) {
           const { periodStart, periodEnd } = getMonthBoundaries()
 
-          // Ensure usage record exists
           yield* db
             .insert(subscriptionUsage)
             .values({
@@ -429,7 +434,6 @@ export const SubscriptionRepositoryLive = Layer.effect(
             })
             .onConflictDoNothing()
 
-          // Map field to column and column name using Match
           const { column, columnName } = pipe(
             Match.value(field),
             Match.when('aiChats', () => ({
@@ -462,20 +466,20 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .returning()
 
           return Option.getOrNull(Option.fromNullable(usage))
-        }).pipe(Effect.withSpan('SubscriptionRepository.incrementUsage')),
+        }
+      ),
 
-      logEvent: (
+      logEvent: Effect.fn('SubscriptionRepository.logEvent')(function* (
         userId: string,
         eventType: SubscriptionEventType,
         metadata?: object
-      ) =>
-        Effect.gen(function* () {
-          yield* db.insert(subscriptionEvents).values({
-            userId,
-            eventType,
-            metadata: metadata ? JSON.stringify(metadata) : null,
-          })
-        }).pipe(Effect.withSpan('SubscriptionRepository.logEvent')),
+      ) {
+        yield* db.insert(subscriptionEvents).values({
+          userId,
+          eventType,
+          metadata: metadata ? encodeJson(metadata) : null,
+        })
+      }),
     }
   })
 )

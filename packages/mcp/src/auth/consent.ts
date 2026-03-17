@@ -1,6 +1,6 @@
 import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
-import { MCP_SERVER_URL } from '@lily/mcp/config'
+import { McpServerUrl } from '@lily/mcp/config'
 import { Effect, Option, pipe } from 'effect'
 
 /**
@@ -17,7 +17,8 @@ import { Effect, Option, pipe } from 'effect'
 export const consentHandler = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest
   const oauthService = yield* OAuthService
-  const url = new URL(request.url, MCP_SERVER_URL)
+  const serverUrl = yield* McpServerUrl
+  const url = new URL(request.url, serverUrl)
   const qs = url.searchParams
 
   // Resolve client_name from DB to prevent identity spoofing
