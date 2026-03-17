@@ -75,8 +75,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .where(eq(userAchievements.userId, userId))
           .pipe(Effect.withSpan('AchievementRepository.findByUserId')),
 
-      hasAchievement: (userId: string, key: AchievementKey) =>
-        Effect.gen(function* () {
+      hasAchievement: Effect.fn('AchievementRepository.hasAchievement')(
+        function* (userId: string, key: AchievementKey) {
           const [result] = yield* db
             .select({ count: count() })
             .from(userAchievements)
@@ -93,61 +93,67 @@ export const AchievementRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             ) > 0
           )
-        }).pipe(Effect.withSpan('AchievementRepository.hasAchievement')),
+        }
+      ),
 
-      unlock: (userId: string, key: AchievementKey) =>
-        Effect.gen(function* () {
-          const [achievement] = yield* db
-            .insert(userAchievements)
-            .values({ userId, achievement: key })
-            .onConflictDoNothing()
-            .returning()
-          return Option.getOrNull(Option.fromNullable(achievement))
-        }).pipe(Effect.withSpan('AchievementRepository.unlock')),
+      unlock: Effect.fn('AchievementRepository.unlock')(function* (
+        userId: string,
+        key: AchievementKey
+      ) {
+        const [achievement] = yield* db
+          .insert(userAchievements)
+          .values({ userId, achievement: key })
+          .onConflictDoNothing()
+          .returning()
+        return Option.getOrNull(Option.fromNullable(achievement))
+      }),
 
-      countCareLogsByType: (userId: string, type: CareType) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(careLogs)
-            .innerJoin(plants, eq(careLogs.plantId, plants.id))
-            .where(and(eq(plants.userId, userId), eq(careLogs.type, type)))
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.countCareLogsByType')),
+      countCareLogsByType: Effect.fn(
+        'AchievementRepository.countCareLogsByType'
+      )(function* (userId: string, type: CareType) {
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(careLogs)
+          .innerJoin(plants, eq(careLogs.plantId, plants.id))
+          .where(and(eq(plants.userId, userId), eq(careLogs.type, type)))
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      countPlants: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(plants)
-            .where(eq(plants.userId, userId))
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.countPlants')),
+      countPlants: Effect.fn('AchievementRepository.countPlants')(function* (
+        userId: string
+      ) {
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(plants)
+          .where(eq(plants.userId, userId))
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      countPhotos: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(plantPhotos)
-            .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
-            .where(eq(plants.userId, userId))
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.countPhotos')),
+      countPhotos: Effect.fn('AchievementRepository.countPhotos')(function* (
+        userId: string
+      ) {
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(plantPhotos)
+          .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
+          .where(eq(plants.userId, userId))
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      getCareStreak: (userId: string) =>
-        Effect.gen(function* () {
+      getCareStreak: Effect.fn('AchievementRepository.getCareStreak')(
+        function* (userId: string) {
           // Count consecutive days with care logs ending today or yesterday.
           // ROW_NUMBER must be ASC so that consecutive dates produce the same
           // group key (care_date - rn gives the same value for each run).
@@ -181,73 +187,79 @@ export const AchievementRepositoryLive = Layer.effect(
               Option.getOrElse(() => 0)
             )
           )
-        }).pipe(Effect.withSpan('AchievementRepository.getCareStreak')),
+        }
+      ),
 
-      countScans: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(plantScans)
-            .where(eq(plantScans.userId, userId))
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
+      countScans: Effect.fn('AchievementRepository.countScans')(function* (
+        userId: string
+      ) {
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(plantScans)
+          .where(eq(plantScans.userId, userId))
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
+
+      countPhotosForPlant: Effect.fn(
+        'AchievementRepository.countPhotosForPlant'
+      )(function* (userId: string, plantId: string) {
+        const [result] = yield* db
+          .select({ count: count() })
+          .from(plantPhotos)
+          .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
+          .where(
+            and(eq(plants.userId, userId), eq(plantPhotos.plantId, plantId))
           )
-        }).pipe(Effect.withSpan('AchievementRepository.countScans')),
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      countPhotosForPlant: (userId: string, plantId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ count: count() })
-            .from(plantPhotos)
-            .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
-            .where(
-              and(eq(plants.userId, userId), eq(plantPhotos.plantId, plantId))
-            )
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.countPhotosForPlant')),
+      incrementHistoryViews: Effect.fn(
+        'AchievementRepository.incrementHistoryViews'
+      )(function* (userId: string) {
+        const [result] = yield* db
+          .update(users)
+          .set({
+            historyViewCount: sql`${users.historyViewCount} + 1`,
+          })
+          .where(eq(users.id, userId))
+          .returning({ historyViewCount: users.historyViewCount })
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      incrementHistoryViews: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .update(users)
-            .set({
-              historyViewCount: sql`${users.historyViewCount} + 1`,
-            })
-            .where(eq(users.id, userId))
-            .returning({ historyViewCount: users.historyViewCount })
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.incrementHistoryViews')),
+      getHistoryViewCount: Effect.fn(
+        'AchievementRepository.getHistoryViewCount'
+      )(function* (userId: string) {
+        const [result] = yield* db
+          .select({ historyViewCount: users.historyViewCount })
+          .from(users)
+          .where(eq(users.id, userId))
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      getHistoryViewCount: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ historyViewCount: users.historyViewCount })
-            .from(users)
-            .where(eq(users.id, userId))
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('AchievementRepository.getHistoryViewCount')),
-
-      findUserIdsWithPlants: () =>
-        Effect.gen(function* () {
-          const result = yield* db
-            .selectDistinct({ userId: plants.userId })
-            .from(plants)
-          return Array.map(result, (r) => r.userId)
-        }).pipe(Effect.withSpan('AchievementRepository.findUserIdsWithPlants')),
+      findUserIdsWithPlants: Effect.fn(
+        'AchievementRepository.findUserIdsWithPlants'
+      )(function* () {
+        const result = yield* db
+          .selectDistinct({ userId: plants.userId })
+          .from(plants)
+        return Array.map(result, (r) => r.userId)
+      }),
     }
   })
 )

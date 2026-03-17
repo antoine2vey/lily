@@ -50,7 +50,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -66,7 +66,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -112,7 +112,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -148,7 +148,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -184,7 +184,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -220,7 +220,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -256,7 +256,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -292,7 +292,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -328,7 +328,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -358,7 +358,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -386,7 +386,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -440,7 +440,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -470,7 +470,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -498,7 +498,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -534,7 +534,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -562,7 +562,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -606,7 +606,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -656,7 +656,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(plantResult)).toBe(true)
 
@@ -664,7 +664,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(chatResult)).toBe(true)
 
@@ -672,7 +672,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(scanResult)).toBe(true)
 
@@ -680,7 +680,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(identifyResult)).toBe(true)
     })
@@ -715,7 +715,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -751,7 +751,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -788,7 +788,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkDelegationAccess('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isSuccess(result)).toBe(true)
@@ -803,7 +803,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkDelegationAccess('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       expect(Exit.isFailure(result)).toBe(true)
@@ -826,7 +826,7 @@ describe('LimitChecker', () => {
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
           yield* limitChecker.checkPlantLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive), Effect.provide(testLayer))
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
       if (Exit.isFailure(result) && result.cause._tag === 'Fail') {

@@ -18,7 +18,7 @@ export const deleteCareLog = (
     // Verify the log exists and belongs to this plant
     const existing = yield* repo.findById(logId, plantId)
     if (!existing) {
-      return yield* Effect.fail(new CareLogNotFoundError())
+      return yield* new CareLogNotFoundError()
     }
 
     yield* repo.delete(logId)

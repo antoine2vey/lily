@@ -29,11 +29,9 @@ export const ServiceAuthenticationLive = Layer.unwrapEffect(
               key.length !== secretValue.length ||
               !timingSafeEqual(key, secretValue)
             ) {
-              return yield* Effect.fail(
-                new UnauthorizedError({
-                  message: 'Invalid service secret',
-                })
-              )
+              return yield* new UnauthorizedError({
+                message: 'Invalid service secret',
+              })
             }
             return { verified: true as const }
           }),

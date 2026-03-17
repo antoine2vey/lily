@@ -81,7 +81,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           yield* tracker.trackAiChat('user-123')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(incrementCalls).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           return yield* tracker.trackAiChat('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(result?.aiChatsCount).toBe(5)
@@ -116,7 +116,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           yield* tracker.trackCardScan('user-456')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(incrementCalls).toHaveLength(1)
@@ -136,7 +136,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           return yield* tracker.trackCardScan('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(result?.cardScansCount).toBe(3)
@@ -151,7 +151,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           yield* tracker.trackPlantIdentify('user-789')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(incrementCalls).toHaveLength(1)
@@ -171,7 +171,7 @@ describe('UsageTracker', () => {
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
           return yield* tracker.trackPlantIdentify('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(result?.plantIdentifiesCount).toBe(2)
@@ -188,7 +188,7 @@ describe('UsageTracker', () => {
           yield* tracker.trackAiChat('user-1')
           yield* tracker.trackCardScan('user-1')
           yield* tracker.trackPlantIdentify('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(incrementCalls).toHaveLength(3)
@@ -207,7 +207,7 @@ describe('UsageTracker', () => {
           const tracker = yield* UsageTracker
           yield* tracker.trackAiChat('user-1')
           yield* tracker.trackAiChat('user-2')
-        }).pipe(Effect.provide(UsageTrackerLive), Effect.provide(layer))
+        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
       )
 
       expect(incrementCalls).toHaveLength(2)

@@ -37,17 +37,15 @@ export const previewPrompt = (
     // 1. Find the message by DB id
     const messageRow = yield* chatRepo.findById(messageId)
     if (!messageRow) {
-      return yield* Effect.fail(new ChatMessageNotFoundError())
+      return yield* new ChatMessageNotFoundError()
     }
 
     // 2. Load plant data
     const plant = yield* plantRepo.findById(messageRow.plantId)
     if (!plant) {
-      return yield* Effect.fail(
-        new ChatMessageNotFoundError({
-          message: `Plant not found for message (plantId: ${messageRow.plantId})`,
-        })
-      )
+      return yield* new ChatMessageNotFoundError({
+        message: `Plant not found for message (plantId: ${messageRow.plantId})`,
+      })
     }
 
     // 3. Load care schedules for the plant

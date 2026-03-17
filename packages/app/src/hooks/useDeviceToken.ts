@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Effect, Either, Option } from 'effect'
+import { Data, Effect, Either, Option } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 import { useEffectMutation } from 'src/utils/client'
 import {
@@ -10,17 +10,25 @@ import {
 
 const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
 
+class DeviceTokenStorageError extends Data.TaggedError(
+  'DeviceTokenStorageError'
+)<{ message: string }> {}
+
 // Storage helpers for device token ID
-const storeDeviceTokenId = (tokenId: string): Effect.Effect<void, Error> =>
+const storeDeviceTokenId = (
+  tokenId: string
+): Effect.Effect<void, DeviceTokenStorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, tokenId),
     catch: (error) =>
-      new Error(`Failed to store device token ID: ${String(error)}`),
+      new DeviceTokenStorageError({
+        message: `Failed to store device token ID: ${String(error)}`,
+      }),
   })
 
 const getStoredDeviceTokenId = (): Effect.Effect<
   Option.Option<string>,
-  Error
+  DeviceTokenStorageError
 > =>
   Effect.tryPromise({
     try: async () => {
@@ -28,14 +36,21 @@ const getStoredDeviceTokenId = (): Effect.Effect<
       return Option.fromNullable(tokenId)
     },
     catch: (error) =>
-      new Error(`Failed to get device token ID: ${String(error)}`),
+      new DeviceTokenStorageError({
+        message: `Failed to get device token ID: ${String(error)}`,
+      }),
   })
 
-const removeStoredDeviceTokenId = (): Effect.Effect<void, Error> =>
+const removeStoredDeviceTokenId = (): Effect.Effect<
+  void,
+  DeviceTokenStorageError
+> =>
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(DEVICE_TOKEN_ID_KEY),
     catch: (error) =>
-      new Error(`Failed to remove device token ID: ${String(error)}`),
+      new DeviceTokenStorageError({
+        message: `Failed to remove device token ID: ${String(error)}`,
+      }),
   })
 
 /**

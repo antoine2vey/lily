@@ -46,73 +46,79 @@ export const RefreshTokenRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (userId: string, tokenHash: string, expiresAt: Date) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .insert(refreshTokens)
-            .values({
-              userId,
-              tokenHash,
-              expiresAt,
-            })
-            .returning()
+      create: Effect.fn('RefreshTokenRepository.create')(function* (
+        userId: string,
+        tokenHash: string,
+        expiresAt: Date
+      ) {
+        const results = yield* db
+          .insert(refreshTokens)
+          .values({
+            userId,
+            tokenHash,
+            expiresAt,
+          })
+          .returning()
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.create')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      findByTokenHash: (tokenHash: string) =>
-        Effect.gen(function* () {
+      findByTokenHash: Effect.fn('RefreshTokenRepository.findByTokenHash')(
+        function* (tokenHash: string) {
           const results = yield* db
             .select()
             .from(refreshTokens)
             .where(eq(refreshTokens.tokenHash, tokenHash))
 
           return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.findByTokenHash')),
+        }
+      ),
 
-      findValidByTokenHash: (tokenHash: string) =>
-        Effect.gen(function* () {
-          const currentTime = nowAsDate()
-          const results = yield* db
-            .select()
-            .from(refreshTokens)
-            .where(
-              and(
-                eq(refreshTokens.tokenHash, tokenHash),
-                isNull(refreshTokens.revokedAt)
-              )
+      findValidByTokenHash: Effect.fn(
+        'RefreshTokenRepository.findValidByTokenHash'
+      )(function* (tokenHash: string) {
+        const currentTime = nowAsDate()
+        const results = yield* db
+          .select()
+          .from(refreshTokens)
+          .where(
+            and(
+              eq(refreshTokens.tokenHash, tokenHash),
+              isNull(refreshTokens.revokedAt)
             )
+          )
 
-          const record = pipe(results, Array.head, Option.getOrNull)
+        const record = pipe(results, Array.head, Option.getOrNull)
 
-          // Check expiration manually
-          if (
-            record &&
-            DateTime.greaterThan(
-              DateTime.unsafeMake(record.expiresAt),
-              DateTime.unsafeMake(currentTime)
-            )
-          ) {
-            return record
-          }
-          return null
-        }).pipe(Effect.withSpan('RefreshTokenRepository.findValidByTokenHash')),
+        // Check expiration manually
+        if (
+          record &&
+          DateTime.greaterThan(
+            DateTime.unsafeMake(record.expiresAt),
+            DateTime.unsafeMake(currentTime)
+          )
+        ) {
+          return record
+        }
+        return null
+      }),
 
-      revoke: (id: string) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .update(refreshTokens)
-            .set({
-              revokedAt: nowAsDate(),
-            })
-            .where(eq(refreshTokens.id, id))
-            .returning()
+      revoke: Effect.fn('RefreshTokenRepository.revoke')(function* (
+        id: string
+      ) {
+        const results = yield* db
+          .update(refreshTokens)
+          .set({
+            revokedAt: nowAsDate(),
+          })
+          .where(eq(refreshTokens.id, id))
+          .returning()
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('RefreshTokenRepository.revoke')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      revokeAllForUser: (userId: string) =>
-        Effect.gen(function* () {
+      revokeAllForUser: Effect.fn('RefreshTokenRepository.revokeAllForUser')(
+        function* (userId: string) {
           const results = yield* db
             .update(refreshTokens)
             .set({
@@ -127,21 +133,21 @@ export const RefreshTokenRepositoryLive = Layer.effect(
             .returning()
 
           return results.length
-        }).pipe(Effect.withSpan('RefreshTokenRepository.revokeAllForUser')),
+        }
+      ),
 
-      deleteExpiredAndRevoked: () =>
-        Effect.gen(function* () {
-          // Delete revoked tokens older than 30 days
-          const thirtyDaysAgo = daysAgoAsDate(30)
-          const result = yield* db
-            .delete(refreshTokens)
-            .where(lt(refreshTokens.createdAt, thirtyDaysAgo))
-            .returning()
+      deleteExpiredAndRevoked: Effect.fn(
+        'RefreshTokenRepository.deleteExpiredAndRevoked'
+      )(function* () {
+        // Delete revoked tokens older than 30 days
+        const thirtyDaysAgo = daysAgoAsDate(30)
+        const result = yield* db
+          .delete(refreshTokens)
+          .where(lt(refreshTokens.createdAt, thirtyDaysAgo))
+          .returning()
 
-          return result.length
-        }).pipe(
-          Effect.withSpan('RefreshTokenRepository.deleteExpiredAndRevoked')
-        ),
+        return result.length
+      }),
     }
   })
 )

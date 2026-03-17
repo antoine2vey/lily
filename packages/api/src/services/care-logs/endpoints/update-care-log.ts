@@ -16,7 +16,7 @@ export const updateCareLog = (
     // Verify the log exists and belongs to this plant
     const existing = yield* repo.findById(logId, plantId)
     if (!existing) {
-      return yield* Effect.fail(new CareLogNotFoundError())
+      return yield* new CareLogNotFoundError()
     }
 
     const log = yield* repo.update(logId, {
@@ -26,7 +26,7 @@ export const updateCareLog = (
     })
 
     if (!log) {
-      return yield* Effect.fail(new CareLogNotFoundError())
+      return yield* new CareLogNotFoundError()
     }
 
     return log

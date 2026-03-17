@@ -84,63 +84,63 @@ export const BlogPostRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (data: CreateBlogPostData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db.insert(blogPosts).values(data).returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.create')),
+      create: Effect.fn('BlogPostRepository.create')(function* (
+        data: CreateBlogPostData
+      ) {
+        const [row] = yield* db.insert(blogPosts).values(data).returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      findBySlug: (slug: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(blogPosts)
-            .where(eq(blogPosts.slug, slug))
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.findBySlug')),
+      findBySlug: Effect.fn('BlogPostRepository.findBySlug')(function* (
+        slug: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(blogPosts)
+          .where(eq(blogPosts.slug, slug))
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(blogPosts)
-            .where(eq(blogPosts.id, id))
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.findById')),
+      findById: Effect.fn('BlogPostRepository.findById')(function* (
+        id: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(blogPosts)
+          .where(eq(blogPosts.id, id))
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      findAllSlugs: () =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ slug: blogPosts.slug })
-            .from(blogPosts)
-          return Array.map(rows, (r) => r.slug)
-        }).pipe(Effect.withSpan('BlogPostRepository.findAllSlugs')),
+      findAllSlugs: Effect.fn('BlogPostRepository.findAllSlugs')(function* () {
+        const rows = yield* db.select({ slug: blogPosts.slug }).from(blogPosts)
+        return Array.map(rows, (r) => r.slug)
+      }),
 
-      findRecentCategories: (limit: number) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ category: blogPosts.category })
-            .from(blogPosts)
-            .where(eq(blogPosts.status, 'published'))
-            .orderBy(desc(blogPosts.publishedAt))
-            .limit(limit)
-          return Array.map(rows, (r) => r.category)
-        }).pipe(Effect.withSpan('BlogPostRepository.findRecentCategories')),
+      findRecentCategories: Effect.fn(
+        'BlogPostRepository.findRecentCategories'
+      )(function* (limit: number) {
+        const rows = yield* db
+          .select({ category: blogPosts.category })
+          .from(blogPosts)
+          .where(eq(blogPosts.status, 'published'))
+          .orderBy(desc(blogPosts.publishedAt))
+          .limit(limit)
+        return Array.map(rows, (r) => r.category)
+      }),
 
-      findPublishedSlugsWithTitles: () =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ slug: blogPosts.slug, title: blogPosts.title })
-            .from(blogPosts)
-            .where(eq(blogPosts.status, 'published'))
-            .orderBy(desc(blogPosts.publishedAt))
-          return rows as readonly { slug: string; title: LocalizedText }[]
-        }).pipe(
-          Effect.withSpan('BlogPostRepository.findPublishedSlugsWithTitles')
-        ),
+      findPublishedSlugsWithTitles: Effect.fn(
+        'BlogPostRepository.findPublishedSlugsWithTitles'
+      )(function* () {
+        const rows = yield* db
+          .select({ slug: blogPosts.slug, title: blogPosts.title })
+          .from(blogPosts)
+          .where(eq(blogPosts.status, 'published'))
+          .orderBy(desc(blogPosts.publishedAt))
+        return rows as readonly { slug: string; title: LocalizedText }[]
+      }),
 
-      hasInProgress: () =>
-        Effect.gen(function* () {
+      hasInProgress: Effect.fn('BlogPostRepository.hasInProgress')(
+        function* () {
           const [result] = yield* db
             .select({ value: count() })
             .from(blogPosts)
@@ -151,10 +151,11 @@ export const BlogPostRepositoryLive = Layer.effect(
             Option.getOrElse(() => 0),
             (n) => n > 0
           )
-        }).pipe(Effect.withSpan('BlogPostRepository.hasInProgress')),
+        }
+      ),
 
-      countPublishedSince: (since: Date) =>
-        Effect.gen(function* () {
+      countPublishedSince: Effect.fn('BlogPostRepository.countPublishedSince')(
+        function* (since: Date) {
           const [result] = yield* db
             .select({ value: count() })
             .from(blogPosts)
@@ -169,68 +170,76 @@ export const BlogPostRepositoryLive = Layer.effect(
             Option.flatMap((r) => Option.fromNullable(r.value)),
             Option.getOrElse(() => 0)
           )
-        }).pipe(Effect.withSpan('BlogPostRepository.countPublishedSince')),
+        }
+      ),
 
-      updateStatus: (id: string, status: BlogPostStatus) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(blogPosts)
-            .set({ status })
-            .where(eq(blogPosts.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.updateStatus')),
+      updateStatus: Effect.fn('BlogPostRepository.updateStatus')(function* (
+        id: string,
+        status: BlogPostStatus
+      ) {
+        const [row] = yield* db
+          .update(blogPosts)
+          .set({ status })
+          .where(eq(blogPosts.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      updateSources: (id: string, sources: BlogPostSource[]) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(blogPosts)
-            .set({ sources })
-            .where(eq(blogPosts.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.updateSources')),
+      updateSources: Effect.fn('BlogPostRepository.updateSources')(function* (
+        id: string,
+        sources: BlogPostSource[]
+      ) {
+        const [row] = yield* db
+          .update(blogPosts)
+          .set({ sources })
+          .where(eq(blogPosts.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      updateContent: (id: string, content: LocalizedText) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(blogPosts)
-            .set({ content })
-            .where(eq(blogPosts.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.updateContent')),
+      updateContent: Effect.fn('BlogPostRepository.updateContent')(function* (
+        id: string,
+        content: LocalizedText
+      ) {
+        const [row] = yield* db
+          .update(blogPosts)
+          .set({ content })
+          .where(eq(blogPosts.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      updateReview: (
+      updateReview: Effect.fn('BlogPostRepository.updateReview')(function* (
         id: string,
         data: {
           reviewScore: number
           reviewFeedback: string
           retryCount: number
         }
-      ) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(blogPosts)
-            .set(data)
-            .where(eq(blogPosts.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.updateReview')),
+      ) {
+        const [row] = yield* db
+          .update(blogPosts)
+          .set(data)
+          .where(eq(blogPosts.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      markPublished: (id: string, commitShas: LocalizedText) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(blogPosts)
-            .set({
-              commitShas,
-              status: 'published' as const,
-              publishedAt: nowAsDate(),
-            })
-            .where(eq(blogPosts.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('BlogPostRepository.markPublished')),
+      markPublished: Effect.fn('BlogPostRepository.markPublished')(function* (
+        id: string,
+        commitShas: LocalizedText
+      ) {
+        const [row] = yield* db
+          .update(blogPosts)
+          .set({
+            commitShas,
+            status: 'published' as const,
+            publishedAt: nowAsDate(),
+          })
+          .where(eq(blogPosts.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
     }
   })
 )

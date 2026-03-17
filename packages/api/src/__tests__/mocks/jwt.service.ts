@@ -30,12 +30,10 @@ export const createMockJWTService = (
     signAccessToken: (input) =>
       Effect.gen(function* () {
         if (options.shouldFailSign) {
-          return yield* Effect.fail(
-            new JWTError({
-              message: 'Failed to sign token',
-              code: 'INVALID_TOKEN',
-            })
-          )
+          return yield* new JWTError({
+            message: 'Failed to sign token',
+            code: 'INVALID_TOKEN',
+          })
         }
 
         return pipe(
@@ -51,25 +49,19 @@ export const createMockJWTService = (
             Option.fromNullable(options.verifyErrorCode),
             Option.getOrElse(() => 'INVALID_TOKEN' as const)
           )
-          return yield* Effect.fail(
-            new JWTError({
-              message:
-                code === 'EXPIRED_TOKEN'
-                  ? 'Token has expired'
-                  : 'Invalid token',
-              code,
-            })
-          )
+          return yield* new JWTError({
+            message:
+              code === 'EXPIRED_TOKEN' ? 'Token has expired' : 'Invalid token',
+            code,
+          })
         }
 
         // Simulate basic token validation
         if (!token || token.length === 0) {
-          return yield* Effect.fail(
-            new JWTError({
-              message: 'Invalid token',
-              code: 'INVALID_TOKEN',
-            })
-          )
+          return yield* new JWTError({
+            message: 'Invalid token',
+            code: 'INVALID_TOKEN',
+          })
         }
 
         return pipe(

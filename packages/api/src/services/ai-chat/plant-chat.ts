@@ -74,7 +74,7 @@ export const plantChat = (
     const plant = yield* plantRepo.findById(plantId)
 
     if (!plant) {
-      return yield* Effect.fail(new PlantNotFoundError({ plantId }))
+      return yield* new PlantNotFoundError({ plantId })
     }
 
     // Verify the current user owns this plant or is an active caretaker

@@ -51,115 +51,113 @@ export const IngestJobRepositoryLive = Layer.effect(
     const db = yield* KnowledgeDrizzle
 
     return {
-      create: (adapter: string, config: unknown) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .insert(ingestJobs)
-            .values({ adapter, config })
-            .returning()
+      create: Effect.fn('IngestJobRepository.create')(function* (
+        adapter: string,
+        config: unknown
+      ) {
+        const rows = yield* db
+          .insert(ingestJobs)
+          .values({ adapter, config })
+          .returning()
 
-          return yield* pipe(
-            Array.head(rows),
-            Option.match({
-              onNone: () =>
-                Effect.fail(
-                  new SqlError({
-                    cause: new Error(
-                      'INSERT into ingest_jobs returned no rows'
-                    ),
-                    message: 'INSERT into ingest_jobs returned no rows',
-                  })
-                ),
-              onSome: (row) => Effect.succeed(mapToIngestJob(row)),
-            })
-          )
-        }).pipe(Effect.withSpan('IngestJobRepository.create')),
+        return yield* pipe(
+          Array.head(rows),
+          Option.match({
+            onNone: () =>
+              Effect.fail(
+                new SqlError({
+                  cause: new Error('INSERT into ingest_jobs returned no rows'),
+                  message: 'INSERT into ingest_jobs returned no rows',
+                })
+              ),
+            onSome: (row) => Effect.succeed(mapToIngestJob(row)),
+          })
+        )
+      }),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(ingestJobs)
-            .where(eq(ingestJobs.id, id))
+      findById: Effect.fn('IngestJobRepository.findById')(function* (
+        id: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(ingestJobs)
+          .where(eq(ingestJobs.id, id))
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToIngestJob),
-            Option.getOrNull
-          )
-        }).pipe(Effect.withSpan('IngestJobRepository.findById')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToIngestJob),
+          Option.getOrNull
+        )
+      }),
 
-      findAll: () =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(ingestJobs)
-            .orderBy(desc(ingestJobs.createdAt))
+      findAll: Effect.fn('IngestJobRepository.findAll')(function* () {
+        const rows = yield* db
+          .select()
+          .from(ingestJobs)
+          .orderBy(desc(ingestJobs.createdAt))
 
-          return Array.map(rows, mapToIngestJob)
-        }).pipe(Effect.withSpan('IngestJobRepository.findAll')),
+        return Array.map(rows, mapToIngestJob)
+      }),
 
-      findPending: () =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(ingestJobs)
-            .where(eq(ingestJobs.status, 'pending'))
-            .orderBy(ingestJobs.createdAt)
+      findPending: Effect.fn('IngestJobRepository.findPending')(function* () {
+        const rows = yield* db
+          .select()
+          .from(ingestJobs)
+          .where(eq(ingestJobs.status, 'pending'))
+          .orderBy(ingestJobs.createdAt)
 
-          return Array.map(rows, mapToIngestJob)
-        }).pipe(Effect.withSpan('IngestJobRepository.findPending')),
+        return Array.map(rows, mapToIngestJob)
+      }),
 
-      updateStatus: (
+      updateStatus: Effect.fn('IngestJobRepository.updateStatus')(function* (
         id: string,
         status: IngestJobStatus,
         counts?: { documentsFetched?: number; chunksCreated?: number }
-      ) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .update(ingestJobs)
-            .set({
-              status,
-              documentsFetched: counts?.documentsFetched,
-              chunksCreated: counts?.chunksCreated,
-            })
-            .where(eq(ingestJobs.id, id))
-            .returning()
+      ) {
+        const rows = yield* db
+          .update(ingestJobs)
+          .set({
+            status,
+            documentsFetched: counts?.documentsFetched,
+            chunksCreated: counts?.chunksCreated,
+          })
+          .where(eq(ingestJobs.id, id))
+          .returning()
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToIngestJob),
-            Option.getOrNull
-          )
-        }).pipe(Effect.withSpan('IngestJobRepository.updateStatus')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToIngestJob),
+          Option.getOrNull
+        )
+      }),
 
-      updateError: (id: string, error: string) =>
-        Effect.gen(function* () {
-          yield* db
-            .update(ingestJobs)
-            .set({ error, status: 'failed' })
-            .where(eq(ingestJobs.id, id))
-        }).pipe(Effect.withSpan('IngestJobRepository.updateError')),
+      updateError: Effect.fn('IngestJobRepository.updateError')(function* (
+        id: string,
+        error: string
+      ) {
+        yield* db
+          .update(ingestJobs)
+          .set({ error, status: 'failed' })
+          .where(eq(ingestJobs.id, id))
+      }),
 
-      count: () =>
-        Effect.gen(function* () {
-          const result = yield* db.select({ value: count() }).from(ingestJobs)
+      count: Effect.fn('IngestJobRepository.count')(function* () {
+        const result = yield* db.select({ value: count() }).from(ingestJobs)
 
-          return pipe(
-            Array.head(result),
-            Option.map((r) => r.value),
-            Option.getOrElse(() => 0)
-          )
-        }).pipe(Effect.withSpan('IngestJobRepository.count')),
+        return pipe(
+          Array.head(result),
+          Option.map((r) => r.value),
+          Option.getOrElse(() => 0)
+        )
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .delete(ingestJobs)
-            .where(eq(ingestJobs.id, id))
-            .returning()
-          return Array.isNonEmptyArray(rows)
-        }).pipe(Effect.withSpan('IngestJobRepository.delete')),
+      delete: Effect.fn('IngestJobRepository.delete')(function* (id: string) {
+        const rows = yield* db
+          .delete(ingestJobs)
+          .where(eq(ingestJobs.id, id))
+          .returning()
+        return Array.isNonEmptyArray(rows)
+      }),
     }
   })
 )

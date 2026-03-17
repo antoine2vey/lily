@@ -97,46 +97,49 @@ export const CareLogRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByPlantId: (params: FindCareLogsParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+      findByPlantId: Effect.fn('CareLogRepository.findByPlantId')(function* (
+        params: FindCareLogsParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
 
-          const filterConditions =
-            params.type && params.type !== 'all'
-              ? and(
-                  eq(careLogs.plantId, params.plantId),
-                  eq(careLogs.type, params.type)
-                )
-              : eq(careLogs.plantId, params.plantId)
+        const filterConditions =
+          params.type && params.type !== 'all'
+            ? and(
+                eq(careLogs.plantId, params.plantId),
+                eq(careLogs.type, params.type)
+              )
+            : eq(careLogs.plantId, params.plantId)
 
-          const countResult = yield* db
-            .select({ value: count() })
-            .from(careLogs)
-            .where(filterConditions)
-          const total = extractCount(countResult)
+        const countResult = yield* db
+          .select({ value: count() })
+          .from(careLogs)
+          .where(filterConditions)
+        const total = extractCount(countResult)
 
-          const rows = yield* db
-            .select()
-            .from(careLogs)
-            .where(filterConditions)
-            .offset(offset)
-            .limit(limit)
-            .orderBy(desc(careLogs.date))
+        const rows = yield* db
+          .select()
+          .from(careLogs)
+          .where(filterConditions)
+          .offset(offset)
+          .limit(limit)
+          .orderBy(desc(careLogs.date))
 
-          return paginate(Array.map(rows, mapToCareLog), total, page, limit)
-        }).pipe(Effect.withSpan('CareLogRepository.findByPlantId')),
+        return paginate(Array.map(rows, mapToCareLog), total, page, limit)
+      }),
 
-      findById: (id: string, plantId: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(careLogs)
-            .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
-          return row ? mapToCareLog(row) : null
-        }).pipe(Effect.withSpan('CareLogRepository.findById')),
+      findById: Effect.fn('CareLogRepository.findById')(function* (
+        id: string,
+        plantId: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(careLogs)
+          .where(and(eq(careLogs.id, id), eq(careLogs.plantId, plantId)))
+        return row ? mapToCareLog(row) : null
+      }),
 
-      findRecentByUserId: (params: FindRecentParams) =>
-        Effect.gen(function* () {
+      findRecentByUserId: Effect.fn('CareLogRepository.findRecentByUserId')(
+        function* (params: FindRecentParams) {
           const limit = pipe(
             Option.fromNullable(params.limit),
             Option.getOrElse(() => 10)
@@ -171,77 +174,82 @@ export const CareLogRepositoryLive = Layer.effect(
           }))
 
           return { items }
-        }).pipe(Effect.withSpan('CareLogRepository.findRecentByUserId')),
+        }
+      ),
 
-      createMany: (data: readonly CreateCareLogData[]) =>
-        Effect.gen(function* () {
-          if (data.length === 0) return []
-          const values = Array.map(data, (d) => ({
-            type: d.type,
-            notes: Option.getOrNull(Option.fromNullable(d.notes)),
+      createMany: Effect.fn('CareLogRepository.createMany')(function* (
+        data: readonly CreateCareLogData[]
+      ) {
+        if (data.length === 0) return []
+        const values = Array.map(data, (d) => ({
+          type: d.type,
+          notes: Option.getOrNull(Option.fromNullable(d.notes)),
+          date: pipe(
+            Option.fromNullable(d.date),
+            Option.getOrElse(() => nowAsDate())
+          ),
+          photoUrl: Option.getOrNull(Option.fromNullable(d.photoUrl)),
+          plantId: d.plantId,
+        }))
+        const rows = yield* db.insert(careLogs).values(values).returning()
+        return Array.map(rows, mapToCareLog)
+      }),
+
+      create: Effect.fn('CareLogRepository.create')(function* (
+        data: CreateCareLogData
+      ) {
+        const [row] = yield* db
+          .insert(careLogs)
+          .values({
+            type: data.type,
+            notes: Option.getOrNull(Option.fromNullable(data.notes)),
             date: pipe(
-              Option.fromNullable(d.date),
+              Option.fromNullable(data.date),
               Option.getOrElse(() => nowAsDate())
             ),
-            photoUrl: Option.getOrNull(Option.fromNullable(d.photoUrl)),
-            plantId: d.plantId,
-          }))
-          const rows = yield* db.insert(careLogs).values(values).returning()
-          return Array.map(rows, mapToCareLog)
-        }).pipe(Effect.withSpan('CareLogRepository.createMany')),
+            photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
+            plantId: data.plantId,
+          })
+          .returning()
+        return row ? mapToCareLog(row) : null
+      }),
 
-      create: (data: CreateCareLogData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(careLogs)
-            .values({
-              type: data.type,
-              notes: Option.getOrNull(Option.fromNullable(data.notes)),
-              date: pipe(
-                Option.fromNullable(data.date),
-                Option.getOrElse(() => nowAsDate())
-              ),
-              photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
-              plantId: data.plantId,
-            })
-            .returning()
-          return row ? mapToCareLog(row) : null
-        }).pipe(Effect.withSpan('CareLogRepository.create')),
+      update: Effect.fn('CareLogRepository.update')(function* (
+        id: string,
+        data: UpdateCareLogData
+      ) {
+        const [row] = yield* db
+          .update(careLogs)
+          .set({
+            notes: Option.getOrNull(Option.fromNullable(data.notes)),
+            date: data.date,
+            photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
+            updatedAt: nowAsDate(),
+          })
+          .where(eq(careLogs.id, id))
+          .returning()
+        return row ? mapToCareLog(row) : null
+      }),
 
-      update: (id: string, data: UpdateCareLogData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(careLogs)
-            .set({
-              notes: Option.getOrNull(Option.fromNullable(data.notes)),
-              date: data.date,
-              photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
-              updatedAt: nowAsDate(),
-            })
-            .where(eq(careLogs.id, id))
-            .returning()
-          return row ? mapToCareLog(row) : null
-        }).pipe(Effect.withSpan('CareLogRepository.update')),
+      delete: Effect.fn('CareLogRepository.delete')(function* (id: string) {
+        const [row] = yield* db
+          .delete(careLogs)
+          .where(eq(careLogs.id, id))
+          .returning()
+        return row ? mapToCareLog(row) : null
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .delete(careLogs)
-            .where(eq(careLogs.id, id))
-            .returning()
-          return row ? mapToCareLog(row) : null
-        }).pipe(Effect.withSpan('CareLogRepository.delete')),
-
-      findLatestByPlantAndType: (plantId: string, type: CareType) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(careLogs)
-            .where(and(eq(careLogs.plantId, plantId), eq(careLogs.type, type)))
-            .orderBy(desc(careLogs.date))
-            .limit(1)
-          return row ? mapToCareLog(row) : null
-        }).pipe(Effect.withSpan('CareLogRepository.findLatestByPlantAndType')),
+      findLatestByPlantAndType: Effect.fn(
+        'CareLogRepository.findLatestByPlantAndType'
+      )(function* (plantId: string, type: CareType) {
+        const [row] = yield* db
+          .select()
+          .from(careLogs)
+          .where(and(eq(careLogs.plantId, plantId), eq(careLogs.type, type)))
+          .orderBy(desc(careLogs.date))
+          .limit(1)
+        return row ? mapToCareLog(row) : null
+      }),
     }
   })
 )

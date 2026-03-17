@@ -2,6 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
 import { Array, Effect } from 'effect'
 
+import { AiGenericError } from '../../domains/ai-chat/errors'
 import type { PlantAIResult } from './plant-schema'
 import { plantSchema } from './plant-schema'
 import {
@@ -64,7 +65,7 @@ ${safetyInstructions}
 const singleCardCall = (
   url: string,
   locale: string
-): Effect.Effect<PlantAIResult, Error> =>
+): Effect.Effect<PlantAIResult, AiGenericError> =>
   Effect.tryPromise({
     try: async () => {
       const result = await generateText({
@@ -80,13 +81,16 @@ const singleCardCall = (
       })
       return result.output as PlantAIResult
     },
-    catch: (error) => error as Error,
+    catch: (error) =>
+      new AiGenericError({
+        message: error instanceof Error ? error.message : 'Card scan failed',
+      }),
   })
 
 const multipleCardCall = (
   urls: string[],
   locale: string
-): Effect.Effect<PlantAIResult, Error> =>
+): Effect.Effect<PlantAIResult, AiGenericError> =>
   Effect.tryPromise({
     try: async () => {
       const result = await generateText({
@@ -108,17 +112,21 @@ const multipleCardCall = (
       })
       return result.output as PlantAIResult
     },
-    catch: (error) => error as Error,
+    catch: (error) =>
+      new AiGenericError({
+        message:
+          error instanceof Error ? error.message : 'Multiple card scan failed',
+      }),
   })
 
 export const plantCardScan = (
   url: string,
   locale = 'en'
-): Effect.Effect<PlantAIResult, Error> =>
+): Effect.Effect<PlantAIResult, AiGenericError> =>
   withQualityRetry(singleCardCall(url, locale))
 
 export const plantCardScanMultiple = (
   urls: string[],
   locale = 'en'
-): Effect.Effect<PlantAIResult, Error> =>
+): Effect.Effect<PlantAIResult, AiGenericError> =>
   withQualityRetry(multipleCardCall(urls, locale))

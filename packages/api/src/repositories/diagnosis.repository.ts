@@ -79,100 +79,106 @@ export const DiagnosisRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (data: CreateDiagnosisData) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .insert(diagnoses)
-            .values({
-              plantId: data.plantId,
-              userId: data.userId,
-              chatMessageId: Option.getOrNull(
-                Option.fromNullable(data.chatMessageId)
-              ),
-              diseaseName: data.diseaseName,
-              severity: data.severity,
-              confidence: data.confidence,
-              symptoms: data.symptoms,
-              treatmentSteps: data.treatmentSteps,
-              preventionTips: Option.getOrNull(
-                Option.fromNullable(data.preventionTips)
-              ),
-              imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
-            })
-            .returning()
+      create: Effect.fn('DiagnosisRepository.create')(function* (
+        data: CreateDiagnosisData
+      ) {
+        const rows = yield* db
+          .insert(diagnoses)
+          .values({
+            plantId: data.plantId,
+            userId: data.userId,
+            chatMessageId: Option.getOrNull(
+              Option.fromNullable(data.chatMessageId)
+            ),
+            diseaseName: data.diseaseName,
+            severity: data.severity,
+            confidence: data.confidence,
+            symptoms: data.symptoms,
+            treatmentSteps: data.treatmentSteps,
+            preventionTips: Option.getOrNull(
+              Option.fromNullable(data.preventionTips)
+            ),
+            imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
+          })
+          .returning()
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToDiagnosis),
-            Option.getOrThrow
-          )
-        }).pipe(Effect.withSpan('DiagnosisRepository.create')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToDiagnosis),
+          Option.getOrThrow
+        )
+      }),
 
-      findByPlantId: (params: FindDiagnosesParams) =>
-        Effect.gen(function* () {
-          const { page, limit, offset } = getPaginationParams(params)
+      findByPlantId: Effect.fn('DiagnosisRepository.findByPlantId')(function* (
+        params: FindDiagnosesParams
+      ) {
+        const { page, limit, offset } = getPaginationParams(params)
 
-          const filterConditions = and(
-            eq(diagnoses.plantId, params.plantId),
-            eq(diagnoses.userId, params.userId)
-          )
+        const filterConditions = and(
+          eq(diagnoses.plantId, params.plantId),
+          eq(diagnoses.userId, params.userId)
+        )
 
-          const countResult = yield* db
-            .select({ value: count() })
-            .from(diagnoses)
-            .where(filterConditions)
-          const total = extractCount(countResult)
+        const countResult = yield* db
+          .select({ value: count() })
+          .from(diagnoses)
+          .where(filterConditions)
+        const total = extractCount(countResult)
 
-          const rows = yield* db
-            .select()
-            .from(diagnoses)
-            .where(filterConditions)
-            .offset(offset)
-            .limit(limit)
-            .orderBy(desc(diagnoses.createdAt))
+        const rows = yield* db
+          .select()
+          .from(diagnoses)
+          .where(filterConditions)
+          .offset(offset)
+          .limit(limit)
+          .orderBy(desc(diagnoses.createdAt))
 
-          return paginate(Array.map(rows, mapToDiagnosis), total, page, limit)
-        }).pipe(Effect.withSpan('DiagnosisRepository.findByPlantId')),
+        return paginate(Array.map(rows, mapToDiagnosis), total, page, limit)
+      }),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(diagnoses)
-            .where(eq(diagnoses.id, id))
+      findById: Effect.fn('DiagnosisRepository.findById')(function* (
+        id: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(diagnoses)
+          .where(eq(diagnoses.id, id))
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToDiagnosis),
-            Option.getOrNull
-          )
-        }).pipe(Effect.withSpan('DiagnosisRepository.findById')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToDiagnosis),
+          Option.getOrNull
+        )
+      }),
 
-      linkChatMessage: (diagnosisId: string, chatMessageId: string) =>
-        Effect.gen(function* () {
+      linkChatMessage: Effect.fn('DiagnosisRepository.linkChatMessage')(
+        function* (diagnosisId: string, chatMessageId: string) {
           yield* db
             .update(diagnoses)
             .set({ chatMessageId })
             .where(eq(diagnoses.id, diagnosisId))
-        }).pipe(Effect.withSpan('DiagnosisRepository.linkChatMessage')),
+        }
+      ),
 
-      markResolved: (id: string, userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .update(diagnoses)
-            .set({
-              status: 'RESOLVED',
-              resolvedAt: nowAsDate(),
-            })
-            .where(and(eq(diagnoses.id, id), eq(diagnoses.userId, userId)))
-            .returning()
+      markResolved: Effect.fn('DiagnosisRepository.markResolved')(function* (
+        id: string,
+        userId: string
+      ) {
+        const rows = yield* db
+          .update(diagnoses)
+          .set({
+            status: 'RESOLVED',
+            resolvedAt: nowAsDate(),
+          })
+          .where(and(eq(diagnoses.id, id), eq(diagnoses.userId, userId)))
+          .returning()
 
-          return pipe(
-            Array.head(rows),
-            Option.map(mapToDiagnosis),
-            Option.getOrNull
-          )
-        }).pipe(Effect.withSpan('DiagnosisRepository.markResolved')),
+        return pipe(
+          Array.head(rows),
+          Option.map(mapToDiagnosis),
+          Option.getOrNull
+        )
+      }),
     }
   })
 )

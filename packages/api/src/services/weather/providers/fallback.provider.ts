@@ -28,7 +28,7 @@ export const createFallbackProvider = (
                   yield* Effect.logWarning(
                     `${provider.name} failed, trying next: ${error.message}`
                   )
-                  return yield* Effect.fail(error)
+                  return yield* error
                 })
               )
             )

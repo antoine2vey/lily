@@ -88,31 +88,33 @@ export const CareScheduleRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findByPlantAndType: (plantId: string, careType: CareType) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(plantCareSchedules)
-            .where(
-              and(
-                eq(plantCareSchedules.plantId, plantId),
-                eq(plantCareSchedules.careType, careType)
-              )
+      findByPlantAndType: Effect.fn(
+        'CareScheduleRepository.findByPlantAndType'
+      )(function* (plantId: string, careType: CareType) {
+        const [row] = yield* db
+          .select()
+          .from(plantCareSchedules)
+          .where(
+            and(
+              eq(plantCareSchedules.plantId, plantId),
+              eq(plantCareSchedules.careType, careType)
             )
-          return pipe(Option.fromNullable(row), Option.getOrNull)
-        }).pipe(Effect.withSpan('CareScheduleRepository.findByPlantAndType')),
+          )
+        return pipe(Option.fromNullable(row), Option.getOrNull)
+      }),
 
-      findByPlant: (plantId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(plantCareSchedules)
-            .where(eq(plantCareSchedules.plantId, plantId))
-          return rows
-        }).pipe(Effect.withSpan('CareScheduleRepository.findByPlant')),
+      findByPlant: Effect.fn('CareScheduleRepository.findByPlant')(function* (
+        plantId: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(plantCareSchedules)
+          .where(eq(plantCareSchedules.plantId, plantId))
+        return rows
+      }),
 
-      findPendingByUser: (userId: string, cutoff: Date) =>
-        Effect.gen(function* () {
+      findPendingByUser: Effect.fn('CareScheduleRepository.findPendingByUser')(
+        function* (userId: string, cutoff: Date) {
           const rows = yield* db
             .select({
               schedule: plantCareSchedules,
@@ -143,10 +145,11 @@ export const CareScheduleRepositoryLive = Layer.effect(
               room: row.room,
             },
           }))
-        }).pipe(Effect.withSpan('CareScheduleRepository.findPendingByUser')),
+        }
+      ),
 
-      findOverdueByUser: () =>
-        Effect.gen(function* () {
+      findOverdueByUser: Effect.fn('CareScheduleRepository.findOverdueByUser')(
+        function* () {
           const now = nowAsDate()
           const rows = yield* db
             .select({
@@ -170,8 +173,9 @@ export const CareScheduleRepositoryLive = Layer.effect(
           // Group by plant first to deduplicate (one plant can have multiple overdue schedules)
           const byPlant = Array.groupBy(rows, (r) => r.plantId)
 
-          const mapped = pipe(
-            Array.map(Array.fromRecord(byPlant), ([, schedules]) => {
+          const mapped = Array.map(
+            Array.fromRecord(byPlant),
+            ([, schedules]) => {
               // biome-ignore lint/style/noNonNullAssertion: groupBy guarantees non-empty groups
               const first = schedules[0]!
               return {
@@ -183,78 +187,84 @@ export const CareScheduleRepositoryLive = Layer.effect(
                   now
                 ),
               }
-            })
+            }
           )
 
           return Array.groupBy(mapped, (p) => p.userId)
-        }).pipe(Effect.withSpan('CareScheduleRepository.findOverdueByUser')),
+        }
+      ),
 
-      upsert: (plantId: string, careType: CareType, data: UpsertScheduleData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(plantCareSchedules)
-            .values({
-              plantId,
-              careType,
+      upsert: Effect.fn('CareScheduleRepository.upsert')(function* (
+        plantId: string,
+        careType: CareType,
+        data: UpsertScheduleData
+      ) {
+        const [row] = yield* db
+          .insert(plantCareSchedules)
+          .values({
+            plantId,
+            careType,
+            frequencyDays: data.frequencyDays,
+            lastCareAt: pipe(
+              Option.fromNullable(data.lastCareAt),
+              Option.getOrNull
+            ),
+            nextCareAt: pipe(
+              Option.fromNullable(data.nextCareAt),
+              Option.getOrNull
+            ),
+          })
+          .onConflictDoUpdate({
+            target: [plantCareSchedules.plantId, plantCareSchedules.careType],
+            set: {
               frequencyDays: data.frequencyDays,
-              lastCareAt: pipe(
-                Option.fromNullable(data.lastCareAt),
-                Option.getOrNull
-              ),
-              nextCareAt: pipe(
-                Option.fromNullable(data.nextCareAt),
-                Option.getOrNull
-              ),
-            })
-            .onConflictDoUpdate({
-              target: [plantCareSchedules.plantId, plantCareSchedules.careType],
-              set: {
-                frequencyDays: data.frequencyDays,
-                ...(data.lastCareAt !== undefined
-                  ? { lastCareAt: data.lastCareAt }
-                  : {}),
-                ...(data.nextCareAt !== undefined
-                  ? { nextCareAt: data.nextCareAt }
-                  : {}),
-              },
-            })
-            .returning()
-          // biome-ignore lint/style/noNonNullAssertion: INSERT ... RETURNING always returns a row
-          return row!
-        }).pipe(Effect.withSpan('CareScheduleRepository.upsert')),
+              ...(data.lastCareAt !== undefined
+                ? { lastCareAt: data.lastCareAt }
+                : {}),
+              ...(data.nextCareAt !== undefined
+                ? { nextCareAt: data.nextCareAt }
+                : {}),
+            },
+          })
+          .returning()
+        // biome-ignore lint/style/noNonNullAssertion: INSERT ... RETURNING always returns a row
+        return row!
+      }),
 
-      updateByPlantAndType: (
+      updateByPlantAndType: Effect.fn(
+        'CareScheduleRepository.updateByPlantAndType'
+      )(function* (
         plantId: string,
         careType: CareType,
         data: Partial<
           Pick<CareScheduleRow, 'frequencyDays' | 'lastCareAt' | 'nextCareAt'>
         >
-      ) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(plantCareSchedules)
-            .set(data)
-            .where(
-              and(
-                eq(plantCareSchedules.plantId, plantId),
-                eq(plantCareSchedules.careType, careType)
-              )
+      ) {
+        const [row] = yield* db
+          .update(plantCareSchedules)
+          .set(data)
+          .where(
+            and(
+              eq(plantCareSchedules.plantId, plantId),
+              eq(plantCareSchedules.careType, careType)
             )
-            .returning()
-          return pipe(Option.fromNullable(row), Option.getOrNull)
-        }).pipe(Effect.withSpan('CareScheduleRepository.updateByPlantAndType')),
+          )
+          .returning()
+        return pipe(Option.fromNullable(row), Option.getOrNull)
+      }),
 
-      deleteByPlantAndType: (plantId: string, careType: CareType) =>
-        Effect.gen(function* () {
-          yield* db
-            .delete(plantCareSchedules)
-            .where(
-              and(
-                eq(plantCareSchedules.plantId, plantId),
-                eq(plantCareSchedules.careType, careType)
-              )
+      deleteByPlantAndType: Effect.fn(
+        'CareScheduleRepository.deleteByPlantAndType'
+      )(function* (plantId: string, careType: CareType) {
+        yield* db
+          .delete(plantCareSchedules)
+          .where(
+            and(
+              eq(plantCareSchedules.plantId, plantId),
+              eq(plantCareSchedules.careType, careType)
             )
-        }).pipe(Effect.withSpan('CareScheduleRepository.deleteByPlantAndType')),
+          )
+      }),
     }
   })
 )

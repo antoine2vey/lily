@@ -56,72 +56,73 @@ export const RoomRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findAll: (userId: string) =>
-        Effect.gen(function* () {
-          return yield* db
-            .select({
-              id: rooms.id,
-              name: rooms.name,
-              icon: rooms.icon,
-              luminosity: rooms.luminosity,
-              isOutdoor: rooms.isOutdoor,
-              order: rooms.order,
-              userId: rooms.userId,
-              createdAt: rooms.createdAt,
-              updatedAt: rooms.updatedAt,
-              plantCount: count(plants.id),
-            })
-            .from(rooms)
-            .leftJoin(plants, eq(plants.roomId, rooms.id))
-            .where(eq(rooms.userId, userId))
-            .groupBy(rooms.id)
-            .orderBy(asc(rooms.order), asc(rooms.name))
-        }).pipe(Effect.withSpan('RoomRepository.findAll')),
+      findAll: Effect.fn('RoomRepository.findAll')(function* (userId: string) {
+        return yield* db
+          .select({
+            id: rooms.id,
+            name: rooms.name,
+            icon: rooms.icon,
+            luminosity: rooms.luminosity,
+            isOutdoor: rooms.isOutdoor,
+            order: rooms.order,
+            userId: rooms.userId,
+            createdAt: rooms.createdAt,
+            updatedAt: rooms.updatedAt,
+            plantCount: count(plants.id),
+          })
+          .from(rooms)
+          .leftJoin(plants, eq(plants.roomId, rooms.id))
+          .where(eq(rooms.userId, userId))
+          .groupBy(rooms.id)
+          .orderBy(asc(rooms.order), asc(rooms.name))
+      }),
 
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [room] = yield* db.select().from(rooms).where(eq(rooms.id, id))
-          return Option.getOrNull(Option.fromNullable(room))
-        }).pipe(Effect.withSpan('RoomRepository.findById')),
+      findById: Effect.fn('RoomRepository.findById')(function* (id: string) {
+        const [room] = yield* db.select().from(rooms).where(eq(rooms.id, id))
+        return Option.getOrNull(Option.fromNullable(room))
+      }),
 
-      create: (data: CreateRoomData) =>
-        Effect.gen(function* () {
-          const [room] = yield* db.insert(rooms).values(data).returning()
-          return Option.getOrNull(Option.fromNullable(room))
-        }).pipe(Effect.withSpan('RoomRepository.create')),
+      create: Effect.fn('RoomRepository.create')(function* (
+        data: CreateRoomData
+      ) {
+        const [room] = yield* db.insert(rooms).values(data).returning()
+        return Option.getOrNull(Option.fromNullable(room))
+      }),
 
-      update: (id: string, data: UpdateRoomData) =>
-        Effect.gen(function* () {
-          const [room] = yield* db
-            .update(rooms)
-            .set({ ...data, updatedAt: nowAsDate() })
-            .where(eq(rooms.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(room))
-        }).pipe(Effect.withSpan('RoomRepository.update')),
+      update: Effect.fn('RoomRepository.update')(function* (
+        id: string,
+        data: UpdateRoomData
+      ) {
+        const [room] = yield* db
+          .update(rooms)
+          .set({ ...data, updatedAt: nowAsDate() })
+          .where(eq(rooms.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(room))
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [room] = yield* db
-            .delete(rooms)
-            .where(eq(rooms.id, id))
-            .returning()
-          return Option.getOrNull(Option.fromNullable(room))
-        }).pipe(Effect.withSpan('RoomRepository.delete')),
+      delete: Effect.fn('RoomRepository.delete')(function* (id: string) {
+        const [room] = yield* db
+          .delete(rooms)
+          .where(eq(rooms.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(room))
+      }),
 
-      getMaxOrder: (userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ order: rooms.order })
-            .from(rooms)
-            .where(eq(rooms.userId, userId))
-            .orderBy(asc(rooms.order))
+      getMaxOrder: Effect.fn('RoomRepository.getMaxOrder')(function* (
+        userId: string
+      ) {
+        const rows = yield* db
+          .select({ order: rooms.order })
+          .from(rooms)
+          .where(eq(rooms.userId, userId))
+          .orderBy(asc(rooms.order))
 
-          return Option.getOrElse(
-            Option.map(Array.last(rows), (r) => r.order),
-            () => 0
-          )
-        }).pipe(Effect.withSpan('RoomRepository.getMaxOrder')),
+        return Option.getOrElse(
+          Option.map(Array.last(rows), (r) => r.order),
+          () => 0
+        )
+      }),
     }
   })
 )

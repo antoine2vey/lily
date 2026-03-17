@@ -18,7 +18,7 @@ import {
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
 import type { PushMessage, QueueMessage } from '@lily/shared/server'
-import { Effect, Logger, LogLevel, Option, pipe } from 'effect'
+import { Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helper to create a test queue message
@@ -56,12 +56,14 @@ describe('Notification Worker', () => {
       await Effect.runPromise(
         processMessage(message).pipe(
           Effect.provide(
-            createMockPushService({
-              onSendBatch: (msgs) => sentMessages.push(...msgs),
-            })
+            Layer.mergeAll(
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
           ),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([notification])),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -82,9 +84,13 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         processMessage(message).pipe(
-          Effect.provide(createSuccessPushService()),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -112,9 +118,13 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         processMessage(message).pipe(
-          Effect.provide(createSuccessPushService()),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -134,9 +144,13 @@ describe('Notification Worker', () => {
 
       const result = await Effect.runPromiseExit(
         processMessage(message).pipe(
-          Effect.provide(createFailingPushService('Push failed')),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              createFailingPushService('Push failed'),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -178,12 +192,14 @@ describe('Notification Worker', () => {
       await Effect.runPromise(
         processMessage(message).pipe(
           Effect.provide(
-            createMockPushService({
-              onSendBatch: (msgs) => sentMessages.push(...msgs),
-            })
+            Layer.mergeAll(
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository(notifications)
+            )
           ),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository(notifications)),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -210,8 +226,12 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         handleFailedMessage(message, new Error('Test error')).pipe(
-          Effect.provide(dlqLayer),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              dlqLayer,
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -232,8 +252,12 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         handleFailedMessage(message, new Error('Push service down')).pipe(
-          Effect.provide(createMockDeadLetterRepository()),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              createMockDeadLetterRepository(),
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -261,8 +285,12 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         handleFailedMessage(message, new Error('Error')).pipe(
-          Effect.provide(dlqLayer),
-          Effect.provide(createMockNotificationRepository([notification])),
+          Effect.provide(
+            Layer.mergeAll(
+              dlqLayer,
+              createMockNotificationRepository([notification])
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -301,8 +329,12 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         handleFailedMessage(message, new Error('Push failed')).pipe(
-          Effect.provide(createMockDeadLetterRepository()),
-          Effect.provide(createMockNotificationRepository(notifications)),
+          Effect.provide(
+            Layer.mergeAll(
+              createMockDeadLetterRepository(),
+              createMockNotificationRepository(notifications)
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -332,23 +364,23 @@ describe('Notification Worker', () => {
       await Effect.runPromise(
         consumeFromTopic('watering_reminder').pipe(
           Effect.provide(
-            createMockMessageQueue({
-              onDequeue: () =>
-                pipe(
-                  Option.fromNullable(queueMessages.shift()),
-                  Option.getOrNull
-                ),
-              onAck: (_, messageId) => ackedMessages.push(messageId),
-            })
+            Layer.mergeAll(
+              createMockMessageQueue({
+                onDequeue: () =>
+                  pipe(
+                    Option.fromNullable(queueMessages.shift()),
+                    Option.getOrNull
+                  ),
+                onAck: (_, messageId) => ackedMessages.push(messageId),
+              }),
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification]),
+              createMockDeadLetterRepository()
+            )
           ),
-          Effect.provide(
-            createMockPushService({
-              onSendBatch: (msgs) => sentMessages.push(...msgs),
-            })
-          ),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([notification])),
-          Effect.provide(createMockDeadLetterRepository()),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )
@@ -362,11 +394,15 @@ describe('Notification Worker', () => {
 
       await Effect.runPromise(
         consumeFromTopic('watering_reminder').pipe(
-          Effect.provide(createMockMessageQueue()), // Empty queue
-          Effect.provide(createSuccessPushService()),
-          Effect.provide(createMockDeviceTokenRepository(mockDeviceTokens)),
-          Effect.provide(createMockNotificationRepository([])),
-          Effect.provide(createMockDeadLetterRepository()),
+          Effect.provide(
+            Layer.mergeAll(
+              createMockMessageQueue(), // Empty queue
+              createSuccessPushService(),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([]),
+              createMockDeadLetterRepository()
+            )
+          ),
           Logger.withMinimumLogLevel(LogLevel.None)
         )
       )

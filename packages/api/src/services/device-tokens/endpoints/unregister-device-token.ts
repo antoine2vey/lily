@@ -20,7 +20,7 @@ export const unregisterDeviceToken = (
     const token = yield* repo.findById(tokenId)
 
     if (!token || token.userId !== userId) {
-      return yield* Effect.fail(new DeviceTokenNotFoundError())
+      return yield* new DeviceTokenNotFoundError()
     }
 
     // Delete the token

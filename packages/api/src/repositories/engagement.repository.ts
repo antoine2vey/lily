@@ -72,30 +72,29 @@ export const EngagementRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      getUsersWithTipsEnabled: () =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({
-              id: users.id,
-              tips: users.tips,
-              personalizedTips: users.personalizedTips,
-              timezone: users.timezone,
-              doNotDisturb: users.doNotDisturb,
-              doNotDisturbStart: users.doNotDisturbStart,
-              doNotDisturbEnd: users.doNotDisturbEnd,
-              language: users.language,
-              createdAt: users.createdAt,
-            })
-            .from(users)
-            .where(eq(users.tips, true))
+      getUsersWithTipsEnabled: Effect.fn(
+        'EngagementRepository.getUsersWithTipsEnabled'
+      )(function* () {
+        const rows = yield* db
+          .select({
+            id: users.id,
+            tips: users.tips,
+            personalizedTips: users.personalizedTips,
+            timezone: users.timezone,
+            doNotDisturb: users.doNotDisturb,
+            doNotDisturbStart: users.doNotDisturbStart,
+            doNotDisturbEnd: users.doNotDisturbEnd,
+            language: users.language,
+            createdAt: users.createdAt,
+          })
+          .from(users)
+          .where(eq(users.tips, true))
 
-          return rows
-        }).pipe(
-          Effect.withSpan('EngagementRepository.getUsersWithTipsEnabled')
-        ),
+        return rows
+      }),
 
-      getLastCareDate: (userId: string) =>
-        Effect.gen(function* () {
+      getLastCareDate: Effect.fn('EngagementRepository.getLastCareDate')(
+        function* (userId: string) {
           const rows = yield* db
             .select({ date: careLogs.date })
             .from(careLogs)
@@ -109,95 +108,93 @@ export const EngagementRepositoryLive = Layer.effect(
             Option.map((r) => r.date),
             Option.getOrNull
           )
-        }).pipe(Effect.withSpan('EngagementRepository.getLastCareDate')),
+        }
+      ),
 
-      getPlantCountForUser: (userId: string) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({ value: count() })
-            .from(plants)
-            .where(eq(plants.userId, userId))
+      getPlantCountForUser: Effect.fn(
+        'EngagementRepository.getPlantCountForUser'
+      )(function* (userId: string) {
+        const [result] = yield* db
+          .select({ value: count() })
+          .from(plants)
+          .where(eq(plants.userId, userId))
 
-          return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
-            Option.getOrElse(() => 0)
+        return pipe(
+          Option.fromNullable(result),
+          Option.flatMap((r) => Option.fromNullable(r.value)),
+          Option.getOrElse(() => 0)
+        )
+      }),
+
+      getPlantNamesForUser: Effect.fn(
+        'EngagementRepository.getPlantNamesForUser'
+      )(function* (userId: string) {
+        const rows = yield* db
+          .select({ name: plants.name })
+          .from(plants)
+          .where(eq(plants.userId, userId))
+
+        return Array.map(rows, (r) => r.name)
+      }),
+
+      getPlantsWithoutRecentPhoto: Effect.fn(
+        'EngagementRepository.getPlantsWithoutRecentPhoto'
+      )(function* (userId: string, beforeDate: Date) {
+        // Single query: LEFT JOIN plants with their latest photo,
+        // filter to those with no photo or photo older than threshold
+        const rows = yield* db
+          .select({
+            plantId: plants.id,
+            plantName: plants.name,
+            userId: plants.userId,
+            lastPhotoAt: sql<Date | null>`MAX(${plantPhotos.takenAt})`.as(
+              'last_photo_at'
+            ),
+          })
+          .from(plants)
+          .leftJoin(plantPhotos, eq(plantPhotos.plantId, plants.id))
+          .where(eq(plants.userId, userId))
+          .groupBy(plants.id, plants.name, plants.userId)
+          .having(
+            sql`MAX(${plantPhotos.takenAt}) IS NULL OR MAX(${plantPhotos.takenAt}) < ${beforeDate}`
           )
-        }).pipe(Effect.withSpan('EngagementRepository.getPlantCountForUser')),
 
-      getPlantNamesForUser: (userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select({ name: plants.name })
-            .from(plants)
-            .where(eq(plants.userId, userId))
+        return rows
+      }),
 
-          return Array.map(rows, (r) => r.name)
-        }).pipe(Effect.withSpan('EngagementRepository.getPlantNamesForUser')),
-
-      getPlantsWithoutRecentPhoto: (userId: string, beforeDate: Date) =>
-        Effect.gen(function* () {
-          // Single query: LEFT JOIN plants with their latest photo,
-          // filter to those with no photo or photo older than threshold
-          const rows = yield* db
-            .select({
-              plantId: plants.id,
-              plantName: plants.name,
-              userId: plants.userId,
-              lastPhotoAt: sql<Date | null>`MAX(${plantPhotos.takenAt})`.as(
-                'last_photo_at'
-              ),
-            })
-            .from(plants)
-            .leftJoin(plantPhotos, eq(plantPhotos.plantId, plants.id))
-            .where(eq(plants.userId, userId))
-            .groupBy(plants.id, plants.name, plants.userId)
-            .having(
-              sql`MAX(${plantPhotos.takenAt}) IS NULL OR MAX(${plantPhotos.takenAt}) < ${beforeDate}`
-            )
-
-          return rows
-        }).pipe(
-          Effect.withSpan('EngagementRepository.getPlantsWithoutRecentPhoto')
-        ),
-
-      hasNotificationInPeriod: (
-        userId: string,
-        type: string,
-        sinceDate: Date
-      ) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({
-              value: sql<boolean>`EXISTS (
+      hasNotificationInPeriod: Effect.fn(
+        'EngagementRepository.hasNotificationInPeriod'
+      )(function* (userId: string, type: string, sinceDate: Date) {
+        const [result] = yield* db
+          .select({
+            value: sql<boolean>`EXISTS (
                 SELECT 1 FROM ${notifications}
                 WHERE ${notifications.userId} = ${userId}
                   AND ${notifications.type} = ${type}
                   AND ${notifications.status} IN ('pending', 'queued', 'sent')
                   AND ${notifications.createdAt} >= ${sinceDate}
               )`.as('has_notification'),
-            })
-            .from(sql`(VALUES (1)) AS _`)
+          })
+          .from(sql`(VALUES (1)) AS _`)
 
-          return pipe(
-            Option.fromNullable(result),
-            Option.map((r) => r.value),
-            Option.getOrElse(() => false)
-          )
-        }).pipe(
-          Effect.withSpan('EngagementRepository.hasNotificationInPeriod')
-        ),
+        return pipe(
+          Option.fromNullable(result),
+          Option.map((r) => r.value),
+          Option.getOrElse(() => false)
+        )
+      }),
 
-      hasNotificationForPlantInPeriod: (
+      hasNotificationForPlantInPeriod: Effect.fn(
+        'EngagementRepository.hasNotificationForPlantInPeriod'
+      )(function* (
         userId: string,
         type: string,
         plantId: string,
         sinceDate: Date
-      ) =>
-        Effect.gen(function* () {
-          const [result] = yield* db
-            .select({
-              value: sql<boolean>`EXISTS (
+      ) {
+        const [result] = yield* db
+          .select({
+            value: sql<boolean>`EXISTS (
                 SELECT 1 FROM ${notifications}
                 WHERE ${notifications.userId} = ${userId}
                   AND ${notifications.type} = ${type}
@@ -205,19 +202,15 @@ export const EngagementRepositoryLive = Layer.effect(
                   AND ${notifications.status} IN ('pending', 'queued', 'sent')
                   AND ${notifications.createdAt} >= ${sinceDate}
               )`.as('has_notification'),
-            })
-            .from(sql`(VALUES (1)) AS _`)
+          })
+          .from(sql`(VALUES (1)) AS _`)
 
-          return pipe(
-            Option.fromNullable(result),
-            Option.map((r) => r.value),
-            Option.getOrElse(() => false)
-          )
-        }).pipe(
-          Effect.withSpan(
-            'EngagementRepository.hasNotificationForPlantInPeriod'
-          )
-        ),
+        return pipe(
+          Option.fromNullable(result),
+          Option.map((r) => r.value),
+          Option.getOrElse(() => false)
+        )
+      }),
     }
   })
 )

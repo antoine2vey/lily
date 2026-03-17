@@ -88,6 +88,22 @@ export const LimitCheckerLive = Layer.effect(
         return { subscription, tierConfig }
       })
 
+    const checkDelegationAccess = Effect.fn(
+      'LimitChecker.checkDelegationAccess'
+    )(function* (userId: string) {
+      const { tierConfig } = yield* getUserTierAndLimits(userId)
+
+      if (tierConfig.tier === 'free') {
+        return yield* new LimitExceededError({
+          feature: 'care_delegation',
+          limit: 0,
+          current: 0,
+          message:
+            'Care delegation is a premium feature. Upgrade to create delegations.',
+        })
+      }
+    })
+
     return {
       checkPlantLimit: (userId: string) =>
         Effect.gen(function* () {
@@ -101,14 +117,12 @@ export const LimitCheckerLive = Layer.effect(
           const currentCount = yield* achievementRepo.countPlants(userId)
 
           if (currentCount >= tierConfig.maxPlants) {
-            return yield* Effect.fail(
-              new LimitExceededError({
-                feature: 'plants',
-                limit: tierConfig.maxPlants,
-                current: currentCount,
-                message: `You've reached your limit of ${tierConfig.maxPlants} plants. Upgrade to Premium for unlimited plants!`,
-              })
-            )
+            return yield* new LimitExceededError({
+              feature: 'plants',
+              limit: tierConfig.maxPlants,
+              current: currentCount,
+              message: `You've reached your limit of ${tierConfig.maxPlants} plants. Upgrade to Premium for unlimited plants!`,
+            })
           }
         }),
 
@@ -129,14 +143,12 @@ export const LimitCheckerLive = Layer.effect(
           )
 
           if (currentCount >= tierConfig.maxAiChatsMonthly) {
-            return yield* Effect.fail(
-              new LimitExceededError({
-                feature: 'ai_chats',
-                limit: tierConfig.maxAiChatsMonthly,
-                current: currentCount,
-                message: `You've used all ${tierConfig.maxAiChatsMonthly} AI chats this month. Upgrade to Premium for unlimited AI features!`,
-              })
-            )
+            return yield* new LimitExceededError({
+              feature: 'ai_chats',
+              limit: tierConfig.maxAiChatsMonthly,
+              current: currentCount,
+              message: `You've used all ${tierConfig.maxAiChatsMonthly} AI chats this month. Upgrade to Premium for unlimited AI features!`,
+            })
           }
         }),
 
@@ -157,14 +169,12 @@ export const LimitCheckerLive = Layer.effect(
           )
 
           if (currentCount >= tierConfig.maxCardScansMonthly) {
-            return yield* Effect.fail(
-              new LimitExceededError({
-                feature: 'card_scans',
-                limit: tierConfig.maxCardScansMonthly,
-                current: currentCount,
-                message: `You've used all ${tierConfig.maxCardScansMonthly} card scans this month. Upgrade to Premium for unlimited scans!`,
-              })
-            )
+            return yield* new LimitExceededError({
+              feature: 'card_scans',
+              limit: tierConfig.maxCardScansMonthly,
+              current: currentCount,
+              message: `You've used all ${tierConfig.maxCardScansMonthly} card scans this month. Upgrade to Premium for unlimited scans!`,
+            })
           }
         }),
 
@@ -185,33 +195,16 @@ export const LimitCheckerLive = Layer.effect(
           )
 
           if (currentCount >= tierConfig.maxPlantIdentifiesMonthly) {
-            return yield* Effect.fail(
-              new LimitExceededError({
-                feature: 'plant_identifies',
-                limit: tierConfig.maxPlantIdentifiesMonthly,
-                current: currentCount,
-                message: `You've used all ${tierConfig.maxPlantIdentifiesMonthly} plant identifications this month. Upgrade to Premium for unlimited AI features!`,
-              })
-            )
+            return yield* new LimitExceededError({
+              feature: 'plant_identifies',
+              limit: tierConfig.maxPlantIdentifiesMonthly,
+              current: currentCount,
+              message: `You've used all ${tierConfig.maxPlantIdentifiesMonthly} plant identifications this month. Upgrade to Premium for unlimited AI features!`,
+            })
           }
         }),
 
-      checkDelegationAccess: (userId: string) =>
-        Effect.gen(function* () {
-          const { tierConfig } = yield* getUserTierAndLimits(userId)
-
-          if (tierConfig.tier === 'free') {
-            return yield* Effect.fail(
-              new LimitExceededError({
-                feature: 'care_delegation',
-                limit: 0,
-                current: 0,
-                message:
-                  'Care delegation is a premium feature. Upgrade to create delegations.',
-              })
-            )
-          }
-        }).pipe(Effect.withSpan('LimitChecker.checkDelegationAccess')),
+      checkDelegationAccess,
     }
   })
 )

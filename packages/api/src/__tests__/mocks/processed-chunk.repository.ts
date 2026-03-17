@@ -14,14 +14,14 @@ export const createMockProcessedChunkRepository = (data: {
   const repo: IProcessedChunkRepository = {
     create: (chunk: CreateProcessedChunkData) => {
       data.insertedChunks.push(chunk)
-      return Effect.succeed(undefined as undefined)
+      return Effect.void
     },
 
     createMany: (chunks: CreateProcessedChunkData[]) => {
       for (const chunk of chunks) {
         data.insertedChunks.push(chunk)
       }
-      return Effect.succeed(undefined as undefined)
+      return Effect.void
     },
 
     search: () => Effect.succeed(data.searchResults ?? []),

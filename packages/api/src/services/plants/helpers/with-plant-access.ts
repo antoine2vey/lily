@@ -34,7 +34,7 @@ export const withPlantAuth = (
     const plant = yield* repo.findById(plantId)
 
     if (!plant) {
-      return yield* Effect.fail(new PlantNotFoundError())
+      return yield* new PlantNotFoundError()
     }
 
     yield* assertCanAccessPlant(plant.userId, plant.id)

@@ -30,127 +30,123 @@ const TARGET_LANGUAGES: ReadonlyArray<{ code: LanguageCode; name: string }> = [
   { code: 'fr', name: 'French' },
 ]
 
-const generateContent = (
+const generateContent = Effect.fn('blog-generator.generateContent')(function* (
   topic: TopicSuggestion,
   brief: ResearchBrief,
   publishedPosts: readonly { slug: string; title: LocalizedText }[],
   previousFeedback?: string
-) =>
-  Effect.gen(function* () {
-    const researchContext = `Key Facts:\n${brief.keyFacts}\n\nUnique Angles:\n${brief.uniqueAngles}\n\nSource Snippets:\n${pipe(
-      brief.sources,
-      Array.map((s) => `- ${s.title}: ${s.snippet}`),
-      Array.join('\n')
-    )}`
+) {
+  const researchContext = `Key Facts:\n${brief.keyFacts}\n\nUnique Angles:\n${brief.uniqueAngles}\n\nSource Snippets:\n${pipe(
+    brief.sources,
+    Array.map((s) => `- ${s.title}: ${s.snippet}`),
+    Array.join('\n')
+  )}`
 
-    const englishTitle = pipe(
-      Option.fromNullable(topic.title.en),
-      Option.orElse(() => Array.head(Record.values(topic.title) as string[])),
-      Option.getOrElse(() => 'Untitled')
-    )
+  const englishTitle = pipe(
+    Option.fromNullable(topic.title.en),
+    Option.orElse(() => Array.head(Record.values(topic.title) as string[])),
+    Option.getOrElse(() => 'Untitled')
+  )
 
-    const existingPostsList = pipe(
-      publishedPosts,
-      Array.filter((p) => p.slug !== topic.slug),
-      Array.map(
-        (p) =>
-          `- /en/blog/${p.slug} — "${Option.getOrElse(Option.fromNullable(p.title.en), () => p.slug)}"`
-      ),
-      Array.join('\n')
-    )
+  const existingPostsList = pipe(
+    publishedPosts,
+    Array.filter((p) => p.slug !== topic.slug),
+    Array.map(
+      (p) =>
+        `- /en/blog/${p.slug} — "${Option.getOrElse(Option.fromNullable(p.title.en), () => p.slug)}"`
+    ),
+    Array.join('\n')
+  )
 
-    const basePrompt = GENERATION_USER_PROMPT(
-      englishTitle,
-      topic.outline,
-      researchContext,
-      existingPostsList
-    )
+  const basePrompt = GENERATION_USER_PROMPT(
+    englishTitle,
+    topic.outline,
+    researchContext,
+    existingPostsList
+  )
 
-    const userPrompt = previousFeedback
-      ? `${basePrompt}\n\nPREVIOUS REVIEW FEEDBACK (address these issues):\n${previousFeedback}`
-      : basePrompt
+  const userPrompt = previousFeedback
+    ? `${basePrompt}\n\nPREVIOUS REVIEW FEEDBACK (address these issues):\n${previousFeedback}`
+    : basePrompt
 
-    // Generate primary (English) content
-    const enResult = yield* Effect.tryPromise({
-      try: () =>
-        generateText({
-          model: openai(CHAT_MODEL),
-          system: GENERATION_SYSTEM_PROMPT,
-          prompt: userPrompt,
-        }),
-      catch: (e) =>
-        new BlogGenerationError({
-          message: 'Failed to generate English content',
-          cause: e,
-        }),
-    })
+  // Generate primary (English) content
+  const enResult = yield* Effect.tryPromise({
+    try: () =>
+      generateText({
+        model: openai(CHAT_MODEL),
+        system: GENERATION_SYSTEM_PROMPT,
+        prompt: userPrompt,
+      }),
+    catch: (e) =>
+      new BlogGenerationError({
+        message: 'Failed to generate English content',
+        cause: e,
+      }),
+  })
 
-    const content: Record<string, string> = { en: enResult.text }
+  const content: Record<string, string> = { en: enResult.text }
 
-    // Generate translations for all non-English languages
-    const translationLanguages = Array.filter(
-      TARGET_LANGUAGES,
-      (lang) => lang.code !== 'en'
-    )
+  // Generate translations for all non-English languages
+  const translationLanguages = Array.filter(
+    TARGET_LANGUAGES,
+    (lang) => lang.code !== 'en'
+  )
 
-    yield* Effect.forEach(translationLanguages, (lang) =>
-      Effect.gen(function* () {
-        const result = yield* Effect.tryPromise({
-          try: () =>
-            generateText({
-              model: openai(CHAT_MODEL),
-              system: TRANSLATION_PROMPT,
-              prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
-            }),
-          catch: (e) =>
-            new BlogGenerationError({
-              message: `Failed to translate to ${lang.name}`,
-              cause: e,
-            }),
-        })
-        content[lang.code] = result.text
+  yield* Effect.forEach(translationLanguages, (lang) =>
+    Effect.gen(function* () {
+      const result = yield* Effect.tryPromise({
+        try: () =>
+          generateText({
+            model: openai(CHAT_MODEL),
+            system: TRANSLATION_PROMPT,
+            prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
+          }),
+        catch: (e) =>
+          new BlogGenerationError({
+            message: `Failed to translate to ${lang.name}`,
+            cause: e,
+          }),
       })
-    )
+      content[lang.code] = result.text
+    })
+  )
 
-    return { content } as GeneratedContent
-  }).pipe(Effect.withSpan('blog-generator.generateContent'))
+  return { content } as GeneratedContent
+})
 
-const reviewContent = (
+const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
   content: GeneratedContent,
   brief: ResearchBrief,
   validSlugs: readonly string[]
-) =>
-  Effect.gen(function* () {
-    const sourceSnippets = pipe(
-      brief.sources,
-      Array.map(
-        (s) => `Source: ${s.title}\nURL: ${s.url}\nSnippet: ${s.snippet}`
-      ),
-      Array.join('\n\n')
-    )
+) {
+  const sourceSnippets = pipe(
+    brief.sources,
+    Array.map(
+      (s) => `Source: ${s.title}\nURL: ${s.url}\nSnippet: ${s.snippet}`
+    ),
+    Array.join('\n\n')
+  )
 
-    // Review the primary (English) content
-    const primaryContent = pipe(
-      Option.fromNullable(content.content.en),
-      Option.orElse(() =>
-        Array.head(Record.values(content.content) as string[])
-      ),
-      Option.getOrElse(() => '')
-    )
+  // Review the primary (English) content
+  const primaryContent = pipe(
+    Option.fromNullable(content.content.en),
+    Option.orElse(() => Array.head(Record.values(content.content) as string[])),
+    Option.getOrElse(() => '')
+  )
 
-    const validLinks = pipe(
-      validSlugs,
-      Array.map((s) => `/en/blog/${s}`),
-      Array.join(', ')
-    )
+  const validLinks = pipe(
+    validSlugs,
+    Array.map((s) => `/en/blog/${s}`),
+    Array.join(', ')
+  )
 
-    const result = yield* Effect.tryPromise({
-      try: () =>
-        generateText({
-          model: openai(CHAT_MODEL),
-          output: Output.object({ schema: ReviewSchema }),
-          system: REVIEW_SYSTEM_PROMPT,
-          prompt: `Review this blog post for quality and originality.
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      generateText({
+        model: openai(CHAT_MODEL),
+        output: Output.object({ schema: ReviewSchema }),
+        system: REVIEW_SYSTEM_PROMPT,
+        prompt: `Review this blog post for quality and originality.
 
 GENERATED CONTENT:
 ${primaryContent}
@@ -160,16 +156,16 @@ ${sourceSnippets}
 
 VALID INTERNAL LINK PATHS (any link NOT in this list is broken):
 ${validLinks || 'None — no internal links should be present'}`,
-        }),
-      catch: (e) =>
-        new BlogGenerationError({
-          message: 'Failed to review content',
-          cause: e,
-        }),
-    })
+      }),
+    catch: (e) =>
+      new BlogGenerationError({
+        message: 'Failed to review content',
+        cause: e,
+      }),
+  })
 
-    return result.output as ReviewResult
-  }).pipe(Effect.withSpan('blog-generator.reviewContent'))
+  return result.output as ReviewResult
+})
 
 export const generateAndReviewBlogPost = (
   postId: string,

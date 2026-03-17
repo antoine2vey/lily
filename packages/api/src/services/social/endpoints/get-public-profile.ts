@@ -3,8 +3,8 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { UserNotFoundError, UserNotPublicError } from '@lily/shared'
 import { Effect } from 'effect'
 
-export const getPublicProfile = (targetUserId: string) =>
-  Effect.gen(function* () {
+export const getPublicProfile = Effect.fn('SocialService.getPublicProfile')(
+  function* (targetUserId: string) {
     const { id: currentUserId } = yield* CurrentUser
     const followRepo = yield* FollowRepository
 
@@ -14,13 +14,11 @@ export const getPublicProfile = (targetUserId: string) =>
     })
 
     if (!profile) {
-      return yield* Effect.fail(new UserNotFoundError({ userId: targetUserId }))
+      return yield* new UserNotFoundError({ userId: targetUserId })
     }
 
     if (!profile.publicProfile) {
-      return yield* Effect.fail(
-        new UserNotPublicError({ userId: targetUserId })
-      )
+      return yield* new UserNotPublicError({ userId: targetUserId })
     }
 
     return {
@@ -36,4 +34,5 @@ export const getPublicProfile = (targetUserId: string) =>
       createdAt: profile.createdAt,
       recentPlants: profile.recentPlants,
     }
-  }).pipe(Effect.withSpan('SocialService.getPublicProfile'))
+  }
+)

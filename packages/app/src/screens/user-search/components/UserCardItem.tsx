@@ -75,11 +75,11 @@ export function UserCardItem({
       <Pressable
         onPress={handleFollowToggle}
         disabled={isMutating}
-        className={pipe(
+        className={
           isFollowing
             ? 'border border-primary dark:border-primary-light rounded-xl px-4 py-2'
             : 'bg-primary rounded-xl px-4 py-2'
-        )}
+        }
       >
         {isMutating ? (
           <ActivityIndicator

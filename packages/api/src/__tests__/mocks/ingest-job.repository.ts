@@ -75,7 +75,7 @@ export const createMockIngestJobRepository = (data: {
           updatedAt: new Date(),
         }
       }
-      return Effect.succeed(undefined as undefined)
+      return Effect.void
     },
 
     count: () => Effect.succeed(data.jobs.length),

@@ -59,32 +59,36 @@ export const MagicLinkRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (email: string, token: string, expiresAt: Date) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .insert(magicLinks)
-            .values({
-              email: pipe(email, EffectString.toLowerCase, EffectString.trim),
-              token,
-              expiresAt,
-            })
-            .returning()
+      create: Effect.fn('MagicLinkRepository.create')(function* (
+        email: string,
+        token: string,
+        expiresAt: Date
+      ) {
+        const results = yield* db
+          .insert(magicLinks)
+          .values({
+            email: pipe(email, EffectString.toLowerCase, EffectString.trim),
+            token,
+            expiresAt,
+          })
+          .returning()
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('MagicLinkRepository.create')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      findByToken: (token: string) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .select()
-            .from(magicLinks)
-            .where(eq(magicLinks.token, token))
+      findByToken: Effect.fn('MagicLinkRepository.findByToken')(function* (
+        token: string
+      ) {
+        const results = yield* db
+          .select()
+          .from(magicLinks)
+          .where(eq(magicLinks.token, token))
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('MagicLinkRepository.findByToken')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      findValidByToken: (token: string) =>
-        Effect.gen(function* () {
+      findValidByToken: Effect.fn('MagicLinkRepository.findValidByToken')(
+        function* (token: string) {
           const currentTime = nowAsDate()
           const results = yield* db
             .select()
@@ -110,43 +114,46 @@ export const MagicLinkRepositoryLive = Layer.effect(
             return record
           }
           return null
-        }).pipe(Effect.withSpan('MagicLinkRepository.findValidByToken')),
+        }
+      ),
 
-      findValidAndMarkUsed: (token: string) =>
-        Effect.gen(function* () {
-          const currentTime = nowAsDate()
-          // Atomic: UPDATE WHERE token=? AND used_at IS NULL AND expires_at > now
-          // This prevents TOCTOU race conditions
-          const results = yield* db
-            .update(magicLinks)
-            .set({ usedAt: currentTime })
-            .where(
-              and(
-                eq(magicLinks.token, token),
-                isNull(magicLinks.usedAt),
-                gt(magicLinks.expiresAt, currentTime)
-              )
+      findValidAndMarkUsed: Effect.fn(
+        'MagicLinkRepository.findValidAndMarkUsed'
+      )(function* (token: string) {
+        const currentTime = nowAsDate()
+        // Atomic: UPDATE WHERE token=? AND used_at IS NULL AND expires_at > now
+        // This prevents TOCTOU race conditions
+        const results = yield* db
+          .update(magicLinks)
+          .set({ usedAt: currentTime })
+          .where(
+            and(
+              eq(magicLinks.token, token),
+              isNull(magicLinks.usedAt),
+              gt(magicLinks.expiresAt, currentTime)
             )
-            .returning()
+          )
+          .returning()
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('MagicLinkRepository.findValidAndMarkUsed')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      markUsed: (id: string) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .update(magicLinks)
-            .set({
-              usedAt: nowAsDate(),
-            })
-            .where(eq(magicLinks.id, id))
-            .returning()
+      markUsed: Effect.fn('MagicLinkRepository.markUsed')(function* (
+        id: string
+      ) {
+        const results = yield* db
+          .update(magicLinks)
+          .set({
+            usedAt: nowAsDate(),
+          })
+          .where(eq(magicLinks.id, id))
+          .returning()
 
-          return pipe(results, Array.head, Option.getOrNull)
-        }).pipe(Effect.withSpan('MagicLinkRepository.markUsed')),
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
 
-      deleteExpired: () =>
-        Effect.gen(function* () {
+      deleteExpired: Effect.fn('MagicLinkRepository.deleteExpired')(
+        function* () {
           // Delete tokens older than 1 hour (expired + buffer for cleanup)
           const oneHourAgo = hoursAgoAsDate(1)
           const result = yield* db
@@ -155,22 +162,24 @@ export const MagicLinkRepositoryLive = Layer.effect(
             .returning()
 
           return result.length
-        }).pipe(Effect.withSpan('MagicLinkRepository.deleteExpired')),
+        }
+      ),
 
-      deleteByEmail: (email: string) =>
-        Effect.gen(function* () {
-          const result = yield* db
-            .delete(magicLinks)
-            .where(
-              eq(
-                magicLinks.email,
-                pipe(email, EffectString.toLowerCase, EffectString.trim)
-              )
+      deleteByEmail: Effect.fn('MagicLinkRepository.deleteByEmail')(function* (
+        email: string
+      ) {
+        const result = yield* db
+          .delete(magicLinks)
+          .where(
+            eq(
+              magicLinks.email,
+              pipe(email, EffectString.toLowerCase, EffectString.trim)
             )
-            .returning()
+          )
+          .returning()
 
-          return result.length
-        }).pipe(Effect.withSpan('MagicLinkRepository.deleteByEmail')),
+        return result.length
+      }),
     }
   })
 )

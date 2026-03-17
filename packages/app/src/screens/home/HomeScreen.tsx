@@ -263,14 +263,12 @@ export function HomeScreen() {
   }
 
   const handleActivityPress = (activityId: string) => {
-    const activity = pipe(
-      Array.findFirst(
-        Option.getOrElse(
-          Option.fromNullable(recentActivities),
-          () => [] as NonNullable<typeof recentActivities>
-        ),
-        (a) => a.id === activityId
-      )
+    const activity = Array.findFirst(
+      Option.getOrElse(
+        Option.fromNullable(recentActivities),
+        () => [] as NonNullable<typeof recentActivities>
+      ),
+      (a) => a.id === activityId
     )
     pipe(
       activity,

@@ -24,14 +24,12 @@ export const createMockEmailService = (
     send: (request: SendEmailRequest) =>
       Effect.gen(function* () {
         if (options.shouldFail) {
-          return yield* Effect.fail(
-            new EmailSendError({
-              message: pipe(
-                Option.fromNullable(options.failureMessage),
-                Option.getOrElse(() => 'Failed to send email')
-              ),
-            })
-          )
+          return yield* new EmailSendError({
+            message: pipe(
+              Option.fromNullable(options.failureMessage),
+              Option.getOrElse(() => 'Failed to send email')
+            ),
+          })
         }
 
         // Track the sent email

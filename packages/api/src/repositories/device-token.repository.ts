@@ -66,81 +66,84 @@ export const DeviceTokenRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      findById: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(deviceTokens)
-            .where(eq(deviceTokens.id, id))
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.findById')),
+      findById: Effect.fn('DeviceTokenRepository.findById')(function* (
+        id: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(deviceTokens)
+          .where(eq(deviceTokens.id, id))
+        return row ? mapToDeviceToken(row) : null
+      }),
 
-      findByToken: (token: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(deviceTokens)
-            .where(eq(deviceTokens.token, token))
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.findByToken')),
+      findByToken: Effect.fn('DeviceTokenRepository.findByToken')(function* (
+        token: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(deviceTokens)
+          .where(eq(deviceTokens.token, token))
+        return row ? mapToDeviceToken(row) : null
+      }),
 
-      findByUserId: (userId: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(deviceTokens)
-            .where(eq(deviceTokens.userId, userId))
-          return Array.map(rows, mapToDeviceToken)
-        }).pipe(Effect.withSpan('DeviceTokenRepository.findByUserId')),
+      findByUserId: Effect.fn('DeviceTokenRepository.findByUserId')(function* (
+        userId: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(deviceTokens)
+          .where(eq(deviceTokens.userId, userId))
+        return Array.map(rows, mapToDeviceToken)
+      }),
 
-      findByTokenAndUserId: (token: string, userId: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(deviceTokens)
-            .where(
-              and(
-                eq(deviceTokens.token, token),
-                eq(deviceTokens.userId, userId)
-              )
-            )
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.findByTokenAndUserId')),
+      findByTokenAndUserId: Effect.fn(
+        'DeviceTokenRepository.findByTokenAndUserId'
+      )(function* (token: string, userId: string) {
+        const [row] = yield* db
+          .select()
+          .from(deviceTokens)
+          .where(
+            and(eq(deviceTokens.token, token), eq(deviceTokens.userId, userId))
+          )
+        return row ? mapToDeviceToken(row) : null
+      }),
 
-      create: (data: CreateDeviceTokenData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(deviceTokens)
-            .values({
-              token: data.token,
-              platform: data.platform,
-              userId: data.userId,
-            })
-            .returning()
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.create')),
+      create: Effect.fn('DeviceTokenRepository.create')(function* (
+        data: CreateDeviceTokenData
+      ) {
+        const [row] = yield* db
+          .insert(deviceTokens)
+          .values({
+            token: data.token,
+            platform: data.platform,
+            userId: data.userId,
+          })
+          .returning()
+        return row ? mapToDeviceToken(row) : null
+      }),
 
-      update: (id: string, data: UpdateDeviceTokenData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .update(deviceTokens)
-            .set({
-              ...data,
-              updatedAt: nowAsDate(),
-            })
-            .where(eq(deviceTokens.id, id))
-            .returning()
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.update')),
+      update: Effect.fn('DeviceTokenRepository.update')(function* (
+        id: string,
+        data: UpdateDeviceTokenData
+      ) {
+        const [row] = yield* db
+          .update(deviceTokens)
+          .set({
+            ...data,
+            updatedAt: nowAsDate(),
+          })
+          .where(eq(deviceTokens.id, id))
+          .returning()
+        return row ? mapToDeviceToken(row) : null
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .delete(deviceTokens)
-            .where(eq(deviceTokens.id, id))
-            .returning()
-          return row ? mapToDeviceToken(row) : null
-        }).pipe(Effect.withSpan('DeviceTokenRepository.delete')),
+      delete: Effect.fn('DeviceTokenRepository.delete')(function* (id: string) {
+        const [row] = yield* db
+          .delete(deviceTokens)
+          .where(eq(deviceTokens.id, id))
+          .returning()
+        return row ? mapToDeviceToken(row) : null
+      }),
     }
   })
 )

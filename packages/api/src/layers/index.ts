@@ -142,6 +142,8 @@ export const AllRepositoriesLive = Layer.mergeAll(
 // ============================================================================
 
 // Self-contained layers (only depend on Config, not on app repos/infra)
+// FileService.Default depends on FileSystem from BunContext.layer, so we
+// provide BunContext first via Layer.provideMerge to satisfy that dependency.
 const SelfContainedInfraLive = Layer.mergeAll(
   AuthenticationLive,
   AdminAuthLive,
@@ -150,14 +152,13 @@ const SelfContainedInfraLive = Layer.mergeAll(
   AiService.Default,
   GCSService.Default,
   FileService.Default,
-  BunContext.layer,
   RevenueCatProviderLive,
   WeatherProviderLive,
   ExpoPushServiceLive,
   JWTServiceLive,
   RateLimiterServiceLive,
   MagicLinkConfigLive
-)
+).pipe(Layer.provideMerge(BunContext.layer))
 
 // Redis-dependent layers: EventBus, MessageQueue, and WeatherCache all need RedisClient.
 // Layer.provideMerge provides RedisClient to the three AND outputs it for downstream use.
