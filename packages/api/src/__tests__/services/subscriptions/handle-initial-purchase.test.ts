@@ -77,7 +77,7 @@ describe('handleInitialPurchase', () => {
       store: null,
       eventData: {
         ...baseEventContext.eventData,
-        store: 'UNKNOWN_STORE',
+        store: 'UNKNOWN_STORE' as never,
       },
     }
 

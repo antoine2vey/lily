@@ -6,6 +6,7 @@ import {
   subscriptionUsage,
   userSubscriptions,
 } from '@lily/db/schema'
+import type { subscriptionEventTypeEnum } from '@lily/db/schema/subscriptions'
 import {
   compact,
   endOfMonthAsDate,
@@ -93,7 +94,7 @@ export interface ISubscriptionRepository {
   // Events
   readonly logEvent: (
     userId: string,
-    eventType: string,
+    eventType: (typeof subscriptionEventTypeEnum.enumValues)[number],
     metadata?: object
   ) => Effect.Effect<void, SqlError>
 }
@@ -463,12 +464,15 @@ export const SubscriptionRepositoryLive = Layer.effect(
           return Option.getOrNull(Option.fromNullable(usage))
         }).pipe(Effect.withSpan('SubscriptionRepository.incrementUsage')),
 
-      logEvent: (userId: string, eventType: string, metadata?: object) =>
+      logEvent: (
+        userId: string,
+        eventType: (typeof subscriptionEventTypeEnum.enumValues)[number],
+        metadata?: object
+      ) =>
         Effect.gen(function* () {
           yield* db.insert(subscriptionEvents).values({
             userId,
-            eventType:
-              eventType as typeof subscriptionEvents.$inferInsert.eventType,
+            eventType,
             metadata: metadata ? JSON.stringify(metadata) : null,
           })
         }).pipe(Effect.withSpan('SubscriptionRepository.logEvent')),

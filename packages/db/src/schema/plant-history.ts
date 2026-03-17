@@ -1,4 +1,4 @@
-import { careLogTypeEnum } from '@lily/db/schema/enums'
+import { careLogTypeEnum, scanTypeEnum } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
@@ -54,7 +54,7 @@ export const plantScans = pgTable(
   'plant_scans',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    scanType: text('scan_type').notNull(), // 'card' | 'identify'
+    scanType: scanTypeEnum('scan_type').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

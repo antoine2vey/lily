@@ -57,18 +57,6 @@ export const Plant = Schema.Struct({
   schedules: Schema.Array(PlantCareSchedule),
 })
 
-export const PlantCreateRequest = Schema.Struct({
-  name: Schema.String,
-  description: Schema.optional(Schema.String),
-  category: Schema.optional(Schema.String),
-  humidityRating: Schema.Number,
-  lightingRating: Schema.Number,
-  petToxicityRating: Schema.Number,
-  wateringRating: Schema.Number,
-  wateringFrequencyDays: Schema.Number,
-  userId: Schema.String,
-})
-
 export const PlantUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
@@ -185,7 +173,6 @@ export const PlantCorrectCareDatesRequest = Schema.Struct({
 export type PlantCorrectCareDatesRequest =
   typeof PlantCorrectCareDatesRequest.Type
 export type Plant = typeof Plant.Type
-export type PlantCreateRequest = typeof PlantCreateRequest.Type
 export type PlantUpdateRequest = typeof PlantUpdateRequest.Type
 export type EnhancedPlantCreateRequest = typeof EnhancedPlantCreateRequest.Type
 export type AIIdentifyResponse = typeof AIIdentifyResponse.Type

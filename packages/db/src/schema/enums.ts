@@ -91,3 +91,11 @@ export const blogPostStatusEnum = pgEnum('blog_post_status', [
   'published',
   'rejected',
 ])
+
+export const scanTypeEnum = pgEnum('scan_type', ['card', 'identify'])
+
+export const devicePlatformEnum = pgEnum('device_platform', [
+  'ios',
+  'android',
+  'web',
+])

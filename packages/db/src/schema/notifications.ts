@@ -1,4 +1,7 @@
-import { notificationStatusEnum } from '@lily/db/schema/enums'
+import {
+  devicePlatformEnum,
+  notificationStatusEnum,
+} from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
@@ -15,7 +18,7 @@ import {
 export const deviceTokens = pgTable('device_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   token: text('token').notNull().unique(),
-  platform: text('platform').notNull(),
+  platform: devicePlatformEnum('platform').notNull(),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
@@ -58,6 +61,10 @@ export const notifications = pgTable(
   (table) => [
     index('notifications_user_id_idx').on(table.userId),
     index('notifications_status_idx').on(table.status),
+    index('notifications_status_scheduled_at_idx').on(
+      table.status,
+      table.scheduledAt
+    ),
   ]
 )
 

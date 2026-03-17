@@ -19,19 +19,19 @@ describe('Webhook Helpers', () => {
     })
 
     it('should return null for unknown store', () => {
-      const result = mapRevenueCatStore('AMAZON_STORE')
+      const result = mapRevenueCatStore('AMAZON_STORE' as never)
 
       expect(result).toBeNull()
     })
 
     it('should return null for empty string', () => {
-      const result = mapRevenueCatStore('')
+      const result = mapRevenueCatStore('' as never)
 
       expect(result).toBeNull()
     })
 
     it('should return null for lowercase store name', () => {
-      const result = mapRevenueCatStore('app_store')
+      const result = mapRevenueCatStore('app_store' as never)
 
       expect(result).toBeNull()
     })
@@ -99,7 +99,7 @@ describe('Webhook Helpers', () => {
     })
 
     it('should default to active for unknown event type', () => {
-      const result = mapEventToStatus('UNKNOWN_EVENT', null)
+      const result = mapEventToStatus('UNKNOWN_EVENT' as never, null)
 
       expect(result).toBe('active')
     })

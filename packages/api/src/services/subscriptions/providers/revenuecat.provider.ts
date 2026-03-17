@@ -1,5 +1,9 @@
 import {
   PaymentProviderError,
+  RevenueCatEnvironment,
+  RevenueCatEventType,
+  RevenueCatPeriodType,
+  RevenueCatStore,
   type RevenueCatSubscriberInfo,
   type RevenueCatWebhookEvent,
 } from '@lily/shared'
@@ -24,21 +28,22 @@ export class RevenueCatProvider extends Context.Tag('RevenueCatProvider')<
   IRevenueCatProvider
 >() {}
 
-// RevenueCat webhook event inner schema - only the fields we need
+// RevenueCat webhook event inner schema — uses shared literal types
+// for type, store, environment, and period_type instead of Schema.String.
 const RevenueCatEventDataSchema = Schema.Struct({
-  type: Schema.String,
+  type: RevenueCatEventType,
   id: Schema.String,
   app_user_id: Schema.String,
   original_app_user_id: Schema.String,
   aliases: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
   product_id: Schema.String,
   entitlement_ids: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
-  store: Schema.String,
-  environment: Schema.String,
+  store: RevenueCatStore,
+  environment: RevenueCatEnvironment,
   purchased_at_ms: Schema.Number,
   expiration_at_ms: Schema.NullOr(Schema.Number),
   is_trial_period: Schema.optional(Schema.NullOr(Schema.Boolean)),
-  period_type: Schema.optional(Schema.NullOr(Schema.String)),
+  period_type: Schema.optional(Schema.NullOr(RevenueCatPeriodType)),
   price: Schema.optional(Schema.NullOr(Schema.Number)),
   price_in_purchased_currency: Schema.optional(Schema.NullOr(Schema.Number)),
   currency: Schema.optional(Schema.NullOr(Schema.String)),

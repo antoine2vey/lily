@@ -7,7 +7,6 @@ import {
   EnhancedPlantCreateRequest,
   Plant,
   PlantCareRequest,
-  PlantCreateRequest,
   PlantDetail,
   PlantPhoto,
   PlantsListResponse,
@@ -109,55 +108,6 @@ describe('Plant Schemas', () => {
 
       expect(typeof result.remindersEnabled).toBe('boolean')
       expect(typeof result.isFavorite).toBe('boolean')
-    })
-  })
-
-  describe('PlantCreateRequest', () => {
-    it('should decode a valid create request', () => {
-      const request = {
-        name: 'New Plant',
-        humidityRating: 3,
-        lightingRating: 2,
-        petToxicityRating: 1,
-        wateringRating: 4,
-        wateringFrequencyDays: 7,
-        userId: 'user-123',
-      }
-
-      const result = Schema.decodeSync(PlantCreateRequest)(request)
-
-      expect(result.name).toBe('New Plant')
-      expect(result.wateringFrequencyDays).toBe(7)
-    })
-
-    it('should accept optional fields', () => {
-      const request = {
-        name: 'New Plant',
-        description: 'A lovely plant',
-        category: 'Succulent',
-        humidityRating: 2,
-        lightingRating: 4,
-        petToxicityRating: 1,
-        wateringRating: 2,
-        wateringFrequencyDays: 14,
-        userId: 'user-123',
-      }
-
-      const result = Schema.decodeSync(PlantCreateRequest)(request)
-
-      expect(result.description).toBe('A lovely plant')
-      expect(result.category).toBe('Succulent')
-    })
-
-    it('should reject missing required fields', () => {
-      const request = {
-        name: 'New Plant',
-        // Missing all required ratings
-      }
-
-      expect(() =>
-        Schema.decodeSync(PlantCreateRequest)(request as never)
-      ).toThrow()
     })
   })
 

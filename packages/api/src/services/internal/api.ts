@@ -20,7 +20,19 @@ export type ServiceTokenRequest = typeof ServiceTokenRequest.Type
  */
 export const InternalMagicLinkRequest = Schema.Struct({
   email: Schema.String,
-  callbackUrl: Schema.String,
+  callbackUrl: Schema.String.pipe(
+    Schema.filter(
+      (url) => {
+        try {
+          const parsed = new URL(url)
+          return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+        } catch {
+          return false
+        }
+      },
+      { message: () => 'callbackUrl must be a valid HTTP(S) URL' }
+    )
+  ),
   language: Schema.optional(Schema.Literal('en', 'fr')),
 })
 
