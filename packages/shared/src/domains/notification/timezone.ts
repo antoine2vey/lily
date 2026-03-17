@@ -1,4 +1,12 @@
-import { DateTime, Effect, String as EffectString, Schema } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  String as EffectString,
+  Option,
+  pipe,
+  Schema,
+} from 'effect'
 
 // HH:mm time format validation pattern
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -51,8 +59,14 @@ export const parseTime = (
   Effect.gen(function* () {
     yield* validateTimeFormat(time)
     const parts = EffectString.split(time, ':')
-    const hoursStr = parts[0] ?? '0'
-    const minutesStr = parts[1] ?? '0'
+    const hoursStr = pipe(
+      Array.head(parts),
+      Option.getOrElse(() => '0')
+    )
+    const minutesStr = pipe(
+      Array.get(parts, 1),
+      Option.getOrElse(() => '0')
+    )
     return {
       hours: parseInt(hoursStr, 10),
       minutes: parseInt(minutesStr, 10),
@@ -68,8 +82,20 @@ export const DEFAULT_NOTIFICATION_TIME = '09:00'
  */
 export const timeToMinutes = (time: string): number => {
   const parts = EffectString.split(time, ':')
-  const h = parseInt(parts[0] ?? '0', 10)
-  const m = parseInt(parts[1] ?? '0', 10)
+  const h = parseInt(
+    pipe(
+      Array.head(parts),
+      Option.getOrElse(() => '0')
+    ),
+    10
+  )
+  const m = parseInt(
+    pipe(
+      Array.get(parts, 1),
+      Option.getOrElse(() => '0')
+    ),
+    10
+  )
   return h * 60 + m
 }
 

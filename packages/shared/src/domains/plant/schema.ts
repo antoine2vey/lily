@@ -3,16 +3,6 @@ import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
-export const PlantCareSchedule = Schema.Struct({
-  careType: CareType,
-  frequencyDays: Schema.Number,
-  lastCareAt: Schema.NullOr(Schema.Date),
-  nextCareAt: Schema.NullOr(Schema.Date),
-})
-
-export type PlantCareSchedule = typeof PlantCareSchedule.Type
-
-// Named plant domain schemas
 export const PlantHealthStatus = Schema.Literal(
   'THRIVING',
   'HEALTHY',
@@ -30,6 +20,15 @@ export type PlantFilter = typeof PlantFilter.Type
 
 export const PlantSort = Schema.Literal('added', 'name')
 export type PlantSort = typeof PlantSort.Type
+
+export const PlantCareSchedule = Schema.Struct({
+  careType: CareType,
+  frequencyDays: Schema.Number,
+  lastCareAt: Schema.NullOr(Schema.Date),
+  nextCareAt: Schema.NullOr(Schema.Date),
+})
+
+export type PlantCareSchedule = typeof PlantCareSchedule.Type
 
 export const Plant = Schema.Struct({
   id: Schema.String,
