@@ -254,9 +254,7 @@ export function PlantDetailScreen() {
   const uploadPhoto = useUploadPhoto()
   const carePlant = useCarePlant()
   const sharePlant = useSharePlant()
-  const updatePlant = useUpdatePlant(
-    Option.getOrElse(Option.fromNullable(plantId), () => '')
-  )
+  const updatePlant = useUpdatePlant()
   const deletePlant = useDeletePlant()
 
   const handleBack = useCallback(() => {

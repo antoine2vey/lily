@@ -1,20 +1,16 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { Array } from 'effect'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
 import { SectionHeader } from 'src/components/SectionHeader'
+import { SkeletonBox } from 'src/components/skeletons'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import {
   usePrivacySettings,
@@ -29,7 +25,13 @@ export function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation(['settings', 'common'])
   const iconColors = useIconColors()
-  const { data: settings, isLoading } = usePrivacySettings()
+  const {
+    data: settings,
+    isLoading,
+    error,
+    refetch: _refetch,
+  } = usePrivacySettings()
+  const refetch = _refetch as () => void
   const { mutate: updateSettings } = useUpdatePrivacySettings()
   const { data: weatherSettings } = useWeatherSettings()
   const { mutate: toggleWeather } = useToggleWeather()
@@ -59,21 +61,63 @@ export function PrivacySettingsScreen() {
     )
   }
 
-  if (isLoading || !settings) {
+  const isInitialLoading = isLoading && !settings
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (error) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <MaterialIcons
+          name="error-outline"
+          size={48}
+          color={iconColors.coral}
+        />
+        <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
+          {t('settings:error', { defaultValue: 'Failed to load settings' })}
+        </Text>
+        <Pressable
+          onPress={() => refetch()}
+          className="mt-6 px-6 py-3 rounded-full bg-primary"
+        >
+          <Text className="font-semibold text-white">
+            {t('common:buttons.retry', { defaultValue: 'Try Again' })}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
+        <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
+          <View className="w-10 h-10" />
+          <View className="flex-1 items-center mr-10">
+            <SkeletonBox width={120} height={20} rounded="sm" />
+          </View>
         </View>
+        <Animated.View entering={FadeIn.duration(300)} className="px-6 py-4">
+          <SkeletonBox width="100%" height={14} rounded="sm" />
+          <View className="mt-6">
+            {Array.map([1, 2, 3], (i) => (
+              <View key={i} className="mb-4">
+                <SkeletonBox width="100%" height={64} rounded="lg" />
+              </View>
+            ))}
+          </View>
+        </Animated.View>
       </View>
     )
+  }
+
+  if (isInitialLoading || !settings) {
+    return null
   }
 
   return (

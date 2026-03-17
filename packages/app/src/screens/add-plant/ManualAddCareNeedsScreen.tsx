@@ -6,7 +6,7 @@ import {
   luxToLuminosityLevel,
   luxToSliderValue,
 } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, String as EffectString, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -186,9 +186,10 @@ export function ManualAddCareNeedsScreen() {
             <View className="flex-row justify-between">
               {Array.map(STEPS, (step) => {
                 const isActive = step === activeWateringLevel
-                const parts = t(
-                  `addPlant:careNeeds.watering.levels.${step}`
-                ).split('\n')
+                const parts = EffectString.split(
+                  t(`addPlant:careNeeds.watering.levels.${step}`),
+                  '\n'
+                )
                 return (
                   <View key={step} className="items-center flex-1">
                     <Text
@@ -260,9 +261,10 @@ export function ManualAddCareNeedsScreen() {
             <View className="flex-row justify-between">
               {Array.map(STEPS, (step) => {
                 const isActive = step === activeHumidityLevel
-                const parts = t(
-                  `addPlant:careNeeds.humidity.levels.${step}`
-                ).split('\n')
+                const parts = EffectString.split(
+                  t(`addPlant:careNeeds.humidity.levels.${step}`),
+                  '\n'
+                )
                 return (
                   <View key={step} className="items-center flex-1">
                     <Text

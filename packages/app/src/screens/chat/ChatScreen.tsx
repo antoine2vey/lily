@@ -5,15 +5,18 @@ import { Array, Option, pipe } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useRef } from 'react'
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SkeletonBox } from 'src/components/skeletons'
 import { useChatHistory } from 'src/hooks/useChatHistory'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { usePlantChat } from 'src/hooks/usePlantChat'
 import { useUploadChatImage } from 'src/hooks/useUploadChatImage'
@@ -53,8 +56,13 @@ export function ChatScreen() {
   const safePlantId = Option.getOrElse(Option.fromNullable(plantId), () => '')
 
   // Load chat history from server for initialMessages
-  const { isLoading: isLoadingHistory, initialMessages } =
-    useChatHistory(plantId)
+  const {
+    isLoading: isLoadingHistory,
+    initialMessages,
+    error: historyError,
+    refetch: _refetchHistory,
+  } = useChatHistory(plantId)
+  const refetchHistory = _refetchHistory as () => void
 
   // Use AI SDK's useChat hook with initialMessages
   const {
@@ -191,16 +199,63 @@ export function ChatScreen() {
     return null
   }, [showTypingIndicator])
 
-  if (isLoadingHistory) {
+  const isInitialLoading = isLoadingHistory && !initialMessages
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (historyError) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
         <ChatHeader />
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={iconColors.primary} />
+        <View className="flex-1 items-center justify-center p-6">
+          <Text className="text-lg text-center font-semibold text-text-primary dark:text-white">
+            Failed to load chat
+          </Text>
+          <Pressable
+            onPress={() => refetchHistory()}
+            className="mt-6 px-6 py-3 rounded-full bg-primary"
+          >
+            <Text className="font-semibold text-white">Try Again</Text>
+          </Pressable>
         </View>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
+        <ChatHeader />
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          className="flex-1 p-4 gap-4"
+        >
+          <View className="self-start">
+            <SkeletonBox width={220} height={60} rounded="lg" />
+          </View>
+          <View className="self-end">
+            <SkeletonBox width={180} height={40} rounded="lg" />
+          </View>
+          <View className="self-start">
+            <SkeletonBox width={260} height={80} rounded="lg" />
+          </View>
+        </Animated.View>
+      </View>
+    )
+  }
+
+  if (isInitialLoading) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark"
+        style={{ paddingTop: insets.top }}
+      >
+        <ChatHeader />
       </View>
     )
   }

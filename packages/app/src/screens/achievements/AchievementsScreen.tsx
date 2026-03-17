@@ -4,17 +4,14 @@ import { Array, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ProgressBar } from 'src/components/ProgressBar'
 import { SectionHeader } from 'src/components/SectionHeader'
+import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
 import { useAchievements } from 'src/hooks/useAchievements'
+import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { AchievementCard } from 'src/screens/achievements/components/AchievementCard'
 import { AchievementDetailModal } from 'src/screens/achievements/components/AchievementDetailModal'
@@ -23,7 +20,8 @@ export function AchievementsScreen() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation('achievements')
   const iconColors = useIconColors()
-  const { data, isLoading } = useAchievements()
+  const { data, isLoading, error, refetch: _refetch } = useAchievements()
+  const refetch = _refetch as () => void
 
   const CATEGORY_LABELS: Record<AchievementCategory, string> = {
     plants: t('categories.collection'),
@@ -34,21 +32,74 @@ export function AchievementsScreen() {
   const [selectedAchievement, setSelectedAchievement] =
     useState<AchievementWithProgress | null>(null)
 
-  if (isLoading || !data) {
+  const isInitialLoading = isLoading && !data
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (error) {
+    return (
+      <View
+        className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
+        style={{ paddingTop: insets.top }}
+      >
+        <MaterialIcons
+          name="error-outline"
+          size={48}
+          color={iconColors.coral}
+        />
+        <Text className="text-lg text-center mt-4 font-semibold text-text-primary dark:text-white">
+          {t('error', { defaultValue: 'Failed to load achievements' })}
+        </Text>
+        <Pressable
+          onPress={() => refetch()}
+          className="mt-6 px-6 py-3 rounded-full bg-primary"
+        >
+          <Text className="font-semibold text-white">
+            {t('tryAgain', { defaultValue: 'Try Again' })}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
+        <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
+          <View className="w-10 h-10" />
+          <View className="flex-1 items-center mr-10">
+            <SkeletonBox width={120} height={20} rounded="sm" />
+          </View>
         </View>
+        <Animated.View entering={FadeIn.duration(300)} className="p-6">
+          <View className="items-center mb-6">
+            <SkeletonCircle size={80} />
+            <View className="mt-3">
+              <SkeletonBox width={100} height={24} rounded="sm" />
+            </View>
+            <View className="mt-2">
+              <SkeletonBox width={160} height={14} rounded="sm" />
+            </View>
+            <View className="mt-4 w-full px-8">
+              <SkeletonBox width="100%" height={8} rounded="full" />
+            </View>
+          </View>
+          <View className="flex-row flex-wrap mt-4">
+            {Array.map([1, 2, 3, 4], (i) => (
+              <View key={i} className="w-1/2 p-2">
+                <SkeletonBox width="100%" height={120} rounded="lg" />
+              </View>
+            ))}
+          </View>
+        </Animated.View>
       </View>
     )
+  }
+
+  if (isInitialLoading || !data) {
+    return null
   }
 
   const { achievements, level, unlockedCount, totalCount } = data
