@@ -19,6 +19,18 @@ export type PaymentProvider = typeof PaymentProvider.Type
 export const AppStore = Schema.Literal('APP_STORE', 'PLAY_STORE')
 export type AppStore = typeof AppStore.Type
 
+export const SubscriptionEventType = Schema.Literal(
+  'subscription_created',
+  'subscription_updated',
+  'subscription_canceled',
+  'trial_started',
+  'trial_ended',
+  'payment_succeeded',
+  'payment_failed',
+  'usage_limit_reached'
+)
+export type SubscriptionEventType = typeof SubscriptionEventType.Type
+
 // Tier configuration
 export const TierConfig = Schema.Struct({
   tier: SubscriptionTier,

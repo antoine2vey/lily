@@ -6,11 +6,11 @@ import {
   subscriptionUsage,
   userSubscriptions,
 } from '@lily/db/schema'
-import type { subscriptionEventTypeEnum } from '@lily/db/schema/subscriptions'
 import {
   compact,
   endOfMonthAsDate,
   nowAsDate,
+  type SubscriptionEventType,
   type SubscriptionStatus,
   type SubscriptionTier,
   startOfMonthAsDate,
@@ -94,7 +94,7 @@ export interface ISubscriptionRepository {
   // Events
   readonly logEvent: (
     userId: string,
-    eventType: (typeof subscriptionEventTypeEnum.enumValues)[number],
+    eventType: SubscriptionEventType,
     metadata?: object
   ) => Effect.Effect<void, SqlError>
 }
@@ -466,7 +466,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
 
       logEvent: (
         userId: string,
-        eventType: (typeof subscriptionEventTypeEnum.enumValues)[number],
+        eventType: SubscriptionEventType,
         metadata?: object
       ) =>
         Effect.gen(function* () {
