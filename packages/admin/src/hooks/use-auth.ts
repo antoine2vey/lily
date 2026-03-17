@@ -1,3 +1,4 @@
+import type { UserRole, UserStatus } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { apiRequest } from '@/lib/api-client'
 import {
@@ -16,8 +17,8 @@ interface AuthResponse {
   readonly user: {
     readonly id: string
     readonly email: string
-    readonly role: 'user' | 'admin'
-    readonly status: 'active' | 'suspended' | 'banned'
+    readonly role: UserRole
+    readonly status: UserStatus
   }
   readonly accessToken: string
   readonly refreshToken: string

@@ -5,7 +5,15 @@ import {
   HttpServerResponse,
 } from '@effect/platform'
 import { TOOL_WIDGETS } from '@lily/mcp/widgets/constants'
-import { Array, Effect, Option, Predicate, Record } from 'effect'
+import {
+  Array,
+  Effect,
+  String as EffectString,
+  Option,
+  Predicate,
+  pipe,
+  Record,
+} from 'effect'
 
 /**
  * HTTP middleware that injects `_meta.ui.resourceUri` on tool definitions
@@ -43,7 +51,7 @@ export const toolMetaMiddleware = HttpMiddleware.make((app) =>
       // Quick check: skip non-tools/list responses.
       // Use '"tools":[' to avoid false positives from initialize responses
       // which contain "capabilities":{"tools":{"listChanged":true}}
-      if (!bodyStr.includes('"tools":[')) {
+      if (!pipe(bodyStr, EffectString.includes('"tools":['))) {
         return Effect.succeed(response)
       }
 
