@@ -5,77 +5,34 @@ import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
 import type { Notification } from '@lily/shared/notification'
-import { MessageQueue, type NotificationTopic } from '@lily/shared/server'
-import { Array, DateTime, Effect, Match, Option, pipe, Record } from 'effect'
+import {
+  type DeferredCareType,
+  MessageQueue,
+  type NotificationTopic,
+  TOPIC_CATEGORY,
+} from '@lily/shared/server'
+import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 
 const BATCH_SIZE = 100
 
-const CARE_REMINDER_TYPES: ReadonlyArray<string> = [
-  'watering_reminder',
-  'fertilization_reminder',
-  'misting_reminder',
-  'repotting_reminder',
-  'overdue_reminder',
-]
+const isCareReminderType = (
+  type: NotificationTopic
+): type is DeferredCareType => TOPIC_CATEGORY[type] === 'care'
 
-const ENGAGEMENT_TYPES: ReadonlyArray<string> = [
-  'daily_tip',
-  'inactivity_nudge',
-  'photo_reminder',
-  'plant_parent_milestone',
-]
+const isEngagementType = (type: NotificationTopic): boolean =>
+  TOPIC_CATEGORY[type] === 'engagement'
 
-const isCareReminderType = (type: string): boolean =>
-  Array.contains(CARE_REMINDER_TYPES, type)
-
-const isEngagementType = (type: string): boolean =>
-  Array.contains(ENGAGEMENT_TYPES, type)
-
-// Map notification type to queue topic using Match
+// Map notification type string from DB to a typed NotificationTopic.
+// Returns Option.none() for unknown strings (DB column is untyped text).
+// Compile-time exhaustiveness is enforced by TOPIC_CATEGORY in shared,
+// not here — this is purely a runtime string→union boundary guard.
+// Uses O(1) hasOwnProperty on TOPIC_CATEGORY instead of linear array scan.
 export const mapNotificationTypeToTopic = (
   type: string
 ): Option.Option<NotificationTopic> =>
-  pipe(
-    Match.value(type),
-    Match.when('watering_reminder', () =>
-      Option.some('watering_reminder' as const)
-    ),
-    Match.when('fertilization_reminder', () =>
-      Option.some('fertilization_reminder' as const)
-    ),
-    Match.when('overdue_reminder', () =>
-      Option.some('overdue_reminder' as const)
-    ),
-    Match.when('new_follower', () => Option.some('new_follower' as const)),
-    Match.when('nudge_to_water', () => Option.some('nudge_to_water' as const)),
-    Match.when('delegation_request', () =>
-      Option.some('delegation_request' as const)
-    ),
-    Match.when('delegation_accepted', () =>
-      Option.some('delegation_accepted' as const)
-    ),
-    Match.when('delegation_rejected', () =>
-      Option.some('delegation_rejected' as const)
-    ),
-    Match.when('delegation_canceled', () =>
-      Option.some('delegation_canceled' as const)
-    ),
-    Match.when('delegation_activated', () =>
-      Option.some('delegation_activated' as const)
-    ),
-    Match.when('delegation_completed', () =>
-      Option.some('delegation_completed' as const)
-    ),
-    Match.when('daily_tip', () => Option.some('daily_tip' as const)),
-    Match.when('inactivity_nudge', () =>
-      Option.some('inactivity_nudge' as const)
-    ),
-    Match.when('photo_reminder', () => Option.some('photo_reminder' as const)),
-    Match.when('plant_parent_milestone', () =>
-      Option.some('plant_parent_milestone' as const)
-    ),
-    Match.orElse(() => Option.none())
-  )
+  type in TOPIC_CATEGORY
+    ? Option.some(type as NotificationTopic)
+    : Option.none()
 
 // Poll database and enqueue pending notifications
 export const pollAndEnqueue = Effect.gen(function* () {
@@ -107,8 +64,12 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   const currentTime = DateTime.toDateUtc(DateTime.unsafeNow())
 
-  // Phase 1: Filter valid notifications
-  const validNotifications: Notification[] = []
+  // Phase 1: Filter valid notifications and resolve topics
+  type ValidNotification = {
+    notification: Notification
+    topic: NotificationTopic
+  }
+  const validNotifications: ValidNotification[] = []
 
   for (const notification of pendingNotifications) {
     const topicOption = mapNotificationTypeToTopic(notification.type)
@@ -121,12 +82,14 @@ export const pollAndEnqueue = Effect.gen(function* () {
       continue
     }
 
+    const topic = topicOption.value
+
     const user = Option.getOrNull(
       Option.fromNullable(userSettingsMap.get(notification.userId))
     )
 
     // Safety net: skip care reminders if user has disabled them
-    if (isCareReminderType(notification.type) && user && !user.careReminders) {
+    if (isCareReminderType(topic) && user && !user.careReminders) {
       yield* Effect.log('Skipping care reminder - user disabled', {
         id: notification.id,
         userId: notification.userId,
@@ -135,7 +98,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
     }
 
     // Safety net: skip engagement notifications if user has disabled tips
-    if (isEngagementType(notification.type) && user && !user.tips) {
+    if (isEngagementType(topic) && user && !user.tips) {
       yield* Effect.log(
         'Skipping engagement notification - user disabled tips',
         {
@@ -164,7 +127,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       }
     }
 
-    validNotifications.push(notification)
+    validNotifications.push({ notification, topic })
   }
 
   if (validNotifications.length === 0) return
@@ -172,12 +135,14 @@ export const pollAndEnqueue = Effect.gen(function* () {
   // Phase 2: Group by (userId, type)
   const grouped = Array.groupBy(
     validNotifications,
-    (n) => `${n.userId}::${n.type}`
+    (n) => `${n.notification.userId}::${n.notification.type}`
   )
 
   // Phase 3: Resolve plant names
   const allPlantIds = pipe(
-    Array.filterMap(validNotifications, (n) => Option.fromNullable(n.plantId)),
+    Array.filterMap(validNotifications, (n) =>
+      Option.fromNullable(n.notification.plantId)
+    ),
     Array.dedupe
   )
 
@@ -193,16 +158,12 @@ export const pollAndEnqueue = Effect.gen(function* () {
       const first = Array.head(group)
       if (Option.isNone(first)) return
 
-      const notificationIds = Array.map(group, (n) => n.id)
-      const userId = first.value.userId
-      const type = first.value.type
-
-      const topicOption = mapNotificationTypeToTopic(type)
-      if (Option.isNone(topicOption)) return
-      const topic = topicOption.value
+      const notificationIds = Array.map(group, (n) => n.notification.id)
+      const { topic } = first.value
+      const userId = first.value.notification.userId
 
       const plantIds = Array.filterMap(group, (n) =>
-        Option.fromNullable(n.plantId)
+        Option.fromNullable(n.notification.plantId)
       )
 
       const user = userSettingsMap.get(userId)
@@ -213,9 +174,9 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
       // Care reminders: resolve plant names and build translated content
       // Simple notifications: use pre-built title/body from the DB record
-      const { title, body } = isCareReminderType(type)
+      const { title, body } = isCareReminderType(topic)
         ? buildNotificationContent(
-            type,
+            topic,
             Array.filterMap(plantIds, (id) =>
               Option.fromNullable(plantNameMap.get(id))
             ),
@@ -223,11 +184,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
           )
         : {
             title: Option.getOrElse(
-              Option.fromNullable(first.value.title),
+              Option.fromNullable(first.value.notification.title),
               () => ''
             ),
             body: Option.getOrElse(
-              Option.fromNullable(first.value.body),
+              Option.fromNullable(first.value.notification.body),
               () => ''
             ),
           }
@@ -244,7 +205,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         },
         retryCount: 0,
         createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
-        scheduledAt: first.value.scheduledAt,
+        scheduledAt: first.value.notification.scheduledAt,
       })
 
       yield* notificationRepo.markManyAsQueued(notificationIds)
