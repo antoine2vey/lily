@@ -1,3 +1,4 @@
+import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
 import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
 import type { LanguageCode } from '@lily/shared'
 import { EmailService } from '@lily/shared/server'
@@ -69,7 +70,7 @@ export const sendMagicLinkEmail = ({
   EmailSendError | EmailConfigError | ConfigError
 > => {
   // Create deep link URL for the mobile app (fallback shown in email)
-  const appDeepLink = `lily://verify?code=${token}`
+  const appDeepLink = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
   const content = getEmailContent(language)
 
   const html = `
