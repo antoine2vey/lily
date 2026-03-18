@@ -9,16 +9,14 @@ const {
   mockCreateBlob,
   mockCreateTree,
   mockCreateCommit,
-  mockCreateRef,
-  mockCreatePull,
+  mockUpdateRef,
 } = vi.hoisted(() => ({
   mockGetRef: vi.fn(),
   mockGetCommit: vi.fn(),
   mockCreateBlob: vi.fn(),
   mockCreateTree: vi.fn(),
   mockCreateCommit: vi.fn(),
-  mockCreateRef: vi.fn(),
-  mockCreatePull: vi.fn(),
+  mockUpdateRef: vi.fn(),
 }))
 
 vi.mock('octokit', () => ({
@@ -30,10 +28,7 @@ vi.mock('octokit', () => ({
         createBlob: mockCreateBlob,
         createTree: mockCreateTree,
         createCommit: mockCreateCommit,
-        createRef: mockCreateRef,
-      },
-      pulls: {
-        create: mockCreatePull,
+        updateRef: mockUpdateRef,
       },
     },
   })),
@@ -66,15 +61,12 @@ describe('GitHub API — publishBlogPost', () => {
     mockCreateCommit.mockResolvedValue({
       data: { sha: 'new-commit-sha' },
     })
-    mockCreateRef.mockResolvedValue({
-      data: { ref: 'refs/heads/blog/test-post' },
-    })
-    mockCreatePull.mockResolvedValue({
-      data: { number: 42, html_url: 'https://github.com/owner/repo/pull/42' },
+    mockUpdateRef.mockResolvedValue({
+      data: { ref: 'heads/main', object: { sha: 'new-commit-sha' } },
     })
   })
 
-  it('should create a branch, commit all files, and open a PR', async () => {
+  it('should commit all files and push directly to main', async () => {
     const result = await Effect.runPromise(
       publishBlogPost('test-post', { en: '# English', fr: '# French' }).pipe(
         Effect.provide(Layer.setConfigProvider(mockConfig))
@@ -85,20 +77,11 @@ describe('GitHub API — publishBlogPost', () => {
     expect(result.en).toBe('new-commit-sha')
     expect(result.fr).toBe('new-commit-sha')
 
-    // Verify branch was created
-    expect(mockCreateRef).toHaveBeenCalledWith(
+    // Verify base branch was fast-forwarded (no branch/PR created)
+    expect(mockUpdateRef).toHaveBeenCalledWith(
       expect.objectContaining({
-        ref: 'refs/heads/blog/test-post',
+        ref: 'heads/main',
         sha: 'new-commit-sha',
-      })
-    )
-
-    // Verify PR was opened
-    expect(mockCreatePull).toHaveBeenCalledWith(
-      expect.objectContaining({
-        head: 'blog/test-post',
-        base: 'main',
-        title: 'blog: add "test-post"',
       })
     )
 

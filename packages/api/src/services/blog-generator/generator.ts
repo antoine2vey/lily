@@ -24,6 +24,14 @@ import type {
 const MAX_RETRIES = 5
 const MIN_SCORE = 95
 
+/** Strip markdown code fences (```mdx / ```) that LLMs sometimes wrap around output */
+const stripCodeFences = (text: string): string =>
+  text
+    .trim()
+    .replace(/^```(?:mdx|markdown)?\s*\n/, '')
+    .replace(/\n```\s*$/, '')
+    .trim()
+
 /** Languages to generate content for — add new languages here */
 const TARGET_LANGUAGES: ReadonlyArray<{ code: LanguageCode; name: string }> = [
   { code: 'en', name: 'English' },
@@ -84,7 +92,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
       }),
   })
 
-  const content: Record<string, string> = { en: enResult.text }
+  const content: Record<string, string> = { en: stripCodeFences(enResult.text) }
 
   // Generate translations for all non-English languages
   const translationLanguages = Array.filter(
@@ -107,7 +115,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
             cause: e,
           }),
       })
-      content[lang.code] = result.text
+      content[lang.code] = stripCodeFences(result.text)
     })
   )
 

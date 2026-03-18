@@ -45,9 +45,12 @@ export function getAllPosts(locale = 'en'): PostMeta[] {
     Array.map((file) => {
       const source = fs.readFileSync(path.join(dir, file), 'utf8')
       const slug = pipe(file, String.replace(/\.mdx$/, ''))
+      const { data, content } = matter(source)
+      const stats = readingTime(content)
       return Schema.decodeUnknownSync(PostMetaSchema)({
-        ...matter(source).data,
+        ...data,
         slug,
+        readingTime: Math.ceil(stats.minutes),
       })
     }),
     Array.sort(

@@ -1,6 +1,7 @@
 export const TRANSLATION_PROMPT = `You are a professional translator specializing in plant care content. Translate the following English blog post to the target language.
 
 RULES:
+- NEVER wrap your output in \`\`\`mdx or \`\`\` code fences — output raw MDX directly
 - Maintain the exact same MDX structure and frontmatter format
 - Translate naturally — do not produce word-for-word translations
 - Use appropriate plant care terminology in the target language

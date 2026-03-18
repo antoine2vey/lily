@@ -7,7 +7,7 @@ import { generateAndReviewBlogPost } from './generator'
 import { researchTopic } from './researcher'
 import { selectTopic } from './topics'
 
-const MAX_POSTS_PER_WEEK = 3
+const MAX_POSTS_PER_DAY = 2
 
 // Check if we should generate a blog post and run the pipeline
 export const checkAndGenerateBlogPost = Effect.gen(function* () {
@@ -32,13 +32,13 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
     return
   }
 
-  // Check if we've published enough this week
-  const publishedCount = yield* repo.countPublishedSince(daysAgoAsDate(7))
+  // Check if we've published enough today
+  const publishedCount = yield* repo.countPublishedSince(daysAgoAsDate(1))
 
-  if (publishedCount >= MAX_POSTS_PER_WEEK) {
-    yield* Effect.log('Blog generation skipped — weekly limit reached', {
+  if (publishedCount >= MAX_POSTS_PER_DAY) {
+    yield* Effect.log('Blog generation skipped — daily limit reached', {
       publishedCount,
-      max: MAX_POSTS_PER_WEEK,
+      max: MAX_POSTS_PER_DAY,
     })
     return
   }
@@ -90,7 +90,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
 export const startBlogGeneratorScheduler = createScheduler({
   name: 'blog-generator',
-  interval: '4 hours',
+  interval: '6 hours',
   runOnStartup: true,
   task: checkAndGenerateBlogPost,
 })

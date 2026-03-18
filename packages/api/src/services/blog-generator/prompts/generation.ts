@@ -9,6 +9,7 @@ CRITICAL RULES:
 
 FORMAT:
 - Output valid MDX with proper frontmatter
+- NEVER wrap your output in \`\`\`mdx or \`\`\` code fences — output raw MDX directly
 - Include a compelling meta description (150-160 chars) in frontmatter
 - Use ## for main sections, ### for subsections
 - Include practical, actionable tips
