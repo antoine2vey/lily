@@ -29,6 +29,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const t = await getTranslations({ locale, namespace: 'BlogPost' })
 
+  const ogImages = post.coverImage
+    ? [{ url: post.coverImage, width: 1200, height: 630, alt: post.title }]
+    : [{ url: '/og-image.png', width: 1200, height: 630, alt: post.title }]
+
   return {
     title: `${post.title} ${t('metaTitleSuffix')}`,
     description: post.description,
@@ -38,11 +42,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `https://withlily.app/${locale}/blog/${slug}`,
       type: 'article',
       publishedTime: post.date,
-      images: post.coverImage
-        ? [{ url: post.coverImage, width: 1200, height: 630, alt: post.title }]
-        : [],
+      images: ogImages,
+      locale: locale === 'fr' ? 'fr_FR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.description,
+      images: ogImages,
     },
     alternates: {
+      canonical: `https://withlily.app/${locale}/blog/${slug}`,
       languages: {
         en: `https://withlily.app/en/blog/${slug}`,
         fr: `https://withlily.app/fr/blog/${slug}`,

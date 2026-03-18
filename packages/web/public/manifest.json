@@ -1,0 +1,16 @@
+{
+  "name": "Lily",
+  "short_name": "Lily",
+  "description": "Never lose a plant again. Smart reminders, AI diagnosis, and care schedules for every plant.",
+  "start_url": "/en",
+  "display": "browser",
+  "background_color": "#f5f0eb",
+  "theme_color": "#4a7c59",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

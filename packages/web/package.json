@@ -12,6 +12,7 @@
     "lint:fix": "bunx --bun biome check --write ."
   },
   "dependencies": {
+    "@next/third-parties": "^16.1.7",
     "effect": "^3.19.19",
     "framer-motion": "^12.0.0",
     "gray-matter": "^4.0.3",

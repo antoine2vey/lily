@@ -1,3 +1,4 @@
+import { GoogleAnalytics } from '@next/third-parties/google'
 import type { Metadata } from 'next'
 import { Space_Grotesk } from 'next/font/google'
 import { notFound } from 'next/navigation'
@@ -66,7 +67,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: t('ogDescription'),
       images: ['/og-image.png'],
     },
-    icons: { icon: '/favicon.svg' },
+    icons: {
+      icon: '/favicon.svg',
+      apple: '/apple-touch-icon.png',
+    },
+    manifest: '/manifest.json',
     alternates: {
       canonical: `https://withlily.app/${locale}`,
       languages: {
@@ -123,6 +128,9 @@ export default async function LocaleLayout({ children, params }: Props) {
             <StickyMobileCTA />
           </Providers>
         </NextIntlClientProvider>
+        <GoogleAnalytics
+          gaId={process.env.NEXT_PUBLIC_GA_ID ?? 'G-YX8RMN49KD'}
+        />
       </body>
     </html>
   )

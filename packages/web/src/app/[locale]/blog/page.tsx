@@ -21,8 +21,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: t('metaDescription'),
       url: `https://withlily.app/${locale}/blog`,
       type: 'website',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'Lily — Plant Care Blog',
+        },
+      ],
+      locale: locale === 'fr' ? 'fr_FR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('metaTitle'),
+      description: t('metaDescription'),
+      images: ['/og-image.png'],
     },
     alternates: {
+      canonical: `https://withlily.app/${locale}/blog`,
       languages: {
         en: 'https://withlily.app/en/blog',
         fr: 'https://withlily.app/fr/blog',
