@@ -3,14 +3,14 @@ import { getTranslations } from 'next-intl/server'
 import { FeatureSection } from './FeatureSection'
 
 const screenshots = [
-  'my-plants-list.png',
-  'care-schedule.png',
-  'log-care-modal.png',
-  'plant-identified-ligustrum.png',
-  'ai-chat-dry-leaves-diagnosis.png',
-  'achievements.png',
-  'public-profile-lily.png',
-  'new-room-modal.png',
+  'my-plants-list.webp',
+  'care-schedule.webp',
+  'log-care-modal.webp',
+  'plant-identified-ligustrum.webp',
+  'ai-chat-dry-leaves-diagnosis.webp',
+  'achievements.webp',
+  'public-profile-lily.webp',
+  'new-room-modal.webp',
 ]
 
 export async function Features() {

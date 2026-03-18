@@ -49,7 +49,8 @@ export function FeatureSection({
             width={300}
             height={600}
             className="w-full h-auto"
-            unoptimized
+            loading="lazy"
+            sizes="(max-width: 768px) 256px, 288px"
           />
         </div>
       </motion.div>
