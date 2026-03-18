@@ -9,7 +9,40 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Privacy' })
-  return { title: `${t('heading')} — Lily` }
+  const title = `${t('heading')} — Lily`
+
+  return {
+    title,
+    description: t('metaDescription'),
+    openGraph: {
+      title,
+      description: t('metaDescription'),
+      url: `https://withlily.app/${locale}/privacy`,
+      type: 'website',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'Lily — Privacy Policy',
+        },
+      ],
+      locale: locale === 'fr' ? 'fr_FR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: t('metaDescription'),
+      images: ['/og-image.png'],
+    },
+    alternates: {
+      canonical: `https://withlily.app/${locale}/privacy`,
+      languages: {
+        en: 'https://withlily.app/en/privacy',
+        fr: 'https://withlily.app/fr/privacy',
+      },
+    },
+  }
 }
 
 export default async function PrivacyPage({ params }: Props) {

@@ -147,7 +147,8 @@
     "s4Heading": "Your Rights",
     "s4Text": "You may request access to, correction of, or deletion of your personal data at any time by contacting us at privacy@withlily.app.",
     "s5Heading": "Contact Us",
-    "s5Text": "For privacy-related questions, reach us at"
+    "s5Text": "For privacy-related questions, reach us at",
+    "metaDescription": "Learn how Lily collects, uses, and protects your personal data. Your privacy matters to us."
   },
   "Terms": {
     "back": "← Back to Lily",
@@ -162,6 +163,7 @@
     "s4Heading": "Disclaimer",
     "s4Text": "Lily's AI plant diagnosis is provided for informational purposes only. Always consult a professional horticulturist for critical plant health issues. We are not liable for plant losses resulting from following in-app advice.",
     "s5Heading": "Contact Us",
-    "s5Text": "For questions about these terms, reach us at"
+    "s5Text": "For questions about these terms, reach us at",
+    "metaDescription": "Read the Terms of Service for Lily, the plant care app. Understand your rights and our policies."
   }
 }

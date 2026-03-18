@@ -147,7 +147,8 @@
     "s4Heading": "Vos droits",
     "s4Text": "Vous pouvez demander l'accès, la correction ou la suppression de vos données personnelles à tout moment en nous contactant à privacy@withlily.app.",
     "s5Heading": "Nous contacter",
-    "s5Text": "Pour toute question relative à la confidentialité, contactez-nous à"
+    "s5Text": "Pour toute question relative à la confidentialité, contactez-nous à",
+    "metaDescription": "Découvrez comment Lily collecte, utilise et protège vos données personnelles. Votre vie privée compte."
   },
   "Terms": {
     "back": "← Retour à Lily",
@@ -162,6 +163,7 @@
     "s4Heading": "Avertissement",
     "s4Text": "Le diagnostic IA de Lily est fourni à titre informatif uniquement. Consultez toujours un professionnel pour les problèmes de santé critiques des plantes. Nous ne sommes pas responsables des pertes résultant du suivi des conseils de l'application.",
     "s5Heading": "Nous contacter",
-    "s5Text": "Pour toute question sur ces conditions, contactez-nous à"
+    "s5Text": "Pour toute question sur ces conditions, contactez-nous à",
+    "metaDescription": "Consultez les Conditions d'utilisation de Lily, l'application de soins des plantes. Comprenez vos droits et nos politiques."
   }
 }

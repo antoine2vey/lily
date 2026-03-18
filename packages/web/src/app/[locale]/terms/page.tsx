@@ -9,7 +9,40 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Terms' })
-  return { title: `${t('heading')} — Lily` }
+  const title = `${t('heading')} — Lily`
+
+  return {
+    title,
+    description: t('metaDescription'),
+    openGraph: {
+      title,
+      description: t('metaDescription'),
+      url: `https://withlily.app/${locale}/terms`,
+      type: 'website',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'Lily — Terms of Service',
+        },
+      ],
+      locale: locale === 'fr' ? 'fr_FR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: t('metaDescription'),
+      images: ['/og-image.png'],
+    },
+    alternates: {
+      canonical: `https://withlily.app/${locale}/terms`,
+      languages: {
+        en: 'https://withlily.app/en/terms',
+        fr: 'https://withlily.app/fr/terms',
+      },
+    },
+  }
 }
 
 export default async function TermsPage({ params }: Props) {
