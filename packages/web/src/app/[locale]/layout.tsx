@@ -17,6 +17,7 @@ import '../globals.css'
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-space-grotesk',
+  display: 'swap',
 })
 
 interface Props {
@@ -119,6 +120,14 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link
+          rel="preconnect"
+          href="https://www.googletagmanager.com"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={`${spaceGrotesk.variable} font-sans bg-background`}>
         <JsonLd data={softwareApplicationSchema} />
         <JsonLd data={organizationSchema} />

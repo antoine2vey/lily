@@ -66,12 +66,13 @@ export async function Hero() {
               style={{ animation: 'fade-in-up 0.8s 0.3s ease-out both' }}
             >
               <Image
-                src="/screenshots/home-screen.png"
+                src="/screenshots/home-screen.webp"
                 alt="Lily app home screen"
                 width={256}
                 height={554}
                 className="w-full h-auto"
                 priority
+                sizes="256px"
               />
             </div>
           </div>
