@@ -50,7 +50,8 @@ export const scheduleSimpleNotification = (
   type: SimpleNotificationType,
   userId: string,
   params: SimpleNotificationParams,
-  language: LanguageCode
+  language: LanguageCode,
+  metadata?: Record<string, string>
 ) =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
@@ -85,6 +86,7 @@ export const scheduleSimpleNotification = (
                 body,
                 notificationIds: [notification.id],
                 plantIds: [],
+                ...(metadata ? { metadata } : {}),
               },
               retryCount: 0,
               createdAt: nowAsDate(),

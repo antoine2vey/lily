@@ -76,6 +76,14 @@ export default function AppLayout() {
             animation: 'fade',
           }}
         />
+        <Stack.Screen
+          name="tip"
+          options={{
+            headerShown: false,
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        />
       </Stack>
     </TabBarInsetProvider>
   )

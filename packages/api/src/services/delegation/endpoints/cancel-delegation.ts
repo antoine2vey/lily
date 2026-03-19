@@ -56,7 +56,8 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
       'delegation_canceled',
       delegation.caretakerId,
       { senderName: ownerName },
-      caretakerLanguage
+      caretakerLanguage,
+      { delegationId }
     )
 
     const updated = yield* delegationRepo.findById(delegationId)

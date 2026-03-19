@@ -158,6 +158,128 @@ describe('Notification Worker', () => {
       expect(result._tag).toBe('Failure')
     })
 
+    it('should include topic and metadata in push data', async () => {
+      const sentMessages: PushMessage[] = []
+
+      const message = createTestQueueMessage({
+        topic: 'delegation_request',
+        payload: {
+          userId: 'user-1',
+          title: 'Delegation request',
+          body: 'Someone wants you to care for their plants',
+          notificationIds: ['notification-1'],
+          plantIds: [],
+          metadata: { delegationId: 'deleg-42' },
+        },
+      })
+      const notification = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
+
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(sentMessages[0]?.data).toBeDefined()
+      expect(sentMessages[0]?.data?.topic).toBe('delegation_request')
+      expect(sentMessages[0]?.data?.delegationId).toBe('deleg-42')
+      expect(sentMessages[0]?.data?.title).toBe('Delegation request')
+      expect(sentMessages[0]?.data?.body).toBe(
+        'Someone wants you to care for their plants'
+      )
+    })
+
+    it('should include plantIds as JSON string in push data', async () => {
+      const sentMessages: PushMessage[] = []
+
+      const message = createTestQueueMessage({
+        topic: 'watering_reminder',
+        payload: {
+          userId: 'user-1',
+          title: 'Water your plants',
+          body: 'Monstera, Pothos',
+          notificationIds: ['notification-1'],
+          plantIds: ['plant-1', 'plant-2'],
+        },
+      })
+      const notification = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
+
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(sentMessages[0]?.data?.topic).toBe('watering_reminder')
+      expect(sentMessages[0]?.data?.plantIds).toBe('plant-1,plant-2')
+    })
+
+    it('should not include plantIds in data when empty', async () => {
+      const sentMessages: PushMessage[] = []
+
+      const message = createTestQueueMessage({
+        topic: 'new_follower',
+        payload: {
+          userId: 'user-1',
+          title: 'New follower',
+          body: 'Someone followed you',
+          notificationIds: ['notification-1'],
+          plantIds: [],
+          metadata: { senderId: 'user-99' },
+        },
+      })
+      const notification = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
+
+      await Effect.runPromise(
+        processMessage(message).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification])
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(sentMessages[0]?.data?.topic).toBe('new_follower')
+      expect(sentMessages[0]?.data?.senderId).toBe('user-99')
+      expect(sentMessages[0]?.data?.plantIds).toBeUndefined()
+    })
+
     it('should handle grouped message and mark all IDs as sent', async () => {
       const sentMessages: PushMessage[] = []
 

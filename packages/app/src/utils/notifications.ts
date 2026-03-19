@@ -68,6 +68,94 @@ export async function getExpoPushToken(): Promise<string | null> {
 }
 
 /**
+ * Parse plantIds from the push data payload.
+ * The worker sends them as a comma-separated string.
+ */
+const parsePlantIds = (raw: unknown): string[] => {
+  if (typeof raw !== 'string' || raw === '') return []
+  return pipe(Str.split(raw, ','), Arr.filter(Str.isNonEmpty))
+}
+
+/**
+ * Route to a plant screen (single plant) or care tab (multiple/none).
+ */
+const plantRoute = (data: Record<string, unknown>): Href => {
+  const plantIds = parsePlantIds(data.plantIds)
+  return plantIds.length === 1
+    ? (`/(app)/plant/${plantIds[0]}` as Href)
+    : ('/(app)/(tabs)/care' as Href)
+}
+
+/**
+ * Route to a delegation detail screen, or the delegations list as fallback.
+ */
+const delegationRoute = (data: Record<string, unknown>): Href => {
+  const delegationId =
+    typeof data.delegationId === 'string' ? data.delegationId : null
+  return delegationId
+    ? (`/(app)/delegation/${delegationId}` as Href)
+    : ('/(app)/delegations' as Href)
+}
+
+/**
+ * Resolve the deep-link route for a notification based on its topic and data.
+ * Returns null when no navigation should occur (e.g. unknown topic).
+ */
+export const resolveNotificationRoute = (
+  data: Record<string, unknown>
+): Href | null => {
+  const topic = typeof data.topic === 'string' ? data.topic : null
+  if (!topic) return null
+
+  return pipe(
+    Match.value(topic),
+
+    // Care reminders — single plant → plant screen, multiple → care tab
+    Match.when('watering_reminder', () => plantRoute(data)),
+    Match.when('fertilization_reminder', () => plantRoute(data)),
+    Match.when('misting_reminder', () => plantRoute(data)),
+    Match.when('repotting_reminder', () => plantRoute(data)),
+    Match.when('overdue_reminder', () => plantRoute(data)),
+    Match.when('photo_reminder', () => plantRoute(data)),
+
+    // Social — new follower → profile of the person who followed
+    Match.when('new_follower', () => {
+      const senderId = typeof data.senderId === 'string' ? data.senderId : null
+      return senderId ? (`/(app)/public-profile/${senderId}` as Href) : null
+    }),
+
+    // Social — nudge → care tab
+    Match.when('nudge_to_water', () => '/(app)/(tabs)/care' as Href),
+
+    // Delegation topics → delegation detail or list fallback
+    Match.when('delegation_request', () => delegationRoute(data)),
+    Match.when('delegation_accepted', () => delegationRoute(data)),
+    Match.when('delegation_rejected', () => delegationRoute(data)),
+    Match.when('delegation_canceled', () => delegationRoute(data)),
+    Match.when('delegation_activated', () => delegationRoute(data)),
+    Match.when('delegation_completed', () => delegationRoute(data)),
+
+    // Daily tip → tip modal with content
+    Match.when('daily_tip', () => {
+      const title =
+        typeof data.title === 'string' ? encodeURIComponent(data.title) : ''
+      const body =
+        typeof data.body === 'string' ? encodeURIComponent(data.body) : ''
+      return `/(app)/tip?title=${title}&body=${body}` as Href
+    }),
+
+    // Engagement — inactivity → plants tab
+    Match.when('inactivity_nudge', () => '/(app)/(tabs)/plants' as Href),
+
+    // Engagement — milestone → achievements
+    Match.when('plant_parent_milestone', () => '/(app)/achievements' as Href),
+
+    // Unknown topic — no navigation
+    Match.orElse(() => null)
+  )
+}
+
+/**
  * Set up notification interaction listeners
  * Returns a cleanup function to remove the listeners
  */
@@ -76,20 +164,17 @@ export function setupNotificationListeners(router: Router): () => void {
   const responseSubscription =
     Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data
+      if (!data) return
 
-      // Navigate based on notification data
-      if (data?.plantId && typeof data.plantId === 'string') {
-        router.push(`/(app)/plants/${data.plantId}` as Href)
-      } else if (data?.screen && typeof data.screen === 'string') {
-        // Generic screen navigation - cast needed for dynamic paths
-        router.push(data.screen as Href)
+      const route = resolveNotificationRoute(data as Record<string, unknown>)
+      if (route) {
+        router.push(route)
       }
     })
 
   // Handle notifications received while app is foregrounded
   const notificationSubscription =
     Notifications.addNotificationReceivedListener((notification) => {
-      // Can add analytics or local state updates here
       console.log('Notification received:', notification.request.content.title)
     })
 

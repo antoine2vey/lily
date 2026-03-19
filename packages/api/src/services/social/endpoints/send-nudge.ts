@@ -61,7 +61,8 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
     'nudge_to_water',
     targetUserId,
     { senderName: nudgerName },
-    targetUser.language
+    targetUser.language,
+    { senderId: currentUserId }
   )
 
   return { success: true }

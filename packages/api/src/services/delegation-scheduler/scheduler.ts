@@ -44,18 +44,21 @@ const processDelegationBatch = (
         const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
         const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
         const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
+        const metadata = { delegationId: d.id }
 
         yield* scheduleSimpleNotification(
           notificationType,
           d.ownerId,
           { plantCount: plants.length },
-          ownerLang
+          ownerLang,
+          metadata
         )
         yield* scheduleSimpleNotification(
           notificationType,
           d.caretakerId,
           { plantCount: plants.length },
-          caretakerLang
+          caretakerLang,
+          metadata
         )
         return 1 as const
       }).pipe(
