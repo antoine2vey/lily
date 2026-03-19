@@ -15,6 +15,7 @@ import {
   Match,
   Option,
   pipe,
+  Record,
   Schedule,
   Struct,
 } from 'effect'
@@ -50,12 +51,30 @@ export const processMessage = Effect.fn('notification-worker.process')(
       return
     }
 
+    // Build data payload for deep linking
+    const plantIds = Array.match(message.payload.plantIds, {
+      onEmpty: () => Option.none<string>(),
+      onNonEmpty: (ids) => Option.some(Array.join(ids, ',')),
+    })
+
+    const data: Record<string, unknown> = Record.filter(
+      {
+        topic: message.topic,
+        title: message.payload.title,
+        body: message.payload.body,
+        plantIds: Option.getOrUndefined(plantIds),
+        ...Record.map(message.payload.metadata ?? {}, (v) => v),
+      } as Record<string, unknown>,
+      (v) => v !== undefined
+    )
+
     // Send to all active devices
     const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
       title: message.payload.title,
       body: message.payload.body,
       sound: 'default' as const,
+      data,
     }))
 
     const results = yield* pushService.sendBatch(pushMessages)

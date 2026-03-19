@@ -109,7 +109,8 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
       'delegation_request',
       request.caretakerId,
       { senderName: ownerName },
-      caretaker.language
+      caretaker.language,
+      { delegationId: delegation.id }
     )
 
     return yield* pipe(

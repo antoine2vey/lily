@@ -71,6 +71,9 @@ export const QueueMessagePayload = Schema.Struct({
   body: Schema.String,
   notificationIds: Schema.Array(Schema.String),
   plantIds: Schema.Array(Schema.String),
+  metadata: Schema.optional(
+    Schema.Record({ key: Schema.String, value: Schema.String })
+  ),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 

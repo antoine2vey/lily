@@ -65,7 +65,8 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
     'new_follower',
     targetUserId,
     { senderName: followerName },
-    targetUser.language
+    targetUser.language,
+    { senderId: currentUserId }
   )
 
   return { success: true as const }

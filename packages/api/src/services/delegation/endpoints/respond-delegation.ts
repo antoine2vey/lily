@@ -61,7 +61,8 @@ export const respondToDelegation = Effect.fn(
     type,
     delegation.ownerId,
     { senderName: caretakerName },
-    ownerLanguage
+    ownerLanguage,
+    { delegationId }
   )
 
   const updated = yield* delegationRepo.findById(delegationId)
