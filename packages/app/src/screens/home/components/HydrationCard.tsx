@@ -3,7 +3,7 @@ import { Array, pipe } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from '@/components/AnimatedImage'
+import { PlantImageBadge } from '@/components/PlantImageBadge'
 import { useIconColors } from '@/hooks/useIconColors'
 
 interface Plant {
@@ -37,66 +37,13 @@ function PlantCircle({ plant, onPress, iconColors }: PlantCircleProps) {
       className="items-center gap-2"
       accessibilityLabel={t('hydration.viewPlant', { name: plant.name })}
     >
-      {/* Plant image with water drop badge */}
-      <View className="relative">
-        <View
-          className="w-[72px] h-[72px] rounded-full overflow-hidden items-center justify-center"
-          style={{
-            backgroundColor: isDark ? '#374151' : '#FFFFFF',
-            borderWidth: 3,
-            borderColor: isDark ? '#4B5563' : 'white',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: isDark ? 0.3 : 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          {plant.imageUrl ? (
-            <AnimatedImage
-              source={{ uri: plant.imageUrl }}
-              className="w-full h-full"
-              rounded
-              fallback={
-                <View
-                  className="w-full h-full items-center justify-center"
-                  style={{
-                    backgroundColor: isDark ? '#2D3728' : '#E8F5E8',
-                  }}
-                >
-                  <MaterialIcons
-                    name="eco"
-                    size={32}
-                    color={iconColors.primary}
-                  />
-                </View>
-              }
-            />
-          ) : (
-            <View
-              className="w-full h-full items-center justify-center"
-              style={{ backgroundColor: isDark ? '#2D3728' : '#E8F5E8' }}
-            >
-              <MaterialIcons name="eco" size={32} color={iconColors.primary} />
-            </View>
-          )}
-        </View>
-        {/* Water drop badge */}
-        <View
-          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
-          style={{
-            backgroundColor: isDark ? 'rgba(96, 165, 250, 0.2)' : '#E3F2FD',
-            borderWidth: 2,
-            borderColor: isDark ? '#4B5563' : 'white',
-          }}
-        >
-          <MaterialIcons
-            name="water-drop"
-            size={14}
-            color={iconColors.waterBlue}
-          />
-        </View>
-      </View>
+      <PlantImageBadge
+        imageUrl={plant.imageUrl}
+        size={72}
+        badgeIcon="water-drop"
+        badgeColor={iconColors.waterBlue}
+        badgeBgColor={isDark ? '#1E3050' : '#E3F2FD'}
+      />
       {/* Plant name */}
       <Text
         className="text-xs font-semibold"
