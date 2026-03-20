@@ -62,6 +62,13 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen
+          name="notifications"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
           name="achievements"
           options={{
             headerShown: false,

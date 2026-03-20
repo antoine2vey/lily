@@ -1,7 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { deleteNotification } from '@lily/api/services/notifications/endpoints/delete-notification'
 import { getNotifications } from '@lily/api/services/notifications/endpoints/get-notifications'
+import { getUnreadCount } from '@lily/api/services/notifications/endpoints/get-unread-count'
+import { markAllRead } from '@lily/api/services/notifications/endpoints/mark-all-read'
 import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { Array, Option, pipe } from 'effect'
 
@@ -34,7 +37,14 @@ export const NotificationsApiLive = (api: Api) =>
             : 'all',
         }).pipe(withInfraErrorsAsDefect)
       )
+      .handle('getUnreadCount', () =>
+        getUnreadCount().pipe(withInfraErrorsAsDefect)
+      )
+      .handle('markAllRead', () => markAllRead().pipe(withInfraErrorsAsDefect))
       .handle('markNotificationRead', ({ path: { notificationId } }) =>
         markNotificationRead(notificationId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('deleteNotification', ({ path: { notificationId } }) =>
+        deleteNotification(notificationId).pipe(withInfraErrorsAsDefect)
       )
   )

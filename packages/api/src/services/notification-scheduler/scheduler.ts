@@ -208,7 +208,15 @@ export const pollAndEnqueue = Effect.gen(function* () {
         scheduledAt: first.value.notification.scheduledAt,
       })
 
-      yield* notificationRepo.markManyAsQueued(notificationIds)
+      yield* Effect.if(isCareReminderType(topic), {
+        onTrue: () =>
+          notificationRepo.markManyAsQueuedWithContent(
+            notificationIds,
+            title,
+            body
+          ),
+        onFalse: () => notificationRepo.markManyAsQueued(notificationIds),
+      })
 
       yield* Effect.log('[notification-scheduler] Enqueued group', {
         notificationIds,

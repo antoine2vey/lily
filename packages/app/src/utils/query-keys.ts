@@ -51,6 +51,11 @@ export const queryKeys = {
   // Notifications domain
   notifications: {
     all: ['notifications'] as const,
+    lists: () => [...queryKeys.notifications.all, 'getNotifications'] as const,
+    list: (params?: Record<string, unknown>) =>
+      [...queryKeys.notifications.lists(), params] as const,
+    unreadCount: () =>
+      [...queryKeys.notifications.all, 'getUnreadCount'] as const,
     settings: () =>
       [...queryKeys.notifications.all, 'getNotificationSettings'] as const,
   },

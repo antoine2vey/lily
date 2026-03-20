@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { now } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
+import type { Href } from 'expo-router'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -18,6 +19,7 @@ import { useCareTasks } from '@/hooks/useCareTasks'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
+import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
@@ -182,6 +184,7 @@ export function HomeScreen() {
   const { data: achievementsData, refetch: refetchAchievements } =
     useAchievements()
   const weather = useWeather()
+  const { count: unreadCount } = useUnreadCount()
 
   const userName = pipe(
     Match.value(state),
@@ -328,7 +331,7 @@ export function HomeScreen() {
                     />
                   </Pressable>
                   <Pressable
-                    onPress={() => router.push('/(app)/notification-settings')}
+                    onPress={() => router.push('/(app)/notifications' as Href)}
                     className="w-11 h-11 rounded-full bg-white dark:bg-surface-dark items-center justify-center"
                     style={{
                       shadowColor: '#000',
@@ -343,6 +346,16 @@ export function HomeScreen() {
                       size={24}
                       color={iconColors.textPrimary}
                     />
+                    {unreadCount > 0 && (
+                      <View className="absolute -top-1 -right-1 bg-coral rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+                        <Text
+                          className="text-white text-[10px] font-bold"
+                          style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
                   </Pressable>
                 </View>
               </View>
