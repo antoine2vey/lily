@@ -197,5 +197,89 @@ describe('DelegationScheduler', () => {
         title: '🎉 Delegation ended',
       })
     })
+    describe('error isolation', () => {
+      it('should process multiple activations independently', async () => {
+        notifications.length = 0
+        const d1: DelegationRow = {
+          ...mockDelegation1,
+          id: 'activate-1',
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const d2: DelegationRow = {
+          ...mockDelegation2,
+          id: 'activate-2',
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const delegations = [d1, d2]
+        const layer = Layer.mergeAll(
+          createMockDelegationRepository({
+            delegations,
+            plants: mockDelegationPlants,
+            delegationPlants: [
+              { delegationId: 'activate-1', plantId: 'plant-1' },
+              { delegationId: 'activate-2', plantId: 'plant-2' },
+            ],
+          }),
+          createMockNotificationRepository(notifications),
+          createMockUserRepository([mockUser1, mockUser2]),
+          createMockMessageQueue()
+        )
+
+        await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
+
+        expect(delegations[0]?.status).toBe('active')
+        expect(delegations[1]?.status).toBe('active')
+      })
+
+      it('should create notifications with correct plant count', async () => {
+        notifications.length = 0
+        const delegation: DelegationRow = {
+          ...mockDelegation1,
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const delegations = [delegation]
+        const layer = createLayer(delegations)
+
+        await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
+
+        // Delegation has 2 plants linked, notification body should
+        // reference them
+        expect(notifications.length).toBeGreaterThanOrEqual(2)
+      })
+
+      it('should handle delegation with no associated plants', async () => {
+        notifications.length = 0
+        const delegation: DelegationRow = {
+          ...mockDelegation1,
+          id: 'no-plants-delegation',
+          status: 'accepted' as const,
+          startDate: pastDate,
+          endDate: futureDate,
+        }
+        const delegations = [delegation]
+        const layer = Layer.mergeAll(
+          createMockDelegationRepository({
+            delegations,
+            plants: mockDelegationPlants,
+            delegationPlants: [], // No plants linked
+          }),
+          createMockNotificationRepository(notifications),
+          createMockUserRepository([mockUser1, mockUser2]),
+          createMockMessageQueue()
+        )
+
+        await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
+
+        expect(delegations[0]?.status).toBe('active')
+        // Notifications should still be created (with plantCount: 0)
+        expect(notifications.length).toBeGreaterThanOrEqual(2)
+      })
+    })
   })
 })

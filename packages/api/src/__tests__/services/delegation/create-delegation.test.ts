@@ -20,6 +20,7 @@ import {
   LimitExceededError,
   UserNotFoundError,
 } from '@lily/shared'
+import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -243,5 +244,54 @@ describe('createDelegation', () => {
       title: '🤝 Care request',
     })
     expect(notifications[0]?.body).toContain(mockUser1.name)
+  })
+
+  it('should fail with PlantNotAuthorizedError when plantId does not exist', async () => {
+    const layer = createLayer()
+
+    const result = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['non-existent-plant'],
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(PlantNotAuthorizedError)
+    }
+  })
+
+  it('should fail with PlantNotAuthorizedError when plant belongs to another user', async () => {
+    const layer = createLayer()
+
+    // plant-3 belongs to user-2, current user is user-1
+    const result = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: ['plant-1', 'plant-3'],
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(PlantNotAuthorizedError)
+    }
+  })
+
+  it('should fail with DelegationDateError when plantIds is empty', async () => {
+    const layer = createLayer()
+
+    const result = await Effect.runPromiseExit(
+      createDelegation({
+        ...validRequest,
+        plantIds: [],
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(DelegationDateError)
+    }
   })
 })

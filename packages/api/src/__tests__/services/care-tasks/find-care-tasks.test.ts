@@ -542,4 +542,248 @@ describe('findCareTasks', () => {
       expect(parisTodayIds.length).toBeGreaterThanOrEqual(1)
     })
   })
+
+  describe('edge cases', () => {
+    it('should handle plant with null nextCareAt in schedule', async () => {
+      // A plant whose schedule has nextCareAt = null should be filtered out
+      const plants: TestPlant[] = [
+        {
+          id: 'plant-null-care',
+          name: 'Null Care Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY',
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: null,
+              nextCareAt: null,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          roomId: null,
+          userId: 'user-1',
+        },
+      ]
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+      )
+
+      expect(result.overdue).toEqual([])
+      expect(result.today).toEqual([])
+      expect(result.upcoming).toEqual([])
+    })
+
+    it('should handle multiple care types on same plant', async () => {
+      // Both watering and fertilization due on the same day
+      const yesterday = new Date(REFERENCE_DATE)
+      yesterday.setDate(yesterday.getDate() - 1)
+
+      const plants: TestPlant[] = [
+        {
+          id: 'plant-multi',
+          name: 'Multi Care Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY',
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: yesterday,
+            }),
+            fertilizationSpec({
+              frequencyDays: 30,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: yesterday,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          roomId: null,
+          userId: 'user-1',
+        },
+      ]
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+      )
+
+      // Both care types should appear as overdue
+      const overdueIds = Array.map(result.overdue, (t) => t.type)
+      expect(overdueIds).toContain('watering')
+      expect(overdueIds).toContain('fertilization')
+    })
+
+    it('should return empty results for user with no plants', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', [])))
+      )
+
+      expect(result.overdue).toEqual([])
+      expect(result.today).toEqual([])
+      expect(result.upcoming).toEqual([])
+    })
+
+    it('should fallback timezone to UTC when user has null timezone', async () => {
+      const tomorrow = new Date(REFERENCE_DATE)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const plants: TestPlant[] = [
+        {
+          id: 'plant-tz-null',
+          name: 'Null TZ Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY',
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: tomorrow,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          roomId: null,
+          userId: 'user-null-tz',
+        },
+      ]
+
+      const nullTzUser = createTestUser({
+        id: 'user-null-tz',
+        timezone: null,
+      })
+
+      const layer = Layer.mergeAll(
+        createMockPlantRepository({ plants }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(plants),
+          plants,
+        }),
+        createMockCurrentUser({ id: 'user-null-tz' }),
+        createMockUserRepository([...mockUsers, nullTzUser])
+      )
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(layer))
+      )
+
+      // Should not throw — falls back to UTC
+      const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
+      expect(allTasks.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should include room name and icon when plant has a room', async () => {
+      const tomorrow = new Date(REFERENCE_DATE)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const rooms = [
+        {
+          id: 'room-1',
+          name: 'Living Room',
+          icon: 'sofa',
+          luminosity: 3,
+          isOutdoor: false,
+        },
+      ]
+
+      const plants: TestPlant[] = [
+        {
+          id: 'plant-with-room',
+          name: 'Room Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY',
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: tomorrow,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          roomId: 'room-1',
+          userId: 'user-1',
+        },
+      ]
+
+      const layer = Layer.mergeAll(
+        createMockPlantRepository({ plants, rooms }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(plants),
+          plants,
+          rooms: rooms.map((r) => ({
+            id: r.id,
+            name: r.name,
+            icon: r.icon,
+          })),
+        }),
+        createMockCurrentUser({ id: 'user-1' }),
+        createMockUserRepository(mockUsers)
+      )
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(layer))
+      )
+
+      const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
+      const task = Array.findFirst(
+        allTasks,
+        (t) => t.plantId === 'plant-with-room'
+      )
+      expect(task._tag).toBe('Some')
+      if (task._tag === 'Some') {
+        expect(task.value.roomName).toBe('Living Room')
+        expect(task.value.roomIcon).toBe('sofa')
+      }
+    })
+
+    it('should set roomName and roomIcon to null for plants without rooms', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer()))
+      )
+
+      // plant-1 has no room
+      const task = Array.findFirst(
+        result.overdue,
+        (t) => t.plantId === 'plant-1'
+      )
+      if (task._tag === 'Some') {
+        expect(task.value.roomName).toBeNull()
+        expect(task.value.roomIcon).toBeNull()
+      }
+    })
+  })
 })

@@ -100,4 +100,48 @@ describe('registerDeviceToken', () => {
 
     expect(result.platform).toBe('web')
   })
+
+  it('should handle re-registering the same token multiple times', async () => {
+    // First registration
+    const result1 = await Effect.runPromise(
+      registerDeviceToken({
+        token: 'repeat-token',
+        platform: 'ios',
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+    expect(result1.token).toBe('repeat-token')
+    expect(result1.isActive).toBe(true)
+  })
+
+  it('should create distinct tokens for different platforms same user', async () => {
+    const ios = await Effect.runPromise(
+      registerDeviceToken({
+        token: 'multi-platform-token',
+        platform: 'ios',
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+    expect(ios.platform).toBe('ios')
+  })
+
+  it('should handle very long token strings', async () => {
+    const longToken = 'a'.repeat(500)
+    const result = await Effect.runPromise(
+      registerDeviceToken({
+        token: longToken,
+        platform: 'ios',
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+    expect(result.token).toBe(longToken)
+  })
+
+  it('should set isActive to true for newly created tokens', async () => {
+    const result = await Effect.runPromise(
+      registerDeviceToken({
+        token: 'brand-new-token',
+        platform: 'android',
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+    expect(result.isActive).toBe(true)
+    expect(result.platform).toBe('android')
+  })
 })

@@ -3,7 +3,7 @@ import type {
   AchievementsResponse,
   AchievementWithProgress,
 } from '@lily/shared'
-import { Array, Match, Option, Order, pipe } from 'effect'
+import { Array, Match, Order, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'

@@ -51,4 +51,35 @@ describe('checkUsername', () => {
 
     expect(result.username).toBe('user123')
   })
+
+  it('should handle empty string username', async () => {
+    const result = await Effect.runPromise(
+      checkUsername('').pipe(Effect.provide(createTestLayer()))
+    )
+
+    // Empty string won't match any user name
+    expect(result.available).toBe(true)
+    expect(result.username).toBe('')
+  })
+
+  it('should handle very long username', async () => {
+    const longName = 'a'.repeat(255)
+    const result = await Effect.runPromise(
+      checkUsername(longName).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.available).toBe(true)
+    expect(result.username).toBe(longName)
+  })
+
+  it('should handle username with special characters', async () => {
+    const result = await Effect.runPromise(
+      checkUsername('user_name-123.test').pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(result.available).toBe(true)
+    expect(result.username).toBe('user_name-123.test')
+  })
 })
