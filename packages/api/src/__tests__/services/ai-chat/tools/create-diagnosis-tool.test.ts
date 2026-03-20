@@ -8,6 +8,7 @@ import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
 import type { ToolDeps } from '@lily/api/services/ai-chat/tools/index'
 import { Effect, Layer, ManagedRuntime } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 const testLayer = Layer.mergeAll(
   createMockDiagnosisRepository([]),
@@ -35,14 +36,14 @@ describe('createDiagnosisTool', () => {
     }
 
     const diagTool = createDiagnosisTool(deps)
-    const result = await diagTool.execute(
+    const result = (await diagTool.execute!(
       {
         ...baseParams,
         preventionTips: ['Avoid overwatering', 'Ensure good drainage'],
       },
       // @ts-expect-error - testing execute directly without AI options
       undefined
-    )
+    )) as { diagnosisId: string }
 
     expect(result.diagnosisId).toBeDefined()
     expect(result.diagnosisId).toMatch(/^diagnosis-/)
@@ -60,11 +61,11 @@ describe('createDiagnosisTool', () => {
     }
 
     const diagTool = createDiagnosisTool(deps)
-    const result = await diagTool.execute(
+    const result = (await diagTool.execute!(
       baseParams,
       // @ts-expect-error - testing execute directly without AI options
       undefined
-    )
+    )) as { diagnosisId: string }
 
     expect(result.diagnosisId).toBeDefined()
     expect(result.diagnosisId).toMatch(/^diagnosis-/)
@@ -107,7 +108,7 @@ describe('createDiagnosisTool', () => {
     }
 
     const diagTool = createDiagnosisTool(deps)
-    await diagTool.execute(
+    await diagTool.execute!(
       baseParams,
       // @ts-expect-error - testing execute directly without AI options
       undefined

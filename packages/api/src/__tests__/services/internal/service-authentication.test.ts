@@ -17,7 +17,11 @@ describe('ServiceAuthenticationLive', () => {
       Effect.gen(function* () {
         const auth = yield* ServiceAuthentication
         return yield* auth.apiKey(Redacted.make(testSecret))
-      }).pipe(Effect.provide(testLayer))
+      }).pipe(Effect.provide(testLayer)) as Effect.Effect<
+        { readonly verified: true },
+        any,
+        never
+      >
     )
 
     expect(result).toEqual({ verified: true })
@@ -28,7 +32,11 @@ describe('ServiceAuthenticationLive', () => {
       Effect.gen(function* () {
         const auth = yield* ServiceAuthentication
         return yield* auth.apiKey(Redacted.make('wrong-secret'))
-      }).pipe(Effect.provide(testLayer))
+      }).pipe(Effect.provide(testLayer)) as Effect.Effect<
+        { readonly verified: true },
+        any,
+        never
+      >
     )
 
     expect(exit._tag).toBe('Failure')
@@ -39,7 +47,11 @@ describe('ServiceAuthenticationLive', () => {
       Effect.gen(function* () {
         const auth = yield* ServiceAuthentication
         return yield* auth.apiKey(Redacted.make('short'))
-      }).pipe(Effect.provide(testLayer))
+      }).pipe(Effect.provide(testLayer)) as Effect.Effect<
+        { readonly verified: true },
+        any,
+        never
+      >
     )
 
     expect(exit._tag).toBe('Failure')

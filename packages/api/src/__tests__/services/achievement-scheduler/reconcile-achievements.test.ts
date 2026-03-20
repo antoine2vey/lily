@@ -3,6 +3,7 @@ import { AchievementRepository } from '@lily/api/repositories/achievement.reposi
 import { reconcileAchievements } from '@lily/api/services/achievement-scheduler/scheduler'
 import type { AchievementKey } from '@lily/shared'
 import { Array, Effect } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 const makeAchievement = (
   userId: string,

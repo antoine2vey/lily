@@ -5,6 +5,7 @@ import { searchPlantKnowledgeTool } from '@lily/api/services/ai-chat/tools/searc
 import type { RagService } from '@lily/api/services/rag/service'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Effect, Layer, ManagedRuntime } from 'effect'
+import { describe, expect, it } from 'vitest'
 
 const mockChunks: ChunkSearchResult[] = [
   {
@@ -24,7 +25,7 @@ const mockChunks: ChunkSearchResult[] = [
 const diagStub = createMockDiagnosisRepository([])
 
 const makeDeps = async (
-  layer: Layer.Layer<never>
+  layer: Layer.Layer<any>
 ): Promise<{
   deps: ToolDeps
   cleanup: () => Promise<void>
@@ -51,7 +52,7 @@ describe('searchPlantKnowledgeTool', () => {
     const { deps, cleanup } = await makeDeps(layer)
 
     const tool = searchPlantKnowledgeTool(deps)
-    const result = await tool.execute(
+    const result = await tool.execute!(
       { query: 'How often should I water?' },
       // @ts-expect-error - testing execute directly without AI options
       undefined
@@ -67,7 +68,7 @@ describe('searchPlantKnowledgeTool', () => {
     const { deps, cleanup } = await makeDeps(layer)
 
     const tool = searchPlantKnowledgeTool(deps)
-    const result = await tool.execute(
+    const result = await tool.execute!(
       { query: 'Can I grow monstera outdoors?' },
       // @ts-expect-error - testing execute directly without AI options
       undefined
@@ -90,14 +91,14 @@ describe('searchPlantKnowledgeTool', () => {
         },
         formatContext: (chunks: ChunkSearchResult[]) =>
           chunks.map((c) => c.content).join('\n'),
-      } as unknown as RagService['Type']
+      } as any
     )
 
     const layer = Layer.mergeAll(diagStub, spyLayer)
     const { deps, cleanup } = await makeDeps(layer)
 
     const tool = searchPlantKnowledgeTool(deps)
-    await tool.execute(
+    await tool.execute!(
       { query: 'watering schedule' },
       // @ts-expect-error - testing execute directly without AI options
       undefined

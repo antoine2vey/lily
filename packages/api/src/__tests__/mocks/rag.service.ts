@@ -13,10 +13,12 @@ export const createMockRagService = (
 
   return Layer.succeed(RagService, {
     retrieve: () => Effect.succeed(chunks),
-    formatContext: (inputChunks) =>
+    formatContext: (inputChunks: ChunkSearchResult[]) =>
       Array.isEmptyArray(inputChunks)
         ? ''
-        : inputChunks.map((c) => `[${c.source}]: ${c.content}`).join('\n'),
+        : inputChunks
+            .map((c: ChunkSearchResult) => `[${c.source}]: ${c.content}`)
+            .join('\n'),
   } as unknown as typeof RagService.Service)
 }
 
