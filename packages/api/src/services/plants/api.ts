@@ -172,12 +172,21 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // PUT /plants/:id - Update plant
+    // PUT /plants/:id - Update plant (multipart: JSON data + optional image)
     HttpApiEndpoint.put('updatePlant')`/${plantIdParam}`
-      .setPayload(PlantUpdateRequest)
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            data: Schema.parseJson(PlantUpdateRequest),
+            image: Multipart.SingleFileSchema.pipe(Schema.optional),
+          })
+        )
+      )
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

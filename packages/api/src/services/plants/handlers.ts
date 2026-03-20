@@ -65,9 +65,9 @@ export const PlantsApiLive = (api: Api) =>
           withInfraErrorsAsDefect
         )
       )
-      .handle('updatePlant', ({ path: { id }, payload }) =>
+      .handle('updatePlant', ({ path: { id }, payload: { data, image } }) =>
         withPlantAuth(id).pipe(
-          Effect.flatMap((plant) => updatePlant(plant, { ...payload, id })),
+          Effect.flatMap((plant) => updatePlant(plant, { ...data, id }, image)),
           withInfraErrorsAsDefect
         )
       )

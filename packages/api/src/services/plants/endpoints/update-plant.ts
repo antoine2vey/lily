@@ -1,3 +1,6 @@
+import type { PlatformError } from '@effect/platform/Error'
+import { FileSystem } from '@effect/platform/FileSystem'
+import type { PersistedFile } from '@effect/platform/Multipart'
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -6,7 +9,21 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { CareType } from '@lily/shared'
 import type { PlantUpdateRequest } from '@lily/shared/plant'
-import { Array, DateTime, Effect, Option, pipe, Record, Struct } from 'effect'
+import { GCSService } from '@lily/shared/services/file/gcs'
+import type {
+  GCSConfigError,
+  GCSUploadError,
+} from '@lily/shared/services/file/gcs-errors'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Option,
+  pipe,
+  Record,
+  String,
+  Struct,
+} from 'effect'
 
 /**
  * Upsert or delete a single optional care schedule.
@@ -40,11 +57,12 @@ const syncOptionalSchedule = (
 
 export const updatePlant = (
   plant: PlantWithRoom,
-  request: PlantUpdateRequest & { id: string }
+  request: PlantUpdateRequest & { id: string },
+  image?: PersistedFile
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError,
-  PlantRepository | CareScheduleRepository
+  SqlError | GCSUploadError | GCSConfigError | PlatformError,
+  PlantRepository | CareScheduleRepository | GCSService | FileSystem
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
@@ -53,9 +71,32 @@ export const updatePlant = (
 
     const now = DateTime.toDateUtc(DateTime.unsafeNow())
 
+    // If an image file was uploaded, upload to GCS and use the URL
+    const imageUrl = image
+      ? yield* Effect.gen(function* () {
+          const gcs = yield* GCSService
+          const fileSystem = yield* FileSystem
+          const buffer = yield* fileSystem.readFile(image.path)
+          const safeName = pipe(
+            image.name,
+            String.replaceAll('..', ''),
+            String.split('/'),
+            Array.last,
+            Option.getOrElse(() => 'photo.jpg')
+          )
+          const timestamp = DateTime.toEpochMillis(DateTime.unsafeNow())
+          const { url } = yield* gcs.uploadFile({
+            fileBuffer: Buffer.from(buffer),
+            fileName: `plants/${request.id}/${timestamp}-${safeName}`,
+            contentType: image.contentType,
+          })
+          return url
+        })
+      : Option.getOrUndefined(Option.fromNullable(request.imageUrl))
+
     // Build update data from request, excluding care-related fields
     const data = pipe(
-      Record.fromEntries(Struct.entries(request)),
+      Record.fromEntries(Struct.entries({ ...request, imageUrl })),
       Record.remove('id'),
       Record.remove('wateringFrequencyDays'),
       Record.remove('fertilizationFrequencyDays'),

@@ -41,7 +41,8 @@ export async function uploadMultipart<T>(
   endpoint: string,
   files: UploadFile[],
   fieldName = 'files',
-  additionalFields?: Record<string, string>
+  additionalFields?: Record<string, string>,
+  method: 'POST' | 'PUT' = 'POST'
 ): Promise<T> {
   const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
 
@@ -68,7 +69,7 @@ export async function uploadMultipart<T>(
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: 'POST',
+    method,
     headers,
     body: formData,
   })
@@ -80,7 +81,7 @@ export async function uploadMultipart<T>(
       // Retry with new token
       headers.Authorization = `Bearer ${newToken}`
       const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'POST',
+        method,
         headers,
         body: formData,
       })
