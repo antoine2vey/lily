@@ -250,6 +250,8 @@ export function NotificationsScreen() {
       const route = resolveNotificationRoute({
         topic: item.type,
         plantIds: item.plantId ?? '',
+        title: item.title ?? '',
+        body: item.body ?? '',
       })
       if (route) {
         router.push(route)
