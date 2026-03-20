@@ -7,7 +7,7 @@ import {
   EventBusPublishError,
   type IEventBus,
 } from '@lily/shared/server'
-import { Effect, Layer, Queue, Schema } from 'effect'
+import { Effect, Layer, Queue, Runtime, Schema } from 'effect'
 
 // Channel name for event bus pub-sub
 const CHANNEL = 'lily:events'
@@ -37,10 +37,13 @@ export const RedisEventBusLive = Layer.scoped(
       channel: CHANNEL,
     })
 
+    // Extract runtime so we can fork effects from the Redis callback
+    const runtime = yield* Effect.runtime<never>()
+
     // Listen for messages and enqueue to local queue
     subscriberRedis.on('message', (channel, message) => {
       if (channel === CHANNEL) {
-        Effect.runFork(
+        Runtime.runFork(runtime)(
           Effect.gen(function* () {
             const parsed = yield* Effect.try(
               () => JSON.parse(message) as unknown
