@@ -1,19 +1,24 @@
-import { renderHook } from '@testing-library/react-native'
-import {
-  createQueryWrapper,
-  mockMutationSuccess,
-} from 'src/__tests__/utils/query-helpers'
+import { act, renderHook } from '@testing-library/react-native'
+import { createQueryWrapper } from 'src/__tests__/utils/query-helpers'
 
-// Mock the client
-jest.mock('@/utils/client', () => ({
-  useEffectMutation: jest.fn(),
+// Mock upload utility
+jest.mock('@/utils/upload', () => ({
+  createFileFromUri: jest.fn((uri: string) => ({
+    uri,
+    name: 'photo.jpg',
+    type: 'image/jpeg',
+  })),
+  uploadMultipart: jest.fn().mockResolvedValue({}),
 }))
 
-import { useEffectMutation } from 'src/utils/client'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 import { useUpdatePlant } from '../useUpdatePlant'
 
-const mockedUseEffectMutation = useEffectMutation as jest.MockedFunction<
-  typeof useEffectMutation
+const mockedUploadMultipart = uploadMultipart as jest.MockedFunction<
+  typeof uploadMultipart
+>
+const mockedCreateFileFromUri = createFileFromUri as jest.MockedFunction<
+  typeof createFileFromUri
 >
 
 describe('useUpdatePlant', () => {
@@ -21,33 +26,97 @@ describe('useUpdatePlant', () => {
     jest.clearAllMocks()
   })
 
-  it('calls useEffectMutation with correct parameters', () => {
-    mockedUseEffectMutation.mockReturnValue(mockMutationSuccess())
-
-    renderHook(() => useUpdatePlant(), {
-      wrapper: createQueryWrapper(),
-    })
-
-    expect(mockedUseEffectMutation).toHaveBeenCalledWith(
-      'plants',
-      'updatePlant',
-      expect.any(Object)
-    )
-  })
-
   it('returns mutation functions', () => {
-    const mockMutation = {
-      ...mockMutationSuccess(),
-      mutate: jest.fn(),
-      mutateAsync: jest.fn(),
-    }
-    mockedUseEffectMutation.mockReturnValue(mockMutation)
-
     const { result } = renderHook(() => useUpdatePlant(), {
       wrapper: createQueryWrapper(),
     })
 
     expect(typeof result.current.mutate).toBe('function')
     expect(typeof result.current.mutateAsync).toBe('function')
+  })
+
+  it('sends JSON data field via multipart PUT', async () => {
+    mockedUploadMultipart.mockResolvedValue({})
+
+    const { result } = renderHook(() => useUpdatePlant(), {
+      wrapper: createQueryWrapper(),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        path: { id: 'plant-1' },
+        payload: { name: 'Updated', wateringFrequencyDays: 7 },
+      })
+    })
+
+    expect(mockedUploadMultipart).toHaveBeenCalledWith(
+      '/api/plants/plant-1',
+      [],
+      'image',
+      { data: JSON.stringify({ name: 'Updated', wateringFrequencyDays: 7 }) },
+      'PUT'
+    )
+  })
+
+  it('uploads local file:// image as multipart file', async () => {
+    mockedUploadMultipart.mockResolvedValue({})
+
+    const { result } = renderHook(() => useUpdatePlant(), {
+      wrapper: createQueryWrapper(),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        path: { id: 'plant-1' },
+        payload: {
+          name: 'Updated',
+          imageUrl: 'file:///var/mobile/photo.jpg',
+        },
+      })
+    })
+
+    expect(mockedCreateFileFromUri).toHaveBeenCalledWith(
+      'file:///var/mobile/photo.jpg',
+      expect.objectContaining({ type: 'image/jpeg' })
+    )
+    expect(mockedUploadMultipart).toHaveBeenCalledWith(
+      '/api/plants/plant-1',
+      [expect.objectContaining({ uri: 'file:///var/mobile/photo.jpg' })],
+      'image',
+      { data: JSON.stringify({ name: 'Updated' }) },
+      'PUT'
+    )
+  })
+
+  it('passes GCS URL as imageUrl in data field without uploading', async () => {
+    mockedUploadMultipart.mockResolvedValue({})
+
+    const { result } = renderHook(() => useUpdatePlant(), {
+      wrapper: createQueryWrapper(),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        path: { id: 'plant-1' },
+        payload: {
+          name: 'Updated',
+          imageUrl: 'https://storage.googleapis.com/photo.jpg',
+        },
+      })
+    })
+
+    expect(mockedCreateFileFromUri).not.toHaveBeenCalled()
+    expect(mockedUploadMultipart).toHaveBeenCalledWith(
+      '/api/plants/plant-1',
+      [],
+      'image',
+      {
+        data: JSON.stringify({
+          name: 'Updated',
+          imageUrl: 'https://storage.googleapis.com/photo.jpg',
+        }),
+      },
+      'PUT'
+    )
   })
 })
