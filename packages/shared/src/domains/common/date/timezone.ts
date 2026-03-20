@@ -13,7 +13,12 @@ export const withTimeZone = (
   timezone?: string
 ): DateTime.DateTime =>
   timezone
-    ? DateTime.setZone(dateTime, DateTime.zoneUnsafeMakeNamed(timezone))
+    ? DateTime.setZone(
+        dateTime,
+        timezone === 'UTC'
+          ? DateTime.zoneMakeOffset(0)
+          : DateTime.zoneUnsafeMakeNamed(timezone)
+      )
     : dateTime
 
 /**
@@ -108,10 +113,7 @@ export const endOfWeek = (
  * @returns Start of today (00:00:00.000) in the specified timezone
  */
 export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
-  const current = DateTime.setZone(
-    DateTime.unsafeNow(),
-    DateTime.zoneUnsafeMakeNamed(timezone)
-  )
+  const current = withTimeZone(DateTime.unsafeNow(), timezone)
   const parts = DateTime.toParts(current)
   return DateTime.toDateUtc(
     DateTime.unsafeMakeZoned(
@@ -136,10 +138,7 @@ export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
  * @returns Start of tomorrow (00:00:00.000) in the specified timezone
  */
 export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
-  const current = DateTime.setZone(
-    DateTime.unsafeNow(),
-    DateTime.zoneUnsafeMakeNamed(timezone)
-  )
+  const current = withTimeZone(DateTime.unsafeNow(), timezone)
   const tomorrow = DateTime.add(current, { days: 1 })
   const parts = DateTime.toParts(tomorrow)
   return DateTime.toDateUtc(
