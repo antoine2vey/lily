@@ -61,8 +61,8 @@ type TopicsOfCategory<C extends TopicCategory> = {
 }[NotificationTopic]
 
 export type DeferredCareType = TopicsOfCategory<'care'>
-type SocialNotificationType = TopicsOfCategory<'social'>
-type EngagementNotificationType = TopicsOfCategory<'engagement'>
+export type SocialNotificationType = TopicsOfCategory<'social'>
+export type EngagementNotificationType = TopicsOfCategory<'engagement'>
 
 // Queue message payload for notifications
 export const QueueMessagePayload = Schema.Struct({

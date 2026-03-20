@@ -20,7 +20,8 @@ import { createMockUserRepository } from '../../mocks/user.repository'
 
 const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> =>
   Layer.succeed(SqlClient.SqlClient, {
-    withTransaction: (effect: Effect.Effect<any, any, any>) => effect,
+    withTransaction: (effect: Effect.Effect<unknown, unknown, unknown>) =>
+      effect,
   } as unknown as SqlClient.SqlClient['Type'])
 
 const schedulesFromPlants = (plants: TestPlant[]): CareScheduleRow[] =>
@@ -49,9 +50,9 @@ const createTestLayer = (
     schedules?: CareScheduleRow[]
     notifications?: Notification[]
     publishedEvents?: AppEvent[]
-    delegations?: any[]
-    delegationPlants?: any[]
-    users?: any[]
+    delegations?: unknown[]
+    delegationPlants?: unknown[]
+    users?: unknown[]
     rooms?: { id: string; name: string; icon: string }[]
   } = {}
 ) => {

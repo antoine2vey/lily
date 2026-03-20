@@ -10,7 +10,6 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import { nowAsDate } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
 

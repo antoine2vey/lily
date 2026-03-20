@@ -2,6 +2,7 @@ import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnos
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import type { ToolDeps } from '@lily/api/services/ai-chat/tools/index'
 import { searchPlantKnowledgeTool } from '@lily/api/services/ai-chat/tools/search-plant-knowledge'
+import type { RagService } from '@lily/api/services/rag/service'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 
@@ -23,7 +24,7 @@ const mockChunks: ChunkSearchResult[] = [
 const diagStub = createMockDiagnosisRepository([])
 
 const makeDeps = async (
-  layer: Layer.Layer<any>
+  layer: Layer.Layer<never>
 ): Promise<{
   deps: ToolDeps
   cleanup: () => Promise<void>
@@ -89,7 +90,7 @@ describe('searchPlantKnowledgeTool', () => {
         },
         formatContext: (chunks: ChunkSearchResult[]) =>
           chunks.map((c) => c.content).join('\n'),
-      } as any
+      } as unknown as RagService['Type']
     )
 
     const layer = Layer.mergeAll(diagStub, spyLayer)

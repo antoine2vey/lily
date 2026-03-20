@@ -144,7 +144,6 @@ export const createMockCareScheduleRepository = (
       )
 
       if (Option.isSome(existingIdx)) {
-        // biome-ignore lint/style/noNonNullAssertion: index is guaranteed valid from findFirstIndex
         const existing = schedulesData[existingIdx.value]!
         const updated: CareScheduleRow = {
           ...existing,
@@ -187,7 +186,6 @@ export const createMockCareScheduleRepository = (
         (s) => s.plantId === plantId && s.careType === careType
       )
       if (Option.isNone(idx)) return Effect.succeed(null)
-      // biome-ignore lint/style/noNonNullAssertion: index is guaranteed valid from findFirstIndex
       const existing = schedulesData[idx.value]!
       const updated: CareScheduleRow = {
         ...existing,
