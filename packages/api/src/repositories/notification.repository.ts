@@ -109,6 +109,17 @@ export interface INotificationRepository {
     timezone: string,
     type: NotificationTopic
   ) => Effect.Effect<boolean, SqlError>
+  readonly countUnreadByUserId: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
+  readonly markAllAsReadByUserId: (
+    userId: string
+  ) => Effect.Effect<void, SqlError>
+  readonly markManyAsQueuedWithContent: (
+    ids: readonly string[],
+    title: string,
+    body: string
+  ) => Effect.Effect<void, SqlError>
 }
 
 // Tag for dependency injection
@@ -336,6 +347,46 @@ export const NotificationRepositoryLive = Layer.effect(
             .where(inArray(notifications.id, [...ids]))
         }
       ),
+
+      countUnreadByUserId: Effect.fn(
+        'NotificationRepository.countUnreadByUserId'
+      )(function* (userId: string) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.status, 'sent'),
+              eq(notifications.isRead, false)
+            )
+          )
+        return extractCount(result)
+      }),
+
+      markAllAsReadByUserId: Effect.fn(
+        'NotificationRepository.markAllAsReadByUserId'
+      )(function* (userId: string) {
+        yield* db
+          .update(notifications)
+          .set({ isRead: true })
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.isRead, false)
+            )
+          )
+      }),
+
+      markManyAsQueuedWithContent: Effect.fn(
+        'NotificationRepository.markManyAsQueuedWithContent'
+      )(function* (ids: readonly string[], title: string, body: string) {
+        if (ids.length === 0) return
+        yield* db
+          .update(notifications)
+          .set({ status: 'queued', title, body })
+          .where(inArray(notifications.id, [...ids]))
+      }),
 
       hasNotificationOfTypeTodayForUser: Effect.fn(
         'NotificationRepository.hasNotificationOfTypeTodayForUser'

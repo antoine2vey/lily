@@ -195,6 +195,44 @@ export const createMockNotificationRepository = (
         })
       }),
 
+    countUnreadByUserId: (userId: string) =>
+      Effect.succeed(
+        Array.filter(
+          notificationsState,
+          (n) =>
+            n.userId === userId && n.status === 'sent' && n.isRead === false
+        ).length
+      ),
+
+    markAllAsReadByUserId: (userId: string) =>
+      Effect.sync(() => {
+        Array.forEach(
+          Array.filter(
+            notificationsState,
+            (n) => n.userId === userId && !n.isRead
+          ),
+          (n) => {
+            n.isRead = true
+          }
+        )
+      }),
+
+    markManyAsQueuedWithContent: (
+      ids: readonly string[],
+      title: string,
+      body: string
+    ) =>
+      Effect.sync(() => {
+        Array.forEach(ids, (id) => {
+          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          Option.map(n, (notification) => {
+            notification.status = 'queued'
+            notification.title = title
+            notification.body = body
+          })
+        })
+      }),
+
     hasNotificationOfTypeTodayForUser: (
       userId: string,
       _timezone: string,

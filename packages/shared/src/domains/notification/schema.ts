@@ -41,5 +41,11 @@ export const NotificationStatusFilter = Schema.Union(
 )
 export type NotificationStatusFilter = typeof NotificationStatusFilter.Type
 
+// Unread count response
+export const UnreadCountResponse = Schema.Struct({
+  count: Schema.Number,
+})
+export type UnreadCountResponse = typeof UnreadCountResponse.Type
+
 // Type exports
 export type Notification = typeof Notification.Type

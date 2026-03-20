@@ -5,6 +5,7 @@ import {
   Notification,
   NotificationNotFoundError,
   NotificationsListResponse,
+  UnreadCountResponse,
 } from '@lily/shared/notification'
 import { Schema } from 'effect'
 
@@ -27,8 +28,27 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // GET /notifications/unread-count - Get unread notification count
+    HttpApiEndpoint.get('getUnreadCount')`/unread-count`
+      .addSuccess(UnreadCountResponse)
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // PUT /notifications/read-all - Mark all notifications as read
+    HttpApiEndpoint.put('markAllRead')`/read-all`
+      .addSuccess(Schema.Void)
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     // PUT /notifications/:notificationId/read - Mark notification as read
     HttpApiEndpoint.put('markNotificationRead')`/${notificationIdParam}/read`
+      .addSuccess(Notification)
+      .addError(NotificationNotFoundError)
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // DELETE /notifications/:notificationId - Delete a notification
+    HttpApiEndpoint.del('deleteNotification')`/${notificationIdParam}`
       .addSuccess(Notification)
       .addError(NotificationNotFoundError)
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
