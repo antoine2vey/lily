@@ -1,11 +1,12 @@
-import { MaterialIcons } from '@expo/vector-icons'
+import type { MaterialIcons } from '@expo/vector-icons'
 import { type DateInput, getRelativeTime, parseApiDate } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import type { i18n as I18n, TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { PlantImageBadge } from '@/components/PlantImageBadge'
+import { SectionHeader } from '@/components/SectionHeader'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type ActivityType =
   | 'watered'
@@ -45,37 +46,37 @@ const getActivityConfig = (
   watered: {
     icon: 'water-drop',
     color: isDark ? '#93C5FD' : '#2196F3',
-    bgColor: isDark ? 'rgba(33, 150, 243, 0.2)' : '#E3F2FD',
+    bgColor: isDark ? '#1E3A5F' : '#E3F2FD',
   },
   fertilized: {
     icon: 'auto-awesome',
     color: isDark ? '#FBBF24' : '#FF9800',
-    bgColor: isDark ? 'rgba(255, 152, 0, 0.2)' : '#FFF3E0',
+    bgColor: isDark ? '#4A3520' : '#FFF3E0',
   },
   added: {
     icon: 'eco',
     color: isDark ? '#9bc76d' : '#5B8C5A',
-    bgColor: isDark ? 'rgba(91, 140, 90, 0.2)' : 'rgba(91, 140, 90, 0.1)',
+    bgColor: isDark ? '#2D3728' : '#E8F5E8',
   },
   moved: {
     icon: 'wb-sunny',
     color: isDark ? '#FBBF24' : '#F59E0B',
-    bgColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+    bgColor: isDark ? '#4A3A1A' : '#FEF3C7',
   },
   misted: {
     icon: 'grain',
     color: isDark ? '#93C5FD' : '#60A5FA',
-    bgColor: isDark ? 'rgba(96, 165, 250, 0.2)' : '#DBEAFE',
+    bgColor: isDark ? '#1E3050' : '#DBEAFE',
   },
   repotted: {
     icon: 'yard',
     color: isDark ? '#A7F3D0' : '#059669',
-    bgColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#D1FAE5',
+    bgColor: isDark ? '#1A3A2A' : '#D1FAE5',
   },
   pruned: {
     icon: 'content-cut',
     color: isDark ? '#F9A8D4' : '#E91E63',
-    bgColor: isDark ? 'rgba(233, 30, 99, 0.2)' : '#FCE4EC',
+    bgColor: isDark ? '#3A1A28' : '#FCE4EC',
   },
 })
 
@@ -176,12 +177,15 @@ function ActivityItem({
       }}
       accessibilityLabel={`${title}, ${formatActivityTime(activity.timestamp, t, i18n)}`}
     >
-      {/* Activity Icon */}
-      <View
-        className="w-12 h-12 rounded-full items-center justify-center shrink-0"
-        style={{ backgroundColor: config.bgColor }}
-      >
-        <MaterialIcons name={config.icon} size={24} color={config.color} />
+      {/* Plant image with activity icon badge */}
+      <View className="shrink-0">
+        <PlantImageBadge
+          imageUrl={activity.plantImageUrl}
+          size={48}
+          badgeIcon={config.icon}
+          badgeColor={config.color}
+          badgeBgColor={config.bgColor}
+        />
       </View>
 
       {/* Content */}
