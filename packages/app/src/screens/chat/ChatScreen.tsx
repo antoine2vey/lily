@@ -48,7 +48,7 @@ function hasNoVisibleContent(msg: UIMessage): boolean {
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets()
-  const iconColors = useIconColors()
+  const _iconColors = useIconColors()
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const flatListRef = useRef<FlatList<UIMessage>>(null)
   const queryClient = useQueryClient()

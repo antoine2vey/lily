@@ -186,4 +186,42 @@ describe('respondToDelegation', () => {
     })
     expect(notifications[0]?.body).toContain(mockUser2.name)
   })
+
+  it('should fail with DelegationInvalidStatusError when delegation is already accepted', async () => {
+    const acceptedDelegation = {
+      ...pendingDelegation,
+      status: 'accepted' as const,
+    }
+    const layer = createLayer(caretakerCurrentUser, [acceptedDelegation])
+
+    const result = await Effect.runPromiseExit(
+      respondToDelegation(acceptedDelegation.id, { accept: true }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
+    }
+  })
+
+  it('should fail with DelegationInvalidStatusError when delegation is canceled', async () => {
+    const canceledDelegation = {
+      ...pendingDelegation,
+      status: 'canceled' as const,
+    }
+    const layer = createLayer(caretakerCurrentUser, [canceledDelegation])
+
+    const result = await Effect.runPromiseExit(
+      respondToDelegation(canceledDelegation.id, { accept: false }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
+      expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
+    }
+  })
 })

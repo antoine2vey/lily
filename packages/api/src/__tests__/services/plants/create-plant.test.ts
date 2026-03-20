@@ -1,7 +1,10 @@
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
-import { MockLimitCheckerLive } from '@lily/api/__tests__/mocks/limit-checker'
+import {
+  createMockLimitChecker,
+  MockLimitCheckerLive,
+} from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
@@ -193,5 +196,85 @@ describe('createPlant', () => {
       userId: 'user-1',
       plantId: result.id,
     })
+  })
+
+  it('should create schedule for misting when mistingFrequencyDays is set', async () => {
+    const { layer, schedules } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        mistingFrequencyDays: 3,
+      }).pipe(Effect.provide(layer))
+    )
+
+    const mistingSchedule = findSchedule(schedules, result.id, 'misting')
+    expect(mistingSchedule?.frequencyDays).toBe(3)
+  })
+
+  it('should create schedule for repotting when repottingFrequencyDays is set', async () => {
+    const { layer, schedules } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        repottingFrequencyDays: 180,
+      }).pipe(Effect.provide(layer))
+    )
+
+    const repottingSchedule = findSchedule(schedules, result.id, 'repotting')
+    expect(repottingSchedule?.frequencyDays).toBe(180)
+  })
+
+  it('should create all four schedules when all frequencies are set', async () => {
+    const { layer, schedules } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({
+        ...validRequest,
+        fertilizationFrequencyDays: 14,
+        mistingFrequencyDays: 3,
+        repottingFrequencyDays: 180,
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(findSchedule(schedules, result.id, 'watering')).not.toBeNull()
+    expect(findSchedule(schedules, result.id, 'fertilization')).not.toBeNull()
+    expect(findSchedule(schedules, result.id, 'misting')).not.toBeNull()
+    expect(findSchedule(schedules, result.id, 'repotting')).not.toBeNull()
+  })
+
+  it('should not create misting schedule when mistingFrequencyDays is undefined', async () => {
+    const { layer, schedules } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.provide(layer))
+    )
+
+    const mistingSchedule = findSchedule(schedules, result.id, 'misting')
+    expect(mistingSchedule).toBeNull()
+  })
+
+  it('should not create repotting schedule when repottingFrequencyDays is undefined', async () => {
+    const { layer, schedules } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.provide(layer))
+    )
+
+    const repottingSchedule = findSchedule(schedules, result.id, 'repotting')
+    expect(repottingSchedule).toBeNull()
+  })
+
+  it('should fail with LimitExceededError when plant limit is reached', async () => {
+    const schedules: CareScheduleRow[] = []
+    const layer = Layer.mergeAll(
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockEventBus(),
+      createMockCurrentUser({ id: 'user-1' }),
+      createMockLimitChecker({ plantLimitReached: true }),
+      createMockCareScheduleRepository({ schedules })
+    )
+
+    const result = await Effect.runPromiseExit(
+      createPlant(validRequest).pipe(Effect.provide(layer))
+    )
+
+    expect(result._tag).toBe('Failure')
   })
 })

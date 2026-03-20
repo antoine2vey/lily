@@ -8,7 +8,7 @@ import {
   getNextCareAt,
   type LuminosityLevel,
 } from '@lily/shared'
-import { Array, Match, Option, pipe, Record } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'

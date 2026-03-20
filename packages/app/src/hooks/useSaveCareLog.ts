@@ -1,7 +1,7 @@
 import type { CareType } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { DateTime, Effect, pipe } from 'effect'
+import { DateTime, Effect } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 

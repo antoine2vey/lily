@@ -78,4 +78,32 @@ describe('createRoom', () => {
 
     expect(result.order).toBe(1)
   })
+
+  it('should create an outdoor room', async () => {
+    const result = await Effect.runPromise(
+      createRoom({
+        name: 'Garden',
+        icon: '🌳',
+        isOutdoor: true,
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.name).toBe('Garden')
+    expect(result.isOutdoor).toBe(true)
+  })
+
+  it('should create a room with all options set', async () => {
+    const result = await Effect.runPromise(
+      createRoom({
+        name: 'Sunroom',
+        icon: '☀️',
+        luminosity: 5,
+        isOutdoor: true,
+      }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.name).toBe('Sunroom')
+    expect(result.luminosity).toBe(5)
+    expect(result.isOutdoor).toBe(true)
+  })
 })

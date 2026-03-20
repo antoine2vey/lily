@@ -15,7 +15,8 @@
       "!**/android/.gradle/**",
       "!**/android/build/**",
       "!**/.next/**",
-      "!**/out/**"
+      "!**/out/**",
+      "!**/coverage/**"
     ]
   },
   "formatter": {

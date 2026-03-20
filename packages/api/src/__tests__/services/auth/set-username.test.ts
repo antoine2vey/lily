@@ -166,4 +166,39 @@ describe('setUsername', () => {
 
     expect(result.name).toBe(maxUsername)
   })
+
+  it('should fail when user update returns null', async () => {
+    // CurrentUser context has user-1, but users array is empty so update returns null
+    const result = await Effect.runPromiseExit(
+      setUsername({ username: 'newname' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            currentUser: mockUserProfile,
+            users: [],
+          })
+        )
+      )
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('should skip uniqueness check when username is same as current', async () => {
+    const currentUser = {
+      ...mockUserProfile,
+      name: 'samename',
+    }
+    const users = [
+      { ...mockUser1, id: currentUser.id, name: 'samename' },
+      { ...mockUser2, name: 'samename' },
+    ]
+
+    const result = await Effect.runPromise(
+      setUsername({ username: 'samename' }).pipe(
+        Effect.provide(createTestLayer({ currentUser, users }))
+      )
+    )
+
+    expect(result.name).toBe('samename')
+  })
 })

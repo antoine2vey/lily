@@ -61,4 +61,25 @@ describe('resolveDiagnosis', () => {
       'Improve air circulation',
     ])
   })
+
+  it('should handle diagnosis without imageUrl', async () => {
+    // diagnosis-3 has null imageKey
+    const result = await Effect.runPromise(
+      resolveDiagnosis('diagnosis-3').pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.id).toBe('diagnosis-3')
+    expect(result.status).toBe('RESOLVED')
+  })
+
+  it('should handle resolving an already-resolved diagnosis', async () => {
+    // diagnosis-2 already has status RESOLVED — resolving again should still work
+    const result = await Effect.runPromise(
+      resolveDiagnosis('diagnosis-2').pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result.id).toBe('diagnosis-2')
+    expect(result.status).toBe('RESOLVED')
+    expect(result.resolvedAt).toBeDefined()
+  })
 })

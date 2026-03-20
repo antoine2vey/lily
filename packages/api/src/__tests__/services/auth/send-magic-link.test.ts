@@ -222,4 +222,42 @@ describe('sendMagicLink', () => {
       expect(result._tag).toBe('Failure')
     })
   })
+
+  it('should fail with email containing only spaces', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: '   ' }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('should fail with email missing domain', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: 'user@' }).pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('should fail with email missing local part', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: '@example.com' }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('should normalize uppercase email to lowercase', async () => {
+    await runWithConfig(
+      sendMagicLink({ email: 'USER@EXAMPLE.COM' }).pipe(
+        Effect.provide(createTestLayer())
+      )
+    )
+
+    const store = getMagicLinkStore()
+    expect(store).toHaveLength(1)
+    expect(store[0]?.email).toBe('user@example.com')
+  })
 })

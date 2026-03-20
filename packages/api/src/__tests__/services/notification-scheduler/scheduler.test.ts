@@ -1017,4 +1017,141 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages).toHaveLength(0)
     })
   })
+
+  describe('engagement safety net in pollAndEnqueue', () => {
+    it('should skip daily_tip when user has tips disabled', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const userWithTipsOff = createTestUser({
+        id: 'user-1',
+        tips: false,
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      const pendingNotification = createTestNotification({
+        id: 'tip-disabled-1',
+        type: 'daily_tip',
+        status: 'pending',
+        title: '💡 Daily tip',
+        body: 'Water your plants in the morning',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+      })
+
+      await runPollAndEnqueue(
+        [pendingNotification],
+        [userWithTipsOff],
+        (topic, message) => enqueuedMessages.push({ topic, message })
+      )
+
+      expect(enqueuedMessages).toHaveLength(0)
+    })
+
+    it('should enqueue daily_tip when user has tips enabled', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const userWithTipsOn = createTestUser({
+        id: 'user-1',
+        tips: true,
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      const pendingNotification = createTestNotification({
+        id: 'tip-enabled-1',
+        type: 'daily_tip',
+        status: 'pending',
+        title: '💡 Daily tip',
+        body: 'Water your plants in the morning',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+      })
+
+      await runPollAndEnqueue(
+        [pendingNotification],
+        [userWithTipsOn],
+        (topic, message) => enqueuedMessages.push({ topic, message })
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('daily_tip')
+    })
+
+    it('should skip inactivity_nudge when user has tips disabled', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const userWithTipsOff = createTestUser({
+        id: 'user-1',
+        tips: false,
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      const pendingNotification = createTestNotification({
+        id: 'nudge-disabled-1',
+        type: 'inactivity_nudge',
+        status: 'pending',
+        title: '🌱 We miss you!',
+        body: 'Your plants need attention',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+      })
+
+      await runPollAndEnqueue(
+        [pendingNotification],
+        [userWithTipsOff],
+        (topic, message) => enqueuedMessages.push({ topic, message })
+      )
+
+      expect(enqueuedMessages).toHaveLength(0)
+    })
+
+    it('should not apply engagement filter to delegation_activated notifications', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const userWithTipsOff = createTestUser({
+        id: 'user-1',
+        tips: false,
+        careReminders: false,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      const pendingNotification = createTestNotification({
+        id: 'deleg-activated-1',
+        type: 'delegation_activated',
+        status: 'pending',
+        title: '🌿 Delegation started',
+        body: 'Your delegation is now active',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+      })
+
+      await runPollAndEnqueue(
+        [pendingNotification],
+        [userWithTipsOff],
+        (topic, message) => enqueuedMessages.push({ topic, message })
+      )
+
+      // delegation_activated is neither care nor engagement, so it passes through
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('delegation_activated')
+    })
+  })
 })

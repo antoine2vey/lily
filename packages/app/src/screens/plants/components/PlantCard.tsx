@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CareType, PlantOwnership } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'

@@ -56,4 +56,22 @@ describe('unregisterDeviceToken', () => {
 
     expect(result.message).toBe('Device token unregistered successfully')
   })
+
+  it('should fail when token ID is empty string', async () => {
+    const exit = await Effect.runPromiseExit(
+      unregisterDeviceToken('').pipe(Effect.provide(createTestLayer()))
+    )
+
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+
+  it('should allow second user to delete their token after first user deletes theirs', async () => {
+    // user-2 should be able to delete token-3 (their own token)
+    const result = await Effect.runPromise(
+      unregisterDeviceToken('token-3').pipe(
+        Effect.provide(createTestLayer('user-2'))
+      )
+    )
+    expect(result.message).toBe('Device token unregistered successfully')
+  })
 })
