@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals'
+// jest globals provided via @types/jest
 import { resolveNotificationRoute } from '@/utils/notifications'
 
 describe('resolveNotificationRoute', () => {

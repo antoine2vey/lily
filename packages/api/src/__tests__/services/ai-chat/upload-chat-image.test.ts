@@ -50,7 +50,7 @@ describe('uploadChatImage', () => {
       const error = Cause.failureOption(exit.cause)
       expect(Option.isSome(error)).toBe(true)
       if (Option.isSome(error)) {
-        expect(error.value._tag).toBe('PlantNotFoundError')
+        expect((error.value as any)._tag).toBe('PlantNotFoundError')
       }
     }
   })
@@ -69,7 +69,7 @@ describe('uploadChatImage', () => {
       const error = Cause.failureOption(exit.cause)
       expect(Option.isSome(error)).toBe(true)
       if (Option.isSome(error)) {
-        expect(error.value._tag).toBe('PlantNotFoundError')
+        expect((error.value as any)._tag).toBe('PlantNotFoundError')
       }
     }
   })
@@ -138,7 +138,7 @@ describe('uploadChatImage', () => {
       const error = Cause.failureOption(exit.cause)
       expect(Option.isSome(error)).toBe(true)
       if (Option.isSome(error)) {
-        expect(error.value._tag).toBe('PlantNotFoundError')
+        expect((error.value as any)._tag).toBe('PlantNotFoundError')
       }
     }
   })

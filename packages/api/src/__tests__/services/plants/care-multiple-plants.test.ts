@@ -7,6 +7,7 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Effect, Layer } from 'effect'
+import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { mockUser1 } from '../../fixtures/users'
 import { createMockCareLogRepository } from '../../mocks/care-log.repository'
@@ -22,7 +23,7 @@ const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> =>
   Layer.succeed(SqlClient.SqlClient, {
     withTransaction: (effect: Effect.Effect<unknown, unknown, unknown>) =>
       effect,
-  } as unknown as SqlClient.SqlClient['Type'])
+  } as any)
 
 const schedulesFromPlants = (plants: TestPlant[]): CareScheduleRow[] =>
   plants.flatMap((p) =>
@@ -50,9 +51,9 @@ const createTestLayer = (
     schedules?: CareScheduleRow[]
     notifications?: Notification[]
     publishedEvents?: AppEvent[]
-    delegations?: unknown[]
-    delegationPlants?: unknown[]
-    users?: unknown[]
+    delegations?: any[]
+    delegationPlants?: any[]
+    users?: any[]
     rooms?: { id: string; name: string; icon: string }[]
   } = {}
 ) => {
@@ -65,7 +66,7 @@ const createTestLayer = (
     createMockPlantRepository({
       plants,
       schedules,
-      rooms: overrides.rooms,
+      rooms: overrides.rooms as any,
     }),
     createMockCareScheduleRepository({
       schedules,
