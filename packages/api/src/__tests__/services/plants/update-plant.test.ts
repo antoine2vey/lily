@@ -1,3 +1,4 @@
+import { FileSystem } from '@effect/platform/FileSystem'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -5,6 +6,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
+import { GCSService } from '@lily/shared/services/file/gcs'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +39,9 @@ describe('updatePlant', () => {
     return {
       layer: Layer.mergeAll(
         createMockPlantRepository({ plants }),
-        createMockCareScheduleRepository({ schedules, plants })
+        createMockCareScheduleRepository({ schedules, plants }),
+        Layer.succeed(GCSService, {} as any),
+        Layer.succeed(FileSystem, {} as any)
       ),
       schedules,
     }

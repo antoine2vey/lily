@@ -88,7 +88,7 @@ export function EditPlantScreen() {
   )
 
   const { data: plant, isLoading } = usePlant(plantId)
-  const { mutate: updatePlant, isPending: isSaving } = useUpdatePlant()
+  const { mutate: updatePlant, isPending: isUpdating } = useUpdatePlant()
   const { mutate: deletePlant, isPending: isDeleting } = useDeletePlant()
 
   const [photo, setPhoto] = useState<string | undefined>()
@@ -181,6 +181,11 @@ export function EditPlantScreen() {
   const handleSave = () => {
     if (!plant) return
 
+    const imageUrl =
+      photo !== plant.imageUrl
+        ? photo
+        : Option.getOrUndefined(Option.fromNullable(plant.imageUrl))
+
     updatePlant(
       {
         path: { id: plantId },
@@ -201,10 +206,7 @@ export function EditPlantScreen() {
             ? repottingFrequencyDays
             : null,
           roomId: selectedRoomId,
-          imageUrl:
-            photo !== plant.imageUrl
-              ? photo
-              : Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
+          imageUrl,
         },
       },
       {
@@ -271,10 +273,10 @@ export function EditPlantScreen() {
         </Text>
         <Pressable
           onPress={handleSave}
-          disabled={!hasChanges || isSaving}
+          disabled={!hasChanges || isUpdating}
           className="py-2"
         >
-          {isSaving ? (
+          {isUpdating ? (
             <ActivityIndicator size="small" color={iconColors.primary} />
           ) : (
             <Text
