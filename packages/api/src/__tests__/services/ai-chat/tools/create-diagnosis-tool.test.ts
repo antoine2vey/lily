@@ -1,6 +1,9 @@
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
-import type { CreateDiagnosisData } from '@lily/api/repositories/diagnosis.repository'
+import type {
+  CreateDiagnosisData,
+  IDiagnosisRepository,
+} from '@lily/api/repositories/diagnosis.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
 import type { ToolDeps } from '@lily/api/services/ai-chat/tools/index'
@@ -91,7 +94,7 @@ describe('createDiagnosisTool', () => {
       findById: () => Effect.succeed(null),
       linkChatMessage: () => Effect.void,
       markResolved: () => Effect.succeed(null),
-    } as any)
+    } as unknown as IDiagnosisRepository)
 
     const trackingLayer = Layer.mergeAll(spyLayer, createMockRagService())
     const managedRuntime = ManagedRuntime.make(trackingLayer)

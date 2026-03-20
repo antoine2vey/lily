@@ -91,9 +91,7 @@ describe('updateUserSettings - notification recalculation', () => {
 
     expect(capturedScheduledAt).not.toBeNull()
     // The new time should reflect 14:00 UTC (since user timezone is UTC)
-    // biome-ignore lint/style/noNonNullAssertion: guarded by toBeNull() above
     expect(capturedScheduledAt!.getUTCHours()).toBe(14)
-    // biome-ignore lint/style/noNonNullAssertion: guarded by toBeNull() above
     expect(capturedScheduledAt!.getUTCMinutes()).toBe(0)
   })
 
@@ -154,7 +152,6 @@ describe('updateUserSettings - notification recalculation', () => {
 
     expect(capturedScheduledAt).not.toBeNull()
     // 09:00 in America/New_York during summer (EDT = UTC-4) = 13:00 UTC
-    // biome-ignore lint/style/noNonNullAssertion: guarded by toBeNull() above
     expect(capturedScheduledAt!.getUTCHours()).toBe(13)
   })
 

@@ -1,5 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe } from 'effect'
+import type { Href } from 'expo-router'
 import { router, usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
@@ -156,7 +157,7 @@ export function BottomTabBar({
         badgeCount={getTabBadgeCount(route, careBadgeCount)}
         onPress={() => {
           if (!isFocused) {
-            router.navigate(route.path as any)
+            router.navigate(route.path as Href)
           }
         }}
       />

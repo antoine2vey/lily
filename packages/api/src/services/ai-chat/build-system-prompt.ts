@@ -116,13 +116,13 @@ export const buildSystemPrompt = (params: BuildSystemPromptParams): string => {
         Watering needs: ${plant.wateringRating}/5
         Pet toxicity: ${plant.petToxicityRating}/5 (5 = highly toxic)
 
-      ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType['watering'])}
+      ${formatScheduleBlock('Watering', 'Last watered', 'Next watering', byType.watering)}
 
-      ${formatScheduleBlock('Fertilization', 'Last fertilized', 'Next fertilization', byType['fertilization'])}
+      ${formatScheduleBlock('Fertilization', 'Last fertilized', 'Next fertilization', byType.fertilization)}
 
-      ${formatScheduleBlock('Misting', 'Last misted', 'Next misting', byType['misting'])}
+      ${formatScheduleBlock('Misting', 'Last misted', 'Next misting', byType.misting)}
 
-      ${formatScheduleBlock('Repotting', 'Last repotted', 'Next repotting', byType['repotting'])}
+      ${formatScheduleBlock('Repotting', 'Last repotted', 'Next repotting', byType.repotting)}
 
       Recent Care History:
       ${pipe(

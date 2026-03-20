@@ -5,7 +5,6 @@ import {
   Context,
   Effect,
   Layer,
-  Option,
   pipe,
   Redacted,
   Schema,

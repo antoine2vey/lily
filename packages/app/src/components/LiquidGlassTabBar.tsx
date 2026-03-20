@@ -4,6 +4,7 @@ import {
   LiquidGlassView,
 } from '@callstack/liquid-glass'
 import { Array } from 'effect'
+import type { Href } from 'expo-router'
 import { router, usePathname } from 'expo-router'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -83,7 +84,7 @@ export function LiquidGlassTabBar({
         badgeCount={getTabBadgeCount(route, careBadgeCount)}
         onPress={() => {
           if (!isFocused) {
-            router.navigate(route.path as any)
+            router.navigate(route.path as Href)
           }
         }}
       />
