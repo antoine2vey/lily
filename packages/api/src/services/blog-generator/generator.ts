@@ -201,6 +201,9 @@ export const generateAndReviewBlogPost = (
         while: (state) => !state.published && state.retryCount < MAX_RETRIES,
         body: (state) =>
           Effect.gen(function* () {
+            // Persist current attempt number before any work
+            yield* repo.updateRetryCount(postId, state.retryCount)
+
             // GENERATE
             yield* repo.updateStatus(postId, 'generating')
             const generated = yield* generateContent(
@@ -218,7 +221,6 @@ export const generateAndReviewBlogPost = (
             yield* repo.updateReview(postId, {
               reviewScore: Math.round(review.overallScore),
               reviewFeedback: review.feedback,
-              retryCount: state.retryCount,
             })
 
             yield* Effect.log('Blog post reviewed', {

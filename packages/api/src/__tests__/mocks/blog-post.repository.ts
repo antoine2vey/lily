@@ -74,6 +74,19 @@ export const createMockBlogPostRepository = (
         )
       ),
 
+    rejectStalePosts: (staleBeforeDate: Date) => {
+      const stale = Array.filter(
+        data,
+        (p) =>
+          Array.contains(IN_PROGRESS_STATUSES, p.status) &&
+          p.updatedAt.getTime() <= staleBeforeDate.getTime()
+      )
+      for (const p of stale) {
+        ;(p as { status: BlogPostStatus }).status = 'rejected'
+      }
+      return Effect.succeed(Array.length(stale))
+    },
+
     hasInProgress: () =>
       Effect.succeed(
         Array.some(data, (p) => Array.contains(IN_PROGRESS_STATUSES, p.status))
@@ -135,12 +148,27 @@ export const createMockBlogPostRepository = (
         })
       ),
 
+    updateRetryCount: (id: string, retryCount: number) =>
+      pipe(
+        Array.findFirst(data, (p) => p.id === id),
+        Option.match({
+          onNone: () => Effect.succeed(null),
+          onSome: (existing) => {
+            const updated: BlogPost = {
+              ...existing,
+              retryCount,
+              updatedAt: new Date(),
+            }
+            return Effect.succeed(updated)
+          },
+        })
+      ),
+
     updateReview: (
       id: string,
       review: {
         reviewScore: number
         reviewFeedback: string
-        retryCount: number
       }
     ) =>
       pipe(

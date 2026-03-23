@@ -129,7 +129,6 @@ describe('BlogPostRepository', () => {
           return yield* repo.updateReview(mockPendingBlogPost.id, {
             reviewScore: 85,
             reviewFeedback: 'Needs more original phrasing',
-            retryCount: 1,
           })
         }).pipe(Effect.provide(mockRepo))
       )
@@ -137,7 +136,6 @@ describe('BlogPostRepository', () => {
       expect(result).not.toBeNull()
       expect(result?.reviewScore).toBe(85)
       expect(result?.reviewFeedback).toBe('Needs more original phrasing')
-      expect(result?.retryCount).toBe(1)
     })
   })
 })
