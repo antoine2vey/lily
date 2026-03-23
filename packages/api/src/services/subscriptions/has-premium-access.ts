@@ -14,11 +14,7 @@ export const hasPremiumAccess = (
 
   return pipe(
     Match.value(subscription.status),
-    Match.when('active', () => true),
-    Match.when('trialing', () => isWithinBillingPeriod),
-    Match.when('canceled', () => isWithinBillingPeriod),
-    Match.when('past_due', () => isWithinBillingPeriod),
     Match.when('expired', () => false),
-    Match.exhaustive
+    Match.orElse(() => isWithinBillingPeriod)
   )
 }
