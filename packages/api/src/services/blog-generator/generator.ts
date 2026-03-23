@@ -92,35 +92,40 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
       }),
   })
 
-  const content: Record<string, string> = { en: stripCodeFences(enResult.text) }
-
-  // Generate translations for all non-English languages
-  const translationLanguages = Array.filter(
-    TARGET_LANGUAGES,
-    (lang) => lang.code !== 'en'
-  )
-
-  yield* Effect.forEach(translationLanguages, (lang) =>
-    Effect.gen(function* () {
-      const result = yield* Effect.tryPromise({
-        try: () =>
-          generateText({
-            model: openai(CHAT_MODEL),
-            system: TRANSLATION_PROMPT,
-            prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${enResult.text}`,
-          }),
-        catch: (e) =>
-          new BlogGenerationError({
-            message: `Failed to translate to ${lang.name}`,
-            cause: e,
-          }),
-      })
-      content[lang.code] = stripCodeFences(result.text)
-    })
-  )
-
-  return { content } as GeneratedContent
+  return { content: { en: stripCodeFences(enResult.text) } } as GeneratedContent
 })
+
+const translateContent = Effect.fn('blog-generator.translateContent')(
+  function* (englishContent: string) {
+    const content: Record<string, string> = { en: englishContent }
+
+    const translationLanguages = Array.filter(
+      TARGET_LANGUAGES,
+      (lang) => lang.code !== 'en'
+    )
+
+    yield* Effect.forEach(translationLanguages, (lang) =>
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            generateText({
+              model: openai(CHAT_MODEL),
+              system: TRANSLATION_PROMPT,
+              prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
+            }),
+          catch: (e) =>
+            new BlogGenerationError({
+              message: `Failed to translate to ${lang.name}`,
+              cause: e,
+            }),
+        })
+        content[lang.code] = stripCodeFences(result.text)
+      })
+    )
+
+    return content
+  }
+)
 
 const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
   content: GeneratedContent,
@@ -241,9 +246,15 @@ export const generateAndReviewBlogPost = (
               review.seoQuality >= MIN_SCORE
 
             if (allDimensionsPassing) {
+              // Translate only after review passes
+              const translatedContent = yield* translateContent(
+                generated.content.en!
+              )
+              yield* repo.updateContent(postId, translatedContent)
+
               const commitShas = yield* publishBlogPost(
                 topic.slug,
-                generated.content
+                translatedContent
               )
 
               yield* repo.markPublished(postId, commitShas)
