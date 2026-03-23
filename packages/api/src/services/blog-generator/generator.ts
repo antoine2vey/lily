@@ -273,11 +273,9 @@ export const generateAndReviewBlogPost = (
 
     if (result.published) return
 
-    // Max retries reached — reject
-    yield* repo.updateStatus(postId, 'rejected')
-    yield* Effect.logWarning('Blog post rejected after max retries', {
-      postId,
-      slug: topic.slug,
+    // Max retries reached — yield error so the caller handles rejection
+    return yield* new BlogGenerationError({
+      message: `Max retries (${MAX_RETRIES}) reached for post ${topic.slug}`,
     })
   }).pipe(
     Effect.withSpan('blog-generator.generateAndReview', {
