@@ -22,7 +22,7 @@ import type {
 } from './types'
 
 const MAX_RETRIES = 10
-const MIN_SCORE = 95
+const MIN_SCORE = 93
 
 /** Strip markdown code fences (```mdx / ```) that LLMs sometimes wrap around output */
 const stripCodeFences = (text: string): string =>
