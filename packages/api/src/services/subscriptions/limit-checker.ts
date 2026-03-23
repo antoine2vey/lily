@@ -57,11 +57,9 @@ export const LimitCheckerLive = Layer.effect(
     if (disableLimits) {
       // Prevent disabling limits in production
       if (nodeEnv === 'production') {
-        // yield* Effect.logWarning(
-        //   'DISABLE_LIMITS=true is ignored in production environment'
-        // )
-        // TODO: CARE WHEN PUTTING ON STORES
-        return noopLimitChecker
+        yield* Effect.logWarning(
+          'DISABLE_LIMITS=true is ignored in production environment'
+        )
       } else {
         yield* Effect.logWarning(
           'LimitChecker is disabled (non-production environment)'
