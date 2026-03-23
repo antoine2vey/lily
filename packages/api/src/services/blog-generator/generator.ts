@@ -92,7 +92,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
       }),
   })
 
-  return { content: { en: stripCodeFences(enResult.text) } } as GeneratedContent
+  return { content: { en: stripCodeFences(enResult.text) } }
 })
 
 const translateContent = Effect.fn('blog-generator.translateContent')(
@@ -104,23 +104,26 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
       (lang) => lang.code !== 'en'
     )
 
-    yield* Effect.forEach(translationLanguages, (lang) =>
-      Effect.gen(function* () {
-        const result = yield* Effect.tryPromise({
-          try: () =>
-            generateText({
-              model: openai(CHAT_MODEL),
-              system: TRANSLATION_PROMPT,
-              prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
-            }),
-          catch: (e) =>
-            new BlogGenerationError({
-              message: `Failed to translate to ${lang.name}`,
-              cause: e,
-            }),
-        })
-        content[lang.code] = stripCodeFences(result.text)
-      })
+    yield* Effect.forEach(
+      translationLanguages,
+      (lang) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.tryPromise({
+            try: () =>
+              generateText({
+                model: openai(CHAT_MODEL),
+                system: TRANSLATION_PROMPT,
+                prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
+              }),
+            catch: (e) =>
+              new BlogGenerationError({
+                message: `Failed to translate to ${lang.name}`,
+                cause: e,
+              }),
+          })
+          content[lang.code] = stripCodeFences(result.text)
+        }),
+      { concurrency: 'unbounded' }
     )
 
     return content
@@ -206,10 +209,8 @@ export const generateAndReviewBlogPost = (
         while: (state) => !state.published && state.retryCount < MAX_RETRIES,
         body: (state) =>
           Effect.gen(function* () {
-            // Persist current attempt number before any work
+            // Persist attempt number + transition to generating
             yield* repo.updateRetryCount(postId, state.retryCount)
-
-            // GENERATE
             yield* repo.updateStatus(postId, 'generating')
             const generated = yield* generateContent(
               topic,
@@ -247,9 +248,17 @@ export const generateAndReviewBlogPost = (
 
             if (allDimensionsPassing) {
               // Translate only after review passes
-              const translatedContent = yield* translateContent(
-                generated.content.en!
+              const enContent = yield* Option.match(
+                Option.fromNullable(generated.content.en),
+                {
+                  onNone: () =>
+                    new BlogGenerationError({
+                      message: 'English content missing after generation',
+                    }),
+                  onSome: Effect.succeed,
+                }
               )
+              const translatedContent = yield* translateContent(enContent)
               yield* repo.updateContent(postId, translatedContent)
 
               const commitShas = yield* publishBlogPost(
