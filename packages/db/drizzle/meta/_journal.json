@@ -260,6 +260,13 @@
       "when": 1773593959759,
       "tag": "0036_huge_eddie_brock",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1774292279471,
+      "tag": "0037_colorful_corsair",
+      "breakpoints": true
     }
   ]
 }

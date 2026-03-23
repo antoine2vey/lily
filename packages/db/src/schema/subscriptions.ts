@@ -28,6 +28,7 @@ export const subscriptionEventTypeEnum = pgEnum('subscription_event_type', [
   'subscription_created',
   'subscription_updated',
   'subscription_canceled',
+  'subscription_gifted',
   'trial_started',
   'trial_ended',
   'payment_succeeded',

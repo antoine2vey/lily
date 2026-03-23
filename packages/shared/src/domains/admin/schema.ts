@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 import { PaginationParams } from '../common/pagination'
+import { SubscriptionStatus, SubscriptionTier } from '../subscriptions/schema'
 import { User, UserRole, UserStatus } from '../user/schema'
 
 // Admin user list request - pagination with filters
@@ -95,6 +96,28 @@ export const PromptPreviewResponse = Schema.Struct({
   model: Schema.String,
   hasImage: Schema.Boolean,
 })
+
+// --- Gift Subscription schemas ---
+
+export const GiftDuration = Schema.Literal('7d', '1m', '1y', 'infinite')
+export type GiftDuration = typeof GiftDuration.Type
+
+export const AdminGiftSubscriptionRequest = Schema.Struct({
+  duration: GiftDuration,
+})
+export type AdminGiftSubscriptionRequest =
+  typeof AdminGiftSubscriptionRequest.Type
+
+export const AdminGiftSubscriptionResponse = Schema.Struct({
+  message: Schema.String,
+  userId: Schema.String,
+  tier: SubscriptionTier,
+  status: SubscriptionStatus,
+  periodStart: Schema.Date,
+  periodEnd: Schema.Date,
+})
+export type AdminGiftSubscriptionResponse =
+  typeof AdminGiftSubscriptionResponse.Type
 
 // Type exports
 export type AdminUserListParams = typeof AdminUserListParams.Type

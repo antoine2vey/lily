@@ -23,6 +23,7 @@ export const SubscriptionEventType = Schema.Literal(
   'subscription_created',
   'subscription_updated',
   'subscription_canceled',
+  'subscription_gifted',
   'trial_started',
   'trial_ended',
   'payment_succeeded',
