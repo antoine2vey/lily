@@ -2,6 +2,8 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import { PaginatedResponse } from '@lily/shared'
 import {
+  AdminGiftSubscriptionRequest,
+  AdminGiftSubscriptionResponse,
   AdminRoleChangeRequest,
   AdminStatusChangeRequest,
   AdminUser,
@@ -70,6 +72,17 @@ export const AdminApi = HttpApiGroup.make('admin')
     // DELETE /admin/users/:id - Delete user
     HttpApiEndpoint.del('deleteUser')`/users/${userIdParam}`
       .addSuccess(AdminUser)
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // POST /admin/users/:id/gift-subscription - Gift a paid subscription
+    HttpApiEndpoint.post(
+      'giftSubscription'
+    )`/users/${userIdParam}/gift-subscription`
+      .setPayload(AdminGiftSubscriptionRequest)
+      .addSuccess(AdminGiftSubscriptionResponse)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })

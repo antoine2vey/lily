@@ -2,6 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
+import { giftSubscription } from '@lily/api/services/admin/endpoints/gift-subscription'
 import { listUsers } from '@lily/api/services/admin/endpoints/list-users'
 import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { updateRole } from '@lily/api/services/admin/endpoints/update-role'
@@ -29,6 +30,9 @@ export const AdminApiLive = (api: Api) =>
       )
       .handle('deleteUser', ({ path: { id } }) =>
         deleteUser(id).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('giftSubscription', ({ path: { id }, payload }) =>
+        giftSubscription(id, payload.duration).pipe(withInfraErrorsAsDefect)
       )
       .handle('previewPrompt', ({ path: { messageId } }) =>
         previewPrompt(messageId).pipe(withInfraErrorsAsDefect)
