@@ -35,9 +35,9 @@ export const createScheduler = <E, R>(config: {
 }): Effect.Effect<void, never, R> => {
   const safeTask = config.task.pipe(
     Effect.catchAllCause((cause) =>
-      Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
-        cause: Cause.pretty(cause),
-      })
+      Effect.logError(
+        `[${config.name}] Unhandled error in poll cycle: ${Cause.pretty(cause)}`
+      )
     ),
     Effect.withSpan(`${config.name}.poll`)
   )
