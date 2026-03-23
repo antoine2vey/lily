@@ -7,7 +7,7 @@ import {
 } from '@lily/db/schema'
 import type { blogPostStatusEnum } from '@lily/db/schema/enums'
 import { nowAsDate } from '@lily/shared'
-import { and, count, desc, eq, gte, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
@@ -42,6 +42,9 @@ export interface IBlogPostRepository {
     limit: number
   ) => Effect.Effect<string[], SqlError>
   readonly countPublishedSince: (since: Date) => Effect.Effect<number, SqlError>
+  readonly rejectStalePosts: (
+    staleBeforeDate: Date
+  ) => Effect.Effect<number, SqlError>
   readonly hasInProgress: () => Effect.Effect<boolean, SqlError>
   readonly findPublishedSlugsWithTitles: () => Effect.Effect<
     readonly { slug: string; title: LocalizedText }[],
@@ -59,12 +62,15 @@ export interface IBlogPostRepository {
     id: string,
     content: LocalizedText
   ) => Effect.Effect<BlogPost | null, SqlError>
+  readonly updateRetryCount: (
+    id: string,
+    retryCount: number
+  ) => Effect.Effect<BlogPost | null, SqlError>
   readonly updateReview: (
     id: string,
     data: {
       reviewScore: number
       reviewFeedback: string
-      retryCount: number
     }
   ) => Effect.Effect<BlogPost | null, SqlError>
   readonly markPublished: (
@@ -173,6 +179,22 @@ export const BlogPostRepositoryLive = Layer.effect(
         }
       ),
 
+      rejectStalePosts: Effect.fn('BlogPostRepository.rejectStalePosts')(
+        function* (staleBeforeDate: Date) {
+          const rows = yield* db
+            .update(blogPosts)
+            .set({ status: 'rejected' as const })
+            .where(
+              and(
+                inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]),
+                lte(blogPosts.updatedAt, staleBeforeDate)
+              )
+            )
+            .returning({ id: blogPosts.id })
+          return Array.length(rows)
+        }
+      ),
+
       updateStatus: Effect.fn('BlogPostRepository.updateStatus')(function* (
         id: string,
         status: BlogPostStatus
@@ -209,12 +231,22 @@ export const BlogPostRepositoryLive = Layer.effect(
         return Option.getOrNull(Option.fromNullable(row))
       }),
 
+      updateRetryCount: Effect.fn('BlogPostRepository.updateRetryCount')(
+        function* (id: string, retryCount: number) {
+          const [row] = yield* db
+            .update(blogPosts)
+            .set({ retryCount })
+            .where(eq(blogPosts.id, id))
+            .returning()
+          return Option.getOrNull(Option.fromNullable(row))
+        }
+      ),
+
       updateReview: Effect.fn('BlogPostRepository.updateReview')(function* (
         id: string,
         data: {
           reviewScore: number
           reviewFeedback: string
-          retryCount: number
         }
       ) {
         const [row] = yield* db

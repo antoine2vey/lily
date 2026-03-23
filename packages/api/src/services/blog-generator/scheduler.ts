@@ -1,7 +1,7 @@
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { BlogPostSource } from '@lily/db/schema'
-import { daysAgoAsDate } from '@lily/shared'
+import { daysAgoAsDate, hoursAgoAsDate } from '@lily/shared'
 import { Array, Config, Effect } from 'effect'
 import { generateAndReviewBlogPost } from './generator'
 import { researchTopic } from './researcher'
@@ -74,6 +74,15 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   }
 
   const repo = yield* BlogPostRepository
+
+  // Reject posts stuck in progress for over 1 hour (e.g. from server restarts)
+  const rejected = yield* repo.rejectStalePosts(hoursAgoAsDate(1))
+
+  if (rejected > 0) {
+    yield* Effect.logWarning('Rejected stale in-progress blog posts', {
+      count: rejected,
+    })
+  }
 
   // Skip if a post is already being processed
   const inProgress = yield* repo.hasInProgress()
