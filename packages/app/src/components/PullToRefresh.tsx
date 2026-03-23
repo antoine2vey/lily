@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { PanResponder, View } from 'react-native'
 import Animated, {
   type ScrollHandlerProcessed,
@@ -68,9 +68,11 @@ export function PullToRefresh({
     },
   })
 
-  if (!isRefreshing && pullDistance.value > 0) {
-    pullDistance.value = withTiming(0)
-  }
+  useEffect(() => {
+    if (!isRefreshing) {
+      pullDistance.value = withTiming(0)
+    }
+  }, [isRefreshing, pullDistance])
 
   const loaderStyle = useAnimatedStyle(() => ({
     height: pullDistance.value,
