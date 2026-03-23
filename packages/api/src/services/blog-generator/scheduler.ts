@@ -13,10 +13,9 @@ const MAX_POSTS_PER_DAY = 2
 const rejectPost = (postId: string, reason: string) =>
   Effect.gen(function* () {
     const repo = yield* BlogPostRepository
-    yield* Effect.logError('Blog pipeline failed — marking post as rejected', {
-      postId,
-      reason,
-    })
+    yield* Effect.logError(
+      `Blog pipeline failed — marking post ${postId} as rejected: ${reason}`
+    )
     yield* repo.updateStatus(postId, 'rejected')
   })
 
