@@ -1,21 +1,5 @@
-import { Array, Cause, Chunk, Effect, pipe } from 'effect'
+import { Effect } from 'effect'
 import type { DurationInput } from 'effect/Duration'
-
-/** Extract a concise error summary from a Cause (no stack traces) */
-const summarizeCause = <E>(cause: Cause.Cause<E>): string => {
-  const failures = pipe(
-    Cause.failures(cause),
-    Chunk.toReadonlyArray,
-    Array.map((e) => (e instanceof Error ? e.message : globalThis.String(e)))
-  )
-  const defects = pipe(
-    Cause.defects(cause),
-    Chunk.toReadonlyArray,
-    Array.map((d) => (d instanceof Error ? d.message : globalThis.String(d)))
-  )
-  const all = [...failures, ...defects]
-  return Array.isEmptyArray(all) ? 'Unknown error' : all.join('; ')
-}
 
 /**
  * Creates a standard polling scheduler that runs a task at a fixed interval.
@@ -50,10 +34,8 @@ export const createScheduler = <E, R>(config: {
   task: Effect.Effect<void, E, R>
 }): Effect.Effect<void, never, R> => {
   const safeTask = config.task.pipe(
-    Effect.catchAllCause((cause) =>
-      Effect.logError(
-        `[${config.name}] Unhandled error: ${summarizeCause(cause)}`
-      )
+    Effect.catchAllCause(() =>
+      Effect.logError(`[${config.name}] Unhandled error in poll cycle`)
     ),
     Effect.withSpan(`${config.name}.poll`)
   )
