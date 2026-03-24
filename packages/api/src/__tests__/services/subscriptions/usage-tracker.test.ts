@@ -64,6 +64,7 @@ describe('UsageTracker', () => {
           : createMockUsage({ [`${field}Count`]: 1 })
         return Effect.succeed(result)
       },
+      findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
       logEvent: () => Effect.void,
     }
 

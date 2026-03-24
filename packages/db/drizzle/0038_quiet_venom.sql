@@ -1,0 +1,1 @@
+ALTER TYPE "public"."subscription_event_type" ADD VALUE 'subscription_gift_revoked' BEFORE 'trial_started';

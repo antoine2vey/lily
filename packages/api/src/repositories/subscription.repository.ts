@@ -1,10 +1,12 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
 import {
   subscriptionEvents,
   subscriptionTiers,
   subscriptionUsage,
   userSubscriptions,
+  users,
 } from '@lily/db/schema'
 import {
   compact,
@@ -17,7 +19,7 @@ import {
   type TierConfig,
   type UsageField,
 } from '@lily/shared'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -101,6 +103,26 @@ export interface ISubscriptionRepository {
     userId: string,
     field: UsageField
   ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
+
+  // Gift history
+  readonly findGiftEvents: (params: {
+    page: number
+    limit: number
+  }) => Effect.Effect<
+    {
+      items: Array<{
+        id: string
+        userId: string
+        userName: string | null
+        userEmail: string
+        eventType: SubscriptionEventType
+        metadata: string | null
+        createdAt: Date
+      }>
+      total: number
+    },
+    SqlError
+  >
 
   // Events
   readonly logEvent: (
@@ -466,6 +488,44 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .returning()
 
           return Option.getOrNull(Option.fromNullable(usage))
+        }
+      ),
+
+      findGiftEvents: Effect.fn('SubscriptionRepository.findGiftEvents')(
+        function* (params: { page: number; limit: number }) {
+          const { offset } = getPaginationParams(params)
+          const giftEventTypes = [
+            'subscription_gifted',
+            'subscription_gift_revoked',
+          ] as const
+
+          const [items, [totalRow]] = yield* Effect.all([
+            db
+              .select({
+                id: subscriptionEvents.id,
+                userId: subscriptionEvents.userId,
+                userName: users.name,
+                userEmail: users.email,
+                eventType: subscriptionEvents.eventType,
+                metadata: subscriptionEvents.metadata,
+                createdAt: subscriptionEvents.createdAt,
+              })
+              .from(subscriptionEvents)
+              .innerJoin(users, eq(subscriptionEvents.userId, users.id))
+              .where(inArray(subscriptionEvents.eventType, giftEventTypes))
+              .orderBy(desc(subscriptionEvents.createdAt))
+              .limit(params.limit)
+              .offset(offset),
+            db
+              .select({ total: count() })
+              .from(subscriptionEvents)
+              .where(inArray(subscriptionEvents.eventType, giftEventTypes)),
+          ])
+
+          return {
+            items,
+            total: totalRow?.total ?? 0,
+          }
         }
       ),
 

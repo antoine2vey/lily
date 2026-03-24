@@ -1,35 +1,41 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
-import { AdminUser } from '@lily/api/services/admin/middleware.types'
-import { nowAsDate } from '@lily/shared'
-import type {
-  AdminGiftSubscriptionResponse,
-  GiftDuration,
+import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { withAdminTarget } from '@lily/api/services/admin/helpers/with-admin-target'
+import type { AdminUser } from '@lily/api/services/admin/middleware.types'
+import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  type AdminGiftSubscriptionResponse,
+  GIFT_DURATION_LABELS,
+  type GiftDuration,
 } from '@lily/shared/admin'
-import { CannotModifySelfError } from '@lily/shared/errors/admin'
-import { UserNotFoundError } from '@lily/shared/errors/user'
-import { Effect, Match, pipe } from 'effect'
+import type { CannotModifySelfError } from '@lily/shared/errors/admin'
+import type { UserNotFoundError } from '@lily/shared/errors/user'
+import type { MessageQueue } from '@lily/shared/server'
+import { DateTime, Effect, Match, Option, pipe } from 'effect'
 
-const daysToAdd = (duration: GiftDuration): number | null =>
+const durationToDays = (duration: GiftDuration): Option.Option<number> =>
   pipe(
     Match.value(duration),
-    Match.when('7d', () => 7),
-    Match.when('1m', () => 30),
-    Match.when('1y', () => 365),
-    Match.when('infinite', () => null),
+    Match.when('7d', () => Option.some(7)),
+    Match.when('1m', () => Option.some(30)),
+    Match.when('1y', () => Option.some(365)),
+    Match.when('infinite', () => Option.none()),
     Match.exhaustive
   )
 
-const computePeriodEnd = (duration: GiftDuration, from: Date): Date => {
-  const days = daysToAdd(duration)
-  if (days === null) {
-    return new Date(Date.UTC(2099, 11, 31))
-  }
-  const end = new Date(from.getTime())
-  end.setDate(end.getDate() + days)
-  return end
-}
+const INFINITE_END = DateTime.unsafeMake(Date.UTC(2099, 11, 31))
+
+const computePeriodEnd = (duration: GiftDuration): Date =>
+  pipe(
+    durationToDays(duration),
+    Option.match({
+      onNone: () => DateTime.toDate(INFINITE_END),
+      onSome: (days) =>
+        pipe(DateTime.unsafeNow(), DateTime.add({ days }), DateTime.toDate),
+    })
+  )
 
 export const giftSubscription = (
   userId: string,
@@ -37,24 +43,18 @@ export const giftSubscription = (
 ): Effect.Effect<
   AdminGiftSubscriptionResponse,
   SqlError | UserNotFoundError | CannotModifySelfError,
-  UserRepository | SubscriptionRepository | AdminUser
+  | UserRepository
+  | SubscriptionRepository
+  | AdminUser
+  | NotificationRepository
+  | MessageQueue
 > =>
   Effect.gen(function* () {
-    const userRepo = yield* UserRepository
+    const { user, currentAdmin } = yield* withAdminTarget(userId)
     const subRepo = yield* SubscriptionRepository
-    const currentAdmin = yield* AdminUser
 
-    if (userId === currentAdmin.id) {
-      return yield* new CannotModifySelfError()
-    }
-
-    const user = yield* userRepo.findById(userId)
-    if (!user) {
-      return yield* new UserNotFoundError()
-    }
-
-    const periodStart = nowAsDate()
-    const periodEnd = computePeriodEnd(duration, periodStart)
+    const periodStart = DateTime.toDate(DateTime.unsafeNow())
+    const periodEnd = computePeriodEnd(duration)
 
     yield* Effect.all(
       [
@@ -69,6 +69,18 @@ export const giftSubscription = (
           giftedBy: currentAdmin.id,
           duration,
         }),
+        scheduleSimpleNotification(
+          'gift_subscription',
+          userId,
+          {
+            giftDuration: pipe(
+              Option.fromNullable(GIFT_DURATION_LABELS[user.language]),
+              Option.flatMap((labels) => Option.fromNullable(labels[duration])),
+              Option.getOrElse(() => duration)
+            ),
+          },
+          user.language
+        ),
       ],
       { concurrency: 'unbounded' }
     )

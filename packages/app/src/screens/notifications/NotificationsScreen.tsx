@@ -58,6 +58,7 @@ const getNotificationIcon = (
     Match.when('daily_tip', () => 'lightbulb' as const),
     Match.when('inactivity_nudge', () => 'notifications-active' as const),
     Match.when('plant_parent_milestone', () => 'emoji-events' as const),
+    Match.when('gift_subscription', () => 'card-giftcard' as const),
     Match.orElse(() => 'notifications' as const)
   )
 
@@ -74,6 +75,7 @@ const getIconColor = (type: string): string =>
     Match.when('overdue_reminder', () => '#EF4444'),
     Match.when('plant_parent_milestone', () => '#FCD34D'),
     Match.when('daily_tip', () => '#F59E0B'),
+    Match.when('gift_subscription', () => '#FCD34D'),
     Match.whenOr('new_follower', 'delegation_request', () => '#8B5CF6'),
     Match.orElse(() => '#9CA3AF')
   )

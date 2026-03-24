@@ -150,6 +150,9 @@ export const resolveNotificationRoute = (
     // Engagement — milestone → achievements
     Match.when('plant_parent_milestone', () => '/(app)/achievements' as Href),
 
+    // Gift — navigate to plants tab
+    Match.when('gift_subscription', () => '/(app)/(tabs)/plants' as Href),
+
     // Unknown topic — no navigation
     Match.orElse(() => null)
   )

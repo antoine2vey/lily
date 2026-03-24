@@ -1,9 +1,11 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
-import { PaginatedResponse } from '@lily/shared'
+import { PaginatedResponse, PaginationParams } from '@lily/shared'
 import {
+  AdminGiftEvent,
   AdminGiftSubscriptionRequest,
   AdminGiftSubscriptionResponse,
+  AdminRevokeGiftResponse,
   AdminRoleChangeRequest,
   AdminStatusChangeRequest,
   AdminUser,
@@ -83,6 +85,23 @@ export const AdminApi = HttpApiGroup.make('admin')
     )`/users/${userIdParam}/gift-subscription`
       .setPayload(AdminGiftSubscriptionRequest)
       .addSuccess(AdminGiftSubscriptionResponse)
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(CannotModifySelfError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/gift-history - List gift subscription events
+    HttpApiEndpoint.get('listGiftHistory')`/gift-history`
+      .setUrlParams(PaginationParams)
+      .addSuccess(PaginatedResponse(AdminGiftEvent))
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // POST /admin/users/:id/revoke-gift - Revoke a gifted subscription
+    HttpApiEndpoint.post(
+      'revokeGiftSubscription'
+    )`/users/${userIdParam}/revoke-gift`
+      .addSuccess(AdminRevokeGiftResponse)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
       .addError(ForbiddenError, { status: 403 })
