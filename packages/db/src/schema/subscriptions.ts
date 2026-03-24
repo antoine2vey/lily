@@ -35,6 +35,7 @@ export const subscriptionEventTypeEnum = pgEnum('subscription_event_type', [
   'payment_succeeded',
   'payment_failed',
   'usage_limit_reached',
+  'gift_code_redeemed',
 ])
 
 export const paymentProviderEnum = pgEnum('payment_provider', ['revenuecat'])

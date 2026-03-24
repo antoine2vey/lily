@@ -26,7 +26,7 @@ export const PaginatedResponse = <T extends Schema.Schema.Any>(itemSchema: T) =>
 
 // Type helper
 export type PaginatedResponse<T> = {
-  items: T[]
+  items: readonly T[]
   total: number
   page: number
   limit: number
@@ -35,7 +35,7 @@ export type PaginatedResponse<T> = {
 
 // Helper to build paginated response in repositories/services
 export const paginate = <T>(
-  items: T[],
+  items: readonly T[],
   total: number,
   page: number,
   limit: number

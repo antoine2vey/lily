@@ -29,7 +29,8 @@ export const SubscriptionEventType = Schema.Literal(
   'trial_ended',
   'payment_succeeded',
   'payment_failed',
-  'usage_limit_reached'
+  'usage_limit_reached',
+  'gift_code_redeemed'
 )
 export type SubscriptionEventType = typeof SubscriptionEventType.Type
 

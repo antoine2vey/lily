@@ -164,6 +164,68 @@ export const AdminGiftSubscriptionResponse = Schema.Struct({
 export type AdminGiftSubscriptionResponse =
   typeof AdminGiftSubscriptionResponse.Type
 
+// --- Gift Code schemas ---
+
+export const GiftCode = Schema.Struct({
+  id: Schema.String,
+  code: Schema.String,
+  duration: GiftDuration,
+  maxUsages: Schema.Number,
+  currentUsages: Schema.Number,
+  isActive: Schema.Boolean,
+  expiresAt: Schema.NullOr(Schema.DateFromString),
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
+})
+export type GiftCode = typeof GiftCode.Type
+
+export const GiftCodeCreateRequest = Schema.Struct({
+  code: Schema.String,
+  duration: GiftDuration,
+  maxUsages: Schema.Number,
+  expiresAt: Schema.optional(Schema.DateFromString),
+})
+export type GiftCodeCreateRequest = typeof GiftCodeCreateRequest.Type
+
+export const GiftCodeUpdateRequest = Schema.Struct({
+  code: Schema.optional(Schema.String),
+  duration: Schema.optional(GiftDuration),
+  maxUsages: Schema.optional(Schema.Number),
+  isActive: Schema.optional(Schema.Boolean),
+  expiresAt: Schema.optional(Schema.NullOr(Schema.DateFromString)),
+})
+export type GiftCodeUpdateRequest = typeof GiftCodeUpdateRequest.Type
+
+export const GiftCodeRedemption = Schema.Struct({
+  id: Schema.String,
+  giftCodeId: Schema.String,
+  userId: Schema.String,
+  userName: Schema.NullOr(Schema.String),
+  userEmail: Schema.String,
+  redeemedAt: Schema.DateFromString,
+})
+export type GiftCodeRedemption = typeof GiftCodeRedemption.Type
+
+export const GiftCodeWithRedemptions = Schema.Struct({
+  ...GiftCode.fields,
+  redemptions: Schema.Array(GiftCodeRedemption),
+})
+export type GiftCodeWithRedemptions = typeof GiftCodeWithRedemptions.Type
+
+export const RedeemGiftCodeRequest = Schema.Struct({
+  code: Schema.String,
+})
+export type RedeemGiftCodeRequest = typeof RedeemGiftCodeRequest.Type
+
+export const RedeemGiftCodeResponse = Schema.Struct({
+  message: Schema.String,
+  tier: SubscriptionTier,
+  status: SubscriptionStatus,
+  periodStart: Schema.Date,
+  periodEnd: Schema.Date,
+})
+export type RedeemGiftCodeResponse = typeof RedeemGiftCodeResponse.Type
+
 // Type exports
 export type AdminUserListParams = typeof AdminUserListParams.Type
 export type AdminUserUpdateRequest = typeof AdminUserUpdateRequest.Type

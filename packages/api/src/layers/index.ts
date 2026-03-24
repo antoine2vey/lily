@@ -34,6 +34,7 @@ import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.r
 import { DiagnosisRepositoryLive } from '@lily/api/repositories/diagnosis.repository'
 import { EngagementRepositoryLive } from '@lily/api/repositories/engagement.repository'
 import { FollowRepositoryLive } from '@lily/api/repositories/follow.repository'
+import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.repository'
 import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
@@ -123,6 +124,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
 )
 
 const RepositoriesGroup2 = Layer.mergeAll(
+  GiftCodeRepositoryLive,
   ScanRepositoryLive,
   SubscriptionRepositoryLive,
   UserRepositoryLive,

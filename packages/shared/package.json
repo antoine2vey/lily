@@ -92,6 +92,10 @@
       "types": "./src/domains/admin/errors.ts",
       "default": "./src/domains/admin/errors.ts"
     },
+    "./errors/gift-code": {
+      "types": "./src/domains/gift-code/errors.ts",
+      "default": "./src/domains/gift-code/errors.ts"
+    },
     "./selectors/plant": {
       "types": "./src/domains/plant/selectors.ts",
       "default": "./src/domains/plant/selectors.ts"

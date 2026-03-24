@@ -1,12 +1,17 @@
 import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
+import { createGiftCode } from '@lily/api/services/admin/endpoints/create-gift-code'
+import { deleteGiftCode } from '@lily/api/services/admin/endpoints/delete-gift-code'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
+import { getGiftCode } from '@lily/api/services/admin/endpoints/get-gift-code'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { giftSubscription } from '@lily/api/services/admin/endpoints/gift-subscription'
+import { listGiftCodes } from '@lily/api/services/admin/endpoints/list-gift-codes'
 import { listGiftHistory } from '@lily/api/services/admin/endpoints/list-gift-history'
 import { listUsers } from '@lily/api/services/admin/endpoints/list-users'
 import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { revokeGiftSubscription } from '@lily/api/services/admin/endpoints/revoke-gift-subscription'
+import { updateGiftCode } from '@lily/api/services/admin/endpoints/update-gift-code'
 import { updateRole } from '@lily/api/services/admin/endpoints/update-role'
 import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
 import { updateUser } from '@lily/api/services/admin/endpoints/update-user'
@@ -44,5 +49,20 @@ export const AdminApiLive = (api: Api) =>
       )
       .handle('previewPrompt', ({ path: { messageId } }) =>
         previewPrompt(messageId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('listGiftCodes', ({ urlParams }) =>
+        listGiftCodes(urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('createGiftCode', ({ payload }) =>
+        createGiftCode(payload).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getGiftCode', ({ path: { codeId } }) =>
+        getGiftCode(codeId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('updateGiftCode', ({ path: { codeId }, payload }) =>
+        updateGiftCode(codeId, payload).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('deleteGiftCode', ({ path: { codeId } }) =>
+        deleteGiftCode(codeId).pipe(withInfraErrorsAsDefect)
       )
   )
