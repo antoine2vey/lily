@@ -18,6 +18,17 @@ jest.mock('@/services/revenuecat', () => ({
   isDevModeEnabled: jest.fn().mockReturnValue(false),
 }))
 
+jest.mock('@/hooks/useRedeemGiftCode', () => ({
+  useRedeemGiftCode: jest.fn().mockReturnValue({
+    mutate: jest.fn(),
+    isPending: false,
+    data: undefined,
+    apiError: undefined,
+    isApiError: false,
+    reset: jest.fn(),
+  }),
+}))
+
 import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
 import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 
