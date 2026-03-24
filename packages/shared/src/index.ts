@@ -23,6 +23,7 @@ export * from './domains/device-token/errors'
 export * from './domains/device-token/schema'
 export * from './domains/diagnosis/errors'
 export * from './domains/diagnosis/schema'
+export * from './domains/gift-code/errors'
 export * from './domains/knowledge/errors'
 // Knowledge domain
 export * from './domains/knowledge/schema'

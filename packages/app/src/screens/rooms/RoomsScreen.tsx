@@ -36,8 +36,8 @@ import { useUpdateRoom } from 'src/hooks/useUpdateRoom'
 import { EmojiPicker } from 'src/screens/rooms/components/EmojiPicker'
 import { LuminosityPicker } from 'src/screens/rooms/components/LuminosityPicker'
 import { PlantSelector } from 'src/screens/rooms/components/PlantSelector'
-import { apiEffectRunner } from 'src/utils/client'
 import { queryKeys } from 'src/utils/query-keys'
+import { uploadMultipart } from 'src/utils/upload'
 
 interface RoomFormState {
   name: string
@@ -136,16 +136,22 @@ export function RoomsScreen() {
 
       const updates = [
         ...Array.map(added, (plantId) =>
-          apiEffectRunner('plants', 'updatePlant', {
-            path: { id: plantId },
-            payload: { roomId },
-          })
+          uploadMultipart(
+            `/api/plants/${plantId}`,
+            [],
+            'image',
+            { data: JSON.stringify({ roomId }) },
+            'PUT'
+          )
         ),
         ...Array.map(removed, (plantId) =>
-          apiEffectRunner('plants', 'updatePlant', {
-            path: { id: plantId },
-            payload: { roomId: null },
-          })
+          uploadMultipart(
+            `/api/plants/${plantId}`,
+            [],
+            'image',
+            { data: JSON.stringify({ roomId: null }) },
+            'PUT'
+          )
         ),
       ]
 

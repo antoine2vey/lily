@@ -4,6 +4,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.impl'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { getCurrentSubscription } from '@lily/api/services/subscriptions/endpoints/get-current-subscription'
 import { getTiers } from '@lily/api/services/subscriptions/endpoints/get-tiers'
+import { redeemGiftCode } from '@lily/api/services/subscriptions/endpoints/redeem-gift-code'
 import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoints/webhook/handle-revenuecat-webhook'
 import { Effect } from 'effect'
 
@@ -17,6 +18,12 @@ export const SubscriptionsApiLive = (api: Api) =>
         }).pipe(withInfraErrorsAsDefect)
       )
       .handle('getTiers', () => getTiers().pipe(withInfraErrorsAsDefect))
+      .handle('redeemGiftCode', ({ payload }) =>
+        Effect.gen(function* () {
+          const currentUser = yield* CurrentUser
+          return yield* redeemGiftCode(currentUser.id, payload.code)
+        }).pipe(withInfraErrorsAsDefect)
+      )
   )
 
 export const SubscriptionWebhooksApiLive = (api: Api) =>

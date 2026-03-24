@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthGate } from '@/components/AuthGate'
 import { Layout } from '@/components/Layout'
+import { GiftCodeFormPage } from '@/pages/GiftCodeFormPage'
+import { GiftCodesPage } from '@/pages/GiftCodesPage'
 import { GiftHistoryPage } from '@/pages/GiftHistoryPage'
 import { GiftSubscriptionPage } from '@/pages/GiftSubscriptionPage'
 import { JobsPage } from '@/pages/JobsPage'
@@ -27,6 +29,9 @@ export const App = () => (
               path="/gift-subscription"
               element={<GiftSubscriptionPage />}
             />
+            <Route path="/gift-codes" element={<GiftCodesPage />} />
+            <Route path="/gift-codes/new" element={<GiftCodeFormPage />} />
+            <Route path="/gift-codes/:id/edit" element={<GiftCodeFormPage />} />
             <Route path="/gift-history" element={<GiftHistoryPage />} />
             <Route path="/prompt-preview" element={<PromptPreviewPage />} />
           </Route>

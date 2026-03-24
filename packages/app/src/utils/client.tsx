@@ -10,6 +10,11 @@ import { Api } from '@lily/api/api'
 import {
   type CareLogNotFoundError,
   type DeviceTokenNotFoundError,
+  type GiftCodeAlreadyRedeemedError,
+  type GiftCodeExhaustedError,
+  type GiftCodeExpiredError,
+  type GiftCodeInactiveError,
+  type GiftCodeNotFoundError,
   type InvalidSubscriptionStatusError,
   type LimitExceededError,
   type NotificationNotFoundError,
@@ -110,6 +115,11 @@ export type ApiFailure =
   | NotificationNotFoundError
   | SubscriptionNotFoundError
   | InvalidSubscriptionStatusError
+  | GiftCodeNotFoundError
+  | GiftCodeInactiveError
+  | GiftCodeExpiredError
+  | GiftCodeExhaustedError
+  | GiftCodeAlreadyRedeemedError
   | { readonly _tag: 'NetworkError'; readonly message: string }
   | { readonly _tag: 'UnknownError'; readonly message: string }
 
@@ -129,6 +139,11 @@ const KNOWN_ERROR_TAGS = [
   'NotificationNotFoundError',
   'SubscriptionNotFoundError',
   'InvalidSubscriptionStatusError',
+  'GiftCodeNotFoundError',
+  'GiftCodeInactiveError',
+  'GiftCodeExpiredError',
+  'GiftCodeExhaustedError',
+  'GiftCodeAlreadyRedeemedError',
 ] as const
 
 type KnownErrorTag = (typeof KNOWN_ERROR_TAGS)[number]

@@ -11,6 +11,10 @@ import {
   AdminUser,
   AdminUserListParams,
   AdminUserUpdateRequest,
+  GiftCode,
+  GiftCodeCreateRequest,
+  GiftCodeUpdateRequest,
+  GiftCodeWithRedemptions,
   PromptPreviewResponse,
 } from '@lily/shared/admin'
 import {
@@ -18,6 +22,12 @@ import {
   ChatMessageNotFoundError,
   ForbiddenError,
 } from '@lily/shared/errors/admin'
+import {
+  GiftCodeDuplicateError,
+  GiftCodeExpiryInPastError,
+  GiftCodeMaxUsagesTooLowError,
+  GiftCodeNotFoundError,
+} from '@lily/shared/errors/gift-code'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
 
@@ -26,6 +36,9 @@ const userIdParam = HttpApiSchema.param('id', Schema.UUID)
 
 // Path parameter for message ID (prompt preview)
 const messageIdParam = HttpApiSchema.param('messageId', Schema.UUID)
+
+// Path parameter for gift code ID
+const codeIdParam = HttpApiSchema.param('codeId', Schema.UUID)
 
 // Define the Admin API group
 export const AdminApi = HttpApiGroup.make('admin')
@@ -111,6 +124,47 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.get('previewPrompt')`/prompt-preview/${messageIdParam}`
       .addSuccess(PromptPreviewResponse)
       .addError(ChatMessageNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/gift-codes - List all gift codes (paginated)
+    HttpApiEndpoint.get('listGiftCodes')`/gift-codes`
+      .setUrlParams(PaginationParams)
+      .addSuccess(PaginatedResponse(GiftCode))
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // POST /admin/gift-codes - Create a new gift code
+    HttpApiEndpoint.post('createGiftCode')`/gift-codes`
+      .setPayload(GiftCodeCreateRequest)
+      .addSuccess(GiftCode)
+      .addError(GiftCodeDuplicateError, { status: 409 })
+      .addError(GiftCodeExpiryInPastError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/gift-codes/:codeId - Get gift code with redemptions
+    HttpApiEndpoint.get('getGiftCode')`/gift-codes/${codeIdParam}`
+      .addSuccess(GiftCodeWithRedemptions)
+      .addError(GiftCodeNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // PUT /admin/gift-codes/:codeId - Update a gift code
+    HttpApiEndpoint.put('updateGiftCode')`/gift-codes/${codeIdParam}`
+      .setPayload(GiftCodeUpdateRequest)
+      .addSuccess(GiftCode)
+      .addError(GiftCodeNotFoundError, { status: 404 })
+      .addError(GiftCodeDuplicateError, { status: 409 })
+      .addError(GiftCodeMaxUsagesTooLowError, { status: 400 })
+      .addError(GiftCodeExpiryInPastError, { status: 400 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // DELETE /admin/gift-codes/:codeId - Delete a gift code
+    HttpApiEndpoint.del('deleteGiftCode')`/gift-codes/${codeIdParam}`
+      .addSuccess(GiftCode)
+      .addError(GiftCodeNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })
   )
   .prefix('/admin')

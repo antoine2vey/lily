@@ -6,6 +6,7 @@ const navItems = [
   { path: '/jobs', label: 'Jobs' },
   { path: '/jobs/new', label: 'New Job' },
   { path: '/search', label: 'Search' },
+  { path: '/gift-codes', label: 'Gift Codes' },
   { path: '/gift-subscription', label: 'Gift Sub' },
   { path: '/gift-history', label: 'Gift History' },
   { path: '/prompt-preview', label: 'Prompt Preview' },

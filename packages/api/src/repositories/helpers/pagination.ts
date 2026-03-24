@@ -4,8 +4,8 @@ import { Array, Option, pipe } from 'effect'
  * Calculate pagination offset and limit from optional page/limit params
  */
 export interface PaginationInput {
-  page?: number
-  limit?: number
+  page?: number | undefined
+  limit?: number | undefined
 }
 
 export interface PaginationOutput {
