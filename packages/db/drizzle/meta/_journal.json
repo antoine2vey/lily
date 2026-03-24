@@ -267,6 +267,13 @@
       "when": 1774292279471,
       "tag": "0037_colorful_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1774306310171,
+      "tag": "0038_quiet_venom",
+      "breakpoints": true
     }
   ]
 }

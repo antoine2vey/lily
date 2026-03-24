@@ -1,6 +1,10 @@
 import { Schema } from 'effect'
 import { PaginationParams } from '../common/pagination'
-import { SubscriptionStatus, SubscriptionTier } from '../subscriptions/schema'
+import {
+  SubscriptionEventType,
+  SubscriptionStatus,
+  SubscriptionTier,
+} from '../subscriptions/schema'
 import { User, UserRole, UserStatus } from '../user/schema'
 
 // Admin user list request - pagination with filters
@@ -97,10 +101,51 @@ export const PromptPreviewResponse = Schema.Struct({
   hasImage: Schema.Boolean,
 })
 
+// --- Gift History schemas ---
+
+export const AdminGiftEvent = Schema.Struct({
+  id: Schema.String,
+  userId: Schema.String,
+  userName: Schema.NullOr(Schema.String),
+  userEmail: Schema.String,
+  eventType: SubscriptionEventType,
+  metadata: Schema.NullOr(Schema.String),
+  createdAt: Schema.Date,
+})
+export type AdminGiftEvent = typeof AdminGiftEvent.Type
+
+// --- Gift Revoke schemas ---
+
+export const AdminRevokeGiftResponse = Schema.Struct({
+  message: Schema.String,
+  userId: Schema.String,
+  tier: SubscriptionTier,
+  status: SubscriptionStatus,
+})
+export type AdminRevokeGiftResponse = typeof AdminRevokeGiftResponse.Type
+
 // --- Gift Subscription schemas ---
 
 export const GiftDuration = Schema.Literal('7d', '1m', '1y', 'infinite')
 export type GiftDuration = typeof GiftDuration.Type
+
+export const GIFT_DURATION_LABELS: Record<
+  string,
+  Record<GiftDuration, string>
+> = {
+  en: {
+    '7d': '7 Days',
+    '1m': '1 Month',
+    '1y': '1 Year',
+    infinite: 'Lifetime',
+  },
+  fr: {
+    '7d': '7 Jours',
+    '1m': '1 Mois',
+    '1y': '1 An',
+    infinite: 'À Vie',
+  },
+}
 
 export const AdminGiftSubscriptionRequest = Schema.Struct({
   duration: GiftDuration,

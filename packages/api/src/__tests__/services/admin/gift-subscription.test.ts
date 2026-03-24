@@ -1,4 +1,6 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
+import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
@@ -27,6 +29,8 @@ const baseLayers = (
   Layer.mergeAll(
     createMockUserRepository(mockUsers),
     createMockSubscriptionRepository(opts),
+    createMockNotificationRepository([]),
+    createMockMessageQueue(),
     mockAdminLayer
   )
 

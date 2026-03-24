@@ -110,6 +110,7 @@ export const createMockSubscriptionRepository = (
           }))
         )
       ),
+    findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
     logEvent: () => Effect.void,
   }
 

@@ -23,6 +23,7 @@ export type SimpleNotificationType =
   | 'inactivity_nudge'
   | 'photo_reminder'
   | 'plant_parent_milestone'
+  | 'gift_subscription'
 
 export type SimpleNotificationParams = {
   readonly senderName?: string
@@ -32,6 +33,7 @@ export type SimpleNotificationParams = {
   readonly daysSincePhoto?: number
   readonly tipTitle?: string
   readonly tipBody?: string
+  readonly giftDuration?: string
 }
 
 type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
@@ -142,6 +144,16 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         return `You joined Lily ${days} days ago. Your plants are lucky to have you!`
       },
     },
+    gift_subscription: {
+      title: () => '🎁 You received a gift!',
+      body: (p) => {
+        const duration = Option.getOrElse(
+          Option.fromNullable(p.giftDuration),
+          () => 'a special period'
+        )
+        return `You've been gifted premium access for ${duration}. Enjoy!`
+      },
+    },
   },
   fr: {
     new_follower: {
@@ -246,6 +258,16 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           () => 30
         )
         return `Vous avez rejoint Lily il y a ${days} jours. Vos plantes ont de la chance de vous avoir !`
+      },
+    },
+    gift_subscription: {
+      title: () => '🎁 Vous avez reçu un cadeau !',
+      body: (p) => {
+        const duration = Option.getOrElse(
+          Option.fromNullable(p.giftDuration),
+          () => 'une période spéciale'
+        )
+        return `On vous a offert un accès premium pour ${duration}. Profitez-en !`
       },
     },
   },
