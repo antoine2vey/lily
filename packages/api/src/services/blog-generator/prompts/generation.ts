@@ -13,7 +13,8 @@ FORMAT:
 - Include a compelling meta description (150-160 chars) in frontmatter
 - Use ## for main sections, ### for subsections
 - Include practical, actionable tips
-- Aim for 1200-1800 words
+- MINIMUM 1500 words, aim for 1500-2200 words — posts under 1500 words will be rejected
+- Achieve depth through seasonal care variations, troubleshooting decision trees, specific product/tool mentions, and comparisons with similar species
 - End with a concise summary or call-to-action
 
 INTERNAL LINKING (CRITICAL FOR SEO):

@@ -12,6 +12,8 @@ Evaluate the content on these dimensions (0-100 each):
 
 4. **seoQuality** — Proper heading structure, keyword usage, meta description quality, scannable format with clear sections. CRITICAL: the post MUST contain 2-4 internal links to other blog posts (format: /en/blog/{slug}). Deduct 10+ points if no internal links are present. Deduct 15 points if any link points to a URL NOT in the provided existing posts list — broken links are worse than no links.
 
-5. **overallScore** — Weighted average: uniqueness (35%), organicFeel (30%), factualAccuracy (25%), seoQuality (10%).
+5. **contentDepth** — The post MUST be at least 1500 words. Count the words in the MDX body (excluding frontmatter). Score 0 if under 1200 words, score 50 if 1200-1499 words, score 80+ only if 1500+ words. Beyond length, check for: seasonal care variations, troubleshooting tips, specific measurements (temperatures, frequencies, ratios), and comparisons with similar species.
 
-Provide specific, actionable feedback for any dimension scoring below 95.`
+6. **overallScore** — Weighted average: uniqueness (30%), organicFeel (25%), factualAccuracy (20%), seoQuality (10%), contentDepth (15%).
+
+Provide specific, actionable feedback for any dimension scoring below 95. If contentDepth scores below 80, include a list of specific sections or topics that should be added to reach 1500+ words.`

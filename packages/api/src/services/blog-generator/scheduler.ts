@@ -8,7 +8,7 @@ import { researchTopic } from './researcher'
 import { selectTopic } from './topics'
 import type { TopicSuggestion } from './types'
 
-const MAX_POSTS_PER_DAY = 2
+const MAX_POSTS_PER_DAY = 12
 
 const rejectPost = (postId: string, reason: string) =>
   Effect.gen(function* () {
@@ -131,7 +131,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
 export const startBlogGeneratorScheduler = createScheduler({
   name: 'blog-generator',
-  interval: '6 hours',
+  interval: '1 hour',
   runOnStartup: true,
   task: checkAndGenerateBlogPost,
 })
