@@ -3,87 +3,86 @@ import { describe, expect, it } from 'vitest'
 // Test the review score threshold logic directly
 // This tests the decision logic from generator.ts without needing OpenAI calls
 
-const MIN_SCORE = 95
+const MIN_SCORE = 93
+const MIN_CONTENT_DEPTH = 80
 
 const allDimensionsPassing = (review: {
   uniqueness: number
   organicFeel: number
   factualAccuracy: number
   seoQuality: number
+  contentDepth: number
 }) =>
   review.uniqueness >= MIN_SCORE &&
   review.organicFeel >= MIN_SCORE &&
   review.factualAccuracy >= MIN_SCORE &&
-  review.seoQuality >= MIN_SCORE
+  review.seoQuality >= MIN_SCORE &&
+  review.contentDepth >= MIN_CONTENT_DEPTH
+
+const passingReview = {
+  uniqueness: 97,
+  organicFeel: 96,
+  factualAccuracy: 98,
+  seoQuality: 95,
+  contentDepth: 90,
+}
 
 describe('review score threshold logic', () => {
-  it('should pass when all dimensions are >= 95', () => {
-    const review = {
-      uniqueness: 97,
-      organicFeel: 96,
-      factualAccuracy: 98,
-      seoQuality: 95,
-    }
-    expect(allDimensionsPassing(review)).toBe(true)
+  it('should pass when all dimensions meet thresholds', () => {
+    expect(allDimensionsPassing(passingReview)).toBe(true)
   })
 
   it('should fail when uniqueness is below threshold', () => {
-    const review = {
-      uniqueness: 92,
-      organicFeel: 96,
-      factualAccuracy: 98,
-      seoQuality: 95,
-    }
-    expect(allDimensionsPassing(review)).toBe(false)
+    expect(allDimensionsPassing({ ...passingReview, uniqueness: 92 })).toBe(
+      false
+    )
   })
 
   it('should fail when organicFeel is below threshold', () => {
-    const review = {
-      uniqueness: 96,
-      organicFeel: 90,
-      factualAccuracy: 98,
-      seoQuality: 95,
-    }
-    expect(allDimensionsPassing(review)).toBe(false)
+    expect(allDimensionsPassing({ ...passingReview, organicFeel: 90 })).toBe(
+      false
+    )
   })
 
   it('should fail when factualAccuracy is below threshold', () => {
-    const review = {
-      uniqueness: 96,
-      organicFeel: 96,
-      factualAccuracy: 94,
-      seoQuality: 95,
-    }
-    expect(allDimensionsPassing(review)).toBe(false)
+    expect(
+      allDimensionsPassing({ ...passingReview, factualAccuracy: 92 })
+    ).toBe(false)
   })
 
   it('should fail when seoQuality is below threshold', () => {
-    const review = {
-      uniqueness: 96,
-      organicFeel: 96,
-      factualAccuracy: 98,
-      seoQuality: 93,
-    }
-    expect(allDimensionsPassing(review)).toBe(false)
+    expect(allDimensionsPassing({ ...passingReview, seoQuality: 92 })).toBe(
+      false
+    )
   })
 
-  it('should pass at exactly 95 on all dimensions', () => {
-    const review = {
-      uniqueness: 95,
-      organicFeel: 95,
-      factualAccuracy: 95,
-      seoQuality: 95,
-    }
-    expect(allDimensionsPassing(review)).toBe(true)
+  it('should fail when contentDepth is below threshold', () => {
+    expect(allDimensionsPassing({ ...passingReview, contentDepth: 50 })).toBe(
+      false
+    )
+  })
+
+  it('should pass at exactly the minimum thresholds', () => {
+    expect(
+      allDimensionsPassing({
+        uniqueness: 93,
+        organicFeel: 93,
+        factualAccuracy: 93,
+        seoQuality: 93,
+        contentDepth: 80,
+      })
+    ).toBe(true)
   })
 
   it('should fail when multiple dimensions are below threshold', () => {
-    const review = {
-      uniqueness: 80,
-      organicFeel: 70,
-      factualAccuracy: 60,
-      seoQuality: 50,
-    }
-    expect(allDimensionsPassing(review)).toBe(false)
+    expect(
+      allDimensionsPassing({
+        uniqueness: 80,
+        organicFeel: 70,
+        factualAccuracy: 60,
+        seoQuality: 50,
+        contentDepth: 40,
+      })
+    ).toBe(false)
   })
 })

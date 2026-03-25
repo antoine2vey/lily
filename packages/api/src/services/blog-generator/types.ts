@@ -19,6 +19,7 @@ export interface ReviewResult {
   readonly organicFeel: number
   readonly factualAccuracy: number
   readonly seoQuality: number
+  readonly contentDepth: number
   readonly overallScore: number
   readonly feedback: string
 }

@@ -29,12 +29,19 @@ export const ReviewSchema = z.object({
     .describe(
       'SEO readiness: proper heading structure, keyword usage, meta-friendly intro, internal linking opportunities. 100 = perfectly optimized.'
     ),
+  contentDepth: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe(
+      'Content depth and word count. Score 0 if under 1200 words, 50 if 1200-1499, 80+ only if 1500+. Also evaluates seasonal variations, troubleshooting tips, specific measurements, and species comparisons.'
+    ),
   overallScore: z
     .number()
     .min(0)
     .max(100)
     .describe(
-      'Weighted overall quality score. Must be >= 95 for the post to be published.'
+      'Weighted overall quality score: uniqueness (30%), organicFeel (25%), factualAccuracy (20%), seoQuality (10%), contentDepth (15%). Must be >= 93 for publication.'
     ),
   feedback: z
     .string()

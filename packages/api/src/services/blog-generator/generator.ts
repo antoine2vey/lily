@@ -236,6 +236,7 @@ export const generateAndReviewBlogPost = (
               organicFeel: review.organicFeel,
               factualAccuracy: review.factualAccuracy,
               seoQuality: review.seoQuality,
+              contentDepth: review.contentDepth,
               retryCount: state.retryCount,
             })
 
@@ -244,7 +245,8 @@ export const generateAndReviewBlogPost = (
               review.uniqueness >= MIN_SCORE &&
               review.organicFeel >= MIN_SCORE &&
               review.factualAccuracy >= MIN_SCORE &&
-              review.seoQuality >= MIN_SCORE
+              review.seoQuality >= MIN_SCORE &&
+              review.contentDepth >= 80
 
             if (allDimensionsPassing) {
               // Translate only after review passes
