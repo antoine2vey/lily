@@ -1,7 +1,7 @@
 'use client'
 
 import { Array, pipe } from 'effect'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
@@ -60,22 +60,19 @@ export function FAQ() {
                 </span>
               </button>
 
-              <AnimatePresence initial={false}>
-                {openIndex === index && (
-                  <motion.div
-                    key="answer"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
-                    <div className="shadow-neu-inset bg-background rounded-b-2xl px-7 py-5 text-muted leading-relaxed">
-                      {faq.answer}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <motion.div
+                initial={false}
+                animate={{
+                  height: openIndex === index ? 'auto' : 0,
+                  opacity: openIndex === index ? 1 : 0,
+                }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="shadow-neu-inset bg-background rounded-b-2xl px-7 py-5 text-muted leading-relaxed">
+                  {faq.answer}
+                </div>
+              </motion.div>
             </motion.div>
           ))}
         </div>

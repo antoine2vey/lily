@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/lily-plant-care/id6504462690'
@@ -8,6 +9,7 @@ const GOOGLE_PLAY_URL =
 
 export function StickyMobileCTA() {
   const [pricingVisible, setPricingVisible] = useState(false)
+  const t = useTranslations('Hero')
 
   useEffect(() => {
     const pricing = document.getElementById('pricing')
@@ -34,7 +36,7 @@ export function StickyMobileCTA() {
         rel="noopener noreferrer"
         className="flex-1 inline-flex items-center justify-center gap-2 shadow-neu-sm bg-background text-lily-text py-3 rounded-full text-sm font-semibold hover:shadow-neu-inset transition-all duration-200"
       >
-        <span>🍎</span> App Store
+        <span>🍎</span> {t('appStore')}
       </a>
       <a
         href={GOOGLE_PLAY_URL}
@@ -42,7 +44,7 @@ export function StickyMobileCTA() {
         rel="noopener noreferrer"
         className="flex-1 inline-flex items-center justify-center gap-2 shadow-neu-sm bg-background text-lily-text py-3 rounded-full text-sm font-semibold hover:shadow-neu-inset transition-all duration-200"
       >
-        <span>▶</span> Google Play
+        <span>▶</span> {t('googlePlay')}
       </a>
     </div>
   )

@@ -12,7 +12,7 @@ FROM nginx:alpine AS runner
 
 COPY --from=builder /app/out /usr/share/nginx/html
 
-RUN printf 'server {\n  listen __PORT__;\n  root /usr/share/nginx/html;\n  index index.html;\n  location / {\n    try_files $uri $uri.html $uri/ =404;\n  }\n}\n' \
+RUN printf 'server {\n  listen __PORT__;\n  root /usr/share/nginx/html;\n  index index.html;\n\n  add_header X-Content-Type-Options "nosniff" always;\n  add_header X-Frame-Options "DENY" always;\n  add_header Referrer-Policy "strict-origin-when-cross-origin" always;\n  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;\n  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;\n\n  location = / {\n    return 301 /en;\n  }\n\n  location / {\n    try_files $uri $uri.html $uri/ =404;\n  }\n}\n' \
     > /etc/nginx/conf.d/default.conf
 
 CMD sh -c "sed -i s/__PORT__/$PORT/g /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
