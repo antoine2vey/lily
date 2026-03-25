@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { BlogPostCard } from '@/components/BlogPostCard'
+import { JsonLd } from '@/components/JsonLd'
 import { getAllPosts } from '@/lib/posts'
 
 interface Props {
@@ -42,6 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       languages: {
         en: 'https://withlily.app/en/blog',
         fr: 'https://withlily.app/fr/blog',
+        'x-default': 'https://withlily.app/en/blog',
       },
     },
   }
@@ -53,8 +55,28 @@ export default async function BlogPage({ params }: Props) {
   const t = await getTranslations({ locale, namespace: 'BlogIndex' })
   const posts = getAllPosts(locale)
 
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: t('back'),
+        item: `https://withlily.app/${locale}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: t('heading'),
+        item: `https://withlily.app/${locale}/blog`,
+      },
+    ],
+  }
+
   return (
     <main className="min-h-screen bg-background pb-24">
+      <JsonLd data={breadcrumbSchema} />
       <header className="py-16 px-6 text-center">
         <Link
           href={`/${locale}`}

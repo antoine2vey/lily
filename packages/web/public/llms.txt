@@ -1,0 +1,32 @@
+# Lily — Plant Care App
+
+> Smart reminders, AI diagnosis, and care schedules personalized to every plant in your home.
+
+Lily is a mobile app (iOS and Android) that helps plant owners keep their plants alive with personalized care reminders, AI-powered plant identification and disease diagnosis, care logging, and community features.
+
+## Key Pages
+
+- [Home](https://withlily.app/en): Product overview, features, pricing, and FAQ
+- [Blog](https://withlily.app/en/blog): Plant care guides, tips, and troubleshooting
+- [Privacy Policy](https://withlily.app/en/privacy): How we handle user data
+- [Terms of Service](https://withlily.app/en/terms): Usage terms
+
+## Features
+
+- Plant collection management with photos and health tracking
+- Personalized watering, fertilizing, and misting reminders
+- AI-powered plant identification from photos
+- AI chat for plant care advice and disease diagnosis
+- Care action logging and history
+- Room-based plant organization
+- Community sharing and badges
+- 7-day free trial, then $4.99/month or $29.99/year
+
+## Download
+
+- App Store: https://apps.apple.com/app/lily-plant-care/id6504462690
+- Google Play: https://play.google.com/store/apps/details?id=com.lilyapp.plants
+
+## Contact
+
+hello@withlily.app

@@ -108,7 +108,7 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "contact": "Contact",
-    "copyright": "© 2025 Lily. All rights reserved."
+    "copyright": "© 2026 Lily. All rights reserved."
   },
   "LatestPosts": {
     "eyebrow": "Plant care guides",
@@ -138,17 +138,67 @@
     "back": "← Back to Lily",
     "heading": "Privacy Policy",
     "lastUpdated": "Last updated: March 2026",
-    "s1Heading": "Information We Collect",
-    "s1Text": "Lily collects information you provide directly, including your name, email address, and plant care data. We also collect usage data to improve the app experience.",
-    "s2Heading": "How We Use Your Data",
-    "s2Text": "We use your data to provide care reminders, AI plant diagnosis, and personalized recommendations. We never sell your personal data to third parties.",
-    "s3Heading": "Data Storage",
-    "s3Text": "Your data is stored securely on our servers. Plant photos uploaded for AI diagnosis are processed and not retained beyond what is necessary for the service.",
-    "s4Heading": "Your Rights",
-    "s4Text": "You may request access to, correction of, or deletion of your personal data at any time by contacting us at privacy@withlily.app.",
-    "s5Heading": "Contact Us",
-    "s5Text": "For privacy-related questions, reach us at",
-    "metaDescription": "Learn how Lily collects, uses, and protects your personal data. Your privacy matters to us."
+    "intro": "This Privacy Policy explains how Lily (\"we\", \"us\", or \"our\") collects, uses, stores, and protects your personal data when you use the Lily mobile application (the \"App\") and our website at withlily.app. We are committed to protecting your privacy and complying with the General Data Protection Regulation (GDPR), the California Consumer Privacy Act (CCPA), and other applicable data protection laws.",
+
+    "s1Heading": "1. Data Controller",
+    "s1Text": "The data controller responsible for your personal data is Lily. For any questions regarding data processing, you can reach our data protection team at privacy@withlily.app.",
+
+    "s2Heading": "2. Information We Collect",
+    "s2Text": "We collect the following categories of personal data:",
+    "s2Cat1Title": "Information you provide directly",
+    "s2Cat1Items": "Name and email address (during account creation)|Plant collection data (plant names, species, photos, locations, care logs)|Subscription and payment status (managed by Apple App Store or Google Play — we do not store credit card details)|Support requests and feedback you send us",
+    "s2Cat2Title": "Information collected automatically",
+    "s2Cat2Items": "Device information (device model, operating system, app version)|Usage data (features used, session duration, interactions)|IP address and approximate location (country/region level, for language and timezone defaults)|Crash reports and performance data",
+    "s2Cat3Title": "Information from third-party services",
+    "s2Cat3Items": "Authentication data if you sign in with Apple or Google|App Store or Google Play subscription status",
+
+    "s3Heading": "3. Legal Basis for Processing",
+    "s3Text": "Under GDPR Article 6, we process your personal data based on the following legal grounds:",
+    "s3Items": "Contract performance: To provide the Lily app services you requested, including care reminders, plant tracking, and AI diagnosis (Art. 6(1)(b))|Legitimate interest: To improve our app, fix bugs, analyze usage patterns, and prevent fraud, where these interests do not override your rights (Art. 6(1)(f))|Consent: For optional features such as push notifications, marketing emails, and AI-powered plant photo analysis. You can withdraw consent at any time (Art. 6(1)(a))|Legal obligation: To comply with tax, accounting, or regulatory requirements (Art. 6(1)(c))",
+
+    "s4Heading": "4. How We Use Your Data",
+    "s4Text": "We use your personal data for the following purposes:",
+    "s4Items": "Providing and maintaining the App, including personalized care reminders and schedules|Processing plant photos through AI models for species identification and disease diagnosis|Sending push notifications for watering, fertilizing, and other care tasks (with your consent)|Analyzing aggregated, anonymized usage data to improve features and user experience|Responding to your support requests and feedback|Processing subscriptions and managing your account|Detecting and preventing fraud or misuse of the service",
+    "s4Text2": "We never sell your personal data to third parties. We do not use your data for automated decision-making or profiling that produces legal effects.",
+
+    "s5Heading": "5. Data Sharing and Third Parties",
+    "s5Text": "We share your data only with the following categories of service providers, each bound by data processing agreements:",
+    "s5Items": "Cloud hosting: Our servers are hosted on Railway (infrastructure provider), which processes data on our behalf in data centers located in the United States|Analytics: We use Google Analytics (Google LLC) to collect anonymized usage statistics. Google Analytics uses cookies and may transfer data to the US under Standard Contractual Clauses. You can opt out at any time via the app settings|AI services: Plant photos submitted for identification or diagnosis are processed by third-party AI models. Photos are transmitted securely, used only for the requested analysis, and not retained by the AI provider beyond processing|Push notifications: We use Expo (Expo Inc.) to deliver push notifications to your device|Payment processing: Subscriptions are handled entirely by Apple App Store or Google Play. We receive only your subscription status, not your payment details",
+    "s5Text2": "We may also disclose your data if required by law, court order, or to protect our legal rights.",
+
+    "s6Heading": "6. Data Retention",
+    "s6Text": "We retain your personal data only for as long as necessary to fulfill the purposes described in this policy:",
+    "s6Items": "Account data (name, email): Retained while your account is active, and deleted within 30 days of account deletion|Plant data (collection, care logs, photos): Retained while your account is active. Exported to you upon request before deletion|AI diagnosis photos: Processed in real-time and not stored on our servers after analysis is complete|Usage analytics: Aggregated and anonymized data is retained for up to 26 months (Google Analytics default)|Support correspondence: Retained for up to 2 years after resolution|Payment records: Retained as required by applicable tax and accounting laws (typically 5-7 years)",
+
+    "s7Heading": "7. Data Storage and Security",
+    "s7Text": "Your data is stored on secure servers with industry-standard protections, including:",
+    "s7Items": "Encryption in transit (TLS 1.2+) and at rest (AES-256)|Access controls and authentication for all internal systems|Regular security reviews and dependency updates|Automated backups with encryption",
+    "s7Text2": "While we implement robust security measures, no system is completely secure. We encourage you to use a strong, unique password for your Lily account.",
+
+    "s8Heading": "8. International Data Transfers",
+    "s8Text": "Your data may be transferred to and processed in the United States, where our infrastructure is hosted. For transfers of personal data from the European Economic Area (EEA), the United Kingdom, or Switzerland to the US, we rely on Standard Contractual Clauses (SCCs) approved by the European Commission, or other valid transfer mechanisms as required by applicable law. You can request a copy of the applicable SCCs by contacting us at privacy@withlily.app.",
+
+    "s9Heading": "9. Cookies and Tracking",
+    "s9Text": "Our website (withlily.app) uses the following tracking technologies:",
+    "s9Items": "Google Analytics: Collects anonymized page views, session duration, and referral sources. Uses first-party cookies with a 2-year expiration. You can opt out using browser extensions or cookie settings|Essential cookies: Used for language preference (locale) and theme selection. These are strictly necessary and do not require consent",
+    "s9Text2": "The Lily mobile app does not use cookies. In-app analytics are collected via our own infrastructure and Google Analytics with anonymized identifiers.",
+
+    "s10Heading": "10. Your Rights",
+    "s10Text": "Under GDPR and applicable data protection laws, you have the following rights regarding your personal data:",
+    "s10Items": "Right of access (Art. 15): Request a copy of all personal data we hold about you|Right to rectification (Art. 16): Request correction of inaccurate or incomplete data|Right to erasure (Art. 17): Request deletion of your personal data (\"right to be forgotten\")|Right to restriction (Art. 18): Request that we limit how we process your data|Right to data portability (Art. 20): Receive your data in a structured, machine-readable format (JSON export)|Right to object (Art. 21): Object to processing based on legitimate interest, including analytics|Right to withdraw consent (Art. 7): Withdraw consent for optional processing (e.g., push notifications, marketing) at any time without affecting prior processing",
+    "s10Text2": "To exercise any of these rights, contact us at privacy@withlily.app. We will respond within 30 days. If you are unsatisfied with our response, you have the right to lodge a complaint with your local supervisory authority. For users in France, this is the CNIL (Commission Nationale de l'Informatique et des Libertés) at cnil.fr.",
+
+    "s11Heading": "11. Children's Privacy",
+    "s11Text": "Lily is not directed at children under 16 years of age. We do not knowingly collect personal data from children under 16. If you believe we have collected data from a child under 16, please contact us at privacy@withlily.app and we will promptly delete the data.",
+
+    "s12Heading": "12. Changes to This Policy",
+    "s12Text": "We may update this Privacy Policy from time to time to reflect changes in our practices, technology, legal requirements, or other factors. When we make material changes, we will notify you through the App or by email at least 30 days before the changes take effect. Your continued use of Lily after the effective date constitutes acceptance of the updated policy.",
+
+    "contactHeading": "13. Contact Us",
+    "contactText": "For any privacy-related questions, data requests, or concerns, contact our data protection team at",
+    "contactAddress": "You can also write to us at: Lily, privacy@withlily.app.",
+
+    "metaDescription": "Learn how Lily collects, uses, and protects your personal data. GDPR-compliant privacy policy covering your rights, data retention, cookies, and third-party sharing."
   },
   "Terms": {
     "back": "← Back to Lily",

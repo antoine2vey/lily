@@ -1,4 +1,4 @@
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/lily-plant-care/id6504462690'
 const GOOGLE_PLAY_URL =
@@ -6,6 +6,7 @@ const GOOGLE_PLAY_URL =
 
 export async function Footer() {
   const t = await getTranslations('Footer')
+  const locale = await getLocale()
 
   return (
     <footer className="bg-background pt-12 pb-8">
@@ -43,16 +44,22 @@ export async function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-muted text-sm">
           <p>{t('copyright')}</p>
           <div className="flex gap-6">
-            <a href="blog" className="hover:text-lily-text transition-colors">
+            <a
+              href={`/${locale}/blog`}
+              className="hover:text-lily-text transition-colors"
+            >
               {t('blog')}
             </a>
             <a
-              href="privacy"
+              href={`/${locale}/privacy`}
               className="hover:text-lily-text transition-colors"
             >
               {t('privacy')}
             </a>
-            <a href="terms" className="hover:text-lily-text transition-colors">
+            <a
+              href={`/${locale}/terms`}
+              className="hover:text-lily-text transition-colors"
+            >
               {t('terms')}
             </a>
             <a

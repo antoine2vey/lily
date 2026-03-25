@@ -33,6 +33,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? [{ url: post.coverImage, width: 1200, height: 630, alt: post.title }]
     : [{ url: '/og-image.png', width: 1200, height: 630, alt: post.title }]
 
+  const otherLocale = locale === 'en' ? 'fr' : 'en'
+  const otherPost = getPostBySlug(slug, otherLocale)
+  const languages: Record<string, string> = {
+    [locale]: `https://withlily.app/${locale}/blog/${slug}`,
+    'x-default': `https://withlily.app/en/blog/${slug}`,
+  }
+  if (Option.isSome(otherPost)) {
+    languages[otherLocale] = `https://withlily.app/${otherLocale}/blog/${slug}`
+  }
+
   return {
     title: `${post.title} ${t('metaTitleSuffix')}`,
     description: post.description,
@@ -53,10 +63,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     alternates: {
       canonical: `https://withlily.app/${locale}/blog/${slug}`,
-      languages: {
-        en: `https://withlily.app/en/blog/${slug}`,
-        fr: `https://withlily.app/fr/blog/${slug}`,
-      },
+      languages,
     },
   }
 }
@@ -111,7 +118,13 @@ export default async function BlogPostPage({ params }: Props) {
       '@type': 'WebPage',
       '@id': `https://withlily.app/${locale}/blog/${slug}`,
     },
-    ...(post.coverImage && { image: post.coverImage }),
+    image: post.coverImage
+      ? pipe(post.coverImage, (img) =>
+          pipe(img, String.startsWith('http'))
+            ? img
+            : `https://withlily.app${img}`
+        )
+      : 'https://withlily.app/og-image.png',
   }
 
   const breadcrumbSchema = {

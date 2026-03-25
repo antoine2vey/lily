@@ -1,4 +1,5 @@
 import { Array, pipe } from 'effect'
+import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Header } from '@/components/Header'
@@ -25,6 +26,45 @@ const Footer = dynamic(() =>
 
 interface Props {
   params: Promise<{ locale: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'metadata' })
+
+  return {
+    title: t('title'),
+    description: t('description'),
+    openGraph: {
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+      url: `https://withlily.app/${locale}`,
+      type: 'website',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'Lily — Plant care app',
+        },
+      ],
+      locale: locale === 'fr' ? 'fr_FR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+      images: ['/og-image.png'],
+    },
+    alternates: {
+      canonical: `https://withlily.app/${locale}`,
+      languages: {
+        en: 'https://withlily.app/en',
+        fr: 'https://withlily.app/fr',
+        'x-default': 'https://withlily.app/en',
+      },
+    },
+  }
 }
 
 export default async function Home({ params }: Props) {

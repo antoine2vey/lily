@@ -40,6 +40,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       languages: {
         en: 'https://withlily.app/en/terms',
         fr: 'https://withlily.app/fr/terms',
+        'x-default': 'https://withlily.app/en/terms',
       },
     },
   }

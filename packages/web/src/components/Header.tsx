@@ -97,12 +97,12 @@ export function Header() {
         <div className="flex items-center gap-3">
           <a
             href={`/${locale}/blog`}
-            className="hidden sm:inline-block text-muted hover:text-lily-text text-sm font-medium transition-colors"
+            className="text-muted hover:text-lily-text text-sm font-medium transition-colors"
           >
             {t('blog')}
           </a>
 
-          <div ref={langRef} className="relative hidden sm:block">
+          <div ref={langRef} className="relative">
             <button
               type="button"
               onClick={() => setLangOpen((o) => !o)}

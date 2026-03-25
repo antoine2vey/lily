@@ -1,4 +1,4 @@
-import { Array, DateTime, Match, Option, pipe } from 'effect'
+import { Array, DateTime, Option, pipe } from 'effect'
 import type { MetadataRoute } from 'next'
 import { routing } from '@/i18n/routing'
 import { getAllPosts } from '@/lib/posts'
@@ -13,18 +13,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     Array.map(staticPages, (pagePath) => ({
       url: `https://withlily.app/${locale}${pagePath}`,
       lastModified: DateTime.formatIso(DateTime.unsafeNow()),
-      changeFrequency: pipe(
-        Match.value(pagePath),
-        Match.when('', () => 'weekly' as const),
-        Match.when('/blog', () => 'weekly' as const),
-        Match.orElse(() => 'yearly' as const)
-      ),
-      priority: pipe(
-        Match.value(pagePath),
-        Match.when('', () => 1),
-        Match.when('/blog', () => 0.8),
-        Match.orElse(() => 0.3)
-      ),
     }))
   )
 
@@ -36,8 +24,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
         Option.map(DateTime.formatIso),
         Option.getOrElse(() => DateTime.formatIso(DateTime.unsafeNow()))
       ),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
     }))
   )
 

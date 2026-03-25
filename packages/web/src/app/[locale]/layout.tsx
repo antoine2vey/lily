@@ -78,6 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       languages: {
         en: 'https://withlily.app/en',
         fr: 'https://withlily.app/fr',
+        'x-default': 'https://withlily.app/en',
       },
     },
   }
@@ -87,10 +88,23 @@ const softwareApplicationSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Lily',
+  description:
+    'Plant care app with smart reminders, AI diagnosis, and personalized care guides for your houseplants.',
   applicationCategory: 'LifestyleApplication',
   operatingSystem: 'iOS, Android',
   url: 'https://withlily.app',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  downloadUrl: [
+    'https://apps.apple.com/app/lily-plant-care/id6504462690',
+    'https://play.google.com/store/apps/details?id=com.lilyapp.plants',
+  ],
+  screenshot: 'https://withlily.app/screenshots/home-screen.webp',
+  offers: {
+    '@type': 'AggregateOffer',
+    lowPrice: '0',
+    highPrice: '29.99',
+    priceCurrency: 'USD',
+    offerCount: '3',
+  },
   aggregateRating: {
     '@type': 'AggregateRating',
     ratingValue: '4.8',
@@ -104,8 +118,24 @@ const organizationSchema = {
   '@type': 'Organization',
   name: 'Lily',
   url: 'https://withlily.app',
-  logo: 'https://withlily.app/favicon.svg',
-  sameAs: [],
+  logo: 'https://withlily.app/apple-touch-icon.png',
+  sameAs: [
+    'https://apps.apple.com/app/lily-plant-care/id6504462690',
+    'https://play.google.com/store/apps/details?id=com.lilyapp.plants',
+  ],
+}
+
+const webSiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Lily',
+  url: 'https://withlily.app',
+  inLanguage: ['en', 'fr'],
+  publisher: {
+    '@type': 'Organization',
+    name: 'Lily',
+    url: 'https://withlily.app',
+  },
 }
 
 export default async function LocaleLayout({ children, params }: Props) {
@@ -131,6 +161,7 @@ export default async function LocaleLayout({ children, params }: Props) {
       <body className={`${spaceGrotesk.variable} font-sans bg-background`}>
         <JsonLd data={softwareApplicationSchema} />
         <JsonLd data={organizationSchema} />
+        <JsonLd data={webSiteSchema} />
         <NextIntlClientProvider messages={messages}>
           <Providers>
             {children}
