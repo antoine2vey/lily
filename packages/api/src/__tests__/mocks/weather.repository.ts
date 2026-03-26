@@ -9,7 +9,7 @@ export const createMockWeatherRepository = (
   snapshots: Array<typeof weatherSnapshots.$inferSelect> = []
 ): Layer.Layer<WeatherRepository> => {
   const repo: IWeatherRepository = {
-    upsertSnapshot: () => Effect.succeed(undefined),
+    upsertSnapshot: () => Effect.void,
 
     findRecentByLocation: (lat, lng, _days) =>
       Effect.succeed(

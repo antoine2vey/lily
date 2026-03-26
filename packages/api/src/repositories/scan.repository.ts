@@ -22,27 +22,29 @@ export const ScanRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (data: { userId: string; scanType: 'card' | 'identify' }) =>
-        Effect.gen(function* () {
-          const results = yield* db
-            .insert(plantScans)
-            .values({
-              userId: data.userId,
-              scanType: data.scanType,
+      create: Effect.fn('ScanRepository.create')(function* (data: {
+        userId: string
+        scanType: 'card' | 'identify'
+      }) {
+        const results = yield* db
+          .insert(plantScans)
+          .values({
+            userId: data.userId,
+            scanType: data.scanType,
+          })
+          .returning()
+        const scan = pipe(Array.head(results), Option.getOrNull)
+        if (!scan) {
+          return yield* Effect.die(
+            new EntityMutationDefect({
+              message: 'Scan insert returned null',
+              entity: 'scan',
+              operation: 'create',
             })
-            .returning()
-          const scan = pipe(Array.head(results), Option.getOrNull)
-          if (!scan) {
-            return yield* Effect.die(
-              new EntityMutationDefect({
-                message: 'Scan insert returned null',
-                entity: 'scan',
-                operation: 'create',
-              })
-            )
-          }
-          return scan
-        }).pipe(Effect.withSpan('ScanRepository.create')),
+          )
+        }
+        return scan
+      }),
     }
   })
 )
