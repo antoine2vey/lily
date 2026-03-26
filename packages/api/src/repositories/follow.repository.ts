@@ -136,40 +136,51 @@ export const FollowRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      follow: (followerId, followingId) =>
-        Effect.gen(function* () {
-          yield* db.insert(userFollows).values({ followerId, followingId })
-        }).pipe(Effect.withSpan('FollowRepository.follow')),
+      follow: Effect.fn('FollowRepository.follow')(function* (
+        followerId: string,
+        followingId: string
+      ) {
+        yield* db.insert(userFollows).values({ followerId, followingId })
+      }),
 
-      unfollow: (followerId, followingId) =>
-        Effect.gen(function* () {
-          yield* db
-            .delete(userFollows)
-            .where(
-              and(
-                eq(userFollows.followerId, followerId),
-                eq(userFollows.followingId, followingId)
-              )
+      unfollow: Effect.fn('FollowRepository.unfollow')(function* (
+        followerId: string,
+        followingId: string
+      ) {
+        yield* db
+          .delete(userFollows)
+          .where(
+            and(
+              eq(userFollows.followerId, followerId),
+              eq(userFollows.followingId, followingId)
             )
-        }).pipe(Effect.withSpan('FollowRepository.unfollow')),
+          )
+      }),
 
-      isFollowing: (followerId, followingId) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select({ id: userFollows.id })
-            .from(userFollows)
-            .where(
-              and(
-                eq(userFollows.followerId, followerId),
-                eq(userFollows.followingId, followingId)
-              )
+      isFollowing: Effect.fn('FollowRepository.isFollowing')(function* (
+        followerId: string,
+        followingId: string
+      ) {
+        const [row] = yield* db
+          .select({ id: userFollows.id })
+          .from(userFollows)
+          .where(
+            and(
+              eq(userFollows.followerId, followerId),
+              eq(userFollows.followingId, followingId)
             )
-            .limit(1)
-          return row !== undefined
-        }).pipe(Effect.withSpan('FollowRepository.isFollowing')),
+          )
+          .limit(1)
+        return row !== undefined
+      }),
 
-      getFollowers: (params) =>
-        Effect.gen(function* () {
+      getFollowers: Effect.fn('FollowRepository.getFollowers')(
+        function* (params: {
+          userId: string
+          currentUserId: string
+          page?: number
+          limit?: number
+        }) {
           const { limit, offset } = getPaginationParams(params)
 
           const countResult = yield* db
@@ -199,10 +210,16 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(limit)
 
           return { items: rows, total }
-        }).pipe(Effect.withSpan('FollowRepository.getFollowers')),
+        }
+      ),
 
-      getFollowing: (params) =>
-        Effect.gen(function* () {
+      getFollowing: Effect.fn('FollowRepository.getFollowing')(
+        function* (params: {
+          userId: string
+          currentUserId: string
+          page?: number
+          limit?: number
+        }) {
           const { limit, offset } = getPaginationParams(params)
 
           const countResult = yield* db
@@ -228,28 +245,31 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(limit)
 
           return { items: rows, total }
-        }).pipe(Effect.withSpan('FollowRepository.getFollowing')),
+        }
+      ),
 
-      getFollowerCount: (userId) =>
-        Effect.gen(function* () {
+      getFollowerCount: Effect.fn('FollowRepository.getFollowerCount')(
+        function* (userId: string) {
           const result = yield* db
             .select({ value: count() })
             .from(userFollows)
             .where(eq(userFollows.followingId, userId))
           return extractCount(result)
-        }).pipe(Effect.withSpan('FollowRepository.getFollowerCount')),
+        }
+      ),
 
-      getFollowingCount: (userId) =>
-        Effect.gen(function* () {
+      getFollowingCount: Effect.fn('FollowRepository.getFollowingCount')(
+        function* (userId: string) {
           const result = yield* db
             .select({ value: count() })
             .from(userFollows)
             .where(eq(userFollows.followerId, userId))
           return extractCount(result)
-        }).pipe(Effect.withSpan('FollowRepository.getFollowingCount')),
+        }
+      ),
 
-      getFollowingStatuses: (currentUserId, userIds) =>
-        Effect.gen(function* () {
+      getFollowingStatuses: Effect.fn('FollowRepository.getFollowingStatuses')(
+        function* (currentUserId: string, userIds: ReadonlyArray<string>) {
           if (userIds.length === 0) return new Set<string>()
           const rows = yield* db
             .select({ followingId: userFollows.followingId })
@@ -261,10 +281,16 @@ export const FollowRepositoryLive = Layer.effect(
               )
             )
           return new Set(Array.map(rows, (r) => r.followingId))
-        }).pipe(Effect.withSpan('FollowRepository.getFollowingStatuses')),
+        }
+      ),
 
-      searchUsers: (params) =>
-        Effect.gen(function* () {
+      searchUsers: Effect.fn('FollowRepository.searchUsers')(
+        function* (params: {
+          query: string
+          currentUserId: string
+          page?: number
+          limit?: number
+        }) {
           const { limit, offset } = getPaginationParams(params)
           const searchPattern = `%${params.query}%`
 
@@ -295,10 +321,11 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(limit)
 
           return { items: rows, total }
-        }).pipe(Effect.withSpan('FollowRepository.searchUsers')),
+        }
+      ),
 
-      getSuggestedUsers: (params) =>
-        Effect.gen(function* () {
+      getSuggestedUsers: Effect.fn('FollowRepository.getSuggestedUsers')(
+        function* (params: { currentUserId: string; limit?: number }) {
           const limit = pipe(
             Option.fromNullable(params.limit),
             Option.getOrElse(() => 10)
@@ -335,10 +362,11 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(limit)
 
           return rows
-        }).pipe(Effect.withSpan('FollowRepository.getSuggestedUsers')),
+        }
+      ),
 
-      getPublicProfile: (params) =>
-        Effect.gen(function* () {
+      getPublicProfile: Effect.fn('FollowRepository.getPublicProfile')(
+        function* (params: { targetUserId: string; currentUserId: string }) {
           const [row] = yield* db
             .select({
               id: users.id,
@@ -383,33 +411,38 @@ export const FollowRepositoryLive = Layer.effect(
             .limit(9)
 
           return { ...row, recentPlants }
-        }).pipe(Effect.withSpan('FollowRepository.getPublicProfile')),
+        }
+      ),
 
-      getLastNudge: (fromUserId, toUserId) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select({ createdAt: userNudges.createdAt })
-            .from(userNudges)
-            .where(
-              and(
-                eq(userNudges.fromUserId, fromUserId),
-                eq(userNudges.toUserId, toUserId)
-              )
+      getLastNudge: Effect.fn('FollowRepository.getLastNudge')(function* (
+        fromUserId: string,
+        toUserId: string
+      ) {
+        const [row] = yield* db
+          .select({ createdAt: userNudges.createdAt })
+          .from(userNudges)
+          .where(
+            and(
+              eq(userNudges.fromUserId, fromUserId),
+              eq(userNudges.toUserId, toUserId)
             )
-            .orderBy(desc(userNudges.createdAt))
-            .limit(1)
-
-          return pipe(
-            Option.fromNullable(row),
-            Option.map((r) => r.createdAt),
-            Option.getOrNull
           )
-        }).pipe(Effect.withSpan('FollowRepository.getLastNudge')),
+          .orderBy(desc(userNudges.createdAt))
+          .limit(1)
 
-      recordNudge: (fromUserId, toUserId) =>
-        Effect.gen(function* () {
-          yield* db.insert(userNudges).values({ fromUserId, toUserId })
-        }).pipe(Effect.withSpan('FollowRepository.recordNudge')),
+        return pipe(
+          Option.fromNullable(row),
+          Option.map((r) => r.createdAt),
+          Option.getOrNull
+        )
+      }),
+
+      recordNudge: Effect.fn('FollowRepository.recordNudge')(function* (
+        fromUserId: string,
+        toUserId: string
+      ) {
+        yield* db.insert(userNudges).values({ fromUserId, toUserId })
+      }),
     }
   })
 )

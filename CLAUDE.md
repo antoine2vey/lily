@@ -44,12 +44,15 @@ Shared date utilities available in `@lily/shared`: `parseApiDate`, `now`, `nowAs
 4. Typed errors via `Schema.TaggedError`, propagated through Effect system
 5. `Match.exhaustive` for union types
 
-## Testing
+## Commands
+
+**Always run commands from the monorepo root.** Never `cd` into a package directory. Turbo runs scripts across all packages that define them.
 
 ```bash
-cd packages/api && bun run test    # Vitest
-cd packages/shared && bun run test # Vitest
-cd packages/app && bun run test    # Jest
+bun run test       # runs test in all packages
+bun run tsc        # TypeScript check in all packages
+bun run lint       # Biome lint in all packages
+bun run lint:fix   # Biome lint + autofix in all packages
 ```
 
 ## Effect Docs

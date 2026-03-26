@@ -74,51 +74,53 @@ export const DeadLetterRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (data: CreateDeadLetterData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .insert(deadLetterMessages)
-            .values({
-              originalMessageId: data.originalMessageId,
-              topic: data.topic,
-              payload: data.payload,
-              error: data.error,
-              retryCount: data.retryCount,
-              userId: Option.getOrNull(Option.fromNullable(data.userId)),
-              plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
-            })
-            .returning()
-          return row ? mapToDeadLetterMessage(row) : null
-        }).pipe(Effect.withSpan('DeadLetterRepository.create')),
+      create: Effect.fn('DeadLetterRepository.create')(function* (
+        data: CreateDeadLetterData
+      ) {
+        const [row] = yield* db
+          .insert(deadLetterMessages)
+          .values({
+            originalMessageId: data.originalMessageId,
+            topic: data.topic,
+            payload: data.payload,
+            error: data.error,
+            retryCount: data.retryCount,
+            userId: Option.getOrNull(Option.fromNullable(data.userId)),
+            plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
+          })
+          .returning()
+        return row ? mapToDeadLetterMessage(row) : null
+      }),
 
-      findByTopic: (topic: string) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(deadLetterMessages)
-            .where(eq(deadLetterMessages.topic, topic))
-            .orderBy(desc(deadLetterMessages.failedAt))
-          return Array.map(rows, mapToDeadLetterMessage)
-        }).pipe(Effect.withSpan('DeadLetterRepository.findByTopic')),
+      findByTopic: Effect.fn('DeadLetterRepository.findByTopic')(function* (
+        topic: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(deadLetterMessages)
+          .where(eq(deadLetterMessages.topic, topic))
+          .orderBy(desc(deadLetterMessages.failedAt))
+        return Array.map(rows, mapToDeadLetterMessage)
+      }),
 
-      findAll: (limit = 100) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(deadLetterMessages)
-            .orderBy(desc(deadLetterMessages.failedAt))
-            .limit(limit)
-          return Array.map(rows, mapToDeadLetterMessage)
-        }).pipe(Effect.withSpan('DeadLetterRepository.findAll')),
+      findAll: Effect.fn('DeadLetterRepository.findAll')(function* (
+        limit = 100
+      ) {
+        const rows = yield* db
+          .select()
+          .from(deadLetterMessages)
+          .orderBy(desc(deadLetterMessages.failedAt))
+          .limit(limit)
+        return Array.map(rows, mapToDeadLetterMessage)
+      }),
 
-      delete: (id: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .delete(deadLetterMessages)
-            .where(eq(deadLetterMessages.id, id))
-            .returning()
-          return row ? mapToDeadLetterMessage(row) : null
-        }).pipe(Effect.withSpan('DeadLetterRepository.delete')),
+      delete: Effect.fn('DeadLetterRepository.delete')(function* (id: string) {
+        const [row] = yield* db
+          .delete(deadLetterMessages)
+          .where(eq(deadLetterMessages.id, id))
+          .returning()
+        return row ? mapToDeadLetterMessage(row) : null
+      }),
     }
   })
 )

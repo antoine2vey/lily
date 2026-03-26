@@ -36,29 +36,32 @@ export const DailyTipRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      create: (data: CreateDailyTipData) =>
-        Effect.gen(function* () {
-          const [row] = yield* db.insert(dailyTips).values(data).returning()
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('DailyTipRepository.create')),
+      create: Effect.fn('DailyTipRepository.create')(function* (
+        data: CreateDailyTipData
+      ) {
+        const [row] = yield* db.insert(dailyTips).values(data).returning()
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      findByDate: (date: string) =>
-        Effect.gen(function* () {
-          const [row] = yield* db
-            .select()
-            .from(dailyTips)
-            .where(eq(dailyTips.publishDate, date))
-          return Option.getOrNull(Option.fromNullable(row))
-        }).pipe(Effect.withSpan('DailyTipRepository.findByDate')),
+      findByDate: Effect.fn('DailyTipRepository.findByDate')(function* (
+        date: string
+      ) {
+        const [row] = yield* db
+          .select()
+          .from(dailyTips)
+          .where(eq(dailyTips.publishDate, date))
+        return Option.getOrNull(Option.fromNullable(row))
+      }),
 
-      findRecent: (limit: number) =>
-        Effect.gen(function* () {
-          return yield* db
-            .select()
-            .from(dailyTips)
-            .orderBy(desc(dailyTips.publishDate))
-            .limit(limit)
-        }).pipe(Effect.withSpan('DailyTipRepository.findRecent')),
+      findRecent: Effect.fn('DailyTipRepository.findRecent')(function* (
+        limit: number
+      ) {
+        return yield* db
+          .select()
+          .from(dailyTips)
+          .orderBy(desc(dailyTips.publishDate))
+          .limit(limit)
+      }),
     }
   })
 )
