@@ -94,6 +94,7 @@ export interface CreatePlantData {
   petToxicityRating: number
   wateringRating: number
   health: PlantHealthStatus
+  potSize?: string | null
   userId: string
   roomId?: string | null
 }
@@ -108,6 +109,7 @@ export interface UpdatePlantData {
   petToxicityRating?: number
   wateringRating?: number
   health?: PlantHealthStatus
+  potSize?: string | null
   roomId?: string | null
 }
 

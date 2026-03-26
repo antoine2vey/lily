@@ -30,6 +30,7 @@ const mockPlant = {
   updatedAt: new Date(),
   remindersEnabled: true,
   isFavorite: false,
+  potSize: null,
   roomId: null,
 }
 

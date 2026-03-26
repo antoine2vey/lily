@@ -3,6 +3,7 @@ import {
   plantCardScan,
   plantCardScanMultiple,
 } from '@lily/shared/services/ai/plant-card-scan'
+import { plantDetect } from '@lily/shared/services/ai/plant-detect'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import { AISDKError, type UIMessage } from 'ai'
 import { Effect } from 'effect'
@@ -48,6 +49,11 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
           Effect.withSpan('AiService.plantCardScanMultiple', {
             attributes: { 'scan.imageCount': urls.length },
           })
+        ),
+      classifyAndIdentify: (url: string, locale = 'en') =>
+        plantDetect(url, locale).pipe(
+          Effect.mapError(mapAiSdkError),
+          Effect.withSpan('AiService.classifyAndIdentify')
         ),
     }
   }),

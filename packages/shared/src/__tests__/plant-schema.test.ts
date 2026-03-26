@@ -30,6 +30,7 @@ const validPlant = {
   remindersEnabled: true,
   isFavorite: false,
   userId: 'user-456',
+  potSize: null,
   roomId: null,
   room: null,
   schedules: [
@@ -242,6 +243,8 @@ describe('Plant Schemas', () => {
         category: 'Tropical',
         description: 'A popular houseplant with split leaves',
         wateringTips: 'Let soil dry between waterings. Reduce in winter.',
+        potSizeCm: 20,
+        potSize: 'M',
         imageUrl: 'https://example.com/identified.jpg',
       }
 
@@ -268,6 +271,8 @@ describe('Plant Schemas', () => {
         category: null,
         description: null,
         wateringTips: null,
+        potSizeCm: null,
+        potSize: null,
         imageUrl: 'https://example.com/unknown.jpg',
       }
 

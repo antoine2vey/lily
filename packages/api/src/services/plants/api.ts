@@ -20,6 +20,7 @@ import {
   AIIdentifyResponse,
   CareMultiplePlantsRequest,
   CareMultiplePlantsResponse,
+  DetectResponse,
   EnhancedPlantCreateRequest,
   Plant,
   PlantCareRequest,
@@ -114,6 +115,29 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(TooManyFilesError, { status: 400 })
       .addError(InvalidFileTypeError, { status: 400 })
       .addError(FileTooLargeError, { status: 400 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(GCSConfigError, { status: 500 })
+      .addError(AiApiCallError, { status: 500 })
+      .addError(AiGenericError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // POST /plants/detect - Unified plant/card detection
+    HttpApiEndpoint.post('detect')`/detect`
+      .setPayload(
+        HttpApiSchema.Multipart(
+          Schema.Struct({
+            images: Multipart.FilesSchema,
+            locale: Schema.optionalWith(Schema.String, {
+              default: () => 'en',
+            }),
+          })
+        )
+      )
+      .addSuccess(DetectResponse)
+      .addError(LimitExceededError, { status: 403 })
+      .addError(MultipleFilesError, { status: 400 })
+      .addError(NoFilesError, { status: 400 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
       .addError(AiApiCallError, { status: 500 })

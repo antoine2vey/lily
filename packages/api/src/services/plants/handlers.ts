@@ -9,6 +9,7 @@ import { correctCareDates } from '@lily/api/services/plants/endpoints/correct-ca
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { deletePlant } from '@lily/api/services/plants/endpoints/delete-plant'
 import { deletePlantPhoto } from '@lily/api/services/plants/endpoints/delete-plant-photo'
+import { detect } from '@lily/api/services/plants/endpoints/detect'
 import { findPlantById } from '@lily/api/services/plants/endpoints/find-plant-by-id'
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
@@ -46,6 +47,9 @@ export const PlantsApiLive = (api: Api) =>
       )
       .handle('createPlant', ({ payload }) =>
         createPlant(payload).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('detect', ({ payload: { images, locale } }) =>
+        detect(images, locale).pipe(withInfraErrorsAsDefect)
       )
       .handle('scanCard', ({ payload: { images, locale } }) =>
         scanCard(images, locale).pipe(withInfraErrorsAsDefect)

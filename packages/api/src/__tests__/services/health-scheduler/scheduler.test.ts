@@ -25,6 +25,7 @@ const createTestPlant = (
   health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
+  potSize: null,
   roomId: null,
   userId: 'user-1',
   ...overrides,

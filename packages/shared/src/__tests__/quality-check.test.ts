@@ -17,6 +17,8 @@ const makeResult = (overrides: Partial<PlantAIResult> = {}): PlantAIResult => ({
   category: 'Tropical',
   description: 'A tropical plant',
   wateringTips: 'Water weekly',
+  potSizeCm: null,
+  potSize: null,
   ...overrides,
 })
 

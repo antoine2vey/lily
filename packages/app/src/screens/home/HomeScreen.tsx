@@ -3,7 +3,7 @@ import { now } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
 import type { Href } from 'expo-router'
 import { useRouter } from 'expo-router'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -23,7 +23,7 @@ import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
-import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
+// AddPlantOptionsSheet removed — scanner is now the direct entry point
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
@@ -160,7 +160,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets()
   const tabBarInset = useTabBarInset()
   const { t } = useLocalization()
-  const [showAddPlant, setShowAddPlant] = useState(false)
+  // Direct navigation to unified scanner (no options sheet)
 
   const {
     data: plants,
@@ -421,7 +421,7 @@ export function HomeScreen() {
                     <Button
                       icon="add"
                       iconPosition="left"
-                      onPress={() => setShowAddPlant(true)}
+                      onPress={() => router.push('/add-plant/scanner')}
                       pill
                     >
                       {t('home:empty.addButton')}
@@ -433,14 +433,6 @@ export function HomeScreen() {
           </Animated.ScrollView>
         )}
       </PullToRefresh>
-
-      <AddPlantOptionsSheet
-        visible={showAddPlant}
-        onClose={() => setShowAddPlant(false)}
-        onSelectAI={() => router.push('/add-plant/ai-scanner')}
-        onSelectScan={() => router.push('/add-plant/nursery-scanner')}
-        onSelectManual={() => router.push('/add-plant/manual-basic')}
-      />
     </View>
   )
 }

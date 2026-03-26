@@ -22,6 +22,9 @@ config.resolver.extraNodeModules = {
   'react-native': path.resolve(monorepoRoot, 'node_modules/react-native'),
 }
 
+// Bundle .tflite model files as assets
+config.resolver.assetExts = [...(config.resolver.assetExts ?? []), 'tflite']
+
 // Node.js-only packages that should not be bundled for React Native
 const nodeOnlyPackages = [
   '@google-cloud/storage',
