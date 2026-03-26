@@ -49,6 +49,20 @@
           "imageWidth": 200
         }
       ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Lily needs camera access to identify your plants and measure lighting conditions.",
+          "enableFrameProcessors": true
+        }
+      ],
+      [
+        "react-native-fast-tflite",
+        {
+          "enableCoreMLDelegate": true,
+          "enableAndroidGpuLibraries": true
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-location",

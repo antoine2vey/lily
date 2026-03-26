@@ -281,6 +281,13 @@
       "when": 1774348016045,
       "tag": "0039_eminent_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1774529029926,
+      "tag": "0040_spicy_big_bertha",
+      "breakpoints": true
     }
   ]
 }

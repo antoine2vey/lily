@@ -53,6 +53,7 @@ export const mockPlants: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -83,6 +84,7 @@ export const mockPlants: TestPlant[] = [
     health: 'THRIVING',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 14 })],
@@ -102,6 +104,7 @@ export const mockPlants: TestPlant[] = [
     health: 'NEEDS_ATTENTION',
     remindersEnabled: false,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-2',
     scheduleSpecs: [
@@ -151,6 +154,7 @@ export const mockOverduePlants: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -176,6 +180,7 @@ export const mockOverduePlants: TestPlant[] = [
     health: 'THRIVING',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -201,6 +206,7 @@ export const mockOverduePlants: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -226,6 +232,7 @@ export const mockOverduePlants: TestPlant[] = [
     health: 'THRIVING',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 30 })],
@@ -245,6 +252,7 @@ export const mockOverduePlants: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
+    potSize: null,
     roomId: null,
     userId: 'user-2',
     scheduleSpecs: [
@@ -274,6 +282,7 @@ export const createTestPlant = (
   health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,
+  potSize: null,
   roomId: null,
   userId: 'user-1',
   scheduleSpecs: [wateringSpec()],

@@ -23,7 +23,7 @@ import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useRooms } from '@/hooks/useRooms'
-import { AddPlantOptionsSheet } from '@/screens/add-plant/AddPlantOptionsSheet'
+// AddPlantOptionsSheet removed — scanner is now the direct entry point
 import { PlantCard } from '@/screens/plants/components/PlantCard'
 import {
   type FilterOption,
@@ -137,7 +137,7 @@ export function PlantsScreen() {
   const [sortOption, setSortOption] = useState<SortOption>('name')
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
-  const [showAddPlant, setShowAddPlant] = useState(false)
+  // Direct navigation to unified scanner (no options sheet)
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
 
   const { data: roomsData } = useRooms()
@@ -435,7 +435,7 @@ export function PlantsScreen() {
                   description={t('list.empty.subtitle')}
                   action={{
                     label: t('list.empty.button'),
-                    onPress: () => setShowAddPlant(true),
+                    onPress: () => router.push('/add-plant/scanner'),
                   }}
                 />
               </Animated.View>
@@ -482,14 +482,6 @@ export function PlantsScreen() {
           onSelect={setSortOption}
         />
       </View>
-
-      <AddPlantOptionsSheet
-        visible={showAddPlant}
-        onClose={() => setShowAddPlant(false)}
-        onSelectAI={() => router.push('/add-plant/ai-scanner')}
-        onSelectScan={() => router.push('/add-plant/nursery-scanner')}
-        onSelectManual={() => router.push('/add-plant/manual-basic')}
-      />
     </View>
   )
 }

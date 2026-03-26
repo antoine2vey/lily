@@ -71,6 +71,29 @@ export const plantSchema = z.object({
       'Brief practical watering tips specific to this plant (e.g. "Let soil dry between waterings. Reduce in winter.")'
     )
     .nullable(),
+  potSizeCm: z
+    .number()
+    .describe(
+      'Estimated diameter of the pot/container visible in the image, in centimeters'
+    )
+    .nullable(),
+  potSize: z
+    .enum(['XS', 'S', 'M', 'L', 'XL'])
+    .describe('Pot size category based on diameter')
+    .nullable(),
+})
+
+/**
+ * Extended schema for the unified detect endpoint.
+ * Adds image classification (plant vs card) to the base plant schema.
+ */
+export const detectSchema = plantSchema.extend({
+  detectedType: z
+    .enum(['plant', 'card', 'unknown'])
+    .describe(
+      'Whether the image shows a live plant, a nursery card/label, or is unclear'
+    ),
 })
 
 export type PlantAIResult = z.infer<typeof plantSchema>
+export type PlantDetectResult = z.infer<typeof detectSchema>

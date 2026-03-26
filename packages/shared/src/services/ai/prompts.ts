@@ -12,7 +12,9 @@ export const careInstructions = `Also extract or infer care recommendations base
 - repottingFrequencyDays: how often to repot in days. Base this on the species growth rate (e.g. 365 for fast growers, 730 for moderate, 1095 for slow growers). Set to null if unknown.
 - category: a short category like "Tropical", "Succulent", "Flowering", "Herb", "Fern", "Cactus", etc.
 - description: a brief 1-2 sentence description of the plant
-- wateringTips: brief practical watering tips specific to this plant (e.g. "Let soil dry between waterings. Reduce in winter.")`
+- wateringTips: brief practical watering tips specific to this plant (e.g. "Let soil dry between waterings. Reduce in winter.")
+- potSizeCm: estimated diameter of the pot/container visible in the image, in centimeters. Use visual cues (plant proportion, leaf size, common pot standards) to estimate. If no pot is visible, set to null.
+- potSize: pot size category based on diameter: 'XS' (<10cm), 'S' (10-15cm), 'M' (15-25cm), 'L' (25-35cm), 'XL' (>35cm). If no pot is visible, set to null.`
 
 export const nullCareResponse = `- name: null
 - confidence: 0.0

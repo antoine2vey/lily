@@ -13,9 +13,9 @@ export const isPlantResultSufficient = (result: PlantAIResult): boolean =>
   result.luxNeeded !== null &&
   result.humidityRating !== null
 
-interface RetryState {
+interface RetryState<T extends PlantAIResult> {
   readonly attempt: number
-  readonly best: Option.Option<PlantAIResult>
+  readonly best: Option.Option<T>
   readonly done: boolean
 }
 
@@ -24,17 +24,17 @@ interface RetryState {
  * Retries up to `maxAttempts` times when the result is missing
  * core fields, returning the best result seen across all attempts.
  */
-export const withQualityRetry = <E>(
-  call: Effect.Effect<PlantAIResult, E>,
+export const withQualityRetry = <T extends PlantAIResult, E>(
+  call: Effect.Effect<T, E>,
   maxAttempts = 3
-): Effect.Effect<PlantAIResult, E> =>
+): Effect.Effect<T, E> =>
   pipe(
     Effect.iterate(
       {
         attempt: 0,
-        best: Option.none<PlantAIResult>(),
+        best: Option.none<T>(),
         done: false,
-      } as RetryState,
+      } as RetryState<T>,
       {
         while: (state) => !state.done && state.attempt < maxAttempts,
         body: (state) =>

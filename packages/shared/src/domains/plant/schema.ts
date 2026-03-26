@@ -3,6 +3,9 @@ import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
+export const PotSize = Schema.Literal('XS', 'S', 'M', 'L', 'XL')
+export type PotSize = typeof PotSize.Type
+
 export const PlantHealthStatus = Schema.Literal(
   'THRIVING',
   'HEALTHY',
@@ -46,6 +49,7 @@ export const Plant = Schema.Struct({
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
   userId: Schema.String,
+  potSize: Schema.NullOr(Schema.String),
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
   ownership: Schema.optionalWith(PlantOwnership, {
@@ -71,6 +75,7 @@ export const PlantUpdateRequest = Schema.Struct({
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
   isFavorite: Schema.optional(Schema.Boolean),
+  potSize: Schema.optional(Schema.NullOr(Schema.String)),
   roomId: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
@@ -89,6 +94,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   humidityRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.Number,
   remindersEnabled: Schema.optional(Schema.Boolean),
+  potSize: Schema.optional(Schema.NullOr(PotSize)),
   roomId: Schema.optional(Schema.String),
 })
 
@@ -113,7 +119,15 @@ export const AIIdentifyResponse = Schema.Struct({
   category: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
   wateringTips: Schema.NullOr(Schema.String),
+  potSizeCm: Schema.NullOr(Schema.Number),
+  potSize: Schema.NullOr(Schema.String),
   imageUrl: Schema.String,
+})
+
+// Unified detect response (extends AIIdentifyResponse with classification)
+export const DetectResponse = Schema.Struct({
+  ...AIIdentifyResponse.fields,
+  detectedType: Schema.Literal('plant', 'card', 'unknown'),
 })
 
 // Plant photo schema
@@ -180,3 +194,4 @@ export type PlantPhoto = typeof PlantPhoto.Type
 export type PlantsListResponse = typeof PlantsListResponse.Type
 export type PlantPhotosListResponse = typeof PlantPhotosListResponse.Type
 export type PlantDetail = typeof PlantDetail.Type
+export type DetectResponse = typeof DetectResponse.Type

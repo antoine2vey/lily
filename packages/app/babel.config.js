@@ -6,6 +6,9 @@ module.exports = (api) => {
       ['babel-preset-expo', isTest ? {} : { jsxImportSource: 'nativewind' }],
       ...(isTest ? [] : ['nativewind/babel']),
     ],
-    plugins: ['react-native-reanimated/plugin'],
+    plugins: [
+      'react-native-worklets-core/plugin',
+      'react-native-reanimated/plugin',
+    ],
   }
 }
