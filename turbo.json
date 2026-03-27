@@ -23,6 +23,7 @@
       "cache": false
     },
     "tsc": {
+      "dependsOn": ["^build"],
       "inputs": ["src/**", "tsconfig.json", "tsconfig.build.json"]
     },
     "clean": {
