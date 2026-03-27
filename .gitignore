@@ -107,7 +107,9 @@ temp/
 *.sln
 *.sw?
 
-# Expo/React Native native builds (app package only)
+# Expo/React Native native builds
+/ios/
+/android/
 /packages/app/ios/
 /packages/app/android/
 
