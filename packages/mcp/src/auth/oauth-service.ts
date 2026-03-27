@@ -168,130 +168,141 @@ export const OAuthServiceLive = Layer.effect(
 
       registerClient: (params) => repo.registerClient(params),
 
-      createAuthorizationCode: (params) =>
-        Effect.gen(function* () {
-          const code = generateToken()
-          const expiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(DateTime.unsafeNow(), AUTH_CODE_LIFETIME)
-          )
+      createAuthorizationCode: Effect.fn(
+        'OAuthService.createAuthorizationCode'
+      )(function* (params: {
+        readonly clientId: string
+        readonly userId: string
+        readonly redirectUri: string
+        readonly codeChallenge: string
+        readonly scopes: readonly string[]
+        readonly state?: string
+        readonly resource?: string
+      }) {
+        const code = generateToken()
+        const expiresAt = DateTime.toDateUtc(
+          DateTime.addDuration(DateTime.unsafeNow(), AUTH_CODE_LIFETIME)
+        )
 
-          yield* repo.saveAuthorizationCode({
-            authorizationCode: code,
-            clientId: params.clientId,
-            userId: params.userId,
-            redirectUri: params.redirectUri,
-            codeChallenge: params.codeChallenge,
-            scopes: params.scopes,
-            expiresAt,
-            ...(params.state != null ? { state: params.state } : {}),
-            ...(params.resource != null ? { resource: params.resource } : {}),
+        yield* repo.saveAuthorizationCode({
+          authorizationCode: code,
+          clientId: params.clientId,
+          userId: params.userId,
+          redirectUri: params.redirectUri,
+          codeChallenge: params.codeChallenge,
+          scopes: params.scopes,
+          expiresAt,
+          ...(params.state != null ? { state: params.state } : {}),
+          ...(params.resource != null ? { resource: params.resource } : {}),
+        })
+
+        return code
+      }),
+
+      exchangeAuthorizationCode: Effect.fn(
+        'OAuthService.exchangeAuthorizationCode'
+      )(function* (params: {
+        readonly code: string
+        readonly clientId: string
+        readonly codeVerifier: string
+      }) {
+        const maybeCode = yield* repo.consumeAuthorizationCode(params.code)
+        const authCode: AuthorizationCode = yield* Option.match(maybeCode, {
+          onNone: () =>
+            Effect.fail(
+              new OAuthError({
+                error: 'invalid_grant',
+                error_description:
+                  'Authorization code not found or already used',
+              })
+            ),
+          onSome: Effect.succeed,
+        })
+
+        // Verify code hasn't expired
+        const nowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+        const codeExpiresAtMs = DateTime.toEpochMillis(
+          DateTime.unsafeMake(authCode.expiresAt)
+        )
+        if (codeExpiresAtMs < nowMs) {
+          return yield* new OAuthError({
+            error: 'invalid_grant',
+            error_description: 'Authorization code expired',
           })
+        }
 
-          return code
-        }).pipe(Effect.withSpan('OAuthService.createAuthorizationCode')),
-
-      exchangeAuthorizationCode: (params) =>
-        Effect.gen(function* () {
-          const maybeCode = yield* repo.consumeAuthorizationCode(params.code)
-          const authCode: AuthorizationCode = yield* Option.match(maybeCode, {
-            onNone: () =>
-              Effect.fail(
-                new OAuthError({
-                  error: 'invalid_grant',
-                  error_description:
-                    'Authorization code not found or already used',
-                })
-              ),
-            onSome: Effect.succeed,
+        // Verify client matches
+        if (authCode.clientId !== params.clientId) {
+          return yield* new OAuthError({
+            error: 'invalid_grant',
+            error_description: 'Client mismatch',
           })
+        }
 
-          // Verify code hasn't expired
-          const nowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
-          const codeExpiresAtMs = DateTime.toEpochMillis(
-            DateTime.unsafeMake(authCode.expiresAt)
-          )
-          if (codeExpiresAtMs < nowMs) {
-            return yield* Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description: 'Authorization code expired',
-              })
-            )
-          }
+        // Verify PKCE
+        const pkceValid = yield* verifyPkceS256(
+          params.codeVerifier,
+          authCode.codeChallenge
+        )
+        if (!pkceValid) {
+          return yield* new OAuthError({
+            error: 'invalid_grant',
+            error_description: 'PKCE verification failed',
+          })
+        }
 
-          // Verify client matches
-          if (authCode.clientId !== params.clientId) {
-            return yield* Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description: 'Client mismatch',
-              })
-            )
-          }
+        // Issue tokens
+        const accessTokenValue = generateToken()
+        const refreshTokenValue = generateToken()
+        const now = DateTime.unsafeNow()
 
-          // Verify PKCE
-          const pkceValid = yield* verifyPkceS256(
-            params.codeVerifier,
-            authCode.codeChallenge
-          )
-          if (!pkceValid) {
-            return yield* Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description: 'PKCE verification failed',
-              })
-            )
-          }
+        const accessExpiresAt = DateTime.toDateUtc(
+          DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
+        )
+        const refreshExpiresAt = DateTime.toDateUtc(
+          DateTime.addDuration(now, REFRESH_TOKEN_LIFETIME)
+        )
 
-          // Issue tokens
-          const accessTokenValue = generateToken()
-          const refreshTokenValue = generateToken()
-          const now = DateTime.unsafeNow()
+        yield* Effect.all(
+          [
+            repo.saveAccessToken({
+              token: accessTokenValue,
+              clientId: authCode.clientId,
+              userId: authCode.userId,
+              scopes: authCode.scopes,
+              expiresAt: accessExpiresAt,
+              ...(authCode.resource != null
+                ? { resource: authCode.resource }
+                : {}),
+            }),
+            repo.saveRefreshToken({
+              token: refreshTokenValue,
+              clientId: authCode.clientId,
+              userId: authCode.userId,
+              scopes: authCode.scopes,
+              expiresAt: refreshExpiresAt,
+              ...(authCode.resource != null
+                ? { resource: authCode.resource }
+                : {}),
+            }),
+          ],
+          { concurrency: 'unbounded' }
+        )
 
-          const accessExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
-          )
-          const refreshExpiresAt = DateTime.toDateUtc(
-            DateTime.addDuration(now, REFRESH_TOKEN_LIFETIME)
-          )
+        return {
+          access_token: accessTokenValue,
+          token_type: 'Bearer' as const,
+          expires_in: Duration.toSeconds(ACCESS_TOKEN_LIFETIME),
+          scope: Array.join(authCode.scopes, ' '),
+          refresh_token: refreshTokenValue,
+        }
+      }),
 
-          yield* Effect.all(
-            [
-              repo.saveAccessToken({
-                token: accessTokenValue,
-                clientId: authCode.clientId,
-                userId: authCode.userId,
-                scopes: authCode.scopes,
-                expiresAt: accessExpiresAt,
-                ...(authCode.resource != null
-                  ? { resource: authCode.resource }
-                  : {}),
-              }),
-              repo.saveRefreshToken({
-                token: refreshTokenValue,
-                clientId: authCode.clientId,
-                userId: authCode.userId,
-                scopes: authCode.scopes,
-                expiresAt: refreshExpiresAt,
-                ...(authCode.resource != null
-                  ? { resource: authCode.resource }
-                  : {}),
-              }),
-            ],
-            { concurrency: 'unbounded' }
-          )
-
-          return {
-            access_token: accessTokenValue,
-            token_type: 'Bearer' as const,
-            expires_in: Duration.toSeconds(ACCESS_TOKEN_LIFETIME),
-            scope: Array.join(authCode.scopes, ' '),
-            refresh_token: refreshTokenValue,
-          }
-        }).pipe(Effect.withSpan('OAuthService.exchangeAuthorizationCode')),
-
-      refreshAccessToken: (params) =>
-        Effect.gen(function* () {
+      refreshAccessToken: Effect.fn('OAuthService.refreshAccessToken')(
+        function* (params: {
+          readonly refreshToken: string
+          readonly clientId: string
+        }) {
           const maybeToken = yield* repo.consumeRefreshToken(
             params.refreshToken
           )
@@ -312,22 +323,18 @@ export const OAuthServiceLive = Layer.effect(
             DateTime.unsafeMake(refreshToken.expiresAt)
           )
           if (expiresAtMs < refreshNowMs) {
-            return yield* Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description: 'Refresh token expired',
-              })
-            )
+            return yield* new OAuthError({
+              error: 'invalid_grant',
+              error_description: 'Refresh token expired',
+            })
           }
 
           // Verify client matches
           if (refreshToken.clientId !== params.clientId) {
-            return yield* Effect.fail(
-              new OAuthError({
-                error: 'invalid_grant',
-                error_description: 'Client mismatch',
-              })
-            )
+            return yield* new OAuthError({
+              error: 'invalid_grant',
+              error_description: 'Client mismatch',
+            })
           }
 
           // Issue new tokens
@@ -376,7 +383,8 @@ export const OAuthServiceLive = Layer.effect(
             refresh_token: newRefreshTokenValue,
             _userId: refreshToken.userId,
           }
-        }).pipe(Effect.withSpan('OAuthService.refreshAccessToken')),
+        }
+      ),
 
       revokeToken: (params) =>
         pipe(
@@ -396,11 +404,12 @@ export const OAuthServiceLive = Layer.effect(
               ],
               { concurrency: 'unbounded' }
             ).pipe(Effect.asVoid)
-          )
-        ).pipe(Effect.withSpan('OAuthService.revokeToken')),
+          ),
+          Effect.withSpan('OAuthService.revokeToken')
+        ),
 
-      validateBearerToken: (token) =>
-        Effect.gen(function* () {
+      validateBearerToken: Effect.fn('OAuthService.validateBearerToken')(
+        function* (token: string) {
           const maybeToken = yield* repo.getAccessToken(token)
           const accessToken = yield* Option.match(maybeToken, {
             onNone: () =>
@@ -419,19 +428,18 @@ export const OAuthServiceLive = Layer.effect(
           )
           if (tokenExpiresAtMs < validateNowMs) {
             yield* repo.revokeAccessToken(token)
-            return yield* Effect.fail(
-              new AccessTokenExpired({
-                error: 'invalid_token',
-                error_description: 'Access token expired',
-              })
-            )
+            return yield* new AccessTokenExpired({
+              error: 'invalid_token',
+              error_description: 'Access token expired',
+            })
           }
 
           return {
             userId: accessToken.userId,
             scopes: accessToken.scopes,
           }
-        }).pipe(Effect.withSpan('OAuthService.validateBearerToken')),
+        }
+      ),
     }
   })
 )

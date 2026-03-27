@@ -87,7 +87,11 @@ export const resolveImageUrls = <T extends { imageUrl?: string | undefined }>(
 export const resolveImageUrl = (
   imageUrl: string | undefined
 ): Effect.Effect<string | undefined, GCSUploadError, GCSService> =>
-  Option.match(Option.fromNullable(imageUrl), {
-    onNone: () => Effect.succeed<string | undefined>(undefined),
-    onSome: (key) => Effect.flatMap(GCSService, (gcs) => gcs.getSignedUrl(key)),
-  })
+  pipe(
+    Option.fromNullable(imageUrl),
+    Option.match({
+      onNone: () => Effect.void as Effect.Effect<string | undefined>,
+      onSome: (key) =>
+        Effect.flatMap(GCSService, (gcs) => gcs.getSignedUrl(key)),
+    })
+  )
