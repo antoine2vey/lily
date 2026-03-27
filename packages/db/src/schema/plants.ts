@@ -9,6 +9,7 @@ import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   pgTable,
@@ -42,7 +43,8 @@ export const plants = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    potSize: text('pot_size'),
+    potWidthCm: doublePrecision('pot_width_cm'),
+    potHeightCm: doublePrecision('pot_height_cm'),
     roomId: uuid('room_id').references(() => rooms.id, {
       onDelete: 'set null',
     }),

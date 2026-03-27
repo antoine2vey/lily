@@ -39,7 +39,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -70,7 +71,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     health: 'THRIVING',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -96,7 +98,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -126,7 +129,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     health: 'THRIVING',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [
@@ -152,7 +156,8 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-2',
     scheduleSpecs: [
@@ -182,7 +187,8 @@ export const mockPlantsNoCare: TestPlant[] = [
     health: 'HEALTHY',
     remindersEnabled: true,
     isFavorite: false,
-    potSize: null,
+    potWidthCm: null,
+    potHeightCm: null,
     roomId: null,
     userId: 'user-1',
     scheduleSpecs: [

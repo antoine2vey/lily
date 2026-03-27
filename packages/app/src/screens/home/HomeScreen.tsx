@@ -23,7 +23,6 @@ import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
-// AddPlantOptionsSheet removed — scanner is now the direct entry point
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
@@ -160,7 +159,6 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets()
   const tabBarInset = useTabBarInset()
   const { t } = useLocalization()
-  // Direct navigation to unified scanner (no options sheet)
 
   const {
     data: plants,

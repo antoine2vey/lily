@@ -558,6 +558,8 @@ export function PlantDetailScreen() {
                 Option.fromNullable(plant.category)
               ),
               health: healthStatus,
+              potWidthCm: plant.potWidthCm,
+              potHeightCm: plant.potHeightCm,
             }}
           />
 

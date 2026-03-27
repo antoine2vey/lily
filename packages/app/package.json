@@ -21,6 +21,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@formatjs/intl-pluralrules": "^6.2.2",
     "@lily/api": "workspace:*",
+    "@lily/plant-scanner": "workspace:*",
     "@lily/shared": "workspace:*",
     "@marceloterreiro/flash-calendar": "^1.6.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
