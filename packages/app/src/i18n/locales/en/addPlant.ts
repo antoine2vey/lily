@@ -210,4 +210,18 @@ export default {
     editDetails: 'Edit Details',
     tryAgain: 'Try Again',
   },
+  arMeasure: {
+    title: 'Measure Pot',
+    widthInstruction: 'Aim at the left edge of the pot, then tap',
+    widthSecondPoint: 'Now aim at the right edge and tap',
+    heightInstruction: 'Now aim at the top of the pot and tap',
+    heightSecondPoint: 'Aim at the bottom of the pot and tap',
+    confirm: 'Confirm Size',
+    reset: 'Reset',
+    measureWithAR: 'Measure with AR',
+    widthLabel: 'Width',
+    heightLabel: 'Height',
+    sessionError: 'AR session error. Please try again.',
+    unsupported: 'AR measurement is not supported on this device.',
+  },
 } as const

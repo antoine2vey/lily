@@ -25,6 +25,8 @@ const mockOverduePlant: Plant = {
   isFavorite: false,
   userId: 'user-1',
   roomId: null,
+  potWidthCm: null,
+  potHeightCm: null,
   room: null,
   ownership: 'owned',
   ownerName: null,

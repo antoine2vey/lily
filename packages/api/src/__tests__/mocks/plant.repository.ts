@@ -203,7 +203,8 @@ export const createMockPlantRepository = (
         health: createData.health,
         remindersEnabled: true,
         isFavorite: false,
-        potSize: null,
+        potWidthCm: null,
+        potHeightCm: null,
         roomId: Option.getOrNull(Option.fromNullable(createData.roomId)),
         userId: createData.userId,
       }

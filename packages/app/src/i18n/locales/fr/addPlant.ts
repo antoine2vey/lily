@@ -211,4 +211,18 @@ export default {
     editDetails: 'Modifier les détails',
     tryAgain: 'Réessayer',
   },
+  arMeasure: {
+    title: 'Mesurer le pot',
+    widthInstruction: 'Visez le bord gauche du pot, puis appuyez',
+    widthSecondPoint: 'Visez le bord droit et appuyez',
+    heightInstruction: 'Visez le haut du pot et appuyez',
+    heightSecondPoint: 'Visez le bas du pot et appuyez',
+    confirm: 'Confirmer la taille',
+    reset: 'Réinitialiser',
+    measureWithAR: 'Mesurer en AR',
+    widthLabel: 'Largeur',
+    heightLabel: 'Hauteur',
+    sessionError: 'Erreur de session AR. Veuillez réessayer.',
+    unsupported: "La mesure AR n'est pas supportée sur cet appareil.",
+  },
 } as const

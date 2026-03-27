@@ -30,7 +30,8 @@ const validPlant = {
   remindersEnabled: true,
   isFavorite: false,
   userId: 'user-456',
-  potSize: null,
+  potWidthCm: null,
+  potHeightCm: null,
   roomId: null,
   room: null,
   schedules: [

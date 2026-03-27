@@ -72,6 +72,7 @@ export default {
       high: 'High',
       tropical: 'Tropical',
     },
+    potSize: 'Pot Size',
     schedule: {
       today: 'Today',
       tomorrow: 'Tomorrow',

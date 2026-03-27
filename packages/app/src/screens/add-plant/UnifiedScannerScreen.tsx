@@ -1,15 +1,24 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import {
+  type ARMeasurementEvent,
+  type ARMeasurePoint,
+  ExpoPlantScannerView,
+  type FrameAnalysisEvent,
+  type MeasureAxis,
+  type PhotoCapturedEvent,
+} from '@lily/plant-scanner'
 import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
 import { Either, Match, Option, pipe } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
 import { router } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Alert,
   Dimensions,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -21,42 +30,42 @@ import Animated, {
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import {
-  Camera,
-  useCameraDevice,
-  useCameraPermission,
-  useFrameProcessor,
-} from 'react-native-vision-camera'
-import { useRunOnJS } from 'react-native-worklets-core'
-import { CameraPermissionRequest } from 'src/components/scanner'
 import { LuxOverlay } from 'src/components/scanner/LuxOverlay'
-import { PotSizeOverlay } from 'src/components/scanner/PotSizeOverlay'
 import { ShimmerEffect } from 'src/components/ui/shimmer/Shimmer'
 import { useCreatePlant } from 'src/hooks/useCreatePlant'
 import type { DetectPlantResult } from 'src/hooks/useDetectPlant'
 import { useDetectPlant } from 'src/hooks/useDetectPlant'
 import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlantDetectionModel } from 'src/hooks/usePlantDetectionModel'
-import { analyzeFrameForLux } from 'src/utils/frame-processors/lux-processor'
-import {
-  cmToCategory,
-  estimatePotSize,
-  type PotDetection,
-} from 'src/utils/frame-processors/pot-detector'
 import { UploadError } from 'src/utils/upload'
-import { useResizePlugin } from 'vision-camera-resize-plugin'
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 const RESULT_PHOTO_HEIGHT = SCREEN_HEIGHT * 0.35
+const AUTO_CAPTURE_STREAK = 5
 
-// How many consecutive "plant detected" frames before auto-capture
-const DETECTION_THRESHOLD_FRAMES = 5
-// Minimum ms between frame analyses (~300ms = ~3 analyses/sec)
-const FRAME_ANALYSIS_INTERVAL = 300
+const formatCm = (v: number) => String(Math.round(v * 10) / 10)
+
+const formatPotDimensions = (w: number, h: number) =>
+  `${formatCm(w)} x ${formatCm(h)} cm`
+
+const handleDetectionError = (error: unknown, t: (key: string) => string) => {
+  if (
+    error instanceof UploadError &&
+    error.apiError?._tag === 'LimitExceededError'
+  ) {
+    Alert.alert(t('scanner.scanLimitReached'), error.message)
+  } else {
+    Alert.alert(
+      t('scanner.identificationFailed'),
+      t('scanner.identificationFailedMessage')
+    )
+  }
+}
 
 type ScreenState = 'camera' | 'loading' | 'result'
 type ScanPhase = 'idle' | 'capturing' | 'uploading' | 'analyzing' | 'result'
@@ -65,245 +74,161 @@ export function UnifiedScannerScreen() {
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
-  const cameraRef = useRef<Camera>(null)
-  const { hasPermission, requestPermission } = useCameraPermission()
-  const device = useCameraDevice('back')
-  const { resize } = useResizePlugin()
 
-  // ML plant detection model (EfficientDet-Lite0, COCO)
-  const plantModel = usePlantDetectionModel()
-  const actualModel =
-    plantModel.state === 'loaded' ? plantModel.model : undefined
-
-  // Screen state
+  // Screen state (shared between iOS and Android paths)
   const [screenState, setScreenState] = useState<ScreenState>('camera')
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null)
   const [result, setResult] = useState<DetectPlantResult | null>(null)
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle')
 
+  const [detection, setDetection] = useState({
+    plantVisible: false,
+    streak: 0,
+    lux: 0,
+    luxLevel: 3,
+  })
+
+  // Shared values for high-frequency detection data (avoids worklet reinstalls)
+  const plantVisibleSV = useSharedValue(false)
+  const streakSV = useSharedValue(0)
+
+  const [measureMode, setMeasureMode] = useState(false)
+  const [arWidthCm, setArWidthCm] = useState<number | null>(null)
+  const [arHeightCm, setArHeightCm] = useState<number | null>(null)
+  const [arCurrentAxis, setArCurrentAxis] = useState<MeasureAxis>('width')
+  const [arPointCount, setArPointCount] = useState(0)
+  const [tapPoint, setTapPoint] = useState<{
+    x: number
+    y: number
+    id: number
+  } | null>(null)
+  const [resetGeneration, setResetGeneration] = useState(0)
+  const [confirmedPot, setConfirmedPot] = useState<{
+    widthCm: number
+    heightCm: number
+  } | null>(null)
+  const [captureRequested, setCaptureRequested] = useState(false)
+  const isCapturingRef = useRef(false)
+
   // Hooks
   const { mutateAsync: detectPlant } = useDetectPlant()
   const { mutate: createPlant, isPending: isCreating } = useCreatePlant()
-
-  // Reanimated shared values for frame processor overlays
-  const luxValue = useSharedValue(-1)
-  const luxLevelValue = useSharedValue(3)
-
-  // Plant detection state (worklet thread)
-  const plantDetected = useSharedValue(false)
-  const consecutiveDetections = useSharedValue(0)
-  const lastAnalysisTime = useSharedValue(0)
-  const isCapturing = useSharedValue(false)
-
-  // Pot size detection (shared with PotSizeOverlay)
-  const potDetection = useSharedValue<PotDetection | null>(null)
 
   // Animation values for result transition
   const photoHeight = useSharedValue(SCREEN_HEIGHT)
   const infoOpacity = useSharedValue(0)
   const infoTranslateY = useSharedValue(200)
 
-  // Called from worklet thread via useRunOnJS when plant is stably detected
-  const triggerAutoCapture = useCallback(async () => {
-    if (!cameraRef.current || scanPhase !== 'idle') return
+  const scanPhaseRef = useRef<ScanPhase>('idle')
+  scanPhaseRef.current = scanPhase
 
-    try {
-      // Phase 1: Capturing photo
-      setScanPhase('capturing')
-      const photo = await cameraRef.current.takePhoto()
-      const photoUri = `file://${photo.path}`
-      setCapturedPhotoUri(photoUri)
+  const handleFrameAnalysis = useCallback(
+    (event: FrameAnalysisEvent) => {
+      plantVisibleSV.value = event.plantDetected
+      streakSV.value = event.detectionStreak
+      setDetection({
+        plantVisible: event.plantDetected,
+        streak: event.detectionStreak,
+        lux: Math.round(event.lux),
+        luxLevel: event.luxLevel,
+      })
 
-      // Phase 2: Uploading
+      if (
+        scanPhaseRef.current === 'idle' &&
+        event.detectionStreak >= AUTO_CAPTURE_STREAK &&
+        !isCapturingRef.current &&
+        !measureMode
+      ) {
+        isCapturingRef.current = true
+        setCaptureRequested(true)
+      }
+    },
+    [measureMode, plantVisibleSV, streakSV]
+  )
+
+  const handleARMeasurement = useCallback((event: ARMeasurementEvent) => {
+    if (event.axis === 'width') {
+      setArWidthCm(event.distanceCm)
+      setArCurrentAxis('height')
+    } else {
+      setArHeightCm(event.distanceCm)
+    }
+  }, [])
+
+  const resetAR = useCallback(() => {
+    setArWidthCm(null)
+    setArHeightCm(null)
+    setArCurrentAxis('width')
+    setArPointCount(0)
+    setResetGeneration((g) => g + 1)
+  }, [])
+
+  const handlePhotoCaptured = useCallback(
+    async (event: PhotoCapturedEvent) => {
+      setCaptureRequested(false)
+      setCapturedPhotoUri(event.path)
       setScanPhase('uploading')
 
-      // Phase 3: Analyzing (detectPlant handles upload + AI)
-      setScanPhase('analyzing')
-      const aiResult = await detectPlant(photoUri)
-      setResult(aiResult)
+      try {
+        const aiResult = await detectPlant(event.path)
+        setResult(aiResult)
+        setScanPhase('result')
+      } catch (error) {
+        setCapturedPhotoUri(null)
+        setScanPhase('idle')
+        isCapturingRef.current = false
+        handleDetectionError(error, t)
+      }
+    },
+    [detectPlant, t]
+  )
 
-      // Phase 4: Show result in pill
+  const handleConfirmMeasure = useCallback(() => {
+    if (arWidthCm != null && arHeightCm != null) {
+      setConfirmedPot({ widthCm: arWidthCm, heightCm: arHeightCm })
+    }
+    setMeasureMode(false)
+    resetAR()
+  }, [arWidthCm, arHeightCm, resetAR])
+
+  const handlePointPlaced = useCallback((event: ARMeasurePoint) => {
+    const base = event.axis === 'width' ? 0 : 2
+    setArPointCount(base + event.index + 1)
+    setTapPoint(null)
+  }, [])
+
+  const handleToggleMeasureMode = useCallback(() => {
+    setMeasureMode((prev) => {
+      if (prev) resetAR()
+      return !prev
+    })
+  }, [resetAR])
+
+  const handleReanalyze = useCallback(async () => {
+    if (!capturedPhotoUri) return
+    setScanPhase('analyzing')
+    setResult(null)
+    try {
+      const aiResult = await detectPlant(capturedPhotoUri)
+      setResult(aiResult)
       setScanPhase('result')
     } catch (error) {
       setScanPhase('idle')
       setCapturedPhotoUri(null)
-      isCapturing.value = false
-
-      if (
-        error instanceof UploadError &&
-        error.apiError?._tag === 'LimitExceededError'
-      ) {
-        Alert.alert(t('scanner.scanLimitReached'), error.message)
-      } else {
-        Alert.alert(
-          t('scanner.identificationFailed'),
-          t('scanner.identificationFailedMessage')
-        )
-      }
+      isCapturingRef.current = false
+      handleDetectionError(error, t)
     }
-  }, [scanPhase, detectPlant, isCapturing, t])
+  }, [capturedPhotoUri, detectPlant, t])
 
-  // Bridge to call triggerAutoCapture from the worklet thread
-  const triggerAutoCaptureWorklet = useRunOnJS(triggerAutoCapture, [
-    triggerAutoCapture,
-  ])
+  const handleDismissResult = useCallback(() => {
+    setScanPhase('idle')
+    setResult(null)
+    setCapturedPhotoUri(null)
+    setDetection((prev) => ({ ...prev, streak: 0 }))
+    isCapturingRef.current = false
+  }, [])
 
-  // UI state updated from worklet via bridge
-  const [isPlantVisible, setIsPlantVisible] = useState(false)
-  const [detectionStreak, setDetectionStreak] = useState(0)
-  const [luxDisplay, setLuxDisplay] = useState(0)
-  const [luxLevelDisplay, setLuxLevelDisplay] = useState(3)
-  const [debugPot, setDebugPot] = useState<string>('no detection')
-
-  const onFrameUpdate = useCallback(
-    (
-      detected: boolean,
-      streak: number,
-      lux: number,
-      luxLevel: number,
-      potDebug: string
-    ) => {
-      setIsPlantVisible(detected)
-      setDetectionStreak(streak)
-      setLuxDisplay(lux)
-      setLuxLevelDisplay(luxLevel)
-      setDebugPot(potDebug)
-      console.log('[POT]', potDebug)
-    },
-    []
-  )
-  const onFrameUpdateWorklet = useRunOnJS(onFrameUpdate, [onFrameUpdate])
-
-  // Frame processor: ML plant detection + lux estimation
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
-      'worklet'
-
-      // Skip if already capturing
-      if (isCapturing.value) return
-
-      // Throttle: only analyze every FRAME_ANALYSIS_INTERVAL ms
-      const now = performance.now()
-      if (now - lastAnalysisTime.value < FRAME_ANALYSIS_INTERVAL) return
-      lastAnalysisTime.value = now
-
-      // Resize frame to 320x320 RGB (EfficientDet-Lite0 input size)
-      const resized = resize(frame, {
-        scale: {
-          width: 320,
-          height: 320,
-        },
-        pixelFormat: 'rgb',
-        dataType: 'uint8',
-      })
-
-      // Lux analysis (subsample every 25th pixel from 320x320 ≈ same cost as 64x64)
-      const luxData = new Uint8Array(resized)
-      const luxResult = analyzeFrameForLux(luxData, 25)
-
-      // Smooth lux value (exponential moving average)
-      const prevLux = luxValue.value
-      luxValue.value =
-        prevLux < 0 ? luxResult.lux : prevLux + 0.3 * (luxResult.lux - prevLux)
-
-      // Map lux to level (inline to avoid cross-function worklet calls)
-      const lux = luxValue.value
-      if (lux < 250) luxLevelValue.value = 1
-      else if (lux < 1_000) luxLevelValue.value = 2
-      else if (lux < 5_000) luxLevelValue.value = 3
-      else if (lux < 25_000) luxLevelValue.value = 4
-      else luxLevelValue.value = 5
-
-      // ML plant detection via EfficientDet-Lite0
-      if (actualModel != null) {
-        const outputs = actualModel.runSync([resized])
-
-        // EfficientDet output tensors (already TypedArrays):
-        // [0] = detection boxes, [1] = class IDs, [2] = scores, [3] = count
-        const boxesTensor = outputs[0] as Float32Array | undefined
-        const classesTensor = outputs[1] as Float32Array | undefined
-        const scoresTensor = outputs[2] as Float32Array | undefined
-        const countTensor = outputs[3] as Float32Array | undefined
-        const numDetections = countTensor?.[0] ?? 0
-
-        let detected = false
-        let bestIdx = -1
-        let bestScore = 0
-        for (let i = 0; i < numDetections; i++) {
-          const classId = classesTensor?.[i] ?? -1
-          const score = scoresTensor?.[i] ?? 0
-          // COCO: 63 = "potted plant", 58 = "vase"
-          if ((classId === 63 || classId === 58) && score > 0.3) {
-            detected = true
-            if (score > bestScore) {
-              bestIdx = i
-              bestScore = score
-            }
-          }
-        }
-
-        // Extract pot bounding box and estimate size
-        let potDebugStr = `n=${String(Math.round(numDetections))} best=${String(bestIdx)} sc=${String(Math.round(bestScore * 100))}`
-        if (bestIdx >= 0 && boxesTensor && bestScore > 0.4) {
-          // EfficientDet boxes: [ymin, xmin, ymax, xmax] normalized
-          const ymin = boxesTensor[bestIdx * 4]!
-          const xmin = boxesTensor[bestIdx * 4 + 1]!
-          const ymax = boxesTensor[bestIdx * 4 + 2]!
-          const xmax = boxesTensor[bestIdx * 4 + 3]!
-
-          const bboxWidth = xmax - xmin
-          const bboxHeight = ymax - ymin
-          const sizeCm = estimatePotSize(bboxWidth, 5.6, 4.2)
-
-          potDetection.value = {
-            bbox: { x: xmin, y: ymin, width: bboxWidth, height: bboxHeight },
-            sizeCm: Math.round(sizeCm),
-            sizeCategory: cmToCategory(sizeCm),
-            confidence: bestScore,
-          }
-          potDebugStr += ` box=[${String(Math.round(xmin * 100))},${String(Math.round(ymin * 100))},${String(Math.round(bboxWidth * 100))},${String(Math.round(bboxHeight * 100))}] ${cmToCategory(sizeCm)} ~${String(Math.round(sizeCm))}cm`
-        } else {
-          potDetection.value = null
-        }
-
-        plantDetected.value = detected
-        if (detected) {
-          consecutiveDetections.value += 1
-        } else {
-          consecutiveDetections.value = 0
-        }
-        onFrameUpdateWorklet(
-          detected,
-          consecutiveDetections.value,
-          luxValue.value,
-          luxLevelValue.value,
-          potDebugStr
-        )
-      } else {
-        // No model yet — still send lux updates
-        potDetection.value = null
-        onFrameUpdateWorklet(
-          false,
-          0,
-          luxValue.value,
-          luxLevelValue.value,
-          'no model'
-        )
-      }
-
-      // TODO: Re-enable auto-capture after pot size overlay testing
-      // Auto-capture after stable detection
-      // if (
-      //   consecutiveDetections.value >= DETECTION_THRESHOLD_FRAMES &&
-      //   !isCapturing.value
-      // ) {
-      //   isCapturing.value = true
-      //   consecutiveDetections.value = 0
-      //   triggerAutoCaptureWorklet()
-      // }
-    },
-    [actualModel, triggerAutoCaptureWorklet, onFrameUpdateWorklet]
-  )
+  // MARK: - Shared Handlers
 
   const handlePickFromGallery = useCallback(async () => {
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -341,18 +266,7 @@ export function UnifiedScannerScreen() {
     } catch (error) {
       setScreenState('camera')
       setCapturedPhotoUri(null)
-
-      if (
-        error instanceof UploadError &&
-        error.apiError?._tag === 'LimitExceededError'
-      ) {
-        Alert.alert(t('scanner.scanLimitReached'), error.message)
-      } else {
-        Alert.alert(
-          t('scanner.identificationFailed'),
-          t('scanner.identificationFailedMessage')
-        )
-      }
+      handleDetectionError(error, t)
     }
   }, [detectPlant, photoHeight, infoOpacity, infoTranslateY, t])
 
@@ -360,22 +274,15 @@ export function UnifiedScannerScreen() {
     setScreenState('camera')
     setCapturedPhotoUri(null)
     setResult(null)
-    isCapturing.value = false
-    consecutiveDetections.value = 0
-    plantDetected.value = false
-    potDetection.value = null
+    setScanPhase('idle')
+    setMeasureMode(false)
+    resetAR()
+    setConfirmedPot(null)
+    isCapturingRef.current = false
     photoHeight.value = SCREEN_HEIGHT
     infoOpacity.value = 0
     infoTranslateY.value = 200
-  }, [
-    photoHeight,
-    infoOpacity,
-    infoTranslateY,
-    isCapturing,
-    consecutiveDetections,
-    plantDetected,
-    potDetection,
-  ])
+  }, [photoHeight, infoOpacity, infoTranslateY, resetAR])
 
   const handleAddToCollection = useCallback(() => {
     if (!result?.name) return
@@ -414,7 +321,8 @@ export function UnifiedScannerScreen() {
             () => 50
           ),
           imageUrl: result.imageUrl,
-          potSize: result.potSize,
+          potWidthCm: confirmedPot?.widthCm,
+          potHeightCm: confirmedPot?.heightCm,
           remindersEnabled: true,
         },
       },
@@ -442,9 +350,10 @@ export function UnifiedScannerScreen() {
         },
       }
     )
-  }, [result, createPlant, t])
+  }, [result, createPlant, confirmedPot, t])
 
-  // Animated styles
+  // MARK: - Animated Styles
+
   const photoAnimatedStyle = useAnimatedStyle(() => ({
     height: photoHeight.value,
   }))
@@ -454,158 +363,209 @@ export function UnifiedScannerScreen() {
     transform: [{ translateY: infoTranslateY.value }],
   }))
 
-  // Detection indicator style (driven by React state, not shared values)
-  const detectionPillStyle = useAnimatedStyle(() => ({
-    opacity: isPlantVisible
-      ? withTiming(1, { duration: 200 })
-      : withTiming(0, { duration: 200 }),
-    transform: [
-      {
-        scale: isPlantVisible
-          ? withSpring(1, { damping: 15 })
-          : withSpring(0.8),
-      },
-    ],
-  }))
-
-  // Scan frame — scale driven by streak, smooth opacity
   const frameBaseSize = SCREEN_WIDTH * 0.7
   const cornerStyle = useAnimatedStyle(() => {
-    const targetScale = isPlantVisible ? 1 - detectionStreak * 0.02 : 1.05
+    const visible = plantVisibleSV.value
+    const targetScale = visible ? 1 - streakSV.value * 0.02 : 1.05
     return {
-      opacity: withTiming(isPlantVisible ? 1 : 0, { duration: 500 }),
+      opacity: withTiming(visible ? 1 : 0, { duration: 500 }),
       transform: [{ scale: withTiming(targetScale, { duration: 500 }) }],
     }
   })
 
-  // Progress bar showing streak toward auto-capture
-  const progressFraction = isPlantVisible
-    ? Math.min(detectionStreak / DETECTION_THRESHOLD_FRAMES, 1)
-    : 0
-  const progressStyle = useAnimatedStyle(() => ({
-    width:
-      `${withTiming(progressFraction * 100, { duration: 200 })}%` as `${number}%`,
-    opacity:
-      progressFraction > 0
-        ? withTiming(1, { duration: 150 })
-        : withTiming(0, { duration: 150 }),
+  const shouldPulseSV = useSharedValue(false)
+  useEffect(() => {
+    shouldPulseSV.value = scanPhase === 'result' && confirmedPot === null
+  }, [scanPhase, confirmedPot, shouldPulseSV])
+
+  const measureButtonStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: shouldPulseSV.value
+          ? withRepeat(
+              withSequence(
+                withTiming(1.06, { duration: 600 }),
+                withTiming(1, { duration: 600 })
+              ),
+              -1
+            )
+          : withTiming(1, { duration: 200 }),
+      },
+    ],
   }))
 
-  // Permission handling
-  if (!hasPermission) {
-    return (
-      <CameraPermissionRequest
-        onRequest={requestPermission}
-        icon="camera-alt"
-        description={t('scanner.cameraPermission')}
-      />
-    )
-  }
-
-  if (!device) {
-    return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white text-base">
-          {t('scanner.noCameraDevice')}
-        </Text>
-      </View>
-    )
-  }
+  // MARK: - Render
 
   return (
     <View className="flex-1 bg-black">
       {/* Camera state — auto-detection active */}
       {screenState === 'camera' && (
         <Animated.View className="flex-1" entering={FadeIn.duration(200)}>
-          <Camera
-            ref={cameraRef}
-            style={{ flex: 1 }}
-            device={device}
-            isActive={screenState === 'camera'}
-            photo={true}
-            pixelFormat="rgb"
-            frameProcessor={frameProcessor}
-          />
-
-          {/* Overlays on camera */}
-          <View className="absolute inset-0" pointerEvents="box-none">
-            {/* Pot size bounding box + label */}
-            <PotSizeOverlay
-              detection={potDetection}
-              previewWidth={SCREEN_WIDTH}
-              previewHeight={SCREEN_HEIGHT}
+          {/* iOS: Native ExpoPlantScannerView (ARKit + TFLite) */}
+          {Platform.OS === 'ios' && (
+            <ExpoPlantScannerView
+              style={{ flex: 1 }}
+              isActive
+              measureMode={measureMode}
+              captureRequested={captureRequested}
+              onFrameAnalysis={handleFrameAnalysis}
+              onPhotoCaptured={handlePhotoCaptured}
+              tapPoint={tapPoint}
+              resetGeneration={resetGeneration}
+              onMeasurement={handleARMeasurement}
+              onPointPlaced={handlePointPlaced}
+              onSessionError={(event) => console.warn('[AR]', event.message)}
             />
+          )}
 
-            {/* Centered scan frame — tightens as detection streak builds */}
-            <Animated.View
-              className="absolute inset-0 items-center justify-center"
-              style={cornerStyle}
-              pointerEvents="none"
-            >
+          {/* Android: Vision Camera (kept as-is for now) */}
+          {Platform.OS === 'android' && (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-white text-base">
+                Android camera (Vision Camera fallback)
+              </Text>
+            </View>
+          )}
+
+          {/* AR measurement: crosshair + tap anywhere to confirm */}
+          {measureMode && (
+            <>
+              {/* Crosshair at screen center — color indicates current axis */}
               <View
+                className="absolute"
+                pointerEvents="none"
                 style={{
-                  width: frameBaseSize,
-                  height: frameBaseSize,
+                  left: SCREEN_WIDTH / 2 - 20,
+                  top: SCREEN_HEIGHT / 2 - 20,
+                  width: 40,
+                  height: 40,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {/* Top-left */}
+                {/* Vertical stroke — emphasized when measuring height */}
                 <View
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: 36,
-                    height: 36,
-                    borderTopWidth: 3,
-                    borderLeftWidth: 3,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    borderTopLeftRadius: 16,
+                    width: 2,
+                    height: 24,
+                    backgroundColor:
+                      arCurrentAxis === 'height'
+                        ? '#5B8C5A'
+                        : 'rgba(255,255,255,0.5)',
+                    borderRadius: 1,
                   }}
                 />
-                {/* Top-right */}
+                {/* Horizontal stroke — emphasized when measuring width */}
                 <View
                   style={{
                     position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: 36,
-                    height: 36,
-                    borderTopWidth: 3,
-                    borderRightWidth: 3,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    borderTopRightRadius: 16,
+                    width: 24,
+                    height: 2,
+                    backgroundColor:
+                      arCurrentAxis === 'width'
+                        ? 'white'
+                        : 'rgba(255,255,255,0.5)',
+                    borderRadius: 1,
                   }}
                 />
-                {/* Bottom-left */}
                 <View
                   style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    width: 36,
-                    height: 36,
-                    borderBottomWidth: 3,
-                    borderLeftWidth: 3,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    borderBottomLeftRadius: 16,
-                  }}
-                />
-                {/* Bottom-right */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    right: 0,
-                    width: 36,
-                    height: 36,
-                    borderBottomWidth: 3,
-                    borderRightWidth: 3,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    borderBottomRightRadius: 16,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    borderWidth: 2,
+                    borderColor:
+                      arCurrentAxis === 'width' ? 'white' : '#5B8C5A',
+                    backgroundColor: 'transparent',
                   }}
                 />
               </View>
-            </Animated.View>
+              {/* Tap anywhere to place point at crosshair */}
+              <Pressable
+                className="absolute inset-0"
+                onPress={() => {
+                  setTapPoint({
+                    x: 0.5,
+                    y: 0.5,
+                    id: Date.now(),
+                  })
+                }}
+              />
+            </>
+          )}
+
+          {/* Overlays on camera */}
+          <View className="absolute inset-0" pointerEvents="box-none">
+            {/* Centered scan frame */}
+            {!measureMode && (
+              <Animated.View
+                className="absolute inset-0 items-center justify-center"
+                style={cornerStyle}
+                pointerEvents="none"
+              >
+                <View
+                  style={{
+                    width: frameBaseSize,
+                    height: frameBaseSize,
+                  }}
+                >
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 36,
+                      height: 36,
+                      borderTopWidth: 3,
+                      borderLeftWidth: 3,
+                      borderColor: 'rgba(255,255,255,0.8)',
+                      borderTopLeftRadius: 16,
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: 36,
+                      height: 36,
+                      borderTopWidth: 3,
+                      borderRightWidth: 3,
+                      borderColor: 'rgba(255,255,255,0.8)',
+                      borderTopRightRadius: 16,
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      width: 36,
+                      height: 36,
+                      borderBottomWidth: 3,
+                      borderLeftWidth: 3,
+                      borderColor: 'rgba(255,255,255,0.8)',
+                      borderBottomLeftRadius: 16,
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: 36,
+                      height: 36,
+                      borderBottomWidth: 3,
+                      borderRightWidth: 3,
+                      borderColor: 'rgba(255,255,255,0.8)',
+                      borderBottomRightRadius: 16,
+                    }}
+                  />
+                </View>
+              </Animated.View>
+            )}
+
             {/* Top bar */}
             <View
               className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4"
@@ -623,318 +583,356 @@ export function UnifiedScannerScreen() {
                 />
               </Pressable>
 
-              <LuxOverlay level={luxLevelDisplay} lux={luxDisplay} />
+              <LuxOverlay level={detection.luxLevel} lux={detection.lux} />
             </View>
 
             {/* Scan phase pill below top bar */}
-            {(isPlantVisible || scanPhase !== 'idle') && (
-              <Animated.View
-                entering={FadeIn.duration(200)}
-                exiting={FadeOut.duration(200)}
-                className="absolute left-0 right-0 items-center px-6"
-                style={{ top: insets.top + 56 }}
-              >
+            {!measureMode &&
+              (detection.plantVisible || scanPhase !== 'idle') && (
                 <Animated.View
-                  layout={LinearTransition.duration(250)}
-                  className="rounded-3xl overflow-hidden"
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    maxWidth: 360,
-                  }}
+                  entering={FadeIn.duration(200)}
+                  exiting={FadeOut.duration(200)}
+                  className="absolute left-0 right-0 px-4"
+                  style={{ top: insets.top + 56 }}
                 >
-                  {scanPhase === 'result' && result ? (
-                    <>
-                      {/* Header: photo + name + confidence */}
-                      <View className="flex-row items-center px-4 pt-4 pb-2">
-                        {capturedPhotoUri && (
-                          <Image
-                            source={{ uri: capturedPhotoUri }}
-                            style={{
-                              width: 52,
-                              height: 52,
-                              borderRadius: 14,
-                            }}
-                            contentFit="cover"
-                          />
-                        )}
-                        <View className="flex-1 ml-3 mr-2">
-                          <Text
-                            className="text-white text-base"
-                            style={{
-                              fontFamily: 'SpaceGrotesk_600SemiBold',
-                            }}
-                            numberOfLines={1}
-                          >
-                            {result.name ?? t('scanner.unknownPlant')}
-                          </Text>
-                          {result.family && (
-                            <Text
-                              className="text-xs mt-0.5"
+                  <Animated.View
+                    layout={LinearTransition.duration(250)}
+                    className="rounded-3xl overflow-hidden"
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.8)',
+                    }}
+                  >
+                    {scanPhase === 'result' && result ? (
+                      <>
+                        {/* Result pill header */}
+                        <View className="flex-row items-center px-4 pt-4 pb-2">
+                          {capturedPhotoUri && (
+                            <Image
+                              source={{ uri: capturedPhotoUri }}
                               style={{
-                                fontFamily: 'SpaceGrotesk_400Regular',
-                                color: 'rgba(255,255,255,0.5)',
+                                width: 52,
+                                height: 52,
+                                borderRadius: 14,
                               }}
-                            >
-                              {result.family}
-                            </Text>
-                          )}
-                        </View>
-                        <View
-                          className="rounded-full px-2.5 py-1"
-                          style={{
-                            backgroundColor: 'rgba(91,140,90,0.5)',
-                          }}
-                        >
-                          <Text
-                            className="text-white text-xs"
-                            style={{
-                              fontFamily: 'SpaceGrotesk_600SemiBold',
-                            }}
-                          >
-                            {Math.round(result.confidence * 100)}%
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Care chips */}
-                      <View className="flex-row flex-wrap gap-1.5 px-4 pb-3">
-                        {result.wateringFrequencyDays && (
-                          <View
-                            className="flex-row items-center rounded-full px-2.5 py-1"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                            }}
-                          >
-                            <MaterialIcons
-                              name="water-drop"
-                              size={12}
-                              color="#60A5FA"
+                              contentFit="cover"
                             />
+                          )}
+                          <View className="flex-1 ml-3 mr-2">
                             <Text
-                              className="text-white text-xs ml-1"
+                              className="text-white text-base"
                               style={{
-                                fontFamily: 'SpaceGrotesk_500Medium',
+                                fontFamily: 'SpaceGrotesk_600SemiBold',
+                              }}
+                              numberOfLines={1}
+                            >
+                              {result.name ?? t('scanner.unknownPlant')}
+                            </Text>
+                            {result.family && (
+                              <Text
+                                className="text-xs mt-0.5"
+                                style={{
+                                  fontFamily: 'SpaceGrotesk_400Regular',
+                                  color: 'rgba(255,255,255,0.5)',
+                                }}
+                              >
+                                {result.family}
+                              </Text>
+                            )}
+                          </View>
+                          <View
+                            className="rounded-full px-2.5 py-1"
+                            style={{
+                              backgroundColor: 'rgba(91,140,90,0.5)',
+                            }}
+                          >
+                            <Text
+                              className="text-white text-xs"
+                              style={{
+                                fontFamily: 'SpaceGrotesk_600SemiBold',
                               }}
                             >
-                              {t('scanner.everyNDays', {
-                                days: result.wateringFrequencyDays,
-                              })}
+                              {Math.round(result.confidence * 100)}%
                             </Text>
                           </View>
-                        )}
-                        {result.luxNeeded && (
-                          <View
-                            className="flex-row items-center rounded-full px-2.5 py-1"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                            }}
-                          >
-                            <MaterialIcons
-                              name="wb-sunny"
-                              size={12}
-                              color="#FCD34D"
+                        </View>
+
+                        {/* Care chips */}
+                        <View className="flex-row flex-wrap gap-1.5 px-4 pb-3">
+                          {result.wateringFrequencyDays && (
+                            <CareChip
+                              icon="water-drop"
+                              color="#60A5FA"
+                              label={t('scanner.everyNDays', {
+                                days: result.wateringFrequencyDays,
+                              })}
                             />
-                            <Text
-                              className="text-white text-xs ml-1"
-                              style={{
-                                fontFamily: 'SpaceGrotesk_500Medium',
-                              }}
-                            >
-                              {
+                          )}
+                          {result.luxNeeded && (
+                            <CareChip
+                              icon="wb-sunny"
+                              color="#FCD34D"
+                              label={
                                 LUMINOSITY_LEVELS[
                                   luxToLuminosityLevel(result.luxNeeded)
                                 ].label
                               }
-                            </Text>
-                          </View>
-                        )}
-                        {result.humidityRating !== null && (
-                          <View
-                            className="flex-row items-center rounded-full px-2.5 py-1"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                            }}
-                          >
-                            <MaterialIcons
-                              name="opacity"
-                              size={12}
-                              color="#60A5FA"
                             />
-                            <Text
-                              className="text-white text-xs ml-1"
-                              style={{
-                                fontFamily: 'SpaceGrotesk_500Medium',
-                              }}
-                            >
-                              {String(result.humidityRating)}%
-                            </Text>
-                          </View>
-                        )}
-                        {result.petToxicityRating !== null && (
-                          <View
-                            className="flex-row items-center rounded-full px-2.5 py-1"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                            }}
-                          >
-                            <MaterialIcons
-                              name="pets"
-                              size={12}
-                              color={
-                                result.petToxicityRating <= 30
-                                  ? '#5B8C5A'
-                                  : '#EF4444'
-                              }
-                            />
-                            <Text
-                              className="text-white text-xs ml-1"
-                              style={{
-                                fontFamily: 'SpaceGrotesk_500Medium',
-                              }}
-                            >
-                              {result.petToxicityRating <= 30
-                                ? t('scanner.petSafe')
-                                : t('scanner.petToxic')}
-                            </Text>
-                          </View>
-                        )}
-                        {result.potSize && (
-                          <View
-                            className="flex-row items-center rounded-full px-2.5 py-1"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                            }}
-                          >
-                            <MaterialIcons
-                              name="straighten"
-                              size={12}
+                          )}
+                          {confirmedPot && (
+                            <CareChip
+                              icon="straighten"
                               color="rgba(255,255,255,0.7)"
+                              label={formatPotDimensions(
+                                confirmedPot.widthCm,
+                                confirmedPot.heightCm
+                              )}
                             />
+                          )}
+                        </View>
+
+                        {/* Action buttons */}
+                        <View className="flex-row gap-2 px-4 pb-4">
+                          <Pressable
+                            onPress={handleAddToCollection}
+                            disabled={isCreating}
+                            className="flex-1 items-center justify-center rounded-xl py-3"
+                            style={{ backgroundColor: '#5B8C5A' }}
+                          >
                             <Text
-                              className="text-white text-xs ml-1"
+                              className="text-white text-sm"
                               style={{
-                                fontFamily: 'SpaceGrotesk_500Medium',
+                                fontFamily: 'SpaceGrotesk_600SemiBold',
                               }}
                             >
-                              {result.potSize}
-                              {result.potSizeCm
-                                ? ` ~${String(result.potSizeCm)}cm`
-                                : ''}
+                              {isCreating
+                                ? t('scanner.adding')
+                                : t('scanner.addToCollection')}
                             </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Action buttons */}
-                      <View className="flex-row gap-2 px-4 pb-4">
-                        <Pressable
-                          onPress={handleAddToCollection}
-                          disabled={isCreating}
-                          className="flex-1 items-center justify-center rounded-xl py-3"
-                          style={{ backgroundColor: '#5B8C5A' }}
+                          </Pressable>
+                          <Pressable
+                            onPress={handleReanalyze}
+                            className="items-center justify-center rounded-xl px-4 py-3"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.12)',
+                            }}
+                          >
+                            <MaterialIcons
+                              name="refresh"
+                              size={20}
+                              color="white"
+                            />
+                          </Pressable>
+                          <Pressable
+                            onPress={handleDismissResult}
+                            className="items-center justify-center rounded-xl px-4 py-3"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.12)',
+                            }}
+                          >
+                            <MaterialIcons
+                              name="close"
+                              size={20}
+                              color="white"
+                            />
+                          </Pressable>
+                        </View>
+                      </>
+                    ) : (
+                      <View className="flex-row items-center px-4 py-2.5">
+                        <MaterialIcons
+                          name={scanPhase === 'idle' ? 'search' : 'autorenew'}
+                          size={16}
+                          color="#A7D9A7"
+                        />
+                        <Text
+                          className="text-white text-xs ml-1.5"
+                          style={{
+                            fontFamily: 'SpaceGrotesk_500Medium',
+                          }}
                         >
+                          {scanPhase === 'capturing' ||
+                          scanPhase === 'uploading'
+                            ? t('scanner.identifying')
+                            : scanPhase === 'analyzing'
+                              ? t('scanner.analyzing')
+                              : t('scanner.plantDetected')}
+                        </Text>
+                      </View>
+                    )}
+                  </Animated.View>
+                </Animated.View>
+              )}
+
+            {/* AR Measurement overlay (iOS measure mode) */}
+            {measureMode && (
+              <View
+                className="absolute left-0 right-0 items-center px-6"
+                style={{ top: insets.top + 56 }}
+              >
+                <View
+                  className="rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+                >
+                  {/* Instruction text based on current axis and progress */}
+                  <Text
+                    className="text-white text-xs text-center"
+                    style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                  >
+                    {arCurrentAxis === 'width' && arPointCount === 0
+                      ? t('arMeasure.widthInstruction')
+                      : arCurrentAxis === 'width' && arPointCount === 1
+                        ? t('arMeasure.widthSecondPoint')
+                        : arCurrentAxis === 'height' &&
+                            arHeightCm === null &&
+                            arPointCount <= 2
+                          ? t('arMeasure.heightInstruction')
+                          : arCurrentAxis === 'height' &&
+                              arHeightCm === null &&
+                              arPointCount === 3
+                            ? t('arMeasure.heightSecondPoint')
+                            : t('arMeasure.title')}
+                  </Text>
+
+                  {/* Measurement results */}
+                  {(arWidthCm !== null || arHeightCm !== null) && (
+                    <View className="flex-row justify-center gap-4 mt-2">
+                      {arWidthCm !== null && (
+                        <View className="flex-row items-center">
+                          <MaterialIcons
+                            name="swap-horiz"
+                            size={14}
+                            color="white"
+                          />
                           <Text
-                            className="text-white text-sm"
+                            className="text-white text-xs ml-1"
                             style={{
                               fontFamily: 'SpaceGrotesk_600SemiBold',
                             }}
                           >
-                            {isCreating
-                              ? t('scanner.adding')
-                              : t('scanner.addToCollection')}
+                            {`${t('arMeasure.widthLabel')}: ${String(Math.round(arWidthCm * 10) / 10)} cm`}
                           </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={async () => {
-                            if (!capturedPhotoUri) return
-                            setScanPhase('analyzing')
-                            setResult(null)
-                            try {
-                              const aiResult =
-                                await detectPlant(capturedPhotoUri)
-                              setResult(aiResult)
-                              setScanPhase('result')
-                            } catch {
-                              setScanPhase('idle')
-                              setCapturedPhotoUri(null)
-                              isCapturing.value = false
-                              Alert.alert(
-                                t('scanner.identificationFailed'),
-                                t('scanner.identificationFailedMessage')
-                              )
-                            }
-                          }}
-                          className="items-center justify-center rounded-xl px-4 py-3"
-                          style={{
-                            backgroundColor: 'rgba(255,255,255,0.12)',
-                          }}
-                        >
+                        </View>
+                      )}
+                      {arHeightCm !== null && (
+                        <View className="flex-row items-center">
                           <MaterialIcons
-                            name="refresh"
-                            size={20}
-                            color="white"
+                            name="swap-vert"
+                            size={14}
+                            color="#5B8C5A"
                           />
-                        </Pressable>
-                      </View>
-                    </>
-                  ) : (
-                    // Loading pill — icon + status text
-                    <View className="flex-row items-center px-4 py-2.5">
-                      <MaterialIcons
-                        name={scanPhase === 'idle' ? 'search' : 'autorenew'}
-                        size={16}
-                        color="#A7D9A7"
-                      />
-                      <Text
-                        className="text-white text-xs ml-1.5"
-                        style={{
-                          fontFamily: 'SpaceGrotesk_500Medium',
-                        }}
-                      >
-                        {scanPhase === 'capturing' || scanPhase === 'uploading'
-                          ? t('scanner.identifying')
-                          : scanPhase === 'analyzing'
-                            ? t('scanner.analyzing')
-                            : t('scanner.plantDetected')}
-                      </Text>
+                          <Text
+                            className="text-white text-xs ml-1"
+                            style={{
+                              fontFamily: 'SpaceGrotesk_600SemiBold',
+                            }}
+                          >
+                            {`${t('arMeasure.heightLabel')}: ${String(Math.round(arHeightCm * 10) / 10)} cm`}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
-                </Animated.View>
-              </Animated.View>
+
+                  {/* Confirm/Reset buttons when both measurements done */}
+                  {arWidthCm !== null && arHeightCm !== null && (
+                    <View className="flex-row justify-center gap-3 mt-2">
+                      <Pressable
+                        onPress={handleConfirmMeasure}
+                        className="bg-primary rounded-lg px-4 py-2"
+                      >
+                        <Text
+                          className="text-white text-xs"
+                          style={{
+                            fontFamily: 'SpaceGrotesk_600SemiBold',
+                          }}
+                        >
+                          {t('arMeasure.confirm')}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={resetAR}
+                        className="rounded-lg px-4 py-2"
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.15)',
+                        }}
+                      >
+                        <Text
+                          className="text-white text-xs"
+                          style={{
+                            fontFamily: 'SpaceGrotesk_500Medium',
+                          }}
+                        >
+                          {t('arMeasure.reset')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {/* Step indicators: 4 dots (2 per axis) */}
+                  <View className="flex-row justify-center items-center gap-1.5 mt-2">
+                    {/* Width dots */}
+                    <View
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor:
+                          arPointCount >= 1 ? 'white' : 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    <View
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor:
+                          arPointCount >= 2 ? 'white' : 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    {/* Separator */}
+                    <View
+                      className="mx-1"
+                      style={{
+                        width: 1,
+                        height: 8,
+                        backgroundColor: 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    {/* Height dots */}
+                    <View
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor:
+                          arPointCount >= 3
+                            ? '#5B8C5A'
+                            : 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    <View
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor:
+                          arPointCount >= 4
+                            ? '#5B8C5A'
+                            : 'rgba(255,255,255,0.3)',
+                      }}
+                    />
+                  </View>
+                </View>
+              </View>
             )}
 
-            {/* Debug pot detection info */}
-            <View
-              className="absolute left-2 right-2"
-              style={{ bottom: insets.bottom + 140 }}
-              pointerEvents="none"
-            >
-              <View
-                className="rounded-lg px-3 py-2"
-                style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
-              >
-                <Text
-                  className="text-white text-xs"
-                  style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-                >
-                  POT: {debugPot}
-                </Text>
-              </View>
-            </View>
-
-            {/* Bottom: gallery button + hint text */}
+            {/* Bottom: buttons */}
             <View
               className="absolute bottom-0 left-0 right-0 items-center"
               style={{ paddingBottom: insets.bottom + 24 }}
             >
-              <Text
-                className="text-white/60 text-xs mb-4 text-center"
-                style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-              >
-                {isPlantVisible
-                  ? t('scanner.holdSteady')
-                  : t('scanner.pointAtPlant')}
-              </Text>
+              {!measureMode && (
+                <Text
+                  className="text-white/60 text-xs mb-4 text-center"
+                  style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+                >
+                  {detection.plantVisible
+                    ? t('scanner.holdSteady')
+                    : t('scanner.pointAtPlant')}
+                </Text>
+              )}
               <Pressable
                 onPress={handlePickFromGallery}
                 className="flex-row items-center rounded-full px-4 py-2.5"
@@ -952,6 +950,34 @@ export function UnifiedScannerScreen() {
                   {t('scanner.fromGallery')}
                 </Text>
               </Pressable>
+              {Platform.OS === 'ios' && (
+                <Animated.View style={measureButtonStyle} className="mt-3">
+                  <Pressable
+                    onPress={handleToggleMeasureMode}
+                    className="flex-row items-center rounded-full px-4 py-2.5"
+                    style={{
+                      backgroundColor:
+                        (scanPhase === 'result' && !confirmedPot) || measureMode
+                          ? 'rgba(91,140,90,0.8)'
+                          : 'rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    <MaterialIcons
+                      name="view-in-ar"
+                      size={20}
+                      color={iconColors.white}
+                    />
+                    <Text
+                      className="text-white text-sm ml-2"
+                      style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                    >
+                      {measureMode
+                        ? t('arMeasure.title')
+                        : t('arMeasure.measureWithAR')}
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              )}
               <Pressable
                 onPress={() => {
                   router.replace('/add-plant/manual-basic')
@@ -978,8 +1004,6 @@ export function UnifiedScannerScreen() {
             style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
             contentFit="cover"
           />
-
-          {/* Shimmer overlay */}
           <View className="absolute inset-0">
             <ShimmerEffect
               isLoading={true}
@@ -991,8 +1015,6 @@ export function UnifiedScannerScreen() {
               <View className="flex-1" />
             </ShimmerEffect>
           </View>
-
-          {/* Status pill */}
           <View
             className="absolute inset-x-0 items-center"
             style={{ bottom: insets.bottom + 60 }}
@@ -1010,8 +1032,6 @@ export function UnifiedScannerScreen() {
               </Text>
             </View>
           </View>
-
-          {/* Close button */}
           <View
             className="absolute top-0 left-0 px-4"
             style={{ paddingTop: insets.top + 8 }}
@@ -1030,15 +1050,12 @@ export function UnifiedScannerScreen() {
       {/* Result state: photo shrinks + info slides up */}
       {screenState === 'result' && capturedPhotoUri && result && (
         <View className="flex-1 bg-background">
-          {/* Photo card */}
           <Animated.View style={photoAnimatedStyle}>
             <Image
               source={{ uri: capturedPhotoUri }}
               style={{ width: SCREEN_WIDTH, height: '100%' }}
               contentFit="cover"
             />
-
-            {/* Confidence badge */}
             <View
               className="absolute bottom-3 left-3 flex-row items-center rounded-full px-3 py-1"
               style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1051,8 +1068,6 @@ export function UnifiedScannerScreen() {
                 {Math.round(result.confidence * 100)}% match
               </Text>
             </View>
-
-            {/* Detected type badge */}
             <View
               className="absolute bottom-3 right-3 rounded-full px-3 py-1"
               style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
@@ -1069,8 +1084,6 @@ export function UnifiedScannerScreen() {
                 )}
               </Text>
             </View>
-
-            {/* Close button */}
             <View
               className="absolute top-0 left-0 px-4"
               style={{ paddingTop: insets.top + 8 }}
@@ -1089,20 +1102,17 @@ export function UnifiedScannerScreen() {
             </View>
           </Animated.View>
 
-          {/* Plant info card */}
           <Animated.View style={infoAnimatedStyle} className="flex-1">
             <ScrollView
               className="flex-1 px-4 pt-4"
               contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
             >
-              {/* Plant name */}
               <Text
                 className="text-2xl text-text-primary"
                 style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
               >
                 {result.name ?? t('scanner.unknownPlant')}
               </Text>
-
               {result.family && (
                 <Text
                   className="text-sm text-text-secondary mt-0.5"
@@ -1111,8 +1121,6 @@ export function UnifiedScannerScreen() {
                   {result.family}
                 </Text>
               )}
-
-              {/* Chips row */}
               <View className="flex-row flex-wrap gap-2 mt-3">
                 {result.category && (
                   <ChipPill icon="eco" label={result.category} />
@@ -1126,15 +1134,16 @@ export function UnifiedScannerScreen() {
                     }
                   />
                 )}
-                {result.potSize && (
+                {confirmedPot && (
                   <ChipPill
                     icon="straighten"
-                    label={`${result.potSize}${result.potSizeCm ? ` ~${String(result.potSizeCm)}cm` : ''}`}
+                    label={formatPotDimensions(
+                      confirmedPot.widthCm,
+                      confirmedPot.heightCm
+                    )}
                   />
                 )}
               </View>
-
-              {/* Description */}
               {result.description && (
                 <Text
                   className="text-sm text-text-secondary mt-4 leading-5"
@@ -1143,8 +1152,6 @@ export function UnifiedScannerScreen() {
                   {result.description}
                 </Text>
               )}
-
-              {/* Care grid */}
               <View className="mt-4">
                 <Text
                   className="text-[11px] text-text-muted uppercase tracking-wide mb-2"
@@ -1217,8 +1224,6 @@ export function UnifiedScannerScreen() {
                   )}
                 </View>
               </View>
-
-              {/* Watering tips */}
               {result.wateringTips && (
                 <View className="mt-4">
                   <Text
@@ -1239,7 +1244,6 @@ export function UnifiedScannerScreen() {
               )}
             </ScrollView>
 
-            {/* Bottom action buttons */}
             <View
               className="absolute bottom-0 left-0 right-0 px-4 bg-background"
               style={{
@@ -1264,7 +1268,6 @@ export function UnifiedScannerScreen() {
                     : t('scanner.addToCollection')}
                 </Text>
               </Pressable>
-
               <Pressable
                 onPress={handleTryAgain}
                 className="mt-2 py-3 items-center"
@@ -1284,7 +1287,32 @@ export function UnifiedScannerScreen() {
   )
 }
 
-// Helper components
+// MARK: - Helper Components
+
+function CareChip({
+  icon,
+  color,
+  label,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap
+  color: string
+  label: string
+}) {
+  return (
+    <View
+      className="flex-row items-center rounded-full px-2.5 py-1"
+      style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+    >
+      <MaterialIcons name={icon} size={12} color={color} />
+      <Text
+        className="text-white text-xs ml-1"
+        style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+      >
+        {label}
+      </Text>
+    </View>
+  )
+}
 
 function ChipPill({
   icon,

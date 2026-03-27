@@ -3,9 +3,6 @@ import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
-export const PotSize = Schema.Literal('XS', 'S', 'M', 'L', 'XL')
-export type PotSize = typeof PotSize.Type
-
 export const PlantHealthStatus = Schema.Literal(
   'THRIVING',
   'HEALTHY',
@@ -49,7 +46,8 @@ export const Plant = Schema.Struct({
   remindersEnabled: Schema.Boolean,
   isFavorite: Schema.Boolean,
   userId: Schema.String,
-  potSize: Schema.NullOr(Schema.String),
+  potWidthCm: Schema.NullOr(Schema.Number),
+  potHeightCm: Schema.NullOr(Schema.Number),
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
   ownership: Schema.optionalWith(PlantOwnership, {
@@ -75,7 +73,8 @@ export const PlantUpdateRequest = Schema.Struct({
   petToxicityRating: Schema.optional(Schema.Number),
   wateringRating: Schema.optional(Schema.Number),
   isFavorite: Schema.optional(Schema.Boolean),
-  potSize: Schema.optional(Schema.NullOr(Schema.String)),
+  potWidthCm: Schema.optional(Schema.NullOr(Schema.Number)),
+  potHeightCm: Schema.optional(Schema.NullOr(Schema.Number)),
   roomId: Schema.optional(Schema.NullOr(Schema.String)),
 })
 
@@ -94,7 +93,8 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   humidityRating: Schema.optional(Schema.Number),
   petToxicityRating: Schema.Number,
   remindersEnabled: Schema.optional(Schema.Boolean),
-  potSize: Schema.optional(Schema.NullOr(PotSize)),
+  potWidthCm: Schema.optional(Schema.NullOr(Schema.Number)),
+  potHeightCm: Schema.optional(Schema.NullOr(Schema.Number)),
   roomId: Schema.optional(Schema.String),
 })
 

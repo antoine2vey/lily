@@ -37,6 +37,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "@lily/plant-scanner",
       "expo-dev-client",
       "expo-router",
       "expo-secure-store",

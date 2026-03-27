@@ -23,7 +23,6 @@ import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useRooms } from '@/hooks/useRooms'
-// AddPlantOptionsSheet removed — scanner is now the direct entry point
 import { PlantCard } from '@/screens/plants/components/PlantCard'
 import {
   type FilterOption,
@@ -137,7 +136,6 @@ export function PlantsScreen() {
   const [sortOption, setSortOption] = useState<SortOption>('name')
   const [showSortSheet, setShowSortSheet] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
-  // Direct navigation to unified scanner (no options sheet)
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
 
   const { data: roomsData } = useRooms()

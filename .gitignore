@@ -107,9 +107,12 @@ temp/
 *.sln
 *.sw?
 
-# Expo/React Native native builds
-ios/
-android/
+# Expo/React Native native builds (app package only)
+/packages/app/ios/
+/packages/app/android/
+
+# Allow native module source in plant-scanner
+!/packages/plant-scanner/ios/
 
 # OS generated files
 Thumbs.db

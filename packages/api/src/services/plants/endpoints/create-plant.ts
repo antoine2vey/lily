@@ -54,7 +54,14 @@ export const createPlant = (
       ),
       wateringRating: 0, // Default value
       health: 'HEALTHY', // Default value
-      potSize: pipe(Option.fromNullable(request.potSize), Option.getOrNull),
+      potWidthCm: pipe(
+        Option.fromNullable(request.potWidthCm),
+        Option.getOrNull
+      ),
+      potHeightCm: pipe(
+        Option.fromNullable(request.potHeightCm),
+        Option.getOrNull
+      ),
       userId,
       roomId: pipe(Option.fromNullable(request.roomId), Option.getOrNull),
     })

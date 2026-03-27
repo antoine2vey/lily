@@ -1,9 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import type { LuminosityLevel } from '@lily/shared'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
-
-type LuminosityLevel = 1 | 2 | 3 | 4 | 5
 
 const LEVEL_CONFIG: Record<
   LuminosityLevel,
@@ -29,10 +28,6 @@ interface LuxOverlayProps {
   readonly lux: number
 }
 
-/**
- * Pill overlay showing the current lighting level
- * detected by the camera frame processor.
- */
 export function LuxOverlay({ level, lux }: LuxOverlayProps) {
   const { t } = useTranslation('addPlant')
 

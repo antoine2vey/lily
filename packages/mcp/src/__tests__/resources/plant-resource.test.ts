@@ -18,6 +18,8 @@ const basePlant: PlantDetail = {
   health: 'HEALTHY',
   userId: 'user-1',
   roomId: 'room-1',
+  potWidthCm: null,
+  potHeightCm: null,
   remindersEnabled: true,
   isFavorite: false,
   room: {

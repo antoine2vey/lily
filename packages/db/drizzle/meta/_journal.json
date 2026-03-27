@@ -288,6 +288,13 @@
       "when": 1774529029926,
       "tag": "0040_spicy_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1774828800000,
+      "tag": "0041_replace_pot_size_with_dimensions",
+      "breakpoints": true
     }
   ]
 }
