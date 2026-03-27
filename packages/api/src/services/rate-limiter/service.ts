@@ -58,8 +58,8 @@ export const RateLimiterServiceLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
-      checkRateLimit: (key: string, config: RateLimitConfig) =>
-        Effect.gen(function* () {
+      checkRateLimit: Effect.fn('RateLimiterService.checkRateLimit')(
+        function* (key: string, config: RateLimitConfig) {
           const nowDt = DateTime.unsafeNow()
           const currentTime = DateTime.toDateUtc(nowDt)
           const windowStart = DateTime.toDateUtc(
@@ -126,20 +126,16 @@ export const RateLimiterServiceLive = Layer.effect(
               count: record.count + 1,
             })
             .where(eq(rateLimits.key, key))
-        }).pipe(
-          // Convert SQL errors to defects since they are unexpected infrastructure errors
-          Effect.catchTag('SqlError', (e) => Effect.die(e)),
-          Effect.withSpan('RateLimiterService.checkRateLimit')
-        ),
+        },
+        Effect.catchTag('SqlError', (e) => Effect.die(e))
+      ),
 
-      resetRateLimit: (key: string) =>
-        Effect.gen(function* () {
+      resetRateLimit: Effect.fn('RateLimiterService.resetRateLimit')(
+        function* (key: string) {
           yield* db.delete(rateLimits).where(eq(rateLimits.key, key))
-        }).pipe(
-          // Convert SQL errors to defects
-          Effect.catchTag('SqlError', (e) => Effect.die(e)),
-          Effect.withSpan('RateLimiterService.resetRateLimit')
-        ),
+        },
+        Effect.catchTag('SqlError', (e) => Effect.die(e))
+      ),
     }
   })
 )

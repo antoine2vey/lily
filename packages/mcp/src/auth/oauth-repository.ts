@@ -190,55 +190,61 @@ export const OAuthRepositoryLive = Layer.effect(
     return {
       // ── Clients ──────────────────────────────────────────────────
 
-      getClient: (clientId) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(oauthClients)
-            .where(eq(oauthClients.clientId, clientId))
-          return pipe(Array.head(rows), Option.map(rowToClient))
-        }).pipe(Effect.withSpan('OAuthRepository.getClient')),
+      getClient: Effect.fn('OAuthRepository.getClient')(function* (
+        clientId: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(oauthClients)
+          .where(eq(oauthClients.clientId, clientId))
+        return pipe(Array.head(rows), Option.map(rowToClient))
+      }),
 
-      registerClient: (client) =>
-        Effect.gen(function* () {
-          const clientId = client.client_id ?? crypto.randomUUID()
-          const clientIdIssuedAt = client.client_id_issued_at
+      registerClient: Effect.fn('OAuthRepository.registerClient')(function* (
+        client: Omit<OAuthClient, 'client_id' | 'client_id_issued_at'> & {
+          readonly client_id?: string | undefined
+          readonly client_id_issued_at?: number | undefined
+        }
+      ) {
+        const clientId = client.client_id ?? crypto.randomUUID()
+        const clientIdIssuedAt = client.client_id_issued_at
+          ? DateTime.toDateUtc(
+              DateTime.unsafeMake(client.client_id_issued_at * 1000)
+            )
+          : DateTime.toDateUtc(DateTime.unsafeNow())
+
+        yield* db.insert(oauthClients).values({
+          clientId,
+          clientSecret: client.client_secret ?? null,
+          clientSecretExpiresAt: client.client_secret_expires_at
             ? DateTime.toDateUtc(
-                DateTime.unsafeMake(client.client_id_issued_at * 1000)
+                DateTime.unsafeMake(client.client_secret_expires_at * 1000)
               )
-            : DateTime.toDateUtc(DateTime.unsafeNow())
+            : null,
+          redirectUris: client.redirect_uris as string[],
+          clientName: client.client_name ?? null,
+          clientUri: client.client_uri ?? null,
+          logoUri: client.logo_uri ?? null,
+          scope: client.scope ?? null,
+          grantTypes: (client.grant_types as string[]) ?? null,
+          responseTypes: (client.response_types as string[]) ?? null,
+          tokenEndpointAuthMethod: client.token_endpoint_auth_method ?? null,
+          clientIdIssuedAt,
+        })
 
-          yield* db.insert(oauthClients).values({
-            clientId,
-            clientSecret: client.client_secret ?? null,
-            clientSecretExpiresAt: client.client_secret_expires_at
-              ? DateTime.toDateUtc(
-                  DateTime.unsafeMake(client.client_secret_expires_at * 1000)
-                )
-              : null,
-            redirectUris: client.redirect_uris as string[],
-            clientName: client.client_name ?? null,
-            clientUri: client.client_uri ?? null,
-            logoUri: client.logo_uri ?? null,
-            scope: client.scope ?? null,
-            grantTypes: (client.grant_types as string[]) ?? null,
-            responseTypes: (client.response_types as string[]) ?? null,
-            tokenEndpointAuthMethod: client.token_endpoint_auth_method ?? null,
-            clientIdIssuedAt,
-          })
-
-          return {
-            ...client,
-            client_id: clientId,
-            client_id_issued_at: Math.floor(clientIdIssuedAt.getTime() / 1000),
-          } as OAuthClient
-        }).pipe(Effect.withSpan('OAuthRepository.registerClient')),
+        return {
+          ...client,
+          client_id: clientId,
+          client_id_issued_at: Math.floor(clientIdIssuedAt.getTime() / 1000),
+        } as OAuthClient
+      }),
 
       // ── Authorization Codes ──────────────────────────────────────
 
       saveAuthorizationCode: (code) =>
-        Effect.gen(function* () {
-          yield* db.insert(oauthAuthorizationCodes).values({
+        db
+          .insert(oauthAuthorizationCodes)
+          .values({
             authorizationCode: code.authorizationCode,
             clientId: code.clientId,
             userId: code.userId,
@@ -249,38 +255,42 @@ export const OAuthRepositoryLive = Layer.effect(
             resource: code.resource ?? null,
             expiresAt: code.expiresAt,
           })
-        }).pipe(Effect.withSpan('OAuthRepository.saveAuthorizationCode')),
+          .pipe(Effect.withSpan('OAuthRepository.saveAuthorizationCode')),
 
-      getAuthorizationCode: (code) =>
-        Effect.gen(function* () {
+      getAuthorizationCode: Effect.fn('OAuthRepository.getAuthorizationCode')(
+        function* (code: string) {
           const rows = yield* db
             .select()
             .from(oauthAuthorizationCodes)
             .where(eq(oauthAuthorizationCodes.authorizationCode, code))
           return pipe(Array.head(rows), Option.map(rowToAuthCode))
-        }).pipe(Effect.withSpan('OAuthRepository.getAuthorizationCode')),
+        }
+      ),
 
-      revokeAuthorizationCode: (code) =>
-        Effect.gen(function* () {
-          yield* db
-            .delete(oauthAuthorizationCodes)
-            .where(eq(oauthAuthorizationCodes.authorizationCode, code))
-        }).pipe(Effect.withSpan('OAuthRepository.revokeAuthorizationCode')),
+      revokeAuthorizationCode: Effect.fn(
+        'OAuthRepository.revokeAuthorizationCode'
+      )(function* (code: string) {
+        yield* db
+          .delete(oauthAuthorizationCodes)
+          .where(eq(oauthAuthorizationCodes.authorizationCode, code))
+      }),
 
-      consumeAuthorizationCode: (code) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .delete(oauthAuthorizationCodes)
-            .where(eq(oauthAuthorizationCodes.authorizationCode, code))
-            .returning()
-          return pipe(Array.head(rows), Option.map(rowToAuthCode))
-        }).pipe(Effect.withSpan('OAuthRepository.consumeAuthorizationCode')),
+      consumeAuthorizationCode: Effect.fn(
+        'OAuthRepository.consumeAuthorizationCode'
+      )(function* (code: string) {
+        const rows = yield* db
+          .delete(oauthAuthorizationCodes)
+          .where(eq(oauthAuthorizationCodes.authorizationCode, code))
+          .returning()
+        return pipe(Array.head(rows), Option.map(rowToAuthCode))
+      }),
 
       // ── Access Tokens ────────────────────────────────────────────
 
       saveAccessToken: (token) =>
-        Effect.gen(function* () {
-          yield* db.insert(oauthAccessTokens).values({
+        db
+          .insert(oauthAccessTokens)
+          .values({
             token: token.token,
             clientId: token.clientId,
             userId: token.userId,
@@ -288,29 +298,32 @@ export const OAuthRepositoryLive = Layer.effect(
             resource: token.resource ?? null,
             expiresAt: token.expiresAt,
           })
-        }).pipe(Effect.withSpan('OAuthRepository.saveAccessToken')),
+          .pipe(Effect.withSpan('OAuthRepository.saveAccessToken')),
 
-      getAccessToken: (accessToken) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(oauthAccessTokens)
-            .where(eq(oauthAccessTokens.token, accessToken))
-          return pipe(Array.head(rows), Option.map(rowToAccessToken))
-        }).pipe(Effect.withSpan('OAuthRepository.getAccessToken')),
+      getAccessToken: Effect.fn('OAuthRepository.getAccessToken')(function* (
+        accessToken: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(oauthAccessTokens)
+          .where(eq(oauthAccessTokens.token, accessToken))
+        return pipe(Array.head(rows), Option.map(rowToAccessToken))
+      }),
 
-      revokeAccessToken: (accessToken) =>
-        Effect.gen(function* () {
+      revokeAccessToken: Effect.fn('OAuthRepository.revokeAccessToken')(
+        function* (accessToken: string) {
           yield* db
             .delete(oauthAccessTokens)
             .where(eq(oauthAccessTokens.token, accessToken))
-        }).pipe(Effect.withSpan('OAuthRepository.revokeAccessToken')),
+        }
+      ),
 
       // ── Refresh Tokens ───────────────────────────────────────────
 
       saveRefreshToken: (token) =>
-        Effect.gen(function* () {
-          yield* db.insert(oauthRefreshTokens).values({
+        db
+          .insert(oauthRefreshTokens)
+          .values({
             token: token.token,
             clientId: token.clientId,
             userId: token.userId,
@@ -318,58 +331,62 @@ export const OAuthRepositoryLive = Layer.effect(
             resource: token.resource ?? null,
             expiresAt: token.expiresAt,
           })
-        }).pipe(Effect.withSpan('OAuthRepository.saveRefreshToken')),
+          .pipe(Effect.withSpan('OAuthRepository.saveRefreshToken')),
 
-      getRefreshToken: (refreshToken) =>
-        Effect.gen(function* () {
-          const rows = yield* db
-            .select()
-            .from(oauthRefreshTokens)
-            .where(eq(oauthRefreshTokens.token, refreshToken))
-          return pipe(Array.head(rows), Option.map(rowToRefreshToken))
-        }).pipe(Effect.withSpan('OAuthRepository.getRefreshToken')),
+      getRefreshToken: Effect.fn('OAuthRepository.getRefreshToken')(function* (
+        refreshToken: string
+      ) {
+        const rows = yield* db
+          .select()
+          .from(oauthRefreshTokens)
+          .where(eq(oauthRefreshTokens.token, refreshToken))
+        return pipe(Array.head(rows), Option.map(rowToRefreshToken))
+      }),
 
-      revokeRefreshToken: (refreshToken) =>
-        Effect.gen(function* () {
+      revokeRefreshToken: Effect.fn('OAuthRepository.revokeRefreshToken')(
+        function* (refreshToken: string) {
           yield* db
             .delete(oauthRefreshTokens)
             .where(eq(oauthRefreshTokens.token, refreshToken))
-        }).pipe(Effect.withSpan('OAuthRepository.revokeRefreshToken')),
+        }
+      ),
 
-      consumeRefreshToken: (refreshToken) =>
-        Effect.gen(function* () {
+      consumeRefreshToken: Effect.fn('OAuthRepository.consumeRefreshToken')(
+        function* (refreshToken: string) {
           const rows = yield* db
             .delete(oauthRefreshTokens)
             .where(eq(oauthRefreshTokens.token, refreshToken))
             .returning()
           return pipe(Array.head(rows), Option.map(rowToRefreshToken))
-        }).pipe(Effect.withSpan('OAuthRepository.consumeRefreshToken')),
+        }
+      ),
 
       // ── User API Credentials ─────────────────────────────────────
 
-      upsertUserApiCredentials: (creds) =>
-        Effect.gen(function* () {
-          const now = DateTime.toDateUtc(DateTime.unsafeNow())
-          yield* db
-            .insert(oauthUserApiCredentials)
-            .values({
-              userId: creds.userId,
+      upsertUserApiCredentials: Effect.fn(
+        'OAuthRepository.upsertUserApiCredentials'
+      )(function* (creds: UserApiCredentials) {
+        const now = DateTime.toDateUtc(DateTime.unsafeNow())
+        yield* db
+          .insert(oauthUserApiCredentials)
+          .values({
+            userId: creds.userId,
+            apiJwt: creds.apiJwt,
+            apiRefreshToken: creds.apiRefreshToken,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: oauthUserApiCredentials.userId,
+            set: {
               apiJwt: creds.apiJwt,
               apiRefreshToken: creds.apiRefreshToken,
               updatedAt: now,
-            })
-            .onConflictDoUpdate({
-              target: oauthUserApiCredentials.userId,
-              set: {
-                apiJwt: creds.apiJwt,
-                apiRefreshToken: creds.apiRefreshToken,
-                updatedAt: now,
-              },
-            })
-        }).pipe(Effect.withSpan('OAuthRepository.upsertUserApiCredentials')),
+            },
+          })
+      }),
 
-      getUserApiCredentials: (userId) =>
-        Effect.gen(function* () {
+      getUserApiCredentials: Effect.fn('OAuthRepository.getUserApiCredentials')(
+        function* (userId: string) {
           const rows = yield* db
             .select()
             .from(oauthUserApiCredentials)
@@ -382,7 +399,8 @@ export const OAuthRepositoryLive = Layer.effect(
               apiRefreshToken: row.apiRefreshToken,
             }))
           )
-        }).pipe(Effect.withSpan('OAuthRepository.getUserApiCredentials')),
+        }
+      ),
     }
   })
 )
