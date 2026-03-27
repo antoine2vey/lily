@@ -11,6 +11,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
+import type { EmailService } from '@lily/shared/server'
 import { Config, Console, Context, Effect, Layer } from 'effect'
 import qrcode from 'qrcode-terminal'
 
@@ -35,7 +36,7 @@ export const sendMagicLink = ({
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
   { message: string },
-  MagicLinkRepository | RateLimiterService | MagicLinkConfig
+  MagicLinkRepository | RateLimiterService | MagicLinkConfig | EmailService
 > =>
   Effect.gen(function* () {
     const rateLimiter = yield* RateLimiterService

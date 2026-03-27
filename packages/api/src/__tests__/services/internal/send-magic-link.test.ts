@@ -2,6 +2,7 @@ import { sendInternalMagicLink } from '@lily/api/services/internal/endpoints/sen
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 import { mockUser1, mockUsers } from '../../fixtures/users'
+import { createMockEmailService } from '../../mocks/email.service'
 import {
   clearMagicLinkStore,
   createMockMagicLinkRepository,
@@ -25,7 +26,8 @@ describe('sendInternalMagicLink', () => {
         options.shouldExceedRateLimit !== undefined
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
-      )
+      ),
+      createMockEmailService()
     )
 
   it('should return success for existing user', async () => {
