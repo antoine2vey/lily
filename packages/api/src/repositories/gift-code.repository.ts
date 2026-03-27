@@ -117,6 +117,7 @@ export const GiftCodeRepositoryLive = Layer.effect(
             expiresAt: data.expiresAt ?? null,
           })
           .returning()
+        // biome-ignore lint/style/noNonNullAssertion: returning() guarantees a row
         return asRecord(rows[0]!)
       }),
 
@@ -207,8 +208,8 @@ export const GiftCodeRepositoryLive = Layer.effect(
             .insert(giftCodeRedemptions)
             .values({ giftCodeId, userId })
             .returning()
-          const created = rows[0]!
-          return created
+          // biome-ignore lint/style/noNonNullAssertion: returning() guarantees a row
+          return rows[0]!
         }
       ),
 

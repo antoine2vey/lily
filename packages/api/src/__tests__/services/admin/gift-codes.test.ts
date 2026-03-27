@@ -1,13 +1,11 @@
-import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockGiftCodeRepository } from '@lily/api/__tests__/mocks/gift-code.repository'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { GiftCodeRecord } from '@lily/api/repositories/gift-code.repository'
 import { createGiftCode } from '@lily/api/services/admin/endpoints/create-gift-code'
 import { deleteGiftCode } from '@lily/api/services/admin/endpoints/delete-gift-code'
 import { getGiftCode } from '@lily/api/services/admin/endpoints/get-gift-code'
 import { listGiftCodes } from '@lily/api/services/admin/endpoints/list-gift-codes'
 import { updateGiftCode } from '@lily/api/services/admin/endpoints/update-gift-code'
-import { Cause, Effect, Exit, Layer } from 'effect'
+import { Cause, Effect, Exit } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const mockCode: GiftCodeRecord = {

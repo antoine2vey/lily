@@ -59,8 +59,6 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
           )
         )
 
-  const hasPotSize = plant.potWidthCm != null && plant.potHeightCm != null
-
   return (
     <View testID="plant-header">
       <View className="flex-row items-center justify-between">
@@ -77,7 +75,8 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
           size="sm"
         />
       </View>
-      {(speciesLine || hasPotSize) && (
+      {(speciesLine ||
+        (plant.potWidthCm != null && plant.potHeightCm != null)) && (
         <View className="flex-row items-center flex-wrap gap-2 mt-1">
           {speciesLine && (
             <Text
@@ -87,14 +86,14 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
               {speciesLine}
             </Text>
           )}
-          {hasPotSize && (
+          {plant.potWidthCm != null && plant.potHeightCm != null && (
             <View className="flex-row items-center rounded-full px-2.5 py-1 bg-primary-tint dark:bg-primary/20">
               <MaterialIcons name="straighten" size={12} color="#5B8C5A" />
               <Text
                 className="text-xs text-primary dark:text-primary-light ml-1"
                 style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
               >
-                {`${t('detail.potSize')}: ${String(Math.round(plant.potWidthCm! * 10) / 10)} x ${String(Math.round(plant.potHeightCm! * 10) / 10)} cm`}
+                {`${t('detail.potSize')}: ${String(Math.round(plant.potWidthCm * 10) / 10)} x ${String(Math.round(plant.potHeightCm * 10) / 10)} cm`}
               </Text>
             </View>
           )}
