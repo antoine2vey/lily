@@ -52,6 +52,7 @@ import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AiService } from '@lily/api/services/ai/service'
 import { MagicLinkConfigLive } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
 import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
 import {
@@ -159,6 +160,7 @@ const SelfContainedInfraLive = Layer.mergeAll(
   ExpoPushServiceLive,
   JWTServiceLive,
   RateLimiterServiceLive,
+  ResendEmailServiceLive,
   MagicLinkConfigLive
 ).pipe(Layer.provideMerge(BunContext.layer))
 

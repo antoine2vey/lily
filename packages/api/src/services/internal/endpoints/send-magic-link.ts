@@ -11,6 +11,7 @@ import {
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { LanguageCode } from '@lily/shared'
+import type { EmailService } from '@lily/shared/server'
 import { Console, Effect } from 'effect'
 
 /**
@@ -30,7 +31,7 @@ export const sendInternalMagicLink = (input: {
 }): Effect.Effect<
   { message: string },
   { message: string },
-  MagicLinkRepository | RateLimiterService | UserRepository
+  MagicLinkRepository | RateLimiterService | UserRepository | EmailService
 > =>
   Effect.gen(function* () {
     const rateLimiter = yield* RateLimiterService
