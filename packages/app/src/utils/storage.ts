@@ -1,99 +1,114 @@
-import { Effect, Option } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 import * as SecureStore from 'expo-secure-store'
+
+class StorageError extends Schema.TaggedError<StorageError>()('StorageError', {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Unknown),
+}) {}
 
 const ACCESS_TOKEN_KEY = 'lily_access_token'
 const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 const USER_EMAIL_KEY = 'lily_user_email'
 
 // Access Token
-export const storeAccessToken = (token: string): Effect.Effect<void, Error> =>
+export const storeAccessToken = (
+  token: string
+): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token),
-    catch: (error) =>
-      new Error(`Failed to store access token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to store access token', cause }),
   })
 
 export const getStoredAccessToken = (): Effect.Effect<
   Option.Option<string>,
-  Error
+  StorageError
 > =>
   Effect.tryPromise({
     try: async () => {
       const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
       return Option.fromNullable(token)
     },
-    catch: (error) => new Error(`Failed to get access token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to get access token', cause }),
   })
 
-export const removeStoredAccessToken = (): Effect.Effect<void, Error> =>
+export const removeStoredAccessToken = (): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-    catch: (error) =>
-      new Error(`Failed to remove access token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to remove access token', cause }),
   })
 
 // Refresh Token
-export const storeRefreshToken = (token: string): Effect.Effect<void, Error> =>
+export const storeRefreshToken = (
+  token: string
+): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token),
-    catch: (error) =>
-      new Error(`Failed to store refresh token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to store refresh token', cause }),
   })
 
 export const getStoredRefreshToken = (): Effect.Effect<
   Option.Option<string>,
-  Error
+  StorageError
 > =>
   Effect.tryPromise({
     try: async () => {
       const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
       return Option.fromNullable(token)
     },
-    catch: (error) =>
-      new Error(`Failed to get refresh token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to get refresh token', cause }),
   })
 
-export const removeStoredRefreshToken = (): Effect.Effect<void, Error> =>
+export const removeStoredRefreshToken = (): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-    catch: (error) =>
-      new Error(`Failed to remove refresh token: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to remove refresh token', cause }),
   })
 
 // User Email
-export const storeUserEmail = (email: string): Effect.Effect<void, Error> =>
+export const storeUserEmail = (
+  email: string
+): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.setItemAsync(USER_EMAIL_KEY, email),
-    catch: (error) => new Error(`Failed to store email: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to store email', cause }),
   })
 
 export const getStoredUserEmail = (): Effect.Effect<
   Option.Option<string>,
-  Error
+  StorageError
 > =>
   Effect.tryPromise({
     try: async () => {
       const email = await SecureStore.getItemAsync(USER_EMAIL_KEY)
       return Option.fromNullable(email)
     },
-    catch: (error) => new Error(`Failed to get email: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to get email', cause }),
   })
 
-export const removeStoredUserEmail = (): Effect.Effect<void, Error> =>
+export const removeStoredUserEmail = (): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(USER_EMAIL_KEY),
-    catch: (error) => new Error(`Failed to remove email: ${String(error)}`),
+    catch: (cause) =>
+      new StorageError({ message: 'Failed to remove email', cause }),
   })
 
 // Clear all auth storage
-export const clearAuthStorage = (): Effect.Effect<void, Error> =>
+export const clearAuthStorage = (): Effect.Effect<void, StorageError> =>
   Effect.all([
     removeStoredAccessToken(),
     removeStoredRefreshToken(),
     removeStoredUserEmail(),
-  ]).pipe(Effect.map(() => undefined))
+  ]).pipe(Effect.asVoid)
 
-// Legacy aliases for backwards compatibility
+// Legacy aliases
 export const storeToken = storeAccessToken
 export const getStoredToken = getStoredAccessToken
 export const removeStoredToken = removeStoredAccessToken

@@ -27,12 +27,10 @@ export const createMockRateLimiterService = (
             Option.fromNullable(options.retryAfter),
             Option.getOrElse(() => 60)
           )
-          return yield* Effect.fail(
-            new RateLimitExceededError({
-              message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
-              retryAfter,
-            })
-          )
+          return yield* new RateLimitExceededError({
+            message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
+            retryAfter,
+          })
         }
 
         // Simulate rate limit tracking
@@ -60,12 +58,10 @@ export const createMockRateLimiterService = (
               now.getTime()) /
               1000
           )
-          return yield* Effect.fail(
-            new RateLimitExceededError({
-              message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
-              retryAfter,
-            })
-          )
+          return yield* new RateLimitExceededError({
+            message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
+            retryAfter,
+          })
         }
 
         rateLimitState.set(key, {
