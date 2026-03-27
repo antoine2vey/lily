@@ -5,7 +5,7 @@ export const createMockFileSystem = (): Layer.Layer<FileSystem> => {
   const mockFileSystem = {
     readFile: (_path: string) =>
       Effect.succeed(new Uint8Array([0x89, 0x50, 0x4e, 0x47])), // Mock PNG header
-    writeFile: () => Effect.succeed(undefined),
+    writeFile: () => Effect.void,
     exists: () => Effect.succeed(true),
     stat: () =>
       Effect.succeed({

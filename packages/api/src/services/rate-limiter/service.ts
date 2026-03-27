@@ -113,12 +113,10 @@ export const RateLimiterServiceLive = Layer.effect(
             const retryAfter = Math.ceil(
               DateTime.distance(nowDt, windowEndDt) / 1000
             )
-            return yield* Effect.fail(
-              new RateLimitExceededError({
-                message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
-                retryAfter,
-              })
-            )
+            return yield* new RateLimitExceededError({
+              message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
+              retryAfter,
+            })
           }
 
           // Increment counter
