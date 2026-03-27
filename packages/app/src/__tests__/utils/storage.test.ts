@@ -3,7 +3,6 @@ import * as SecureStore from 'expo-secure-store'
 import {
   clearAuthStorage,
   getStoredAccessToken,
-  getStoredRefreshToken,
   getStoredUserEmail,
   removeStoredAccessToken,
   removeStoredRefreshToken,
@@ -116,27 +115,6 @@ describe('Storage Utilities', () => {
         'lily_refresh_token',
         'test-refresh-token'
       )
-    })
-  })
-
-  describe('getStoredRefreshToken', () => {
-    it('should return Some when token exists', async () => {
-      mockGetItemAsync.mockResolvedValueOnce('existing-refresh-token')
-
-      const result = await Effect.runPromise(getStoredRefreshToken())
-
-      expect(Option.isSome(result)).toBe(true)
-      if (Option.isSome(result)) {
-        expect(result.value).toBe('existing-refresh-token')
-      }
-    })
-
-    it('should return None when token does not exist', async () => {
-      mockGetItemAsync.mockResolvedValueOnce(null)
-
-      const result = await Effect.runPromise(getStoredRefreshToken())
-
-      expect(Option.isNone(result)).toBe(true)
     })
   })
 

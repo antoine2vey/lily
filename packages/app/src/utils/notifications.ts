@@ -188,27 +188,6 @@ export function setupNotificationListeners(router: Router): () => void {
 }
 
 /**
- * Get the current badge count
- */
-export async function getBadgeCount(): Promise<number> {
-  return Notifications.getBadgeCountAsync()
-}
-
-/**
- * Set the badge count
- */
-export async function setBadgeCount(count: number): Promise<void> {
-  await Notifications.setBadgeCountAsync(count)
-}
-
-/**
- * Clear the badge count
- */
-export async function clearBadgeCount(): Promise<void> {
-  await Notifications.setBadgeCountAsync(0)
-}
-
-/**
  * Get the device's IANA timezone (e.g., "America/New_York")
  * Returns 'UTC' if timezone cannot be determined
  */

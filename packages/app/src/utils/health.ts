@@ -35,15 +35,3 @@ export const getHealthDotClass = (health: HealthStatus): string =>
     Match.when('critical', () => 'bg-red-400'),
     Match.exhaustive
   )
-
-/**
- * Get Tailwind text color class for health status
- */
-export const getHealthTextClass = (health: HealthStatus): string =>
-  pipe(
-    Match.value(health),
-    Match.when('healthy', () => 'text-primary'),
-    Match.when('attention', () => 'text-orange-500'),
-    Match.when('critical', () => 'text-red-500'),
-    Match.exhaustive
-  )
