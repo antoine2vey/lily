@@ -8,11 +8,15 @@ ENV NODE_ENV=production
 # Copy package files first for better caching
 COPY package.json bun.lock ./
 COPY patches ./patches
+COPY packages/admin/package.json ./packages/admin/
 COPY packages/api/package.json ./packages/api/
 COPY packages/app/package.json ./packages/app/
 COPY packages/db/package.json ./packages/db/
 COPY packages/knowledge-db/package.json ./packages/knowledge-db/
+COPY packages/mcp/package.json ./packages/mcp/
+COPY packages/plant-scanner/package.json ./packages/plant-scanner/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/web/package.json ./packages/web/
 
 RUN bun install --ignore-scripts
 
