@@ -50,19 +50,6 @@ export const storeRefreshToken = (
       new StorageError({ message: 'Failed to store refresh token', cause }),
   })
 
-export const getStoredRefreshToken = (): Effect.Effect<
-  Option.Option<string>,
-  StorageError
-> =>
-  Effect.tryPromise({
-    try: async () => {
-      const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
-      return Option.fromNullable(token)
-    },
-    catch: (cause) =>
-      new StorageError({ message: 'Failed to get refresh token', cause }),
-  })
-
 export const removeStoredRefreshToken = (): Effect.Effect<void, StorageError> =>
   Effect.tryPromise({
     try: () => SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
@@ -107,8 +94,3 @@ export const clearAuthStorage = (): Effect.Effect<void, StorageError> =>
     removeStoredRefreshToken(),
     removeStoredUserEmail(),
   ]).pipe(Effect.asVoid)
-
-// Legacy aliases
-export const storeToken = storeAccessToken
-export const getStoredToken = getStoredAccessToken
-export const removeStoredToken = removeStoredAccessToken
