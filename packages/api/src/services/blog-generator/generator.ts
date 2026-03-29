@@ -21,8 +21,8 @@ import type {
   TopicSuggestion,
 } from './types'
 
-const MAX_RETRIES = 10
-const MIN_SCORE = 93
+const MAX_RETRIES = 3
+const MIN_SCORE = 88
 
 /** Strip markdown code fences (```mdx / ```) that LLMs sometimes wrap around output */
 const stripCodeFences = (text: string): string =>
