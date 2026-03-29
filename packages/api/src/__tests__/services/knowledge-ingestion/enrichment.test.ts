@@ -1,12 +1,16 @@
 import { Effect, Exit } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('ai', () => ({
-  generateText: vi.fn(),
-  Output: {
-    object: vi.fn((opts: unknown) => opts),
-  },
-}))
+vi.mock('ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ai')>()
+  return {
+    ...actual,
+    generateText: vi.fn(),
+    Output: {
+      object: vi.fn((opts: unknown) => opts),
+    },
+  }
+})
 
 vi.mock('@ai-sdk/openai', () => ({
   openai: vi.fn(() => 'mock-model'),
@@ -58,7 +62,7 @@ describe('enrichChunk', () => {
     )
   })
 
-  it('should return EnrichmentError on failure', async () => {
+  it('should return OpenAIError on failure', async () => {
     vi.useFakeTimers()
     mockedGenerateText.mockRejectedValue(new Error('API error'))
 
@@ -68,7 +72,7 @@ describe('enrichChunk', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      expect(String(exit.cause)).toContain('EnrichmentError')
+      expect(String(exit.cause)).toContain('OpenAIError')
     }
   })
 

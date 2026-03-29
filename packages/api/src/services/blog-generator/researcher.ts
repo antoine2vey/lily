@@ -2,7 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { CHAT_MODEL } from '@lily/api/services/ai/models'
 import { generateText, Output } from 'ai'
 import { Effect } from 'effect'
-import { BlogGenerationError } from './errors'
+import { mapOpenAIError } from './errors'
 import { RESEARCH_PROMPT } from './prompts'
 import { ResearchBriefSchema } from './schemas'
 import type { ResearchBrief, TopicSuggestion } from './types'
@@ -31,11 +31,7 @@ Then synthesize a research brief with:
 2. keyFacts: A bullet-point summary of the most important facts
 3. uniqueAngles: Unique perspectives or angles that could make the blog post stand out`,
         }),
-      catch: (e) =>
-        new BlogGenerationError({
-          message: 'Failed to research topic',
-          cause: e,
-        }),
+      catch: mapOpenAIError('Topic research'),
     })
 
     return result.output as ResearchBrief

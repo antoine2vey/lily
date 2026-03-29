@@ -52,6 +52,7 @@ const runPipeline = (postId: string, topic: TopicSuggestion) =>
     Effect.catchTags({
       BlogGenerationError: (error) => rejectPost(postId, error.message),
       GitHubPublishError: (error) => rejectPost(postId, error.message),
+      OpenAIError: (error) => rejectPost(postId, error.message),
       SqlError: (error) => rejectPost(postId, error.message),
     }),
     Effect.withSpan('blog-generator.pipeline', {
@@ -128,11 +129,14 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   // Run the pipeline — on any failure, the post is marked rejected
   yield* runPipeline(post.id, topic)
 }).pipe(
-  Effect.catchTag('TopicSelectionError', (error) =>
-    Effect.logError(
-      `Blog pipeline aborted — topic selection failed: ${error.message}`
-    )
-  ),
+  Effect.catchTags({
+    OpenAIError: (error) =>
+      Effect.logError(`Blog pipeline aborted — ${error.message}`),
+    SqlError: (error) =>
+      Effect.logError(
+        `Blog pipeline aborted — database error: ${error.message}`
+      ),
+  }),
   Effect.withSpan('blog-generator.check')
 )
 

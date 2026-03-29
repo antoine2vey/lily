@@ -2,7 +2,7 @@ import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Match, pipe } from 'effect'
 
-import { AiGenericError } from '../../domains/ai-chat/errors'
+import { mapOpenAIError, type OpenAIError } from '../../domains/ai-chat/errors'
 import { type PlantAIResult, plantSchema } from './plant-schema'
 import {
   careInstructions,
@@ -43,7 +43,7 @@ Include confidence scores for all results including the alternatives.
 const singleCall = (
   urls: string | readonly string[],
   locale: string
-): Effect.Effect<PlantRecognitionResult, AiGenericError> =>
+): Effect.Effect<PlantRecognitionResult, OpenAIError> =>
   Effect.tryPromise({
     try: async () => {
       const urlList = pipe(
@@ -72,15 +72,11 @@ const singleCall = (
       })
       return result.output as PlantRecognitionResult
     },
-    catch: (error) =>
-      new AiGenericError({
-        message:
-          error instanceof Error ? error.message : 'Plant recognition failed',
-      }),
+    catch: mapOpenAIError('Plant recognition'),
   })
 
 export const plantRecognition = (
   urls: string | readonly string[],
   locale = 'en'
-): Effect.Effect<PlantRecognitionResult, AiGenericError> =>
+): Effect.Effect<PlantRecognitionResult, OpenAIError> =>
   withQualityRetry(singleCall(urls, locale))
