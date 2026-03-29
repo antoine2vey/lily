@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai'
-import { CHAT_MODEL } from '@lily/api/services/ai/models'
+import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { generateText, Output } from 'ai'
 import { Effect } from 'effect'
 import { mapOpenAIError } from './errors'
@@ -13,7 +13,7 @@ export const researchTopic = (topic: TopicSuggestion) =>
     const result = yield* Effect.tryPromise({
       try: () =>
         generateText({
-          model: openai(CHAT_MODEL),
+          model: openai(FAST_MODEL),
           output: Output.object({ schema: ResearchBriefSchema }),
           system: RESEARCH_PROMPT,
           prompt: `Research the topic "${topic.title.en}" for a plant care blog post.

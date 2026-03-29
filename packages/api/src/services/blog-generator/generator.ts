@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
-import { CHAT_MODEL } from '@lily/api/services/ai/models'
+import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import type { LocalizedText } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
@@ -107,7 +107,7 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
           const result = yield* Effect.tryPromise({
             try: () =>
               generateText({
-                model: openai(CHAT_MODEL),
+                model: openai(FAST_MODEL),
                 system: TRANSLATION_PROMPT,
                 prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
               }),
