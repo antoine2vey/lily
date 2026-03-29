@@ -127,7 +127,14 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
   // Run the pipeline — on any failure, the post is marked rejected
   yield* runPipeline(post.id, topic)
-}).pipe(Effect.withSpan('blog-generator.check'))
+}).pipe(
+  Effect.catchTag('TopicSelectionError', (error) =>
+    Effect.logError(
+      `Blog pipeline aborted — topic selection failed: ${error.message}`
+    )
+  ),
+  Effect.withSpan('blog-generator.check')
+)
 
 export const startBlogGeneratorScheduler = createScheduler({
   name: 'blog-generator',
