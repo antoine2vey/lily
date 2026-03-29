@@ -4,7 +4,7 @@ import { CHAT_MODEL } from '@lily/api/services/ai/models'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array as Arr, Effect, String as Str } from 'effect'
-import { BlogGenerationError } from './errors'
+import { TopicSelectionError } from './errors'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { TopicSchema } from './schemas'
 import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
@@ -92,7 +92,7 @@ ${Arr.join(recentCategories, ', ')}
 Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
       }),
     catch: (e) =>
-      new BlogGenerationError({
+      new TopicSelectionError({
         message: 'Failed to select topic',
         cause: e,
       }),
