@@ -8,9 +8,8 @@ import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type {
   AIIdentifyResponse,
-  AiApiCallError,
-  AiGenericError,
   LimitExceededError,
+  OpenAIError,
 } from '@lily/shared'
 import {
   FileService,
@@ -34,8 +33,7 @@ export const aiIdentify = (
   | MultipleFilesError
   | NoFilesError
   | PlatformError
-  | AiApiCallError
-  | AiGenericError
+  | OpenAIError
   | SqlError
   | LimitExceededError,
   | AiService

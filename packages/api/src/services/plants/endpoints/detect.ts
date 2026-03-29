@@ -6,11 +6,7 @@ import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
-import type {
-  AiApiCallError,
-  AiGenericError,
-  LimitExceededError,
-} from '@lily/shared'
+import type { LimitExceededError, OpenAIError } from '@lily/shared'
 import type { DetectResponse } from '@lily/shared/plant'
 import {
   FileService,
@@ -34,8 +30,7 @@ export const detect = (
   | MultipleFilesError
   | NoFilesError
   | PlatformError
-  | AiApiCallError
-  | AiGenericError
+  | OpenAIError
   | SqlError
   | LimitExceededError,
   | AiService

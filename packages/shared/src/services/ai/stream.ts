@@ -1,7 +1,7 @@
 import type { AsyncIterableStream } from 'ai'
 import { Stream } from 'effect'
 
-import { AiGenericError } from '../../domains/ai-chat/errors'
+import { OpenAIError } from '../../domains/ai-chat/errors'
 
 /**
  * Converts an AI SDK AsyncIterableStream to an Effect Stream of encoded bytes.
@@ -11,7 +11,8 @@ export const streamSdk = (textStream: AsyncIterableStream<string>) =>
   Stream.fromAsyncIterable(
     textStream,
     () =>
-      new AiGenericError({
+      new OpenAIError({
+        code: 'unknown',
         message: 'AI text stream closed unexpectedly',
       })
   ).pipe(Stream.map((text) => new TextEncoder().encode(text)))

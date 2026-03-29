@@ -3,6 +3,7 @@ import { DailyTipRepository } from '@lily/api/repositories/daily-tip.repository'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { RagService } from '@lily/api/services/rag/service'
 import { TIP_CATEGORIES } from '@lily/api/services/tips-scheduler/types'
+import { mapOpenAIError } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Random } from 'effect'
 import { z } from 'zod'
@@ -68,11 +69,12 @@ export const generateDailyTip = Effect.gen(function* () {
   const knowledgeContext = ragService.formatContext(chunks)
 
   // Generate the tip
-  const result = yield* Effect.tryPromise(() =>
-    generateText({
-      model: openai(FAST_MODEL),
-      output: Output.object({ schema: TipSchema }),
-      system: `You are a plant care expert generating a daily tip for a plant care app.
+  const result = yield* Effect.tryPromise({
+    try: () =>
+      generateText({
+        model: openai(FAST_MODEL),
+        output: Output.object({ schema: TipSchema }),
+        system: `You are a plant care expert generating a daily tip for a plant care app.
 
 RULES:
 - The body must be 280 characters or less per language (push notification friendly)
@@ -82,15 +84,16 @@ RULES:
 - The French version should be a natural translation, not word-for-word
 - Avoid repeating topics from recent tips
 - Use the provided plant care knowledge to inform your tip`,
-      prompt: `Generate a daily plant care tip.
+        prompt: `Generate a daily plant care tip.
 
 Target category: ${targetCategory}
 
 ${knowledgeContext ? `Plant care knowledge context:\n${knowledgeContext}\n` : ''}
 Recent tips (avoid repeating these topics):
 ${Array.join(recentTopics, '\n')}`,
-    })
-  )
+      }),
+    catch: mapOpenAIError('Daily tip generation'),
+  })
 
   return result.output as GeneratedTip
 }).pipe(Effect.withSpan('tips-scheduler.generateTip'))

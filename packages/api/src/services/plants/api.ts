@@ -5,12 +5,7 @@ import {
   Multipart,
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import {
-  AiApiCallError,
-  AiGenericError,
-  LimitExceededError,
-  PaginationParams,
-} from '@lily/shared'
+import { LimitExceededError, OpenAIError, PaginationParams } from '@lily/shared'
 import {
   FutureDateNotAllowedError,
   PlantNotAuthorizedError,
@@ -94,8 +89,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(NoFilesError, { status: 400 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
-      .addError(AiApiCallError, { status: 500 })
-      .addError(AiGenericError, { status: 500 })
+      .addError(OpenAIError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -117,8 +111,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(FileTooLargeError, { status: 400 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
-      .addError(AiApiCallError, { status: 500 })
-      .addError(AiGenericError, { status: 500 })
+      .addError(OpenAIError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -140,8 +133,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(NoFilesError, { status: 400 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
-      .addError(AiApiCallError, { status: 500 })
-      .addError(AiGenericError, { status: 500 })
+      .addError(OpenAIError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -161,8 +153,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(NoFilesError, { status: 400 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
-      .addError(AiApiCallError, { status: 500 })
-      .addError(AiGenericError, { status: 500 })
+      .addError(OpenAIError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
@@ -175,8 +166,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         })
       )
       .addSuccess(AIIdentifyResponse)
-      .addError(AiApiCallError, { status: 500 })
-      .addError(AiGenericError, { status: 500 })
+      .addError(OpenAIError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

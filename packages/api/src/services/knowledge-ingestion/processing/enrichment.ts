@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
+import { mapOpenAIError, type OpenAIError } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Effect, Option, pipe, Schedule, Schema } from 'effect'
 import { z } from 'zod'
@@ -36,7 +37,7 @@ const retryPolicy = Schedule.intersect(
 
 export const enrichChunk = (
   content: string
-): Effect.Effect<ChunkEnrichment, EnrichmentError> =>
+): Effect.Effect<ChunkEnrichment, EnrichmentError | OpenAIError> =>
   Effect.gen(function* () {
     const result = yield* Effect.tryPromise({
       try: () =>
@@ -46,10 +47,7 @@ export const enrichChunk = (
           system: SYSTEM_PROMPT,
           prompt: content,
         }),
-      catch: (e) =>
-        new EnrichmentError({
-          message: `Chunk enrichment failed: ${globalThis.String(e)}`,
-        }),
+      catch: mapOpenAIError('Chunk enrichment'),
     }).pipe(
       Effect.timeoutFail({
         duration: '10 seconds',

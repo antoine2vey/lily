@@ -5,7 +5,7 @@ import type { LocalizedText } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
-import { BlogGenerationError } from './errors'
+import { BlogGenerationError, mapOpenAIError } from './errors'
 import { publishBlogPost } from './github'
 import {
   GENERATION_SYSTEM_PROMPT,
@@ -85,11 +85,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
         system: GENERATION_SYSTEM_PROMPT,
         prompt: userPrompt,
       }),
-    catch: (e) =>
-      new BlogGenerationError({
-        message: 'Failed to generate English content',
-        cause: e,
-      }),
+    catch: mapOpenAIError('English content generation'),
   })
 
   return { content: { en: stripCodeFences(enResult.text) } }
@@ -115,11 +111,7 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
                 system: TRANSLATION_PROMPT,
                 prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
               }),
-            catch: (e) =>
-              new BlogGenerationError({
-                message: `Failed to translate to ${lang.name}`,
-                cause: e,
-              }),
+            catch: mapOpenAIError(`Translation to ${lang.name}`),
           })
           content[lang.code] = stripCodeFences(result.text)
         }),
@@ -173,11 +165,7 @@ ${sourceSnippets}
 VALID INTERNAL LINK PATHS (any link NOT in this list is broken):
 ${validLinks || 'None — no internal links should be present'}`,
       }),
-    catch: (e) =>
-      new BlogGenerationError({
-        message: 'Failed to review content',
-        cause: e,
-      }),
+    catch: mapOpenAIError('Content review'),
   })
 
   return result.output as ReviewResult

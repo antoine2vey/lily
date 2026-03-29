@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "owner": "lilyapp",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-light.png",
     "userInterfaceStyle": "automatic",
     "scheme": "lily",
     "newArchEnabled": true,
@@ -15,6 +15,10 @@
       "backgroundColor": "#5B8C5A"
     },
     "ios": {
+      "icon": {
+        "light": "./assets/icon-light.png",
+        "dark": "./assets/icon-dark.png"
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.lilyapp.app",
       "usesIAP": true,
