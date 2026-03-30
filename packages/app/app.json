@@ -10,14 +10,18 @@
     "scheme": "lily",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon-light.png",
       "resizeMode": "contain",
-      "backgroundColor": "#5B8C5A"
+      "backgroundColor": "#F8FAF8"
     },
     "ios": {
-      "icon": {
-        "light": "./assets/icon-light.png",
-        "dark": "./assets/icon-dark.png"
+      "icon": "./assets/lily.icon",
+      "splash": {
+        "dark": {
+          "image": "./assets/icon-dark.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1A1A1A"
+        }
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.lilyapp.app",
@@ -31,6 +35,13 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f7f7f6"
+      },
+      "splash": {
+        "dark": {
+          "image": "./assets/icon-dark.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1A1A1A"
+        }
       },
       "package": "com.lilyapp.app",
       "edgeToEdgeEnabled": true,
@@ -49,9 +60,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#5B8C5A",
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 200
+          "backgroundColor": "#F8FAF8",
+          "image": "./assets/icon-light.png",
+          "imageWidth": 200,
+          "dark": {
+            "backgroundColor": "#1A1A1A",
+            "image": "./assets/icon-dark.png"
+          }
         }
       ],
       [
