@@ -1,0 +1,1 @@
+CREATE INDEX idx_users_pending_deletion ON "users" ("status", "deleted_at") WHERE "status" = 'pending_deletion';
