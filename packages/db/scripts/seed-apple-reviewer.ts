@@ -20,12 +20,18 @@ import { DrizzleLive } from '@lily/db'
 import {
   careLogs,
   chatMessages,
+  dailyTips,
+  diagnoses,
   magicLinks,
   notifications,
   plantCareSchedules,
   plantPhotos,
+  plantScans,
   plants,
+  rooms,
+  subscriptionUsage,
   userAchievements,
+  userSubscriptions,
   users,
 } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
@@ -196,6 +202,72 @@ const DEMO_ACHIEVEMENTS = [
   { achievement: 'PHOTO_PRO' as const, daysAgo: 10 },
 ] as const
 
+// Rooms for organizing plants
+const DEMO_ROOMS = [
+  {
+    name: 'Living Room',
+    icon: '🌞',
+    luminosity: 8,
+    isOutdoor: false,
+    order: 0,
+  },
+  { name: 'Bedroom', icon: '🛏️', luminosity: 4, isOutdoor: false, order: 1 },
+  { name: 'Bathroom', icon: '🚿', luminosity: 3, isOutdoor: false, order: 2 },
+  { name: 'Balcony', icon: '🌿', luminosity: 9, isOutdoor: true, order: 3 },
+]
+
+// Map plants to rooms by index: [Living Room, Living Room, Living Room, Bedroom, Bathroom, Balcony]
+const PLANT_ROOM_ASSIGNMENTS = [0, 0, 0, 1, 2, 3]
+
+// Daily tips for the content feed
+const DEMO_TIPS = [
+  {
+    title: { en: 'Morning Watering', fr: 'Arrosage matinal' },
+    body: {
+      en: 'Water your plants in the morning so they can absorb moisture before the heat of the day.',
+      fr: "Arrosez vos plantes le matin pour qu'elles absorbent l'eau avant la chaleur.",
+    },
+    category: 'watering',
+    tags: ['watering', 'morning', 'tips'],
+  },
+  {
+    title: { en: 'Check Your Soil', fr: 'Vérifiez votre terreau' },
+    body: {
+      en: "Stick your finger 2 inches into the soil. If it feels dry, it's time to water!",
+      fr: "Enfoncez votre doigt de 5 cm dans le sol. Si c'est sec, il est temps d'arroser !",
+    },
+    category: 'watering',
+    tags: ['watering', 'soil', 'beginners'],
+  },
+  {
+    title: { en: 'Humidity Boost', fr: "Boost d'humidité" },
+    body: {
+      en: 'Group tropical plants together to create a natural humidity microclimate.',
+      fr: 'Regroupez les plantes tropicales pour créer un microclimat humide naturel.',
+    },
+    category: 'humidity',
+    tags: ['humidity', 'tropical', 'tips'],
+  },
+  {
+    title: { en: 'Fertilizer Season', fr: 'Saison de fertilisation' },
+    body: {
+      en: 'Spring and summer are peak growing seasons. Start fertilizing every 2-4 weeks.',
+      fr: "Le printemps et l'été sont les saisons de croissance. Fertilisez toutes les 2-4 semaines.",
+    },
+    category: 'fertilization',
+    tags: ['fertilization', 'spring', 'growth'],
+  },
+  {
+    title: { en: 'Light Matters', fr: 'La lumière compte' },
+    body: {
+      en: 'Most houseplants prefer bright, indirect light. Direct sun can burn leaves.',
+      fr: 'La plupart des plantes préfèrent une lumière vive mais indirecte. Le soleil direct brûle les feuilles.',
+    },
+    category: 'light',
+    tags: ['light', 'placement', 'beginners'],
+  },
+]
+
 const seedAppleReviewer = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle
 
@@ -257,18 +329,47 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* Console.log('Created magic link')
 
   // 3. Clean up existing demo data for this user
+  yield* db.delete(diagnoses).where(eq(diagnoses.userId, user.id))
   yield* db.delete(plants).where(eq(plants.userId, user.id))
+  yield* db.delete(rooms).where(eq(rooms.userId, user.id))
   yield* db.delete(userAchievements).where(eq(userAchievements.userId, user.id))
   yield* db.delete(notifications).where(eq(notifications.userId, user.id))
+  yield* db.delete(plantScans).where(eq(plantScans.userId, user.id))
+  yield* db
+    .delete(userSubscriptions)
+    .where(eq(userSubscriptions.userId, user.id))
+  yield* db
+    .delete(subscriptionUsage)
+    .where(eq(subscriptionUsage.userId, user.id))
   yield* Console.log('Cleaned up existing demo data')
 
-  // 4. Create demo plants (care schedule fields are stored separately)
+  // 4. Create rooms
+  const createdRooms = yield* db
+    .insert(rooms)
+    .values(
+      pipe(
+        DEMO_ROOMS,
+        A.map((room) => ({
+          name: room.name,
+          icon: room.icon,
+          luminosity: room.luminosity,
+          isOutdoor: room.isOutdoor,
+          order: room.order,
+          userId: user.id,
+        }))
+      )
+    )
+    .returning()
+
+  yield* Console.log(`Created ${createdRooms.length} rooms`)
+
+  // 5. Create demo plants with room assignments
   const createdPlants = yield* db
     .insert(plants)
     .values(
       pipe(
         DEMO_PLANTS,
-        A.map((plant) => ({
+        A.map((plant, index) => ({
           name: plant.name,
           description: plant.description,
           category: plant.category,
@@ -279,6 +380,7 @@ const seedAppleReviewer = Effect.gen(function* () {
           health: plant.health,
           isFavorite: plant.isFavorite,
           userId: user.id,
+          roomId: getAt(createdRooms, getAt(PLANT_ROOM_ASSIGNMENTS, index)).id,
           dateAdded: daysAgo(30),
         }))
       )
@@ -487,6 +589,112 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* db.insert(notifications).values(notificationEntries)
   yield* Console.log(`Created ${notificationEntries.length} notifications`)
 
+  // 10. Create subscription (paid tier so reviewer can test all features)
+  const periodStart = daysAgo(15)
+  const periodEnd = daysFromNow(15)
+  yield* db.insert(userSubscriptions).values({
+    userId: user.id,
+    tier: 'paid',
+    status: 'active',
+    trialStartsAt: daysAgo(30),
+    trialEndsAt: daysAgo(23),
+    currentPeriodStart: periodStart,
+    currentPeriodEnd: periodEnd,
+    provider: 'revenuecat',
+    productId: 'lily_monthly',
+    store: 'APP_STORE',
+  })
+  yield* db.insert(subscriptionUsage).values({
+    userId: user.id,
+    periodStart,
+    periodEnd,
+    aiChatsCount: 5,
+    cardScansCount: 2,
+    plantIdentifiesCount: 3,
+  })
+  yield* Console.log('Created subscription (paid tier)')
+
+  // 11. Create diagnoses for the Fiddle Leaf Fig (needs attention)
+  const fiddleLeafFig = getAt(createdPlants, 2)
+  yield* db.insert(diagnoses).values([
+    {
+      plantId: fiddleLeafFig.id,
+      userId: user.id,
+      diseaseName: 'Spider Mites',
+      severity: 'MODERATE',
+      confidence: 78,
+      symptoms: [
+        'Fine webbing on undersides of leaves',
+        'Tiny yellow spots on foliage',
+        'Leaves appear dusty',
+      ],
+      treatmentSteps: [
+        'Isolate the plant from other houseplants',
+        'Spray leaves with a mix of water and neem oil',
+        'Wipe leaves with a damp cloth every few days',
+        'Repeat treatment weekly for 3-4 weeks',
+      ],
+      preventionTips: [
+        'Mist leaves regularly to increase humidity',
+        'Inspect new plants before bringing them home',
+        'Keep leaves clean and dust-free',
+      ],
+      status: 'ACTIVE',
+    },
+    {
+      plantId: fiddleLeafFig.id,
+      userId: user.id,
+      diseaseName: 'Overwatering Stress',
+      severity: 'LOW',
+      confidence: 85,
+      symptoms: ['Yellowing lower leaves', 'Soft mushy stems near base'],
+      treatmentSteps: [
+        'Let soil dry out completely before watering again',
+        'Check drainage holes are not blocked',
+        'Remove any yellow or mushy leaves',
+      ],
+      preventionTips: [
+        'Always check soil moisture before watering',
+        'Use a well-draining potting mix',
+      ],
+      status: 'RESOLVED',
+      resolvedAt: daysAgo(5),
+    },
+  ])
+  yield* Console.log('Created 2 diagnoses')
+
+  // 12. Create plant scans
+  const scanEntries = pipe(
+    A.range(0, 5),
+    A.map((i) => ({
+      userId: user.id,
+      scanType: (i % 2 === 0 ? 'identify' : 'card') as 'identify' | 'card',
+      createdAt: daysAgo(i * 5),
+    }))
+  )
+  yield* db.insert(plantScans).values(scanEntries)
+  yield* Console.log(`Created ${scanEntries.length} plant scans`)
+
+  // 13. Create daily tips
+  const tipEntries = pipe(
+    DEMO_TIPS,
+    A.map((tip, index) => {
+      const date = daysAgo(index)
+      const yyyy = date.getFullYear()
+      const mm = String(date.getMonth() + 1).padStart(2, '0')
+      const dd = String(date.getDate()).padStart(2, '0')
+      return {
+        title: tip.title,
+        body: tip.body,
+        category: tip.category,
+        tags: tip.tags,
+        publishDate: `${yyyy}-${mm}-${dd}`,
+      }
+    })
+  )
+  yield* db.insert(dailyTips).values(tipEntries)
+  yield* Console.log(`Created ${tipEntries.length} daily tips`)
+
   // Print summary
   yield* Console.log('')
   yield* Console.log('='.repeat(60))
@@ -499,6 +707,7 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* Console.log(`  User ID:  ${user.id}`)
   yield* Console.log('')
   yield* Console.log('Demo Data:')
+  yield* Console.log(`  Rooms:        ${createdRooms.length}`)
   yield* Console.log(
     `  Plants:       ${createdPlants.length} (various health states)`
   )
@@ -507,6 +716,10 @@ const seedAppleReviewer = Effect.gen(function* () {
   yield* Console.log(`  Achievements: ${achievementEntries.length} unlocked`)
   yield* Console.log(`  Chat history: ${chatEntries.length} messages`)
   yield* Console.log(`  Notifications: ${notificationEntries.length}`)
+  yield* Console.log('  Subscription: paid (active)')
+  yield* Console.log('  Diagnoses:    2 (1 active, 1 resolved)')
+  yield* Console.log(`  Plant scans:  ${scanEntries.length}`)
+  yield* Console.log(`  Daily tips:   ${tipEntries.length}`)
   yield* Console.log('')
   yield* Console.log('Magic Link Details:')
   yield* Console.log(`  Token:   ${APPLE_REVIEWER_TOKEN}`)
