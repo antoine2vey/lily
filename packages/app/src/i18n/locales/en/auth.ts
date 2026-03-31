@@ -36,6 +36,12 @@ export default {
     changeEmail: 'Change email',
     expiredCode: 'This code has expired. Please request a new one.',
     invalidCode: 'Invalid code. Please try again.',
+    accountStatus: {
+      suspended: 'This account has been suspended.',
+      banned: 'This account has been banned.',
+      pending_deletion:
+        'This account is scheduled for deletion. Contact support to recover it.',
+    },
     failedToVerify: 'Failed to verify magic link',
     noCodeProvided: 'No verification code provided',
     verifying: 'Verifying...',

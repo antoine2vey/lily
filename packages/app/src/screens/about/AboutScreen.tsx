@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ListRow } from 'src/components/ListRow'
+import { WEBSITE_BASE_URL } from 'src/constants/urls'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 export function AboutScreen() {
   const insets = useSafeAreaInsets()
-  const { t } = useTranslation('about')
+  const { t, i18n } = useTranslation('about')
   const iconColors = useIconColors()
 
   return (
@@ -87,7 +88,9 @@ export function AboutScreen() {
             }
             title={t('links.guidelines')}
             showChevron
-            onPress={() => Linking.openURL('https://lily.app/guidelines')}
+            onPress={() =>
+              Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}`)
+            }
           />
           <ListRow
             leftIcon={

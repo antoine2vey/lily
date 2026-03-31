@@ -39,6 +39,12 @@ export default {
     changeEmail: "Changer d'adresse",
     expiredCode: 'Ce code a expiré. Veuillez en demander un nouveau.',
     invalidCode: 'Code invalide. Veuillez réessayer.',
+    accountStatus: {
+      suspended: 'Ce compte a été suspendu.',
+      banned: 'Ce compte a été banni.',
+      pending_deletion:
+        'Ce compte est en cours de suppression. Contactez le support pour le récupérer.',
+    },
     failedToVerify: 'Échec de la vérification du lien magique',
     noCodeProvided: 'Aucun code de vérification fourni',
     verifying: 'Vérification...',

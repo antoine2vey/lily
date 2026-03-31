@@ -44,6 +44,7 @@ const validUser = {
   latitude: null,
   longitude: null,
   temperatureUnit: 'celsius' as const,
+  deletedAt: null,
 }
 
 describe('User Schemas', () => {
@@ -64,6 +65,9 @@ describe('User Schemas', () => {
       expect(Schema.decodeSync(UserStatus)('active')).toBe('active')
       expect(Schema.decodeSync(UserStatus)('suspended')).toBe('suspended')
       expect(Schema.decodeSync(UserStatus)('banned')).toBe('banned')
+      expect(Schema.decodeSync(UserStatus)('pending_deletion')).toBe(
+        'pending_deletion'
+      )
     })
 
     it('should reject invalid statuses', () => {

@@ -74,6 +74,7 @@ export const createMockUserRepository = (
         latitude: null,
         longitude: null,
         temperatureUnit: 'celsius',
+        deletedAt: null,
       }
       return Effect.succeed(newUser)
     },
@@ -183,6 +184,22 @@ export const createMockUserRepository = (
 
     findTipsEnabled: () =>
       Effect.succeed(Array.filter(users, (u) => u.tips === true)),
+
+    softDelete: (id: string) => {
+      const userOption = Array.findFirst(users, (u) => u.id === id)
+      return Option.match(userOption, {
+        onNone: () => Effect.succeed(null),
+        onSome: (user) =>
+          Effect.succeed({
+            ...user,
+            status: 'pending_deletion' as const,
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          }),
+      })
+    },
+
+    findExpiredDeletions: () => Effect.succeed([]),
   }
 
   return Layer.succeed(UserRepository, repo)

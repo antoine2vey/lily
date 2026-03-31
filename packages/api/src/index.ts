@@ -4,6 +4,7 @@ import { Api } from '@lily/api/api'
 import { AppLive } from '@lily/api/layers'
 import { LoggerLayer } from '@lily/api/logger'
 import { LoggingMiddleware } from '@lily/api/middleware/logging'
+import { startAccountCleanupScheduler } from '@lily/api/services/account-cleanup/scheduler'
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
@@ -81,6 +82,10 @@ const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
 
 const HealthSchedulerLive = Layer.scopedDiscard(startHealthScheduler)
 
+const AccountCleanupSchedulerLive = Layer.scopedDiscard(
+  startAccountCleanupScheduler
+)
+
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   startKnowledgeIngestionWorker
 )
@@ -98,7 +103,8 @@ const AllSchedulersLive = Layer.mergeAll(
   EngagementSchedulerLive,
   TipsSchedulerLive,
   BlogGeneratorSchedulerLive,
-  KnowledgeIngestionWorkerLive
+  KnowledgeIngestionWorkerLive,
+  AccountCleanupSchedulerLive
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit

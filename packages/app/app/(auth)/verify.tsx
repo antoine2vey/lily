@@ -47,10 +47,12 @@ export default function VerifyScreen() {
         setVerifyState({ _tag: 'Success' })
         // Navigation is handled by AuthContext based on user state
       } else {
-        setVerifyState({
-          _tag: 'Error',
-          message: result.error ?? t('verify.failedToVerify'),
-        })
+        const message = result.status
+          ? t(`verify.accountStatus.${result.status}`, {
+              defaultValue: result.error,
+            })
+          : (result.error ?? t('verify.failedToVerify'))
+        setVerifyState({ _tag: 'Error', message })
       }
     }
 

@@ -2,7 +2,12 @@ import { Schema } from 'effect'
 
 // Role, status, and language literals
 export const UserRole = Schema.Literal('user', 'admin')
-export const UserStatus = Schema.Literal('active', 'suspended', 'banned')
+export const UserStatus = Schema.Literal(
+  'active',
+  'suspended',
+  'banned',
+  'pending_deletion'
+)
 export const LanguageCode = Schema.Literal('en', 'fr')
 export const TemperatureUnit = Schema.Literal('celsius', 'fahrenheit')
 
@@ -42,6 +47,7 @@ export const User = Schema.Struct({
   latitude: Schema.NullOr(Schema.Number),
   longitude: Schema.NullOr(Schema.Number),
   temperatureUnit: TemperatureUnit,
+  deletedAt: Schema.NullOr(Schema.Date),
 })
 
 export const UserCreateRequest = Schema.Struct({

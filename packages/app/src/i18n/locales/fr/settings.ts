@@ -128,5 +128,7 @@ export default {
     confirmPlaceholder: 'SUPPRIMER',
     confirmButton: 'Supprimer mon compte',
     cancelButton: 'Annuler',
+    errorTitle: 'Erreur',
+    errorMessage: 'Impossible de supprimer le compte. Veuillez réessayer.',
   },
 } as const

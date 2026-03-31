@@ -94,7 +94,8 @@ export const verifyMagicLink = ({
     // Check user status
     if (user.status !== 'active') {
       return yield* Effect.fail({
-        message: `Account is ${user.status}`,
+        message: 'Account is not active',
+        status: user.status,
       })
     }
 
