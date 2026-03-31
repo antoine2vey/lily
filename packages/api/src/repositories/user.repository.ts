@@ -7,7 +7,17 @@ import {
   type UserRole,
   type UserStatus,
 } from '@lily/shared'
-import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm'
+import {
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -102,6 +112,12 @@ export interface IUserRepository {
     Array<typeof users.$inferSelect>,
     SqlError
   >
+  readonly softDelete: (
+    id: string
+  ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
+  readonly findExpiredDeletions: (
+    cutoffDate: Date
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
 }
 
 const buildUserFilterConditions = (
@@ -207,6 +223,34 @@ export const UserRepositoryLive = Layer.effect(
           .returning()
         return Option.getOrNull(Option.fromNullable(user))
       }),
+
+      softDelete: Effect.fn('UserRepository.softDelete')(function* (
+        id: string
+      ) {
+        const [user] = yield* db
+          .update(users)
+          .set({
+            status: 'pending_deletion',
+            deletedAt: nowAsDate(),
+          })
+          .where(eq(users.id, id))
+          .returning()
+        return Option.getOrNull(Option.fromNullable(user))
+      }),
+
+      findExpiredDeletions: Effect.fn('UserRepository.findExpiredDeletions')(
+        function* (cutoffDate: Date) {
+          return yield* db
+            .select()
+            .from(users)
+            .where(
+              and(
+                eq(users.status, 'pending_deletion'),
+                lte(users.deletedAt, cutoffDate)
+              )
+            )
+        }
+      ),
 
       findAllPaginated: Effect.fn('UserRepository.findAllPaginated')(function* (
         filters: FindUsersFilters

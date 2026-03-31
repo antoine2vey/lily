@@ -67,7 +67,8 @@ export const refreshToken = ({
       // Revoke all tokens for suspended/banned user
       yield* refreshTokenRepo.revokeAllForUser(user.id)
       return yield* Effect.fail({
-        message: `Account is ${user.status}`,
+        message: 'Account is not active',
+        status: user.status,
       })
     }
 

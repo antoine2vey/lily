@@ -10,6 +10,7 @@ import { SectionHeader } from 'src/components/SectionHeader'
 import { SkeletonBox } from 'src/components/skeletons'
 import { ToggleRow } from 'src/components/ToggleRow'
 import { Button } from 'src/components/ui/Button'
+import { WEBSITE_BASE_URL } from 'src/constants/urls'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import {
@@ -23,7 +24,7 @@ import {
 
 export function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()
-  const { t } = useTranslation(['settings', 'common'])
+  const { t, i18n } = useTranslation(['settings', 'common'])
   const iconColors = useIconColors()
   const {
     data: settings,
@@ -242,7 +243,9 @@ export function PrivacySettingsScreen() {
               }
               title={t('settings:about.privacyPolicy')}
               showChevron
-              onPress={() => Linking.openURL('https://lily.app/privacy')}
+              onPress={() =>
+                Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/privacy`)
+              }
             />
             <ListRow
               leftIcon={
@@ -254,7 +257,9 @@ export function PrivacySettingsScreen() {
               }
               title={t('settings:about.termsOfService')}
               showChevron
-              onPress={() => Linking.openURL('https://lily.app/terms')}
+              onPress={() =>
+                Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/terms`)
+              }
             />
           </View>
         </View>

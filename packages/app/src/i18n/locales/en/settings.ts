@@ -123,5 +123,7 @@ export default {
     confirmPlaceholder: 'DELETE',
     confirmButton: 'Delete My Account',
     cancelButton: 'Cancel',
+    errorTitle: 'Error',
+    errorMessage: 'Failed to delete account. Please try again.',
   },
 } as const

@@ -46,6 +46,7 @@ export const userStatusEnum = pgEnum('user_status', [
   'active',
   'suspended',
   'banned',
+  'pending_deletion',
 ])
 
 export const diagnosisSeverityEnum = pgEnum('diagnosis_severity', [

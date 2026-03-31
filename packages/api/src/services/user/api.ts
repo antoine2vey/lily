@@ -52,5 +52,12 @@ export const UsersApi = HttpApiGroup.make('users')
       .addError(GCSConfigError, { status: 500 })
       .addError(UnauthorizedError, { status: 401 })
   )
+  .add(
+    // DELETE /users/account - Soft-delete account (30-day grace period)
+    HttpApiEndpoint.del('deleteAccount')`/account`
+      .addSuccess(Schema.Struct({ message: Schema.String }))
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(UnauthorizedError, { status: 401 })
+  )
   .prefix('/users')
   .middleware(Authentication)

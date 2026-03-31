@@ -14,6 +14,7 @@ import {
 import * as RevenueCatService from '@/services/revenuecat'
 import {
   apiEffectRunner,
+  extractErrorField,
   extractErrorMessage,
   setOnAuthFailure,
 } from '@/utils/client'
@@ -102,7 +103,7 @@ type AuthContextValue = {
   ) => Promise<{ success: boolean; error?: string }>
   verifyMagicLink: (
     code: string
-  ) => Promise<{ success: boolean; error?: string }>
+  ) => Promise<{ success: boolean; error?: string; status?: string }>
   setUsername: (
     username: string
   ) => Promise<{ success: boolean; error?: string }>
@@ -256,7 +257,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [state, segments, router])
 
   const verifyMagicLink = useCallback(
-    async (code: string): Promise<{ success: boolean; error?: string }> => {
+    async (
+      code: string
+    ): Promise<{ success: boolean; error?: string; status?: string }> => {
       try {
         const response = await apiEffectRunner('auth', 'verifyMagicLink', {
           payload: {
@@ -292,6 +295,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return {
           success: false,
           error: extractErrorMessage(error),
+          status: extractErrorField(error, 'status'),
         }
       }
     },

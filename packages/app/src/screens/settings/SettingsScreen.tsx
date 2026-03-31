@@ -4,10 +4,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SkeletonBox } from 'src/components/skeletons'
+import { WEBSITE_BASE_URL } from 'src/constants/urls'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
@@ -266,7 +267,7 @@ export function SettingsScreen() {
               }
               title={t('settings:support.helpCenter')}
               showBorder
-              onPress={() => Linking.openURL('https://lily.app/help')}
+              onPress={() => Linking.openURL(`${WEBSITE_BASE_URL}/${language}`)}
             />
             <SettingsMenuItem
               icon={
@@ -318,8 +319,34 @@ export function SettingsScreen() {
         {/* Delete Account Button */}
         <View className="mt-4">
           <Pressable
-            disabled
-            className="bg-surface dark:bg-surface-dark rounded-2xl py-4 items-center shadow-sm border border-border/30 dark:border-slate-700/30 opacity-50"
+            className="bg-surface dark:bg-surface-dark rounded-2xl py-4 items-center shadow-sm border border-border/30 dark:border-slate-700/30"
+            onPress={() =>
+              Alert.alert(
+                t('settings:deleteAccount.title'),
+                t('settings:deleteAccount.warning'),
+                [
+                  {
+                    text: t('settings:deleteAccount.cancelButton'),
+                    style: 'cancel',
+                  },
+                  {
+                    text: t('settings:deleteAccount.confirmButton'),
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await apiEffectRunner('users', 'deleteAccount', {})
+                        await logout()
+                      } catch {
+                        Alert.alert(
+                          t('settings:deleteAccount.errorTitle'),
+                          t('settings:deleteAccount.errorMessage')
+                        )
+                      }
+                    },
+                  },
+                ]
+              )
+            }
           >
             <Text className="text-base font-bold text-coral">
               {t('settings:privacy.deleteAccount')}

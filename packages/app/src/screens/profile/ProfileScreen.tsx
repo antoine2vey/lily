@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from 'src/components/Badge'
 import { ConfirmationModal } from 'src/components/ConfirmationModal'
 import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { WEBSITE_BASE_URL } from 'src/constants/urls'
 import { useAuth } from 'src/contexts/AuthContext'
 import { useAchievements } from 'src/hooks/useAchievements'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
@@ -75,7 +76,7 @@ function ProfileContentSkeleton() {
 
 export function ProfileScreen() {
   const iconColors = useIconColors()
-  const { t } = useLocalization()
+  const { t, language } = useLocalization()
   const { state, logout } = useAuth()
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { data: plants, isLoading: isLoadingPlants } = usePlants()
@@ -301,7 +302,9 @@ export function ProfileScreen() {
                   />
                 }
                 title={t('profile:actions.helpSupport')}
-                onPress={() => Linking.openURL('https://lily.app/help')}
+                onPress={() =>
+                  Linking.openURL(`${WEBSITE_BASE_URL}/${language}`)
+                }
               />
 
               <ProfileMenuItem

@@ -65,6 +65,7 @@ export const users = pgTable('users', {
   latitude: doublePrecision('latitude'),
   longitude: doublePrecision('longitude'),
   weatherEnabled: boolean('weather_enabled').notNull().default(false),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   temperatureUnit: temperatureUnitEnum('temperature_unit')
     .notNull()
     .default('celsius'),

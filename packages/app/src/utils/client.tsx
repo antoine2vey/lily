@@ -43,6 +43,7 @@ import {
   Option,
   pipe,
   Ref,
+  Schema,
   String as Str,
 } from 'effect'
 import * as SecureStore from 'expo-secure-store'
@@ -174,6 +175,16 @@ function isKnownError(
  */
 export function extractErrorMessage(error: unknown): string {
   return getErrorMessage(error)
+}
+
+export function extractErrorField(
+  error: unknown,
+  field: string
+): string | undefined {
+  const result = Schema.decodeUnknownOption(
+    Schema.Struct({ [field]: Schema.String })
+  )(error)
+  return Option.map(result, (r) => r[field]).pipe(Option.getOrUndefined)
 }
 
 function getErrorMessage(error: unknown): string {
