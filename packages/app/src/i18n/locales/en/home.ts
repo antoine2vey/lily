@@ -80,6 +80,11 @@ export default {
     overdueLabel: 'Overdue',
     completing: 'Completing...',
   },
+  dailyProgress: {
+    title: "Today's Progress",
+    status: '{done} of {total} tasks done',
+    allDone: 'All done for today!',
+  },
   weeklySchedule: {
     title: 'This Week',
     today: 'Today',

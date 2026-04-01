@@ -55,6 +55,7 @@ describe('readCareScheduleResource', () => {
             overdue: [mockOverdueTask],
             today: [],
             upcoming: [],
+            completedToday: 0,
           }),
       }),
       JwtLayer

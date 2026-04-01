@@ -24,6 +24,7 @@ import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
+import { DailyProgressCard } from '@/screens/home/components/DailyProgressCard'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
@@ -371,6 +372,16 @@ export function HomeScreen() {
                   className="pb-6"
                 >
                   {achievementsData && <StreakCard data={achievementsData} />}
+
+                  {careTasksData && (
+                    <DailyProgressCard
+                      completedToday={careTasksData.completedToday}
+                      remainingToday={
+                        Array.length(careTasksOverdue) +
+                        Array.length(careTasksToday)
+                      }
+                    />
+                  )}
 
                   <WeatherCard weather={weather} />
 

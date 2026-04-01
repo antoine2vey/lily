@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -27,9 +28,14 @@ const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
 export const findCareTasks = (): Effect.Effect<
   CareTasksResponse,
   SqlError,
-  CareScheduleRepository | PlantRepository | UserRepository | CurrentUser
+  | CareLogRepository
+  | CareScheduleRepository
+  | PlantRepository
+  | UserRepository
+  | CurrentUser
 > =>
   Effect.gen(function* () {
+    const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
     const userRepo = yield* UserRepository
     const { id: userId } = yield* CurrentUser
@@ -90,10 +96,14 @@ export const findCareTasks = (): Effect.Effect<
       isUpcoming(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
 
+    // Count care actions completed today
+    const completedToday = yield* careLogRepo.countTodayByUser(userId, timezone)
+
     // Sort each group by due date (earliest first)
     return {
       overdue: Array.sort(overdue, taskDueDateOrder),
       today: Array.sort(today, taskDueDateOrder),
       upcoming: Array.sort(upcoming, taskDueDateOrder),
+      completedToday,
     }
   }).pipe(Effect.withSpan('CareTasksService.findCareTasks'))

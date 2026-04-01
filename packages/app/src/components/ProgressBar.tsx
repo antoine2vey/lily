@@ -1,5 +1,11 @@
 import { Number as EffectNumber, Option, pipe } from 'effect'
+import { useEffect } from 'react'
 import { Text, View } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import { useIconColors } from 'src/hooks/useIconColors'
 
 interface ProgressBarProps {
@@ -8,6 +14,7 @@ interface ProgressBarProps {
   color?: string
   height?: number
   showPercentage?: boolean
+  animated?: boolean
   testID?: string
 }
 
@@ -17,6 +24,7 @@ export function ProgressBar({
   color,
   height = 8,
   showPercentage = false,
+  animated = false,
   testID,
 }: ProgressBarProps) {
   const iconColors = useIconColors()
@@ -30,6 +38,21 @@ export function ProgressBar({
     maximum: 1,
   })
   const percentage = Math.round(clampedProgress * 100)
+
+  const animatedWidth = useSharedValue(animated ? 0 : percentage)
+
+  useEffect(() => {
+    if (animated) {
+      animatedWidth.value = withTiming(percentage, { duration: 600 })
+    } else {
+      animatedWidth.value = percentage
+    }
+  }, [percentage, animated, animatedWidth])
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${animatedWidth.value}%`,
+    backgroundColor: barColor,
+  }))
 
   return (
     <View testID={testID} className="w-full">
@@ -51,13 +74,7 @@ export function ProgressBar({
         className="w-full rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700"
         style={{ height }}
       >
-        <View
-          className="h-full rounded-full"
-          style={{
-            width: `${percentage}%`,
-            backgroundColor: barColor,
-          }}
-        />
+        <Animated.View className="h-full rounded-full" style={animatedStyle} />
       </View>
     </View>
   )

@@ -81,6 +81,11 @@ export default {
     overdueLabel: 'En retard',
     completing: 'En cours...',
   },
+  dailyProgress: {
+    title: 'Progrès du jour',
+    status: '{done} sur {total} tâches effectuées',
+    allDone: 'Tout est fait !',
+  },
   weeklySchedule: {
     title: 'Cette semaine',
     today: "Aujourd'hui",
