@@ -139,6 +139,8 @@ export const createMockCareLogRepository = (
         )
       ),
 
+    countTodayByUser: () => Effect.succeed(0),
+
     findLatestByPlantAndType: (plantId: string, type: CareType) => {
       const byDateDesc = Order.reverse(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)

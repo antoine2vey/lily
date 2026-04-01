@@ -5,6 +5,7 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -234,6 +235,7 @@ describe('findCareTasks', () => {
     plants = createMockPlantsForCareTasks(REFERENCE_DATE)
   ) =>
     Layer.mergeAll(
+      createMockCareLogRepository([]),
       createMockPlantRepository({ plants }),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants(plants),
@@ -513,7 +515,8 @@ describe('findCareTasks', () => {
           plants: tzPlants,
         }),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockUserRepository(mockUsers)
+        createMockUserRepository(mockUsers),
+        createMockCareLogRepository([])
       )
 
       const utcResult = await Effect.runPromise(
@@ -546,7 +549,8 @@ describe('findCareTasks', () => {
           plants: parisTzPlants,
         }),
         createMockCurrentUser({ id: 'user-paris' }),
-        createMockUserRepository([...mockUsers, parisUser])
+        createMockUserRepository([...mockUsers, parisUser]),
+        createMockCareLogRepository([])
       )
 
       const parisResult = await Effect.runPromise(
@@ -709,7 +713,8 @@ describe('findCareTasks', () => {
           plants,
         }),
         createMockCurrentUser({ id: 'user-null-tz' }),
-        createMockUserRepository([...mockUsers, nullTzUser])
+        createMockUserRepository([...mockUsers, nullTzUser]),
+        createMockCareLogRepository([])
       )
 
       const result = await Effect.runPromise(
@@ -777,7 +782,8 @@ describe('findCareTasks', () => {
           })),
         }),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockUserRepository(mockUsers)
+        createMockUserRepository(mockUsers),
+        createMockCareLogRepository([])
       )
 
       const result = await Effect.runPromise(

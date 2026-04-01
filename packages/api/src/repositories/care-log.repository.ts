@@ -13,7 +13,7 @@ import type {
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, gte, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -82,6 +82,10 @@ export interface ICareLogRepository {
     plantId: string,
     type: CareType
   ) => Effect.Effect<CareLog | null, SqlError>
+  readonly countTodayByUser: (
+    userId: string,
+    timezone: string
+  ) => Effect.Effect<number, SqlError>
 }
 
 // Tag for dependency injection
@@ -250,6 +254,20 @@ export const CareLogRepositoryLive = Layer.effect(
           .limit(1)
         return row ? mapToCareLog(row) : null
       }),
+
+      countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
+        function* (userId: string, timezone: string) {
+          const startOfDay = sql`date_trunc('day', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+          const result = yield* db
+            .select({ value: count() })
+            .from(careLogs)
+            .innerJoin(plants, eq(careLogs.plantId, plants.id))
+            .where(
+              and(eq(plants.userId, userId), gte(careLogs.date, startOfDay))
+            )
+          return extractCount(result)
+        }
+      ),
     }
   })
 )

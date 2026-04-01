@@ -28,6 +28,7 @@ describe('getCareTasks MCP tool', () => {
           overdue: [mockOverdueTask],
           today: [],
           upcoming: [],
+          completedToday: 0,
         }),
     })
 
