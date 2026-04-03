@@ -8,6 +8,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc'
 import remarkGfm from 'remark-gfm'
 import { JsonLd } from '@/components/JsonLd'
 import { ReadingProgressBar } from '@/components/ReadingProgressBar'
+import { defaultAuthor } from '@/lib/authors'
 import { getAllPosts, getPostBySlug } from '@/lib/posts'
 
 interface Props {
@@ -127,6 +128,8 @@ export default async function BlogPostPage({ params }: Props) {
 
   const t = await getTranslations({ locale, namespace: 'BlogPost' })
 
+  const author = defaultAuthor
+
   const articleSchema = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -135,8 +138,9 @@ export default async function BlogPostPage({ params }: Props) {
     datePublished: post.date,
     dateModified: post.date,
     author: {
-      '@type': 'Organization',
-      name: 'Lily',
+      '@type': 'Person',
+      name: author.name,
+      jobTitle: author.role,
       url: 'https://withlily.app',
     },
     publisher: {
@@ -254,6 +258,9 @@ export default async function BlogPostPage({ params }: Props) {
           <time dateTime={post.date} className="text-xs text-muted">
             {formatDate(post.date, locale)}
           </time>
+          <span className="text-xs text-muted">
+            {t('by')} {author.name}
+          </span>
         </div>
 
         <h1 className="text-4xl md:text-5xl font-bold text-lily-text mb-6 leading-tight">

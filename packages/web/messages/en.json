@@ -132,6 +132,7 @@
   "BlogPost": {
     "home": "Home",
     "blog": "Blog",
+    "by": "by",
     "minRead": "{minutes} min read",
     "ctaHeading": "Track your plants with Lily",
     "ctaText": "Get personalised care reminders and AI-powered diagnosis — free for 7 days, no credit card required.",

@@ -132,6 +132,7 @@
   "BlogPost": {
     "home": "Accueil",
     "blog": "Blog",
+    "by": "par",
     "minRead": "{minutes} min de lecture",
     "ctaHeading": "Suivez vos plantes avec Lily",
     "ctaText": "Obtenez des rappels de soins personnalisés et un diagnostic IA — gratuit pendant 7 jours, sans carte bancaire.",
