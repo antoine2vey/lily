@@ -68,6 +68,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+function extractHowToSteps(
+  content: string
+): Array<{ name: string; text: string }> {
+  const lines = pipe(content, String.split('\n'))
+  const steps: Array<{ name: string; text: string }> = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const headingMatch = line.match(/^#{2,3}\s+(?:Step\s+\d+[:\s]*)?(.+)$/)
+    if (headingMatch) {
+      const name = pipe(headingMatch[1], String.trim)
+      let text = ''
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].match(/^#{1,3}\s/)) break
+        const trimmed = pipe(lines[j], String.trim)
+        if (trimmed) text += `${trimmed} `
+      }
+      const trimmedText = pipe(text, String.trim)
+      if (trimmedText) {
+        steps.push({
+          name,
+          text: pipe(trimmedText, String.substring(0, 300)),
+        })
+      }
+    }
+  }
+
+  return steps
+}
+
 function formatDate(dateStr: string, locale: string) {
   return pipe(
     DateTime.make(dateStr),
@@ -130,6 +160,33 @@ export default async function BlogPostPage({ params }: Props) {
       : 'https://withlily.app/og-image.png',
   }
 
+  const isHowTo = pipe(slug, String.startsWith('how-to-'))
+  const howToSchema = isHowTo
+    ? pipe(extractHowToSteps(post.content), (steps) =>
+        Array.isEmptyArray(steps)
+          ? Option.none()
+          : Option.some({
+              '@context': 'https://schema.org',
+              '@type': 'HowTo',
+              name: post.title,
+              description: post.description,
+              image: post.coverImage
+                ? pipe(post.coverImage, (img) =>
+                    pipe(img, String.startsWith('http'))
+                      ? img
+                      : `https://withlily.app${img}`
+                  )
+                : undefined,
+              step: Array.map(steps, (s, i) => ({
+                '@type': 'HowToStep',
+                position: i + 1,
+                name: s.name,
+                text: s.text,
+              })),
+            })
+      )
+    : Option.none()
+
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -160,6 +217,13 @@ export default async function BlogPostPage({ params }: Props) {
       <ReadingProgressBar />
       <JsonLd data={articleSchema} />
       <JsonLd data={breadcrumbSchema} />
+      {pipe(
+        howToSchema,
+        Option.match({
+          onNone: () => null,
+          onSome: (schema) => <JsonLd data={schema} />,
+        })
+      )}
 
       <article className="max-w-3xl mx-auto px-6 pt-16">
         <nav className="flex items-center gap-2 text-sm text-muted mb-10">

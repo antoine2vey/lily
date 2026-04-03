@@ -6,6 +6,7 @@ import { Header } from '@/components/Header'
 import { Hero } from '@/components/Hero'
 import { JsonLd } from '@/components/JsonLd'
 import { LatestPosts } from '@/components/LatestPosts'
+import { WhatIsLily } from '@/components/WhatIsLily'
 
 const StatsBar = dynamic(() =>
   import('@/components/StatsBar').then((m) => m.StatsBar)
@@ -91,6 +92,7 @@ export default async function Home({ params }: Props) {
       <Header />
       <Hero />
       <StatsBar />
+      <WhatIsLily />
       <Features />
       <Testimonials />
       <FAQ />
