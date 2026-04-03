@@ -2,7 +2,7 @@
 
 > Smart reminders, AI diagnosis, and care schedules personalized to every plant in your home.
 
-Lily is a mobile app (iOS and Android) that helps plant owners keep their plants alive with personalized care reminders, AI-powered plant identification and disease diagnosis, care logging, and community features.
+Lily is a mobile app for iOS and Android that helps plant owners keep their plants alive and thriving. It combines personalized care scheduling, AI-powered plant identification and disease diagnosis, care logging, and community features in one app. Over 10,000 plants are tracked by Lily users, and the app holds a 4.8 star rating on the App Store.
 
 ## Key Pages
 
@@ -13,14 +13,38 @@ Lily is a mobile app (iOS and Android) that helps plant owners keep their plants
 
 ## Features
 
-- Plant collection management with photos and health tracking
-- Personalized watering, fertilizing, and misting reminders
-- AI-powered plant identification from photos
-- AI chat for plant care advice and disease diagnosis
-- Care action logging and history
-- Room-based plant organization
-- Community sharing and badges
-- 7-day free trial, then $4.99/month or $29.99/year
+- Plant collection management with photos, health status, and care schedules
+- Personalized reminders for watering, fertilizing, and misting — tailored to each plant's location and conditions
+- AI-powered plant identification using your phone camera (thousands of species)
+- AI chat for diagnosis and care advice, with context on your specific plant's age, care history, and environment
+- Care history logging for every plant
+- Achievement system with badges and milestones
+- Social profiles — follow other plant lovers and showcase your collection
+- Room-based plant organization to track how each environment affects growth
+- Push notifications for care reminders
+- Cross-device sync (iOS and Android)
+
+## Pricing
+
+- 7-day free trial, no credit card required upfront
+- Monthly: $4.99/month
+- Annual: $29.99/year (~$2.50/month, save 50%)
+- All features included in every plan
+- Cancel anytime from App Store or Play Store settings
+
+## FAQ
+
+### Is there really no credit card required?
+Yes. You download the app, start your 7-day free trial, and you're never asked for payment details upfront. You only enter payment info if you choose to subscribe after the trial.
+
+### What happens when the 7-day trial ends?
+You'll receive a reminder 3 days before the trial ends. If you choose not to subscribe, your account stays active in read-only mode — you can still view your plant collection and history, you just won't receive new reminders or use the AI features.
+
+### How is Lily different from Planta or Greg?
+Lily combines personalized care scheduling, AI plant diagnosis, and social features in one app — without the bloated subscription tiers. Every feature is available from day one, and care schedules are tailored to your specific plant's location and conditions, not just the species defaults.
+
+### How accurate is the AI plant diagnosis?
+The AI is trained on thousands of plant diseases, pests, and care issues. It also has context on your specific plant — its age, care history, and environment — which makes its advice significantly more accurate than generic tools. For rare conditions, it will always recommend consulting a specialist.
 
 ## Download
 

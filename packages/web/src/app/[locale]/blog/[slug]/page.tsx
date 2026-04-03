@@ -112,7 +112,10 @@ export default async function BlogPostPage({ params }: Props) {
     publisher: {
       '@type': 'Organization',
       name: 'Lily',
-      logo: { '@type': 'ImageObject', url: 'https://withlily.app/favicon.svg' },
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://withlily.app/apple-touch-icon.png',
+      },
     },
     mainEntityOfPage: {
       '@type': 'WebPage',

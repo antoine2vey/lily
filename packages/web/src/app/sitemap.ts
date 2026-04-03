@@ -12,7 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticUrls: MetadataRoute.Sitemap = Array.flatMap(locales, (locale) =>
     Array.map(staticPages, (pagePath) => ({
       url: `https://withlily.app/${locale}${pagePath}`,
-      lastModified: DateTime.formatIso(DateTime.unsafeNow()),
     }))
   )
 
