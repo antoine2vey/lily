@@ -55,6 +55,10 @@ export interface IAchievementRepository {
   ) => Effect.Effect<number, SqlError>
 
   readonly findUserIdsWithPlants: () => Effect.Effect<string[], SqlError>
+
+  readonly getBatchCareStreaks: (
+    userIds: readonly string[]
+  ) => Effect.Effect<ReadonlyMap<string, number>, SqlError>
 }
 
 export class AchievementRepository extends Context.Tag('AchievementRepository')<
@@ -259,6 +263,43 @@ export const AchievementRepositoryLive = Layer.effect(
           .selectDistinct({ userId: plants.userId })
           .from(plants)
         return Array.map(result, (r) => r.userId)
+      }),
+
+      getBatchCareStreaks: Effect.fn(
+        'AchievementRepository.getBatchCareStreaks'
+      )(function* (userIds: readonly string[]) {
+        if (userIds.length === 0) return new Map<string, number>()
+
+        const result = yield* db.execute(sql`
+          WITH daily_care AS (
+            SELECT DISTINCT p.user_id, DATE(cl.date) AS care_date
+            FROM care_logs cl
+            INNER JOIN plants p ON cl.plant_id = p.id
+            WHERE p.user_id = ANY(${userIds})
+              AND cl.date >= CURRENT_DATE - INTERVAL '400 days'
+          ),
+          streak AS (
+            SELECT user_id, care_date,
+                   care_date - (ROW_NUMBER() OVER (
+                     PARTITION BY user_id ORDER BY care_date ASC
+                   ))::int AS grp
+            FROM daily_care
+          ),
+          latest_grp AS (
+            SELECT DISTINCT ON (user_id) user_id, grp, care_date
+            FROM streak
+            ORDER BY user_id, care_date DESC
+          )
+          SELECT s.user_id, COUNT(*) AS streak
+          FROM streak s
+          JOIN latest_grp lg ON lg.user_id = s.user_id AND lg.grp = s.grp
+          WHERE lg.care_date >= CURRENT_DATE - INTERVAL '1 day'
+          GROUP BY s.user_id
+        `)
+        const rows = unwrapPgRows<{ user_id: string; streak: unknown }>(result)
+        return new Map(
+          Array.map(rows, (r) => [r.user_id, Number(r.streak)] as const)
+        )
       }),
     }
   })

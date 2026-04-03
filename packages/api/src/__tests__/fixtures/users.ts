@@ -1,4 +1,6 @@
+import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import type { User } from '@lily/shared'
+import { daysAgoAsDate } from '@lily/shared'
 
 // Named user fixtures for direct access without array indexing
 export const mockUser1: User = {
@@ -138,6 +140,20 @@ export const mockSuspendedUser: User = {
   temperatureUnit: 'celsius',
   deletedAt: null,
 }
+
+export const makeUserWithSettings = (
+  overrides: Partial<UserWithSettings> & { id: string }
+): UserWithSettings => ({
+  tips: true,
+  personalizedTips: false,
+  timezone: 'Europe/Paris',
+  doNotDisturb: false,
+  doNotDisturbStart: null,
+  doNotDisturbEnd: null,
+  language: 'en',
+  createdAt: daysAgoAsDate(30),
+  ...overrides,
+})
 
 export const createTestUser = (overrides: Partial<User> = {}): User => ({
   id: `user-${crypto.randomUUID()}`,

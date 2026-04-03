@@ -1,5 +1,13 @@
+import {
+  type INotificationRepository,
+  NotificationRepository,
+} from '@lily/api/repositories/notification.repository'
 import type { ISubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
+import {
+  type IUserRepository,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
 import {
   UsageTracker,
   UsageTrackerLive,
@@ -69,8 +77,22 @@ describe('UsageTracker', () => {
       logEvent: () => Effect.void,
     }
 
+    // Proxy-based stub: approaching_limit check is forked and error-swallowed
+    const notifRepo = new Proxy({} as INotificationRepository, {
+      get: () => () => Effect.succeed(null),
+    })
+
+    // Proxy-based stub: returns Effect.succeed(null) for any method call
+    const userRepo = new Proxy({} as IUserRepository, {
+      get: () => () => Effect.succeed(null),
+    })
+
     return {
-      layer: Layer.succeed(SubscriptionRepository, repo),
+      layer: Layer.mergeAll(
+        Layer.succeed(SubscriptionRepository, repo),
+        Layer.succeed(NotificationRepository, notifRepo),
+        Layer.succeed(UserRepository, userRepo)
+      ),
       incrementCalls,
     }
   }

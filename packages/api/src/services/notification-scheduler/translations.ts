@@ -6,8 +6,8 @@ const MAX_PLANT_NAMES_IN_BODY = 5
 
 // Simple (non-care) notification translations
 type SimpleTranslation = {
-  readonly title: (params: SimpleNotificationParams) => string
-  readonly body: (params: SimpleNotificationParams) => string
+  readonly title: (params: InternalNotificationParams) => string
+  readonly body: (params: InternalNotificationParams) => string
 }
 
 export type SimpleNotificationType =
@@ -25,8 +25,59 @@ export type SimpleNotificationType =
   | 'plant_parent_milestone'
   | 'gift_subscription'
   | 'resubscribe_nudge'
+  | 'streak_at_risk'
+  | 'streak_milestone'
+  | 'weekly_recap'
+  | 'trial_ending'
+  | 'approaching_limit'
+  | 'plant_anniversary'
 
-export type SimpleNotificationParams = {
+// Per-notification-type params for compile-time safety.
+// Required fields per type prevent callers from omitting needed data.
+export type NotificationParamsMap = {
+  readonly new_follower: { readonly senderName?: string }
+  readonly nudge_to_water: { readonly senderName?: string }
+  readonly delegation_request: { readonly senderName?: string }
+  readonly delegation_accepted: { readonly senderName?: string }
+  readonly delegation_rejected: { readonly senderName?: string }
+  readonly delegation_canceled: { readonly senderName?: string }
+  readonly delegation_activated: { readonly plantCount?: number }
+  readonly delegation_completed: { readonly plantCount?: number }
+  readonly daily_tip: { readonly tipTitle?: string; readonly tipBody?: string }
+  readonly inactivity_nudge: { readonly plantCount?: number }
+  readonly photo_reminder: {
+    readonly plantName?: string
+    readonly daysSincePhoto?: number
+  }
+  readonly plant_parent_milestone: { readonly daysSinceJoin?: number }
+  readonly gift_subscription: { readonly giftDuration?: string }
+  readonly resubscribe_nudge: { readonly plantCount?: number }
+  readonly streak_at_risk: {
+    readonly streakCount: number
+    readonly plantName?: string
+  }
+  readonly streak_milestone: { readonly streakCount: number }
+  readonly weekly_recap: {
+    readonly tasksCompleted: number
+    readonly streakCount: number
+    readonly healthyCount: number
+  }
+  readonly trial_ending: { readonly trialDaysLeft: number }
+  readonly approaching_limit: {
+    readonly usageCount: number
+    readonly usageMax: number
+    readonly featureName: string
+  }
+  readonly plant_anniversary: {
+    readonly plantName: string
+    readonly anniversaryDuration: string
+    readonly dateAdded: string
+  }
+}
+
+// Internal flat params type used by translation functions.
+// All fields optional because each translation only reads its own subset.
+type InternalNotificationParams = {
   readonly senderName?: string
   readonly plantCount?: number
   readonly plantName?: string
@@ -35,6 +86,15 @@ export type SimpleNotificationParams = {
   readonly tipTitle?: string
   readonly tipBody?: string
   readonly giftDuration?: string
+  readonly streakCount?: number
+  readonly tasksCompleted?: number
+  readonly healthyCount?: number
+  readonly trialDaysLeft?: number
+  readonly usageCount?: number
+  readonly usageMax?: number
+  readonly featureName?: string
+  readonly anniversaryDuration?: string
+  readonly dateAdded?: string
 }
 
 type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
@@ -165,6 +225,101 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         return `${count} plants aren't receiving care alerts. Upgrade to Premium to cover your entire garden!`
       },
     },
+    streak_at_risk: {
+      title: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `🔥 Your ${streak}-day streak ends tonight!`
+      },
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Your plants'
+        )
+        return `${name} still needs care. Don't break your streak!`
+      },
+    },
+    streak_milestone: {
+      title: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `🔥 ${streak}-day streak!`
+      },
+      body: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `You've cared for your plants every day for ${streak} days. That's dedication!`
+      },
+    },
+    weekly_recap: {
+      title: () => '📊 Your weekly plant recap',
+      body: (p) => {
+        const tasks = Option.getOrElse(
+          Option.fromNullable(p.tasksCompleted),
+          () => 0
+        )
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        const healthy = Option.getOrElse(
+          Option.fromNullable(p.healthyCount),
+          () => 0
+        )
+        return `This week: ${tasks} care tasks, ${streak}-day streak, ${healthy} thriving plants.`
+      },
+    },
+    trial_ending: {
+      title: () => '⏳ Your Premium trial is ending soon',
+      body: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.trialDaysLeft),
+          () => 3
+        )
+        return `Your trial ends in ${days} ${days === 1 ? 'day' : 'days'}. Keep unlimited plants, AI advice, and care delegation!`
+      },
+    },
+    approaching_limit: {
+      title: () => "📈 You're approaching your limit",
+      body: (p) => {
+        const used = Option.getOrElse(
+          Option.fromNullable(p.usageCount),
+          () => 0
+        )
+        const max = Option.getOrElse(Option.fromNullable(p.usageMax), () => 0)
+        const feature = Option.getOrElse(
+          Option.fromNullable(p.featureName),
+          () => 'resources'
+        )
+        return `You've used ${used}/${max} ${feature}. Upgrade to Premium for unlimited access!`
+      },
+    },
+    plant_anniversary: {
+      title: (p) => {
+        const duration = Option.getOrElse(
+          Option.fromNullable(p.anniversaryDuration),
+          () => 'some time'
+        )
+        return `🎂 Happy ${duration}!`
+      },
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Your plant'
+        )
+        const date = Option.getOrElse(
+          Option.fromNullable(p.dateAdded),
+          () => 'a while ago'
+        )
+        return `You've been caring for ${name} since ${date}. Keep it up!`
+      },
+    },
   },
   fr: {
     new_follower: {
@@ -291,18 +446,113 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         return `${count} plantes ne reçoivent pas de rappels. Passez à Premium pour couvrir tout votre jardin !`
       },
     },
+    streak_at_risk: {
+      title: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `🔥 Votre série de ${streak} jours se termine ce soir !`
+      },
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Vos plantes'
+        )
+        return `${name} a encore besoin de soins. Ne brisez pas votre série !`
+      },
+    },
+    streak_milestone: {
+      title: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `🔥 Série de ${streak} jours !`
+      },
+      body: (p) => {
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        return `Vous prenez soin de vos plantes chaque jour depuis ${streak} jours. Quelle dévotion !`
+      },
+    },
+    weekly_recap: {
+      title: () => '📊 Votre récap hebdomadaire',
+      body: (p) => {
+        const tasks = Option.getOrElse(
+          Option.fromNullable(p.tasksCompleted),
+          () => 0
+        )
+        const streak = Option.getOrElse(
+          Option.fromNullable(p.streakCount),
+          () => 0
+        )
+        const healthy = Option.getOrElse(
+          Option.fromNullable(p.healthyCount),
+          () => 0
+        )
+        return `Cette semaine : ${tasks} soins, série de ${streak} jours, ${healthy} plantes en forme.`
+      },
+    },
+    trial_ending: {
+      title: () => '⏳ Votre essai Premium se termine bientôt',
+      body: (p) => {
+        const days = Option.getOrElse(
+          Option.fromNullable(p.trialDaysLeft),
+          () => 3
+        )
+        return `Votre essai se termine dans ${days} ${days === 1 ? 'jour' : 'jours'}. Gardez plantes illimitées, conseils IA et délégation !`
+      },
+    },
+    approaching_limit: {
+      title: () => '📈 Vous approchez de votre limite',
+      body: (p) => {
+        const used = Option.getOrElse(
+          Option.fromNullable(p.usageCount),
+          () => 0
+        )
+        const max = Option.getOrElse(Option.fromNullable(p.usageMax), () => 0)
+        const feature = Option.getOrElse(
+          Option.fromNullable(p.featureName),
+          () => 'ressources'
+        )
+        return `Vous avez utilisé ${used}/${max} ${feature}. Passez à Premium pour un accès illimité !`
+      },
+    },
+    plant_anniversary: {
+      title: (p) => {
+        const duration = Option.getOrElse(
+          Option.fromNullable(p.anniversaryDuration),
+          () => 'un moment'
+        )
+        return `🎂 Joyeux ${duration} !`
+      },
+      body: (p) => {
+        const name = Option.getOrElse(
+          Option.fromNullable(p.plantName),
+          () => 'Votre plante'
+        )
+        const date = Option.getOrElse(
+          Option.fromNullable(p.dateAdded),
+          () => 'un moment'
+        )
+        return `Vous prenez soin de ${name} depuis le ${date}. Continuez comme ça !`
+      },
+    },
   },
 }
 
-export const buildSimpleContent = (
-  type: SimpleNotificationType,
-  params: SimpleNotificationParams,
+export const buildSimpleContent = <T extends SimpleNotificationType>(
+  type: T,
+  params: NotificationParamsMap[T],
   language: LanguageCode
 ): { title: string; body: string } => {
   const t = simpleTranslations[language][type]
   return {
-    title: t.title(params),
-    body: t.body(params),
+    title: t.title(params as InternalNotificationParams),
+    body: t.body(params as InternalNotificationParams),
   }
 }
 

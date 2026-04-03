@@ -1,7 +1,7 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { mapNotificationTypeToTopic } from '@lily/api/services/notification-scheduler/scheduler'
 import type {
-  SimpleNotificationParams,
+  NotificationParamsMap,
   SimpleNotificationType,
 } from '@lily/api/services/notification-scheduler/translations'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
@@ -46,10 +46,10 @@ export const scheduleDeferredCareNotification = (
  * Queue failures are logged and swallowed — notifications are a side effect
  * and must not prevent the parent operation (follow, nudge, delegation) from succeeding.
  */
-export const scheduleSimpleNotification = (
-  type: SimpleNotificationType,
+export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
+  type: T,
   userId: string,
-  params: SimpleNotificationParams,
+  params: NotificationParamsMap[T],
   language: LanguageCode,
   metadata?: Record<string, string>
 ) =>

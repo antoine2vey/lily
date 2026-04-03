@@ -9,7 +9,8 @@ import type { CareLog } from '@lily/shared/care-log'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
 export const createMockCareLogRepository = (
-  careLogs: CareLog[]
+  careLogs: CareLog[],
+  options?: { todayCountByUser?: Record<string, number> }
 ): Layer.Layer<CareLogRepository> => {
   const repo: ICareLogRepository = {
     findByPlantId: (params: FindCareLogsParams) => {
@@ -139,7 +140,14 @@ export const createMockCareLogRepository = (
         )
       ),
 
-    countTodayByUser: () => Effect.succeed(0),
+    countTodayByUser: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(options?.todayCountByUser),
+          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.getOrElse(() => 0)
+        )
+      ),
 
     findLatestByPlantAndType: (plantId: string, type: CareType) => {
       const byDateDesc = Order.reverse(

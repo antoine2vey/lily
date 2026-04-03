@@ -1,7 +1,9 @@
 import {
   EngagementRepository,
   type IEngagementRepository,
+  type PlantAnniversary,
   type PlantWithoutRecentPhoto,
+  type TrialingUser,
   type UserWithSettings,
 } from '@lily/api/repositories/engagement.repository'
 import { Effect, Layer, Option, pipe } from 'effect'
@@ -17,6 +19,10 @@ interface MockEngagementRepositoryData {
   >
   notificationsInPeriod?: Record<string, boolean>
   notificationsForPlantInPeriod?: Record<string, boolean>
+  healthyPlantCounts?: Record<string, number>
+  careLogsForWeek?: Record<string, number>
+  trialingUsers?: ReadonlyArray<TrialingUser>
+  plantsWithAnniversary?: ReadonlyArray<PlantAnniversary>
 }
 
 export const createMockEngagementRepository = (
@@ -108,6 +114,44 @@ export const createMockEngagementRepository = (
             notificationsForPlantInPeriod[`${userId}:${type}:${plantId}`]
           ),
           Option.getOrElse(() => false)
+        )
+      ),
+
+    getUsersWithCareRemindersEnabled: () => Effect.succeed(usersWithTips),
+
+    getUsersWithWeeklyDigestEnabled: () => Effect.succeed(usersWithTips),
+
+    getTrialingUsersWithTrialEndingSoon: () =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.trialingUsers),
+          Option.getOrElse(() => [] as ReadonlyArray<TrialingUser>)
+        )
+      ),
+
+    getPlantsWithAnniversary: () =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.plantsWithAnniversary),
+          Option.getOrElse(() => [] as ReadonlyArray<PlantAnniversary>)
+        )
+      ),
+
+    getHealthyPlantCountForUser: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.healthyPlantCounts),
+          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.getOrElse(() => 0)
+        )
+      ),
+
+    getCareLogsCountForWeek: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.careLogsForWeek),
+          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.getOrElse(() => 0)
         )
       ),
   }
