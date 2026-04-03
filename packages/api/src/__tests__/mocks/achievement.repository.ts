@@ -17,6 +17,7 @@ export interface MockAchievementRepositoryData {
   scanCount?: number
   plantPhotoCount?: number
   historyViewCount?: number
+  batchCareStreaks?: ReadonlyMap<string, number>
 }
 
 export const createMockAchievementRepository = (
@@ -130,6 +131,14 @@ export const createMockAchievementRepository = (
       )
       return Effect.succeed(userIds)
     },
+
+    getBatchCareStreaks: () =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.batchCareStreaks),
+          Option.getOrElse(() => new Map<string, number>())
+        )
+      ),
   }
 
   return Layer.succeed(AchievementRepository, repo)

@@ -1,14 +1,16 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import {
   careLogs,
   notifications,
   plantPhotos,
   plants,
+  userSubscriptions,
   users,
 } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
-import { count, desc, eq, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UserWithSettings {
@@ -28,6 +30,23 @@ export interface PlantWithoutRecentPhoto {
   readonly plantName: string
   readonly userId: string
   readonly lastPhotoAt: Date | null
+}
+
+export interface PlantAnniversary {
+  readonly plantId: string
+  readonly plantName: string
+  readonly userId: string
+  readonly dateAdded: Date
+}
+
+export interface TrialingUser {
+  readonly id: string
+  readonly timezone: string | null
+  readonly doNotDisturb: boolean
+  readonly doNotDisturbStart: string | null
+  readonly doNotDisturbEnd: string | null
+  readonly language: LanguageCode
+  readonly trialEndsAt: Date
 }
 
 export interface IEngagementRepository {
@@ -59,6 +78,27 @@ export interface IEngagementRepository {
     plantId: string,
     sinceDate: Date
   ) => Effect.Effect<boolean, SqlError>
+  readonly getUsersWithCareRemindersEnabled: () => Effect.Effect<
+    ReadonlyArray<UserWithSettings>,
+    SqlError
+  >
+  readonly getUsersWithWeeklyDigestEnabled: () => Effect.Effect<
+    ReadonlyArray<UserWithSettings>,
+    SqlError
+  >
+  readonly getTrialingUsersWithTrialEndingSoon: (
+    daysLeft: number
+  ) => Effect.Effect<ReadonlyArray<TrialingUser>, SqlError>
+  readonly getPlantsWithAnniversary: (
+    monthsAgo: readonly number[]
+  ) => Effect.Effect<ReadonlyArray<PlantAnniversary>, SqlError>
+  readonly getHealthyPlantCountForUser: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
+  readonly getCareLogsCountForWeek: (
+    userId: string,
+    timezone: string
+  ) => Effect.Effect<number, SqlError>
 }
 
 export class EngagementRepository extends Context.Tag('EngagementRepository')<
@@ -71,26 +111,26 @@ export const EngagementRepositoryLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
+    const userSettingsSelection = {
+      id: users.id,
+      tips: users.tips,
+      personalizedTips: users.personalizedTips,
+      timezone: users.timezone,
+      doNotDisturb: users.doNotDisturb,
+      doNotDisturbStart: users.doNotDisturbStart,
+      doNotDisturbEnd: users.doNotDisturbEnd,
+      language: users.language,
+      createdAt: users.createdAt,
+    }
+
     return {
       getUsersWithTipsEnabled: Effect.fn(
         'EngagementRepository.getUsersWithTipsEnabled'
       )(function* () {
-        const rows = yield* db
-          .select({
-            id: users.id,
-            tips: users.tips,
-            personalizedTips: users.personalizedTips,
-            timezone: users.timezone,
-            doNotDisturb: users.doNotDisturb,
-            doNotDisturbStart: users.doNotDisturbStart,
-            doNotDisturbEnd: users.doNotDisturbEnd,
-            language: users.language,
-            createdAt: users.createdAt,
-          })
+        return yield* db
+          .select(userSettingsSelection)
           .from(users)
           .where(eq(users.tips, true))
-
-        return rows
       }),
 
       getLastCareDate: Effect.fn('EngagementRepository.getLastCareDate')(
@@ -210,6 +250,119 @@ export const EngagementRepositoryLive = Layer.effect(
           Option.map((r) => r.value),
           Option.getOrElse(() => false)
         )
+      }),
+
+      getUsersWithCareRemindersEnabled: Effect.fn(
+        'EngagementRepository.getUsersWithCareRemindersEnabled'
+      )(function* () {
+        return yield* db
+          .select(userSettingsSelection)
+          .from(users)
+          .where(eq(users.careReminders, true))
+      }),
+
+      getUsersWithWeeklyDigestEnabled: Effect.fn(
+        'EngagementRepository.getUsersWithWeeklyDigestEnabled'
+      )(function* () {
+        return yield* db
+          .select(userSettingsSelection)
+          .from(users)
+          .where(eq(users.weeklyDigest, true))
+      }),
+
+      getTrialingUsersWithTrialEndingSoon: Effect.fn(
+        'EngagementRepository.getTrialingUsersWithTrialEndingSoon'
+      )(function* (daysLeft: number) {
+        const rows = yield* db
+          .select({
+            id: users.id,
+            timezone: users.timezone,
+            doNotDisturb: users.doNotDisturb,
+            doNotDisturbStart: users.doNotDisturbStart,
+            doNotDisturbEnd: users.doNotDisturbEnd,
+            language: users.language,
+            trialEndsAt: userSubscriptions.trialEndsAt,
+          })
+          .from(users)
+          .innerJoin(userSubscriptions, eq(users.id, userSubscriptions.userId))
+          .where(
+            and(
+              eq(userSubscriptions.status, 'trialing'),
+              sql`${userSubscriptions.trialEndsAt} >= NOW() + INTERVAL '${sql.raw(String(daysLeft - 1))} days' + INTERVAL '12 hours'`,
+              sql`${userSubscriptions.trialEndsAt} < NOW() + INTERVAL '${sql.raw(String(daysLeft))} days' + INTERVAL '12 hours'`
+            )
+          )
+
+        return Array.filterMap(rows, (r) =>
+          pipe(
+            Option.fromNullable(r.trialEndsAt),
+            Option.map((trialEndsAt) => ({
+              id: r.id,
+              timezone: r.timezone,
+              doNotDisturb: r.doNotDisturb,
+              doNotDisturbStart: r.doNotDisturbStart,
+              doNotDisturbEnd: r.doNotDisturbEnd,
+              language: r.language as LanguageCode,
+              trialEndsAt,
+            }))
+          )
+        )
+      }),
+
+      getPlantsWithAnniversary: Effect.fn(
+        'EngagementRepository.getPlantsWithAnniversary'
+      )(function* (monthsAgo: readonly number[]) {
+        if (Array.isEmptyReadonlyArray(monthsAgo)) return []
+
+        const conditions = Array.map(
+          monthsAgo,
+          (months) =>
+            sql`DATE(${plants.dateAdded}) = CURRENT_DATE - INTERVAL '${sql.raw(String(months))} months'`
+        )
+
+        const rows = yield* db
+          .select({
+            plantId: plants.id,
+            plantName: plants.name,
+            userId: plants.userId,
+            dateAdded: plants.dateAdded,
+          })
+          .from(plants)
+          .where(sql`(${sql.join(conditions, sql` OR `)})`)
+
+        return rows
+      }),
+
+      getHealthyPlantCountForUser: Effect.fn(
+        'EngagementRepository.getHealthyPlantCountForUser'
+      )(function* (userId: string) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(plants)
+          .where(
+            and(
+              eq(plants.userId, userId),
+              inArray(plants.health, ['THRIVING', 'HEALTHY'])
+            )
+          )
+        return extractCount(result)
+      }),
+
+      getCareLogsCountForWeek: Effect.fn(
+        'EngagementRepository.getCareLogsCountForWeek'
+      )(function* (userId: string, timezone: string) {
+        const startOfWeek = sql`date_trunc('week', now() AT TIME ZONE ${timezone}) AT TIME ZONE ${timezone}`
+        const result = yield* db
+          .select({ value: count() })
+          .from(careLogs)
+          .innerJoin(plants, eq(careLogs.plantId, plants.id))
+          .where(
+            and(
+              eq(plants.userId, userId),
+              sql`${careLogs.date} >= ${startOfWeek}`
+            )
+          )
+        return extractCount(result)
       }),
     }
   })

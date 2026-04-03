@@ -185,26 +185,45 @@ export const consumeFromTopic = Effect.fn('notification-worker.consume')(
 
 // Exhaustive topic validation using Effect Match
 // Fails at compile time if a topic is not handled, throws at runtime
+// Uses whenOr to batch related topics and stay within pipe's 20-argument limit
 const validateTopic = Match.type<NotificationTopic>().pipe(
-  Match.when('watering_reminder', () => true),
-  Match.when('fertilization_reminder', () => true),
-  Match.when('misting_reminder', () => true),
-  Match.when('repotting_reminder', () => true),
-  Match.when('overdue_reminder', () => true),
-  Match.when('new_follower', () => true),
-  Match.when('nudge_to_water', () => true),
-  Match.when('delegation_request', () => true),
-  Match.when('delegation_accepted', () => true),
-  Match.when('delegation_rejected', () => true),
-  Match.when('delegation_canceled', () => true),
-  Match.when('delegation_activated', () => true),
-  Match.when('delegation_completed', () => true),
-  Match.when('daily_tip', () => true),
-  Match.when('inactivity_nudge', () => true),
-  Match.when('photo_reminder', () => true),
-  Match.when('plant_parent_milestone', () => true),
-  Match.when('gift_subscription', () => true),
-  Match.when('resubscribe_nudge', () => true),
+  Match.whenOr(
+    'watering_reminder',
+    'fertilization_reminder',
+    'misting_reminder',
+    'repotting_reminder',
+    'overdue_reminder',
+    () => true
+  ),
+  Match.whenOr(
+    'new_follower',
+    'nudge_to_water',
+    'delegation_request',
+    'delegation_accepted',
+    'delegation_rejected',
+    'delegation_canceled',
+    'delegation_activated',
+    'delegation_completed',
+    'gift_subscription',
+    () => true
+  ),
+  Match.whenOr(
+    'daily_tip',
+    'inactivity_nudge',
+    'photo_reminder',
+    'plant_parent_milestone',
+    'resubscribe_nudge',
+    () => true
+  ),
+  Match.whenOr(
+    'streak_at_risk',
+    'streak_milestone',
+    'weekly_recap',
+    'trial_ending',
+    'approaching_limit',
+    'plant_anniversary',
+    () => true
+  ),
   Match.exhaustive
 )
 
