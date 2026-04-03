@@ -1,9 +1,9 @@
 'use client'
 
 import { Array, pipe } from 'effect'
-import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
+import { FadeIn } from '@/components/FadeIn'
 
 export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -20,32 +20,19 @@ export function FAQ() {
   return (
     <section className="py-24 bg-background">
       <div className="max-w-3xl mx-auto px-6">
-        <motion.div
-          className="text-center mb-14"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          viewport={{ once: true }}
-        >
+        <FadeIn className="text-center mb-14">
           <h2 className="text-4xl md:text-5xl font-bold text-lily-text mb-4">
             {t('heading')}
           </h2>
           <p className="text-lg text-muted">{t('subheading')}</p>
-        </motion.div>
+        </FadeIn>
 
         <div className="space-y-4">
           {faqs.map((faq, index) => (
-            <motion.div
+            <FadeIn
               key={faq.question}
               className="rounded-2xl overflow-hidden"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                ease: 'easeOut',
-                delay: index * 0.07,
-              }}
-              viewport={{ once: true }}
+              delay={index * 70}
             >
               <button
                 type="button"
@@ -60,20 +47,20 @@ export function FAQ() {
                 </span>
               </button>
 
-              <motion.div
-                initial={false}
-                animate={{
-                  height: openIndex === index ? 'auto' : 0,
+              <div
+                className="grid transition-all duration-250 ease-in-out"
+                style={{
+                  gridTemplateRows: openIndex === index ? '1fr' : '0fr',
                   opacity: openIndex === index ? 1 : 0,
                 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden"
               >
-                <div className="shadow-neu-inset bg-background rounded-b-2xl px-7 py-5 text-muted leading-relaxed">
-                  {faq.answer}
+                <div className="overflow-hidden">
+                  <div className="shadow-neu-inset bg-background rounded-b-2xl px-7 py-5 text-muted leading-relaxed">
+                    {faq.answer}
+                  </div>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </FadeIn>
           ))}
         </div>
       </div>

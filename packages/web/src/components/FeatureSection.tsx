@@ -1,8 +1,7 @@
 'use client'
 
-import { motion, useScroll, useTransform } from 'framer-motion'
 import Image from 'next/image'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface FeatureSectionProps {
   screenshot: string
@@ -18,29 +17,36 @@ export function FeatureSection({
   index,
 }: FeatureSectionProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
   const isEven = index % 2 === 0
 
-  // scrollYProgress goes 0 → 1 as the element travels from
-  // "top of element at bottom of viewport" to "center of element at center of viewport"
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'center center'],
-  })
-
-  const imageX = useTransform(scrollYProgress, [0, 1], [isEven ? -60 : 60, 0])
-  const imageOpacity = useTransform(scrollYProgress, [0, 0.6], [0, 1])
-
-  const textY = useTransform(scrollYProgress, [0.15, 1], [40, 0])
-  const textOpacity = useTransform(scrollYProgress, [0.15, 0.75], [0, 1])
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.15 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div
       ref={ref}
       className={`flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-2 py-8 md:py-10`}
     >
-      <motion.div
-        className="flex-1 flex justify-center"
-        style={{ x: imageX, opacity: imageOpacity }}
+      <div
+        className={`flex-1 flex justify-center transition-all duration-700 ease-out ${
+          visible
+            ? 'opacity-100 translate-x-0'
+            : `opacity-0 ${isEven ? '-translate-x-15' : 'translate-x-15'}`
+        }`}
       >
         <div className="relative w-64 md:w-72 rounded-[2.5rem] overflow-hidden shadow-neu-lg bg-background">
           <Image
@@ -53,11 +59,12 @@ export function FeatureSection({
             sizes="(max-width: 768px) 256px, 288px"
           />
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        className="flex-1 text-center md:text-left"
-        style={{ y: textY, opacity: textOpacity }}
+      <div
+        className={`flex-1 text-center md:text-left transition-all duration-700 ease-out delay-150 ${
+          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+        }`}
       >
         <h2 className="text-3xl md:text-4xl font-bold text-lily-text mb-4 leading-tight">
           {catchline}
@@ -65,7 +72,7 @@ export function FeatureSection({
         <p className="text-lg text-muted leading-relaxed max-w-md mx-auto md:mx-0">
           {description}
         </p>
-      </motion.div>
+      </div>
     </div>
   )
 }

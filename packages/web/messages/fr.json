@@ -6,6 +6,7 @@
     "ogDescription": "Rappels intelligents, diagnostic IA et calendriers de soins personnalisés pour chaque plante chez vous."
   },
   "Header": {
+    "about": "A propos",
     "blog": "Blog",
     "getApp": "Télécharger",
     "langSwitch": "EN"
@@ -133,6 +134,22 @@
     "ctaButton": "Télécharger Lily gratuitement →",
     "backLink": "← Plus de guides de plantes",
     "metaTitleSuffix": "— Blog Lily"
+  },
+  "About": {
+    "back": "\u2190 Retour \u00e0 Lily",
+    "heading": "\u00c0 propos de Lily",
+    "metaDescription": "D\u00e9couvrez la petite \u00e9quipe passionn\u00e9e derri\u00e8re Lily. Nous avons cr\u00e9\u00e9 l\u2019application de soins des plantes que nous r\u00eavions d\u2019avoir \u2014 pour ne plus jamais perdre une plante.",
+    "introHeading": "\u00c0 propos de Lily",
+    "introText": "Lily est une application de soins des plantes cr\u00e9\u00e9e par des amoureux des plantes, pour des amoureux des plantes. Nous vous aidons \u00e0 suivre chaque plante chez vous gr\u00e2ce \u00e0 des rappels intelligents, un diagnostic IA et des calendriers de soins personnalis\u00e9s \u2014 pour qu\u2019aucune plante ne soit oubli\u00e9e.",
+    "storyHeading": "Notre histoire",
+    "storyText1": "Lily est n\u00e9e d\u2019une frustration toute simple : trop de plantes mouraient par oubli. Nous avions tout essay\u00e9 \u2014 post-its sur le frigo, alarmes sur le t\u00e9l\u00e9phone, m\u00eame des tableurs \u2014 et nous regardions quand m\u00eame des plantes en pleine sant\u00e9 d\u00e9p\u00e9rir parce que la vie prenait le dessus.",
+    "storyText2": "Alors nous avons cr\u00e9\u00e9 l\u2019application que nous r\u00eavions d\u2019avoir. Une petite \u00e9quipe passionn\u00e9e d\u2019amoureux des plantes, convaincue que la technologie devrait rendre le soin des \u00eatres vivants plus facile, pas plus compliqu\u00e9. Lily a commenc\u00e9 comme un projet perso dans un petit appartement rempli de foug\u00e8res trop arros\u00e9es et de succulentes assoiff\u00e9es. Et \u00e7a a grandi \u00e0 partir de l\u00e0.",
+    "missionHeading": "Notre mission",
+    "missionText1": "Nous croyons que chaque plante m\u00e9rite une attention particuli\u00e8re, et que chaque parent de plante m\u00e9rite un petit coup de pouce. Les plantes am\u00e9liorent nos espaces, purifient notre air et apaisent nos esprits \u2014 mais seulement si elles survivent assez longtemps.",
+    "missionText2": "Notre mission est simple : rendre le soin des plantes sans effort. Que vous ayez un cactus sur un rebord de fen\u00eatre ou une jungle dans chaque pi\u00e8ce, Lily s\u2019adapte \u00e0 votre collection et vous garde sur la bonne voie. Pas de culpabilit\u00e9, pas d\u2019approximation, juste des plantes en meilleure sant\u00e9.",
+    "ctaHeading": "Pr\u00eat \u00e0 garder vos plantes en pleine forme ?",
+    "ctaText": "T\u00e9l\u00e9chargez Lily et commencez votre essai gratuit de 7 jours. Sans carte bancaire.",
+    "ctaButton": "T\u00e9l\u00e9charger Lily gratuitement \u2192"
   },
   "Privacy": {
     "back": "← Retour à Lily",

@@ -96,6 +96,12 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <a
+            href={`/${locale}/about`}
+            className="text-muted hover:text-lily-text text-sm font-medium transition-colors"
+          >
+            {t('about')}
+          </a>
+          <a
             href={`/${locale}/blog`}
             className="text-muted hover:text-lily-text text-sm font-medium transition-colors"
           >
@@ -134,7 +140,7 @@ export function Header() {
                     key={l}
                     href={pathname.replace(`/${locale}`, `/${l}`)}
                     onClick={() => setLangOpen(false)}
-                    className={`block px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors hover:text-primary ${l === locale ? 'text-primary' : 'text-muted'}`}
+                    className={`block px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors hover:text-primary ${l === locale ? 'text-primary' : 'text-muted'}`}
                   >
                     {l}
                   </a>

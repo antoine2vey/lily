@@ -74,9 +74,21 @@ export default async function BlogPage({ params }: Props) {
     ],
   }
 
+  const itemListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    itemListElement: Array.map(posts, (post, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url: `https://withlily.app/${locale}/blog/${post.slug}`,
+      name: post.title,
+    })),
+  }
+
   return (
     <main className="min-h-screen bg-background pb-24">
       <JsonLd data={breadcrumbSchema} />
+      <JsonLd data={itemListSchema} />
       <header className="py-16 px-6 text-center">
         <Link
           href={`/${locale}`}

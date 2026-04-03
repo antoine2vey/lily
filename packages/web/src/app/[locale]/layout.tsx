@@ -93,10 +93,7 @@ const softwareApplicationSchema = {
   applicationCategory: 'LifestyleApplication',
   operatingSystem: 'iOS, Android',
   url: 'https://withlily.app',
-  downloadUrl: [
-    'https://apps.apple.com/app/lily-plant-care/id6504462690',
-    'https://play.google.com/store/apps/details?id=com.lilyapp.plants',
-  ],
+  downloadUrl: 'https://apps.apple.com/app/lily-plant-care/id6504462690',
   screenshot: 'https://withlily.app/screenshots/home-screen.webp',
   offers: {
     '@type': 'AggregateOffer',
