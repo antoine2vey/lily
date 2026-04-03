@@ -9,8 +9,10 @@ import {
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
+import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
+import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import {
@@ -42,7 +44,10 @@ const runCheck = (
   delegationData: {
     delegations?: DelegationRow[]
     delegationPlants?: Array<{ delegationId: string; plantId: string }>
-  } = {}
+  } = {},
+  subscriptionOptions: Parameters<
+    typeof createMockSubscriptionRepository
+  >[0] = {}
 ) =>
   Effect.runPromise(
     checkAndCreateOverdueReminders.pipe(
@@ -55,7 +60,9 @@ const runCheck = (
           createMockPlantRepository({ plants: plantsData }),
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
-          createMockDelegationRepository(delegationData)
+          createMockDelegationRepository(delegationData),
+          createMockSubscriptionRepository(subscriptionOptions),
+          createMockMessageQueue()
         )
       ),
       Logger.withMinimumLogLevel(LogLevel.None)
@@ -71,7 +78,8 @@ const runProcessUser = (
   delegationData: {
     delegations?: DelegationRow[]
     delegationPlants?: Array<{ delegationId: string; plantId: string }>
-  } = {}
+  } = {},
+  maxPlants: number | null = 5
 ) => {
   const overdue = Arr.filter(plantsData, (p) => {
     const wateringSched = Arr.findFirst(
@@ -92,17 +100,19 @@ const runProcessUser = (
       id: p.id,
       name: p.name,
       userId: p.userId,
+      dateAdded: p.dateAdded,
       overdueAt: wateringSched.nextCareAt as Date,
     }
   })
 
   return Effect.runPromiseExit(
-    processUserOverdueReminders(userId, mapped).pipe(
+    processUserOverdueReminders(userId, mapped, maxPlants).pipe(
       Effect.provide(
         Layer.mergeAll(
           createMockNotificationRepository(notifications),
           createMockUserRepository(users),
-          createMockDelegationRepository(delegationData)
+          createMockDelegationRepository(delegationData),
+          createMockMessageQueue()
         )
       ),
       Logger.withMinimumLogLevel(LogLevel.None)
@@ -818,6 +828,182 @@ describe('checkAndCreateOverdueReminders', () => {
       const plantIds = Arr.map(overdueNotifs, (n) => n.plantId)
       expect(plantIds).toContain('plant-water-only')
       expect(plantIds).toContain('plant-fert-only')
+    })
+  })
+
+  describe('subscription-based notification capping', () => {
+    it('should send notifications for all plants when user has no plant limit (premium)', async () => {
+      const notifications: Notification[] = []
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      const exit = await runProcessUser(
+        'user-1',
+        plants,
+        [defaultUser],
+        notifications,
+        {},
+        null // null = unlimited (premium)
+      )
+
+      expect(Exit.isSuccess(exit)).toBe(true)
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBe(8)
+
+      // No resubscribe nudge
+      const nudges = Arr.filter(
+        notifications,
+        (n) => n.type === 'resubscribe_nudge'
+      )
+      expect(nudges.length).toBe(0)
+    })
+
+    it('should cap notifications to maxPlants oldest plants for free-tier users', async () => {
+      const notifications: Notification[] = []
+      // Create 8 plants with distinct dateAdded values
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          name: `Plant ${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i * 10), // plant-0 is oldest
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      const exit = await runProcessUser(
+        'user-1',
+        plants,
+        [defaultUser],
+        notifications,
+        {},
+        5 // free tier: 5 plant cap
+      )
+
+      expect(Exit.isSuccess(exit)).toBe(true)
+
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      // Only the 5 oldest plants should receive notifications
+      expect(overdueNotifs.length).toBe(5)
+
+      const notifiedPlantIds = Arr.map(overdueNotifs, (n) => n.plantId)
+      // plant-0 through plant-4 are the oldest (dateAdded furthest in the past)
+      for (let i = 0; i < 5; i++) {
+        expect(notifiedPlantIds).toContain(`plant-${i}`)
+      }
+      // plant-5, plant-6, plant-7 should NOT receive notifications
+      for (let i = 5; i < 8; i++) {
+        expect(notifiedPlantIds).not.toContain(`plant-${i}`)
+      }
+    })
+
+    it('should send resubscribe_nudge when free-tier user has overflow plants', async () => {
+      const notifications: Notification[] = []
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      await runProcessUser(
+        'user-1',
+        plants,
+        [defaultUser],
+        notifications,
+        {},
+        5
+      )
+
+      const nudges = Arr.filter(
+        notifications,
+        (n) => n.type === 'resubscribe_nudge'
+      )
+      expect(nudges.length).toBe(1)
+      expect(nudges[0]?.userId).toBe('user-1')
+    })
+
+    it('should NOT send resubscribe_nudge when nudge already sent today', async () => {
+      const existingNudge = createTestNotification({
+        id: 'nudge-existing',
+        type: 'resubscribe_nudge',
+        status: 'sent',
+        userId: 'user-1',
+        createdAt: new Date(),
+      })
+      const notifications: Notification[] = [existingNudge]
+      const plants = Arr.makeBy(8, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      await runProcessUser(
+        'user-1',
+        plants,
+        [defaultUser],
+        notifications,
+        {},
+        5
+      )
+
+      // Should still have only the one existing nudge, not a second
+      const nudges = Arr.filter(
+        notifications,
+        (n) => n.type === 'resubscribe_nudge'
+      )
+      expect(nudges.length).toBe(1)
+      expect(nudges[0]?.id).toBe('nudge-existing')
+    })
+
+    it('should NOT send nudge or cap when free-tier user has exactly maxPlants overdue', async () => {
+      const notifications: Notification[] = []
+      const plants = Arr.makeBy(5, (i) =>
+        createTestPlant({
+          id: `plant-${i}`,
+          userId: 'user-1',
+          dateAdded: daysAgo(100 - i),
+          scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(2) })],
+        })
+      )
+
+      await runProcessUser(
+        'user-1',
+        plants,
+        [defaultUser],
+        notifications,
+        {},
+        5
+      )
+
+      const overdueNotifs = Arr.filter(
+        notifications,
+        (n) => n.type === 'overdue_reminder'
+      )
+      expect(overdueNotifs.length).toBe(5)
+
+      const nudges = Arr.filter(
+        notifications,
+        (n) => n.type === 'resubscribe_nudge'
+      )
+      expect(nudges.length).toBe(0)
     })
   })
 })

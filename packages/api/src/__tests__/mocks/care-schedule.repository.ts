@@ -119,6 +119,7 @@ export const createMockCareScheduleRepository = (
                   id: plant.id,
                   name: plant.name,
                   userId: plant.userId,
+                  dateAdded: plant.dateAdded,
                   overdueAt: earliestOverdueDate(
                     Array.map(schedules, (sc) => sc.nextCareAt),
                     now

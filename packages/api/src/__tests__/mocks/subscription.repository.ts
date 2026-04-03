@@ -57,6 +57,7 @@ export const createMockSubscriptionRepository = (
 
   const repo: ISubscriptionRepository = {
     findByUserId: () => Effect.succeed(subscription),
+    findByUserIds: () => Effect.succeed(subscription ? [subscription] : []),
     findByExternalId: () => Effect.succeed(subscription),
     create: (data) => {
       if (options.onCreate) {

@@ -1,9 +1,14 @@
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
-import { scheduleDeferredCareNotification } from '@lily/api/services/helpers/schedule-notification'
+import {
+  scheduleDeferredCareNotification,
+  scheduleSimpleNotification,
+} from '@lily/api/services/helpers/schedule-notification'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
+import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import {
   AlreadySentTodayError,
   CareRemindersDisabledError,
@@ -12,13 +17,14 @@ import {
   pickNotificationTime,
   startOfTodayAsDate,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe, Random, Record } from 'effect'
+import { Array, Effect, Option, Order, pipe, Random, Record } from 'effect'
 
 // Process a single user's overdue plants — fails with skip errors when the
 // user should not receive a notification.
 export const processUserOverdueReminders = (
   userId: string,
-  plants: readonly OverduePlant[]
+  plants: readonly OverduePlant[],
+  maxPlants: number | null
 ) =>
   Effect.gen(function* () {
     const notificationRepo = yield* NotificationRepository
@@ -57,6 +63,14 @@ export const processUserOverdueReminders = (
 
     if (Array.isEmptyReadonlyArray(strictlyOverdue)) return 0
 
+    // Sort by dateAdded ascending (oldest first), cap when tier has a plant limit
+    const sorted = Array.sort(
+      strictlyOverdue,
+      Order.mapInput(Order.Date, (p: OverduePlant) => p.dateAdded)
+    )
+    const eligible = maxPlants === null ? sorted : Array.take(sorted, maxPlants)
+    const overflowCount = Array.length(sorted) - Array.length(eligible)
+
     // Pick a random scheduledAt within the allowed windows
     const randomValue = yield* Random.next
     const scheduledAt = yield* pickNotificationTime(
@@ -68,8 +82,8 @@ export const processUserOverdueReminders = (
       randomValue
     )
 
-    // Create one notification per plant, all sharing the same scheduledAt for grouping
-    yield* Effect.forEach(strictlyOverdue, (plant) =>
+    // Create one notification per eligible plant, all sharing the same scheduledAt
+    yield* Effect.forEach(eligible, (plant) =>
       Effect.gen(function* () {
         // Route to caretaker when delegated
         const caretakerId = yield* delegationRepo.findActiveCaretakerForPlant(
@@ -89,7 +103,25 @@ export const processUserOverdueReminders = (
       })
     )
 
-    return Array.length(strictlyOverdue)
+    // Send a daily nudge when free-tier plants overflow the cap
+    if (overflowCount > 0) {
+      const alreadySentNudge =
+        yield* notificationRepo.hasNotificationOfTypeTodayForUser(
+          userId,
+          timezone,
+          'resubscribe_nudge'
+        )
+      if (!alreadySentNudge) {
+        yield* scheduleSimpleNotification(
+          'resubscribe_nudge',
+          userId,
+          { plantCount: overflowCount },
+          settings.language
+        )
+      }
+    }
+
+    return Array.length(eligible)
   }).pipe(
     Effect.withSpan('overdue-scheduler.processUser', { attributes: { userId } })
   )
@@ -97,6 +129,7 @@ export const processUserOverdueReminders = (
 // Core effect: check for overdue plants and create reminder notifications
 export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   const scheduleRepo = yield* CareScheduleRepository
+  const subRepo = yield* SubscriptionRepository
 
   yield* Effect.log('Running overdue reminder check...')
 
@@ -105,11 +138,45 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
 
   if (Record.isEmptyRecord(grouped)) return
 
+  // Batch-fetch subscriptions and tier configs (3 queries total)
+  const userIds = Record.keys(grouped)
+  const [subscriptions, allTiers] = yield* Effect.all([
+    subRepo.findByUserIds(userIds),
+    subRepo.getAllTiers(),
+  ])
+
+  const subByUserId = pipe(
+    subscriptions,
+    Array.groupBy((sub) => sub.userId),
+    Record.map(Array.head)
+  )
+  const tierByName = pipe(
+    allTiers,
+    Array.groupBy((t) => t.tier),
+    Record.map((tiers) => pipe(Array.head(tiers), Option.getOrUndefined))
+  )
+  const freeTierMaxPlants = tierByName.free?.maxPlants ?? 5
+
+  const resolveMaxPlants = (userId: string): number | null =>
+    pipe(
+      Record.get(subByUserId, userId),
+      Option.flatten,
+      Option.filter(hasPremiumAccess),
+      Option.match({
+        onNone: () => freeTierMaxPlants,
+        onSome: (sub) => tierByName[sub.tier]?.maxPlants ?? null,
+      })
+    )
+
   // Process each user group, handling skip errors via catchTags
   const results = yield* Effect.forEach(
     Record.toEntries(grouped),
     ([userId, plants]) =>
-      processUserOverdueReminders(userId, plants).pipe(
+      processUserOverdueReminders(
+        userId,
+        plants,
+        resolveMaxPlants(userId)
+      ).pipe(
         Effect.catchTags({
           CareRemindersDisabledError: (e) =>
             Effect.log('[overdue-scheduler] Skipped — reminders disabled', {
