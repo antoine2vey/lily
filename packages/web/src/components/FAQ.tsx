@@ -1,6 +1,5 @@
 'use client'
 
-import { Array, pipe } from 'effect'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { FadeIn } from '@/components/FadeIn'
@@ -9,13 +8,10 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   const t = useTranslations('FAQ')
 
-  const faqs = pipe(
-    [0, 1, 2, 3, 4, 5],
-    Array.map((i) => ({
-      question: t(`q${i}`),
-      answer: t(`a${i}`),
-    }))
-  )
+  const faqs = [0, 1, 2, 3, 4, 5].map((i) => ({
+    question: t(`q${i}`),
+    answer: t(`a${i}`),
+  }))
 
   return (
     <section className="py-24 bg-background">

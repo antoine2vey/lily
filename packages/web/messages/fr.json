@@ -26,25 +26,29 @@
     "freeTrial": "essai gratuit",
     "toStart": "pour commencer"
   },
+  "WhatIsLily": {
+    "heading": "Qu'est-ce que Lily ?",
+    "text": "Lily est une application de soin des plantes pour iOS et Android qui vous aide à garder chacune de vos plantes en pleine forme. Elle combine un suivi personnalisé de votre collection, une identification des plantes par photo grâce à l'IA, des rappels de soins adaptés pour l'arrosage, la fertilisation et la brumisation, et un chat IA qui diagnostique les problèmes en se basant sur l'historique de soins de votre plante. Plus de 10 000 plantes sont suivies par les utilisateurs de Lily, et l'application a une note de 4,8 étoiles sur l'App Store. Essai gratuit de 7 jours — sans carte bancaire — puis 4,99 €/mois ou 29,99 €/an avec toutes les fonctionnalités incluses."
+  },
   "Features": {
     "heading": "Tout ce dont vos plantes ont besoin",
     "subheading": "De l'identification au soin quotidien, Lily dispose de tous les outils pour faire prospérer votre espace vert.",
     "item0Catchline": "Toutes vos plantes, au même endroit",
-    "item0Description": "Organisez toute votre collection avec photos, état de santé et calendriers de soins.",
+    "item0Description": "Gérez toute votre collection avec des profils individuels — photos, infos d'espèce, état de santé et calendriers de soins personnalisés. Que vous ayez 3 ou 300 plantes, tout reste organisé.",
     "item1Catchline": "Les bons soins, au bon moment",
-    "item1Description": "Rappels personnalisés pour l'arrosage, la fertilisation, la brumisation — adaptés à chaque plante.",
+    "item1Description": "Lily envoie des notifications quand chaque plante a besoin d'arrosage, de fertilisation ou de brumisation — en fonction de son espèce, de son emplacement et de vos conditions locales.",
     "item2Catchline": "N'oubliez jamais ce que vous avez fait",
-    "item2Description": "Enregistrez chaque action de soin en quelques secondes et construisez un historique complet.",
+    "item2Description": "Enregistrez arrosage, fertilisation, rempotage, taille ou toute action de soin en quelques secondes. Chaque action est horodatée et stockée dans un historique complet.",
     "item3Catchline": "Pointez, photographiez, identifiez",
-    "item3Description": "Identifiez des milliers d'espèces instantanément avec votre appareil photo.",
+    "item3Description": "L'identification de Lily utilise l'appareil photo de votre téléphone pour reconnaître plus de 10 000 espèces instantanément. Prenez une photo et obtenez le nom, l'espèce et un profil de soins complet.",
     "item4Catchline": "Posez vos questions, obtenez des réponses d'expert",
-    "item4Description": "Discutez avec une IA qui connaît vos plantes — diagnostiquez les problèmes, obtenez des conseils.",
+    "item4Description": "Discutez avec une IA qui connaît votre plante en détail — son âge, son historique de soins, son environnement et sa santé. Obtenez un diagnostic pour les feuilles jaunes, les pointes brunes, les parasites ou tout autre problème.",
     "item5Catchline": "Développez vos compétences, pas seulement vos plantes",
-    "item5Description": "Débloquez des badges en construisant votre routine de soins et en atteignant de nouveaux objectifs.",
+    "item5Description": "Gagnez des badges et débloquez des objectifs en construisant des habitudes de soins régulières. Suivez vos séries, célébrez la croissance de votre collection et progressez en tant que parent de plantes.",
     "item6Catchline": "Partagez votre jardin avec le monde",
-    "item6Description": "Suivez d'autres amoureux des plantes et montrez votre collection à la communauté.",
+    "item6Description": "Créez un profil public, suivez d'autres passionnés de plantes et montrez votre collection à la communauté. Découvrez ce que les autres cultivent et inspirez-vous de leurs installations.",
     "item7Catchline": "Votre maison, parfaitement organisée",
-    "item7Description": "Regroupez les plantes par pièce pour suivre l'impact de chaque environnement sur leur croissance."
+    "item7Description": "Regroupez les plantes par pièce — salon, chambre, balcon — pour voir l'impact de chaque environnement sur la croissance. Suivez les conditions lumineuses et ajustez les soins par emplacement."
   },
   "Testimonials": {
     "heading": "Adoré par les amoureux des plantes",

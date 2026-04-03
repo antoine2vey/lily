@@ -26,25 +26,29 @@
     "freeTrial": "free trial",
     "toStart": "to start"
   },
+  "WhatIsLily": {
+    "heading": "What is Lily?",
+    "text": "Lily is a plant care app for iOS and Android that helps you keep every plant alive and thriving. It combines a personal plant collection tracker, AI-powered plant identification from photos, personalised care reminders for watering, fertilising, and misting, and an AI chat that diagnoses problems using your plant's specific care history. Over 10,000 plants are tracked by Lily users, and the app holds a 4.8-star rating on the App Store. It's free to try for 7 days — no credit card required — then $4.99/month or $29.99/year with all features included."
+  },
   "Features": {
     "heading": "Everything your plants need",
     "subheading": "From identification to daily care, Lily has every tool to keep your green space thriving.",
     "item0Catchline": "All your green friends, in one place",
-    "item0Description": "Organize your entire collection with photos, health status, and care schedules.",
+    "item0Description": "Manage your full plant collection with individual profiles — photos, species info, health status, and personalised care schedules for each plant. Whether you have 3 plants or 300, everything stays organised.",
     "item1Catchline": "The right care, at the right time",
-    "item1Description": "Personalized reminders for watering, fertilizing, misting — tailored to each plant.",
+    "item1Description": "Lily sends push notifications when each plant needs watering, fertilising, or misting — based on its species, location, and your local conditions. No more guessing or forgetting.",
     "item2Catchline": "Never forget what you did",
-    "item2Description": "Log any care action in seconds and build a full history for every plant.",
+    "item2Description": "Log watering, fertilising, repotting, pruning, or any custom care action in seconds. Every action is timestamped and stored, building a complete care history you can review anytime.",
     "item3Catchline": "Point, shoot, know",
-    "item3Description": "Identify thousands of species instantly with your camera.",
+    "item3Description": "Lily's plant identification uses your phone camera to recognise over 10,000 plant species instantly. Take a photo and get the species name, common name, and a complete care profile.",
     "item4Catchline": "Ask anything, get expert answers",
-    "item4Description": "Chat with an AI that knows your specific plants — diagnose issues, get advice.",
+    "item4Description": "Chat with an AI that has full context on your specific plant — its age, care history, environment, and health. Get diagnosis for yellowing leaves, brown tips, pests, or any issue with personalised advice.",
     "item5Catchline": "Grow your skills, not just your plants",
-    "item5Description": "Unlock badges as you build your care routine and hit new milestones.",
+    "item5Description": "Earn badges and unlock milestones as you build consistent care habits. Track your streaks, celebrate your plant collection growing, and level up as a plant parent.",
     "item6Catchline": "Share your garden with the world",
-    "item6Description": "Follow other plant lovers and showcase your collection to the community.",
+    "item6Description": "Create a public plant profile, follow other plant lovers, and showcase your collection to the community. See what others are growing and get inspired by their setups.",
     "item7Catchline": "Your home, perfectly organized",
-    "item7Description": "Group plants by room to track how each environment affects their growth."
+    "item7Description": "Group plants by room — living room, bedroom, balcony — to see how each environment affects growth. Track light conditions and adjust care schedules per location."
   },
   "Testimonials": {
     "heading": "Loved by plant people",
