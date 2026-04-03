@@ -29,6 +29,18 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: 'CCBot',
         disallow: '/',
       },
+      {
+        userAgent: 'anthropic-ai',
+        disallow: '/',
+      },
+      {
+        userAgent: 'cohere-ai',
+        disallow: '/',
+      },
+      {
+        userAgent: 'Google-Extended',
+        disallow: '/',
+      },
     ],
     sitemap: 'https://withlily.app/sitemap.xml',
   }

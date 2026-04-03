@@ -63,7 +63,10 @@ export async function Hero() {
           <div className="flex justify-center">
             <div
               className="w-64 rounded-[3rem] shadow-neu-lg overflow-hidden"
-              style={{ animation: 'fade-in-up 0.8s 0.3s ease-out both' }}
+              style={{
+                animation: 'fade-in-up 0.8s 0.3s ease-out forwards',
+                opacity: 1,
+              }}
             >
               <Image
                 src="/screenshots/home-screen.webp"
