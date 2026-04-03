@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { JsonLd } from '@/components/JsonLd'
 
 interface Props {
   params: Promise<{ locale: string }>
@@ -51,8 +52,28 @@ export default async function TermsPage({ params }: Props) {
   setRequestLocale(locale)
   const t = await getTranslations({ locale, namespace: 'Terms' })
 
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Lily',
+        item: `https://withlily.app/${locale}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: t('heading'),
+        item: `https://withlily.app/${locale}/terms`,
+      },
+    ],
+  }
+
   return (
     <main className="min-h-screen bg-background py-16 px-6">
+      <JsonLd data={breadcrumbSchema} />
       <div className="max-w-3xl mx-auto">
         <Link
           href={`/${locale}`}

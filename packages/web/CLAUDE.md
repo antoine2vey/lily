@@ -9,11 +9,11 @@ Marketing/landing site for the Lily plant care app. **Next.js 16 static export**
 ## Architecture
 
 - **Framework**: Next.js 16 App Router, static export (`output: 'export'`)
-- **Rendering**: All pages are Server Components by default — add `'use client'` only when strictly needed (event handlers, browser APIs, Framer Motion animations)
+- **Rendering**: All pages are Server Components by default — add `'use client'` only when strictly needed (event handlers, browser APIs, scroll-triggered animations)
 - **Code splitting**: Use `dynamic()` from `next/dynamic` for heavy client components on the home page to reduce initial JS bundle
 - **i18n**: `next-intl` with locale prefix in URL (`/en/...`, `/fr/...`). Supported locales: `en`, `fr`
 - **Styling**: Tailwind CSS v4 with neumorphic design system (CSS variables in `globals.css`)
-- **Animations**: Framer Motion — client components only
+- **Animations**: CSS transitions + IntersectionObserver via `<FadeIn>` component — client components only
 - **Blog content**: MDX files in `content/posts/[locale]/` parsed at build time
 
 ---
@@ -84,10 +84,10 @@ Schema field requirements:
 
 `src/app/sitemap.ts` is auto-generated. When adding new static pages:
 1. Add the path to `staticPages` array in `sitemap.ts`
-2. Set appropriate `changeFrequency` (`weekly` for landing/blog, `yearly` for legal)
-3. Set `priority` (1.0 = home, 0.8 = blog index, 0.7 = blog posts, 0.3 = legal)
 
 Blog posts are included automatically via `getAllPosts()`.
+
+> **Note:** `changeFrequency` and `priority` are omitted — Google ignores both fields. Static pages omit `lastModified` since they don't have meaningful modification dates. Blog posts use their frontmatter `date` for `lastModified`.
 
 ### Blog Post Frontmatter (MANDATORY fields)
 
@@ -126,7 +126,7 @@ coverImage: '/images/cover.jpg'  # Optional, used in OG image + article schema
 | Type | When to use | Examples |
 |------|-------------|---------|
 | Server Component (default) | Data fetching, static rendering, i18n, blog content | `LatestPosts`, `Features`, `Footer`, `BlogPostCard` |
-| `'use client'` | Event handlers, `useState`/`useEffect`, Framer Motion, scroll listeners | `Header`, `Hero`, `FAQ`, `FeatureSection` |
+| `'use client'` | Event handlers, `useState`/`useEffect`, IntersectionObserver, scroll listeners | `Header`, `Hero`, `FAQ`, `FeatureSection` |
 
 **Rule**: Keep `'use client'` boundary as deep as possible. A server component can import a client component, but not vice versa for server-only code.
 

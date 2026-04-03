@@ -6,6 +6,7 @@
     "ogDescription": "Smart reminders, AI diagnosis, and care schedules personalized to every plant in your home."
   },
   "Header": {
+    "about": "About",
     "blog": "Blog",
     "getApp": "Get the app",
     "langSwitch": "FR"
@@ -133,6 +134,22 @@
     "ctaButton": "Download Lily Free →",
     "backLink": "← More plant care guides",
     "metaTitleSuffix": "— Lily Blog"
+  },
+  "About": {
+    "back": "\u2190 Back to Lily",
+    "heading": "About Lily",
+    "metaDescription": "Meet the small, passionate team behind Lily. We built the plant care app we wished existed \u2014 so you never lose a plant again.",
+    "introHeading": "About Lily",
+    "introText": "Lily is a plant care app built by plant lovers, for plant lovers. We help you track every plant in your home with smart reminders, AI-powered diagnosis, and personalised care schedules \u2014 so no plant gets forgotten.",
+    "storyHeading": "Our Story",
+    "storyText1": "Lily was born from a simple frustration: too many plants dying from forgotten care. We had tried every trick \u2014 sticky notes on the fridge, phone alarms, even spreadsheets \u2014 and still watched perfectly healthy plants wilt because life got in the way.",
+    "storyText2": "So we built the app we wished existed. A small, passionate team of plant lovers who believe technology should make caring for living things easier, not harder. Lily started as a side project in a tiny apartment full of overwatered ferns and underwatered succulents. It grew from there.",
+    "missionHeading": "Our Mission",
+    "missionText1": "We believe every plant deserves attentive care, and every plant parent deserves a little help. Plants improve our spaces, clean our air, and calm our minds \u2014 but only if they survive long enough.",
+    "missionText2": "Our mission is simple: make plant care effortless. Whether you have one cactus on a windowsill or a jungle filling every room, Lily adapts to your collection and keeps you on track. No guilt, no guesswork, just healthier plants.",
+    "ctaHeading": "Ready to keep your plants thriving?",
+    "ctaText": "Download Lily and start your free 7-day trial. No credit card required.",
+    "ctaButton": "Download Lily Free \u2192"
   },
   "Privacy": {
     "back": "← Back to Lily",

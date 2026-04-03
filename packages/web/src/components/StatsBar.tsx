@@ -1,7 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { useTranslations } from 'next-intl'
+import { FadeIn } from '@/components/FadeIn'
 
 export function StatsBar() {
   const t = useTranslations('StatsBar')
@@ -16,35 +16,22 @@ export function StatsBar() {
   return (
     <section className="py-12 bg-background">
       <div className="max-w-5xl mx-auto px-6">
-        <motion.div
-          className="shadow-neu-inset rounded-2xl px-8 py-8"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          viewport={{ once: true }}
-        >
+        <FadeIn className="shadow-neu-inset rounded-2xl px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <motion.div
+              <FadeIn
                 key={stat.label}
                 className="text-center"
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.5,
-                  ease: 'easeOut',
-                  delay: index * 0.1,
-                }}
-                viewport={{ once: true }}
+                delay={index * 100}
               >
                 <div className="text-3xl font-bold text-primary mb-1">
                   {stat.value}
                 </div>
                 <div className="text-sm text-muted">{stat.label}</div>
-              </motion.div>
+              </FadeIn>
             ))}
           </div>
-        </motion.div>
+        </FadeIn>
       </div>
     </section>
   )
