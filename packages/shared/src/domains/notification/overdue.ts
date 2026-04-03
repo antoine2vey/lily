@@ -16,6 +16,7 @@ export type OverduePlant = {
   name: string
   userId: string
   overdueAt: Date
+  dateAdded: Date
 }
 
 /**

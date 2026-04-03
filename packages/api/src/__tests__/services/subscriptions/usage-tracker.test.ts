@@ -38,6 +38,7 @@ describe('UsageTracker', () => {
 
     const repo: ISubscriptionRepository = {
       findByUserId: () => Effect.succeed(null),
+      findByUserIds: () => Effect.succeed([]),
       findByExternalId: () => Effect.succeed(null),
       create: () => Effect.succeed(null),
       updateStatus: () => Effect.succeed(null),

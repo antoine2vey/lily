@@ -24,6 +24,7 @@ export type SimpleNotificationType =
   | 'photo_reminder'
   | 'plant_parent_milestone'
   | 'gift_subscription'
+  | 'resubscribe_nudge'
 
 export type SimpleNotificationParams = {
   readonly senderName?: string
@@ -154,6 +155,16 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
         return `You've been gifted premium access for ${duration}. Enjoy!`
       },
     },
+    resubscribe_nudge: {
+      title: () => '🌱 Some of your plants need care reminders',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return `${count} plants aren't receiving care alerts. Upgrade to Premium to cover your entire garden!`
+      },
+    },
   },
   fr: {
     new_follower: {
@@ -268,6 +279,16 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           () => 'une période spéciale'
         )
         return `On vous a offert un accès premium pour ${duration}. Profitez-en !`
+      },
+    },
+    resubscribe_nudge: {
+      title: () => '🌱 Certaines plantes manquent de rappels de soins',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return `${count} plantes ne reçoivent pas de rappels. Passez à Premium pour couvrir tout votre jardin !`
       },
     },
   },

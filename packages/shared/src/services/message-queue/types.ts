@@ -21,6 +21,7 @@ export const NOTIFICATION_TOPICS = [
   'photo_reminder',
   'plant_parent_milestone',
   'gift_subscription',
+  'resubscribe_nudge',
 ] as const
 
 export const NotificationTopic = Schema.Union(
@@ -53,6 +54,7 @@ export const TOPIC_CATEGORY = {
   photo_reminder: 'engagement',
   plant_parent_milestone: 'engagement',
   gift_subscription: 'social',
+  resubscribe_nudge: 'engagement',
 } as const satisfies Record<NotificationTopic, TopicCategory>
 
 // Derive subset types from the category map — adding a topic to

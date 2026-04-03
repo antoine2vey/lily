@@ -159,6 +159,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               userId: plants.userId,
               careType: plantCareSchedules.careType,
               nextCareAt: plantCareSchedules.nextCareAt,
+              dateAdded: plants.dateAdded,
             })
             .from(plantCareSchedules)
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
@@ -182,6 +183,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
                 id: first.plantId,
                 name: first.plantName,
                 userId: first.userId,
+                dateAdded: first.dateAdded,
                 overdueAt: earliestOverdueDate(
                   Array.map(schedules, (s) => s.nextCareAt),
                   now

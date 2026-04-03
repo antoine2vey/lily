@@ -204,6 +204,7 @@ const validateTopic = Match.type<NotificationTopic>().pipe(
   Match.when('photo_reminder', () => true),
   Match.when('plant_parent_milestone', () => true),
   Match.when('gift_subscription', () => true),
+  Match.when('resubscribe_nudge', () => true),
   Match.exhaustive
 )
 

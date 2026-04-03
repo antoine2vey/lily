@@ -54,6 +54,13 @@ export interface ISubscriptionRepository {
     userId: string
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
 
+  readonly findByUserIds: (
+    userIds: readonly string[]
+  ) => Effect.Effect<
+    ReadonlyArray<typeof userSubscriptions.$inferSelect>,
+    SqlError
+  >
+
   readonly findByExternalId: (
     externalSubscriptionId: string
   ) => Effect.Effect<typeof userSubscriptions.$inferSelect | null, SqlError>
@@ -156,6 +163,16 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .where(eq(userSubscriptions.userId, userId))
         return Option.getOrNull(Option.fromNullable(subscription))
       }),
+
+      findByUserIds: Effect.fn('SubscriptionRepository.findByUserIds')(
+        function* (userIds: readonly string[]) {
+          if (Array.isEmptyReadonlyArray(userIds)) return []
+          return yield* db
+            .select()
+            .from(userSubscriptions)
+            .where(inArray(userSubscriptions.userId, [...userIds]))
+        }
+      ),
 
       findByExternalId: Effect.fn('SubscriptionRepository.findByExternalId')(
         function* (externalSubscriptionId: string) {

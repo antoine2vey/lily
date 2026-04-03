@@ -111,12 +111,15 @@ export const resolveNotificationRoute = (
     Match.value(topic),
 
     // Care reminders — single plant → plant screen, multiple → care tab
-    Match.when('watering_reminder', () => plantRoute(data)),
-    Match.when('fertilization_reminder', () => plantRoute(data)),
-    Match.when('misting_reminder', () => plantRoute(data)),
-    Match.when('repotting_reminder', () => plantRoute(data)),
-    Match.when('overdue_reminder', () => plantRoute(data)),
-    Match.when('photo_reminder', () => plantRoute(data)),
+    Match.whenOr(
+      'watering_reminder',
+      'fertilization_reminder',
+      'misting_reminder',
+      'repotting_reminder',
+      'overdue_reminder',
+      'photo_reminder',
+      () => plantRoute(data)
+    ),
 
     // Social — new follower → profile of the person who followed
     Match.when('new_follower', () => {
@@ -152,6 +155,12 @@ export const resolveNotificationRoute = (
 
     // Gift — navigate to plants tab
     Match.when('gift_subscription', () => '/(app)/(tabs)/plants' as Href),
+
+    // Resubscribe nudge — navigate to upgrade screen
+    Match.when(
+      'resubscribe_nudge',
+      () => '/(app)/subscription/upgrade' as Href
+    ),
 
     // Unknown topic — no navigation
     Match.orElse(() => null)
