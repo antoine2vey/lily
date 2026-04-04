@@ -275,7 +275,10 @@ export const AchievementRepositoryLive = Layer.effect(
             SELECT DISTINCT p.user_id, DATE(cl.date) AS care_date
             FROM care_logs cl
             INNER JOIN plants p ON cl.plant_id = p.id
-            WHERE p.user_id = ANY(${userIds})
+            WHERE p.user_id IN (${sql.join(
+              userIds.map((id) => sql`${id}`),
+              sql`, `
+            )})
               AND cl.date >= CURRENT_DATE - INTERVAL '400 days'
           ),
           streak AS (
