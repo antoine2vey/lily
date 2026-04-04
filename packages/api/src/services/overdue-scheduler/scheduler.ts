@@ -71,7 +71,8 @@ export const processUserOverdueReminders = (
     const eligible = maxPlants === null ? sorted : Array.take(sorted, maxPlants)
     const overflowCount = Array.length(sorted) - Array.length(eligible)
 
-    // Pick a random scheduledAt within the allowed windows
+    // Pick the earliest available window (morning-first) for overdue reminders
+    // so users are notified first thing in the morning, not randomly in the evening
     const randomValue = yield* Random.next
     const scheduledAt = yield* pickNotificationTime(
       userId,
@@ -79,7 +80,7 @@ export const processUserOverdueReminders = (
       settings.doNotDisturb,
       settings.doNotDisturbStart,
       settings.doNotDisturbEnd,
-      randomValue
+      randomValue * 0.5 // clamp to [0, 0.5) to always prefer morning window
     )
 
     // Create one notification per eligible plant, all sharing the same scheduledAt
