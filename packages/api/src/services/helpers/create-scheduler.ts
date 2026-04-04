@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Cause, Effect } from 'effect'
 import type { DurationInput } from 'effect/Duration'
 
 /**
@@ -34,8 +34,10 @@ export const createScheduler = <E, R>(config: {
   task: Effect.Effect<void, E, R>
 }): Effect.Effect<void, never, R> => {
   const safeTask = config.task.pipe(
-    Effect.catchAllCause(() =>
-      Effect.logError(`[${config.name}] Unhandled error in poll cycle`)
+    Effect.catchAllCause((cause) =>
+      Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
+        cause: Cause.pretty(cause),
+      })
     ),
     Effect.withSpan(`${config.name}.poll`)
   )
