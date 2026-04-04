@@ -593,7 +593,15 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   }
 
   yield* processTrialEnding()
-}).pipe(Effect.withSpan('engagement-scheduler.check'))
+}).pipe(
+  Effect.catchTags({
+    SqlError: (error) =>
+      Effect.logError(
+        `[engagement-scheduler] Database error: ${error.message}`
+      ),
+  }),
+  Effect.withSpan('engagement-scheduler.check')
+)
 
 export const startEngagementScheduler = createScheduler({
   name: 'engagement-scheduler',
