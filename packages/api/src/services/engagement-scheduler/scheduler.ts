@@ -597,7 +597,8 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
   Effect.catchTags({
     SqlError: (error) =>
       Effect.logError(
-        `[engagement-scheduler] Database error: ${error.message}`
+        `[engagement-scheduler] Database error: ${error.message}`,
+        { cause: String(error.cause) }
       ),
   }),
   Effect.withSpan('engagement-scheduler.check')
