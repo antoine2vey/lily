@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react-native'
 import type React from 'react'
 import { Text } from 'react-native'
 
+// Flush requestAnimationFrame synchronously so the useEffect in BottomSheet
+// doesn't leak into a torn-down Jest environment (causes CI exit code 1).
+jest.useFakeTimers()
+
 // Mock the reacticx BottomSheet to avoid reanimated/gesture-handler dependencies
 jest.mock('src/components/ui/templates/bottom-sheet', () => {
   const ReactMock = require('react')
@@ -37,6 +41,11 @@ describe('BottomSheet', () => {
     onClose: jest.fn(),
     children: <Text>Sheet Content</Text>,
   }
+
+  afterEach(() => {
+    // Flush any pending requestAnimationFrame / timers before teardown
+    jest.runAllTimers()
+  })
 
   beforeEach(() => {
     jest.clearAllMocks()
