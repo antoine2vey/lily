@@ -52,6 +52,7 @@ import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AiService } from '@lily/api/services/ai/service'
 import { MagicLinkConfigLive } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
+import { ConsoleEmailServiceLive } from '@lily/api/services/email/console.provider'
 import { ResendEmailServiceLive } from '@lily/api/services/email/resend.provider'
 import { ServiceAuthenticationLive } from '@lily/api/services/internal/middleware.impl'
 import { JWTServiceLive } from '@lily/api/services/jwt/service'
@@ -59,6 +60,7 @@ import {
   RedisClientLive,
   RedisMessageQueueLive,
 } from '@lily/api/services/message-queue/redis.provider'
+import { ConsolePushServiceLive } from '@lily/api/services/push/console.provider'
 import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
 import { RagService } from '@lily/api/services/rag/service'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
@@ -70,7 +72,7 @@ import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Layer } from 'effect'
+import { Config, Effect, Layer } from 'effect'
 
 // ============================================================================
 // Re-exports for direct access
@@ -147,6 +149,26 @@ export const AllRepositoriesLive = Layer.mergeAll(
 // Self-contained layers (only depend on Config, not on app repos/infra)
 // FileService.Default depends on FileSystem from BunContext.layer, so we
 // provide BunContext first via Layer.provideMerge to satisfy that dependency.
+//
+// In development, external services (push notifications, email) are replaced
+// with console-logging implementations to avoid hitting real APIs.
+const NodeEnvConfig = Config.string('NODE_ENV').pipe(
+  Config.withDefault('development')
+)
+
+const ExternalServicesLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const nodeEnv = yield* NodeEnvConfig
+    if (nodeEnv === 'production') {
+      return Layer.mergeAll(ExpoPushServiceLive, ResendEmailServiceLive)
+    }
+    yield* Effect.log(
+      '[DEV] Using console providers for push notifications and email'
+    )
+    return Layer.mergeAll(ConsolePushServiceLive, ConsoleEmailServiceLive)
+  })
+)
+
 const SelfContainedInfraLive = Layer.mergeAll(
   AuthenticationLive,
   AdminAuthLive,
@@ -157,10 +179,9 @@ const SelfContainedInfraLive = Layer.mergeAll(
   FileService.Default,
   RevenueCatProviderLive,
   WeatherProviderLive,
-  ExpoPushServiceLive,
+  ExternalServicesLive,
   JWTServiceLive,
   RateLimiterServiceLive,
-  ResendEmailServiceLive,
   MagicLinkConfigLive
 ).pipe(Layer.provideMerge(BunContext.layer))
 
