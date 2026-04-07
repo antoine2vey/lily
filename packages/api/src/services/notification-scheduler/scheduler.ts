@@ -1,7 +1,7 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   buildGroupedPlantAnniversaryContent,
   buildNotificationContent,
@@ -37,7 +37,8 @@ export const mapNotificationTypeToTopic = (
     ? Option.some(type as NotificationTopic)
     : Option.none()
 
-// Poll database and enqueue pending notifications
+// Poll database and enqueue pending notifications.
+// Returns true when a full batch was found (more rows likely waiting).
 export const pollAndEnqueue = Effect.gen(function* () {
   const notificationRepo = yield* NotificationRepository
   const plantRepo = yield* PlantRepository
@@ -47,7 +48,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   const pendingNotifications =
     yield* notificationRepo.findPendingToSchedule(BATCH_SIZE)
 
-  if (pendingNotifications.length === 0) return
+  if (pendingNotifications.length === 0) return false
 
   yield* Effect.log('Found pending notifications', {
     count: pendingNotifications.length,
@@ -133,7 +134,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
     validNotifications.push({ notification, topic })
   }
 
-  if (validNotifications.length === 0) return
+  if (validNotifications.length === 0) return false
 
   // Phase 2: Group by (userId, type)
   const grouped = Array.groupBy(
@@ -155,25 +156,27 @@ export const pollAndEnqueue = Effect.gen(function* () {
     Array.map(plants, (p) => [p.id, p.name] as const)
   )
 
-  // Phase 4: Enqueue one message per group
-  yield* Effect.forEach(Record.toEntries(grouped), ([_key, group]) =>
-    Effect.gen(function* () {
-      const first = Array.head(group)
-      if (Option.isNone(first)) return
+  // Phase 4: Enqueue one message per group (concurrently)
+  yield* Effect.forEach(
+    Record.toEntries(grouped),
+    ([_key, group]) =>
+      Effect.gen(function* () {
+        const first = Array.head(group)
+        if (Option.isNone(first)) return
 
-      const notificationIds = Array.map(group, (n) => n.notification.id)
-      const { topic } = first.value
-      const userId = first.value.notification.userId
+        const notificationIds = Array.map(group, (n) => n.notification.id)
+        const { topic } = first.value
+        const userId = first.value.notification.userId
 
-      const plantIds = Array.filterMap(group, (n) =>
-        Option.fromNullable(n.notification.plantId)
-      )
+        const plantIds = Array.filterMap(group, (n) =>
+          Option.fromNullable(n.notification.plantId)
+        )
 
-      const user = userSettingsMap.get(userId)
-      const language = Option.getOrElse(
-        Option.fromNullable(user?.language),
-        () => 'en' as const
-      )
+        const user = userSettingsMap.get(userId)
+        const language = Option.getOrElse(
+          Option.fromNullable(user?.language),
+          () => 'en' as const
+        )
 
       // Resolve per-group plant names once for content builders that need them.
       const groupPlantNames = Array.filterMap(plantIds, (id) =>
@@ -206,58 +209,65 @@ export const pollAndEnqueue = Effect.gen(function* () {
         ? buildNotificationContent(topic, groupPlantNames, language)
         : resolveNonCareContent()
 
-      yield* queue.enqueue(topic, {
-        id: crypto.randomUUID(),
-        topic,
-        payload: {
-          userId,
-          title,
-          body,
-          notificationIds,
-          plantIds,
-        },
-        retryCount: 0,
-        createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
-        scheduledAt: first.value.notification.scheduledAt,
-      })
-
-      yield* Effect.if(isCareReminderType(topic), {
-        onTrue: () =>
-          notificationRepo.markManyAsQueuedWithContent(
-            notificationIds,
+        yield* queue.enqueue(topic, {
+          id: crypto.randomUUID(),
+          topic,
+          payload: {
+            userId,
             title,
-            body
-          ),
-        onFalse: () => notificationRepo.markManyAsQueued(notificationIds),
-      })
+            body,
+            notificationIds,
+            plantIds,
+          },
+          retryCount: 0,
+          createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
+          scheduledAt: first.value.notification.scheduledAt,
+        })
 
-      yield* Effect.log('[notification-scheduler] Enqueued group', {
-        notificationIds,
-        topic,
-        count: group.length,
-      })
-    }).pipe(
-      Effect.catchTags({
-        SqlError: (e) =>
-          Effect.logWarning(
-            '[notification-scheduler] Failed to enqueue group',
-            { error: String(e) }
-          ),
-        QueueOperationError: (e) =>
-          Effect.logWarning('[notification-scheduler] Queue operation failed', {
-            error: String(e),
-          }),
-        QueueConnectionError: (e) =>
-          Effect.logWarning(
-            '[notification-scheduler] Queue connection failed',
-            { error: String(e) }
-          ),
-      })
-    )
+        yield* Effect.if(isCareReminderType(topic), {
+          onTrue: () =>
+            notificationRepo.markManyAsQueuedWithContent(
+              notificationIds,
+              title,
+              body
+            ),
+          onFalse: () => notificationRepo.markManyAsQueued(notificationIds),
+        })
+
+        yield* Effect.log('[notification-scheduler] Enqueued group', {
+          notificationIds,
+          topic,
+          count: group.length,
+        })
+      }).pipe(
+        Effect.catchTags({
+          SqlError: (e) =>
+            Effect.logWarning(
+              '[notification-scheduler] Failed to enqueue group',
+              { error: String(e) }
+            ),
+          QueueOperationError: (e) =>
+            Effect.logWarning(
+              '[notification-scheduler] Queue operation failed',
+              {
+                error: String(e),
+              }
+            ),
+          QueueConnectionError: (e) =>
+            Effect.logWarning(
+              '[notification-scheduler] Queue connection failed',
+              { error: String(e) }
+            ),
+        })
+      ),
+    { concurrency: 10 }
   )
+
+  // Signal whether there are likely more rows waiting
+  return pendingNotifications.length >= BATCH_SIZE
 }).pipe(Effect.withSpan('notification-scheduler.poll'))
 
-export const startNotificationScheduler = createScheduler({
+export const startNotificationScheduler = createDrainableScheduler({
   name: 'notification-scheduler',
   interval: '1 minute',
   runOnStartup: false,

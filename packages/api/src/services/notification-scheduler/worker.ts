@@ -1,3 +1,4 @@
+import type { SqlError } from '@effect/sql/SqlError'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -132,16 +133,19 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
   }
 )
 
-// Consume and process messages from a single topic
+// Consume and process messages from a single topic.
+// Returns true when a message was processed (caller should re-poll immediately).
 export const consumeFromTopic = Effect.fn('notification-worker.consume')(
   function* (topic: NotificationTopic) {
     yield* Effect.annotateCurrentSpan('topic', topic)
     const queue = yield* MessageQueue
     const notificationRepo = yield* NotificationRepository
 
-    const message = yield* queue.dequeue(topic)
+    const result = yield* queue.dequeue(topic)
 
-    if (!message) return
+    if (!result) return false
+
+    const { message, rawData } = result
 
     yield* Effect.log('Processing notification', {
       messageId: message.id,
@@ -152,8 +156,8 @@ export const consumeFromTopic = Effect.fn('notification-worker.consume')(
     yield* Effect.either(
       processMessage(message).pipe(Effect.retry(workerRetryPolicy))
     ).pipe(
-      Effect.flatMap((result) =>
-        Either.match(result, {
+      Effect.flatMap((processResult) =>
+        Either.match(processResult, {
           onLeft: (error) =>
             Effect.gen(function* () {
               if (message.retryCount >= MAX_RETRIES - 1) {
@@ -179,7 +183,9 @@ export const consumeFromTopic = Effect.fn('notification-worker.consume')(
       )
     )
 
-    yield* queue.ack(topic, message.id)
+    yield* queue.ack(topic, rawData)
+
+    return true
   }
 )
 
@@ -238,24 +244,26 @@ export const startNotificationWorker = Effect.gen(function* () {
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({
-            SqlError: (e) =>
+            SqlError: (e: SqlError) =>
               Effect.logError('[notification-worker] SQL error', {
                 topic,
                 error: String(e),
-              }),
+              }).pipe(Effect.as(false)),
             QueueOperationError: (e) =>
               Effect.logError('[notification-worker] Queue operation error', {
                 topic,
                 error: String(e),
-              }),
+              }).pipe(Effect.as(false)),
             QueueConnectionError: (e) =>
               Effect.logError('[notification-worker] Queue connection error', {
                 topic,
                 error: String(e),
-              }),
+              }).pipe(Effect.as(false)),
           }),
-          // Delay between polls when queue is empty
-          Effect.zipRight(Effect.sleep('30 seconds'))
+          // Only sleep when the queue was empty — drain fast under load
+          Effect.flatMap((hadMessage) =>
+            hadMessage ? Effect.void : Effect.sleep('5 seconds')
+          )
         )
       )
     )

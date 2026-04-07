@@ -488,12 +488,15 @@ describe('Notification Worker', () => {
           Effect.provide(
             Layer.mergeAll(
               createMockMessageQueue({
-                onDequeue: () =>
-                  pipe(
+                onDequeue: () => {
+                  const msg = pipe(
                     Option.fromNullable(queueMessages.shift()),
                     Option.getOrNull
-                  ),
-                onAck: (_, messageId) => ackedMessages.push(messageId),
+                  )
+                  if (!msg) return null
+                  return { message: msg, rawData: JSON.stringify(msg) }
+                },
+                onAck: (_, rawData) => ackedMessages.push(rawData),
               }),
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
@@ -508,7 +511,8 @@ describe('Notification Worker', () => {
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
-      expect(ackedMessages).toContain('msg-to-process')
+      expect(ackedMessages).toHaveLength(1)
+      expect(ackedMessages[0]).toContain('msg-to-process')
     })
 
     it('should do nothing when queue is empty', async () => {

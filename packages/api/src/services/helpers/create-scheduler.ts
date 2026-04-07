@@ -59,3 +59,50 @@ export const createScheduler = <E, R>(config: {
     })
   })
 }
+
+/**
+ * Like `createScheduler`, but the task returns a boolean indicating whether
+ * there is likely more work to do.  When `true`, the next poll runs after a
+ * short cooldown (1 s) instead of the full interval — draining backlogs as
+ * fast as possible while still yielding to the event loop.
+ */
+export const createDrainableScheduler = <E, R>(config: {
+  name: string
+  interval: DurationInput
+  runOnStartup: boolean
+  task: Effect.Effect<boolean, E, R>
+}): Effect.Effect<void, never, R> => {
+  const safeTask = config.task.pipe(
+    Effect.catchAllCause((cause) => {
+      const pretty = Cause.pretty(cause)
+      return Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
+        cause: pretty,
+      }).pipe(Effect.as(false))
+    }),
+    Effect.withSpan(`${config.name}.poll`)
+  )
+
+  const drainCooldown = '1 second'
+  const fullInterval = config.interval
+
+  const loop = safeTask.pipe(
+    Effect.flatMap((hasMore) =>
+      Effect.sleep(hasMore ? drainCooldown : fullInterval)
+    ),
+    Effect.forever
+  )
+
+  return Effect.gen(function* () {
+    if (config.runOnStartup) {
+      yield* Effect.fork(safeTask)
+    }
+
+    yield* Effect.fork(loop)
+
+    yield* Effect.log(`[${config.name}] Drainable scheduler started`, {
+      interval: String(config.interval),
+      drainCooldown,
+      runOnStartup: config.runOnStartup,
+    })
+  })
+}
