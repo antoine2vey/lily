@@ -8,9 +8,11 @@ import { Effect, Layer, Option, pipe } from 'effect'
 
 export interface MockMessageQueueOptions {
   onEnqueue?: (topic: NotificationTopic, message: QueueMessage) => void
-  onDequeue?: (topic: NotificationTopic) => QueueMessage | null
-  onAck?: (topic: NotificationTopic, messageId: string) => void
-  onNack?: (topic: NotificationTopic, messageId: string) => void
+  onDequeue?: (
+    topic: NotificationTopic
+  ) => { message: QueueMessage; rawData: string } | null
+  onAck?: (topic: NotificationTopic, rawData: string) => void
+  onNack?: (topic: NotificationTopic, rawData: string) => void
 }
 
 export const createMockMessageQueue = (
@@ -42,17 +44,19 @@ export const createMockMessageQueue = (
           return options.onDequeue(topic)
         }
         const queue = getQueue(topic)
-        return pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        const msg = pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        if (!msg) return null
+        return { message: msg, rawData: JSON.stringify(msg) }
       }),
 
-    ack: (topic, messageId) =>
+    ack: (topic, rawData) =>
       Effect.sync(() => {
-        options.onAck?.(topic, messageId)
+        options.onAck?.(topic, rawData)
       }),
 
-    nack: (topic, messageId) =>
+    nack: (topic, rawData) =>
       Effect.sync(() => {
-        options.onNack?.(topic, messageId)
+        options.onNack?.(topic, rawData)
       }),
   }
 
@@ -82,12 +86,14 @@ export const createMockMessageQueueWithMessages = (
       Effect.sync(() => {
         const queue = queues.get(topic)
         if (!queue || queue.length === 0) return null
-        return pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        const msg = pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        if (!msg) return null
+        return { message: msg, rawData: JSON.stringify(msg) }
       }),
 
-    ack: (_topic, _messageId) => Effect.void,
+    ack: (_topic, _rawData) => Effect.void,
 
-    nack: (_topic, _messageId) => Effect.void,
+    nack: (_topic, _rawData) => Effect.void,
   }
 
   return Layer.succeed(MessageQueue, service)

@@ -6,7 +6,7 @@ import {
   type QueueMessage,
   QueueOperationError,
 } from '@lily/shared/server'
-import { Array, Config, Context, Effect, Layer, Option } from 'effect'
+import { Config, Context, Effect, Layer } from 'effect'
 import Redis from 'ioredis'
 
 // Redis client service tag
@@ -50,12 +50,15 @@ export const RedisMessageQueueLive = Layer.effect(
         Effect.tryPromise({
           try: async () => {
             // Move from main queue to processing queue (reliable queue pattern)
-            const data = await redis.rpoplpush(
+            const rawData = await redis.rpoplpush(
               getQueueKey(topic),
               getProcessingKey(topic)
             )
-            if (!data) return null
-            return JSON.parse(data) as QueueMessage
+            if (!rawData) return null
+            return {
+              message: JSON.parse(rawData) as QueueMessage,
+              rawData,
+            }
           },
           catch: (error) =>
             new QueueOperationError({
@@ -68,57 +71,36 @@ export const RedisMessageQueueLive = Layer.effect(
           })
         ),
 
-      ack: (topic, messageId) =>
+      ack: (topic, rawData) =>
         Effect.tryPromise({
-          try: async () => {
-            // Remove message from processing queue by scanning
-            const processingKey = getProcessingKey(topic)
-            const messages = await redis.lrange(processingKey, 0, -1)
-            const found = Array.findFirst(
-              messages,
-              (msg) => (JSON.parse(msg) as QueueMessage).id === messageId
-            )
-            if (Option.isSome(found)) {
-              await redis.lrem(processingKey, 1, found.value)
-            }
-          },
+          try: () => redis.lrem(getProcessingKey(topic), 1, rawData),
           catch: (error) =>
             new QueueOperationError({
-              message: `Failed to ack message ${messageId}`,
+              message: 'Failed to ack message',
               cause: error,
             }),
         }).pipe(
           Effect.asVoid,
           Effect.withSpan('Redis.ack', {
-            attributes: { 'queue.topic': topic, 'queue.messageId': messageId },
+            attributes: { 'queue.topic': topic },
           })
         ),
 
-      nack: (topic, messageId) =>
+      nack: (topic, rawData) =>
         Effect.tryPromise({
           try: async () => {
-            // Move message back to main queue for retry
-            const processingKey = getProcessingKey(topic)
-            const queueKey = getQueueKey(topic)
-            const messages = await redis.lrange(processingKey, 0, -1)
-            const found = Array.findFirst(
-              messages,
-              (msg) => (JSON.parse(msg) as QueueMessage).id === messageId
-            )
-            if (Option.isSome(found)) {
-              await redis.lrem(processingKey, 1, found.value)
-              await redis.rpush(queueKey, found.value)
-            }
+            await redis.lrem(getProcessingKey(topic), 1, rawData)
+            await redis.rpush(getQueueKey(topic), rawData)
           },
           catch: (error) =>
             new QueueOperationError({
-              message: `Failed to nack message ${messageId}`,
+              message: 'Failed to nack message',
               cause: error,
             }),
         }).pipe(
           Effect.asVoid,
           Effect.withSpan('Redis.nack', {
-            attributes: { 'queue.topic': topic, 'queue.messageId': messageId },
+            attributes: { 'queue.topic': topic },
           })
         ),
     }

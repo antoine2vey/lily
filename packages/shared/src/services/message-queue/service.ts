@@ -16,18 +16,18 @@ export interface IMessageQueue {
   readonly dequeue: (
     topic: NotificationTopic
   ) => Effect.Effect<
-    QueueMessage | null,
+    { message: QueueMessage; rawData: string } | null,
     QueueOperationError | QueueConnectionError
   >
 
   readonly ack: (
     topic: NotificationTopic,
-    messageId: string
+    rawData: string
   ) => Effect.Effect<void, QueueOperationError>
 
   readonly nack: (
     topic: NotificationTopic,
-    messageId: string
+    rawData: string
   ) => Effect.Effect<void, QueueOperationError>
 }
 
