@@ -605,6 +605,171 @@ describe('Notification Scheduler', () => {
     })
   })
 
+  describe('plant_anniversary grouping', () => {
+    it('should merge multiple plant anniversaries for the same user into one push', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+      const plant3 = createTestPlant({ id: 'plant-3', name: 'Fern' })
+
+      const scheduledAt = new Date(Date.now() - 60000)
+
+      const notifications = [
+        createTestNotification({
+          id: 'ann-1',
+          type: 'plant_anniversary',
+          status: 'pending',
+          title: '🎂 Happy 1 month!',
+          body: "You've been caring for Monstera since ...",
+          scheduledAt,
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'ann-2',
+          type: 'plant_anniversary',
+          status: 'pending',
+          title: '🎂 Happy 3 months!',
+          body: "You've been caring for Pothos since ...",
+          scheduledAt,
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+        createTestNotification({
+          id: 'ann-3',
+          type: 'plant_anniversary',
+          status: 'pending',
+          title: '🎂 Happy 6 months!',
+          body: "You've been caring for Fern since ...",
+          scheduledAt,
+          userId: 'user-1',
+          plantId: 'plant-3',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2, plant3]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('plant_anniversary')
+      expect(enqueuedMessages[0]?.message.payload.notificationIds).toEqual([
+        'ann-1',
+        'ann-2',
+        'ann-3',
+      ])
+      expect(enqueuedMessages[0]?.message.payload.plantIds).toEqual([
+        'plant-1',
+        'plant-2',
+        'plant-3',
+      ])
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        '🎂 3 plant anniversaries today!'
+      )
+      expect(enqueuedMessages[0]?.message.payload.body).toContain('Monstera')
+      expect(enqueuedMessages[0]?.message.payload.body).toContain('Pothos')
+      expect(enqueuedMessages[0]?.message.payload.body).toContain('Fern')
+    })
+
+    it('should pass through DB title/body for a single plant anniversary', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+
+      const notification = createTestNotification({
+        id: 'ann-single',
+        type: 'plant_anniversary',
+        status: 'pending',
+        title: '🎂 Happy 1 month!',
+        body: "You've been caring for Monstera since Jan 1, 2026. Keep it up!",
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+        plantId: 'plant-1',
+      })
+
+      await runPollAndEnqueue(
+        [notification],
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('plant_anniversary')
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        '🎂 Happy 1 month!'
+      )
+      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+        "You've been caring for Monstera since Jan 1, 2026. Keep it up!"
+      )
+    })
+
+    it('should use French grouped anniversary title when user language is fr', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const frenchUser = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+        language: 'fr',
+      })
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+
+      const scheduledAt = new Date(Date.now() - 60000)
+
+      const notifications = [
+        createTestNotification({
+          id: 'fr-ann-1',
+          type: 'plant_anniversary',
+          status: 'pending',
+          title: '🎂 Joyeux 1 month !',
+          body: 'fr body 1',
+          scheduledAt,
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'fr-ann-2',
+          type: 'plant_anniversary',
+          status: 'pending',
+          title: '🎂 Joyeux 3 months !',
+          body: 'fr body 2',
+          scheduledAt,
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [frenchUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        "🎂 2 anniversaires de plantes aujourd'hui !"
+      )
+    })
+  })
+
   describe('overdue_reminder grouping', () => {
     it('should recognize overdue_reminder as care reminder and group by user', async () => {
       const enqueuedMessages: {

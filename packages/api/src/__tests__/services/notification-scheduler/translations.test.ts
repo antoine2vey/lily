@@ -1,4 +1,7 @@
-import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
+import {
+  buildGroupedPlantAnniversaryContent,
+  buildSimpleContent,
+} from '@lily/api/services/notification-scheduler/translations'
 import { describe, expect, it } from 'vitest'
 
 describe('buildSimpleContent — new notification translations', () => {
@@ -219,5 +222,46 @@ describe('buildSimpleContent — new notification translations', () => {
         })
       }
     }
+  })
+})
+
+describe('buildGroupedPlantAnniversaryContent', () => {
+  it('en: includes plant count and every name when short', () => {
+    const { title, body } = buildGroupedPlantAnniversaryContent(
+      ['Monstera', 'Pothos', 'Fern'],
+      'en'
+    )
+    expect(title).toBe('🎂 3 plant anniversaries today!')
+    expect(body).toContain('Monstera')
+    expect(body).toContain('Pothos')
+    expect(body).toContain('Fern')
+  })
+
+  it('en: truncates after 5 plant names with "and N more"', () => {
+    const { title, body } = buildGroupedPlantAnniversaryContent(
+      ['Monstera', 'Pothos', 'Fern', 'Cactus', 'Aloe', 'Ivy', 'Palm'],
+      'en'
+    )
+    expect(title).toBe('🎂 7 plant anniversaries today!')
+    expect(body).toContain('and 2 more')
+  })
+
+  it('fr: uses French grouped title', () => {
+    const { title, body } = buildGroupedPlantAnniversaryContent(
+      ['Monstera', 'Pothos'],
+      'fr'
+    )
+    expect(title).toBe("🎂 2 anniversaires de plantes aujourd'hui !")
+    expect(body).toContain('Monstera')
+    expect(body).toContain('Pothos')
+  })
+
+  it('fr: truncates with French "et N de plus" suffix', () => {
+    const { title, body } = buildGroupedPlantAnniversaryContent(
+      ['Monstera', 'Pothos', 'Fern', 'Cactus', 'Aloe', 'Ivy'],
+      'fr'
+    )
+    expect(title).toBe("🎂 6 anniversaires de plantes aujourd'hui !")
+    expect(body).toContain('et 1 de plus')
   })
 })
