@@ -124,6 +124,85 @@ describe('processPlantAnniversaries', () => {
     expect(plantIds).toContain('plant-2')
   })
 
+  it('schedules multiple plants for the same user at the same time', async () => {
+    // Regression: each plant used to get its own random scheduledAt, which
+    // made the notification scheduler pick them up across different polls
+    // and send one push per plant instead of a single grouped push.
+    const user = makeUserWithSettings({ id: 'user-1' })
+    const plants = [
+      makeAnniversaryPlant({
+        plantId: 'plant-1',
+        userId: 'user-1',
+        dateAdded: daysAgoAsDate(30),
+      }),
+      makeAnniversaryPlant({
+        plantId: 'plant-2',
+        userId: 'user-1',
+        dateAdded: daysAgoAsDate(90),
+      }),
+      makeAnniversaryPlant({
+        plantId: 'plant-3',
+        userId: 'user-1',
+        dateAdded: daysAgoAsDate(180),
+      }),
+    ]
+    const notifications: Notification[] = []
+
+    const layer = Layer.mergeAll(
+      createMockEngagementRepository({
+        plantsWithAnniversary: plants,
+      }),
+      createMockNotificationRepository(notifications)
+    )
+
+    await Effect.runPromise(
+      processPlantAnniversaries([user]).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(3)
+    const scheduledAts = notifications.map((n) =>
+      n.scheduledAt instanceof Date
+        ? n.scheduledAt.getTime()
+        : new Date(n.scheduledAt).getTime()
+    )
+    const uniqueScheduledAts = new Set(scheduledAts)
+    expect(uniqueScheduledAts.size).toBe(1)
+  })
+
+  it('gives different users independent scheduledAts', async () => {
+    const user1 = makeUserWithSettings({ id: 'user-1' })
+    const user2 = makeUserWithSettings({ id: 'user-2' })
+    const plants = [
+      makeAnniversaryPlant({
+        plantId: 'plant-1',
+        userId: 'user-1',
+        dateAdded: daysAgoAsDate(30),
+      }),
+      makeAnniversaryPlant({
+        plantId: 'plant-2',
+        userId: 'user-2',
+        dateAdded: daysAgoAsDate(30),
+      }),
+    ]
+    const notifications: Notification[] = []
+
+    const layer = Layer.mergeAll(
+      createMockEngagementRepository({
+        plantsWithAnniversary: plants,
+      }),
+      createMockNotificationRepository(notifications)
+    )
+
+    await Effect.runPromise(
+      processPlantAnniversaries([user1, user2]).pipe(Effect.provide(layer))
+    )
+
+    expect(notifications).toHaveLength(2)
+    const byUser = new Map(notifications.map((n) => [n.userId, n]))
+    expect(byUser.has('user-1')).toBe(true)
+    expect(byUser.has('user-2')).toBe(true)
+  })
+
   it('does nothing when no anniversary plants found', async () => {
     const user = makeUserWithSettings({ id: 'user-1' })
     const notifications: Notification[] = []
