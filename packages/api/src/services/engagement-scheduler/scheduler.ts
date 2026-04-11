@@ -18,7 +18,16 @@ import {
   pickNotificationTime,
   withTimeZone,
 } from '@lily/shared'
-import { Array, DateTime, Effect, Option, pipe, Random } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  Option,
+  pipe,
+  Random,
+  Record,
+  Ref,
+} from 'effect'
 
 // Inactivity threshold: 7 days without care
 const INACTIVITY_DAYS = 7
@@ -484,19 +493,22 @@ export const processPlantAnniversaries = Effect.fn(
     Array.map(usersWithCareReminders, (u) => [u.id, u] as const)
   )
 
-  // Map to add `id` (= userId) for processUsers logging
-  const items = Array.map(anniversaryPlants, (p) => ({
-    id: p.userId,
-    ...p,
-  }))
+  // Group plants by user so every plant for the same user shares ONE
+  // scheduledAt. Otherwise each plant picks its own random time and the
+  // notification scheduler picks them up across different polls, producing
+  // one push per plant instead of a single grouped push.
+  const userGroups = pipe(
+    Record.toEntries(Array.groupBy(anniversaryPlants, (p) => p.userId)),
+    Array.map(([userId, plants]) => ({ id: userId, userId, plants }))
+  )
 
   yield* processUsers({
     schedulerName: SCHEDULER_NAME,
     notificationType: 'plant_anniversary',
-    users: items,
-    processUser: (plant) =>
+    users: userGroups,
+    processUser: (group) =>
       Effect.gen(function* () {
-        const user = userMap.get(plant.userId)
+        const user = userMap.get(group.userId)
         if (!user) {
           return yield* new SkipUserError({
             reason: 'care_reminders_disabled',
@@ -505,24 +517,7 @@ export const processPlantAnniversaries = Effect.fn(
 
         const timezone = resolveTimezone(user.timezone)
 
-        const alreadySent =
-          yield* engagementRepo.hasNotificationForPlantInPeriod(
-            user.id,
-            'plant_anniversary',
-            plant.plantId,
-            daysAgoAsDate(32)
-          )
-        if (alreadySent) {
-          return yield* new SkipUserError({ reason: 'already_sent' })
-        }
-
-        const monthsSinceAdded = Math.round(daysSince(plant.dateAdded) / 30.44)
-        const years = Math.floor(monthsSinceAdded / 12)
-        const anniversaryDuration =
-          monthsSinceAdded >= 12
-            ? `${years} year${years > 1 ? 's' : ''}`
-            : `${monthsSinceAdded} month${monthsSinceAdded > 1 ? 's' : ''}`
-
+        // One scheduledAt shared across all plants for this user in this run.
         const randomValue = yield* Random.next
         const scheduledAt = yield* pickNotificationTime(
           user.id,
@@ -533,30 +528,61 @@ export const processPlantAnniversaries = Effect.fn(
           randomValue
         )
 
-        const dateAddedStr = new Intl.DateTimeFormat(user.language, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        }).format(plant.dateAdded)
+        const createdForUser = yield* Ref.make(0)
 
-        const { title, body } = buildSimpleContent(
-          'plant_anniversary',
-          {
-            plantName: plant.plantName,
-            anniversaryDuration,
-            dateAdded: dateAddedStr,
-          },
-          user.language
+        yield* Effect.forEach(group.plants, (plant) =>
+          Effect.gen(function* () {
+            const alreadySent =
+              yield* engagementRepo.hasNotificationForPlantInPeriod(
+                user.id,
+                'plant_anniversary',
+                plant.plantId,
+                daysAgoAsDate(32)
+              )
+            if (alreadySent) return
+
+            const monthsSinceAdded = Math.round(
+              daysSince(plant.dateAdded) / 30.44
+            )
+            const years = Math.floor(monthsSinceAdded / 12)
+            const anniversaryDuration =
+              monthsSinceAdded >= 12
+                ? `${years} year${years > 1 ? 's' : ''}`
+                : `${monthsSinceAdded} month${monthsSinceAdded > 1 ? 's' : ''}`
+
+            const dateAddedStr = new Intl.DateTimeFormat(user.language, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            }).format(plant.dateAdded)
+
+            const { title, body } = buildSimpleContent(
+              'plant_anniversary',
+              {
+                plantName: plant.plantName,
+                anniversaryDuration,
+                dateAdded: dateAddedStr,
+              },
+              user.language
+            )
+
+            yield* notificationRepo.create({
+              type: 'plant_anniversary',
+              title,
+              body,
+              scheduledAt,
+              userId: user.id,
+              plantId: plant.plantId,
+            })
+
+            yield* Ref.update(createdForUser, (n) => n + 1)
+          })
         )
 
-        yield* notificationRepo.create({
-          type: 'plant_anniversary',
-          title,
-          body,
-          scheduledAt,
-          userId: user.id,
-          plantId: plant.plantId,
-        })
+        const createdCount = yield* Ref.get(createdForUser)
+        if (createdCount === 0) {
+          return yield* new SkipUserError({ reason: 'already_sent' })
+        }
       }),
   })
 })
