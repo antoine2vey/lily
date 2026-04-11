@@ -556,6 +556,60 @@ export const buildSimpleContent = <T extends SimpleNotificationType>(
   }
 }
 
+// Grouped plant anniversary content — used when a user has multiple plant
+// anniversaries landing in the same notification poll. Collapses N plants
+// into a single push instead of spamming one-per-plant.
+type GroupedAnniversaryTranslation = (plantNames: readonly string[]) => {
+  title: string
+  body: string
+}
+
+const joinGroupedPlantNames = (
+  plantNames: readonly string[],
+  andMore: (remaining: number) => string
+): string => {
+  const count = plantNames.length
+  const visible = Array.take(plantNames, MAX_PLANT_NAMES_IN_BODY)
+  const remaining = count - MAX_PLANT_NAMES_IN_BODY
+  return remaining > 0
+    ? `${Array.join(visible, ', ')} ${andMore(remaining)}`
+    : Array.join(visible, ', ')
+}
+
+const groupedPlantAnniversary: Record<
+  LanguageCode,
+  GroupedAnniversaryTranslation
+> = {
+  en: (plantNames) => {
+    const count = plantNames.length
+    const names = joinGroupedPlantNames(
+      plantNames,
+      (remaining) => `and ${remaining} more`
+    )
+    return {
+      title: `🎂 ${count} plant anniversaries today!`,
+      body: `You've been caring for ${names}. Keep it up!`,
+    }
+  },
+  fr: (plantNames) => {
+    const count = plantNames.length
+    const names = joinGroupedPlantNames(
+      plantNames,
+      (remaining) => `et ${remaining} de plus`
+    )
+    return {
+      title: `🎂 ${count} anniversaires de plantes aujourd'hui !`,
+      body: `Vous prenez soin de ${names}. Continuez comme ça !`,
+    }
+  },
+}
+
+export const buildGroupedPlantAnniversaryContent = (
+  plantNames: readonly string[],
+  language: LanguageCode
+): { title: string; body: string } =>
+  groupedPlantAnniversary[language](plantNames)
+
 // Care reminder translations
 type CareTranslations = {
   readonly singleTitle: (plantName: string) => string
