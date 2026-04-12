@@ -30,6 +30,7 @@ export interface PlantWithoutRecentPhoto {
   readonly plantName: string
   readonly userId: string
   readonly lastPhotoAt: Date | null
+  readonly dateAdded: Date
 }
 
 export interface PlantAnniversary {
@@ -190,13 +191,14 @@ export const EngagementRepositoryLive = Layer.effect(
             lastPhotoAt: sql<Date | null>`MAX(${plantPhotos.takenAt})`.as(
               'last_photo_at'
             ),
+            dateAdded: plants.dateAdded,
           })
           .from(plants)
           .leftJoin(plantPhotos, eq(plantPhotos.plantId, plants.id))
           .where(eq(plants.userId, userId))
-          .groupBy(plants.id, plants.name, plants.userId)
+          .groupBy(plants.id, plants.name, plants.userId, plants.dateAdded)
           .having(
-            sql`MAX(${plantPhotos.takenAt}) IS NULL OR MAX(${plantPhotos.takenAt}) < ${beforeDate}`
+            sql`(MAX(${plantPhotos.takenAt}) IS NOT NULL AND MAX(${plantPhotos.takenAt}) < ${beforeDate}) OR (MAX(${plantPhotos.takenAt}) IS NULL AND ${plants.dateAdded} < ${beforeDate})`
           )
 
         return rows

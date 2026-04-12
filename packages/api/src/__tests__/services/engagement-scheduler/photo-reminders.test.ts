@@ -33,6 +33,7 @@ const makeStalePlant = (
   plantName: `Plant ${overrides.plantId}`,
   userId: 'user-1',
   lastPhotoAt: null,
+  dateAdded: daysAgo(60),
   ...overrides,
 })
 
