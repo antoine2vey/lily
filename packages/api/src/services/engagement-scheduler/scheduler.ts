@@ -167,7 +167,7 @@ export const processPhotoReminders = Effect.fn(
             const daysSincePhotoVal = pipe(
               Option.fromNullable(plant.lastPhotoAt),
               Option.match({
-                onNone: () => PHOTO_STALENESS_DAYS,
+                onNone: () => daysSince(plant.dateAdded),
                 onSome: (date) => daysSince(date),
               })
             )
