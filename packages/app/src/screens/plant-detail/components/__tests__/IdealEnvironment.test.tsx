@@ -5,10 +5,9 @@ describe('IdealEnvironment', () => {
   it('renders ideal environment section', () => {
     render(
       <IdealEnvironment
-        sunlightRating={3}
-        sunlightPercentage={60}
-        water="moderate"
-        humidity="moderate"
+        sunlightPercentage={50}
+        waterPercentage={50}
+        humidityPercentage={50}
       />
     )
 
@@ -18,10 +17,9 @@ describe('IdealEnvironment', () => {
   it('displays section header', () => {
     render(
       <IdealEnvironment
-        sunlightRating={3}
-        sunlightPercentage={60}
-        water="moderate"
-        humidity="moderate"
+        sunlightPercentage={50}
+        waterPercentage={50}
+        humidityPercentage={50}
       />
     )
 
@@ -31,10 +29,9 @@ describe('IdealEnvironment', () => {
   it('displays sunlight level', () => {
     render(
       <IdealEnvironment
-        sunlightRating={3}
-        sunlightPercentage={60}
-        water="moderate"
-        humidity="moderate"
+        sunlightPercentage={50}
+        waterPercentage={50}
+        humidityPercentage={50}
       />
     )
 
@@ -45,10 +42,9 @@ describe('IdealEnvironment', () => {
   it('displays water level', () => {
     render(
       <IdealEnvironment
-        sunlightRating={4}
-        sunlightPercentage={60}
-        water="high"
-        humidity="moderate"
+        sunlightPercentage={50}
+        waterPercentage={80}
+        humidityPercentage={50}
       />
     )
 
@@ -59,10 +55,9 @@ describe('IdealEnvironment', () => {
   it('displays humidity level', () => {
     render(
       <IdealEnvironment
-        sunlightRating={3}
-        sunlightPercentage={60}
-        water="moderate"
-        humidity="tropical"
+        sunlightPercentage={50}
+        waterPercentage={50}
+        humidityPercentage={90}
       />
     )
 
@@ -73,10 +68,9 @@ describe('IdealEnvironment', () => {
   it('displays all environment rows', () => {
     render(
       <IdealEnvironment
-        sunlightRating={1}
-        sunlightPercentage={20}
-        water="low"
-        humidity="low"
+        sunlightPercentage={10}
+        waterPercentage={10}
+        humidityPercentage={10}
       />
     )
 

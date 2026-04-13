@@ -156,8 +156,8 @@ describe('createPlant', () => {
       )
     )
 
-    // 5000 lux → level 4 (direct light)
-    expect(result.lightingRating).toBe(4)
+    // 5000 lux → level 4 (direct light) → slider value 70
+    expect(result.lightingRating).toBe(70)
   })
 
   it('should set lightingRating 1 for low lux', async () => {
@@ -168,7 +168,8 @@ describe('createPlant', () => {
       )
     )
 
-    expect(result.lightingRating).toBe(1)
+    // 200 lux → level 1 (low light) → slider value 10
+    expect(result.lightingRating).toBe(10)
   })
 
   it('should publish PlantCreated event', async () => {
