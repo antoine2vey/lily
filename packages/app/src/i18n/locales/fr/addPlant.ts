@@ -143,7 +143,8 @@ export default {
     failedToProcess: 'Échec du traitement des images sélectionnées.',
     failedToCapture: 'Échec de la capture photo.',
     plantDetected: 'Plante détectée',
-    pointAtPlant: 'Pointez votre caméra vers une plante',
+    pointAtPlant:
+      'Pointez votre caméra vers une plante ou appuyez pour capturer',
     fromGallery: 'Choisir depuis la galerie',
     identifying: 'Identification...',
     noCameraDevice: 'Aucun appareil photo trouvé',

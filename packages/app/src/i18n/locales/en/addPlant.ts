@@ -142,7 +142,7 @@ export default {
     failedToProcess: 'Failed to process selected images.',
     failedToCapture: 'Failed to capture photo.',
     plantDetected: 'Plant detected',
-    pointAtPlant: 'Point your camera at a plant',
+    pointAtPlant: 'Point your camera at a plant or tap to capture',
     fromGallery: 'Choose from gallery',
     identifying: 'Identifying...',
     noCameraDevice: 'No camera device found',
