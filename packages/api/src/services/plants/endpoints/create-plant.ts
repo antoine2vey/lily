@@ -5,7 +5,7 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import { type LimitExceededError, luxToLuminosityLevel } from '@lily/shared'
+import { type LimitExceededError, luxToSliderValue } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 
@@ -47,7 +47,7 @@ export const createPlant = (
         Option.fromNullable(request.humidityRating),
         Option.getOrElse(() => 0)
       ),
-      lightingRating: luxToLuminosityLevel(request.luxNeeded),
+      lightingRating: luxToSliderValue(request.luxNeeded),
       petToxicityRating: pipe(
         Option.fromNullable(request.petToxicityRating),
         Option.getOrElse(() => 0)

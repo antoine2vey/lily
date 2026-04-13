@@ -79,9 +79,9 @@ describe('PlantDetailScreen', () => {
   const mockPlant = {
     ...mockPlants[0],
     health: 'HEALTHY',
-    lightingRating: 5,
-    wateringRating: 5,
-    humidityRating: 5,
+    lightingRating: 70,
+    wateringRating: 50,
+    humidityRating: 50,
     schedules: [
       {
         careType: 'watering' as const,

@@ -55,11 +55,11 @@ export default {
     water: 'Eau',
     humidity: 'Humidité',
     sunlightLevels: {
-      1: 'Faible lumière',
-      2: 'Lumière moyenne',
-      3: 'Lumière indirecte vive',
-      4: 'Lumière directe',
-      5: 'Plein soleil',
+      low: 'Faible lumière',
+      medium: 'Lumière moyenne',
+      brightIndirect: 'Lumière indirecte vive',
+      direct: 'Lumière directe',
+      fullSun: 'Plein soleil',
     },
     waterLevels: {
       low: 'Faible',

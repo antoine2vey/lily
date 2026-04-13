@@ -114,6 +114,8 @@ export function EditPlantScreen() {
   const fertilizationEnabled = fertilizationFrequencyDays !== null
   const mistingEnabled = mistingFrequencyDays !== null
   const repottingEnabled = repottingFrequencyDays !== null
+  const [potWidthCm, setPotWidthCm] = useState<string>('')
+  const [potHeightCm, setPotHeightCm] = useState<string>('')
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -161,6 +163,18 @@ export function EditPlantScreen() {
       setMistingFrequencyDays(originalScheduleData.mistingFreq)
       setRepottingFrequencyDays(originalScheduleData.repottingFreq)
       setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
+      setPotWidthCm(
+        Option.getOrElse(
+          Option.map(Option.fromNullable(plant.potWidthCm), (v) => String(v)),
+          () => ''
+        )
+      )
+      setPotHeightCm(
+        Option.getOrElse(
+          Option.map(Option.fromNullable(plant.potHeightCm), (v) => String(v)),
+          () => ''
+        )
+      )
     }
   }, [plant, originalScheduleData])
 
@@ -186,6 +200,9 @@ export function EditPlantScreen() {
         ? photo
         : Option.getOrUndefined(Option.fromNullable(plant.imageUrl))
 
+    const parsedWidth = potWidthCm ? parseFloat(potWidthCm) : null
+    const parsedHeight = potHeightCm ? parseFloat(potHeightCm) : null
+
     updatePlant(
       {
         path: { id: plantId },
@@ -206,6 +223,8 @@ export function EditPlantScreen() {
             ? repottingFrequencyDays
             : null,
           roomId: selectedRoomId,
+          potWidthCm: parsedWidth,
+          potHeightCm: parsedHeight,
           imageUrl,
         },
       },
@@ -254,7 +273,17 @@ export function EditPlantScreen() {
       originalScheduleData.mistingFreq ||
     (repottingEnabled ? repottingFrequencyDays : null) !==
       originalScheduleData.repottingFreq ||
-    selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId))
+    selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId)) ||
+    potWidthCm !==
+      Option.getOrElse(
+        Option.map(Option.fromNullable(plant.potWidthCm), (v) => String(v)),
+        () => ''
+      ) ||
+    potHeightCm !==
+      Option.getOrElse(
+        Option.map(Option.fromNullable(plant.potHeightCm), (v) => String(v)),
+        () => ''
+      )
 
   return (
     <View
@@ -348,6 +377,31 @@ export function EditPlantScreen() {
                 {t('plantDetail:edit.roomLabel')}
               </Text>
               <RoomPicker value={selectedRoomId} onSelect={setSelectedRoomId} />
+            </View>
+          </View>
+
+          {/* Pot Size Section */}
+          <View className="mb-8">
+            <SectionHeader title={t('plantDetail:edit.potSize')} />
+            <View className="mt-4 flex-row gap-4">
+              <View className="flex-1">
+                <FormInput
+                  label={t('plantDetail:edit.potWidthLabel')}
+                  value={potWidthCm}
+                  onChangeText={setPotWidthCm}
+                  placeholder={t('plantDetail:edit.potWidthPlaceholder')}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View className="flex-1">
+                <FormInput
+                  label={t('plantDetail:edit.potHeightLabel')}
+                  value={potHeightCm}
+                  onChangeText={setPotHeightCm}
+                  placeholder={t('plantDetail:edit.potHeightPlaceholder')}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
           </View>
 

@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { LuminosityLevel } from '@lily/shared'
 import { String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
@@ -8,25 +7,33 @@ import { useIconColors } from 'src/hooks/useIconColors'
 
 type WaterLevel = 'low' | 'moderate' | 'high'
 type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
+type SunlightLevel = 'low' | 'medium' | 'brightIndirect' | 'direct' | 'fullSun'
+
+const mapSunlightLevel = (rating: number): SunlightLevel => {
+  if (rating <= 20) return 'low'
+  if (rating <= 40) return 'medium'
+  if (rating <= 60) return 'brightIndirect'
+  if (rating <= 80) return 'direct'
+  return 'fullSun'
+}
+
+const mapWaterLevel = (rating: number): WaterLevel => {
+  if (rating <= 30) return 'low'
+  if (rating <= 60) return 'moderate'
+  return 'high'
+}
+
+const mapHumidityLevel = (rating: number): HumidityLevel => {
+  if (rating <= 25) return 'low'
+  if (rating <= 50) return 'moderate'
+  if (rating <= 75) return 'high'
+  return 'tropical'
+}
 
 interface IdealEnvironmentProps {
-  sunlightRating: LuminosityLevel
   sunlightPercentage: number
-  water: WaterLevel
-  humidity: HumidityLevel
-}
-
-const WATER_PERCENTAGES: Record<WaterLevel, number> = {
-  low: 30,
-  moderate: 50,
-  high: 80,
-}
-
-const HUMIDITY_PERCENTAGES: Record<HumidityLevel, number> = {
-  low: 25,
-  moderate: 50,
-  high: 75,
-  tropical: 90,
+  waterPercentage: number
+  humidityPercentage: number
 }
 
 interface EnvironmentRowProps {
@@ -92,10 +99,9 @@ function EnvironmentRow({
 }
 
 export function IdealEnvironment({
-  sunlightRating,
   sunlightPercentage,
-  water,
-  humidity,
+  waterPercentage,
+  humidityPercentage,
 }: IdealEnvironmentProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
@@ -119,7 +125,9 @@ export function IdealEnvironment({
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.sunlight')}
-          value={t(`detail.sunlightLevels.${sunlightRating}`)}
+          value={t(
+            `detail.sunlightLevels.${mapSunlightLevel(sunlightPercentage)}`
+          )}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}
@@ -130,22 +138,24 @@ export function IdealEnvironment({
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.water')}
-          value={t(`detail.waterLevels.${water}`)}
+          value={t(`detail.waterLevels.${mapWaterLevel(waterPercentage)}`)}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}
-          percentage={WATER_PERCENTAGES[water]}
+          percentage={waterPercentage}
         />
         <EnvironmentRow
           icon="cloud"
           iconBgColor={rowColors.iconBgColor}
           iconColor={rowColors.iconColor}
           label={t('detail.humidity')}
-          value={t(`detail.humidityLevels.${humidity}`)}
+          value={t(
+            `detail.humidityLevels.${mapHumidityLevel(humidityPercentage)}`
+          )}
           badgeBgColor={rowColors.badgeBgColor}
           badgeTextColor={rowColors.badgeTextColor}
           barColor={rowColors.barColor}
-          percentage={HUMIDITY_PERCENTAGES[humidity]}
+          percentage={humidityPercentage}
         />
       </View>
     </View>

@@ -6,7 +6,6 @@ import {
   getFrequencyDays,
   getLastCareAt,
   getNextCareAt,
-  type LuminosityLevel,
 } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -46,9 +45,6 @@ import { RecentHistory } from 'src/screens/plant-detail/components/RecentHistory
 import { useEffectQuery } from 'src/utils/client'
 import { mapApiHealthToCardHealth } from 'src/utils/health'
 
-type WaterLevel = 'low' | 'moderate' | 'high'
-type HumidityLevel = 'low' | 'moderate' | 'high' | 'tropical'
-
 const CARE_TOAST_KEYS: Readonly<
   globalThis.Record<CareType, { success: string; error: string }>
 > = {
@@ -71,22 +67,6 @@ const CARE_TOAST_KEYS: Readonly<
 }
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
-
-const mapLightingRatingToSunlightRating = (rating: number): LuminosityLevel =>
-  (rating >= 1 && rating <= 5 ? rating : 1) as LuminosityLevel
-
-const mapWateringRatingToWater = (rating: number): WaterLevel => {
-  if (rating <= 3) return 'low'
-  if (rating <= 6) return 'moderate'
-  return 'high'
-}
-
-const mapHumidityRatingToHumidity = (rating: number): HumidityLevel => {
-  if (rating <= 2) return 'low'
-  if (rating <= 5) return 'moderate'
-  if (rating <= 7) return 'high'
-  return 'tropical'
-}
 
 function PlantDetailSkeleton() {
   return (
@@ -611,12 +591,9 @@ export function PlantDetailScreen() {
           {/* Ideal Environment */}
           <View className="mt-10">
             <IdealEnvironment
-              sunlightRating={mapLightingRatingToSunlightRating(
-                plant.lightingRating
-              )}
-              sunlightPercentage={Math.round((plant.lightingRating / 5) * 100)}
-              water={mapWateringRatingToWater(plant.wateringRating)}
-              humidity={mapHumidityRatingToHumidity(plant.humidityRating)}
+              sunlightPercentage={plant.lightingRating}
+              waterPercentage={plant.wateringRating}
+              humidityPercentage={plant.humidityRating}
             />
           </View>
 
