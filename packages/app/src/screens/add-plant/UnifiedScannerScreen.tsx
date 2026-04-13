@@ -93,6 +93,8 @@ export function UnifiedScannerScreen() {
   const streakSV = useSharedValue(0)
 
   const [measureMode, setMeasureMode] = useState(false)
+  const measureModeRef = useRef(false)
+  measureModeRef.current = measureMode
   const [arWidthCm, setArWidthCm] = useState<number | null>(null)
   const [arHeightCm, setArHeightCm] = useState<number | null>(null)
   const [arCurrentAxis, setArCurrentAxis] = useState<MeasureAxis>('width')
@@ -203,6 +205,17 @@ export function UnifiedScannerScreen() {
       return !prev
     })
   }, [resetAR])
+
+  const handleForceCapture = useCallback(() => {
+    if (
+      scanPhaseRef.current !== 'idle' ||
+      isCapturingRef.current ||
+      measureModeRef.current
+    )
+      return
+    isCapturingRef.current = true
+    setCaptureRequested(true)
+  }, [])
 
   const handleReanalyze = useCallback(async () => {
     if (!capturedPhotoUri) return
@@ -933,6 +946,17 @@ export function UnifiedScannerScreen() {
                     : t('scanner.pointAtPlant')}
                 </Text>
               )}
+              {/* Manual shutter button — visible when idle + no detection */}
+              {!measureMode &&
+                scanPhase === 'idle' &&
+                !detection.plantVisible && (
+                  <Pressable
+                    onPress={handleForceCapture}
+                    className="mb-4 w-16 h-16 rounded-full items-center justify-center border-4 border-white/80 bg-white/15"
+                  >
+                    <View className="w-12 h-12 rounded-full bg-white/90" />
+                  </Pressable>
+                )}
               <Pressable
                 onPress={handlePickFromGallery}
                 className="flex-row items-center rounded-full px-4 py-2.5"
