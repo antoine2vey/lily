@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { MeshBackground } from '@/components'
 import type { OnboardingData, TimeOfDay } from '@/hooks/useOnboardingFlow'
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow'
 import { usePlants } from '@/hooks/usePlants'
@@ -62,12 +63,12 @@ export function OnboardingFlowScreen() {
     skipOnboarding,
   } = useOnboardingFlow()
 
-  // Skip onboarding for existing users who already have plants
+  // Skip onboarding for existing users who already have plants (prod only)
   const { data: plantsData } = usePlants()
   const hasSkippedRef = useRef(false)
 
   useEffect(() => {
-    if (hasSkippedRef.current || isLoading) return
+    if (__DEV__ || hasSkippedRef.current || isLoading) return
     if (plantsData && !Arr.isEmptyReadonlyArray(plantsData.items)) {
       hasSkippedRef.current = true
       skipOnboarding().then(() => router.replace('/(app)/(tabs)'))
@@ -144,18 +145,20 @@ export function OnboardingFlowScreen() {
   )
 
   return (
-    <View
-      className="flex-1 bg-background dark:bg-background-dark"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
-      <Animated.View
-        key={currentStep}
-        entering={FadeIn.duration(300)}
-        exiting={FadeOut.duration(150)}
+    <MeshBackground>
+      <View
         className="flex-1"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
-        {stepContent}
-      </Animated.View>
-    </View>
+        <Animated.View
+          key={currentStep}
+          entering={FadeIn.duration(300)}
+          exiting={FadeOut.duration(150)}
+          className="flex-1"
+        >
+          {stepContent}
+        </Animated.View>
+      </View>
+    </MeshBackground>
   )
 }

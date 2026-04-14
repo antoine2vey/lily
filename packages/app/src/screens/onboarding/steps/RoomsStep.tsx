@@ -1,10 +1,11 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Either } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { Button } from '@/components/ui/Button'
 import { useCreateRoom } from '@/hooks/useCreateRoom'
-import { useIconColors } from '@/hooks/useIconColors'
+import { GlassCard } from '../components/GlassCard'
+import { OnboardingHero } from '../components/OnboardingHero'
 
 interface RoomsStepProps {
   onNext: (data: { roomsCreated: number }) => void
@@ -12,7 +13,7 @@ interface RoomsStepProps {
 }
 
 interface RoomPreset {
-  name: string
+  id: string
   icon: string
   titleKey: string
   isOutdoor: boolean
@@ -20,57 +21,31 @@ interface RoomPreset {
 
 const ROOM_PRESETS: RoomPreset[] = [
   {
-    name: 'Living Room',
+    id: 'living-room',
     icon: '🛋️',
     titleKey: 'rooms.livingRoom',
     isOutdoor: false,
   },
-  {
-    name: 'Bedroom',
-    icon: '🛏️',
-    titleKey: 'rooms.bedroom',
-    isOutdoor: false,
-  },
-  {
-    name: 'Kitchen',
-    icon: '🍳',
-    titleKey: 'rooms.kitchen',
-    isOutdoor: false,
-  },
-  {
-    name: 'Bathroom',
-    icon: '🚿',
-    titleKey: 'rooms.bathroom',
-    isOutdoor: false,
-  },
-  {
-    name: 'Office',
-    icon: '💻',
-    titleKey: 'rooms.office',
-    isOutdoor: false,
-  },
-  {
-    name: 'Balcony',
-    icon: '🌿',
-    titleKey: 'rooms.balcony',
-    isOutdoor: true,
-  },
+  { id: 'bedroom', icon: '🛏️', titleKey: 'rooms.bedroom', isOutdoor: false },
+  { id: 'kitchen', icon: '🍳', titleKey: 'rooms.kitchen', isOutdoor: false },
+  { id: 'bathroom', icon: '🚿', titleKey: 'rooms.bathroom', isOutdoor: false },
+  { id: 'office', icon: '💻', titleKey: 'rooms.office', isOutdoor: false },
+  { id: 'balcony', icon: '🌿', titleKey: 'rooms.balcony', isOutdoor: true },
 ]
 
 export function RoomsStep({ onNext, onSkip }: RoomsStepProps) {
   const { t } = useTranslation('onboarding')
-  const iconColors = useIconColors()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const { mutateAsync: createRoom } = useCreateRoom()
 
-  const toggleRoom = (name: string) => {
+  const toggleRoom = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(name)) {
-        next.delete(name)
+      if (next.has(id)) {
+        next.delete(id)
       } else {
-        next.add(name)
+        next.add(id)
       }
       return next
     })
@@ -78,12 +53,9 @@ export function RoomsStep({ onNext, onSkip }: RoomsStepProps) {
 
   const handleContinue = async () => {
     if (selected.size === 0) return
-
     setLoading(true)
 
-    const selectedPresets = Arr.filter(ROOM_PRESETS, (p) =>
-      selected.has(p.name)
-    )
+    const selectedPresets = Arr.filter(ROOM_PRESETS, (p) => selected.has(p.id))
 
     const results = await Promise.allSettled(
       Arr.map(selectedPresets, (preset) =>
@@ -107,87 +79,59 @@ export function RoomsStep({ onNext, onSkip }: RoomsStepProps) {
   }
 
   return (
-    <View className="flex-1 px-6 pt-12">
-      {/* Illustration */}
-      <View className="items-center mb-10">
-        <View className="w-40 h-40 rounded-3xl items-center justify-center bg-primary-tint dark:bg-slate-800">
-          <MaterialIcons name="room" size={80} color={iconColors.primary} />
-        </View>
-      </View>
+    <View className="flex-1">
+      <OnboardingHero
+        emoji="🏠"
+        title={t('rooms.title')}
+        subtitle={t('rooms.subtitle')}
+      />
 
-      <Text
-        className="text-2xl font-bold text-text-primary dark:text-white text-center mb-2"
-        style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-      >
-        {t('rooms.title')}
-      </Text>
-      <Text className="text-base text-text-secondary dark:text-slate-400 text-center mb-8">
-        {t('rooms.subtitle')}
-      </Text>
-
-      <View className="flex-row flex-wrap gap-3 justify-center">
-        {ROOM_PRESETS.map((preset) => {
-          const isSelected = selected.has(preset.name)
-          return (
-            <Pressable
-              key={preset.name}
-              onPress={() => toggleRoom(preset.name)}
-              className={`flex-row items-center px-4 py-3 rounded-full border ${
-                isSelected
-                  ? 'border-primary bg-primary-tint dark:bg-slate-700'
-                  : 'border-border dark:border-slate-700 bg-surface dark:bg-slate-800'
-              }`}
-            >
-              <Text className="text-lg mr-2">{preset.icon}</Text>
-              <Text
-                className={`text-sm ${
-                  isSelected
-                    ? 'font-semibold text-primary dark:text-primary-light'
-                    : 'text-text-primary dark:text-white'
+      <GlassCard padding="sm">
+        <View className="flex-row flex-wrap gap-2 justify-center mb-4">
+          {Arr.map(ROOM_PRESETS, (preset) => {
+            const isSelected = selected.has(preset.id)
+            return (
+              <Pressable
+                key={preset.id}
+                onPress={() => toggleRoom(preset.id)}
+                className={`flex-row items-center px-4 py-3 rounded-full ${
+                  isSelected ? 'bg-white/25' : 'bg-white/10'
                 }`}
-                style={{
-                  fontFamily: isSelected
-                    ? 'SpaceGrotesk_600SemiBold'
-                    : 'SpaceGrotesk_400Regular',
-                }}
               >
-                {t(preset.titleKey)}
-              </Text>
-            </Pressable>
-          )
-        })}
-      </View>
+                <Text className="text-base mr-1.5">{preset.icon}</Text>
+                <Text
+                  className={`text-sm ${isSelected ? 'text-white' : 'text-white/70'}`}
+                  style={{
+                    fontFamily: isSelected
+                      ? 'SpaceGrotesk_600SemiBold'
+                      : 'SpaceGrotesk_400Regular',
+                  }}
+                >
+                  {t(preset.titleKey)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
 
-      <View className="gap-3 mt-auto mb-4">
-        <Pressable
+        <Button
           onPress={handleContinue}
-          disabled={selected.size === 0 || loading}
-          className={`flex-row items-center justify-center py-4 rounded-full ${
-            selected.size > 0
-              ? 'bg-primary active:bg-primary-dark'
-              : 'bg-border dark:bg-slate-700'
-          }`}
+          disabled={selected.size === 0}
+          loading={loading}
+          pill
         >
-          {loading ? (
-            <ActivityIndicator size="small" color={iconColors.white} />
-          ) : (
-            <Text
-              className={`text-base font-semibold ${
-                selected.size > 0 ? 'text-white' : 'text-text-muted'
-              }`}
-              style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-            >
-              {t('rooms.create', { count: selected.size })}
-            </Text>
-          )}
-        </Pressable>
+          {t('rooms.create', { count: selected.size })}
+        </Button>
 
-        <Pressable onPress={onSkip} className="py-3 items-center">
-          <Text className="text-sm text-text-muted dark:text-slate-500">
+        <Pressable onPress={onSkip} className="mt-3 py-2 items-center">
+          <Text
+            className="text-sm text-white/40"
+            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+          >
             {t('buttons.skip')}
           </Text>
         </Pressable>
-      </View>
+      </GlassCard>
     </View>
   )
 }
