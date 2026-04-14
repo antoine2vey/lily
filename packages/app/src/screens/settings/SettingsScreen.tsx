@@ -16,6 +16,7 @@ import { useLocalization } from 'src/hooks/useLocalization'
 import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
+import { useWelcomeSeen } from 'src/hooks/useWelcomeSeen'
 import { LanguageSelectionModal } from 'src/screens/settings/components/LanguageSelectionModal'
 import { SettingsMenuItem } from 'src/screens/settings/components/SettingsMenuItem'
 import { TemperatureUnitModal } from 'src/screens/settings/components/TemperatureUnitModal'
@@ -38,6 +39,7 @@ export function SettingsScreen() {
   const refetch = _refetch as () => void
   const { logout } = useAuth()
   const { resetOnboarding } = useOnboardingComplete()
+  const { resetWelcome } = useWelcomeSeen()
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
   const [showThemeModal, setShowThemeModal] = useState(false)
@@ -314,11 +316,30 @@ export function SettingsScreen() {
                 }
                 title="Reset Onboarding"
                 showChevron={false}
+                showBorder
                 onPress={async () => {
                   await resetOnboarding()
                   Alert.alert(
                     'Onboarding Reset',
                     'Restart the app to see the onboarding flow.'
+                  )
+                }}
+              />
+              <SettingsMenuItem
+                icon={
+                  <MaterialIcons
+                    name="restart-alt"
+                    size={22}
+                    color={iconColors.warning}
+                  />
+                }
+                title="Reset Welcome"
+                showChevron={false}
+                onPress={async () => {
+                  await resetWelcome()
+                  Alert.alert(
+                    'Welcome Reset',
+                    'Log out and restart the app to see the welcome carousel.'
                   )
                 }}
               />

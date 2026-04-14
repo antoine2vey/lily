@@ -248,8 +248,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }),
       Match.when({ _tag: 'Unauthenticated' }, () => {
-        if (!inAuthGroup) {
-          router.replace('/(auth)/login')
+        const validScreens = ['login', 'welcome', 'check-email']
+        if (!inAuthGroup || !validScreens.includes(segments[1])) {
+          router.replace('/')
         }
       }),
       Match.orElse(() => {})
