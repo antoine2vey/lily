@@ -248,9 +248,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }),
       Match.when({ _tag: 'Unauthenticated' }, () => {
-        const validScreens = ['login', 'welcome', 'check-email']
-        if (!inAuthGroup || !validScreens.includes(segments[1])) {
-          router.replace('/')
+        if (!inAuthGroup) {
+          // Logging out from inside the app — go straight to login
+          router.replace('/(auth)/login')
+        } else {
+          // In auth group on a stale screen (e.g. verify) — let index decide
+          const validScreens = ['login', 'welcome', 'check-email']
+          if (!validScreens.includes(segments[1])) {
+            router.replace('/')
+          }
         }
       }),
       Match.orElse(() => {})
