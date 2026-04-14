@@ -1,18 +1,68 @@
 export default {
-  slides: {
-    track: {
-      title: 'Suivez votre famille de plantes',
-      description: 'Gardez toutes vos plantes organisées en un seul endroit',
-    },
-    reminders: {
-      title: 'Ne manquez jamais un arrosage',
-      description:
-        'Des rappels intelligents vous aident à prendre soin de vos plantes au bon moment',
-    },
-    learn: {
-      title: 'Apprenez et grandissez ensemble',
-      description:
-        "Obtenez des conseils personnalisés de notre assistant IA pour aider vos plantes à s'épanouir",
+  welcome: {
+    greeting: 'Bienvenue sur Lily, {name} !',
+    subtitle: 'Parlez-nous de votre expérience avec les plantes',
+    beginner: 'Je débute',
+    beginnerDesc: 'Nouveau dans le soin des plantes',
+    intermediate: 'Quelques plantes',
+    intermediateDesc: "Un peu d'expérience",
+    expert: 'Expert en plantes',
+    expertDesc: 'Jardinier expérimenté',
+    skipOnboarding: "Passer l'introduction",
+  },
+  addPlant: {
+    title: 'Ajoutez votre première plante',
+    subtitle: "Notre IA l'identifiera instantanément",
+    scanCamera: 'Scanner avec la caméra',
+    addManually: 'Rechercher par nom',
+    searchPlaceholder: 'Rechercher des plantes...',
+    searchHint: 'Parcourez notre catalogue de plantes',
+    noResults: 'Aucune plante trouvée',
+    skipLabel: 'Je ferai ça plus tard',
+  },
+  rooms: {
+    title: 'Où sont vos plantes ?',
+    subtitle: 'Organisez par pièce pour mieux suivre les soins',
+    livingRoom: 'Salon',
+    bedroom: 'Chambre',
+    kitchen: 'Cuisine',
+    bathroom: 'Salle de bain',
+    office: 'Bureau',
+    balcony: 'Balcon',
+    create: 'Créer {count} pièce(s)',
+  },
+  notifications: {
+    titleWithPlant: '{plantName} a besoin de soins tous les {days} jours',
+    titleGeneric: 'Ne manquez jamais un arrosage',
+    subtitle: "Nous vous rappellerons quand vos plantes ont besoin d'attention",
+    enable: 'Activer les rappels',
+    skip: 'Plus tard',
+  },
+  location: {
+    title: 'Conseils adaptés à la météo',
+    subtitle: 'Partagez votre position pour des recommandations saisonnières',
+    enable: 'Activer les conseils météo',
+    skip: 'Passer',
+  },
+  preferences: {
+    title: 'Quand prenez-vous soin de vos plantes ?',
+    subtitle: 'Nous programmerons les rappels à votre heure préférée',
+    morning: 'Matin',
+    afternoon: 'Après-midi',
+    evening: 'Soir',
+  },
+  completion: {
+    title: 'Tout est prêt !',
+    plantAdded: 'Votre première tâche de soin est dans {days} jours',
+    noPlantsYet: 'Commencez par ajouter votre première plante',
+    enter: 'Entrer dans Lily',
+    summary: {
+      plants: '{count} plante ajoutée',
+      rooms: '{count} pièce(s) créée(s)',
+      notifications: 'Rappels {status}',
+      weather: 'Conseils météo {status}',
+      enabled: 'activés',
+      disabled: 'désactivés',
     },
   },
   buttons: {

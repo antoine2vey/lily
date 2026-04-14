@@ -29,6 +29,7 @@ import { startNotificationScheduler } from '@lily/api/services/notification-sche
 import { startNotificationWorker } from '@lily/api/services/notification-scheduler/worker'
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/scheduler'
+import { PlantCatalogApiLive } from '@lily/api/services/plant-catalog/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { SocialApiLive } from '@lily/api/services/social/handlers'
@@ -124,6 +125,7 @@ const CoreApiHandlers = Layer.mergeAll(
   HealthApiLive(Api),
   NotificationsApiLive(Api),
   PlantsApiLive(Api),
+  PlantCatalogApiLive(Api),
   RoomsApiLive(Api),
   DelegationApiLive(Api),
   SocialApiLive(Api),

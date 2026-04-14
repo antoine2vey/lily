@@ -8,11 +8,11 @@ import {
   type PhotoCapturedEvent,
 } from '@lily/plant-scanner'
 import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
-import { Either, Match, Option, pipe } from 'effect'
+import { Effect, Either, Match, Option, pipe } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -43,6 +43,7 @@ import type { DetectPlantResult } from 'src/hooks/useDetectPlant'
 import { useDetectPlant } from 'src/hooks/useDetectPlant'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { UploadError } from 'src/utils/upload'
+import { advanceFromExternal } from '@/hooks/onboarding-storage'
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 const RESULT_PHOTO_HEIGHT = SCREEN_HEIGHT * 0.35
@@ -74,6 +75,7 @@ export function UnifiedScannerScreen() {
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>()
 
   // Screen state (shared between iOS and Android paths)
   const [screenState, setScreenState] = useState<ScreenState>('camera')
@@ -354,16 +356,26 @@ export function UnifiedScannerScreen() {
                     Alert.alert(t('scanner.error'), t('errors.createFailed'))
                   )
                 ),
-              onRight: (plant) => {
+              onRight: async (plant) => {
                 router.dismissAll()
-                router.push(`/plant/${plant.id}`)
+                if (returnTo === 'onboarding') {
+                  await Effect.runPromise(
+                    advanceFromExternal(2, {
+                      plantName: result?.name ?? plant.name,
+                      plantDays: result?.wateringFrequencyDays ?? 7,
+                    })
+                  )
+                  router.replace('/(auth)/onboarding')
+                } else {
+                  router.push(`/plant/${plant.id}`)
+                }
               },
             })
           )
         },
       }
     )
-  }, [result, createPlant, confirmedPot, t])
+  }, [result, createPlant, confirmedPot, t, returnTo])
 
   // MARK: - Animated Styles
 

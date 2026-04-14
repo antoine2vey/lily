@@ -238,8 +238,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     pipe(
       Match.value(state),
       Match.when({ _tag: 'Authenticated' }, () => {
-        if (inAuthGroup) {
-          router.replace('/(app)/(tabs)')
+        if (inAuthGroup && segments[1] !== 'onboarding') {
+          router.replace('/')
         }
       }),
       Match.when({ _tag: 'NeedsUsername' }, () => {
