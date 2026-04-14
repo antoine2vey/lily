@@ -5,6 +5,7 @@ export const ONBOARDING_KEYS = {
   complete: '@lily/onboarding_complete',
   step: '@lily/onboarding_step',
   data: '@lily/onboarding_data',
+  welcome: '@lily/welcome_seen',
 } as const
 
 export class OnboardingStorageError extends Data.TaggedError(
