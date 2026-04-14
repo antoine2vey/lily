@@ -1,10 +1,11 @@
-import { MaterialIcons } from '@expo/vector-icons'
-import type { ComponentProps } from 'react'
+import { Array as Arr } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { useIconColors } from '@/hooks/useIconColors'
+import { Button } from '@/components/ui/Button'
 import type { TimeOfDay } from '@/hooks/useOnboardingFlow'
+import { GlassCard } from '../components/GlassCard'
+import { OnboardingHero } from '../components/OnboardingHero'
 
 interface PreferencesStepProps {
   onNext: (data: { preferredTime: TimeOfDay }) => void
@@ -14,26 +15,17 @@ interface PreferencesStepProps {
 interface TimeOption {
   value: TimeOfDay
   titleKey: string
-  icon: ComponentProps<typeof MaterialIcons>['name']
+  emoji: string
 }
 
 const timeOptions: TimeOption[] = [
-  { value: 'morning', titleKey: 'preferences.morning', icon: 'wb-sunny' },
-  {
-    value: 'afternoon',
-    titleKey: 'preferences.afternoon',
-    icon: 'wb-cloudy',
-  },
-  {
-    value: 'evening',
-    titleKey: 'preferences.evening',
-    icon: 'nightlight-round',
-  },
+  { value: 'morning', titleKey: 'preferences.morning', emoji: '🌅' },
+  { value: 'afternoon', titleKey: 'preferences.afternoon', emoji: '☀️' },
+  { value: 'evening', titleKey: 'preferences.evening', emoji: '🌙' },
 ]
 
 export function PreferencesStep({ onNext, onSkip }: PreferencesStepProps) {
   const { t } = useTranslation('onboarding')
-  const iconColors = useIconColors()
   const [selected, setSelected] = useState<TimeOfDay | null>(null)
 
   const handleContinue = () => {
@@ -43,95 +35,54 @@ export function PreferencesStep({ onNext, onSkip }: PreferencesStepProps) {
   }
 
   return (
-    <View className="flex-1 px-6 pt-12">
-      {/* Illustration */}
-      <View className="items-center mb-10">
-        <View className="w-40 h-40 rounded-3xl items-center justify-center bg-primary-tint dark:bg-slate-800">
-          <MaterialIcons name="schedule" size={80} color={iconColors.primary} />
-        </View>
-      </View>
+    <View className="flex-1">
+      <OnboardingHero
+        emoji="⏰"
+        title={t('preferences.title')}
+        subtitle={t('preferences.subtitle')}
+      />
 
-      <Text
-        className="text-2xl font-bold text-text-primary dark:text-white text-center mb-2"
-        style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-      >
-        {t('preferences.title')}
-      </Text>
-      <Text className="text-base text-text-secondary dark:text-slate-400 text-center mb-10">
-        {t('preferences.subtitle')}
-      </Text>
-
-      <View className="gap-3">
-        {timeOptions.map((option) => {
-          const isSelected = selected === option.value
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setSelected(option.value)}
-              className={`flex-row items-center p-5 rounded-xl border ${
-                isSelected
-                  ? 'border-primary bg-primary-tint dark:bg-slate-700'
-                  : 'border-border dark:border-slate-700 bg-surface dark:bg-slate-800'
-              }`}
-            >
-              <MaterialIcons
-                name={option.icon}
-                size={24}
-                color={isSelected ? iconColors.primary : iconColors.textMuted}
-              />
-              <Text
-                className={`text-base ml-3 ${
-                  isSelected
-                    ? 'font-semibold text-primary dark:text-primary-light'
-                    : 'text-text-primary dark:text-white'
+      <GlassCard padding="sm">
+        <View className="gap-3 mb-4">
+          {Arr.map(timeOptions, (option) => {
+            const isSelected = selected === option.value
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => setSelected(option.value)}
+                className={`flex-row items-center p-4 rounded-2xl ${
+                  isSelected ? 'bg-white/25' : 'bg-white/10'
                 }`}
-                style={{
-                  fontFamily: isSelected
-                    ? 'SpaceGrotesk_600SemiBold'
-                    : 'SpaceGrotesk_400Regular',
-                }}
               >
-                {t(option.titleKey)}
-              </Text>
-              {isSelected && (
-                <MaterialIcons
-                  name="check-circle"
-                  size={20}
-                  color={iconColors.primary}
-                  style={{ marginLeft: 'auto' }}
-                />
-              )}
-            </Pressable>
-          )
-        })}
-      </View>
+                <Text className="text-2xl mr-3">{option.emoji}</Text>
+                <Text
+                  className={`text-base ${isSelected ? 'text-white' : 'text-white/70'}`}
+                  style={{
+                    fontFamily: isSelected
+                      ? 'SpaceGrotesk_600SemiBold'
+                      : 'SpaceGrotesk_400Regular',
+                  }}
+                >
+                  {t(option.titleKey)}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
 
-      <View className="gap-3 mt-auto mb-4">
-        <Pressable
-          onPress={handleContinue}
-          disabled={!selected}
-          className={`flex-row items-center justify-center py-4 rounded-full ${
-            selected
-              ? 'bg-primary active:bg-primary-dark'
-              : 'bg-border dark:bg-slate-700'
-          }`}
-        >
+        <Button onPress={handleContinue} disabled={!selected} pill>
+          {t('buttons.next')}
+        </Button>
+
+        <Pressable onPress={onSkip} className="mt-3 py-2 items-center">
           <Text
-            className={`text-base font-semibold ${
-              selected ? 'text-white' : 'text-text-muted'
-            }`}
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+            className="text-sm text-white/40"
+            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
           >
-            {t('buttons.next')}
-          </Text>
-        </Pressable>
-
-        <Pressable onPress={onSkip} className="py-3 items-center">
-          <Text className="text-sm text-text-muted dark:text-slate-500">
             {t('buttons.skip')}
           </Text>
         </Pressable>
-      </View>
+      </GlassCard>
     </View>
   )
 }

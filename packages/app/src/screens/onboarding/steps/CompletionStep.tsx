@@ -1,28 +1,24 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
-import { useIconColors } from '@/hooks/useIconColors'
+import { Text, View } from 'react-native'
+import { Button } from '@/components/ui/Button'
 import type { OnboardingData } from '@/hooks/useOnboardingFlow'
+import { GlassCard } from '../components/GlassCard'
+import { OnboardingHero } from '../components/OnboardingHero'
 
 interface CompletionStepProps {
   data: OnboardingData
   onComplete: () => void
 }
 
-function SummaryRow({
-  icon,
-  text,
-  color,
-}: {
-  icon: string
-  text: string
-  color: string
-}) {
+function SummaryRow({ emoji, text }: { emoji: string; text: string }) {
   return (
     <View className="flex-row items-center py-2">
-      <MaterialIcons name={icon as 'check-circle'} size={20} color={color} />
-      <Text className="text-sm text-text-secondary dark:text-slate-400 ml-2">
+      <Text className="text-base mr-2">{emoji}</Text>
+      <Text
+        className="text-sm text-white/70"
+        style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+      >
         {text}
       </Text>
     </View>
@@ -31,104 +27,61 @@ function SummaryRow({
 
 export function CompletionStep({ data, onComplete }: CompletionStepProps) {
   const { t } = useTranslation('onboarding')
-  const iconColors = useIconColors()
 
   const hasPlant = Option.isSome(Option.fromNullable(data.plantName))
 
   return (
-    <View className="flex-1 px-6 pt-12">
-      {/* Illustration */}
-      <View className="items-center mb-10">
-        <View className="w-40 h-40 rounded-3xl items-center justify-center bg-primary-tint dark:bg-slate-800">
-          <MaterialIcons
-            name="check-circle"
-            size={80}
-            color={iconColors.primary}
+    <View className="flex-1">
+      <OnboardingHero
+        emoji="🎉"
+        title={t('completion.title')}
+        subtitle={
+          hasPlant
+            ? t('completion.plantAdded', {
+                days: String(data.plantDays ?? 7),
+              })
+            : t('completion.noPlantsYet')
+        }
+      />
+
+      <GlassCard>
+        <View className="mb-4">
+          {hasPlant && (
+            <SummaryRow
+              emoji="🌱"
+              text={t('completion.summary.plants', { count: 1 })}
+            />
+          )}
+          {data.roomsCreated && data.roomsCreated > 0 && (
+            <SummaryRow
+              emoji="🏠"
+              text={t('completion.summary.rooms', {
+                count: data.roomsCreated,
+              })}
+            />
+          )}
+          <SummaryRow
+            emoji={data.notificationsEnabled ? '🔔' : '🔕'}
+            text={t('completion.summary.notifications', {
+              status: data.notificationsEnabled
+                ? t('completion.summary.enabled')
+                : t('completion.summary.disabled'),
+            })}
+          />
+          <SummaryRow
+            emoji={data.weatherEnabled ? '☀️' : '🌥️'}
+            text={t('completion.summary.weather', {
+              status: data.weatherEnabled
+                ? t('completion.summary.enabled')
+                : t('completion.summary.disabled'),
+            })}
           />
         </View>
-      </View>
 
-      <Text
-        className="text-2xl font-bold text-text-primary dark:text-white text-center mb-2"
-        style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-      >
-        {t('completion.title')}
-      </Text>
-
-      {hasPlant ? (
-        <Text className="text-base text-text-secondary dark:text-slate-400 text-center mb-8">
-          {t('completion.plantAdded', {
-            days: String(data.plantDays ?? 7),
-          })}
-        </Text>
-      ) : (
-        <Text className="text-base text-text-secondary dark:text-slate-400 text-center mb-8">
-          {t('completion.noPlantsYet')}
-        </Text>
-      )}
-
-      {/* Summary */}
-      <View className="bg-surface dark:bg-slate-800 rounded-xl p-5 mb-8">
-        {hasPlant && (
-          <SummaryRow
-            icon="eco"
-            text={t('completion.summary.plants', {
-              count: 1,
-            })}
-            color={iconColors.primary}
-          />
-        )}
-        {data.roomsCreated && data.roomsCreated > 0 && (
-          <SummaryRow
-            icon="room"
-            text={t('completion.summary.rooms', {
-              count: data.roomsCreated,
-            })}
-            color={iconColors.primary}
-          />
-        )}
-        <SummaryRow
-          icon="notifications"
-          text={t('completion.summary.notifications', {
-            status: data.notificationsEnabled
-              ? t('completion.summary.enabled')
-              : t('completion.summary.disabled'),
-          })}
-          color={
-            data.notificationsEnabled
-              ? iconColors.waterBlue
-              : iconColors.textMuted
-          }
-        />
-        <SummaryRow
-          icon="wb-sunny"
-          text={t('completion.summary.weather', {
-            status: data.weatherEnabled
-              ? t('completion.summary.enabled')
-              : t('completion.summary.disabled'),
-          })}
-          color={
-            data.weatherEnabled ? iconColors.warning : iconColors.textMuted
-          }
-        />
-      </View>
-
-      <Pressable
-        onPress={onComplete}
-        className="flex-row items-center justify-center py-4 rounded-full bg-primary active:bg-primary-dark mt-auto mb-4"
-      >
-        <Text
-          className="text-base font-semibold text-white mr-2"
-          style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-        >
+        <Button icon="arrow-forward" onPress={onComplete} pill>
           {t('completion.enter')}
-        </Text>
-        <MaterialIcons
-          name="arrow-forward"
-          size={20}
-          color={iconColors.white}
-        />
-      </Pressable>
+        </Button>
+      </GlassCard>
     </View>
   )
 }

@@ -2,7 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import type { CatalogPlant } from '@lily/shared'
 import { keepPreviousData } from '@tanstack/react-query'
 import { Array as Arr, Either, Option, pipe } from 'effect'
-import { useState } from 'react'
+import { BlurView } from 'expo-blur'
+import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
@@ -12,11 +13,15 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Button } from '@/components/ui/Button'
+import { useThemeContext } from '@/contexts/ThemeContext'
 import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { useIconColors } from '@/hooks/useIconColors'
 import type { OnboardingData } from '@/hooks/useOnboardingFlow'
 import { useEffectQuery } from '@/utils/client'
+import { GlassCard } from '../components/GlassCard'
+import { OnboardingHero } from '../components/OnboardingHero'
 
 interface AddPlantStepProps {
   onScan: () => void
@@ -24,7 +29,7 @@ interface AddPlantStepProps {
   onSkip: () => void
 }
 
-function CatalogItem({
+const CatalogItem = memo(function CatalogItem({
   plant,
   onSelect,
   loading,
@@ -33,25 +38,21 @@ function CatalogItem({
   onSelect: () => void
   loading: boolean
 }) {
-  const iconColors = useIconColors()
-
   return (
     <Pressable
       onPress={onSelect}
       disabled={loading}
-      className="flex-row items-center py-3 px-4 border-b border-border/30 dark:border-slate-700/30"
+      className="flex-row items-center py-3 px-4 border-b border-white/10"
     >
-      <View className="w-10 h-10 rounded-full bg-primary-tint dark:bg-slate-700 items-center justify-center mr-3">
-        <MaterialIcons name="eco" size={20} color={iconColors.primary} />
-      </View>
+      <Text className="text-lg mr-3">🌿</Text>
       <View className="flex-1">
         <Text
-          className="text-base text-text-primary dark:text-white"
+          className="text-base text-white"
           style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
         >
           {plant.name}
         </Text>
-        <Text className="text-xs text-text-muted dark:text-slate-500 mt-0.5">
+        <Text className="text-xs text-white/50 mt-0.5">
           {pipe(
             [plant.scientificName, plant.category],
             Arr.map(Option.fromNullable),
@@ -61,17 +62,13 @@ function CatalogItem({
         </Text>
       </View>
       {loading ? (
-        <ActivityIndicator size="small" color={iconColors.primary} />
+        <ActivityIndicator size="small" color="white" />
       ) : (
-        <MaterialIcons
-          name="add-circle-outline"
-          size={24}
-          color={iconColors.primary}
-        />
+        <MaterialIcons name="add-circle-outline" size={24} color="white" />
       )}
     </Pressable>
   )
-}
+})
 
 export function AddPlantStep({
   onScan,
@@ -79,7 +76,8 @@ export function AddPlantStep({
   onSkip,
 }: AddPlantStepProps) {
   const { t } = useTranslation('onboarding')
-  const iconColors = useIconColors()
+  const { isDark } = useThemeContext()
+  const insets = useSafeAreaInsets()
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [addingPlantId, setAddingPlantId] = useState<string | null>(null)
@@ -100,42 +98,56 @@ export function AddPlantStep({
 
   const catalogPlants = catalogResult ?? []
 
-  const handleSelectPlant = async (plant: CatalogPlant) => {
-    setAddingPlantId(plant.id)
-    try {
-      const result = await createPlant({
-        payload: {
-          name: plant.name,
-          description: plant.description ?? undefined,
-          category: plant.category ?? undefined,
-          wateringFrequencyDays: plant.wateringFrequencyDays,
-          fertilizationFrequencyDays:
-            plant.fertilizationFrequencyDays ?? undefined,
-          mistingFrequencyDays: plant.mistingFrequencyDays ?? undefined,
-          repottingFrequencyDays: plant.repottingFrequencyDays ?? undefined,
-          luxNeeded: plant.luxNeeded ?? 2500,
-          humidityRating: plant.humidityRating,
-          petToxicityRating: plant.petToxicityRating,
-          remindersEnabled: true,
-        },
-      })
-      if (Either.isRight(result)) {
-        onPlantAdded({
-          plantName: plant.name,
-          plantDays: plant.wateringFrequencyDays,
+  const handleSelectPlant = useCallback(
+    async (plant: CatalogPlant) => {
+      setAddingPlantId(plant.id)
+      try {
+        const result = await createPlant({
+          payload: {
+            name: plant.name,
+            description: plant.description ?? undefined,
+            category: plant.category ?? undefined,
+            wateringFrequencyDays: plant.wateringFrequencyDays,
+            fertilizationFrequencyDays:
+              plant.fertilizationFrequencyDays ?? undefined,
+            mistingFrequencyDays: plant.mistingFrequencyDays ?? undefined,
+            repottingFrequencyDays: plant.repottingFrequencyDays ?? undefined,
+            luxNeeded: plant.luxNeeded ?? 2500,
+            humidityRating: plant.humidityRating,
+            petToxicityRating: plant.petToxicityRating,
+            remindersEnabled: true,
+          },
         })
+        if (Either.isRight(result)) {
+          onPlantAdded({
+            plantName: plant.name,
+            plantDays: plant.wateringFrequencyDays,
+          })
+        }
+      } catch {
+        // Fall through
+      } finally {
+        setAddingPlantId(null)
       }
-    } catch {
-      // Fall through — user can retry or skip
-    } finally {
-      setAddingPlantId(null)
-    }
-  }
+    },
+    [createPlant, onPlantAdded]
+  )
+
+  const renderItem = useCallback(
+    ({ item }: { item: CatalogPlant }) => (
+      <CatalogItem
+        plant={item}
+        onSelect={() => handleSelectPlant(item)}
+        loading={addingPlantId === item.id}
+      />
+    ),
+    [addingPlantId, handleSelectPlant]
+  )
 
   if (showSearch) {
     return (
-      <View className="flex-1 px-6 pt-6">
-        <View className="flex-row items-center mb-4">
+      <View className="flex-1">
+        <View className="flex-row items-center px-6 pt-4 mb-4">
           <Pressable
             onPress={() => {
               setShowSearch(false)
@@ -143,118 +155,98 @@ export function AddPlantStep({
             }}
             className="mr-3"
           >
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={iconColors.primary}
-            />
+            <MaterialIcons name="arrow-back" size={24} color="white" />
           </Pressable>
           <Text
-            className="text-lg font-semibold text-text-primary dark:text-white"
+            className="text-lg text-white"
             style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           >
             {t('addPlant.addManually')}
           </Text>
         </View>
 
-        <TextInput
-          className="bg-input-bg dark:bg-slate-800 rounded-xl px-4 py-3 text-base text-text-primary dark:text-white mb-4"
-          placeholder={t('addPlant.searchPlaceholder')}
-          placeholderTextColor="#9CA3AF"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoFocus
-        />
-
-        <FlatList
-          data={catalogPlants}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <CatalogItem
-              plant={item}
-              onSelect={() => handleSelectPlant(item)}
-              loading={addingPlantId === item.id}
+        <View
+          className="flex-1 mx-4 rounded-3xl overflow-hidden"
+          style={{ marginBottom: insets.bottom + 16 }}
+        >
+          <BlurView
+            intensity={40}
+            tint={isDark ? 'dark' : 'light'}
+            className="flex-1 p-4"
+          >
+            <TextInput
+              className="bg-white/10 rounded-full px-5 py-3 text-base text-white mb-4"
+              placeholder={t('addPlant.searchPlaceholder')}
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
             />
-          )}
-          className="bg-surface dark:bg-slate-800 rounded-xl"
-          ListEmptyComponent={
-            <View className="py-8 items-center">
-              <Text className="text-sm text-text-muted dark:text-slate-500">
-                {searchQuery
-                  ? t('addPlant.noResults')
-                  : t('addPlant.searchHint')}
-              </Text>
-            </View>
-          }
-        />
 
-        <Pressable onPress={onSkip} className="mt-auto mb-4 py-3 items-center">
-          <Text className="text-sm text-text-muted dark:text-slate-500 underline">
-            {t('addPlant.skipLabel')}
-          </Text>
-        </Pressable>
+            <FlatList
+              data={catalogPlants}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              className="flex-1"
+              ListEmptyComponent={
+                <View className="py-8 items-center">
+                  <Text className="text-sm text-white/40">
+                    {searchQuery
+                      ? t('addPlant.noResults')
+                      : t('addPlant.searchHint')}
+                  </Text>
+                </View>
+              }
+            />
+
+            <Pressable onPress={onSkip} className="py-3 items-center">
+              <Text
+                className="text-sm text-white/40"
+                style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+              >
+                {t('addPlant.skipLabel')}
+              </Text>
+            </Pressable>
+          </BlurView>
+        </View>
       </View>
     )
   }
 
   return (
-    <View className="flex-1 px-6 pt-12">
-      {/* Illustration */}
-      <View className="items-center mb-10">
-        <View className="w-40 h-40 rounded-3xl items-center justify-center bg-primary-tint dark:bg-slate-800">
-          <MaterialIcons
-            name="camera-alt"
-            size={80}
-            color={iconColors.primary}
-          />
-        </View>
-      </View>
+    <View className="flex-1">
+      <OnboardingHero
+        emoji="📸"
+        title={t('addPlant.title')}
+        subtitle={t('addPlant.subtitle')}
+      />
 
-      <Text
-        className="text-2xl font-bold text-text-primary dark:text-white text-center mb-2"
-        style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-      >
-        {t('addPlant.title')}
-      </Text>
-      <Text className="text-base text-text-secondary dark:text-slate-400 text-center mb-10">
-        {t('addPlant.subtitle')}
-      </Text>
-
-      <View className="gap-3">
-        {/* Scan with camera */}
-        <Pressable
-          onPress={onScan}
-          className="flex-row items-center justify-center py-4 rounded-full bg-primary active:bg-primary-dark"
-        >
-          <MaterialIcons name="camera-alt" size={20} color={iconColors.white} />
-          <Text
-            className="text-base font-semibold text-white ml-2"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-          >
+      <GlassCard>
+        <View className="gap-3">
+          <Button icon="camera-alt" iconPosition="left" onPress={onScan} pill>
             {t('addPlant.scanCamera')}
-          </Text>
-        </Pressable>
+          </Button>
 
-        {/* Search by name */}
-        <Pressable
-          onPress={() => setShowSearch(true)}
-          className="flex-row items-center justify-center py-4 rounded-full border border-primary"
-        >
-          <MaterialIcons name="search" size={20} color={iconColors.primary} />
-          <Text
-            className="text-base font-semibold text-primary ml-2"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+          <Button
+            variant="secondary"
+            icon="search"
+            iconPosition="left"
+            onPress={() => setShowSearch(true)}
+            pill
           >
             {t('addPlant.addManually')}
+          </Button>
+        </View>
+
+        <Pressable onPress={onSkip} className="mt-4 py-2 items-center">
+          <Text
+            className="text-sm text-white/40"
+            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+          >
+            {t('addPlant.skipLabel')}
           </Text>
         </Pressable>
-      </View>
-
-      <Pressable onPress={onSkip} className="mt-auto mb-4 py-3 items-center">
-        <Text className="text-sm text-text-muted dark:text-slate-500 underline">
-          {t('addPlant.skipLabel')}
-        </Text>
-      </Pressable>
+      </GlassCard>
     </View>
   )
 }
