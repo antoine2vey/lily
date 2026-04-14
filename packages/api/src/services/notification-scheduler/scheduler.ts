@@ -178,36 +178,36 @@ export const pollAndEnqueue = Effect.gen(function* () {
           () => 'en' as const
         )
 
-      // Resolve per-group plant names once for content builders that need them.
-      const groupPlantNames = Array.filterMap(plantIds, (id) =>
-        Option.fromNullable(plantNameMap.get(id))
-      )
+        // Resolve per-group plant names once for content builders that need them.
+        const groupPlantNames = Array.filterMap(plantIds, (id) =>
+          Option.fromNullable(plantNameMap.get(id))
+        )
 
-      // Fall back to the title/body persisted on the first notification row.
-      // Used by simple single-plant notifications (e.g. a lone anniversary).
-      const passthroughContent = {
-        title: Option.getOrElse(
-          Option.fromNullable(first.value.notification.title),
-          () => ''
-        ),
-        body: Option.getOrElse(
-          Option.fromNullable(first.value.notification.body),
-          () => ''
-        ),
-      }
+        // Fall back to the title/body persisted on the first notification row.
+        // Used by simple single-plant notifications (e.g. a lone anniversary).
+        const passthroughContent = {
+          title: Option.getOrElse(
+            Option.fromNullable(first.value.notification.title),
+            () => ''
+          ),
+          body: Option.getOrElse(
+            Option.fromNullable(first.value.notification.body),
+            () => ''
+          ),
+        }
 
-      // Non-care content: grouped birthday when >1 plant anniversaries land
-      // in the same group, otherwise pass through the DB row as-is.
-      const resolveNonCareContent = (): { title: string; body: string } =>
-        topic === 'plant_anniversary' && group.length > 1
-          ? buildGroupedPlantAnniversaryContent(groupPlantNames, language)
-          : passthroughContent
+        // Non-care content: grouped birthday when >1 plant anniversaries land
+        // in the same group, otherwise pass through the DB row as-is.
+        const resolveNonCareContent = (): { title: string; body: string } =>
+          topic === 'plant_anniversary' && group.length > 1
+            ? buildGroupedPlantAnniversaryContent(groupPlantNames, language)
+            : passthroughContent
 
-      // Care reminders go through their own translated grouped title builder
-      // (e.g. "3 plants need watering"); everything else uses the helper above.
-      const { title, body } = isCareReminderType(topic)
-        ? buildNotificationContent(topic, groupPlantNames, language)
-        : resolveNonCareContent()
+        // Care reminders go through their own translated grouped title builder
+        // (e.g. "3 plants need watering"); everything else uses the helper above.
+        const { title, body } = isCareReminderType(topic)
+          ? buildNotificationContent(topic, groupPlantNames, language)
+          : resolveNonCareContent()
 
         yield* queue.enqueue(topic, {
           id: crypto.randomUUID(),
