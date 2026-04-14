@@ -1,11 +1,12 @@
-import { Match, pipe, Record } from 'effect'
+import { Array as Arr, Match, pipe, Record } from 'effect'
 import { router } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { OnboardingData, TimeOfDay } from '@/hooks/useOnboardingFlow'
 import { useOnboardingFlow } from '@/hooks/useOnboardingFlow'
+import { usePlants } from '@/hooks/usePlants'
 import { apiEffectRunner } from '@/utils/client'
 import { AddPlantStep } from './steps/AddPlantStep'
 import { CompletionStep } from './steps/CompletionStep'
@@ -60,6 +61,18 @@ export function OnboardingFlowScreen() {
     complete,
     skipOnboarding,
   } = useOnboardingFlow()
+
+  // Skip onboarding for existing users who already have plants
+  const { data: plantsData } = usePlants()
+  const hasSkippedRef = useRef(false)
+
+  useEffect(() => {
+    if (hasSkippedRef.current || isLoading) return
+    if (plantsData && !Arr.isEmptyReadonlyArray(plantsData.items)) {
+      hasSkippedRef.current = true
+      skipOnboarding().then(() => router.replace('/(app)/(tabs)'))
+    }
+  }, [plantsData, isLoading, skipOnboarding])
 
   const handleComplete = useCallback(async () => {
     const collectedData = await complete(data)
