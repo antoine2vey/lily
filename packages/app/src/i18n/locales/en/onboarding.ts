@@ -1,18 +1,68 @@
 export default {
-  slides: {
-    track: {
-      title: 'Track your plant family',
-      description: 'Keep all your plants organized in one beautiful place',
-    },
-    reminders: {
-      title: 'Never miss a watering',
-      description:
-        'Smart reminders help you care for your plants at just the right time',
-    },
-    learn: {
-      title: 'Learn and grow together',
-      description:
-        'Get personalized tips from our AI assistant to help your plants thrive',
+  welcome: {
+    greeting: 'Welcome to Lily, {name}!',
+    subtitle: 'Tell us about your plant experience',
+    beginner: 'Just starting out',
+    beginnerDesc: 'New to plant care',
+    intermediate: 'A few plants',
+    intermediateDesc: 'Some experience',
+    expert: 'Plant parent pro',
+    expertDesc: 'Experienced grower',
+    skipOnboarding: 'Skip onboarding',
+  },
+  addPlant: {
+    title: 'Add your first plant',
+    subtitle: 'Our AI will identify it instantly',
+    scanCamera: 'Scan with camera',
+    addManually: 'Search by name',
+    searchPlaceholder: 'Search plants...',
+    searchHint: 'Browse our plant catalog',
+    noResults: 'No plants found',
+    skipLabel: "I'll do this later",
+  },
+  rooms: {
+    title: 'Where are your plants?',
+    subtitle: 'Organize by room to keep track of care',
+    livingRoom: 'Living Room',
+    bedroom: 'Bedroom',
+    kitchen: 'Kitchen',
+    bathroom: 'Bathroom',
+    office: 'Office',
+    balcony: 'Balcony',
+    create: 'Create {count} room(s)',
+  },
+  notifications: {
+    titleWithPlant: '{plantName} needs care every {days} days',
+    titleGeneric: 'Never miss a watering',
+    subtitle: "We'll remind you when your plants need attention",
+    enable: 'Enable Reminders',
+    skip: 'Maybe Later',
+  },
+  location: {
+    title: 'Weather-aware care tips',
+    subtitle: 'Share your location for season-aware recommendations',
+    enable: 'Enable Weather Tips',
+    skip: 'Skip',
+  },
+  preferences: {
+    title: 'When do you care for plants?',
+    subtitle: "We'll schedule reminders at your preferred time",
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    evening: 'Evening',
+  },
+  completion: {
+    title: "You're all set!",
+    plantAdded: 'Your first care task is in {days} days',
+    noPlantsYet: 'Start by adding your first plant',
+    enter: 'Enter Lily',
+    summary: {
+      plants: '{count} plant added',
+      rooms: '{count} room(s) created',
+      notifications: 'Reminders {status}',
+      weather: 'Weather tips {status}',
+      enabled: 'enabled',
+      disabled: 'off',
     },
   },
   buttons: {

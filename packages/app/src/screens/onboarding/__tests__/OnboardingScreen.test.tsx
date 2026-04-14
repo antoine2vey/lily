@@ -1,81 +1,196 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 
 // Mock dependencies
-jest.mock('@/hooks/useOnboardingComplete', () => ({
-  useOnboardingComplete: jest.fn(),
+jest.mock('@/hooks/useOnboardingFlow', () => ({
+  useOnboardingFlow: jest.fn(),
 }))
 
-import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
-import { OnboardingScreen } from '../OnboardingScreen'
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    state: {
+      _tag: 'Authenticated',
+      user: { name: 'TestUser' },
+      accessToken: 'token',
+    },
+  })),
+}))
 
-const mockedUseOnboardingComplete = useOnboardingComplete as jest.Mock
+jest.mock('@/utils/client', () => ({
+  apiEffectRunner: jest.fn(),
+  useEffectQuery: jest.fn(() => ({ data: undefined })),
+}))
 
-describe('OnboardingScreen', () => {
-  const mockCompleteOnboarding = jest.fn()
+jest.mock('@/hooks/useCreatePlant', () => ({
+  useCreatePlant: jest.fn(() => ({
+    mutateAsync: jest.fn(),
+  })),
+}))
 
+jest.mock('@/hooks/useCreateRoom', () => ({
+  useCreateRoom: jest.fn(() => ({
+    mutateAsync: jest.fn(),
+  })),
+}))
+
+import { useOnboardingFlow } from '@/hooks/useOnboardingFlow'
+import { OnboardingFlowScreen } from '../OnboardingFlowScreen'
+
+const mockedUseOnboardingFlow = useOnboardingFlow as jest.MockedFunction<
+  typeof useOnboardingFlow
+>
+
+const defaultFlowReturn = {
+  currentStep: 0,
+  data: {},
+  isLoading: false,
+  totalSteps: 6,
+  advance: jest.fn(),
+  skipStep: jest.fn(),
+  complete: jest.fn().mockResolvedValue({}),
+  skipOnboarding: jest.fn().mockResolvedValue(undefined),
+}
+
+describe('OnboardingFlowScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedUseOnboardingComplete.mockReturnValue({
-      isComplete: false,
-      isLoading: false,
-      completeOnboarding: mockCompleteOnboarding,
-      resetOnboarding: jest.fn(),
+    mockedUseOnboardingFlow.mockReturnValue({ ...defaultFlowReturn })
+  })
+
+  it('displays welcome step with greeting', () => {
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText(/Welcome to Lily.*TestUser/)).toBeTruthy()
+  })
+
+  it('displays experience level options on welcome step', () => {
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('Just starting out')).toBeTruthy()
+    expect(screen.getByText('A few plants')).toBeTruthy()
+    expect(screen.getByText('Plant parent pro')).toBeTruthy()
+  })
+
+  it('displays skip onboarding link on welcome step', () => {
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('Skip onboarding')).toBeTruthy()
+  })
+
+  it('calls advance when experience level is selected', () => {
+    const advance = jest.fn()
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      advance,
+    })
+
+    render(<OnboardingFlowScreen />)
+
+    fireEvent.press(screen.getByText('Just starting out'))
+
+    expect(advance).toHaveBeenCalledWith({
+      experienceLevel: 'beginner',
     })
   })
 
-  it('displays skip button', () => {
-    render(<OnboardingScreen />)
+  it('calls skipOnboarding when skip link is pressed', () => {
+    const skipOnboarding = jest.fn().mockResolvedValue(undefined)
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      skipOnboarding,
+    })
 
-    expect(screen.getByText('Skip')).toBeTruthy()
+    render(<OnboardingFlowScreen />)
+
+    fireEvent.press(screen.getByText('Skip onboarding'))
+
+    expect(skipOnboarding).toHaveBeenCalled()
   })
 
-  it('displays first slide content', () => {
-    render(<OnboardingScreen />)
+  it('displays add plant step at step 1', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 1,
+    })
 
-    expect(screen.getByText('Track your plant family')).toBeTruthy()
-    expect(
-      screen.getByText('Keep all your plants organized in one beautiful place')
-    ).toBeTruthy()
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('Add your first plant')).toBeTruthy()
+    expect(screen.getByText('Scan with camera')).toBeTruthy()
   })
 
-  it('displays next button initially', () => {
-    render(<OnboardingScreen />)
+  it('displays rooms step at step 2', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 2,
+    })
 
-    expect(screen.getByText('Next')).toBeTruthy()
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('Where are your plants?')).toBeTruthy()
+    expect(screen.getByText('Living Room')).toBeTruthy()
+    expect(screen.getByText('Balcony')).toBeTruthy()
   })
 
-  it('displays pagination dots', () => {
-    render(<OnboardingScreen />)
+  it('displays notification step at step 3', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 3,
+    })
 
-    expect(screen.getByTestId('pagination-dots')).toBeTruthy()
-  })
+    render(<OnboardingFlowScreen />)
 
-  it('calls completeOnboarding when skip is pressed', async () => {
-    render(<OnboardingScreen />)
-
-    fireEvent.press(screen.getByText('Skip'))
-
-    expect(mockCompleteOnboarding).toHaveBeenCalled()
-  })
-
-  it('shows all 3 slides content', () => {
-    render(<OnboardingScreen />)
-
-    // All slide titles should be present (even if not visible)
-    expect(screen.getByText('Track your plant family')).toBeTruthy()
     expect(screen.getByText('Never miss a watering')).toBeTruthy()
-    expect(screen.getByText('Learn and grow together')).toBeTruthy()
+    expect(screen.getByText('Enable Reminders')).toBeTruthy()
   })
 
-  it('displays slide descriptions', () => {
-    render(<OnboardingScreen />)
+  it('displays notification step with plant name when available', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 3,
+      data: { plantName: 'Monstera', plantDays: 5 },
+    })
 
-    expect(
-      screen.getByText('Keep all your plants organized in one beautiful place')
-    ).toBeTruthy()
-    expect(screen.getByText(/Smart reminders help you care/)).toBeTruthy()
-    expect(
-      screen.getByText(/Get personalized tips from our AI assistant/)
-    ).toBeTruthy()
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText(/Monstera.*needs care every.*5.*days/)).toBeTruthy()
+  })
+
+  it('displays location step at step 4', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 4,
+    })
+
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('Weather-aware care tips')).toBeTruthy()
+    expect(screen.getByText('Enable Weather Tips')).toBeTruthy()
+  })
+
+  it('displays preferences step at step 5', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 5,
+    })
+
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText('When do you care for plants?')).toBeTruthy()
+    expect(screen.getByText('Morning')).toBeTruthy()
+    expect(screen.getByText('Afternoon')).toBeTruthy()
+    expect(screen.getByText('Evening')).toBeTruthy()
+  })
+
+  it('displays completion step at step 6', () => {
+    mockedUseOnboardingFlow.mockReturnValue({
+      ...defaultFlowReturn,
+      currentStep: 6,
+      data: { notificationsEnabled: true, weatherEnabled: false },
+    })
+
+    render(<OnboardingFlowScreen />)
+
+    expect(screen.getByText("You're all set!")).toBeTruthy()
+    expect(screen.getByText('Enter Lily')).toBeTruthy()
   })
 })

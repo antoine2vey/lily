@@ -39,6 +39,7 @@ import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repos
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
+import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
 import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
 import { RawDocumentRepositoryLive } from '@lily/api/repositories/raw-document.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
@@ -123,7 +124,8 @@ const RepositoriesGroup1 = Layer.mergeAll(
   ProcessedChunkRepositoryLive,
   RawDocumentRepositoryLive,
   RefreshTokenRepositoryLive,
-  RoomRepositoryLive
+  RoomRepositoryLive,
+  PlantCatalogRepositoryLive
 )
 
 const RepositoriesGroup2 = Layer.mergeAll(

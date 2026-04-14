@@ -13,6 +13,7 @@ import { useAuth } from 'src/contexts/AuthContext'
 import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
 import { useIconColors } from 'src/hooks/useIconColors'
 import { useLocalization } from 'src/hooks/useLocalization'
+import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
 import { useTheme } from 'src/hooks/useTheme'
 import { useUser } from 'src/hooks/useUser'
 import { LanguageSelectionModal } from 'src/screens/settings/components/LanguageSelectionModal'
@@ -36,6 +37,7 @@ export function SettingsScreen() {
   } = useUser()
   const refetch = _refetch as () => void
   const { logout } = useAuth()
+  const { resetOnboarding } = useOnboardingComplete()
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
   const [showThemeModal, setShowThemeModal] = useState(false)
@@ -294,6 +296,35 @@ export function SettingsScreen() {
             />
           </View>
         </View>
+
+        {/* Dev Tools (only visible in development) */}
+        {__DEV__ && (
+          <View className="mb-6">
+            <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-2 ml-3">
+              DEV TOOLS
+            </Text>
+            <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
+              <SettingsMenuItem
+                icon={
+                  <MaterialIcons
+                    name="replay"
+                    size={22}
+                    color={iconColors.warning}
+                  />
+                }
+                title="Reset Onboarding"
+                showChevron={false}
+                onPress={async () => {
+                  await resetOnboarding()
+                  Alert.alert(
+                    'Onboarding Reset',
+                    'Restart the app to see the onboarding flow.'
+                  )
+                }}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Account Actions Section */}
         <View className="mb-6">

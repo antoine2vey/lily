@@ -139,7 +139,7 @@ export default function UsernameSetupScreen() {
 
       const result = await saveUsername(username)
       if (result.success) {
-        router.replace('/(app)/(tabs)')
+        router.replace('/')
       } else {
         setValidation({
           _tag: 'Unavailable',
