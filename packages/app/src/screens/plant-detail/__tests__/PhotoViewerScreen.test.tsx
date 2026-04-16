@@ -3,8 +3,8 @@ import {
   mockRouter,
   resetNavigationMocks,
   setMockSearchParams,
-} from 'src/__tests__/mocks/navigation'
-import { mockNow } from 'src/__tests__/utils/dates'
+} from '@/__tests__/mocks/navigation'
+import { mockNow } from '@/__tests__/utils/dates'
 import { PhotoViewerScreen } from '../PhotoViewerScreen'
 
 // Mock the hooks
@@ -12,11 +12,11 @@ const mockUseEffectQuery = jest.fn()
 const mockDeletePhotoMutate = jest.fn()
 const mockUseDeletePhoto = jest.fn()
 
-jest.mock('src/utils/client', () => ({
+jest.mock('@/utils/client', () => ({
   useEffectQuery: (...args: unknown[]) => mockUseEffectQuery(...args),
 }))
 
-jest.mock('src/hooks/useDeletePhoto', () => ({
+jest.mock('@/hooks/useDeletePhoto', () => ({
   useDeletePhoto: () => mockUseDeletePhoto(),
 }))
 

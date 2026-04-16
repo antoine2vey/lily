@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import { Pressable } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type ViewMode = 'grid' | 'list'
 

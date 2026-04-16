@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { PlantsScreen } from 'src/screens/plants'
+import { PlantsScreen } from '@/screens/plants'
 
 export default function PlantsTab() {
   return (

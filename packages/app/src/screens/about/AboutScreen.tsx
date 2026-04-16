@@ -3,9 +3,9 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ListRow } from 'src/components/ListRow'
-import { WEBSITE_BASE_URL } from 'src/constants/urls'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ListRow } from '@/components/ListRow'
+import { WEBSITE_BASE_URL } from '@/constants/urls'
+import { useIconColors } from '@/hooks/useIconColors'
 
 export function AboutScreen() {
   const insets = useSafeAreaInsets()

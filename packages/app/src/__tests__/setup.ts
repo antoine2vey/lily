@@ -54,9 +54,8 @@ jest.mock('react-i18next', () => {
   return {
     useTranslation: (namespaces?: string | string[]) => {
       // Get the default namespace from the parameter
-      const defaultNs = Array.isArray(namespaces)
-        ? namespaces[0]
-        : namespaces || 'common'
+      const defaultNs =
+        (Array.isArray(namespaces) ? namespaces[0] : namespaces) || 'common'
 
       const t = (key: string, options?: Record<string, unknown>): string => {
         // Handle explicit namespaced keys like 'plantDetail:edit.title'
@@ -107,7 +106,7 @@ jest.mock('react-i18next', () => {
 // to avoid act() warnings from async font loading
 
 // Mock ThemeContext globally to avoid "must be used within ThemeProvider" errors
-jest.mock('src/contexts/ThemeContext', () => ({
+jest.mock('@/contexts/ThemeContext', () => ({
   useThemeContext: () => ({
     preference: 'light' as const,
     resolvedTheme: 'light' as const,
@@ -119,7 +118,7 @@ jest.mock('src/contexts/ThemeContext', () => ({
 }))
 
 // Mock LocalizationContext globally to avoid "must be used within LocalizationProvider" errors
-jest.mock('src/contexts/LocalizationContext', () => ({
+jest.mock('@/contexts/LocalizationContext', () => ({
   useLocalizationContext: () => ({
     language: 'en' as const,
     setLanguage: jest.fn().mockResolvedValue(undefined),
@@ -134,7 +133,7 @@ jest.mock('src/contexts/LocalizationContext', () => ({
 }))
 
 // Mock useLocalization hook globally
-jest.mock('src/hooks/useLocalization', () => {
+jest.mock('@/hooks/useLocalization', () => {
   // Import translations inside the mock factory
   const en = require('../i18n/locales/en').default
 
@@ -226,7 +225,7 @@ jest.mock('react-native-safe-area-context', () => {
 })
 
 // Mock theme
-jest.mock('src/theme', () => ({
+jest.mock('@/theme', () => ({
   iconColorsLight: {
     primary: '#80ac53',
     primaryDark: '#6a9145',

@@ -1,4 +1,4 @@
-import { invalidateKeys, queryKeys } from 'src/utils/query-keys'
+import { invalidateKeys, queryKeys } from '@/utils/query-keys'
 
 describe('queryKeys', () => {
   describe('plants', () => {

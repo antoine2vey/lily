@@ -6,10 +6,10 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, Pressable, Text, View, type ViewToken } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
-import { OnboardingSlide } from 'src/screens/onboarding/components/OnboardingSlide'
-import { PaginationDots } from 'src/screens/onboarding/components/PaginationDots'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
+import { OnboardingSlide } from '@/screens/onboarding/components/OnboardingSlide'
+import { PaginationDots } from '@/screens/onboarding/components/PaginationDots'
 
 interface SlideData {
   id: string
@@ -71,11 +71,9 @@ export function OnboardingScreen() {
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (
-        !Array.isEmptyReadonlyArray(viewableItems) &&
-        viewableItems[0].index !== null
-      ) {
-        setCurrentIndex(viewableItems[0].index)
+      const first = viewableItems[0]
+      if (first && first.index !== null && first.index !== undefined) {
+        setCurrentIndex(first.index)
       }
     }
   ).current

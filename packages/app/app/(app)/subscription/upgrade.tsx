@@ -1,3 +1,3 @@
-import { SubscriptionPayScreen } from 'src/screens/subscription'
+import { SubscriptionPayScreen } from '@/screens/subscription'
 
 export default SubscriptionPayScreen

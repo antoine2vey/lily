@@ -1,5 +1,5 @@
 import { Option, pipe } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 interface MyDelegationsParams {
   role?: string

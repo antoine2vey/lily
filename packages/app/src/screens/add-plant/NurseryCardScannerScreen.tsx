@@ -16,11 +16,11 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
-import { UploadError } from 'src/utils/upload'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { CameraPermissionRequest, ScannerOverlay } from '@/components/scanner'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useScanCard, useScanCardMultiple } from '@/hooks/useScanCard'
+import { UploadError } from '@/utils/upload'
 
 export function NurseryCardScannerScreen() {
   const { t } = useTranslation('addPlant')

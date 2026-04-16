@@ -1,3 +1,3 @@
-import { CareScreen } from 'src/screens/care'
+import { CareScreen } from '@/screens/care'
 
 export default CareScreen

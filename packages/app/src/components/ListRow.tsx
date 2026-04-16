@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface ListRowProps {
   title: string

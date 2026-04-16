@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option, String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, TextInput, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface PlantSearchBarProps {
   value: string

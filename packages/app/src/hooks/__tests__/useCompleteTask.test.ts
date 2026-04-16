@@ -1,4 +1,4 @@
-import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
+import { renderQueryHook } from '@/__tests__/utils/query-helpers'
 import { useCompleteTask } from '../useCompleteTask'
 
 // Mock the client

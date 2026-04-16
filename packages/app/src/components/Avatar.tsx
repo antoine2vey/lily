@@ -1,13 +1,13 @@
 import { Array, Match, Option, pipe, String } from 'effect'
 import { Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
+import { AnimatedImage } from '@/components/AnimatedImage'
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
 interface AvatarProps {
-  source?: { uri: string } | number
-  name?: string
-  size?: AvatarSize
+  source?: { uri: string } | number | undefined
+  name?: string | undefined
+  size?: AvatarSize | undefined
 }
 
 interface SizeStyles {

@@ -1,6 +1,6 @@
 import { Match, pipe } from 'effect'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useEffectQuery } from 'src/utils/client'
+import { useAuth } from '@/contexts/AuthContext'
+import { useEffectQuery } from '@/utils/client'
 
 export function useUser() {
   const { state } = useAuth()

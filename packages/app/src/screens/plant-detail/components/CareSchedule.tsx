@@ -3,9 +3,9 @@ import { Match, pipe, String } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { MAX_VISIBLE_DAYS } from 'src/screens/plants/components/PlantCard'
+import { SectionHeader } from '@/components/SectionHeader'
+import { useIconColors } from '@/hooks/useIconColors'
+import { MAX_VISIBLE_DAYS } from '@/screens/plants/components/PlantCard'
 
 interface CareScheduleProps {
   wateringDays: number
@@ -17,19 +17,19 @@ interface CareScheduleProps {
   repottingDays: number | null
   repottingDate: string
   onEdit: () => void
-  onWaterNow?: () => void
-  onFertilizeNow?: () => void
-  onMistNow?: () => void
-  onRepotNow?: () => void
-  onWaterPast?: () => void
-  onFertilizePast?: () => void
-  onMistPast?: () => void
-  onRepotPast?: () => void
-  isWaterFirstTime?: boolean
-  isFertilizeFirstTime?: boolean
-  isMistFirstTime?: boolean
-  isRepotFirstTime?: boolean
-  onCorrectDates?: () => void
+  onWaterNow?: (() => void) | undefined
+  onFertilizeNow?: (() => void) | undefined
+  onMistNow?: (() => void) | undefined
+  onRepotNow?: (() => void) | undefined
+  onWaterPast?: (() => void) | undefined
+  onFertilizePast?: (() => void) | undefined
+  onMistPast?: (() => void) | undefined
+  onRepotPast?: (() => void) | undefined
+  isWaterFirstTime?: boolean | undefined
+  isFertilizeFirstTime?: boolean | undefined
+  isMistFirstTime?: boolean | undefined
+  isRepotFirstTime?: boolean | undefined
+  onCorrectDates?: (() => void) | undefined
 }
 
 type UrgencyState = 'overdue' | 'today' | 'soon' | 'normal'
@@ -114,9 +114,9 @@ interface CareCardProps {
   days: number | null
   label: string
   nextDate: string
-  onDoNow?: () => void
-  onLogPast?: () => void
-  isFirstTime?: boolean
+  onDoNow?: (() => void) | undefined
+  onLogPast?: (() => void) | undefined
+  isFirstTime?: boolean | undefined
 }
 
 function CareCard({

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { createQueryWrapper } from 'src/__tests__/utils/query-helpers'
-import { useSubscriptionSync } from 'src/hooks/useSubscriptionSync'
+import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
+import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
 
 // Mock query client
 const mockInvalidateQueries = jest.fn()

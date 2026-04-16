@@ -1,5 +1,5 @@
 import { StaleTime } from '@lily/shared'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 export function useRooms() {
   return useEffectQuery(

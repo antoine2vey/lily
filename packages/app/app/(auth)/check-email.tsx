@@ -5,10 +5,10 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from 'src/components'
-import { Button, TextLink } from 'src/components/ui'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useThemeContext } from 'src/contexts/ThemeContext'
+import { MeshBackground } from '@/components'
+import { Button, TextLink } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { useThemeContext } from '@/contexts/ThemeContext'
 
 export default function CheckEmailScreen() {
   const insets = useSafeAreaInsets()

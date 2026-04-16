@@ -1,7 +1,7 @@
 import { Option, pipe } from 'effect'
 import { forwardRef } from 'react'
 import { Text, TextInput, type TextInputProps, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface FormInputProps extends TextInputProps {
   label?: string

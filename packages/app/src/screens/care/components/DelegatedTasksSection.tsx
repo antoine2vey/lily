@@ -9,10 +9,10 @@ import { Array as Arr, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { Avatar } from 'src/components/Avatar'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { useDelegatedTasks } from 'src/hooks/useDelegatedTasks'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { Avatar } from '@/components/Avatar'
+import { SectionHeader } from '@/components/SectionHeader'
+import { useDelegatedTasks } from '@/hooks/useDelegatedTasks'
+import { useIconColors } from '@/hooks/useIconColors'
 
 export function DelegatedTasksSection() {
   const iconColors = useIconColors()

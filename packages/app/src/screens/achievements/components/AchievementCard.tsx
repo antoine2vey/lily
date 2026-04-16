@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, Option, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
-import { ProgressBar } from 'src/components/ProgressBar'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ProgressBar } from '@/components/ProgressBar'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 

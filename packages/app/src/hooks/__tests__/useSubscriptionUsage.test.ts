@@ -1,6 +1,6 @@
-import { mockNow } from 'src/__tests__/utils/dates'
+import { mockNow } from '@/__tests__/utils/dates'
 
-jest.mock('src/utils/client', () => ({
+jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn().mockReturnValue({
     data: {
       subscription: {
@@ -37,7 +37,7 @@ jest.mock('src/utils/client', () => ({
   apiEffectRunner: jest.fn(),
 }))
 
-import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
+import { renderQueryHook } from '@/__tests__/utils/query-helpers'
 import { useSubscriptionUsage } from '../useSubscriptionUsage'
 
 describe('useSubscriptionUsage', () => {

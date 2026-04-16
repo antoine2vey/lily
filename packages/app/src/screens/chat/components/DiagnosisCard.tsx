@@ -2,8 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useEffectMutation } from 'src/utils/client'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useEffectMutation } from '@/utils/client'
 
 interface DiagnosisResult {
   diagnosisId: string
@@ -17,7 +17,7 @@ interface DiagnosisResult {
 
 interface DiagnosisCardProps {
   diagnosis: DiagnosisResult
-  plantId?: string
+  plantId?: string | undefined
 }
 
 const getSeverityColor = (severity: string): string =>

@@ -11,12 +11,12 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button } from 'src/components/ui/Button'
-import { Input } from 'src/components/ui/Input'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { CategoryPicker } from 'src/screens/add-plant/components/CategoryPicker'
-import { PhotoPicker } from 'src/screens/add-plant/components/PhotoPicker'
-import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { useIconColors } from '@/hooks/useIconColors'
+import { CategoryPicker } from '@/screens/add-plant/components/CategoryPicker'
+import { PhotoPicker } from '@/screens/add-plant/components/PhotoPicker'
+import { WizardHeader } from '@/screens/add-plant/components/WizardHeader'
 
 export function ManualAddBasicInfoScreen() {
   const { t } = useTranslation('addPlant')

@@ -1,13 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Either } from 'effect'
-import { useEffectMutation } from 'src/utils/client'
+import { useEffectMutation } from '@/utils/client'
 import {
   optimisticFollowUpdate,
   restoreSocialSnapshot,
   type SocialCacheSnapshot,
   saveSocialSnapshot,
-} from 'src/utils/optimistic-follow'
-import { queryKeys } from 'src/utils/query-keys'
+} from '@/utils/optimistic-follow'
+import { queryKeys } from '@/utils/query-keys'
 
 interface FollowMutationContext {
   readonly previous: SocialCacheSnapshot

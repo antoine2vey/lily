@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { createQueryWrapper } from 'src/__tests__/utils/query-helpers'
+import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // Mock upload utility
 jest.mock('@/utils/upload', () => ({

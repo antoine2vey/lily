@@ -1,7 +1,7 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { Array as Arr, Either, Match, Option, pipe } from 'effect'
-import type { ApiResult } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import type { ApiResult } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 /**
  * Snapshot of all cached social queries, used for rollback on failure.

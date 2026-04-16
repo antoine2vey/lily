@@ -8,13 +8,13 @@ import {
   View,
 } from 'react-native'
 import { Easing } from 'react-native-reanimated'
-import { SHIMMER_PRESETS } from 'src/components/ui/shimmer/const'
+import { SHIMMER_PRESETS } from '@/components/ui/shimmer/const'
 import type {
   IShimmerEffect,
   IShimmerGroup,
   ShimmerDirection,
   ShimmerPreset,
-} from 'src/components/ui/shimmer/Shimmer.types'
+} from '@/components/ui/shimmer/Shimmer.types'
 
 export const ShimmerEffect: React.FC<IShimmerEffect> &
   React.FunctionComponent<IShimmerEffect> = memo<IShimmerEffect>(
@@ -22,7 +22,7 @@ export const ShimmerEffect: React.FC<IShimmerEffect> &
     isLoading = true,
     shimmerColors,
     duration = 1500,
-    className,
+    className = '',
     style,
     variant = 'shimmer',
     direction = 'leftToRight',

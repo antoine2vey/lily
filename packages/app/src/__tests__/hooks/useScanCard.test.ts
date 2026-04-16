@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
-import { createQueryWrapper } from 'src/__tests__/utils/query-helpers'
-import { useScanCard, useScanCardMultiple } from 'src/hooks/useScanCard'
+import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
+import { useScanCard, useScanCardMultiple } from '@/hooks/useScanCard'
 
 // Mock upload utilities
 const mockUploadMultipart = jest.fn()

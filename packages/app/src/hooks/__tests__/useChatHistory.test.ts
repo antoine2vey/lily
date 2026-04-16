@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react-native'
-import { mockFixedDate } from 'src/__tests__/utils/dates'
+import { mockFixedDate } from '@/__tests__/utils/dates'
 import {
   createQueryWrapper,
   mockQueryLoading,
   mockQuerySuccess,
-} from 'src/__tests__/utils/query-helpers'
+} from '@/__tests__/utils/query-helpers'
 
 // Mock the client
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 import { useChatHistory } from '../useChatHistory'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
@@ -131,8 +131,8 @@ describe('useChatHistory', () => {
     })
 
     // Data should be reversed (last message first for inverted list)
-    expect(result.current.data[0].id).toBe('msg-2')
-    expect(result.current.data[1].id).toBe('msg-1')
+    expect(result.current.data[0]!.id).toBe('msg-2')
+    expect(result.current.data[1]!.id).toBe('msg-1')
   })
 
   it('keeps initialMessages in chronological order', () => {
@@ -145,8 +145,8 @@ describe('useChatHistory', () => {
     })
 
     // initialMessages should be in chronological order (first message first)
-    expect(result.current.initialMessages[0].id).toBe('msg-1')
-    expect(result.current.initialMessages[1].id).toBe('msg-2')
+    expect(result.current.initialMessages[0]!.id).toBe('msg-1')
+    expect(result.current.initialMessages[1]!.id).toBe('msg-2')
   })
 
   it('transforms messages to correct format', () => {

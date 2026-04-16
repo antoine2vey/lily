@@ -1,3 +1,3 @@
-import { AIScannerScreen } from 'src/screens/add-plant/AIScannerScreen'
+import { AIScannerScreen } from '@/screens/add-plant/AIScannerScreen'
 
 export default AIScannerScreen

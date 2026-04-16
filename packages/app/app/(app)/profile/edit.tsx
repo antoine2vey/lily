@@ -1,3 +1,3 @@
-import { EditProfileScreen } from 'src/screens/edit-profile'
+import { EditProfileScreen } from '@/screens/edit-profile'
 
 export default EditProfileScreen

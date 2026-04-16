@@ -1,9 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import {
-  mockDateFuture,
-  mockFixedDate,
-  mockNow,
-} from 'src/__tests__/utils/dates'
+import { mockDateFuture, mockFixedDate, mockNow } from '@/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -26,8 +22,8 @@ jest.mock('@/hooks/useDelegatedTasks', () => ({
   useDelegatedTasks: jest.fn().mockReturnValue({ data: undefined }),
 }))
 
-import { useCareTasks } from 'src/hooks/useCareTasks'
-import { useCompleteTask } from 'src/hooks/useCompleteTask'
+import { useCareTasks } from '@/hooks/useCareTasks'
+import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { CareScreen } from '../CareScreen'
 
 const mockedUseCareTasks = useCareTasks as jest.Mock

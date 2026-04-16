@@ -1,1 +1,1 @@
-export { RoomsScreen } from 'src/screens/rooms/RoomsScreen'
+export { RoomsScreen } from '@/screens/rooms/RoomsScreen'

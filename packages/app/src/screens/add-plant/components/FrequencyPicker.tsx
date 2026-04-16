@@ -2,7 +2,7 @@ import { Array, pipe } from 'effect'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface FrequencyPreset {
   days: number

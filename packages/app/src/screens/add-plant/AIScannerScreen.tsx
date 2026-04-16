@@ -7,10 +7,10 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { CameraPermissionRequest, ScannerOverlay } from 'src/components/scanner'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useIdentifyPlant } from 'src/hooks/useIdentifyPlant'
-import { UploadError } from 'src/utils/upload'
+import { CameraPermissionRequest, ScannerOverlay } from '@/components/scanner'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useIdentifyPlant } from '@/hooks/useIdentifyPlant'
+import { UploadError } from '@/utils/upload'
 
 export function AIScannerScreen() {
   const { t } = useTranslation('addPlant')

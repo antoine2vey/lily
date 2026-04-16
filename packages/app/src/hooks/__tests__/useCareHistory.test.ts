@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react-native'
-import { mockCareLogs } from 'src/__tests__/fixtures/care-logs'
+import { mockCareLogs } from '@/__tests__/fixtures/care-logs'
 import {
   createQueryWrapper,
   mockQueryLoading,
   mockQuerySuccess,
-} from 'src/__tests__/utils/query-helpers'
+} from '@/__tests__/utils/query-helpers'
 
 // Mock the client
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 import { useCareHistory } from '../useCareHistory'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

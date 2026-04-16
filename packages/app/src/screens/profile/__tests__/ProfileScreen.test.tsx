@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react-native'
-import { mockUserAchievements } from 'src/__tests__/fixtures/achievements'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
-import { mockUsers } from 'src/__tests__/fixtures/users'
+import { mockUserAchievements } from '@/__tests__/fixtures/achievements'
+import { mockPlants } from '@/__tests__/fixtures/plants'
+import { mockUsers } from '@/__tests__/fixtures/users'
 
 // Mock dependencies
 jest.mock('@/contexts/AuthContext', () => ({
@@ -32,13 +32,13 @@ jest.mock('@/hooks/useMyDelegations', () => ({
   useMyDelegations: jest.fn(),
 }))
 
-import { useAuth } from 'src/contexts/AuthContext'
-import { useAchievements } from 'src/hooks/useAchievements'
-import { useMyDelegations } from 'src/hooks/useMyDelegations'
-import { usePlants } from 'src/hooks/usePlants'
-import { useSocialStats } from 'src/hooks/useSocialStats'
-import { useSubscription } from 'src/hooks/useSubscription'
-import { useUser } from 'src/hooks/useUser'
+import { useAuth } from '@/contexts/AuthContext'
+import { useAchievements } from '@/hooks/useAchievements'
+import { useMyDelegations } from '@/hooks/useMyDelegations'
+import { usePlants } from '@/hooks/usePlants'
+import { useSocialStats } from '@/hooks/useSocialStats'
+import { useSubscription } from '@/hooks/useSubscription'
+import { useUser } from '@/hooks/useUser'
 import { ProfileScreen } from '../ProfileScreen'
 
 const mockedUseAuth = useAuth as jest.Mock
@@ -139,7 +139,7 @@ describe('ProfileScreen', () => {
 
     render(<ProfileScreen />)
 
-    expect(screen.getByText(mockUsers[0].name ?? 'User')).toBeTruthy()
+    expect(screen.getByText(mockUsers[0]!.name ?? 'User')).toBeTruthy()
   })
 
   it('shows menu items', () => {

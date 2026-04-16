@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockUsers } from 'src/__tests__/fixtures/users'
+import { mockUsers } from '@/__tests__/fixtures/users'
 
 const mockInvalidateQueries = jest.fn()
 jest.mock('@tanstack/react-query', () => {
@@ -32,8 +32,8 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-import { useTheme } from 'src/hooks/useTheme'
-import { useUser } from 'src/hooks/useUser'
+import { useTheme } from '@/hooks/useTheme'
+import { useUser } from '@/hooks/useUser'
 import { SettingsScreen } from '../SettingsScreen'
 
 const mockedUseUser = useUser as jest.Mock

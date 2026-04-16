@@ -1,3 +1,3 @@
-import { NotificationSettingsScreen } from 'src/screens/notification-settings'
+import { NotificationSettingsScreen } from '@/screens/notification-settings'
 
 export default NotificationSettingsScreen

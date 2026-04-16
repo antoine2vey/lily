@@ -1,14 +1,14 @@
 import { parseToNativeDate } from '@lily/shared'
 import type { UIMessage } from 'ai'
 import { Array, Option, pipe } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 // Extended message type with imageUrl for display
 export interface ChatMessageDisplay {
   id: string
   role: 'user' | 'assistant'
   content: string
-  imageUrl?: string
+  imageUrl?: string | undefined
   createdAt: Date
 }
 
@@ -17,8 +17,8 @@ const toUIMessage = (msg: {
   id: string
   role: 'user' | 'assistant'
   content: string
-  imageUrl?: string
-  parts?: readonly unknown[]
+  imageUrl?: string | undefined
+  parts?: readonly unknown[] | undefined
   createdAt: Date | string
 }): UIMessage => {
   // Build image file part from freshly resolved imageUrl
@@ -81,7 +81,7 @@ const toDisplayMessage = (msg: {
   id: string
   role: 'user' | 'assistant'
   content: string
-  imageUrl?: string
+  imageUrl?: string | undefined
   createdAt: Date | string
 }): ChatMessageDisplay => ({
   id: msg.id,

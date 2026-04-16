@@ -6,7 +6,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap
 
 interface PlantImageBadgeProps {
-  imageUrl?: string
+  imageUrl?: string | undefined
   size: number
   badgeIcon: MaterialIconName
   badgeColor: string

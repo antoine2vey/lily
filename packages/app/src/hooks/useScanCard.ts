@@ -2,8 +2,8 @@ import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { Array as Arr } from 'effect'
 import { useTranslation } from 'react-i18next'
-import type { PlantIdentificationResult } from 'src/hooks/useIdentifyPlant'
-import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
+import type { PlantIdentificationResult } from '@/hooks/useIdentifyPlant'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 /**
  * Hook to scan a nursery card photo using AI.

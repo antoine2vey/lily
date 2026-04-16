@@ -1,5 +1,5 @@
 import { View } from 'react-native'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 
 function UserCardSkeleton() {
   return (

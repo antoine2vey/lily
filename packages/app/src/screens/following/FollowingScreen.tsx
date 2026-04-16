@@ -5,15 +5,15 @@ import { useCallback } from 'react'
 import { FlatList, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { EmptyState } from 'src/components/EmptyState'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useFollowing } from 'src/hooks/useFollowing'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { UserCardItem } from 'src/screens/user-search/components/UserCardItem'
-import { UserSearchSkeleton } from 'src/screens/user-search/components/UserSearchSkeleton'
+import { EmptyState } from '@/components/EmptyState'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useFollowing } from '@/hooks/useFollowing'
+import { useIconColors } from '@/hooks/useIconColors'
+import { UserCardItem } from '@/screens/user-search/components/UserCardItem'
+import { UserSearchSkeleton } from '@/screens/user-search/components/UserSearchSkeleton'
 
 interface FollowingScreenProps {
-  readonly userId?: string
+  readonly userId?: string | undefined
 }
 
 export function FollowingScreen({ userId }: FollowingScreenProps) {

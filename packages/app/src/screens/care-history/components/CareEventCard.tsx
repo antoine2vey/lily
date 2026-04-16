@@ -4,7 +4,7 @@ import { Match, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
+import { AnimatedImage } from '@/components/AnimatedImage'
 
 type CareEventType =
   | 'watering'
@@ -17,9 +17,9 @@ type CareEventType =
 interface CareEvent {
   id: string
   type: CareEventType
-  notes?: string
+  notes?: string | undefined
   createdAt: string
-  photoUrl?: string
+  photoUrl?: string | undefined
 }
 
 interface CareEventCardProps {

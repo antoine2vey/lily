@@ -1,6 +1,6 @@
 import { Array } from 'effect'
 import { useWindowDimensions, View } from 'react-native'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 
 export function PublicProfileSkeleton() {
   const { width } = useWindowDimensions()

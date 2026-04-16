@@ -1,5 +1,5 @@
-import { useThemeContext } from 'src/contexts/ThemeContext'
-import { iconColorsDark, iconColorsLight } from 'src/theme'
+import { useThemeContext } from '@/contexts/ThemeContext'
+import { iconColorsDark, iconColorsLight } from '@/theme'
 
 /**
  * Returns theme-aware icon colors.

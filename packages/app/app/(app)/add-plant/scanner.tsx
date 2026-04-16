@@ -1,3 +1,3 @@
-import { UnifiedScannerScreen } from 'src/screens/add-plant/UnifiedScannerScreen'
+import { UnifiedScannerScreen } from '@/screens/add-plant/UnifiedScannerScreen'
 
 export default UnifiedScannerScreen

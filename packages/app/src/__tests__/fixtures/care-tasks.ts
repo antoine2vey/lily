@@ -1,5 +1,5 @@
 import type { Plant } from '@lily/shared/plant'
-import { makeSchedules } from 'src/__tests__/fixtures/plants'
+import { makeSchedules } from '@/__tests__/fixtures/plants'
 
 // Helper to get dates relative to now
 const now = new Date()

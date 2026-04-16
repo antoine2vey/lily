@@ -5,11 +5,11 @@ import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { ConfirmationModal } from 'src/components/ConfirmationModal'
-import { useDeletePhoto } from 'src/hooks/useDeletePhoto'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useEffectQuery } from 'src/utils/client'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { useDeletePhoto } from '@/hooks/useDeletePhoto'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useEffectQuery } from '@/utils/client'
 
 export function PhotoViewerScreen() {
   const { t } = useTranslation(['plantDetail', 'common'])

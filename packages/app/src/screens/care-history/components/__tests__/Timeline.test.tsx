@@ -56,7 +56,7 @@ describe('Timeline', () => {
 
     fireEvent.press(screen.getByText('Watered'))
 
-    expect(mockOnEventPress).toHaveBeenCalledWith(mockGroups[0].events[0])
+    expect(mockOnEventPress).toHaveBeenCalledWith(mockGroups[0]!.events[0])
   })
 
   it('renders multiple groups correctly', () => {

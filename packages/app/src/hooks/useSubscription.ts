@@ -1,4 +1,4 @@
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 const StaleTime = {
   subscription: 1000 * 60 * 5, // 5 minutes

@@ -1,6 +1,6 @@
 import { type CareType, parseApiDate, StaleTime } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 // UI activity type - maps API types to display types
 export type ActivityType =
@@ -17,7 +17,7 @@ export interface UIActivity {
   plantId: string
   plantName: string
   timestamp: Date
-  plantImageUrl?: string
+  plantImageUrl?: string | undefined
 }
 
 // Map API care log types to UI activity types

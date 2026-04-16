@@ -10,8 +10,8 @@ import type {
   PurchasesOfferings,
   PurchasesPackage,
 } from 'react-native-purchases'
-import { useSubscriptionSync } from 'src/hooks/useSubscriptionSync'
-import * as RevenueCatService from 'src/services/revenuecat'
+import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
+import * as RevenueCatService from '@/services/revenuecat'
 
 interface RevenueCatContextValue {
   offerings: PurchasesOfferings | null

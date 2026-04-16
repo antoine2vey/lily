@@ -14,17 +14,17 @@ import {
 } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { SkeletonBox } from 'src/components/skeletons'
-import { useChatHistory } from 'src/hooks/useChatHistory'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlantChat } from 'src/hooks/usePlantChat'
-import { useUploadChatImage } from 'src/hooks/useUploadChatImage'
-import { ChatHeader } from 'src/screens/chat/components/ChatHeader'
-import { ChatInput } from 'src/screens/chat/components/ChatInput'
-import { ChatMessage } from 'src/screens/chat/components/ChatMessage'
-import { SuggestionChips } from 'src/screens/chat/components/SuggestionChips'
-import { TypingIndicator } from 'src/screens/chat/components/TypingIndicator'
+import { SkeletonBox } from '@/components/skeletons'
+import { useChatHistory } from '@/hooks/useChatHistory'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlantChat } from '@/hooks/usePlantChat'
+import { useUploadChatImage } from '@/hooks/useUploadChatImage'
+import { ChatHeader } from '@/screens/chat/components/ChatHeader'
+import { ChatInput } from '@/screens/chat/components/ChatInput'
+import { ChatMessage } from '@/screens/chat/components/ChatMessage'
+import { SuggestionChips } from '@/screens/chat/components/SuggestionChips'
+import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 
 /**
  * Returns true when an assistant message has no visible content yet —
@@ -127,15 +127,21 @@ export function ChatScreen() {
 
       // Pass imageKey through sendMessage body option so it reaches
       // prepareSendMessagesRequest without relying on refs
-      const body = pipe(
+      const bodyOption = pipe(
         Option.fromNullable(uploadedImageKey),
-        Option.match({
-          onNone: () => undefined,
-          onSome: (key) => ({ imageKey: key }),
-        })
+        Option.map((key) => ({ imageKey: key }))
       )
 
-      await sendMessage(messagePayload, { body })
+      await sendMessage(
+        messagePayload,
+        pipe(
+          bodyOption,
+          Option.match({
+            onNone: () => ({}),
+            onSome: (body) => ({ body }),
+          })
+        )
+      )
 
       pendingImageUrl.current = undefined
 

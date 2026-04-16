@@ -14,7 +14,7 @@ jest.mock('@/hooks/useWeatherSettings', () => ({
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
-} from 'src/hooks/usePrivacySettings'
+} from '@/hooks/usePrivacySettings'
 import { PrivacySettingsScreen } from '../PrivacySettingsScreen'
 
 const mockedUsePrivacySettings = usePrivacySettings as jest.Mock

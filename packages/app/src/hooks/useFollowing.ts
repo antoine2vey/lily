@@ -1,4 +1,4 @@
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 export function useFollowing(userId?: string) {
   const ownFollowing = useEffectQuery(

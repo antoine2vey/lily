@@ -1,7 +1,7 @@
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { View } from 'react-native'
-import { LogCareSheet } from 'src/screens/log-care/LogCareSheet'
+import { LogCareSheet } from '@/screens/log-care/LogCareSheet'
 
 export default function LogCareRoute() {
   const [visible, setVisible] = useState(true)

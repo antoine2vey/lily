@@ -1,3 +1,3 @@
-import { ChatScreen } from 'src/screens/chat'
+import { ChatScreen } from '@/screens/chat'
 
 export default ChatScreen

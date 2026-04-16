@@ -1,9 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { ListRow } from 'src/components/ListRow'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { ListRow } from '@/components/ListRow'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface PlantOptionsSheetProps {
   visible: boolean

@@ -1,5 +1,5 @@
 import { type DimensionValue, useColorScheme } from 'react-native'
-import { ShimmerEffect } from 'src/components/ui/shimmer/Shimmer'
+import { ShimmerEffect } from '@/components/ui/shimmer/Shimmer'
 
 const ROUNDED_VALUES: Record<string, number> = {
   none: 0,
@@ -31,11 +31,11 @@ const LIGHT_BG = '#D1D5DB'
 const DARK_BG = '#334155'
 
 interface SkeletonProps {
-  className?: string
-  width?: number | string
-  height?: number | string
-  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
-  children?: React.ReactNode
+  className?: string | undefined
+  width?: number | string | undefined
+  height?: number | string | undefined
+  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | undefined
+  children?: React.ReactNode | undefined
 }
 
 export function Skeleton({
@@ -67,8 +67,8 @@ export function Skeleton({
 }
 
 interface SkeletonCircleProps {
-  size?: number
-  className?: string
+  size?: number | undefined
+  className?: string | undefined
 }
 
 export function SkeletonCircle({
@@ -81,10 +81,10 @@ export function SkeletonCircle({
 }
 
 interface SkeletonBoxProps {
-  width?: number | string
-  height?: number | string
-  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
-  className?: string
+  width?: number | string | undefined
+  height?: number | string | undefined
+  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | undefined
+  className?: string | undefined
 }
 
 export function SkeletonBox({
