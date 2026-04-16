@@ -25,7 +25,6 @@
     "resolvePackageJsonImports": true,
     "preserveConstEnums": true,
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "plugins": [
       {
         "name": "@effect/language-service"
