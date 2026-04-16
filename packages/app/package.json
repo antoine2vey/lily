@@ -1,6 +1,13 @@
 {
   "name": "@lily/app",
   "version": "1.0.0",
+  "sideEffects": [
+    "**/*.css",
+    "./src/polyfills.ts",
+    "./src/sentry.ts",
+    "./src/i18n/index.ts",
+    "./src/__tests__/setup.ts"
+  ],
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
