@@ -16,7 +16,10 @@ const emptyMetadata: GiftMetadata = {}
 
 const decodeMetadata = Schema.decodeOption(Schema.parseJson(GiftMetadata))
 
-const durationLabel: Record<string, string> = GIFT_DURATION_LABELS.en
+const durationLabel: Record<string, string> = pipe(
+  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.getOrElse(() => ({}) as Record<string, string>)
+)
 
 const formatDate = (dateStr: string): string =>
   new Date(dateStr).toLocaleDateString('en-US', {
