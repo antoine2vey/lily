@@ -49,4 +49,15 @@ jobs:
         working-directory: packages/app
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-        run: eas update --branch production --environment production --message "${{ github.event.head_commit.message }}" --non-interactive
+          # Pass via env, not template substitution, so the shell never sees
+          # unescaped quotes/special chars from the commit body.
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          # Use only the subject line (first line). Commit bodies with
+          # quotes or backticks previously broke eas update arg parsing.
+          SUBJECT="${COMMIT_MESSAGE%%$'\n'*}"
+          eas update \
+            --branch production \
+            --environment production \
+            --message "$SUBJECT" \
+            --non-interactive
