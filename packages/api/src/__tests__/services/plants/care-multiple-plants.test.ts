@@ -19,6 +19,10 @@ import { createMockPlantRepository } from '../../mocks/plant.repository'
 import { createMockCurrentUser } from '../../mocks/session'
 import { createMockUserRepository } from '../../mocks/user.repository'
 
+type DelegationMockData = NonNullable<
+  Parameters<typeof createMockDelegationRepository>[0]
+>
+
 const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> =>
   Layer.succeed(SqlClient.SqlClient, {
     withTransaction: (effect: Effect.Effect<unknown, unknown, unknown>) =>
@@ -51,9 +55,9 @@ const createTestLayer = (
     schedules?: CareScheduleRow[]
     notifications?: Notification[]
     publishedEvents?: AppEvent[]
-    delegations?: any[]
-    delegationPlants?: any[]
-    users?: any[]
+    delegations?: DelegationMockData['delegations']
+    delegationPlants?: DelegationMockData['delegationPlants']
+    users?: DelegationMockData['users']
     rooms?: { id: string; name: string; icon: string }[]
   } = {}
 ) => {

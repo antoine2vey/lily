@@ -48,6 +48,8 @@ import {
   pipe,
 } from 'effect'
 
+type Db = Context.Tag.Service<typeof PgDrizzle.PgDrizzle>
+
 // Types for repository methods
 export interface FindPlantsParams {
   page?: number
@@ -188,8 +190,7 @@ const roomSelect = {
 // Build where-clause conditions from filter and room params
 function buildPlantFilters(
   params: FindPlantsParams,
-  // biome-ignore lint/suspicious/noExplicitAny: db type is inferred from PgDrizzle
-  db: any
+  db: Db
 ): ReturnType<typeof and>[] {
   const filterCondition = pipe(
     Match.value(params.filter),
