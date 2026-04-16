@@ -1,6 +1,6 @@
 import { GIFT_DURATION_LABELS } from '@lily/shared/admin'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
@@ -9,11 +9,21 @@ import {
   useUpdateGiftCode,
 } from '@/hooks/use-gift-codes'
 
+const enLabels = pipe(
+  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.getOrElse(() => ({
+    '7d': '7 Days',
+    '1m': '1 Month',
+    '1y': '1 Year',
+    infinite: 'Lifetime',
+  }))
+)
+
 const durationOptions = [
-  { value: '7d', label: GIFT_DURATION_LABELS.en['7d'] },
-  { value: '1m', label: GIFT_DURATION_LABELS.en['1m'] },
-  { value: '1y', label: GIFT_DURATION_LABELS.en['1y'] },
-  { value: 'infinite', label: GIFT_DURATION_LABELS.en.infinite },
+  { value: '7d', label: enLabels['7d'] },
+  { value: '1m', label: enLabels['1m'] },
+  { value: '1y', label: enLabels['1y'] },
+  { value: 'infinite', label: enLabels.infinite },
 ]
 
 const formatDate = (dateStr: string): string =>
