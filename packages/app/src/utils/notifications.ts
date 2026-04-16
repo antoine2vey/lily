@@ -57,9 +57,10 @@ export async function getExpoPushToken(): Promise<string | null> {
   }
 
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-    })
+    const projectId = process.env.EXPO_PUBLIC_PROJECT_ID
+    const tokenData = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : {}
+    )
     return tokenData.data
   } catch (error) {
     console.error('Failed to get push token:', error)
