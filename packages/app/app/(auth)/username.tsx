@@ -13,12 +13,12 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from 'src/components'
-import { Button } from 'src/components/ui'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useThemeContext } from 'src/contexts/ThemeContext'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { apiEffectRunner } from 'src/utils/client'
+import { MeshBackground } from '@/components'
+import { Button } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { useThemeContext } from '@/contexts/ThemeContext'
+import { useIconColors } from '@/hooks/useIconColors'
+import { apiEffectRunner } from '@/utils/client'
 
 const MAX_USERNAME_LENGTH = 20
 const MIN_USERNAME_LENGTH = 3

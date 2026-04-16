@@ -2,9 +2,9 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { Button } from 'src/components/ui/Button'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { Button } from '@/components/ui/Button'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type Theme = 'light' | 'dark' | 'system'
 

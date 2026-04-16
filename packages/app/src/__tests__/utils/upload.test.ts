@@ -1,4 +1,4 @@
-import { createFileFromUri } from 'src/utils/upload'
+import { createFileFromUri } from '@/utils/upload'
 
 // Note: uploadMultipart is difficult to test without extensive mocking of
 // fetch, SecureStore, and the refreshAccessToken flow. The function relies on:

@@ -1,13 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, pipe } from 'effect'
 import { Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 import {
   type CareEvent,
   CareEventCard,
   type CareEventType,
   getEventConfig,
-} from 'src/screens/care-history/components/CareEventCard'
+} from '@/screens/care-history/components/CareEventCard'
 
 interface TimelineGroup {
   date: string

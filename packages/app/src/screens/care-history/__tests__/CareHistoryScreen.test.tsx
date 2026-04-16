@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
-import { mockFixedDate } from 'src/__tests__/utils/dates'
+import { mockPlants } from '@/__tests__/fixtures/plants'
+import { mockFixedDate } from '@/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -33,8 +33,8 @@ jest.mock('@/hooks/useSaveCareLog', () => ({
   })),
 }))
 
-import { useCareHistory } from 'src/hooks/useCareHistory'
-import { usePlant } from 'src/hooks/usePlant'
+import { useCareHistory } from '@/hooks/useCareHistory'
+import { usePlant } from '@/hooks/usePlant'
 import { CareHistoryScreen } from '../CareHistoryScreen'
 
 const mockedUsePlant = usePlant as jest.Mock
@@ -78,7 +78,7 @@ describe('CareHistoryScreen', () => {
 
     render(<CareHistoryScreen />)
 
-    expect(screen.getByText(mockPlants[0].name)).toBeTruthy()
+    expect(screen.getByText(mockPlants[0]!.name)).toBeTruthy()
   })
 
   it('shows empty state when no history', () => {

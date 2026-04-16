@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { queryKeys } from 'src/utils/query-keys'
+import { queryKeys } from '@/utils/query-keys'
 
 export function useSubscriptionSync() {
   const queryClient = useQueryClient()

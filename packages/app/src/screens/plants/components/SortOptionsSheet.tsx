@@ -3,9 +3,9 @@ import { Array, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { ListRow } from 'src/components/ListRow'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { ListRow } from '@/components/ListRow'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type SortOption = 'name' | 'dateAdded' | 'nextWater' | 'health'
 

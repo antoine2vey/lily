@@ -100,13 +100,19 @@ type AuthContextValue = {
   login: (
     email: string,
     language?: LanguageCode
-  ) => Promise<{ success: boolean; error?: string }>
-  verifyMagicLink: (
-    code: string
-  ) => Promise<{ success: boolean; error?: string; status?: string }>
+  ) => Promise<{
+    success: boolean
+    error?: string | undefined
+    status?: string | undefined
+  }>
+  verifyMagicLink: (code: string) => Promise<{
+    success: boolean
+    error?: string | undefined
+    status?: string | undefined
+  }>
   setUsername: (
     username: string
-  ) => Promise<{ success: boolean; error?: string }>
+  ) => Promise<{ success: boolean; error?: string | undefined }>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -254,7 +260,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           // In auth group on a stale screen (e.g. verify) — let index decide
           const validScreens = ['login', 'welcome', 'check-email']
-          if (!validScreens.includes(segments[1])) {
+          const currentSegment = segments[1] ?? ''
+          if (!validScreens.includes(currentSegment)) {
             router.replace('/')
           }
         }
@@ -266,7 +273,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const verifyMagicLink = useCallback(
     async (
       code: string
-    ): Promise<{ success: boolean; error?: string; status?: string }> => {
+    ): Promise<{
+      success: boolean
+      error?: string | undefined
+      status?: string | undefined
+    }> => {
       try {
         const response = await apiEffectRunner('auth', 'verifyMagicLink', {
           payload: {
@@ -313,7 +324,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     async (
       email: string,
       language?: LanguageCode
-    ): Promise<{ success: boolean; error?: string }> => {
+    ): Promise<{
+      success: boolean
+      error?: string | undefined
+      status?: string | undefined
+    }> => {
       try {
         const response = await apiEffectRunner('auth', 'sendMagicLink', {
           payload: { email, language },

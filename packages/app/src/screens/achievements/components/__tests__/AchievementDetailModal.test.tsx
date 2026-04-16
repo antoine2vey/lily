@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
-import { mockFixedDate } from 'src/__tests__/utils/dates'
+import { mockFixedDate } from '@/__tests__/utils/dates'
 import { AchievementDetailModal } from '../AchievementDetailModal'
 
 describe('AchievementDetailModal', () => {

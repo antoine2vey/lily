@@ -52,8 +52,8 @@ export const defaultMockUser: UserProfile = {
 
 interface MockAuthProviderProps {
   children: ReactNode
-  state?: AuthState
-  pendingEmail?: string | null
+  state?: AuthState | undefined
+  pendingEmail?: string | null | undefined
 }
 
 export function MockAuthProvider({

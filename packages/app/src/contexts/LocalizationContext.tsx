@@ -15,8 +15,8 @@ import {
   DEFAULT_LANGUAGE,
   LANGUAGE_STORAGE_KEY,
   SUPPORTED_LANGUAGES,
-} from 'src/i18n/types'
-import { getDeviceLanguage } from 'src/utils/notifications'
+} from '@/i18n/types'
+import { getDeviceLanguage } from '@/utils/notifications'
 
 interface LocalizationContextValue {
   /** Current language code */

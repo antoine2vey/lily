@@ -1,6 +1,6 @@
 import { Option } from 'effect'
-import { useFollowers } from 'src/hooks/useFollowers'
-import { useFollowing } from 'src/hooks/useFollowing'
+import { useFollowers } from '@/hooks/useFollowers'
+import { useFollowing } from '@/hooks/useFollowing'
 
 export function useSocialStats() {
   const { data: followers } = useFollowers()

@@ -1,3 +1,3 @@
-import { OnboardingFlowScreen } from 'src/screens/onboarding/OnboardingFlowScreen'
+import { OnboardingFlowScreen } from '@/screens/onboarding/OnboardingFlowScreen'
 
 export default OnboardingFlowScreen

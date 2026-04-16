@@ -3,18 +3,18 @@ import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
-import { Badge } from 'src/components/Badge'
+import { Badge } from '@/components/Badge'
 
 type HealthStatus = 'healthy' | 'attention' | 'critical'
 
 interface PlantHeaderProps {
   plant: {
     name: string
-    species?: string
-    category?: string
+    species?: string | undefined
+    category?: string | undefined
     health: HealthStatus
-    potWidthCm?: number | null
-    potHeightCm?: number | null
+    potWidthCm?: number | null | undefined
+    potHeightCm?: number | null | undefined
   }
 }
 

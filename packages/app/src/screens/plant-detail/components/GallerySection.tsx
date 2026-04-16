@@ -3,9 +3,9 @@ import { Array } from 'effect'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { PhotoSourceSheet } from 'src/components/PhotoSourceSheet'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface GallerySectionProps {
   photos: ReadonlyArray<{

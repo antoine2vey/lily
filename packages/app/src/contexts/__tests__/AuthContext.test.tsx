@@ -20,7 +20,7 @@ jest.mock('expo-secure-store', () => ({
 }))
 
 // Mock storage utilities
-jest.mock('src/utils/storage', () => {
+jest.mock('@/utils/storage', () => {
   const { Effect, Option } = require('effect')
   return {
     clearAuthStorage: jest.fn().mockReturnValue(Effect.void),
@@ -38,7 +38,7 @@ jest.mock('src/utils/storage', () => {
 })
 
 // Mock client utilities
-jest.mock('src/utils/client', () => ({
+jest.mock('@/utils/client', () => ({
   apiEffectRunner: jest.fn(),
   extractErrorMessage: jest.fn((error: unknown) =>
     error instanceof Error ? error.message : String(error)
@@ -47,7 +47,7 @@ jest.mock('src/utils/client', () => ({
 }))
 
 // Mock notification utilities
-jest.mock('src/utils/notifications', () => ({
+jest.mock('@/utils/notifications', () => ({
   getExpoPushToken: jest.fn().mockResolvedValue('mock-push-token'),
   getPlatform: jest.fn().mockReturnValue('ios'),
 }))
@@ -171,7 +171,7 @@ describe('AuthContext', () => {
 
   describe('login function', () => {
     it('is async and returns result', async () => {
-      const { apiEffectRunner } = require('src/utils/client')
+      const { apiEffectRunner } = require('@/utils/client')
       apiEffectRunner.mockResolvedValueOnce({})
 
       const { result } = renderHook(() => useAuth(), { wrapper })

@@ -1,3 +1,3 @@
-import { ManualAddCareNeedsScreen } from 'src/screens/add-plant/ManualAddCareNeedsScreen'
+import { ManualAddCareNeedsScreen } from '@/screens/add-plant/ManualAddCareNeedsScreen'
 
 export default ManualAddCareNeedsScreen

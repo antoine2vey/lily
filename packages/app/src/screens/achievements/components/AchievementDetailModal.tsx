@@ -4,8 +4,8 @@ import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
-import { ProgressBar } from 'src/components/ProgressBar'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ProgressBar } from '@/components/ProgressBar'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 

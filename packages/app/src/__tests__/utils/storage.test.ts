@@ -10,7 +10,7 @@ import {
   storeAccessToken,
   storeRefreshToken,
   storeUserEmail,
-} from 'src/utils/storage'
+} from '@/utils/storage'
 
 // The expo-secure-store is mocked in the test setup
 const mockGetItemAsync = SecureStore.getItemAsync as jest.MockedFunction<

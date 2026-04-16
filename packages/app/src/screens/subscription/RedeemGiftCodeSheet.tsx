@@ -8,10 +8,10 @@ import {
   Text,
   View,
 } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { Input } from 'src/components/ui/Input'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useRedeemGiftCode } from 'src/hooks/useRedeemGiftCode'
+import { BottomSheet } from '@/components/BottomSheet'
+import { Input } from '@/components/ui/Input'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useRedeemGiftCode } from '@/hooks/useRedeemGiftCode'
 
 interface RedeemGiftCodeSheetProps {
   visible: boolean

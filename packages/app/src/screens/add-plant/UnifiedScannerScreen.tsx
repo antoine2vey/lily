@@ -36,14 +36,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { LuxOverlay } from 'src/components/scanner/LuxOverlay'
-import { ShimmerEffect } from 'src/components/ui/shimmer/Shimmer'
-import { useCreatePlant } from 'src/hooks/useCreatePlant'
-import type { DetectPlantResult } from 'src/hooks/useDetectPlant'
-import { useDetectPlant } from 'src/hooks/useDetectPlant'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { UploadError } from 'src/utils/upload'
+import { LuxOverlay } from '@/components/scanner/LuxOverlay'
+import { ShimmerEffect } from '@/components/ui/shimmer/Shimmer'
 import { advanceFromExternal } from '@/hooks/onboarding-storage'
+import { useCreatePlant } from '@/hooks/useCreatePlant'
+import type { DetectPlantResult } from '@/hooks/useDetectPlant'
+import { useDetectPlant } from '@/hooks/useDetectPlant'
+import { useIconColors } from '@/hooks/useIconColors'
+import { UploadError } from '@/utils/upload'
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window')
 const RESULT_PHOTO_HEIGHT = SCREEN_HEIGHT * 0.35

@@ -38,14 +38,21 @@ export const AnimatedMeshGradient: React.FC<IAnimatedMeshGradient> &
       }
     }, animated)
 
-    const safeColors = useMemo<IMeshGradientColor[]>(() => {
-      const result = [...colors]
+    const safeColors = useMemo<
+      readonly [
+        IMeshGradientColor,
+        IMeshGradientColor,
+        IMeshGradientColor,
+        IMeshGradientColor,
+      ]
+    >(() => {
+      const result: IMeshGradientColor[] = [...colors]
       while (result.length < 4) {
-        result.push(
-          DEFAULT_INITIAL_COLORS[result.length % DEFAULT_INITIAL_COLORS.length]
-        )
+        const fallback =
+          DEFAULT_INITIAL_COLORS[result.length % DEFAULT_INITIAL_COLORS.length]!
+        result.push(fallback)
       }
-      return result.slice(0, 4)
+      return [result[0]!, result[1]!, result[2]!, result[3]!] as const
     }, [colors])
 
     const shader = useMemo(() => {

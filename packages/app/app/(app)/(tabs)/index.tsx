@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { HomeScreen } from 'src/screens/home'
+import { HomeScreen } from '@/screens/home'
 
 export default function HomeTab() {
   return (

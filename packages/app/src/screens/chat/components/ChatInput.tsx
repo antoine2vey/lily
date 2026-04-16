@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface ChatInputProps {
   onSend: (message: string, imageUri?: string) => void

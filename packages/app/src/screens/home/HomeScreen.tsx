@@ -366,9 +366,9 @@ export function HomeScreen() {
                 </Animated.View>
               ) : isInitialLoading ? null : hasPlants ? (
                 <Animated.View
-                  entering={
-                    hadInitialData.current ? undefined : FadeIn.duration(300)
-                  }
+                  {...(hadInitialData.current
+                    ? {}
+                    : { entering: FadeIn.duration(300) })}
                   className="pb-6"
                 >
                   {achievementsData && <StreakCard data={achievementsData} />}
@@ -412,9 +412,9 @@ export function HomeScreen() {
                 </Animated.View>
               ) : (
                 <Animated.View
-                  entering={
-                    hadInitialData.current ? undefined : FadeIn.duration(300)
-                  }
+                  {...(hadInitialData.current
+                    ? {}
+                    : { entering: FadeIn.duration(300) })}
                   className="flex-1"
                 >
                   <View className="gap-1 mt-4">

@@ -6,11 +6,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { Button } from 'src/components/ui/Button'
-import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
-import { useCorrectCareDates } from 'src/hooks/useCorrectCareDates'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { Button } from '@/components/ui/Button'
+import { useCalendarTheme } from '@/hooks/useCalendarTheme'
+import { useCorrectCareDates } from '@/hooks/useCorrectCareDates'
+import { useIconColors } from '@/hooks/useIconColors'
 
 // API dates may arrive as ISO strings, epoch numbers, or Date objects.
 // Always coerce to a validated Date instance.

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
+import { mockPlants } from '@/__tests__/fixtures/plants'
 
 // Mock dependencies
 jest.mock('@/utils/client', () => ({
@@ -84,8 +84,8 @@ jest.mock('@/hooks/useTemperatureUnit', () => ({
   })),
 }))
 
-import { useAuth } from 'src/contexts/AuthContext'
-import { useEffectQuery } from 'src/utils/client'
+import { useAuth } from '@/contexts/AuthContext'
+import { useEffectQuery } from '@/utils/client'
 import { HomeScreen } from '../HomeScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

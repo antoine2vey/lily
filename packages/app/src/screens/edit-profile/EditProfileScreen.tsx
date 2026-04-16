@@ -11,11 +11,11 @@ import {
   Text,
   View,
 } from 'react-native'
-import { FormInput, FormTextArea } from 'src/components'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
-import { useUser } from 'src/hooks/useUser'
-import { AvatarPicker } from 'src/screens/edit-profile/components/AvatarPicker'
+import { FormInput, FormTextArea } from '@/components'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useUpdateProfile } from '@/hooks/useUpdateProfile'
+import { useUser } from '@/hooks/useUser'
+import { AvatarPicker } from '@/screens/edit-profile/components/AvatarPicker'
 
 export function EditProfileScreen() {
   const { t } = useTranslation(['profile', 'common'])

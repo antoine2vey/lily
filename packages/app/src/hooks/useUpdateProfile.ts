@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DateTime } from 'effect'
-import { apiEffectRunner } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
-import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
+import { apiEffectRunner } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 interface UpdateProfileData {
   name?: string

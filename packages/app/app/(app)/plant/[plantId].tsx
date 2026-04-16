@@ -1,3 +1,3 @@
-import { PlantDetailScreen } from 'src/screens/plant-detail'
+import { PlantDetailScreen } from '@/screens/plant-detail'
 
 export default PlantDetailScreen

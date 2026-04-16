@@ -2,7 +2,7 @@ import RNSlider from '@react-native-community/slider'
 import { Option, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface SliderProps {
   value: number

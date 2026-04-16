@@ -6,7 +6,7 @@ import { fetch as expoFetch } from 'expo/fetch'
 import * as SecureStore from 'expo-secure-store'
 import type React from 'react'
 import { useEffect, useMemo, useRef } from 'react'
-import { ACCESS_TOKEN_KEY, API_BASE_URL } from 'src/utils/client'
+import { ACCESS_TOKEN_KEY, API_BASE_URL } from '@/utils/client'
 
 export type { UIMessage }
 
@@ -56,7 +56,7 @@ export function usePlantChat({
           body,
         }: {
           messages: UIMessage[]
-          body?: Record<string, unknown>
+          body?: Record<string, unknown> | undefined
         }) => {
           const message = pipe(
             messages,

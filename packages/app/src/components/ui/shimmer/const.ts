@@ -1,7 +1,7 @@
 import type {
   IShimmerColorTheme,
   ShimmerPreset,
-} from 'src/components/ui/shimmer/Shimmer.types'
+} from '@/components/ui/shimmer/Shimmer.types'
 
 const SHIMMER_PRESETS: Record<ShimmerPreset, IShimmerColorTheme> = {
   dark: {

@@ -5,22 +5,22 @@ import { useTranslation } from 'react-i18next'
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ListRow } from 'src/components/ListRow'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { SkeletonBox } from 'src/components/skeletons'
-import { ToggleRow } from 'src/components/ToggleRow'
-import { Button } from 'src/components/ui/Button'
-import { WEBSITE_BASE_URL } from 'src/constants/urls'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { ListRow } from '@/components/ListRow'
+import { SectionHeader } from '@/components/SectionHeader'
+import { SkeletonBox } from '@/components/skeletons'
+import { ToggleRow } from '@/components/ToggleRow'
+import { Button } from '@/components/ui/Button'
+import { WEBSITE_BASE_URL } from '@/constants/urls'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useIconColors } from '@/hooks/useIconColors'
 import {
   usePrivacySettings,
   useUpdatePrivacySettings,
-} from 'src/hooks/usePrivacySettings'
+} from '@/hooks/usePrivacySettings'
 import {
   useToggleWeather,
   useWeatherSettings,
-} from 'src/hooks/useWeatherSettings'
+} from '@/hooks/useWeatherSettings'
 
 export function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()

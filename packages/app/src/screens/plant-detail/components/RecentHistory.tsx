@@ -3,8 +3,8 @@ import { Array, Match, Option, pipe } from 'effect'
 import type { i18n as I18n, TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
-import { SectionHeader } from 'src/components/SectionHeader'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { SectionHeader } from '@/components/SectionHeader'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type EventType = 'watered' | 'fertilized' | 'misted' | 'pruned' | 'repotted'
 

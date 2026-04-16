@@ -1,3 +1,3 @@
-import { PhotoViewerScreen } from 'src/screens/plant-detail/PhotoViewerScreen'
+import { PhotoViewerScreen } from '@/screens/plant-detail/PhotoViewerScreen'
 
 export default PhotoViewerScreen

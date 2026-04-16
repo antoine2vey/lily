@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { DelegationDetailScreen } from 'src/screens/delegation-detail'
+import { DelegationDetailScreen } from '@/screens/delegation-detail'
 
 export default function DelegationDetail() {
   return (

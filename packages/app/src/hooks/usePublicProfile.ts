@@ -1,4 +1,4 @@
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 export function usePublicProfile(userId: string) {
   return useEffectQuery(

@@ -3,22 +3,22 @@ import { Array, Match, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlants } from 'src/hooks/usePlants'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { BottomSheet } from '@/components/BottomSheet'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlants } from '@/hooks/usePlants'
 
 interface Plant {
   id: string
   name: string
-  imageUrl?: string | null
+  imageUrl?: string | null | undefined
 }
 
 interface PlantSelectorProps {
   selectedIds: string[]
   onSelectionChange: (ids: string[]) => void
-  label?: string
-  initialPlants?: Plant[]
+  label?: string | undefined
+  initialPlants?: Plant[] | undefined
 }
 
 export function PlantSelector({

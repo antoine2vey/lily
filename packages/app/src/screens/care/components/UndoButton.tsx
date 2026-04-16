@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Animated, Pressable, Text, View } from 'react-native'
 import Svg, { Rect } from 'react-native-svg'
-import { fonts } from 'src/theme'
+import { fonts } from '@/theme'
 
 const BORDER_WIDTH = 2
 const BORDER_RADIUS = 8

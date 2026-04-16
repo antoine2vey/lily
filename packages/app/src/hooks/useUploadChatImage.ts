@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 interface UploadChatImageResult {
   imageUrl: string

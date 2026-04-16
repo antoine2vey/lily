@@ -1,8 +1,8 @@
 import type { CareTasksResponse } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array } from 'effect'
-import { useEffectMutation } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import { useEffectMutation } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 function optimisticRemoveTasks(
   queryClient: ReturnType<typeof useQueryClient>,

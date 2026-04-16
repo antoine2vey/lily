@@ -1,21 +1,21 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
-import { mockIsoString } from 'src/__tests__/utils/dates'
+import { mockPlants } from '@/__tests__/fixtures/plants'
+import { mockIsoString } from '@/__tests__/utils/dates'
 
 // Mock dependencies
-jest.mock('src/utils/client', () => ({
+jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-jest.mock('src/hooks/useDelayedLoading', () => ({
+jest.mock('@/hooks/useDelayedLoading', () => ({
   useDelayedLoading: (isLoading: boolean) => isLoading,
 }))
 
-jest.mock('src/hooks/useRooms', () => ({
+jest.mock('@/hooks/useRooms', () => ({
   useRooms: () => ({ data: undefined, isLoading: false }),
 }))
 
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 import { PlantsScreen } from '../PlantsScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock

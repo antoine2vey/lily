@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface WizardHeaderProps {
   step: number

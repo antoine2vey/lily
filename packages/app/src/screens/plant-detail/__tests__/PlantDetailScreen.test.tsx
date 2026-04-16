@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
-import { mockIsoStringFuture } from 'src/__tests__/utils/dates'
+import { mockPlants } from '@/__tests__/fixtures/plants'
+import { mockIsoStringFuture } from '@/__tests__/utils/dates'
 
 // Mock dependencies
 jest.mock('sonner-native', () => ({
@@ -70,14 +70,14 @@ jest.mock('@/hooks/useCorrectCareDates', () => ({
   }),
 }))
 
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 import { PlantDetailScreen } from '../PlantDetailScreen'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
 
 describe('PlantDetailScreen', () => {
   const mockPlant = {
-    ...mockPlants[0],
+    ...mockPlants[0]!,
     health: 'HEALTHY',
     lightingRating: 70,
     wateringRating: 50,

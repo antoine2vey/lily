@@ -23,11 +23,11 @@ interface Activity {
   plantId: string
   plantName: string
   timestamp: DateInput
-  plantImageUrl?: string
+  plantImageUrl?: string | undefined
 }
 
 interface RecentActivityProps {
-  activities: Activity[]
+  activities: readonly Activity[]
   onSeeAll: () => void
   onActivityPress: (activityId: string) => void
 }

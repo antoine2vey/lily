@@ -5,7 +5,7 @@
  *
  * Usage:
  * ```ts
- * import { render, mockPlants, mockUsers, createTestQueryClient } from 'src/__tests__'
+ * import { render, mockPlants, mockUsers, createTestQueryClient } from '@/__tests__'
  * ```
  */
 

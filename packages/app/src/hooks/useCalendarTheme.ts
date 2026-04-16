@@ -1,7 +1,7 @@
 import type { CalendarTheme } from '@marceloterreiro/flash-calendar'
 import { useMemo } from 'react'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { fonts } from 'src/theme'
+import { useIconColors } from '@/hooks/useIconColors'
+import { fonts } from '@/theme'
 
 export function useCalendarTheme(): CalendarTheme {
   const { isDark, primary, textPrimary, textMuted } = useIconColors()

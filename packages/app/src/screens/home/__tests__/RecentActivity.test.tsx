@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockDateAgo, mockNow } from 'src/__tests__/utils/dates'
+import { mockDateAgo, mockNow } from '@/__tests__/utils/dates'
 import { RecentActivity } from '../components/RecentActivity'
 
 describe('RecentActivity', () => {
@@ -63,7 +63,7 @@ describe('RecentActivity', () => {
   it('formats watered activity correctly', () => {
     render(
       <RecentActivity
-        activities={[mockActivities[0]]}
+        activities={[mockActivities[0]!]}
         onSeeAll={mockOnSeeAll}
         onActivityPress={mockOnActivityPress}
       />
@@ -75,7 +75,7 @@ describe('RecentActivity', () => {
   it('formats fertilized activity correctly', () => {
     render(
       <RecentActivity
-        activities={[mockActivities[1]]}
+        activities={[mockActivities[1]!]}
         onSeeAll={mockOnSeeAll}
         onActivityPress={mockOnActivityPress}
       />
@@ -87,7 +87,7 @@ describe('RecentActivity', () => {
   it('formats added activity correctly', () => {
     render(
       <RecentActivity
-        activities={[mockActivities[2]]}
+        activities={[mockActivities[2]!]}
         onSeeAll={mockOnSeeAll}
         onActivityPress={mockOnActivityPress}
       />

@@ -1,3 +1,3 @@
-import { AIIdentificationResultsScreen } from 'src/screens/add-plant/AIIdentificationResultsScreen'
+import { AIIdentificationResultsScreen } from '@/screens/add-plant/AIIdentificationResultsScreen'
 
 export default AIIdentificationResultsScreen

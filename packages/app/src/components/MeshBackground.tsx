@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { AnimatedMeshGradient } from 'src/components/ui/organisms/mesh-gradient'
-import { useThemeContext } from 'src/contexts/ThemeContext'
+import { AnimatedMeshGradient } from '@/components/ui/organisms/mesh-gradient'
+import { useThemeContext } from '@/contexts/ThemeContext'
 
 const LIGHT_COLORS = [
   { r: 0.36, g: 0.55, b: 0.35 },

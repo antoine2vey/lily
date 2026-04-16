@@ -1,10 +1,10 @@
 import { Match, pipe } from 'effect'
 import { Redirect } from 'expo-router'
 import { ActivityIndicator, View } from 'react-native'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useOnboardingComplete } from 'src/hooks/useOnboardingComplete'
-import { useWelcomeSeen } from 'src/hooks/useWelcomeSeen'
-import { iconColorsLight as iconColors } from 'src/theme'
+import { useAuth } from '@/contexts/AuthContext'
+import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
+import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
+import { iconColorsLight as iconColors } from '@/theme'
 
 export default function Index() {
   const { state } = useAuth()
