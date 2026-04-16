@@ -2,44 +2,143 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     tags-ignore:
       - 'v*'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+
+env:
+  BUN_VERSION: 1.3.8
 
 jobs:
-  lint-and-build:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: 1.3.8
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - name: Per-package tsc
+        run: bun run tsc
+      - name: Composite project-reference build
+        run: bun run tsc:build
 
-    - name: Cache Bun global cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-bun-
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Upload web build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: packages/web/out
+          retention-days: 7
+      - name: Upload admin build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-build
+          path: packages/admin/dist
+          retention-days: 7
 
-    - name: Install dependencies
-      run: bun install --frozen-lockfile
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - run: bun run test
 
-    - name: Lint code
-      run: bun run lint
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lily_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+      - run: bun install --frozen-lockfile
+      - name: Write test env file
+        run: |
+          cat > .env.test.local <<EOF
+          DATABASE_URL_TEST=postgres://postgres:postgres@localhost:5432/lily_test
+          DATABASE_URL=postgres://postgres:postgres@localhost:5432/lily_test
+          EOF
+      - name: Setup test database
+        run: bun run db:setup-test
+      - name: Run integration tests
+        run: bun run test:integration
 
-    - name: Type check
-      run: bun run tsc
-
-    - name: Build code
-      run: bun run build
-
-    - name: Run tests
-      run: bun run test
+  bundle-size:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: packages/web/out
+      - name: Download admin build
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-build
+          path: packages/admin/dist
+      - name: Check bundle sizes
+        run: bash scripts/check-bundle-sizes.sh
