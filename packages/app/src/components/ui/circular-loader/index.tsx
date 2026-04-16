@@ -3,7 +3,7 @@ import type React from 'react'
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, View } from 'react-native'
 import Svg, { Circle, Defs, FeGaussianBlur, Filter, G } from 'react-native-svg'
-import type { CircularLoaderProps } from 'src/components/ui/circular-loader/types'
+import type { CircularLoaderProps } from '@/components/ui/circular-loader/types'
 export const CircularLoader: React.FC<CircularLoaderProps> = ({
   size = 40,
   strokeWidth = 4,
@@ -77,11 +77,9 @@ export const CircularLoader: React.FC<CircularLoaderProps> = ({
               strokeLinecap="round"
               fill="none"
               strokeDasharray={`${activeLength} ${circumference}`}
-              filter={
-                enableBlur && blurAmount > 0
-                  ? 'url(#motionBlurSmooth)'
-                  : undefined
-              }
+              {...(enableBlur && blurAmount > 0
+                ? { filter: 'url(#motionBlurSmooth)' }
+                : {})}
             />
 
             {/* Gradient segments - smooth fade using opacity interpolation */}
@@ -110,11 +108,9 @@ export const CircularLoader: React.FC<CircularLoaderProps> = ({
                   opacity={finalOpacity}
                   strokeDasharray={`${segmentLength} ${circumference}`}
                   strokeDashoffset={offset}
-                  filter={
-                    enableBlur && blurAmount > 0
-                      ? 'url(#motionBlurSmooth)'
-                      : undefined
-                  }
+                  {...(enableBlur && blurAmount > 0
+                    ? { filter: 'url(#motionBlurSmooth)' }
+                    : {})}
                 />
               )
             })}

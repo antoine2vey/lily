@@ -9,11 +9,11 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from 'src/components'
-import { Button, Input } from 'src/components/ui'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useThemeContext } from 'src/contexts/ThemeContext'
-import { useLocalization } from 'src/hooks/useLocalization'
+import { MeshBackground } from '@/components'
+import { Button, Input } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { useThemeContext } from '@/contexts/ThemeContext'
+import { useLocalization } from '@/hooks/useLocalization'
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets()

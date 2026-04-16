@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type React from 'react'
-import { ThemeProvider } from 'src/contexts/ThemeContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { useTheme } from '../useTheme'
 
 // Unmock ThemeContext for this test file since we're testing the actual implementation
-jest.unmock('src/contexts/ThemeContext')
+jest.unmock('@/contexts/ThemeContext')
 
 // Wrapper that provides ThemeProvider
 const wrapper = ({ children }: { children: React.ReactNode }) => (

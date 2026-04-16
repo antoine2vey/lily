@@ -1,8 +1,8 @@
 import { DateTime } from 'effect'
 import { useEffect, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
-import { useSubscriptionSync } from 'src/hooks/useSubscriptionSync'
-import * as RevenueCatService from 'src/services/revenuecat'
+import { useSubscriptionSync } from '@/hooks/useSubscriptionSync'
+import * as RevenueCatService from '@/services/revenuecat'
 
 const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
 

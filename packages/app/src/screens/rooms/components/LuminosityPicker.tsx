@@ -10,8 +10,8 @@ import * as ImagePicker from 'expo-image-picker'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { toast } from 'sonner-native'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { calculateLuxFromExif } from 'src/utils/luminosity'
+import { useIconColors } from '@/hooks/useIconColors'
+import { calculateLuxFromExif } from '@/utils/luminosity'
 
 const LEVELS: LuminosityLevel[] = [1, 2, 3, 4, 5]
 

@@ -4,15 +4,15 @@ import {
   mockQueryError,
   mockQueryLoading,
   mockQuerySuccess,
-} from 'src/__tests__/utils/query-helpers'
+} from '@/__tests__/utils/query-helpers'
 
 // Mock the client
 jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn(),
 }))
 
-import { useRecentActivities } from 'src/hooks/useRecentActivities'
-import { useEffectQuery } from 'src/utils/client'
+import { useRecentActivities } from '@/hooks/useRecentActivities'
+import { useEffectQuery } from '@/utils/client'
 
 const mockedUseEffectQuery = useEffectQuery as jest.Mock
 
@@ -135,7 +135,7 @@ describe('useRecentActivities', () => {
         plantName: 'My Fern',
         plantImageUrl: 'https://example.com/fern.jpg',
       })
-      expect(result.current.data[0].timestamp).toBeInstanceOf(Date)
+      expect(result.current.data[0]!.timestamp).toBeInstanceOf(Date)
     })
 
     it('should transform fertilization activity correctly', () => {
@@ -203,9 +203,9 @@ describe('useRecentActivities', () => {
       })
 
       expect(result.current.data).toHaveLength(3)
-      expect(result.current.data[0].type).toBe('watered')
-      expect(result.current.data[1].type).toBe('fertilized')
-      expect(result.current.data[2].type).toBe('watered')
+      expect(result.current.data[0]!.type).toBe('watered')
+      expect(result.current.data[1]!.type).toBe('fertilized')
+      expect(result.current.data[2]!.type).toBe('watered')
     })
 
     it('should handle Date objects in date field', () => {
@@ -229,7 +229,7 @@ describe('useRecentActivities', () => {
         wrapper: createQueryWrapper(),
       })
 
-      expect(result.current.data[0].timestamp).toEqual(dateObj)
+      expect(result.current.data[0]!.timestamp).toEqual(dateObj)
     })
   })
 

@@ -4,9 +4,9 @@ import { Array, Option, pipe, String } from 'effect'
 import { fetch as expoFetch } from 'expo/fetch'
 import * as SecureStore from 'expo-secure-store'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useAchievements } from 'src/hooks/useAchievements'
-import { ACCESS_TOKEN_KEY, API_BASE_URL } from 'src/utils/client'
-import { queryKeys } from 'src/utils/query-keys'
+import { useAchievements } from '@/hooks/useAchievements'
+import { ACCESS_TOKEN_KEY, API_BASE_URL } from '@/utils/client'
+import { queryKeys } from '@/utils/query-keys'
 
 interface AchievementNotifications {
   currentAchievement: AchievementWithProgress | null

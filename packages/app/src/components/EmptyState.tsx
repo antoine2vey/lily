@@ -1,16 +1,18 @@
 import { Text, View } from 'react-native'
-import { Button } from 'src/components/ui/Button'
+import { Button } from '@/components/ui/Button'
 
 type IllustrationType = 'plant' | 'notification' | 'achievement' | 'search'
 
 interface EmptyStateProps {
-  illustration?: IllustrationType
+  illustration?: IllustrationType | undefined
   title: string
-  description?: string
-  action?: {
-    label: string
-    onPress: () => void
-  }
+  description?: string | undefined
+  action?:
+    | {
+        label: string
+        onPress: () => void
+      }
+    | undefined
 }
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {

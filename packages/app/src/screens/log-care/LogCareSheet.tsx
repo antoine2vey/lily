@@ -22,14 +22,14 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { Button } from 'src/components/ui/Button'
-import { useCalendarTheme } from 'src/hooks/useCalendarTheme'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useSaveCareLog } from 'src/hooks/useSaveCareLog'
-import { CareTypeChips } from 'src/screens/log-care/components/CareTypeChips'
-import { PlantSelector } from 'src/screens/log-care/components/PlantSelector'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { BottomSheet } from '@/components/BottomSheet'
+import { Button } from '@/components/ui/Button'
+import { useCalendarTheme } from '@/hooks/useCalendarTheme'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useSaveCareLog } from '@/hooks/useSaveCareLog'
+import { CareTypeChips } from '@/screens/log-care/components/CareTypeChips'
+import { PlantSelector } from '@/screens/log-care/components/PlantSelector'
 
 interface Plant {
   id: string
@@ -40,9 +40,9 @@ interface Plant {
 interface LogCareSheetProps {
   visible: boolean
   onClose: () => void
-  defaultPlantId?: string
-  defaultPlant?: Plant
-  onSuccess?: () => void
+  defaultPlantId?: string | undefined
+  defaultPlant?: Plant | undefined
+  onSuccess?: (() => void) | undefined
 }
 
 export function LogCareSheet({

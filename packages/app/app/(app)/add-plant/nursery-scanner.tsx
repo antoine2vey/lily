@@ -1,3 +1,3 @@
-import { NurseryCardScannerScreen } from 'src/screens/add-plant/NurseryCardScannerScreen'
+import { NurseryCardScannerScreen } from '@/screens/add-plant/NurseryCardScannerScreen'
 
 export default NurseryCardScannerScreen

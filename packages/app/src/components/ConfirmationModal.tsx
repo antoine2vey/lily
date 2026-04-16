@@ -2,7 +2,7 @@ import { Option, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
-import { Button } from 'src/components/ui/Button'
+import { Button } from '@/components/ui/Button'
 
 interface ConfirmationModalProps {
   visible: boolean

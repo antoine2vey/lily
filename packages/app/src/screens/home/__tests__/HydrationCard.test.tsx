@@ -44,7 +44,7 @@ describe('HydrationCard', () => {
   it('shows plant count text', () => {
     render(
       <HydrationCard
-        plants={[mockPlants[0]]}
+        plants={[mockPlants[0]!]}
         onWaterAll={mockOnWaterAll}
         onPlantPress={mockOnPlantPress}
       />

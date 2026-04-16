@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { forwardRef } from 'react'
 import { TextInput, type TextInputProps, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type InputProps = TextInputProps & {
   icon?: keyof typeof MaterialIcons.glyphMap

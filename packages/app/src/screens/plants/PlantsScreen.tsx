@@ -41,25 +41,25 @@ import {
 } from '@/utils/health'
 
 interface CareStatus {
-  daysUntil?: number
+  daysUntil?: number | undefined
   isOverdue: boolean
 }
 
 interface PlantCardData {
   id: string
   name: string
-  imageUrl?: string
+  imageUrl?: string | undefined
   health: HealthStatus
   watering: CareStatus
   fertilization: CareStatus
   misting: CareStatus
   repotting: CareStatus
-  isFavorite?: boolean
-  roomId?: string
-  roomName?: string
-  roomIcon?: string
+  isFavorite?: boolean | undefined
+  roomId?: string | undefined
+  roomName?: string | undefined
+  roomIcon?: string | undefined
   ownership: PlantOwnership
-  ownerName?: string
+  ownerName?: string | undefined
 }
 
 const getDaysUntil = (date: DateInput): Option.Option<number> =>
@@ -71,7 +71,7 @@ const getDaysUntil = (date: DateInput): Option.Option<number> =>
 const getCareStatus = (nextDate: DateInput): CareStatus => {
   const daysOption = getDaysUntil(nextDate)
   if (Option.isNone(daysOption)) {
-    return { daysUntil: undefined, isOverdue: false }
+    return { isOverdue: false }
   }
   const days = daysOption.value
   return {
@@ -422,9 +422,9 @@ export function PlantsScreen() {
               </Animated.View>
             ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(plants) ? (
               <Animated.View
-                entering={
-                  hadInitialData.current ? undefined : FadeIn.duration(300)
-                }
+                {...(hadInitialData.current
+                  ? {}
+                  : { entering: FadeIn.duration(300) })}
                 className="flex-1"
               >
                 <EmptyState
@@ -439,9 +439,9 @@ export function PlantsScreen() {
               </Animated.View>
             ) : (
               <Animated.View
-                entering={
-                  hadInitialData.current ? undefined : FadeIn.duration(300)
-                }
+                {...(hadInitialData.current
+                  ? {}
+                  : { entering: FadeIn.duration(300) })}
                 className="flex-1"
               >
                 <Animated.FlatList

@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ActivityIndicator, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from 'src/components'
-import { Button } from 'src/components/ui'
-import { useAuth } from 'src/contexts/AuthContext'
-import { useThemeContext } from 'src/contexts/ThemeContext'
+import { MeshBackground } from '@/components'
+import { Button } from '@/components/ui'
+import { useAuth } from '@/contexts/AuthContext'
+import { useThemeContext } from '@/contexts/ThemeContext'
 
 type VerifyState =
   | { _tag: 'Verifying' }

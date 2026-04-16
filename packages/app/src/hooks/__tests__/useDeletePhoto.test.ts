@@ -2,14 +2,14 @@ import { renderHook } from '@testing-library/react-native'
 import {
   createQueryWrapper,
   mockMutationSuccess,
-} from 'src/__tests__/utils/query-helpers'
+} from '@/__tests__/utils/query-helpers'
 
 // Mock the client
 jest.mock('@/utils/client', () => ({
   useEffectMutation: jest.fn(),
 }))
 
-import { useEffectMutation } from 'src/utils/client'
+import { useEffectMutation } from '@/utils/client'
 import { useDeletePhoto } from '../useDeletePhoto'
 
 const mockedUseEffectMutation = useEffectMutation as jest.MockedFunction<

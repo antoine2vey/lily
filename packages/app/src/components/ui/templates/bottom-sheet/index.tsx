@@ -143,10 +143,10 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
         }
 
         let closestIndex = 0
-        let minDistance = Math.abs(height - parsedSnapPoints[0])
+        let minDistance = Math.abs(height - parsedSnapPoints[0]!)
 
         for (let i = 1; i < parsedSnapPoints.length; i++) {
-          const distance = Math.abs(height - parsedSnapPoints[i])
+          const distance = Math.abs(height - parsedSnapPoints[i]!)
           if (distance < minDistance) {
             minDistance = distance
             closestIndex = i
@@ -166,7 +166,7 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
           return
         }
 
-        const targetY = SCREEN_HEIGHT - parsedSnapPoints[index]
+        const targetY = SCREEN_HEIGHT - parsedSnapPoints[index]!
 
         if (animated) {
           translateY.value = withSpring(targetY, springConfig)

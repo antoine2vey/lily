@@ -1,3 +1,3 @@
-import { AchievementsScreen } from 'src/screens/achievements'
+import { AchievementsScreen } from '@/screens/achievements'
 
 export default AchievementsScreen

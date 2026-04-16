@@ -1,6 +1,6 @@
 import { Option, pipe } from 'effect'
 import { useMemo } from 'react'
-import { useSubscription } from 'src/hooks/useSubscription'
+import { useSubscription } from '@/hooks/useSubscription'
 
 interface UsageItem {
   type: 'ai_chats' | 'plant_ids' | 'card_scans'

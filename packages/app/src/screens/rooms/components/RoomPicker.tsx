@@ -3,7 +3,7 @@ import { isRoomCompatibleWithPlant, luxToLuminosityLevel } from '@lily/shared'
 import { Array, String as EffectString, Match, Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { useRooms } from 'src/hooks/useRooms'
+import { useRooms } from '@/hooks/useRooms'
 
 interface RoomPickerProps {
   value: string | null

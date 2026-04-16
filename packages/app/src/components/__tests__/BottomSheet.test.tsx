@@ -7,7 +7,7 @@ import { Text } from 'react-native'
 jest.useFakeTimers()
 
 // Mock the reacticx BottomSheet to avoid reanimated/gesture-handler dependencies
-jest.mock('src/components/ui/templates/bottom-sheet', () => {
+jest.mock('@/components/ui/templates/bottom-sheet', () => {
   const ReactMock = require('react')
   const { View: RNView } = require('react-native')
 

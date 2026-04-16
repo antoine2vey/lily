@@ -1,5 +1,5 @@
 import { String as Str } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 export function useSearchUsers(query: string, enabled = true) {
   return useEffectQuery(

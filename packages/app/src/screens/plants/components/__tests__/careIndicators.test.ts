@@ -31,7 +31,7 @@ describe('formatDays', () => {
 
 describe('getCareIndicator', () => {
   it('returns None when daysUntil is undefined', () => {
-    const care: CareStatus = { daysUntil: undefined, isOverdue: false }
+    const care: CareStatus = { isOverdue: false }
 
     const result = getCareIndicator(care, 'watering', mockT)
 

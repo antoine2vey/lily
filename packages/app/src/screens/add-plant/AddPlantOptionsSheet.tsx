@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Pressable, Text, View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useLocalization } from 'src/hooks/useLocalization'
+import { BottomSheet } from '@/components/BottomSheet'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useLocalization } from '@/hooks/useLocalization'
 
 interface AddPlantOptionsSheetProps {
   visible: boolean

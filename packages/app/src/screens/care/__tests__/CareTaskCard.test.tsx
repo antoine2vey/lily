@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockNow } from 'src/__tests__/utils/dates'
+import { mockNow } from '@/__tests__/utils/dates'
 import { CareTaskCard } from '../components/CareTaskCard'
 
 describe('CareTaskCard', () => {

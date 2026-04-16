@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router'
-import { UserSearchScreen } from 'src/screens/user-search'
+import { UserSearchScreen } from '@/screens/user-search'
 
 export default function UserSearch() {
   return (

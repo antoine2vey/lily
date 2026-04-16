@@ -4,10 +4,10 @@ import { Match, Option, pipe } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { Badge } from 'src/components/Badge'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { UndoButton } from 'src/screens/care/components/UndoButton'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { Badge } from '@/components/Badge'
+import { useIconColors } from '@/hooks/useIconColors'
+import { UndoButton } from '@/screens/care/components/UndoButton'
 
 interface CareTaskCardProps {
   task: {

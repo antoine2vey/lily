@@ -3,8 +3,8 @@ import { Array, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type CategoryKey =
   | 'indoor'

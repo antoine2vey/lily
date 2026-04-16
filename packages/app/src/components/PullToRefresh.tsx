@@ -8,8 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
-import { CircularLoader } from 'src/components/ui/circular-loader'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { CircularLoader } from '@/components/ui/circular-loader'
+import { useIconColors } from '@/hooks/useIconColors'
 
 const MAX_PULL = 100
 const REFRESH_THRESHOLD = 60

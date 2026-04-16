@@ -2,7 +2,7 @@ import {
   type ResolvedTheme,
   type ThemePreference,
   useThemeContext,
-} from 'src/contexts/ThemeContext'
+} from '@/contexts/ThemeContext'
 
 export type { ResolvedTheme, ThemePreference }
 

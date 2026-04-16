@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router'
-import { FollowingScreen } from 'src/screens/following'
+import { FollowingScreen } from '@/screens/following'
 
 export default function Following() {
   const { userId } = useLocalSearchParams<{ userId: string }>()

@@ -3,8 +3,8 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type React from 'react'
 
 // Unmock the module for these specific tests since we want to test the real implementation
-jest.unmock('src/contexts/LocalizationContext')
-jest.unmock('src/hooks/useLocalization')
+jest.unmock('@/contexts/LocalizationContext')
+jest.unmock('@/hooks/useLocalization')
 
 // Mock expo-localization
 jest.mock('expo-localization', () => ({

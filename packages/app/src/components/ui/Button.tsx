@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
 

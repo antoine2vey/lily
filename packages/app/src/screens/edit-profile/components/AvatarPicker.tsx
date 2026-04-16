@@ -2,8 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option, pipe, String } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface AvatarPickerProps {
   avatarUrl: Option.Option<string>

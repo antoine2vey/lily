@@ -1,7 +1,7 @@
-import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
+import { renderQueryHook } from '@/__tests__/utils/query-helpers'
 import { usePrivacySettings } from '../usePrivacySettings'
 
-jest.mock('src/utils/client', () => ({
+jest.mock('@/utils/client', () => ({
   useEffectQuery: jest.fn().mockReturnValue({
     data: {
       name: 'Test User',

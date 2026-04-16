@@ -10,8 +10,8 @@ interface SaveCareLogInput {
   type: CareType
   date: Date
   time: Date
-  notes?: string
-  photoUrl?: string
+  notes?: string | undefined
+  photoUrl?: string | undefined
 }
 
 const combineDateAndTime = (date: Date, time: Date): Date => {

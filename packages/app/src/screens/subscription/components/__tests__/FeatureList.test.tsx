@@ -28,7 +28,7 @@ describe('FeatureList', () => {
   })
 
   it('renders single feature', () => {
-    render(<FeatureList features={[mockFeatures[0]]} />)
+    render(<FeatureList features={[mockFeatures[0]!]} />)
 
     expect(screen.getByText('Unlimited Plants')).toBeTruthy()
     expect(screen.getByText('Add as many plants as you want')).toBeTruthy()

@@ -3,9 +3,9 @@ import { Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback } from 'react'
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native'
-import { useFollowUser } from 'src/hooks/useFollowUser'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { useUnfollowUser } from 'src/hooks/useUnfollowUser'
+import { useFollowUser } from '@/hooks/useFollowUser'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useUnfollowUser } from '@/hooks/useUnfollowUser'
 
 interface UserCardItemProps {
   readonly id: string

@@ -1,14 +1,31 @@
-import { Image, type ImageContentFit } from 'expo-image'
+import { Image, type ImageContentFit, type ImageSource } from 'expo-image'
 import { memo, type ReactNode, useState } from 'react'
-import { type ImageSourcePropType, View, type ViewStyle } from 'react-native'
+import { View, type ViewStyle } from 'react-native'
+
+type ResolvedSource =
+  | string
+  | number
+  | ImageSource
+  | { uri?: string | undefined }
+  | null
+  | undefined
 
 interface AnimatedImageProps {
-  readonly source: ImageSourcePropType
-  readonly style?: ViewStyle
-  readonly className?: string
-  readonly contentFit?: ImageContentFit
-  readonly fallback?: ReactNode
-  readonly rounded?: boolean
+  readonly source: ResolvedSource
+  readonly style?: ViewStyle | undefined
+  readonly className?: string | undefined
+  readonly contentFit?: ImageContentFit | undefined
+  readonly fallback?: ReactNode | undefined
+  readonly rounded?: boolean | undefined
+}
+
+const normalizeSource = (
+  source: ResolvedSource
+): string | number | ImageSource | null => {
+  if (source == null) return null
+  if (typeof source === 'string' || typeof source === 'number') return source
+  if ('uri' in source && source.uri === undefined) return null
+  return source as ImageSource
 }
 
 export const AnimatedImage = memo(function AnimatedImage({
@@ -37,7 +54,7 @@ export const AnimatedImage = memo(function AnimatedImage({
       style={style}
     >
       <Image
-        source={source}
+        source={normalizeSource(source)}
         style={{ width: '100%', height: '100%' }}
         contentFit={contentFit}
         transition={300}

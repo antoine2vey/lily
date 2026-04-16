@@ -1,3 +1,3 @@
-import { SubscriptionCancelScreen } from 'src/screens/subscription'
+import { SubscriptionCancelScreen } from '@/screens/subscription'
 
 export default SubscriptionCancelScreen

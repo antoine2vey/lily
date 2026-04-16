@@ -13,6 +13,7 @@ export function useDelayedLoading(isLoading: boolean, delay = 300): boolean {
       return () => clearTimeout(timeout)
     }
     setShowLoading(false)
+    return undefined
   }, [isLoading, delay])
 
   return showLoading

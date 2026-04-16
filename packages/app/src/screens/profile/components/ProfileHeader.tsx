@@ -3,13 +3,13 @@ import { Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
+import { AnimatedImage } from '@/components/AnimatedImage'
 
 interface ProfileHeaderProps {
   avatarUrl: Option.Option<string>
   name: string
-  username?: string
-  memberSince: DateInput
+  username?: string | undefined
+  memberSince: DateInput | undefined
   followerCount: number
   followingCount: number
 }

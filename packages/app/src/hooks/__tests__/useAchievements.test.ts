@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react-native'
-import { createQueryWrapper } from 'src/__tests__/utils/query-helpers'
+import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { useAchievements } from '../useAchievements'
 
 jest.mock('@/utils/client', () => ({

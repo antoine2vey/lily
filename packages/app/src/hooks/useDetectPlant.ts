@@ -1,7 +1,7 @@
 import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { createFileFromUri, uploadMultipart } from 'src/utils/upload'
+import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
 interface PlantAlternative {
   name: string | null

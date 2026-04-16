@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import type { PublicPlantPreview } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
 import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface PlantGridProps {
   readonly plants: readonly PublicPlantPreview[]

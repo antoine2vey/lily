@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockPlants } from 'src/__tests__/fixtures/plants'
+import { mockPlants } from '@/__tests__/fixtures/plants'
 
 // Mock dependencies
-jest.mock('src/hooks/usePlants', () => ({
+jest.mock('@/hooks/usePlants', () => ({
   usePlants: jest.fn(),
 }))
 
-import { usePlants } from 'src/hooks/usePlants'
+import { usePlants } from '@/hooks/usePlants'
 import { PlantSelector } from '../PlantSelector'
 
 const mockedUsePlants = usePlants as jest.Mock
@@ -59,18 +59,18 @@ describe('PlantSelector', () => {
   it('shows plant name when one selected', () => {
     render(
       <PlantSelector
-        selectedIds={[mockPlants[0].id]}
+        selectedIds={[mockPlants[0]!.id]}
         onSelectionChange={mockOnSelectionChange}
       />
     )
 
-    expect(screen.getByText(mockPlants[0].name)).toBeTruthy()
+    expect(screen.getByText(mockPlants[0]!.name)).toBeTruthy()
   })
 
   it('shows count when multiple selected', () => {
     render(
       <PlantSelector
-        selectedIds={[mockPlants[0].id, mockPlants[1].id]}
+        selectedIds={[mockPlants[0]!.id, mockPlants[1]!.id]}
         onSelectionChange={mockOnSelectionChange}
       />
     )

@@ -9,14 +9,14 @@ import { useIconColors } from '@/hooks/useIconColors'
 interface Plant {
   id: string
   name: string
-  imageUrl?: string
+  imageUrl?: string | undefined
 }
 
 interface HydrationCardProps {
   plants: ReadonlyArray<Plant>
   onWaterAll: () => void
   onPlantPress: (plantId: string) => void
-  isLoading?: boolean
+  isLoading?: boolean | undefined
 }
 
 const MAX_VISIBLE_PLANTS = 3

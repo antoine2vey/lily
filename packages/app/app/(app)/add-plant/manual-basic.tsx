@@ -1,3 +1,3 @@
-import { ManualAddBasicInfoScreen } from 'src/screens/add-plant/ManualAddBasicInfoScreen'
+import { ManualAddBasicInfoScreen } from '@/screens/add-plant/ManualAddBasicInfoScreen'
 
 export default ManualAddBasicInfoScreen

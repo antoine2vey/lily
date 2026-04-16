@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { mockUsers } from 'src/__tests__/fixtures/users'
+import { mockUsers } from '@/__tests__/fixtures/users'
 
 // Mock dependencies
 jest.mock('@/hooks/useUser', () => ({
@@ -10,8 +10,8 @@ jest.mock('@/hooks/useUpdateProfile', () => ({
   useUpdateProfile: jest.fn(),
 }))
 
-import { useUpdateProfile } from 'src/hooks/useUpdateProfile'
-import { useUser } from 'src/hooks/useUser'
+import { useUpdateProfile } from '@/hooks/useUpdateProfile'
+import { useUser } from '@/hooks/useUser'
 import { EditProfileScreen } from '../EditProfileScreen'
 
 const mockedUseUser = useUser as jest.Mock

@@ -13,13 +13,13 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { FormTextArea } from 'src/components'
-import { Button } from 'src/components/ui/Button'
-import { useCreatePlant } from 'src/hooks/useCreatePlant'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { FrequencyPicker } from 'src/screens/add-plant/components/FrequencyPicker'
-import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
-import { RoomPicker } from 'src/screens/rooms/components/RoomPicker'
+import { FormTextArea } from '@/components'
+import { Button } from '@/components/ui/Button'
+import { useCreatePlant } from '@/hooks/useCreatePlant'
+import { useIconColors } from '@/hooks/useIconColors'
+import { FrequencyPicker } from '@/screens/add-plant/components/FrequencyPicker'
+import { WizardHeader } from '@/screens/add-plant/components/WizardHeader'
+import { RoomPicker } from '@/screens/rooms/components/RoomPicker'
 
 type BasicInfo = {
   photo: string | null

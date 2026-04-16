@@ -5,13 +5,13 @@ import {
   API_BASE_URL,
   type ApiFailure,
   refreshAccessTokenAsync,
-} from 'src/utils/client'
+} from '@/utils/client'
 
 /**
  * Error class for upload failures with typed API error support
  */
 export class UploadError extends Error {
-  readonly apiError?: ApiFailure
+  readonly apiError?: ApiFailure | undefined
 
   constructor(message: string, apiError?: ApiFailure) {
     super(message)

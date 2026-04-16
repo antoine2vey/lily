@@ -1,6 +1,6 @@
 import { StaleTime } from '@lily/shared'
 import { Option, pipe } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 interface PlantsParams {
   page?: string

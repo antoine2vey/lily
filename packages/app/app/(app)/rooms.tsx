@@ -1,3 +1,3 @@
-import { RoomsScreen } from 'src/screens/rooms'
+import { RoomsScreen } from '@/screens/rooms'
 
 export default RoomsScreen

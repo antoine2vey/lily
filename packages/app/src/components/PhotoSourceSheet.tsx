@@ -3,8 +3,8 @@ import * as ImagePicker from 'expo-image-picker'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { BottomSheet } from '@/components/BottomSheet'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface PhotoSourceSheetProps {
   visible: boolean

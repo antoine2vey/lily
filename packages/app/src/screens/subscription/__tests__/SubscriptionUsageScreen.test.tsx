@@ -29,7 +29,7 @@ jest.mock('@/hooks/useRedeemGiftCode', () => ({
   }),
 }))
 
-import { useSubscriptionUsage } from 'src/hooks/useSubscriptionUsage'
+import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
 import { SubscriptionUsageScreen } from '../SubscriptionUsageScreen'
 
 const mockedUseSubscriptionUsage = useSubscriptionUsage as jest.Mock

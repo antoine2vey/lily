@@ -14,14 +14,14 @@ import {
   Record,
   String as Str,
 } from 'effect'
-import { useEffectQuery } from 'src/utils/client'
+import { useEffectQuery } from '@/utils/client'
 
 interface CareEvent {
   id: string
   plantId: string
   type: CareType
-  notes?: string
-  photoUrl?: string
+  notes?: string | undefined
+  photoUrl?: string | undefined
   createdAt: string
 }
 

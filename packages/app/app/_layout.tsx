@@ -19,18 +19,18 @@ import { useEffect } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
-import { AchievementUnlockedModal } from 'src/components/AchievementUnlockedModal'
-import { AuthProvider, useAuth } from 'src/contexts/AuthContext'
-import { LocalizationProvider } from 'src/contexts/LocalizationContext'
-import { RevenueCatProvider } from 'src/contexts/RevenueCatContext'
-import { ThemeProvider, useThemeContext } from 'src/contexts/ThemeContext'
+import { AchievementUnlockedModal } from '@/components/AchievementUnlockedModal'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { LocalizationProvider } from '@/contexts/LocalizationContext'
+import { RevenueCatProvider } from '@/contexts/RevenueCatContext'
+import { ThemeProvider, useThemeContext } from '@/contexts/ThemeContext'
 import 'src/global.css'
-import { useAchievementNotifications } from 'src/hooks/useAchievementNotifications'
-import { useAppStateSync } from 'src/hooks/useAppStateSync'
-import { useOTAUpdates } from 'src/hooks/useOTAUpdates'
+import { useAchievementNotifications } from '@/hooks/useAchievementNotifications'
+import { useAppStateSync } from '@/hooks/useAppStateSync'
+import { useOTAUpdates } from '@/hooks/useOTAUpdates'
 import 'src/i18n'
-import * as RevenueCatService from 'src/services/revenuecat'
-import { setupNotificationListeners } from 'src/utils/notifications'
+import * as RevenueCatService from '@/services/revenuecat'
+import { setupNotificationListeners } from '@/utils/notifications'
 
 // RevenueCat service is now initialized lazily in RevenueCatProvider
 
@@ -105,6 +105,7 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
       const cleanup = setupNotificationListeners(router)
       return cleanup
     }
+    return undefined
   }, [state, router, isAuthenticated])
 
   // Hide native splash screen once content is ready

@@ -2,8 +2,8 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { Avatar } from 'src/components/Avatar'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { Avatar } from '@/components/Avatar'
+import { useIconColors } from '@/hooks/useIconColors'
 
 export function ChatHeader() {
   const { t } = useTranslation('chat')

@@ -9,8 +9,8 @@ interface PricingToggleProps {
   onSelect: (period: BillingPeriod) => void
   monthlyPrice: string
   annualPrice: string
-  savingsPercent?: number
-  trialText?: string
+  savingsPercent?: number | undefined
+  trialText?: string | undefined
 }
 
 export function PricingToggle({

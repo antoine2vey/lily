@@ -1,3 +1,3 @@
-import { CareHistoryScreen } from 'src/screens/care-history'
+import { CareHistoryScreen } from '@/screens/care-history'
 
 export default CareHistoryScreen

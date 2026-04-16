@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
 import type { ComponentProps } from 'react'
 import { Dimensions, Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 const { width } = Dimensions.get('window')
 
@@ -10,7 +10,7 @@ interface OnboardingSlideProps {
   icon: ComponentProps<typeof MaterialIcons>['name']
   title: string
   description: string
-  iconColor?: string
+  iconColor?: string | undefined
 }
 
 export function OnboardingSlide({

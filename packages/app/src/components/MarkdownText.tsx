@@ -5,10 +5,10 @@ import { useMarkdownStyles } from '@/hooks/useMarkdownStyles'
 
 interface MarkdownTextProps {
   children: string
-  className?: string
+  className?: string | undefined
 }
 
-export function MarkdownText({ children, className }: MarkdownTextProps) {
+export function MarkdownText({ children, className = '' }: MarkdownTextProps) {
   const styles = useMarkdownStyles()
   const text = pipe(children, EffectString.replaceAll('\\n', '\n'))
 

@@ -12,14 +12,14 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { BottomSheet } from 'src/components/BottomSheet'
-import { Chip } from 'src/components/Chip'
-import { EmptyState } from 'src/components/EmptyState'
-import { useCareHistory } from 'src/hooks/useCareHistory'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { usePlant } from 'src/hooks/usePlant'
-import { Timeline } from 'src/screens/care-history/components/Timeline'
-import { LogCareSheet } from 'src/screens/log-care/LogCareSheet'
+import { BottomSheet } from '@/components/BottomSheet'
+import { Chip } from '@/components/Chip'
+import { EmptyState } from '@/components/EmptyState'
+import { useCareHistory } from '@/hooks/useCareHistory'
+import { useIconColors } from '@/hooks/useIconColors'
+import { usePlant } from '@/hooks/usePlant'
+import { Timeline } from '@/screens/care-history/components/Timeline'
+import { LogCareSheet } from '@/screens/log-care/LogCareSheet'
 
 export function CareHistoryScreen() {
   const { t } = useTranslation('care')

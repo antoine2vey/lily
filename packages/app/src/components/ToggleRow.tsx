@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Switch, Text, View } from 'react-native'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface ToggleRowProps {
   label: string

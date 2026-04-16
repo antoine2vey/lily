@@ -12,11 +12,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Slider } from 'src/components/Slider'
-import { ToggleRow } from 'src/components/ToggleRow'
-import { Button } from 'src/components/ui/Button'
-import { useIconColors } from 'src/hooks/useIconColors'
-import { WizardHeader } from 'src/screens/add-plant/components/WizardHeader'
+import { Slider } from '@/components/Slider'
+import { ToggleRow } from '@/components/ToggleRow'
+import { Button } from '@/components/ui/Button'
+import { useIconColors } from '@/hooks/useIconColors'
+import { WizardHeader } from '@/screens/add-plant/components/WizardHeader'
 
 type BasicInfo = {
   photo: string | null

@@ -1,4 +1,4 @@
-import { renderQueryHook } from 'src/__tests__/utils/query-helpers'
+import { renderQueryHook } from '@/__tests__/utils/query-helpers'
 import { useUploadPhoto } from '../useUploadPhoto'
 
 // Mock the upload utils

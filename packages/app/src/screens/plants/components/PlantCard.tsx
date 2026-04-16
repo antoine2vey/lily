@@ -5,13 +5,13 @@ import type { TFunction } from 'i18next'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
-import { AnimatedImage } from 'src/components/AnimatedImage'
-import { useIconColors } from 'src/hooks/useIconColors'
+import { AnimatedImage } from '@/components/AnimatedImage'
+import { useIconColors } from '@/hooks/useIconColors'
 
 export type HealthStatus = 'healthy' | 'attention' | 'critical'
 
 export interface CareStatus {
-  daysUntil?: number
+  daysUntil?: number | undefined
   isOverdue: boolean
 }
 
@@ -19,17 +19,17 @@ interface PlantCardProps {
   plant: {
     id: string
     name: string
-    imageUrl?: string
+    imageUrl?: string | undefined
     health: HealthStatus
     watering: CareStatus
     fertilization: CareStatus
     misting: CareStatus
     repotting: CareStatus
-    isFavorite?: boolean
-    roomName?: string
-    roomIcon?: string
-    ownership?: PlantOwnership
-    ownerName?: string
+    isFavorite?: boolean | undefined
+    roomName?: string | undefined
+    roomIcon?: string | undefined
+    ownership?: PlantOwnership | undefined
+    ownerName?: string | undefined
   }
   onPress: (plantId: string) => void
 }

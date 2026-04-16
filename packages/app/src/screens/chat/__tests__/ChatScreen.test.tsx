@@ -7,11 +7,11 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn(() => ({ params: {} })),
 }))
 
-jest.mock('src/hooks/useChatHistory', () => ({
+jest.mock('@/hooks/useChatHistory', () => ({
   useChatHistory: jest.fn(),
 }))
 
-jest.mock('src/hooks/usePlantChat', () => ({
+jest.mock('@/hooks/usePlantChat', () => ({
   usePlantChat: jest.fn(),
 }))
 
@@ -24,15 +24,15 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-jest.mock('src/hooks/useUploadChatImage', () => ({
+jest.mock('@/hooks/useUploadChatImage', () => ({
   useUploadChatImage: jest.fn(() => ({
     mutateAsync: jest.fn(),
     isPending: false,
   })),
 }))
 
-import { useChatHistory } from 'src/hooks/useChatHistory'
-import { usePlantChat } from 'src/hooks/usePlantChat'
+import { useChatHistory } from '@/hooks/useChatHistory'
+import { usePlantChat } from '@/hooks/usePlantChat'
 import { ChatScreen } from '../ChatScreen'
 
 const mockedUseChatHistory = useChatHistory as jest.Mock
