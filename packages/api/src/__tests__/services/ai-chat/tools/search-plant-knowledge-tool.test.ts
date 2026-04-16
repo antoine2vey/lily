@@ -3,8 +3,14 @@ import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import type { ToolDeps } from '@lily/api/services/ai-chat/tools/index'
 import { searchPlantKnowledgeTool } from '@lily/api/services/ai-chat/tools/search-plant-knowledge'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
+import type { ToolExecutionOptions } from 'ai'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+const stubToolOptions: ToolExecutionOptions = {
+  toolCallId: 'test-call',
+  messages: [],
+}
 
 const mockChunks: ChunkSearchResult[] = [
   {
@@ -53,8 +59,7 @@ describe('searchPlantKnowledgeTool', () => {
     const tool = searchPlantKnowledgeTool(deps)
     const result = await tool.execute!(
       { query: 'How often should I water?' },
-      // @ts-expect-error - testing execute directly without AI options
-      undefined
+      stubToolOptions
     )
 
     expect(result).toContain('Water monstera weekly')
@@ -69,8 +74,7 @@ describe('searchPlantKnowledgeTool', () => {
     const tool = searchPlantKnowledgeTool(deps)
     const result = await tool.execute!(
       { query: 'Can I grow monstera outdoors?' },
-      // @ts-expect-error - testing execute directly without AI options
-      undefined
+      stubToolOptions
     )
 
     expect(result).toBe(
@@ -97,11 +101,7 @@ describe('searchPlantKnowledgeTool', () => {
     const { deps, cleanup } = await makeDeps(layer)
 
     const tool = searchPlantKnowledgeTool(deps)
-    await tool.execute!(
-      { query: 'watering schedule' },
-      // @ts-expect-error - testing execute directly without AI options
-      undefined
-    )
+    await tool.execute!({ query: 'watering schedule' }, stubToolOptions)
 
     // First query should be "Monstera: watering schedule"
     expect(retrieveCalls[0]).toBe('Monstera: watering schedule')
