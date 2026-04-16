@@ -35,6 +35,9 @@ jobs:
     - name: Lint code
       run: bun run lint
 
+    - name: Type check
+      run: bun run tsc
+
     - name: Build code
       run: bun run build
 
