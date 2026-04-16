@@ -1,7 +1,7 @@
 // Polyfills must be imported first
-import 'src/polyfills'
+import '@/polyfills'
 // Sentry must be initialized before Sentry.wrap() is called
-import 'src/sentry'
+import '@/sentry'
 
 import {
   SpaceGrotesk_400Regular,
@@ -24,11 +24,11 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LocalizationProvider } from '@/contexts/LocalizationContext'
 import { RevenueCatProvider } from '@/contexts/RevenueCatContext'
 import { ThemeProvider, useThemeContext } from '@/contexts/ThemeContext'
-import 'src/global.css'
+import '@/global.css'
 import { useAchievementNotifications } from '@/hooks/useAchievementNotifications'
 import { useAppStateSync } from '@/hooks/useAppStateSync'
 import { useOTAUpdates } from '@/hooks/useOTAUpdates'
-import 'src/i18n'
+import '@/i18n'
 import * as RevenueCatService from '@/services/revenuecat'
 import { setupNotificationListeners } from '@/utils/notifications'
 
