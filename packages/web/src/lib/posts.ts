@@ -22,8 +22,8 @@ export interface PostMeta {
   slug: string
   category: string
   tags: string[]
-  coverImage?: string
-  readingTime?: number
+  coverImage?: string | undefined
+  readingTime?: number | undefined
 }
 
 export interface Post extends PostMeta {

@@ -77,13 +77,17 @@ function extractHowToSteps(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (line === undefined) continue
     const headingMatch = line.match(/^#{2,3}\s+(?:Step\s+\d+[:\s]*)?(.+)$/)
     if (headingMatch) {
-      const name = pipe(headingMatch[1], String.trim)
+      const headingText = headingMatch[1] ?? ''
+      const name = pipe(headingText, String.trim)
       let text = ''
       for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j].match(/^#{1,3}\s/)) break
-        const trimmed = pipe(lines[j], String.trim)
+        const innerLine = lines[j]
+        if (innerLine === undefined) break
+        if (innerLine.match(/^#{1,3}\s/)) break
+        const trimmed = pipe(innerLine, String.trim)
         if (trimmed) text += `${trimmed} `
       }
       const trimmedText = pipe(text, String.trim)
