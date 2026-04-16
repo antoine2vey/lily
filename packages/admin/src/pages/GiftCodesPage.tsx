@@ -1,6 +1,6 @@
 import { GIFT_DURATION_LABELS } from '@lily/shared/admin'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, pipe } from 'effect'
+import { Array, Option, pipe } from 'effect'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -9,7 +9,10 @@ import {
   useGiftCodes,
 } from '@/hooks/use-gift-codes'
 
-const durationLabel: Record<string, string> = GIFT_DURATION_LABELS.en
+const durationLabel: Record<string, string> = pipe(
+  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.getOrElse(() => ({}) as Record<string, string>)
+)
 
 const formatDate = (dateStr: string): string =>
   new Date(dateStr).toLocaleDateString('en-US', {
