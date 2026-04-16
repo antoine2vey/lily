@@ -42,7 +42,6 @@ import {
   HANDLE_HEIGHT,
   SCROLL_TOP_THRESHOLD,
 } from './conf'
-// @ts-ignore
 import type { BottomSheetMethods, BottomSheetProps } from './types'
 import { isScrollableList, parseSnapPoint, triggerHaptic } from './utils'
 
