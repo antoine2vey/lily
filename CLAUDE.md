@@ -44,6 +44,15 @@ Shared date utilities available in `@lily/shared`: `parseApiDate`, `now`, `nowAs
 4. Typed errors via `Schema.TaggedError`, propagated through Effect system
 5. `Match.exhaustive` for union types
 
+## Monorepo Discipline
+
+- **tsconfig extends**: every package's `tsconfig.json` MUST `extends: "../../tsconfig.json"`. Exception: packages whose build tool needs a different base (Expo app uses `expo/tsconfig.base`, Next.js-specific overrides) — in those cases, explicitly mirror the root's strict-plus flags.
+- **package.json `sideEffects`**: every package MUST declare `sideEffects` (either `false` or a precise glob list). Pure libraries are `false`; apps with CSS imports list them.
+- **TypeScript version**: every package's `typescript` devDependency MUST match the root version exactly. No drift.
+- **No `@ts-ignore`**: use `@ts-expect-error` with a one-line rationale. `@ts-ignore` fails CI lint.
+- **CI gate**: `bun run tsc` is enforced in CI and as a pre-push hook (`.husky/pre-push`). Type errors block merges. Emergency bypass: `HUSKY_SKIP_TSC=1 git push`.
+- **Root composite build**: `bun run tsc:build` exercises the project-reference graph end-to-end. Run it locally before large refactors.
+
 ## Commands
 
 **Always run commands from the monorepo root.** Never `cd` into a package directory. Turbo runs scripts across all packages that define them.
