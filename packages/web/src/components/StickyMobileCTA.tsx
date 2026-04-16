@@ -16,7 +16,7 @@ export function StickyMobileCTA() {
     if (!pricing) return
 
     const observer = new IntersectionObserver(
-      ([entry]) => setPricingVisible(entry.isIntersecting),
+      ([entry]) => setPricingVisible(entry?.isIntersecting ?? false),
       { threshold: 0 }
     )
     observer.observe(pricing)
