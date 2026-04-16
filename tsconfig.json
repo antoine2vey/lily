@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
