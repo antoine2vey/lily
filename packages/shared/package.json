@@ -21,6 +21,10 @@
       "types": "./src/domains/admin/schema.ts",
       "default": "./src/domains/admin/schema.ts"
     },
+    "./admin/analytics": {
+      "types": "./src/domains/admin/analytics/index.ts",
+      "default": "./src/domains/admin/analytics/index.ts"
+    },
     "./ai-chat": {
       "types": "./src/domains/ai-chat/schema.ts",
       "default": "./src/domains/ai-chat/schema.ts"

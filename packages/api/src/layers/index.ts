@@ -23,6 +23,7 @@
 import { BunContext } from '@effect/platform-bun'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
 import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
@@ -129,6 +130,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
 )
 
 const RepositoriesGroup2 = Layer.mergeAll(
+  AnalyticsRepositoryLive,
   GiftCodeRepositoryLive,
   ScanRepositoryLive,
   SubscriptionRepositoryLive,
