@@ -1,4 +1,5 @@
 export * from '@lily/db/schema/achievements'
+export * from '@lily/db/schema/analytics'
 export * from '@lily/db/schema/auth'
 export * from '@lily/db/schema/blog-posts'
 export * from '@lily/db/schema/care-schedules'

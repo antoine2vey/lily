@@ -9,7 +9,9 @@ import { startAchievementReconciliationScheduler } from '@lily/api/services/achi
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
+import { AdminAnalyticsApiLive } from '@lily/api/services/admin-analytics/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
+import { startAnalyticsScheduler } from '@lily/api/services/analytics-scheduler/scheduler'
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
@@ -90,6 +92,8 @@ const AccountCleanupSchedulerLive = Layer.scopedDiscard(
   startAccountCleanupScheduler
 )
 
+const AnalyticsSchedulerLive = Layer.scopedDiscard(startAnalyticsScheduler)
+
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   startKnowledgeIngestionWorker
 )
@@ -109,7 +113,8 @@ const AllSchedulersLive = Layer.mergeAll(
   BlogGeneratorSchedulerLive,
   KnowledgeIngestionWorkerLive,
   AccountCleanupSchedulerLive,
-  WeeklyRecapSchedulerLive
+  WeeklyRecapSchedulerLive,
+  AnalyticsSchedulerLive
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
@@ -138,6 +143,7 @@ const CoreApiHandlers = Layer.mergeAll(
 )
 
 const ExtensionApiHandlers = Layer.mergeAll(
+  AdminAnalyticsApiLive(Api),
   InternalApiLive(Api),
   KnowledgeApiLive(Api)
 )

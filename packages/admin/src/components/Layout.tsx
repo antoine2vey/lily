@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useLogout } from '@/hooks/use-auth'
 
 const navItems = [
+  { path: '/analytics', label: 'Analytics' },
   { path: '/jobs', label: 'Jobs' },
   { path: '/jobs/new', label: 'New Job' },
   { path: '/search', label: 'Search' },
