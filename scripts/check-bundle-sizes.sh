@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Fails CI if a bundle category exceeds its budget.
 # Budgets are ~1.5x current sizes as of 2026-04-16. Tighten once stable.
+# admin/js raised 2026-04-17 to accommodate Recharts (analytics dashboard);
+# admin is internal-only so its budget tracks web/js.
 
 set -euo pipefail
 
@@ -8,7 +10,7 @@ set -euo pipefail
 BUDGETS=(
   "web/js     packages/web/out/_next/static/chunks   *.js   1258291"   # 1.2 MB
   "web/css    packages/web/out/_next/static/chunks   *.css  40960"     # 40 KB
-  "admin/js   packages/admin/dist/assets             *.js   734003"    # 700 KB
+  "admin/js   packages/admin/dist/assets             *.js   1258291"   # 1.2 MB
   "admin/css  packages/admin/dist/assets             *.css  30720"     # 30 KB
 )
 
