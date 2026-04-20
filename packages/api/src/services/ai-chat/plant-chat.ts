@@ -153,6 +153,7 @@ export const plantChat = (
 
     const stream: PlantChatStreamResult = streamText({
       model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
+      maxRetries: 0,
       system: systemPrompt,
       messages: finalModelMessages,
       tools,

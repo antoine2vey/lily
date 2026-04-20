@@ -43,6 +43,7 @@ export const enrichChunk = (
       try: () =>
         generateText({
           model: enrichmentModel,
+          maxRetries: 0,
           output: Output.object({ schema: EnrichmentSchema }),
           system: SYSTEM_PROMPT,
           prompt: content,

@@ -14,6 +14,7 @@ export const researchTopic = (topic: TopicSuggestion) =>
       try: () =>
         generateText({
           model: openai(FAST_MODEL),
+          maxRetries: 0,
           output: Output.object({ schema: ResearchBriefSchema }),
           system: RESEARCH_PROMPT,
           prompt: `Research the topic "${topic.title.en}" for a plant care blog post.

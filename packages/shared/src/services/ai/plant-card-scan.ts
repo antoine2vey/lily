@@ -70,6 +70,7 @@ const singleCardCall = (
     try: async () => {
       const result = await generateText({
         model: openai('gpt-4o-mini'),
+        maxRetries: 0,
         output: Output.object({ schema: plantSchema }),
         system: singleCardPrompt(locale),
         messages: [
@@ -92,6 +93,7 @@ const multipleCardCall = (
     try: async () => {
       const result = await generateText({
         model: openai('gpt-4o-mini'),
+        maxRetries: 0,
         output: Output.object({ schema: plantSchema }),
         system: multipleCardPrompt(locale),
         messages: [

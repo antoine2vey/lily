@@ -62,6 +62,7 @@ const singleCall = (
     try: async () => {
       const result = await generateText({
         model: openai('gpt-4o-mini'),
+        maxRetries: 0,
         output: Output.object({ schema: detectSchema }),
         system: systemPrompt(locale),
         messages: [

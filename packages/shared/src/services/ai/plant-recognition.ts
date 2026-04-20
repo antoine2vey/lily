@@ -61,6 +61,7 @@ const singleCall = (
 
       const result = await generateText({
         model: openai('gpt-4o-mini'),
+        maxRetries: 0,
         output: Output.object({ schema: plantSchema }),
         system: systemPrompt(locale),
         messages: [

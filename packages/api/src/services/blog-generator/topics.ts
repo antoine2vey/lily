@@ -74,6 +74,7 @@ export const selectTopic = Effect.gen(function* () {
     try: () =>
       generateText({
         model: openai(FAST_MODEL),
+        maxRetries: 0,
         output: Output.object({ schema: TopicSchema }),
         system: TOPIC_SELECTION_PROMPT,
         prompt: `Select a blog post topic for a plant care blog.

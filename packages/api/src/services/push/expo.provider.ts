@@ -13,7 +13,7 @@ import Expo, {
 } from 'expo-server-sdk'
 
 // Helper to build Expo push message
-const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
+export const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
   const expoMessage: ExpoPushMessage = {
     to: message.to,
     title: message.title,
@@ -27,6 +27,9 @@ const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
   }
   if (message.badge !== undefined) {
     expoMessage.badge = message.badge
+  }
+  if (message.interruptionLevel) {
+    expoMessage.interruptionLevel = message.interruptionLevel
   }
   return expoMessage
 }
