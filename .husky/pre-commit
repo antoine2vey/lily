@@ -1,15 +1,18 @@
 echo "🔍 Running pre-commit lint check..."
 
-# Run linting on staged files
-bun run lint:fix
+# Capture originally-staged files before lint:fix can touch them.
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# Check if linting passed
+bun run lint:fix
 if [ $? -ne 0 ]; then
     echo "❌ Linting failed! Please fix the issues before committing."
     exit 1
 fi
 
-# Re-stage files that were modified by lint:fix
-git diff --name-only | xargs -r git add
+# Re-stage only files that were already staged — don't sweep in unrelated
+# working-tree changes that the user intentionally left out of this commit.
+if [ -n "$STAGED_FILES" ]; then
+    echo "$STAGED_FILES" | xargs -r git add
+fi
 
 echo "✅ Pre-commit checks passed!"
