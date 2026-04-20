@@ -82,6 +82,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
     try: () =>
       generateText({
         model: openai(CHAT_MODEL),
+        maxRetries: 0,
         system: GENERATION_SYSTEM_PROMPT,
         prompt: userPrompt,
       }),
@@ -108,6 +109,7 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
             try: () =>
               generateText({
                 model: openai(FAST_MODEL),
+                maxRetries: 0,
                 system: TRANSLATION_PROMPT,
                 prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
               }),
@@ -152,6 +154,7 @@ const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
     try: () =>
       generateText({
         model: openai(CHAT_MODEL),
+        maxRetries: 0,
         output: Output.object({ schema: ReviewSchema }),
         system: REVIEW_SYSTEM_PROMPT,
         prompt: `Review this blog post for quality and originality.

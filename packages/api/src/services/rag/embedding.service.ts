@@ -13,6 +13,7 @@ export const embedText = (
       try: () =>
         embed({
           model: embeddingModel,
+          maxRetries: 0,
           value: text,
           abortSignal: AbortSignal.timeout(30_000),
         }),
@@ -37,6 +38,7 @@ export const embedTexts = (
       try: () =>
         embedMany({
           model: embeddingModel,
+          maxRetries: 0,
           values: texts,
           abortSignal: AbortSignal.timeout(60_000),
         }),

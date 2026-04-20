@@ -3,11 +3,13 @@ import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.reposit
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
+  type InterruptionLevel,
   MessageQueue,
   NOTIFICATION_TOPICS,
   type NotificationTopic,
   PushService,
   type QueueMessage,
+  TOPIC_CATEGORY,
 } from '@lily/shared/server'
 import {
   Array,
@@ -22,6 +24,14 @@ import {
 } from 'effect'
 
 const MAX_RETRIES = 3
+
+// Care reminders are the "do it today or it slips" cluster — we want them to
+// pierce Focus/DND on iOS 15+ so the plant actually gets cared for. Everything
+// else (social pings, engagement nudges) stays at the default 'active' level.
+const resolveInterruptionLevel = (
+  topic: NotificationTopic
+): InterruptionLevel | undefined =>
+  TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
 
 // Exponential backoff: 1s -> 2s -> 4s
 const workerRetryPolicy = Schedule.exponential('1 second').pipe(
@@ -69,6 +79,8 @@ export const processMessage = Effect.fn('notification-worker.process')(
       (v) => v !== undefined
     )
 
+    const interruptionLevel = resolveInterruptionLevel(message.topic)
+
     // Send to all active devices
     const pushMessages = Array.map(activeTokens, (token) => ({
       to: token.token,
@@ -76,6 +88,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
       body: message.payload.body,
       sound: 'default' as const,
       data,
+      ...(interruptionLevel ? { interruptionLevel } : {}),
     }))
 
     const results = yield* pushService.sendBatch(pushMessages)

@@ -73,6 +73,7 @@ export const generateDailyTip = Effect.gen(function* () {
     try: () =>
       generateText({
         model: openai(FAST_MODEL),
+        maxRetries: 0,
         output: Output.object({ schema: TipSchema }),
         system: `You are a plant care expert generating a daily tip for a plant care app.
 

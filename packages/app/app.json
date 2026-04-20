@@ -26,6 +26,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lilyapp.app",
       "usesIAP": true,
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Lily uses your location to provide local weather data and adjust your plant care schedule accordingly."

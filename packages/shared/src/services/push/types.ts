@@ -1,5 +1,16 @@
 import { Data, Schema } from 'effect'
 
+// iOS interruption levels (mapped 1:1 onto APS `interruption-level`).
+// `time-sensitive` breaks through Focus modes and appears prominently on
+// the lock screen — requires the matching entitlement on the iOS app.
+export const InterruptionLevel = Schema.Literal(
+  'active',
+  'critical',
+  'passive',
+  'time-sensitive'
+)
+export type InterruptionLevel = typeof InterruptionLevel.Type
+
 // Push message to send to a device
 export const PushMessage = Schema.Struct({
   to: Schema.String, // Expo push token
@@ -10,6 +21,7 @@ export const PushMessage = Schema.Struct({
   ),
   sound: Schema.optional(Schema.Literal('default')),
   badge: Schema.optional(Schema.Number),
+  interruptionLevel: Schema.optional(InterruptionLevel),
 })
 export type PushMessage = typeof PushMessage.Type
 

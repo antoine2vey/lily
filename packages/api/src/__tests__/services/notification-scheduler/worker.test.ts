@@ -40,6 +40,34 @@ const createTestQueueMessage = (
   ...overrides,
 })
 
+// Runs processMessage with the default user-1 mocks and returns the pushes
+// that were captured. Keeps per-test setup to a single line.
+const runAndCapturePushes = async (
+  message: QueueMessage
+): Promise<PushMessage[]> => {
+  const sentMessages: PushMessage[] = []
+  const notification = createTestNotification({
+    id: 'notification-1',
+    userId: 'user-1',
+    status: 'queued',
+  })
+  await Effect.runPromise(
+    processMessage(message).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          createMockPushService({
+            onSendBatch: (msgs) => sentMessages.push(...msgs),
+          }),
+          createMockDeviceTokenRepository(mockDeviceTokens),
+          createMockNotificationRepository([notification])
+        )
+      ),
+      Logger.withMinimumLogLevel(LogLevel.None)
+    )
+  )
+  return sentMessages
+}
+
 describe('Notification Worker', () => {
   describe('processMessage', () => {
     it('should send push notifications to active device tokens', async () => {
@@ -280,6 +308,46 @@ describe('Notification Worker', () => {
       expect(sentMessages[0]?.data?.plantIds).toBeUndefined()
     })
 
+    it('should set time-sensitive for every care topic', async () => {
+      const careTopics = [
+        'watering_reminder',
+        'fertilization_reminder',
+        'misting_reminder',
+        'repotting_reminder',
+        'overdue_reminder',
+      ] as const
+
+      for (const topic of careTopics) {
+        const sentMessages = await runAndCapturePushes(
+          createTestQueueMessage({ topic })
+        )
+        expect(sentMessages.length).toBeGreaterThan(0)
+        for (const m of sentMessages) {
+          expect(m.interruptionLevel).toBe('time-sensitive')
+        }
+      }
+    })
+
+    it('should not set interruptionLevel for non-care topics', async () => {
+      const sentMessages = await runAndCapturePushes(
+        createTestQueueMessage({
+          topic: 'daily_tip',
+          payload: {
+            userId: 'user-1',
+            title: 'Daily tip',
+            body: 'Tip body',
+            notificationIds: ['notification-1'],
+            plantIds: [],
+          },
+        })
+      )
+
+      expect(sentMessages.length).toBeGreaterThan(0)
+      for (const m of sentMessages) {
+        expect(m.interruptionLevel).toBeUndefined()
+      }
+    })
+
     it('should handle grouped message and mark all IDs as sent', async () => {
       const sentMessages: PushMessage[] = []
 
@@ -329,6 +397,11 @@ describe('Notification Worker', () => {
       // Sends 1 push per device (user-1 has 2 active tokens)
       expect(sentMessages).toHaveLength(2)
       expect(sentMessages[0]?.title).toBe('💧 3 plants need watering')
+      // Grouped care reminders also carry the time-sensitive flag so the
+      // consolidated "3 plants need watering" push pierces Focus/DND.
+      for (const m of sentMessages) {
+        expect(m.interruptionLevel).toBe('time-sensitive')
+      }
     })
   })
 

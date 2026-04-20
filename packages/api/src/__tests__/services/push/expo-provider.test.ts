@@ -3,6 +3,7 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
+import { buildExpoMessage } from '@lily/api/services/push/expo.provider'
 import { PushService } from '@lily/shared/server'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -273,6 +274,43 @@ describe('PushService (mock)', () => {
       const ids = result.map((t) => t.id)
       const uniqueIds = new Set(ids)
       expect(uniqueIds.size).toBe(3)
+    })
+  })
+
+  describe('buildExpoMessage', () => {
+    it('should pass interruptionLevel through to ExpoPushMessage', () => {
+      const expo = buildExpoMessage({
+        to: 'ExponentPushToken[abc]',
+        title: 'Water your Monstera',
+        body: 'Tap to mark watered',
+        interruptionLevel: 'time-sensitive',
+      })
+      expect(expo.interruptionLevel).toBe('time-sensitive')
+    })
+
+    it('should omit interruptionLevel when not provided', () => {
+      const expo = buildExpoMessage({
+        to: 'ExponentPushToken[abc]',
+        title: 'Daily tip',
+        body: 'Tip body',
+      })
+      expect(expo.interruptionLevel).toBeUndefined()
+    })
+
+    it('should still include other fields alongside interruptionLevel', () => {
+      const expo = buildExpoMessage({
+        to: 'ExponentPushToken[abc]',
+        title: 'T',
+        body: 'B',
+        data: { topic: 'watering_reminder' },
+        sound: 'default',
+        badge: 3,
+        interruptionLevel: 'time-sensitive',
+      })
+      expect(expo.data).toEqual({ topic: 'watering_reminder' })
+      expect(expo.sound).toBe('default')
+      expect(expo.badge).toBe(3)
+      expect(expo.interruptionLevel).toBe('time-sensitive')
     })
   })
 })
