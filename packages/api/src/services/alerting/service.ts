@@ -21,6 +21,7 @@ export type AlertProvider =
 
 export type AlertSource =
   | 'auth'
+  | 'blog-generator'
   | 'weather-cache'
   | 'usage-tracker'
   | 'notification-worker'
