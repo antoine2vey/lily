@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { Array, Either, Match, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo, useState } from 'react'
@@ -13,13 +14,16 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { toast } from 'sonner-native'
 import { FormTextArea } from '@/components'
 import { Button } from '@/components/ui/Button'
 import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { plantDetailKey, useUpdatePlant } from '@/hooks/useUpdatePlant'
 import { FrequencyPicker } from '@/screens/add-plant/components/FrequencyPicker'
 import { WizardHeader } from '@/screens/add-plant/components/WizardHeader'
 import { RoomPicker } from '@/screens/rooms/components/RoomPicker'
+import { isLocalFileUri } from '@/utils/upload'
 
 type BasicInfo = {
   photo: string | null
@@ -29,6 +33,7 @@ type BasicInfo = {
 
 type CareNeeds = {
   watering: number
+  light: number
   luxNeeded: number
   humidity: number
   petSafe: boolean
@@ -37,6 +42,7 @@ type CareNeeds = {
 const DEFAULT_BASIC_INFO: BasicInfo = { photo: null, name: '', category: '' }
 const DEFAULT_CARE_NEEDS: CareNeeds = {
   watering: 50,
+  light: 50,
   luxNeeded: 2000,
   humidity: 50,
   petSafe: false,
@@ -121,14 +127,17 @@ export function ManualAddScheduleScreen() {
       Option.getOrElse(() => 7)
     )
   )
-  const [fertilizingDays, setFertilizingDays] = useState(
-    pipe(
-      Option.fromNullable(prefill),
-      Option.flatMap((p) =>
-        Option.fromNullable(p.fertilizationFrequencyDays as number)
-      ),
-      Option.getOrElse(() => 30)
+  const prefillFertilization = pipe(
+    Option.fromNullable(prefill),
+    Option.flatMap((p) =>
+      Option.fromNullable(p.fertilizationFrequencyDays as number | null)
     )
+  )
+  const [fertilizingEnabled, setFertilizingEnabled] = useState(
+    Option.isSome(prefillFertilization)
+  )
+  const [fertilizingDays, setFertilizingDays] = useState(
+    Option.getOrElse(prefillFertilization, () => 30)
   )
   const prefillMisting = pipe(
     Option.fromNullable(prefill),
@@ -169,56 +178,74 @@ export function ManualAddScheduleScreen() {
     )
   )
 
-  const { mutate: createPlant, isPending } = useCreatePlant()
+  const queryClient = useQueryClient()
+  const { mutateAsync: createPlantAsync, isPending } = useCreatePlant()
+  const { mutate: updatePlant } = useUpdatePlant()
 
-  const handleFinish = () => {
-    createPlant(
-      {
-        payload: {
-          name: basicInfo.name,
-          category: basicInfo.category || undefined,
-          description: notes || undefined,
-          wateringFrequencyDays: wateringDays,
-          fertilizationFrequencyDays: fertilizingDays,
-          mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
-          repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
-          luxNeeded: careNeeds.luxNeeded,
-          humidityRating: careNeeds.humidity,
-          petToxicityRating: careNeeds.petSafe ? 0 : 100,
-          remindersEnabled: careReminders,
-          roomId: roomId || undefined,
-        },
+  const handleFinish = async () => {
+    const apiResult = await createPlantAsync({
+      payload: {
+        name: basicInfo.name,
+        category: basicInfo.category || undefined,
+        description: notes || undefined,
+        wateringFrequencyDays: wateringDays,
+        fertilizationFrequencyDays: fertilizingEnabled
+          ? fertilizingDays
+          : undefined,
+        mistingFrequencyDays: mistingEnabled ? mistingDays : undefined,
+        repottingFrequencyDays: repottingEnabled ? repottingDays : undefined,
+        luxNeeded: careNeeds.luxNeeded,
+        lightingRating: careNeeds.light,
+        humidityRating: careNeeds.humidity,
+        petToxicityRating: careNeeds.petSafe ? 0 : 100,
+        wateringRating: careNeeds.watering,
+        remindersEnabled: careReminders,
+        roomId: roomId || undefined,
       },
-      {
-        onSuccess: (apiResult) => {
-          pipe(
-            apiResult,
-            Either.match({
-              onLeft: (error) =>
-                pipe(
-                  Match.value(error),
-                  Match.when({ _tag: 'LimitExceededError' }, (e) =>
-                    Alert.alert(
-                      t('addPlant:scanner.plantLimitReached'),
-                      e.message
-                    )
-                  ),
-                  Match.orElse(() =>
-                    Alert.alert(
-                      t('common:errors.generic'),
-                      t('addPlant:errors.createFailed')
-                    )
-                  )
-                ),
-              onRight: (plant) => {
-                router.dismissAll()
-                router.push(`/plant/${plant.id}`)
-              },
-            })
+    })
+
+    if (Either.isLeft(apiResult)) {
+      pipe(
+        Match.value(apiResult.left),
+        Match.when({ _tag: 'LimitExceededError' }, (e) =>
+          Alert.alert(t('addPlant:scanner.plantLimitReached'), e.message)
+        ),
+        Match.orElse(() =>
+          Alert.alert(
+            t('common:errors.generic'),
+            t('addPlant:errors.createFailed')
           )
+        )
+      )
+      return
+    }
+
+    const plant = apiResult.right
+
+    if (isLocalFileUri(basicInfo.photo)) {
+      // Seed the detail cache so the local file:// photo renders instantly on
+      // the next screen; the background upload's onSettled will refetch and
+      // swap in the GCS URL without the user noticing.
+      queryClient.setQueryData(
+        plantDetailKey(plant.id),
+        Either.right({ ...plant, imageUrl: basicInfo.photo, photos: [] })
+      )
+      updatePlant(
+        {
+          path: { id: plant.id },
+          payload: { imageUrl: basicInfo.photo },
         },
-      }
-    )
+        {
+          onError: (err) => {
+            console.error('[ManualAddSchedule] photo upload failed', err)
+            toast.error(t('addPlant:errors.photoUploadFailed'))
+          },
+        }
+      )
+    }
+
+    router.dismissAll()
+    router.push(`/plant/${plant.id}`)
   }
 
   return (
@@ -253,13 +280,40 @@ export function ManualAddScheduleScreen() {
           />
 
           {/* Fertilizing Section */}
-          <FrequencyPicker
-            icon={<MaterialIcons name="spa" size={22} color="#F59E0B" />}
-            label={t('addPlant:schedule.fertilizing')}
-            value={fertilizingDays}
-            onValueChange={setFertilizingDays}
-            presets={FERTILIZING_PRESETS}
-          />
+          <View className="gap-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <MaterialIcons name="spa" size={22} color="#F59E0B" />
+                <Text className="text-lg font-bold text-text-primary dark:text-white">
+                  {t('addPlant:schedule.fertilizing')}
+                </Text>
+              </View>
+              <Switch
+                value={fertilizingEnabled}
+                onValueChange={setFertilizingEnabled}
+                trackColor={{
+                  false: iconColors.border,
+                  true: iconColors.primary,
+                }}
+                thumbColor={iconColors.white}
+                ios_backgroundColor={iconColors.border}
+              />
+            </View>
+            {fertilizingEnabled ? (
+              <FrequencyPicker
+                label=""
+                value={fertilizingDays}
+                onValueChange={setFertilizingDays}
+                presets={FERTILIZING_PRESETS}
+              />
+            ) : (
+              <View className="bg-surface-tinted dark:bg-slate-800 p-4 rounded-xl">
+                <Text className="text-sm text-text-muted dark:text-slate-400 text-center">
+                  {t('addPlant:schedule.enableFertilizing')}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Misting Section */}
           <View className="gap-4">

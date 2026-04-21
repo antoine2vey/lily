@@ -47,13 +47,19 @@ export const createPlant = (
         Option.fromNullable(request.humidityRating),
         Option.getOrElse(() => 0)
       ),
-      lightingRating: luxToSliderValue(request.luxNeeded),
+      lightingRating: pipe(
+        Option.fromNullable(request.lightingRating),
+        Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
+      ),
       petToxicityRating: pipe(
         Option.fromNullable(request.petToxicityRating),
         Option.getOrElse(() => 0)
       ),
-      wateringRating: 0, // Default value
-      health: 'HEALTHY', // Default value
+      wateringRating: pipe(
+        Option.fromNullable(request.wateringRating),
+        Option.getOrElse(() => 0)
+      ),
+      health: 'HEALTHY',
       potWidthCm: pipe(
         Option.fromNullable(request.potWidthCm),
         Option.getOrNull

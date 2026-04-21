@@ -28,6 +28,7 @@ import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useCarePlant } from '@/hooks/useCarePlant'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { usePlant } from '@/hooks/usePlant'
 import { useSharePlant } from '@/hooks/useSharePlant'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdatePlant } from '@/hooks/useUpdatePlant'
@@ -216,11 +217,7 @@ export function PlantDetailScreen() {
     isLoading,
     error,
     refetch,
-  } = useEffectQuery('plants', 'getPlant', {
-    path: {
-      id: Option.getOrElse(Option.fromNullable(plantId), () => ''),
-    },
-  })
+  } = usePlant(Option.getOrElse(Option.fromNullable(plantId), () => ''))
 
   const { data: careLogs } = useEffectQuery('careLogs', 'getCareLogs', {
     path: {

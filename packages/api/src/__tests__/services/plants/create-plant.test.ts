@@ -116,6 +116,26 @@ describe('createPlant', () => {
     expect(result.imageUrl).toBe('https://example.com/plant.jpg')
   })
 
+  it('should persist wateringRating when provided', async () => {
+    const { layer } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant({ ...validRequest, wateringRating: 80 }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(result.wateringRating).toBe(80)
+  })
+
+  it('should default wateringRating to 0 when omitted', async () => {
+    const { layer } = createTestLayer()
+    const result = await Effect.runPromise(
+      createPlant(validRequest).pipe(Effect.provide(layer))
+    )
+
+    expect(result.wateringRating).toBe(0)
+  })
+
   it('should set fertilizationFrequencyDays when provided', async () => {
     const { layer, schedules } = createTestLayer()
     const result = await Effect.runPromise(
@@ -170,6 +190,20 @@ describe('createPlant', () => {
 
     // 200 lux → level 1 (low light) → slider value 10
     expect(result.lightingRating).toBe(10)
+  })
+
+  it('should honor explicit lightingRating over luxNeeded conversion', async () => {
+    const { layer } = createTestLayer()
+    const result = await Effect.runPromise(
+      // luxNeeded alone would bucket to 70; explicit 75 must win
+      createPlant({
+        ...validRequest,
+        luxNeeded: 5000,
+        lightingRating: 75,
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(result.lightingRating).toBe(75)
   })
 
   it('should publish PlantCreated event', async () => {

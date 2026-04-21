@@ -143,6 +143,12 @@ export async function uploadMultipart<T>(
 }
 
 /**
+ * Narrow a value to a local file URI (e.g. from expo-image-picker).
+ */
+export const isLocalFileUri = (value: unknown): value is string =>
+  typeof value === 'string' && value.startsWith('file://')
+
+/**
  * Helper to create a file object from an expo-image-picker URI
  */
 export function createFileFromUri(

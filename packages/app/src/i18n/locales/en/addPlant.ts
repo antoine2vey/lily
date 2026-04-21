@@ -181,6 +181,8 @@ export default {
   },
   errors: {
     createFailed: 'Failed to create plant. Please try again.',
+    photoUploadFailed:
+      "Plant was created but the photo couldn't upload. You can add it from the plant's page.",
   },
   results: {
     plantIdentified: 'Plant Identified',
