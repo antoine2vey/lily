@@ -1,4 +1,5 @@
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { BlogPostSource } from '@lily/db/schema'
 import { daysAgoAsDate, hoursAgoAsDate } from '@lily/shared'
@@ -131,10 +132,20 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 }).pipe(
   Effect.catchTags({
     OpenAIError: (error) =>
-      Effect.logError(`Blog pipeline aborted — ${error.message}`),
+      Effect.flatMap(Alerter, (alerter) =>
+        logAndAlertWarning(alerter, 'blog-generator', 'Blog pipeline aborted', {
+          cause: 'OpenAIError',
+          error: error.message.slice(0, 300),
+        })
+      ),
     SqlError: (error) =>
-      Effect.logError(
-        `Blog pipeline aborted — database error: ${error.message}`
+      Effect.flatMap(Alerter, (alerter) =>
+        logAndAlertWarning(
+          alerter,
+          'blog-generator',
+          'Blog pipeline aborted — database error',
+          { error: error.message.slice(0, 300) }
+        )
       ),
   }),
   Effect.withSpan('blog-generator.check')
