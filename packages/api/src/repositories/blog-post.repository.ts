@@ -93,7 +93,15 @@ export const BlogPostRepositoryLive = Layer.effect(
       create: Effect.fn('BlogPostRepository.create')(function* (
         data: CreateBlogPostData
       ) {
-        const [row] = yield* db.insert(blogPosts).values(data).returning()
+        // onConflictDoNothing on the unique `slug` column makes the insert a
+        // no-op (returning an empty result set) when the LLM reuses a slug,
+        // instead of throwing a unique-violation SqlError. Callers treat a
+        // null return as "slug already taken" and handle the retry.
+        const [row] = yield* db
+          .insert(blogPosts)
+          .values(data)
+          .onConflictDoNothing({ target: blogPosts.slug })
+          .returning()
         return Option.getOrNull(Option.fromNullable(row))
       }),
 
