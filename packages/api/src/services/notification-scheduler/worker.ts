@@ -2,6 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import {
   type InterruptionLevel,
   MessageQueue,
@@ -96,10 +97,13 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // Check if any failed
     const failures = Array.filter(results, (r) => r.status === 'error')
     if (failures.length > 0) {
-      yield* Effect.logWarning('Some push notifications failed', {
-        total: results.length,
-        failed: failures.length,
-      })
+      const alerter = yield* Alerter
+      yield* logAndAlertWarning(
+        alerter,
+        'notification-worker',
+        'Some push notifications failed',
+        { total: results.length, failed: failures.length }
+      )
     }
 
     // Mark all notifications as sent

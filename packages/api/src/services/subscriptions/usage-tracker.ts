@@ -2,6 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
+import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import type { LanguageCode } from '@lily/shared'
@@ -66,6 +67,7 @@ export const UsageTrackerLive = Layer.effect(
     const subRepo = yield* SubscriptionRepository
     const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
+    const alerter = yield* Alerter
 
     // Check if usage crossed the 80% threshold and create notification
     const checkApproachingLimit = (
@@ -153,9 +155,11 @@ export const UsageTrackerLive = Layer.effect(
       }).pipe(
         Effect.catchTags({
           SqlError: (e) =>
-            Effect.logWarning(
-              '[usage-tracker] Failed to check approaching_limit',
-              { userId, field, error: String(e) }
+            logAndAlertWarning(
+              alerter,
+              'usage-tracker',
+              'Failed to check approaching_limit',
+              { userId, field, error: String(e).slice(0, 200) }
             ),
         })
       )

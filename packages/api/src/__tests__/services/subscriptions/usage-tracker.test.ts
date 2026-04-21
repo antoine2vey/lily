@@ -1,3 +1,4 @@
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import {
   type INotificationRepository,
   NotificationRepository,
@@ -89,6 +90,7 @@ describe('UsageTracker', () => {
 
     return {
       layer: Layer.mergeAll(
+        MockAlerterLive,
         Layer.succeed(SubscriptionRepository, repo),
         Layer.succeed(NotificationRepository, notifRepo),
         Layer.succeed(UserRepository, userRepo)

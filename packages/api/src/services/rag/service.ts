@@ -1,4 +1,5 @@
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
+import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Array, Effect, Match, Option, pipe, String } from 'effect'
 import { embedText } from './embedding.service'
@@ -11,6 +12,10 @@ export interface RagRetrieveParams {
 export class RagService extends Effect.Service<RagService>()('RagService', {
   effect: Effect.gen(function* () {
     const chunkRepo = yield* ProcessedChunkRepository
+    const alerter = yield* Alerter
+    const alertOpenAI = withProviderAlert(alerter, {
+      provider: 'openai-embedding',
+    })
 
     return {
       /**
@@ -19,7 +24,7 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
        */
       retrieve: (params: RagRetrieveParams) =>
         Effect.gen(function* () {
-          const embedding = yield* embedText(params.query)
+          const embedding = yield* embedText(params.query).pipe(alertOpenAI)
           const limit = Option.getOrElse(
             Option.fromNullable(params.limit),
             () => 5
