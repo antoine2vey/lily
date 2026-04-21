@@ -136,7 +136,7 @@ export function ManualAddCareNeedsScreen() {
   const handleNext = () => {
     const luxNeeded = sliderToLux(light)
     const careNeeds = encodeURIComponent(
-      JSON.stringify({ watering, luxNeeded, humidity, petSafe })
+      JSON.stringify({ watering, light, luxNeeded, humidity, petSafe })
     )
     const basicInfoParam = encodeURIComponent(JSON.stringify(basicInfo))
     const prefillParam = params.prefillData

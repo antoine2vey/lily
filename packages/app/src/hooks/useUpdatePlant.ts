@@ -2,14 +2,19 @@ import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Either } from 'effect'
 import { queryKeys } from '@/utils/query-keys'
-import { createFileFromUri, uploadMultipart } from '@/utils/upload'
+import {
+  createFileFromUri,
+  isLocalFileUri,
+  uploadMultipart,
+} from '@/utils/upload'
 
 interface UpdatePlantParams {
   path: { id: string }
   payload: Record<string, unknown>
 }
 
-const plantDetailKey = (id: string) => ['plants', 'getPlant', { path: { id } }]
+export const plantDetailKey = (id: string) =>
+  ['plants', 'getPlant', { path: { id } }] as const
 
 export function useUpdatePlant() {
   const queryClient = useQueryClient()
@@ -17,8 +22,7 @@ export function useUpdatePlant() {
   return useMutation({
     mutationFn: async ({ path, payload }: UpdatePlantParams) => {
       const { imageUrl, ...fields } = payload
-      const isLocalFile =
-        typeof imageUrl === 'string' && imageUrl.startsWith('file://')
+      const isLocalFile = isLocalFileUri(imageUrl)
 
       const files = isLocalFile
         ? [

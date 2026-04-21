@@ -8,6 +8,8 @@ jest.mock('@/utils/upload', () => ({
     name: 'photo.jpg',
     type: 'image/jpeg',
   })),
+  isLocalFileUri: (value: unknown): value is string =>
+    typeof value === 'string' && value.startsWith('file://'),
   uploadMultipart: jest.fn().mockResolvedValue({}),
 }))
 

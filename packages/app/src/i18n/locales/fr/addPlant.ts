@@ -183,6 +183,8 @@ export default {
   },
   errors: {
     createFailed: 'Échec de la création de la plante. Veuillez réessayer.',
+    photoUploadFailed:
+      "La plante a été créée mais la photo n'a pas pu être téléversée. Vous pouvez l'ajouter depuis la fiche de la plante.",
   },
   results: {
     plantIdentified: 'Plante identifiée',
