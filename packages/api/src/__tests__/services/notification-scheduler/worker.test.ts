@@ -1,5 +1,6 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import {
   createMockDeadLetterRepository,
   createMockDeadLetterRepositoryWithCapture,
@@ -55,6 +56,7 @@ const runAndCapturePushes = async (
     processMessage(message).pipe(
       Effect.provide(
         Layer.mergeAll(
+          MockAlerterLive,
           createMockPushService({
             onSendBatch: (msgs) => sentMessages.push(...msgs),
           }),
@@ -85,6 +87,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
@@ -114,6 +117,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification])
@@ -148,6 +152,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification])
@@ -174,6 +179,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createFailingPushService('Push failed'),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification])
@@ -210,6 +216,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
@@ -253,6 +260,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
@@ -292,6 +300,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
@@ -383,6 +392,7 @@ describe('Notification Worker', () => {
         processMessage(message).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockPushService({
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
@@ -423,6 +433,7 @@ describe('Notification Worker', () => {
         handleFailedMessage(message, new Error('Test error')).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               dlqLayer,
               createMockNotificationRepository([notification])
             )
@@ -449,6 +460,7 @@ describe('Notification Worker', () => {
         handleFailedMessage(message, new Error('Push service down')).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockDeadLetterRepository(),
               createMockNotificationRepository([notification])
             )
@@ -482,6 +494,7 @@ describe('Notification Worker', () => {
         handleFailedMessage(message, new Error('Error')).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               dlqLayer,
               createMockNotificationRepository([notification])
             )
@@ -526,6 +539,7 @@ describe('Notification Worker', () => {
         handleFailedMessage(message, new Error('Push failed')).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockDeadLetterRepository(),
               createMockNotificationRepository(notifications)
             )
@@ -560,6 +574,7 @@ describe('Notification Worker', () => {
         consumeFromTopic('watering_reminder').pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockMessageQueue({
                 onDequeue: () => {
                   const msg = pipe(
@@ -595,6 +610,7 @@ describe('Notification Worker', () => {
         consumeFromTopic('watering_reminder').pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockAlerterLive,
               createMockMessageQueue(), // Empty queue
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),

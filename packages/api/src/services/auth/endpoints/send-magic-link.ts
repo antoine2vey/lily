@@ -1,4 +1,5 @@
 import type { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
 import {
   createMagicLinkToken,
@@ -36,7 +37,11 @@ export const sendMagicLink = ({
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
   { message: string },
-  MagicLinkRepository | RateLimiterService | MagicLinkConfig | EmailService
+  | MagicLinkRepository
+  | RateLimiterService
+  | MagicLinkConfig
+  | EmailService
+  | Alerter
 > =>
   Effect.gen(function* () {
     const rateLimiter = yield* RateLimiterService
@@ -91,13 +96,25 @@ export const sendMagicLink = ({
     }).pipe(
       Effect.catchTags({
         EmailSendError: (e) =>
-          Effect.logWarning('[auth] Magic link email send failed', {
-            error: String(e),
-          }),
+          Effect.flatMap(Alerter, (alerter) =>
+            logAndAlertWarning(
+              alerter,
+              'auth',
+              'Magic link email send failed',
+              {
+                error: String(e).slice(0, 300),
+              }
+            )
+          ),
         EmailConfigError: (e) =>
-          Effect.logWarning('[auth] Magic link email config error', {
-            error: String(e),
-          }),
+          Effect.flatMap(Alerter, (alerter) =>
+            logAndAlertWarning(
+              alerter,
+              'auth',
+              'Magic link email config error',
+              { error: String(e).slice(0, 300) }
+            )
+          ),
         ConfigError: (e) =>
           Effect.logWarning('[auth] Magic link config error', {
             error: String(e),

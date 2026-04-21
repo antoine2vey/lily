@@ -52,6 +52,10 @@ import { WeatherRepositoryLive } from '@lily/api/repositories/weather.repository
 import { AchievementNotifierLive } from '@lily/api/services/achievements/notifier'
 import { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 import { AiService } from '@lily/api/services/ai/service'
+import {
+  ConsoleAlerterLive,
+  DiscordAlerterLive,
+} from '@lily/api/services/alerting'
 import { MagicLinkConfigLive } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthenticationLive } from '@lily/api/services/auth/middleware.impl'
 import { ConsoleEmailServiceLive } from '@lily/api/services/email/console.provider'
@@ -74,7 +78,7 @@ import { WeatherProviderLive } from '@lily/api/services/weather/provider.live'
 import { KnowledgeDrizzleLive } from '@lily/knowledge-db'
 import { FileService } from '@lily/shared/services/file/fileservice'
 import { GCSService } from '@lily/shared/services/file/gcs'
-import { Config, Effect, Layer } from 'effect'
+import { Config, Effect, Layer, Option, Redacted } from 'effect'
 
 // ============================================================================
 // Re-exports for direct access
@@ -160,6 +164,26 @@ const NodeEnvConfig = Config.string('NODE_ENV').pipe(
   Config.withDefault('development')
 )
 
+const DiscordWebhookConfig = Config.option(
+  Config.redacted('DISCORD_WEBHOOK_URL')
+).pipe(
+  Config.map((opt) => Option.filter(opt, (r) => Redacted.value(r).length > 0))
+)
+
+const AlerterLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const nodeEnv = yield* NodeEnvConfig
+    const webhook = yield* DiscordWebhookConfig
+    if (nodeEnv === 'production' && Option.isSome(webhook)) {
+      return DiscordAlerterLive
+    }
+    yield* Effect.log(
+      '[alerter] Using console provider (non-production or DISCORD_WEBHOOK_URL not set)'
+    )
+    return ConsoleAlerterLive
+  })
+)
+
 const ExternalServicesLive = Layer.unwrapEffect(
   Effect.gen(function* () {
     const nodeEnv = yield* NodeEnvConfig
@@ -211,7 +235,7 @@ const AllInfrastructureLive = Layer.mergeAll(
   SelfContainedInfraLive,
   RedisFullLive,
   RepoDependentInfraLive
-)
+).pipe(Layer.provideMerge(AlerterLive))
 
 // ============================================================================
 // AppLive — The single composite layer for the entire application.

@@ -1,3 +1,4 @@
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCommandExecutor } from '@lily/api/__tests__/mocks/command-executor'
 import { createMockEmailService } from '@lily/api/__tests__/mocks/email.service'
 import {
@@ -33,6 +34,7 @@ describe('sendMagicLink', () => {
       ),
       createMockCommandExecutor(),
       createMockEmailService(),
+      MockAlerterLive,
       Layer.succeed(MagicLinkConfig, {
         disableVerification: options.disableMagicLink ?? false,
       })
@@ -119,6 +121,7 @@ describe('sendMagicLink', () => {
             createMockRateLimiterService(),
             createMockCommandExecutor(),
             createMockEmailService(),
+            MockAlerterLive,
             Layer.succeed(MagicLinkConfig, {
               disableVerification: false,
             })

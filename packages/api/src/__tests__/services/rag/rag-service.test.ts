@@ -3,6 +3,7 @@ import {
   createTestChunkSearchResult,
   mockChunkSearchResults,
 } from '@lily/api/__tests__/fixtures/knowledge'
+import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/processed-chunk.repository'
 import { RagService } from '@lily/api/services/rag/service'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
@@ -31,7 +32,12 @@ const makeTestLayer = (searchResults: ChunkSearchResult[] = []) => {
   return Layer.merge(
     createMockProcessedChunkRepository(chunkData),
     RagService.Default.pipe(
-      Layer.provide(createMockProcessedChunkRepository(chunkData))
+      Layer.provide(
+        Layer.merge(
+          createMockProcessedChunkRepository(chunkData),
+          MockAlerterLive
+        )
+      )
     )
   )
 }
@@ -124,7 +130,9 @@ describe('RagService', () => {
         }
       )
 
-      const layer = RagService.Default.pipe(Layer.provide(failingChunkRepo))
+      const layer = RagService.Default.pipe(
+        Layer.provide(Layer.merge(failingChunkRepo, MockAlerterLive))
+      )
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {

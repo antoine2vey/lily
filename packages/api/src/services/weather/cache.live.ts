@@ -1,3 +1,4 @@
+import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { RedisClient } from '@lily/api/services/message-queue/redis.provider'
 import { WeatherCache } from '@lily/api/services/weather/cache'
 import type { WeatherForecast } from '@lily/shared'
@@ -43,6 +44,13 @@ export const WeatherCacheLive = Layer.effect(
   WeatherCache,
   Effect.gen(function* () {
     const redis = yield* RedisClient
+    const alerter = yield* Alerter
+
+    const warnAndAlert = (op: string) => (e: unknown) =>
+      logAndAlertWarning(alerter, 'weather-cache', `${op} failed`, {
+        op,
+        error: String(e).slice(0, 200),
+      })
 
     return {
       findNearest: (lat, lng, radiusKm) =>
@@ -78,9 +86,9 @@ export const WeatherCacheLive = Layer.effect(
           return Option.some(JSON.parse(data) as WeatherForecast)
         }).pipe(
           Effect.catchTag('UnknownException', (e) =>
-            Effect.logWarning('[weather-cache] findNearest failed', {
-              error: String(e),
-            }).pipe(Effect.as(Option.none<WeatherForecast>()))
+            warnAndAlert('findNearest')(e).pipe(
+              Effect.as(Option.none<WeatherForecast>())
+            )
           )
         ),
 
@@ -102,11 +110,7 @@ export const WeatherCacheLive = Layer.effect(
             WEATHER_DATA_TTL_SECONDS
           )
         }).pipe(
-          Effect.catchTag('UnknownException', (e) =>
-            Effect.logWarning('[weather-cache] store failed', {
-              error: String(e),
-            })
-          ),
+          Effect.catchTag('UnknownException', (e) => warnAndAlert('store')(e)),
           Effect.asVoid
         ),
 
@@ -127,9 +131,7 @@ export const WeatherCacheLive = Layer.effect(
           )
         }).pipe(
           Effect.catchTag('UnknownException', (e) =>
-            Effect.logWarning('[weather-cache] getAllLocations failed', {
-              error: String(e),
-            }).pipe(
+            warnAndAlert('getAllLocations')(e).pipe(
               Effect.as(
                 [] as Array<{
                   latitude: number
@@ -147,9 +149,7 @@ export const WeatherCacheLive = Layer.effect(
           await redis.del(`${WEATHER_DATA_PREFIX}${id}`)
         }).pipe(
           Effect.catchTag('UnknownException', (e) =>
-            Effect.logWarning('[weather-cache] removeLocation failed', {
-              error: String(e),
-            })
+            warnAndAlert('removeLocation')(e)
           ),
           Effect.asVoid
         ),

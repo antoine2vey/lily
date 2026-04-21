@@ -1,3 +1,4 @@
+import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
   type IPushService,
   PushConfigError,
@@ -55,6 +56,8 @@ export const ExpoPushServiceLive = Layer.effect(
   PushService,
   Effect.gen(function* () {
     const expo = new Expo()
+    const alerter = yield* Alerter
+    const alert = withProviderAlert(alerter, { provider: 'expo-push' })
 
     const service: IPushService = {
       send: Effect.fn('ExpoPush.send')(function* (message: PushMessage) {
@@ -101,7 +104,7 @@ export const ExpoPushServiceLive = Layer.effect(
           id: ticket.id,
           status: 'ok' as const,
         } satisfies PushTicket
-      }),
+      }, alert),
 
       sendBatch: Effect.fn('ExpoPush.sendBatch')(function* (
         messages: readonly PushMessage[]
@@ -141,7 +144,7 @@ export const ExpoPushServiceLive = Layer.effect(
         )
 
         return Array.flatten(ticketBatches)
-      }),
+      }, alert),
     }
 
     yield* Effect.log('Expo Push service initialized')

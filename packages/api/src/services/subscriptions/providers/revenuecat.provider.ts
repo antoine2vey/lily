@@ -1,3 +1,4 @@
+import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
   PaymentProviderError,
   type RevenueCatSubscriberInfo,
@@ -84,6 +85,9 @@ export const RevenueCatProviderLive = Layer.effect(
       }
     )
 
+    const alerter = yield* Alerter
+    const alert = withProviderAlert(alerter, { provider: 'revenuecat' })
+
     const getSubscriberInfo = Effect.fn('RevenueCat.getSubscriberInfo')(
       function* (appUserId: string) {
         yield* Effect.annotateCurrentSpan('revenuecat.appUserId', appUserId)
@@ -126,7 +130,8 @@ export const RevenueCatProviderLive = Layer.effect(
               code: 'revenuecat_api_error',
             }),
         })
-      }
+      },
+      alert
     )
 
     return {

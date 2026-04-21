@@ -3,7 +3,7 @@ import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { AppLive } from '@lily/api/layers'
 import { LoggerLayer } from '@lily/api/logger'
-import { LoggingMiddleware } from '@lily/api/middleware/logging'
+import { ObservabilityMiddleware } from '@lily/api/middleware/observability'
 import { startAccountCleanupScheduler } from '@lily/api/services/account-cleanup/scheduler'
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
@@ -155,7 +155,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 )
 
 // Set up the server using BunHttpServer on port 3000
-const ServerLive = HttpApiBuilder.serve(LoggingMiddleware).pipe(
+const ServerLive = HttpApiBuilder.serve(ObservabilityMiddleware).pipe(
   Layer.provide(HttpApiBuilder.middlewareCors({ maxAge: 86400 })),
   Layer.provide(HttpApiSwagger.layer()),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
