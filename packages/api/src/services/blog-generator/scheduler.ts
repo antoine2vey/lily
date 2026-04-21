@@ -1,4 +1,7 @@
-import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import {
+  type BlogPost,
+  BlogPostRepository,
+} from '@lily/api/repositories/blog-post.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import type { BlogPostSource } from '@lily/db/schema'
@@ -10,6 +13,7 @@ import { selectTopic } from './topics'
 import type { TopicSuggestion } from './types'
 
 const MAX_POSTS_PER_DAY = 12
+const MAX_TOPIC_ATTEMPTS = 3
 
 const rejectPost = (postId: string, reason: string) =>
   Effect.gen(function* () {
@@ -106,29 +110,55 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
 
   yield* Effect.log('Starting blog post generation pipeline')
 
-  // SELECT TOPIC (needed before creating record for slug/title)
-  const topic = yield* selectTopic
+  // Ask the LLM for a topic and try to INSERT. On slug collision (the LLM
+  // ignores the "avoid these" hint), create() returns null — pick a new topic
+  // and try again. If every attempt collides, give up for this cycle and
+  // alert so we can investigate the prompt/topic exhaustion.
+  const selection = yield* Effect.iterate(
+    {
+      attempt: 1,
+      result: null as { post: BlogPost; topic: TopicSuggestion } | null,
+    },
+    {
+      while: (s) => s.result === null && s.attempt <= MAX_TOPIC_ATTEMPTS,
+      body: (s) =>
+        Effect.gen(function* () {
+          const topic = yield* selectTopic
+          yield* Effect.log('Topic selected', {
+            slug: topic.slug,
+            category: topic.category,
+            attempt: s.attempt,
+          })
+          const post = yield* repo.create({
+            slug: topic.slug,
+            title: { ...topic.title },
+            category: topic.category,
+            tags: [...topic.tags],
+          })
+          if (post) {
+            return { attempt: s.attempt, result: { post, topic } }
+          }
+          yield* Effect.logWarning(
+            `Topic '${topic.slug}' collided with existing post (attempt ${s.attempt}/${MAX_TOPIC_ATTEMPTS})`
+          )
+          return { attempt: s.attempt + 1, result: null }
+        }),
+    }
+  )
 
-  yield* Effect.log('Topic selected', {
-    slug: topic.slug,
-    category: topic.category,
-  })
-
-  // CREATE PENDING RECORD
-  const post = yield* repo.create({
-    slug: topic.slug,
-    title: { ...topic.title },
-    category: topic.category,
-    tags: [...topic.tags],
-  })
-
-  if (!post) {
-    yield* Effect.logWarning('Failed to create blog post record')
+  if (!selection.result) {
+    const alerter = yield* Alerter
+    yield* logAndAlertWarning(
+      alerter,
+      'blog-generator',
+      'Topic selection exhausted retries — every LLM-picked slug collided',
+      { attempts: MAX_TOPIC_ATTEMPTS }
+    )
     return
   }
 
   // Run the pipeline — on any failure, the post is marked rejected
-  yield* runPipeline(post.id, topic)
+  yield* runPipeline(selection.result.post.id, selection.result.topic)
 }).pipe(
   Effect.catchTags({
     OpenAIError: (error) =>
