@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Data, Effect } from 'effect'
+import { Data, Effect, Schema } from 'effect'
 
 export const ONBOARDING_KEYS = {
   complete: '@lily/onboarding_complete',
@@ -50,6 +50,12 @@ export const completeOnboarding = Effect.all([
   multiRemove([ONBOARDING_KEYS.step, ONBOARDING_KEYS.data]),
 ]).pipe(Effect.catchTag('OnboardingStorageError', () => Effect.void))
 
+const OnboardingDataJson = Schema.parseJson(
+  Schema.Record({ key: Schema.String, value: Schema.Unknown })
+)
+const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)
+const encodeOnboardingData = Schema.encodeSync(OnboardingDataJson)
+
 /**
  * Advance onboarding from an external screen (e.g., scanner).
  * Merges new data with existing onboarding data in AsyncStorage.
@@ -60,8 +66,8 @@ export const advanceFromExternal = (
 ) =>
   Effect.gen(function* () {
     const existingRaw = yield* getItem(ONBOARDING_KEYS.data)
-    const existing = existingRaw ? JSON.parse(existingRaw) : {}
+    const existing = existingRaw ? decodeOnboardingData(existingRaw) : {}
     const merged = { ...existing, ...newData }
     yield* setItem(ONBOARDING_KEYS.step, String(step))
-    yield* setItem(ONBOARDING_KEYS.data, JSON.stringify(merged))
+    yield* setItem(ONBOARDING_KEYS.data, encodeOnboardingData(merged))
   }).pipe(Effect.catchTag('OnboardingStorageError', () => Effect.void))
