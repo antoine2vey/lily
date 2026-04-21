@@ -160,7 +160,9 @@ public class ExpoPlantScannerView: ExpoView, ARSessionDelegate, ARSCNViewDelegat
         return
       }
 
-      let uiImage = UIImage(cgImage: cgImage)
+      // ARKit capturedImage is always sensor-native landscape; container VC
+      // locks display to portrait, so .right bakes the 90° rotation into JPEG.
+      let uiImage = UIImage(cgImage: cgImage, scale: 1, orientation: .right)
       guard let jpegData = uiImage.jpegData(compressionQuality: 0.8) else {
         DispatchQueue.main.async { self?.isCapturingPhoto = false }
         return
