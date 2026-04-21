@@ -322,9 +322,10 @@ export const AnalyticsRepositoryLive = Layer.effect(
       }
     }).pipe(Effect.withSpan('AnalyticsRepository.plantsPerUserDistribution'))
 
-    const careLogVolumeByType = (range: AnalyticsRange) =>
-      Effect.gen(function* () {
-        const result = yield* db.execute(sql`
+    const careLogVolumeByType = Effect.fn(
+      'AnalyticsRepository.careLogVolumeByType'
+    )(function* (range: AnalyticsRange) {
+      const result = yield* db.execute(sql`
           SELECT
             type,
             to_char(date_trunc('day', date AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
@@ -334,27 +335,27 @@ export const AnalyticsRepositoryLive = Layer.effect(
           GROUP BY type, day
           ORDER BY day ASC, type ASC
         `)
-        const rows = unwrapPgRows<CareLogVolumeRow>(result)
-        const grouped = groupPoints(
-          rows,
-          (r) => r.type,
-          (r) => r.day,
-          (r) => r.n
-        )
-        const series = pipe(
-          Record.toEntries(grouped),
-          Array.map(([type, points]) => ({ type, points })),
-          Array.sort(byString<{ type: string }>((x) => x.type))
-        )
-        const totalInRange = pipe(
-          rows,
-          Array.reduce(0, (acc, r) => acc + r.n)
-        )
-        return { totalInRange, series }
-      }).pipe(Effect.withSpan('AnalyticsRepository.careLogVolumeByType'))
+      const rows = unwrapPgRows<CareLogVolumeRow>(result)
+      const grouped = groupPoints(
+        rows,
+        (r) => r.type,
+        (r) => r.day,
+        (r) => r.n
+      )
+      const series = pipe(
+        Record.toEntries(grouped),
+        Array.map(([type, points]) => ({ type, points })),
+        Array.sort(byString<{ type: string }>((x) => x.type))
+      )
+      const totalInRange = pipe(
+        rows,
+        Array.reduce(0, (acc, r) => acc + r.n)
+      )
+      return { totalInRange, series }
+    })
 
-    const deadLetterVolume = (range: AnalyticsRange) =>
-      Effect.gen(function* () {
+    const deadLetterVolume = Effect.fn('AnalyticsRepository.deadLetterVolume')(
+      function* (range: AnalyticsRange) {
         const [seriesResult, topErrorsResult] = yield* Effect.all(
           [
             db.execute(sql`
@@ -404,10 +405,11 @@ export const AnalyticsRepositoryLive = Layer.effect(
           count: r.n,
         }))
         return { totalInRange, series, topErrors }
-      }).pipe(Effect.withSpan('AnalyticsRepository.deadLetterVolume'))
+      }
+    )
 
-    const aiChatVolume = (range: AnalyticsRange) =>
-      Effect.gen(function* () {
+    const aiChatVolume = Effect.fn('AnalyticsRepository.aiChatVolume')(
+      function* (range: AnalyticsRange) {
         const [dailyResult, uniqueResult] = yield* Effect.all(
           [
             db.execute(sql`
@@ -451,7 +453,8 @@ export const AnalyticsRepositoryLive = Layer.effect(
             users: r.users,
           })),
         }
-      }).pipe(Effect.withSpan('AnalyticsRepository.aiChatVolume'))
+      }
+    )
 
     const diagnosisResolutionRate = Effect.gen(function* () {
       const result = yield* db.execute(sql`
@@ -638,16 +641,17 @@ export const AnalyticsRepositoryLive = Layer.effect(
       }
     }).pipe(Effect.withSpan('AnalyticsRepository.trialToPaid'))
 
-    const notificationToCareAction = (range: AnalyticsRange) =>
-      Effect.gen(function* () {
-        // sql.raw is safe here: CARE_REMINDER_TYPES is a hardcoded `as const`
-        // tuple, nothing dynamic flows in. Parameterized ANY(array) doesn't
-        // work cleanly because drizzle/pg can't infer text[] type in this
-        // position without explicit casts on both sides.
-        const reminderTypes = sql.raw(
-          CARE_REMINDER_TYPES.map((t) => `'${t}'`).join(', ')
-        )
-        const result = yield* db.execute(sql`
+    const notificationToCareAction = Effect.fn(
+      'AnalyticsRepository.notificationToCareAction'
+    )(function* (range: AnalyticsRange) {
+      // sql.raw is safe here: CARE_REMINDER_TYPES is a hardcoded `as const`
+      // tuple, nothing dynamic flows in. Parameterized ANY(array) doesn't
+      // work cleanly because drizzle/pg can't infer text[] type in this
+      // position without explicit casts on both sides.
+      const reminderTypes = sql.raw(
+        CARE_REMINDER_TYPES.map((t) => `'${t}'`).join(', ')
+      )
+      const result = yield* db.execute(sql`
           WITH reminders AS (
             SELECT id, plant_id, sent_at
             FROM notifications
@@ -669,26 +673,26 @@ export const AnalyticsRepositoryLive = Layer.effect(
             (SELECT count(*)::int FROM reminders) AS reminders_sent,
             (SELECT count(*)::int FROM acted) AS acted_within_24h
         `)
-        const rows = unwrapPgRows<NotificationFunnelRow>(result)
-        const row = pipe(
-          Array.head(rows),
-          Option.getOrElse(
-            (): NotificationFunnelRow => ({
-              reminders_sent: 0,
-              acted_within_24h: 0,
-            })
-          )
+      const rows = unwrapPgRows<NotificationFunnelRow>(result)
+      const row = pipe(
+        Array.head(rows),
+        Option.getOrElse(
+          (): NotificationFunnelRow => ({
+            reminders_sent: 0,
+            acted_within_24h: 0,
+          })
         )
-        const rate =
-          row.reminders_sent === 0
-            ? 0
-            : row.acted_within_24h / row.reminders_sent
-        return {
-          remindersSent: row.reminders_sent,
-          actedOnWithin24h: row.acted_within_24h,
-          actionRate: rate,
-        }
-      }).pipe(Effect.withSpan('AnalyticsRepository.notificationToCareAction'))
+      )
+      const rate =
+        row.reminders_sent === 0 ? 0 : row.acted_within_24h / row.reminders_sent
+      return {
+        remindersSent: row.reminders_sent,
+        actedOnWithin24h: row.acted_within_24h,
+        actionRate: rate,
+      }
+    })
+
+    const encodeSnapshotValue = Schema.encode(Schema.parseJson(Schema.Unknown))
 
     const writeSnapshot = (
       date: string,
@@ -696,7 +700,7 @@ export const AnalyticsRepositoryLive = Layer.effect(
       value: unknown
     ) =>
       Effect.gen(function* () {
-        const jsonValue = JSON.stringify(value)
+        const jsonValue = yield* encodeSnapshotValue(value).pipe(Effect.orDie)
         yield* db.execute(sql`
           INSERT INTO analytics_daily_snapshots (date, metric_key, value, created_at, updated_at)
           VALUES (${date}, ${metricKey}, ${jsonValue}::jsonb, NOW(), NOW())

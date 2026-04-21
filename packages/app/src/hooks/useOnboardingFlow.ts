@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Effect, Schema } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
 import {
   completeOnboarding as completeOnboardingStorage,
@@ -24,6 +24,27 @@ export interface OnboardingData {
 
 const TOTAL_STEPS = 7
 
+const OnboardingDataSchema = Schema.Struct({
+  experienceLevel: Schema.optionalWith(
+    Schema.Literal('beginner', 'intermediate', 'expert'),
+    { exact: true }
+  ),
+  plantName: Schema.optionalWith(Schema.String, { exact: true }),
+  plantDays: Schema.optionalWith(Schema.Number, { exact: true }),
+  notificationsEnabled: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  weatherEnabled: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  latitude: Schema.optionalWith(Schema.Number, { exact: true }),
+  longitude: Schema.optionalWith(Schema.Number, { exact: true }),
+  preferredTime: Schema.optionalWith(
+    Schema.Literal('morning', 'afternoon', 'evening'),
+    { exact: true }
+  ),
+  roomsCreated: Schema.optionalWith(Schema.Number, { exact: true }),
+}) satisfies Schema.Schema<OnboardingData>
+const OnboardingDataJson = Schema.parseJson(OnboardingDataSchema)
+const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)
+const encodeOnboardingData = Schema.encodeSync(OnboardingDataJson)
+
 export function useOnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(0)
   const [data, setData] = useState<OnboardingData>({})
@@ -39,7 +60,7 @@ export function useOnboardingFlow() {
         ])
 
         const step = stepStr ? Number(stepStr) : 0
-        const parsed = dataStr ? (JSON.parse(dataStr) as OnboardingData) : {}
+        const parsed = dataStr ? decodeOnboardingData(dataStr) : {}
 
         setCurrentStep(step)
         setData(parsed)
@@ -60,7 +81,7 @@ export function useOnboardingFlow() {
 
   const persistData = useCallback((newData: OnboardingData) => {
     Effect.runPromise(
-      setItem(ONBOARDING_KEYS.data, JSON.stringify(newData)).pipe(
+      setItem(ONBOARDING_KEYS.data, encodeOnboardingData(newData)).pipe(
         Effect.catchTag('OnboardingStorageError', () => Effect.void)
       )
     )
