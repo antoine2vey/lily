@@ -243,6 +243,7 @@ export function CareScreen() {
 
   return (
     <View
+      testID="care-screen"
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >

@@ -100,6 +100,35 @@
           "project": "react-native",
           "organization": "antoine2vey"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "material",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/MaterialIcons.ttf",
+                    "weight": 400
+                  }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": ["./assets/fonts/MaterialIcons.ttf"]
+          }
+        }
       ]
     ],
     "experiments": {

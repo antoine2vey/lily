@@ -36,6 +36,7 @@
     "seed:apple-reviewer": "bun run scripts/seed-apple-reviewer.ts",
     "seed:tiers": "bun run scripts/seed-subscription-tiers.ts",
     "seed:demo": "bun run scripts/seed-demo-data.ts",
+    "seed:demo-chat": "bun run scripts/seed-demo-chat.ts",
     "db:push-test": "DATABASE_URL=$DATABASE_URL_TEST drizzle-kit push",
     "db:setup-test": "bun run db:push-test && bun run scripts/setup-test-db.ts"
   },

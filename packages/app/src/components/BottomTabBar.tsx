@@ -89,17 +89,20 @@ export function TabItem({
   isFocused,
   badgeCount,
   onPress,
+  testID,
 }: {
   iconName: keyof typeof MaterialIcons.glyphMap
   label: string
   isFocused: boolean
   badgeCount: number
   onPress: () => void
+  testID?: string
 }) {
   const iconColors = useIconColors()
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       className="flex-1 items-center justify-center gap-1"
     >
@@ -151,6 +154,7 @@ export function BottomTabBar({
     return (
       <TabItem
         key={route.name}
+        testID={`tab-${route.name}`}
         iconName={isFocused ? route.icon.active : route.icon.inactive}
         label={t(route.labelKey)}
         isFocused={isFocused}

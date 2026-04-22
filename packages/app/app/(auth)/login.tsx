@@ -89,6 +89,7 @@ export default function LoginScreen() {
             >
               <View className="gap-4">
                 <Input
+                  testID="login-email-input"
                   icon="eco"
                   placeholder={t('auth:login.emailPlaceholder')}
                   value={email}
@@ -110,6 +111,7 @@ export default function LoginScreen() {
                 )}
 
                 <Button
+                  testID="login-submit-button"
                   icon="arrow-forward"
                   loading={loading}
                   onPress={handleSubmit}

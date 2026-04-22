@@ -99,7 +99,11 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
     <View testID="recent-history">
       <SectionHeader
         title={t('detail.recentHistory')}
-        action={{ label: t('detail.viewAll'), onPress: onViewAll }}
+        action={{
+          label: t('detail.viewAll'),
+          onPress: onViewAll,
+          testID: 'view-all-history',
+        }}
       />
       <View className="mt-4">
         {Array.length(recentEvents) === 0 ? (

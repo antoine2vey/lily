@@ -12,6 +12,7 @@ export function ChatHeader() {
   return (
     <View className="flex-row items-center px-4 py-3 border-b bg-background dark:bg-background-dark border-border dark:border-slate-700">
       <Pressable
+        testID="chat-back-button"
         onPress={() => router.back()}
         className="w-10 h-10 items-center justify-center"
       >

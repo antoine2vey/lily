@@ -3,6 +3,14 @@ import '@/polyfills'
 // Sentry must be initialized before Sentry.wrap() is called
 import '@/sentry'
 
+// Import from the family-specific path (not the barrel) — this
+// resolves to Expo's wrapped MaterialIcons class which attaches a
+// static `.font` property. `MaterialIcons.font` is `{ material: <asset> }`.
+// Matches the font-family name the Icon component uses internally
+// (`createIconSet(glyphMap, 'material', font)`), which is what must
+// be registered with expo-font for glyphs to render in release builds.
+// See: https://docs.expo.dev/develop/user-interface/fonts/
+import MaterialIcons from '@expo/vector-icons/MaterialIcons'
 import {
   SpaceGrotesk_400Regular,
   SpaceGrotesk_500Medium,
@@ -135,6 +143,7 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
 export default Sentry.wrap(function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    ...MaterialIcons.font,
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,

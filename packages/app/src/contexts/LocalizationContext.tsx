@@ -1,6 +1,7 @@
 import type { LanguageCode } from '@lily/shared'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Option, pipe } from 'effect'
+import * as Linking from 'expo-linking'
 import {
   createContext,
   type ReactNode,
@@ -17,6 +18,20 @@ import {
   SUPPORTED_LANGUAGES,
 } from '@/i18n/types'
 import { getDeviceLanguage } from '@/utils/notifications'
+
+const E2E_LOCALE_QUERY_PARAM = 'e2e_locale'
+
+const isValidLanguage = (lang: unknown): lang is LanguageCode =>
+  lang === 'en' || lang === 'fr'
+
+const extractE2ELocale = (url: string): Option.Option<LanguageCode> => {
+  try {
+    const value = Linking.parse(url).queryParams?.[E2E_LOCALE_QUERY_PARAM]
+    return isValidLanguage(value) ? Option.some(value) : Option.none()
+  } catch {
+    return Option.none()
+  }
+}
 
 interface LocalizationContextValue {
   /** Current language code */
@@ -44,9 +59,6 @@ export function useLocalizationContext(): LocalizationContextValue {
 interface LocalizationProviderProps {
   children: ReactNode
 }
-
-const isValidLanguage = (lang: string | null): lang is LanguageCode =>
-  lang === 'en' || lang === 'fr'
 
 export function LocalizationProvider({ children }: LocalizationProviderProps) {
   const [language, setLanguageState] = useState<LanguageCode>(DEFAULT_LANGUAGE)
@@ -93,6 +105,30 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     },
     [i18nInstance]
   )
+
+  // Let Maestro / manual testing pin locale via deep link (e.g.
+  // `lily://?e2e_locale=fr`). Persists like any user-selected locale.
+  // Not __DEV__-gated: a malicious deep link would just flip the user's
+  // UI language — same blast radius as the in-app language switcher —
+  // and release-build screenshot pipelines also need this path to work.
+  useEffect(() => {
+    const apply = (url: string | null) => {
+      if (!url) return
+      pipe(
+        extractE2ELocale(url),
+        Option.match({
+          onNone: () => {},
+          onSome: (lang) => {
+            if (lang !== language) setLanguage(lang)
+          },
+        })
+      )
+    }
+
+    Linking.getInitialURL().then(apply)
+    const sub = Linking.addEventListener('url', ({ url }) => apply(url))
+    return () => sub.remove()
+  }, [setLanguage, language])
 
   const value = useMemo(
     () => ({

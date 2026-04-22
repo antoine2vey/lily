@@ -14,12 +14,14 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
 import {
   careLogs,
+  chatMessages,
   plantCareSchedules,
   plants,
+  rooms,
   userFollows,
   users,
 } from '@lily/db/schema'
-import { and, eq, or } from 'drizzle-orm'
+import { and, eq, inArray, or } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option } from 'effect'
 
 const getFirst = <T>(arr: T[]): T => {
@@ -127,8 +129,8 @@ const DEMO_PLANTS: DemoPlantData[] = [
       {
         careType: 'misting',
         frequencyDays: 2,
-        lastCareAt: daysFromNow(-3),
-        nextCareAt: daysFromNow(-1), // Yesterday (overdue)
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(1), // Tomorrow
       },
     ],
   },
@@ -332,20 +334,20 @@ const DEMO_PLANTS: DemoPlantData[] = [
       {
         careType: 'watering',
         frequencyDays: 7,
-        lastCareAt: daysFromNow(-10),
-        nextCareAt: daysFromNow(-3),
+        lastCareAt: daysFromNow(-5),
+        nextCareAt: daysFromNow(2), // In 2 days
       },
       {
         careType: 'misting',
         frequencyDays: 2,
-        lastCareAt: daysFromNow(-5),
-        nextCareAt: daysFromNow(-3), // Overdue
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(1), // Tomorrow
       },
       {
         careType: 'repotting',
         frequencyDays: 365,
-        lastCareAt: daysFromNow(-400),
-        nextCareAt: daysFromNow(-35), // Overdue
+        lastCareAt: daysFromNow(-300),
+        nextCareAt: daysFromNow(65), // In 2 months
       },
     ],
   },
@@ -364,14 +366,14 @@ const DEMO_PLANTS: DemoPlantData[] = [
       {
         careType: 'watering',
         frequencyDays: 5,
-        lastCareAt: daysFromNow(-8),
-        nextCareAt: daysFromNow(-3),
+        lastCareAt: daysFromNow(-3),
+        nextCareAt: daysFromNow(2), // In 2 days
       },
       {
         careType: 'misting',
         frequencyDays: 1,
-        lastCareAt: daysFromNow(-4),
-        nextCareAt: daysFromNow(-3), // Overdue
+        lastCareAt: daysFromNow(-1),
+        nextCareAt: daysFromNow(1), // Tomorrow
       },
     ],
   },
@@ -545,14 +547,23 @@ const seedDemoData = Effect.gen(function* () {
       .select({ id: plants.id })
       .from(plants)
       .where(eq(plants.userId, userId))
-    for (const plant of existingPlants) {
-      yield* db.delete(careLogs).where(eq(careLogs.plantId, plant.id))
+    const existingPlantIds = A.map(existingPlants, (p) => p.id)
+    if (A.isNonEmptyArray(existingPlantIds)) {
+      yield* db
+        .delete(careLogs)
+        .where(inArray(careLogs.plantId, existingPlantIds))
+      yield* db
+        .delete(chatMessages)
+        .where(inArray(chatMessages.plantId, existingPlantIds))
       yield* db
         .delete(plantCareSchedules)
-        .where(eq(plantCareSchedules.plantId, plant.id))
+        .where(inArray(plantCareSchedules.plantId, existingPlantIds))
     }
     yield* db.delete(plants).where(eq(plants.userId, userId))
-    yield* Console.log('  Wiped existing plants, care logs, and schedules')
+    yield* db.delete(rooms).where(eq(rooms.userId, userId))
+    yield* Console.log(
+      '  Wiped existing plants, care logs, chat, rooms, and schedules'
+    )
   } else {
     yield* Console.log('  No existing data found')
   }
@@ -627,6 +638,81 @@ const seedDemoData = Effect.gen(function* () {
       `  Created plant: ${plant.name} (${schedules.length} schedules)`
     )
   }
+
+  // Populates the /rooms screen for the screenshot pipeline.
+  yield* Console.log('Creating rooms and assigning plants...')
+  const roomDefs = [
+    {
+      name: 'Living Room',
+      icon: '🛋️',
+      luminosity: 3200,
+      order: 0,
+      isOutdoor: false,
+    },
+    {
+      name: 'Bedroom',
+      icon: '🛏️',
+      luminosity: 1800,
+      order: 1,
+      isOutdoor: false,
+    },
+    {
+      name: 'Kitchen',
+      icon: '🍳',
+      luminosity: 2400,
+      order: 2,
+      isOutdoor: false,
+    },
+    {
+      name: 'Balcony',
+      icon: '☀️',
+      luminosity: 8000,
+      order: 3,
+      isOutdoor: true,
+    },
+  ]
+
+  const createdRooms = yield* db
+    .insert(rooms)
+    .values(A.map(roomDefs, (r) => ({ ...r, userId: user.id })))
+    .returning({ id: rooms.id, name: rooms.name })
+
+  const roomIdByName = new Map(
+    A.map(createdRooms, (r) => [r.name, r.id] as const)
+  )
+  const plantIdByName = new Map(
+    A.map(createdPlants, (p) => [p.name, p.id] as const)
+  )
+  const assignments: Array<{ plant: string; room: string }> = [
+    { plant: 'Monstera', room: 'Living Room' },
+    { plant: 'Fiddle Leaf Fig', room: 'Living Room' },
+    { plant: 'Peace Lily', room: 'Living Room' },
+    { plant: 'Fern', room: 'Bedroom' },
+    { plant: 'Calathea', room: 'Bedroom' },
+    { plant: 'Aloe Vera', room: 'Kitchen' },
+    { plant: 'Spider Plant', room: 'Kitchen' },
+    { plant: 'Cactus', room: 'Balcony' },
+    { plant: 'Snake Plant', room: 'Balcony' },
+    { plant: 'Rubber Plant', room: 'Living Room' },
+  ]
+
+  const plantIdsByRoomId = new Map<string, string[]>()
+  for (const { plant, room } of assignments) {
+    const roomId = roomIdByName.get(room)
+    const plantId = plantIdByName.get(plant)
+    if (!roomId || !plantId) {
+      throw new Error(`Missing seed target: ${plant} -> ${room}`)
+    }
+    const list = plantIdsByRoomId.get(roomId) ?? []
+    list.push(plantId)
+    plantIdsByRoomId.set(roomId, list)
+  }
+  for (const [roomId, plantIds] of plantIdsByRoomId) {
+    yield* db.update(plants).set({ roomId }).where(inArray(plants.id, plantIds))
+  }
+  yield* Console.log(
+    `  Created ${createdRooms.length} rooms, assigned ${assignments.length} plants`
+  )
 
   // Create comprehensive care log history for testing various scenarios
   yield* Console.log('Creating comprehensive care log history...')
@@ -926,6 +1012,45 @@ const seedDemoData = Effect.gen(function* () {
       },
     ])
     yield* Console.log('  Aloe Vera: 6 care logs (5-60 days ago)')
+
+    // Staggered timestamps so the oldest pair appears at the top.
+    const mkMsg = (
+      role: 'user' | 'assistant',
+      content: string,
+      createdAt: Date
+    ) => ({
+      role,
+      content,
+      parts: [{ type: 'text', text: content }],
+      userId: user.id,
+      plantId: aloeVera.id,
+      createdAt,
+    })
+    yield* db
+      .insert(chatMessages)
+      .values([
+        mkMsg(
+          'user',
+          'Why are the tips of my Aloe turning brown?',
+          hoursAgo(6)
+        ),
+        mkMsg(
+          'assistant',
+          "Three common causes, in order of likelihood for your Aloe: gentle underwatering (the top 3cm of soil should be dry, but not powder-dry), mineral buildup from tap water, and occasional sunburn from harsh afternoon sun. Based on your last watering 5 days ago and current conditions, I'd lean toward a light thorough soak — until water runs through the drainage holes — then let it dry out fully before the next one. If the tips keep browning, switch to filtered or rainwater for a month.",
+          hoursAgo(6)
+        ),
+        mkMsg(
+          'user',
+          'Is the light in my living room enough for it?',
+          hoursAgo(1)
+        ),
+        mkMsg(
+          'assistant',
+          "Aloes want bright, indirect light with a few hours of gentle direct sun. A south- or west-facing window, about a metre back from the glass, is the sweet spot. If the leaves start stretching toward the window or the new growth looks pale, it's a sign to move it closer. Rotate the pot every couple of weeks so it grows evenly.",
+          hoursAgo(1)
+        ),
+      ])
+    yield* Console.log('  Aloe Vera: 4 chat messages (2 Q&A pairs)')
   }
 
   // Monstera - Popular plant with good history

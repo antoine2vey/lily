@@ -12,6 +12,7 @@ interface SettingsMenuItemProps {
   showBorder?: boolean
   disabled?: boolean
   onPress?: () => void
+  testID?: string
 }
 
 export function SettingsMenuItem({
@@ -23,11 +24,13 @@ export function SettingsMenuItem({
   showBorder = false,
   disabled = false,
   onPress,
+  testID,
 }: SettingsMenuItemProps) {
   const iconColors = useIconColors()
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       className={`flex-row items-center gap-3 p-4 min-h-[64px] active:bg-surface-tinted dark:active:bg-slate-700 ${
