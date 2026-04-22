@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
+# Installed skills (regenerated from skills-lock.json)
+.agents/
+
 # Yarn
 .yarn/*
 !.yarn/patches

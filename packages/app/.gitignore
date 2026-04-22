@@ -37,3 +37,7 @@ yarn-error.*
 *.tsbuildinfo
 
 .env.local
+
+# Store-listing screenshot pipeline outputs (see scripts/screenshots)
+screenshots/sources/
+screenshots/output/

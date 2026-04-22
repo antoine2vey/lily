@@ -290,6 +290,7 @@ export function HomeScreen() {
 
   return (
     <View
+      testID="home-screen"
       className="flex-1 bg-background dark:bg-background-dark"
       style={{
         paddingTop: insets.top,

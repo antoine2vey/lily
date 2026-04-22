@@ -26,7 +26,14 @@ import {
   TabItem,
 } from '@/components/BottomTabBar'
 
-const isSupported = isLiquidGlassSupported && Platform.OS === 'ios'
+// Liquid glass on iOS 26+ uses accessibility containment that hides
+// the rest of the app's view hierarchy from XCTest / VoiceOver. That
+// breaks Maestro-driven flows on every screen inside the tabs layout.
+// Screenshot/test builds set EXPO_PUBLIC_E2E=1 at build time to force
+// the plain BottomTabBar fallback, restoring a traversable a11y tree.
+const isE2EBuild = process.env.EXPO_PUBLIC_E2E === '1'
+const isSupported =
+  !isE2EBuild && isLiquidGlassSupported && Platform.OS === 'ios'
 
 const BAR_HEIGHT = 64
 const BAR_MARGIN = 20
@@ -78,6 +85,7 @@ export function LiquidGlassTabBar({
     return (
       <TabItem
         key={route.name}
+        testID={`tab-${route.name}`}
         iconName={isFocused ? route.icon.active : route.icon.inactive}
         label={t(route.labelKey)}
         isFocused={isFocused}

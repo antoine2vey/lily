@@ -34,6 +34,7 @@ export function LanguageSelectionModal({
         {Array.map(supportedLanguages, ({ code, nativeName }) => (
           <Pressable
             key={code}
+            testID={`language-option-${code}`}
             onPress={() => handleSelect(code)}
             className="flex-row items-center py-4 active:opacity-70"
           >

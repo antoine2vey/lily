@@ -1,0 +1,199 @@
+appId: com.lilyapp.app
+name: Lily store-screenshot capture
+# Intentionally NO `env:` block defaults for OUTPUT_DIR or LOCALE_CODE
+# — Maestro's template substitution snapshots YAML env defaults at
+# parse time and they can win over CLI `--env` values for some command
+# types. Orchestrator (scripts/screenshots/run.ts) passes both via
+# --env per run, so omitting defaults is safe and avoids that pitfall.
+#
+# Timeouts are generous throughout because Android emulators are slow:
+# cold boot + JS bundle eval + navigation transitions can each be 2–3×
+# their iOS-sim equivalents. Values are worst-case ceilings, not wait
+# durations — the flow advances as soon as the target element appears.
+env:
+  DEMO_EMAIL: antoine@lily.app
+---
+
+# 1. Force unauthenticated state. Platform-specific because:
+#    - iOS: auth token lives in the Keychain (expo-secure-store →
+#      Security framework). `clearKeychain` wipes it. DO NOT use
+#      clearState here: it'd wipe the dev client's remembered
+#      Metro URL and dump us on the server picker.
+#    - Android: auth token lives in SharedPreferences encrypted with
+#      an Android Keystore key (expo-secure-store's Android impl).
+#      `clearState` wipes the app's data dir (including those prefs).
+#      `clearKeychain` is an iOS-only no-op on Android.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - clearKeychain
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - clearState
+
+# 2. Cold-launch the app.
+- launchApp
+
+# 2a. Tell Expo Dev Client which Metro bundle to load. Only relevant on
+#     dev builds where the dev client has no cached last-URL (fresh
+#     install, or sim was reset). Release builds ignore this URL path.
+#     METRO_URL defaults to http://localhost:8081 — override via env.
+- openLink: "lily://expo-development-client/?url=http://localhost:8081"
+
+# 3. Wait for the login screen. On Android this is the slowest wait of
+#    the flow — emulator is cold, JS bundle hasn't been evaluated yet.
+- extendedWaitUntil:
+    visible:
+      id: login-email-input
+    timeout: 120000
+
+# 4. Log in. Explicit submit-button tap instead of relying on
+#    `hideKeyboard` — on Android, `hideKeyboard` sends Back which can
+#    exit the app if the IME has already auto-dismissed. The button tap
+#    works identically on both platforms.
+- tapOn:
+    id: login-email-input
+- inputText: "${DEMO_EMAIL}"
+- tapOn:
+    id: login-submit-button
+
+# 5. Wait for home to render. `home-screen` testID is on the root View.
+#    On Android this includes the (tabs) group mounting, which is
+#    heavier than iOS due to how Fabric handles layout.
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 60000
+- waitForAnimationToEnd
+
+# 6. Pin locale via Settings UI. Deep-link the settings route directly.
+- openLink: "lily:///settings"
+- extendedWaitUntil:
+    visible:
+      id: settings-language-row
+    timeout: 30000
+
+# 7. Open language modal → pick locale by testID → modal auto-dismisses.
+- tapOn:
+    id: settings-language-row
+- extendedWaitUntil:
+    visible:
+      id: "language-option-${LOCALE_CODE}"
+    timeout: 15000
+- tapOn:
+    id: "language-option-${LOCALE_CODE}"
+- waitForAnimationToEnd
+
+# 8. Home screenshot — deep-link instead of tapping the tab.
+- openLink: "lily:///"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: home-screen
+    timeout: 30000
+- takeScreenshot: "${OUTPUT_DIR}/home"
+
+# 9. Plants tab — deep-link, then wait for the grid to settle.
+- openLink: "lily:///plants"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: plants-grid
+    timeout: 30000
+- takeScreenshot: "${OUTPUT_DIR}/plants"
+
+# 10. Plant detail — tap the first visible plant card by testID regex.
+- tapOn:
+    id: "plant-card-.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "plant-detail-screen"
+    timeout: 30000
+- takeScreenshot: "${OUTPUT_DIR}/plant-detail"
+
+# 10a. Ask Lily — AI chat about this plant. Tap the chat-cta card that
+#      lives on plant-detail (testID="chat-cta"). Chat is a stack push,
+#      so `back` reliably pops it afterward.
+- tapOn:
+    id: "chat-cta"
+- extendedWaitUntil:
+    visible:
+      id: "chat-screen"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/chat"
+# Tap the explicit back button (testID=chat-back-button) rather than
+# using Maestro's `back` — the latter is unreliable on iOS. The button
+# fires router.back() which reliably pops the push-stack to plant-detail.
+- tapOn:
+    id: "chat-back-button"
+- extendedWaitUntil:
+    visible:
+      id: "plant-detail-screen"
+    timeout: 10000
+
+# 10b. Care history — scroll to the Recent History section on
+#      plant-detail, tap "View all" (testID="view-all-history"), wait
+#      for the timeline to render, screenshot. Back to plant-detail.
+- scrollUntilVisible:
+    element:
+      id: "view-all-history"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "view-all-history"
+- extendedWaitUntil:
+    visible:
+      id: "timeline"
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/care-history"
+
+# 10c. AI identification results — deep link with mocked result JSON
+#      as a query param. The screen (AIIdentificationResultsScreen)
+#      parses `?result=<JSON>&photoUri=<url>` natively, so no source
+#      code changes are needed to render a populated state.
+- openLink: "lily:///add-plant/ai-results?photoUri=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1603095859718-b6300a0aad18%3Fw%3D800&result=%7B%22name%22%3A%22Monstera+Deliciosa%22%2C%22family%22%3A%22Araceae%22%2C%22confidence%22%3A0.94%2C%22alternatives%22%3A%5B%7B%22name%22%3A%22Monstera+Adansonii%22%2C%22confidence%22%3A0.03%7D%2C%7B%22name%22%3A%22Philodendron+Hederaceum%22%2C%22confidence%22%3A0.02%7D%5D%2C%22wateringFrequencyDays%22%3A7%2C%22luxNeeded%22%3A2000%2C%22humidityRating%22%3A4%2C%22petToxicityRating%22%3A3%2C%22fertilizationFrequencyDays%22%3A21%2C%22mistingFrequencyDays%22%3A3%2C%22repottingFrequencyDays%22%3A365%2C%22category%22%3A%22Tropical%22%2C%22description%22%3A%22The+beloved+split-leaf+philodendron%2C+famous+for+its+dramatic+fenestrations+and+easy+care.%22%2C%22wateringTips%22%3A%22Water+when+the+top+2+inches+of+soil+feel+dry.+Avoid+overwatering%3B+root+rot+is+common.%22%2C%22imageUrl%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1603095859718-b6300a0aad18%3Fw%3D800%22%7D"
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/ai-results"
+
+# 11. Care tab — two captures at different scroll positions so the
+#     "care" and "reminders" composites show distinct content:
+#     - care.png: top of tab (Overdue section — urgent)
+#     - reminders.png: scrolled to Upcoming (scheduled reminders)
+- openLink: "lily:///care"
+# Wait for care screen to mount AND for the React Query "Refreshing..."
+# banner to settle. The banner shows during stale-while-revalidate and
+# would otherwise appear in the screenshot as a blue bar at the top.
+- extendedWaitUntil:
+    visible:
+      id: "care-screen"
+    timeout: 15000
+- extendedWaitUntil:
+    notVisible:
+      text: "Refreshing|Actualisation"
+    timeout: 10000
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/care"
+# Scroll down so reminders.png shows the upcoming schedule section
+# with different plants and dates than care.png. `scrollUntilVisible`
+# is a no-op if the target text is already on screen — "Upcoming" is
+# partially visible at the top of care.png's viewport, so we use
+# two raw `scroll` actions instead to move the viewport a full page.
+- scroll
+- scroll
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/reminders"
+
+# 12. Rooms — organizational view showing plants grouped by physical
+#     space (Living Room, Bedroom, Kitchen, Balcony). Seeded with a
+#     realistic distribution so the screen isn't empty. Deep link
+#     goes directly to /rooms.
+- openLink: "lily:///rooms"
+- waitForAnimationToEnd
+- takeScreenshot: "${OUTPUT_DIR}/rooms"

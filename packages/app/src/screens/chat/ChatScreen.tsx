@@ -268,6 +268,7 @@ export function ChatScreen() {
 
   return (
     <View
+      testID="chat-screen"
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >

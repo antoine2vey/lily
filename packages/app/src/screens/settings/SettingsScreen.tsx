@@ -188,6 +188,7 @@ export function SettingsScreen() {
               onPress={() => setShowThemeModal(true)}
             />
             <SettingsMenuItem
+              testID="settings-language-row"
               icon={
                 <MaterialIcons
                   name="language"

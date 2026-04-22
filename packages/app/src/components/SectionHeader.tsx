@@ -5,6 +5,7 @@ interface SectionHeaderProps {
   action?: {
     label: string
     onPress: () => void
+    testID?: string
   }
 }
 
@@ -16,6 +17,7 @@ export function SectionHeader({ title, action }: SectionHeaderProps) {
       </Text>
       {action && (
         <Pressable
+          testID={action.testID}
           onPress={action.onPress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
