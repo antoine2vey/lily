@@ -87,6 +87,9 @@ export const QueueMessagePayload = Schema.Struct({
   body: Schema.String,
   notificationIds: Schema.Array(Schema.String),
   plantIds: Schema.Array(Schema.String),
+  // Optional so queue messages enqueued before this field existed don't fail
+  // Schema validation on dequeue. Worker defaults to 'en' when absent.
+  language: Schema.optional(Schema.Literal('en', 'fr')),
   metadata: Schema.optional(
     Schema.Record({ key: Schema.String, value: Schema.String })
   ),

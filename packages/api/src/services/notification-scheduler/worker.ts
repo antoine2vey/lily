@@ -1,10 +1,13 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
+import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import {
   type InterruptionLevel,
+  type LiveActivityContentState,
   MessageQueue,
   NOTIFICATION_TOPICS,
   type NotificationTopic,
@@ -33,6 +36,113 @@ const resolveInterruptionLevel = (
   topic: NotificationTopic
 ): InterruptionLevel | undefined =>
   TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
+
+// Silently refresh the Live Activity card alongside a care reminder.
+//
+// The regular Expo push already delivered the user-visible banner; the LA
+// here is pure ambient state (no `alert` field → no second banner).
+//   - Active update token → send an `update`.
+//   - Else push-to-start token (iOS 17.2+) → send a `start` (creates the card).
+//   - Else silently skip.
+//
+// Failures are logged but never propagate — the regular banner is source of truth.
+const sendLiveActivityForCare = (
+  userId: string
+): Effect.Effect<
+  void,
+  SqlError,
+  | PushService
+  | ActivityPushTokenRepository
+  | import('@lily/api/repositories/care-log.repository').CareLogRepository
+  | import('@lily/api/repositories/care-schedule.repository').CareScheduleRepository
+  | import('@lily/api/repositories/user.repository').UserRepository
+> =>
+  Effect.gen(function* () {
+    const pushService = yield* PushService
+    const activityRepo = yield* ActivityPushTokenRepository
+
+    const contentState: LiveActivityContentState | null =
+      yield* buildLiveActivityContentState(userId)
+    if (!contentState) return
+
+    const activeActivity =
+      yield* activityRepo.findActiveActivityByUserId(userId)
+
+    if (activeActivity) {
+      const updateResult = yield* pushService
+        .sendLiveActivity({
+          _tag: 'LiveActivityUpdate',
+          to: activeActivity.token,
+          contentState,
+        })
+        .pipe(
+          Effect.map(() => 'ok' as const),
+          Effect.catchTags({
+            PushSendError: (e) =>
+              Effect.logWarning('[worker] LA update failed', {
+                error: String(e),
+              }).pipe(Effect.as('transient-fail' as const)),
+            PushConfigError: (e) =>
+              Effect.logWarning('[worker] LA update config error', {
+                error: String(e),
+              }).pipe(Effect.as('transient-fail' as const)),
+            // Update token is dead — mark row as ended and fall through to
+            // the start-token branch below so a fresh activity is created.
+            PushTokenInvalidatedError: (e) =>
+              Effect.gen(function* () {
+                yield* Effect.logInfo(
+                  '[worker] LA update token invalidated — retrying as start',
+                  { reason: e.reason }
+                )
+                if (activeActivity.activityId) {
+                  yield* activityRepo.markEnded(activeActivity.activityId)
+                }
+                return 'token-invalidated' as const
+              }),
+          })
+        )
+      if (updateResult !== 'token-invalidated') return
+      // else: fall through to start-token path
+    }
+
+    const startTokens = yield* activityRepo.findStartTokensByUserId(userId)
+    if (Array.isEmptyReadonlyArray(startTokens)) return
+
+    const activityId = crypto.randomUUID()
+    yield* Effect.forEach(
+      startTokens,
+      (tok) =>
+        pushService
+          .sendLiveActivity({
+            _tag: 'LiveActivityStart',
+            to: tok.token,
+            attributes: { userId, activityId },
+            contentState,
+          })
+          .pipe(
+            Effect.catchTags({
+              PushSendError: (e) =>
+                Effect.logWarning('[worker] LA start failed', {
+                  error: String(e),
+                }),
+              PushConfigError: (e) =>
+                Effect.logWarning('[worker] LA start config error', {
+                  error: String(e),
+                }),
+              // Start token is dead — usually means the app has been
+              // uninstalled or iOS rotated the push-to-start token without
+              // us hearing about it. Next foreground will re-register.
+              PushTokenInvalidatedError: (e) =>
+                Effect.logWarning(
+                  '[worker] LA start-to-push token invalidated',
+                  { reason: e.reason }
+                ),
+            }),
+            Effect.ignore
+          ),
+      { concurrency: 'unbounded' }
+    )
+  })
 
 // Exponential backoff: 1s -> 2s -> 4s
 const workerRetryPolicy = Schedule.exponential('1 second').pipe(
@@ -104,6 +214,12 @@ export const processMessage = Effect.fn('notification-worker.process')(
         'Some push notifications failed',
         { total: results.length, failed: failures.length }
       )
+    }
+
+    // For care topics on iOS 17.2+ subscribers, silently refresh the Live
+    // Activity card. The banner above is the only user-visible notification.
+    if (TOPIC_CATEGORY[message.topic] === 'care') {
+      yield* sendLiveActivityForCare(message.payload.userId)
     }
 
     // Mark all notifications as sent

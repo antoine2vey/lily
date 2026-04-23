@@ -1,6 +1,8 @@
 import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
   type IPushService,
+  type LiveActivityContentState,
+  type LiveActivityPushMessage,
   PushConfigError,
   type PushMessage,
   PushSendError,
@@ -12,6 +14,21 @@ import Expo, {
   type ExpoPushMessage,
   type ExpoPushTicket,
 } from 'expo-server-sdk'
+
+// Expo's SDK types don't model Live Activity keys yet. The push service still
+// accepts them as extra top-level fields (`contentState`, `attributes`,
+// `attributesType`, `event`, `dismissalDate`) and forwards them to APNs. We
+// widen the ExpoPushMessage type for just this code path.
+type LiveActivityExpoMessage = ExpoPushMessage & {
+  attributes?: Record<string, unknown>
+  attributesType?: string
+  contentState?: Record<string, unknown>
+  event?: 'start' | 'update' | 'end'
+  dismissalDate?: number
+  stale?: number
+}
+
+const ATTRIBUTES_TYPE = 'CareTasksAttributes'
 
 // Helper to build Expo push message
 export const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
@@ -34,6 +51,65 @@ export const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
   }
   return expoMessage
 }
+
+// Serialize ContentState for the wire. `updatedAt` is a Date → send as epoch
+// seconds (Apple's expected format for `timestamp` in ActivityKit payloads).
+const encodeContentState = (
+  state: LiveActivityContentState
+): Record<string, unknown> => ({
+  schemaVersion: state.schemaVersion,
+  totalPlants: state.totalPlants,
+  groups: state.groups,
+  headline: state.headline,
+  subheadline: state.subheadline,
+  title: state.title,
+  completedToday: state.completedToday,
+  updatedAt: Math.floor(state.updatedAt.getTime() / 1000),
+})
+
+const buildLiveActivityMessage = (
+  message: LiveActivityPushMessage
+): LiveActivityExpoMessage =>
+  Match.value(message).pipe(
+    Match.tag('LiveActivityStart', (m): LiveActivityExpoMessage => {
+      const base: LiveActivityExpoMessage = {
+        to: m.to,
+        title: m.alert?.title ?? '',
+        body: m.alert?.body ?? '',
+        attributes: { ...m.attributes },
+        attributesType: ATTRIBUTES_TYPE,
+        contentState: encodeContentState(m.contentState),
+        event: 'start',
+      }
+      if (m.alert?.sound) base.sound = m.alert.sound
+      return base
+    }),
+    Match.tag(
+      'LiveActivityUpdate',
+      (m): LiveActivityExpoMessage => ({
+        to: m.to,
+        title: m.alert?.title ?? '',
+        body: m.alert?.body ?? '',
+        contentState: encodeContentState(m.contentState),
+        event: 'update',
+        ...(m.alert?.sound ? { sound: m.alert.sound } : {}),
+      })
+    ),
+    Match.tag('LiveActivityEnd', (m): LiveActivityExpoMessage => {
+      const base: LiveActivityExpoMessage = {
+        to: m.to,
+        title: '',
+        body: '',
+        event: 'end',
+        dismissalDate: Math.floor(Date.now() / 1000),
+      }
+      if (m.contentState) {
+        base.contentState = encodeContentState(m.contentState)
+      }
+      return base
+    }),
+    Match.exhaustive
+  )
 
 // Helper to convert Expo ticket to our PushTicket
 const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
@@ -144,6 +220,54 @@ export const ExpoPushServiceLive = Layer.effect(
         )
 
         return Array.flatten(ticketBatches)
+      }, alert),
+
+      sendLiveActivity: Effect.fn('ExpoPush.sendLiveActivity')(function* (
+        message: LiveActivityPushMessage
+      ) {
+        yield* Effect.annotateCurrentSpan('push.token', message.to)
+        yield* Effect.annotateCurrentSpan('liveActivity.event', message._tag)
+
+        const expoMessage = buildLiveActivityMessage(message)
+        // The Expo push endpoint accepts the extra LA keys; the SDK types
+        // don't model them so we cast to ExpoPushMessage for the call.
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            expo.sendPushNotificationsAsync([expoMessage as ExpoPushMessage]),
+          catch: (error) =>
+            new PushSendError({
+              message: 'Failed to send Live Activity push',
+              cause: error,
+            }),
+        })
+
+        const ticket = yield* pipe(
+          Array.head(result),
+          Option.match({
+            onNone: () =>
+              Effect.fail(
+                new PushSendError({
+                  message: 'No ticket received from Expo (live activity)',
+                })
+              ),
+            onSome: Effect.succeed,
+          })
+        )
+
+        if (ticket.status === 'error') {
+          return yield* new PushSendError({
+            message: pipe(
+              Option.fromNullable(ticket.message),
+              Option.getOrElse(() => 'Unknown live activity push error')
+            ),
+            cause: ticket.details,
+          })
+        }
+
+        return {
+          id: ticket.id,
+          status: 'ok' as const,
+        } satisfies PushTicket
       }, alert),
     }
 

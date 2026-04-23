@@ -55,6 +55,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/withLiveActivity",
       "@lily/plant-scanner",
       "expo-dev-client",
       "expo-router",

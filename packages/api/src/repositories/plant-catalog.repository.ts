@@ -1,8 +1,8 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { plantCatalog, plantCatalogTranslations } from '@lily/db/schema'
+import { plantCatalog } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
-import { and, asc, eq, ilike, or, sql } from 'drizzle-orm'
+import { ilike, or, sql } from 'drizzle-orm'
 import { Context, Effect, Layer } from 'effect'
 
 export interface CatalogPlantRow {

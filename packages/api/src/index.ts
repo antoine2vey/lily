@@ -8,6 +8,8 @@ import { startAccountCleanupScheduler } from '@lily/api/services/account-cleanup
 import { startAchievementReconciliationScheduler } from '@lily/api/services/achievement-scheduler/scheduler'
 import { startAchievementSubscriber } from '@lily/api/services/achievements/checker'
 import { AchievementsApiLive } from '@lily/api/services/achievements/handlers'
+import { ActivityPushTokensApiLive } from '@lily/api/services/activity-push-tokens/handlers'
+import { startActivityScheduler } from '@lily/api/services/activity-scheduler/scheduler'
 import { AdminApiLive } from '@lily/api/services/admin/handlers'
 import { AdminAnalyticsApiLive } from '@lily/api/services/admin-analytics/handlers'
 import { AIChatApiLive } from '@lily/api/services/ai-chat/handlers'
@@ -27,6 +29,7 @@ import { InternalApiLive } from '@lily/api/services/internal/handlers'
 import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
 import { startKnowledgeIngestionWorker } from '@lily/api/services/knowledge-ingestion/worker'
+import { startLiveActivitySubscriber } from '@lily/api/services/live-activity/subscriber'
 import { startNotificationScheduler } from '@lily/api/services/notification-scheduler/scheduler'
 import { startNotificationWorker } from '@lily/api/services/notification-scheduler/worker'
 import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
@@ -94,6 +97,15 @@ const AccountCleanupSchedulerLive = Layer.scopedDiscard(
 
 const AnalyticsSchedulerLive = Layer.scopedDiscard(startAnalyticsScheduler)
 
+const ActivitySchedulerLive = Layer.scopedDiscard(startActivityScheduler)
+
+const LiveActivitySubscriberLive = Layer.scopedDiscard(
+  Effect.gen(function* () {
+    yield* startLiveActivitySubscriber
+    yield* Effect.log('Live activity subscriber started')
+  })
+)
+
 const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
   startKnowledgeIngestionWorker
 )
@@ -114,7 +126,9 @@ const AllSchedulersLive = Layer.mergeAll(
   KnowledgeIngestionWorkerLive,
   AccountCleanupSchedulerLive,
   WeeklyRecapSchedulerLive,
-  AnalyticsSchedulerLive
+  AnalyticsSchedulerLive,
+  ActivitySchedulerLive,
+  LiveActivitySubscriberLive
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
@@ -143,6 +157,7 @@ const CoreApiHandlers = Layer.mergeAll(
 )
 
 const ExtensionApiHandlers = Layer.mergeAll(
+  ActivityPushTokensApiLive(Api),
   AdminAnalyticsApiLive(Api),
   InternalApiLive(Api),
   KnowledgeApiLive(Api)

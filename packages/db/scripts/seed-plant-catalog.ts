@@ -819,9 +819,10 @@ const seedPlantCatalog = Effect.gen(function* () {
       .from(plantCatalog)
       .where(eq(plantCatalog.scientificName, entry.scientificName))
 
-    if (existing.length > 0) {
+    const [existingRow] = existing
+    if (existingRow) {
       // Ensure translations exist for existing entries
-      const catalogId = existing[0]!.id
+      const catalogId = existingRow.id
       const existingTranslations = yield* db
         .select()
         .from(plantCatalogTranslations)
@@ -868,7 +869,13 @@ const seedPlantCatalog = Effect.gen(function* () {
       })
       .returning()
 
-    const catalogId = rows[0]!.id
+    const [insertedRow] = rows
+    if (!insertedRow) {
+      throw new Error(
+        `Failed to insert plant catalog entry: ${entry.scientificName}`
+      )
+    }
+    const catalogId = insertedRow.id
 
     // Insert translations
     yield* db.insert(plantCatalogTranslations).values([

@@ -87,6 +87,7 @@
     "vision-camera-resize-plugin": "^3.2.0"
   },
   "devDependencies": {
+    "@expo/config-plugins": "~54.0.4",
     "@sentry/cli": "3.2.2",
     "@babel/core": "^7.25.2",
     "@babel/plugin-transform-react-jsx": "^7.28.6",
