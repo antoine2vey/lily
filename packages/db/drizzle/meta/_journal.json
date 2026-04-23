@@ -295,6 +295,48 @@
       "when": 1774828800000,
       "tag": "0041_replace_pot_size_with_dimensions",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1776804532386,
+      "tag": "0042_add_user_soft_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1776804532387,
+      "tag": "0043_add_pending_deletion_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1776804532411,
+      "tag": "0044_normalize_environment_ratings",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1776804532429,
+      "tag": "0045_add_plant_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1776804532439,
+      "tag": "0046_add_analytics_daily_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1776883032925,
+      "tag": "0047_add_activity_push_tokens",
+      "breakpoints": true
     }
   ]
 }

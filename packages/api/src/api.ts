@@ -1,5 +1,6 @@
 import { HttpApi } from '@effect/platform'
 import { AchievementsApi } from '@lily/api/services/achievements/api'
+import { ActivityPushTokensApi } from '@lily/api/services/activity-push-tokens/api'
 import { AdminApi } from '@lily/api/services/admin/api'
 import { AdminAnalyticsApi } from '@lily/api/services/admin-analytics/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
@@ -43,6 +44,7 @@ export const Api = HttpApi.make('Api')
   .add(CareTasksApi.prefix('/api'))
   .add(NotificationsApi.prefix('/api'))
   .add(DeviceTokensApi.prefix('/api'))
+  .add(ActivityPushTokensApi.prefix('/api'))
   .add(AIChatApi.prefix('/api'))
   .add(DiagnosisApi.prefix('/api'))
   .add(AchievementsApi.prefix('/api'))
