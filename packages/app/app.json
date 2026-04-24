@@ -109,7 +109,19 @@
     },
     "extra": {
       "eas": {
-        "projectId": "1e455743-41d3-49dc-928c-d176d40875e9"
+        "projectId": "1e455743-41d3-49dc-928c-d176d40875e9",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "LilyWidgetsExtension",
+                  "bundleIdentifier": "com.lilyapp.app.LilyWidgets"
+                }
+              ]
+            }
+          }
+        }
       },
       "router": {}
     },
