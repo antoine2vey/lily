@@ -25,6 +25,7 @@
       },
       "supportsTablet": true,
       "bundleIdentifier": "com.lilyapp.app",
+      "appleTeamId": "K7Y594Y8M3",
       "usesIAP": true,
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true

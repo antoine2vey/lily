@@ -172,6 +172,12 @@ const withWidgetExtensionTarget = (config) =>
 
     const mainBundleId = cfg.ios?.bundleIdentifier || 'com.lilyapp.app'
     const widgetBundleId = `${mainBundleId}.LilyWidgets`
+    const appleTeamId = cfg.ios?.appleTeamId
+    if (!appleTeamId) {
+      console.warn(
+        '[withLiveActivity] ios.appleTeamId missing from app.json — widget extension will fail to sign on EAS. Add: { "ios": { "appleTeamId": "YOUR_10_CHAR_ID" } }'
+      )
+    }
 
     // 1. Create the PBXNativeTarget. This sets up productReference and
     //    a blank buildConfigurationList, but *does not* create build phases.
@@ -271,11 +277,15 @@ const withWidgetExtensionTarget = (config) =>
         c.buildSettings.LD_RUNPATH_SEARCH_PATHS =
           '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"'
         c.buildSettings.ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = 'YES'
-        // Do NOT set DEVELOPMENT_TEAM / CODE_SIGN_STYLE explicitly on the
-        // widget — pbxproj requires quoting for `$(DEVELOPMENT_TEAM)`-style
-        // values (Nanaimo chokes on the unquoted `(`), and EAS's build-time
-        // `xcodebuild -xcconfig` / env injection fills these in at the
-        // project level. The widget inherits from there.
+        // App extensions need their own DEVELOPMENT_TEAM — EAS's credential
+        // injection only touches the main app target, and Xcode 14+ won't
+        // sign an extension without an explicit team. Hardcode from
+        // app.json's ios.appleTeamId so the widget bakes the right team at
+        // prebuild time (no pbxproj $() escaping headaches).
+        if (appleTeamId) {
+          c.buildSettings.DEVELOPMENT_TEAM = appleTeamId
+          c.buildSettings.CODE_SIGN_STYLE = 'Automatic'
+        }
         // Widget extensions inherit assetcatalog settings from the project
         // level, including the host app's `ASSETCATALOG_COMPILER_APPICON_NAME`
         // (= "lily"). Our widget catalog ships an `AppIcon.imageset` for
