@@ -271,15 +271,11 @@ const withWidgetExtensionTarget = (config) =>
         c.buildSettings.LD_RUNPATH_SEARCH_PATHS =
           '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"'
         c.buildSettings.ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = 'YES'
-        // Widget extensions need their own code signing. On EAS, the main
-        // app's DEVELOPMENT_TEAM is injected at build-time; inherit it here
-        // so the widget gets signed with the same team. CODE_SIGN_STYLE =
-        // Automatic lets EAS pick the provisioning profile for the widget
-        // bundle id (`<main>.LilyWidgets`) — this only works if you've run
-        // `eas credentials` and either let EAS auto-generate the widget
-        // profile or registered one manually.
-        c.buildSettings.DEVELOPMENT_TEAM = '$(DEVELOPMENT_TEAM)'
-        c.buildSettings.CODE_SIGN_STYLE = 'Automatic'
+        // Do NOT set DEVELOPMENT_TEAM / CODE_SIGN_STYLE explicitly on the
+        // widget — pbxproj requires quoting for `$(DEVELOPMENT_TEAM)`-style
+        // values (Nanaimo chokes on the unquoted `(`), and EAS's build-time
+        // `xcodebuild -xcconfig` / env injection fills these in at the
+        // project level. The widget inherits from there.
         // Widget extensions inherit assetcatalog settings from the project
         // level, including the host app's `ASSETCATALOG_COMPILER_APPICON_NAME`
         // (= "lily"). Our widget catalog ships an `AppIcon.imageset` for
