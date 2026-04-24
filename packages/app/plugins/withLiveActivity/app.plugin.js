@@ -11,7 +11,11 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
-const { withInfoPlist, withXcodeProject } = require('@expo/config-plugins')
+const {
+  withDangerousMod,
+  withInfoPlist,
+  withXcodeProject,
+} = require('@expo/config-plugins')
 
 const WIDGET_TARGET_NAME = 'LilyWidgetsExtension'
 const WIDGET_DEPLOYMENT_TARGET = '16.2'
@@ -281,8 +285,61 @@ const withWidgetExtensionTarget = (config) =>
     return cfg
   })
 
+// Xcode 14+ signs resource bundles by default, which requires a DEVELOPMENT_TEAM
+// on each bundle target. EAS Build only injects the team on the main app target,
+// so Pod resource bundles fail with:
+//   "Signing for 'X' requires a development team. Select a development team..."
+// Disabling code signing on bundles is the standard workaround — they're
+// re-signed as part of the app bundle at archive time.
+const PODFILE_MARKER_START = '# BEGIN: LilyWidgetsExtension bundle signing fix'
+const PODFILE_MARKER_END = '# END: LilyWidgetsExtension bundle signing fix'
+
+const PODFILE_SNIPPET = `    ${PODFILE_MARKER_START}
+    installer.pods_project.targets.each do |target|
+      if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
+        target.build_configurations.each do |config|
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        end
+      end
+    end
+    ${PODFILE_MARKER_END}
+`
+
+/** @type {import('@expo/config-plugins').ConfigPlugin} */
+const withPodfileBundleSigningFix = (config) =>
+  withDangerousMod(config, [
+    'ios',
+    (cfg) => {
+      const podfilePath = path.join(
+        cfg.modRequest.platformProjectRoot,
+        'Podfile'
+      )
+      if (!fs.existsSync(podfilePath)) return cfg
+
+      let contents = fs.readFileSync(podfilePath, 'utf8')
+      if (contents.includes(PODFILE_MARKER_START)) return cfg
+
+      const postInstallOpen = contents.match(
+        /post_install do \|installer\|\s*\n/
+      )
+      if (postInstallOpen) {
+        contents = contents.replace(
+          postInstallOpen[0],
+          `${postInstallOpen[0]}${PODFILE_SNIPPET}`
+        )
+      } else {
+        contents += `\npost_install do |installer|\n${PODFILE_SNIPPET}end\n`
+      }
+
+      fs.writeFileSync(podfilePath, contents)
+      return cfg
+    },
+  ])
+
 /** @type {import('@expo/config-plugins').ConfigPlugin} */
 const withLiveActivity = (config) =>
-  withWidgetExtensionTarget(withLiveActivityInfoPlist(config))
+  withPodfileBundleSigningFix(
+    withWidgetExtensionTarget(withLiveActivityInfoPlist(config))
+  )
 
 module.exports = withLiveActivity
