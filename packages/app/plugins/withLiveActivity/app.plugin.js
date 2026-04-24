@@ -271,6 +271,15 @@ const withWidgetExtensionTarget = (config) =>
         c.buildSettings.LD_RUNPATH_SEARCH_PATHS =
           '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"'
         c.buildSettings.ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = 'YES'
+        // Widget extensions need their own code signing. On EAS, the main
+        // app's DEVELOPMENT_TEAM is injected at build-time; inherit it here
+        // so the widget gets signed with the same team. CODE_SIGN_STYLE =
+        // Automatic lets EAS pick the provisioning profile for the widget
+        // bundle id (`<main>.LilyWidgets`) — this only works if you've run
+        // `eas credentials` and either let EAS auto-generate the widget
+        // profile or registered one manually.
+        c.buildSettings.DEVELOPMENT_TEAM = '$(DEVELOPMENT_TEAM)'
+        c.buildSettings.CODE_SIGN_STYLE = 'Automatic'
         // Widget extensions inherit assetcatalog settings from the project
         // level, including the host app's `ASSETCATALOG_COMPILER_APPICON_NAME`
         // (= "lily"). Our widget catalog ships an `AppIcon.imageset` for
@@ -295,13 +304,28 @@ const PODFILE_MARKER_START = '# BEGIN: LilyWidgetsExtension bundle signing fix'
 const PODFILE_MARKER_END = '# END: LilyWidgetsExtension bundle signing fix'
 
 const PODFILE_SNIPPET = `    ${PODFILE_MARKER_START}
-    installer.pods_project.targets.each do |target|
-      if target.respond_to?(:product_type) && target.product_type == 'com.apple.product-type.bundle'
-        target.build_configurations.each do |config|
-          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+    bundle_fix_count = 0
+    projects_to_patch = [installer.pods_project]
+    if installer.respond_to?(:generated_projects)
+      projects_to_patch += installer.generated_projects
+    end
+    projects_to_patch.compact.uniq.each do |project|
+      project.targets.each do |target|
+        is_bundle = target.respond_to?(:product_type) &&
+                    target.product_type == 'com.apple.product-type.bundle'
+        name_bundle = target.name.to_s.end_with?('.bundle')
+        if is_bundle || name_bundle
+          target.build_configurations.each do |config|
+            config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+            config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+            config.build_settings['CODE_SIGN_IDENTITY'] = ''
+            config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ''
+          end
+          bundle_fix_count += 1
         end
       end
     end
+    Pod::UI.puts "[LilyWidgetsExtension] disabled code signing on #{bundle_fix_count} resource bundle target(s)"
     ${PODFILE_MARKER_END}
 `
 
@@ -317,18 +341,30 @@ const withPodfileBundleSigningFix = (config) =>
       if (!fs.existsSync(podfilePath)) return cfg
 
       let contents = fs.readFileSync(podfilePath, 'utf8')
-      if (contents.includes(PODFILE_MARKER_START)) return cfg
+      if (contents.includes(PODFILE_MARKER_START)) {
+        console.log(
+          '[withLiveActivity] Podfile already patched, skipping injection'
+        )
+        return cfg
+      }
 
+      // Tolerate spacing variants and arbitrary block-parameter names.
       const postInstallOpen = contents.match(
-        /post_install do \|installer\|\s*\n/
+        /post_install\s+do\s*\|[^|]+\|\s*\n/
       )
       if (postInstallOpen) {
         contents = contents.replace(
           postInstallOpen[0],
           `${postInstallOpen[0]}${PODFILE_SNIPPET}`
         )
+        console.log(
+          '[withLiveActivity] injected bundle-signing fix into existing post_install block'
+        )
       } else {
         contents += `\npost_install do |installer|\n${PODFILE_SNIPPET}end\n`
+        console.log(
+          '[withLiveActivity] no existing post_install block — appended a new one'
+        )
       }
 
       fs.writeFileSync(podfilePath, contents)
