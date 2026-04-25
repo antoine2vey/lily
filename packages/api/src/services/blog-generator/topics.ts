@@ -1,9 +1,10 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
+import { PlantCatalogRepository } from '@lily/api/repositories/plant-catalog.repository'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
-import { Array as Arr, Effect, String as Str } from 'effect'
+import { Array as Arr, Chunk, Effect, Random, String as Str } from 'effect'
 import { mapOpenAIError } from './errors'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { TopicSchema } from './schemas'
@@ -62,30 +63,54 @@ const TOPIC_TEMPLATES = [
   'How to create a plant care schedule',
 ]
 
-export const selectTopic = Effect.gen(function* () {
-  const repo = yield* BlogPostRepository
+const TEMPLATE_SAMPLE_SIZE = 12
 
-  const [existingSlugs, recentCategories] = yield* Effect.all(
-    [repo.findAllSlugs(), repo.findRecentCategories(10)],
+const sampleN = <A>(items: ReadonlyArray<A>, n: number) =>
+  Random.shuffle(items).pipe(
+    Effect.map((shuffled) => Arr.take(Chunk.toReadonlyArray(shuffled), n))
+  )
+
+export const selectTopic = Effect.fn('blog-generator.selectTopic')(function* (
+  attemptedSlugs: ReadonlyArray<string> = []
+) {
+  const repo = yield* BlogPostRepository
+  const catalog = yield* PlantCatalogRepository
+
+  const [existingSlugs, recentCategories, seedPlants] = yield* Effect.all(
+    [
+      repo.findAllSlugs(),
+      repo.findRecentCategories(10),
+      catalog.findRandomNames(1, 'en'),
+    ],
     { concurrency: 'unbounded' }
   )
+
+  const sampledTemplates = yield* sampleN(TOPIC_TEMPLATES, TEMPLATE_SAMPLE_SIZE)
+  const seedPlantSection = Arr.isNonEmptyReadonlyArray(seedPlants)
+    ? `\n\nSEED PLANT (lean toward this species unless it doesn't fit a fresh angle): ${seedPlants[0]}`
+    : ''
+
+  const attemptedSection = Arr.isNonEmptyReadonlyArray(attemptedSlugs)
+    ? `\n\nALREADY ATTEMPTED THIS SESSION (just collided — DO NOT repick or pick a close variant):\n${Arr.join(attemptedSlugs, '\n')}`
+    : ''
 
   const result = yield* Effect.tryPromise({
     try: () =>
       generateText({
         model: openai(FAST_MODEL),
         maxRetries: 0,
+        temperature: 1.1,
         output: Output.object({ schema: TopicSchema }),
         system: TOPIC_SELECTION_PROMPT,
         prompt: `Select a blog post topic for a plant care blog.
 
+FORBIDDEN SLUGS (already in DB — picking any of these voids the response):
+${Arr.join(existingSlugs, '\n') || '(none yet)'}${attemptedSection}${seedPlantSection}
+
 Available categories: ${Arr.join(BLOG_CATEGORIES, ', ')}
 
-Topic templates for inspiration (pick one or create your own):
-${Arr.join(TOPIC_TEMPLATES, '\n')}
-
-ALREADY PUBLISHED slugs (avoid similar topics):
-${Arr.join(existingSlugs, '\n')}
+Topic templates for inspiration (sampled subset — feel free to invent your own):
+${Arr.join(sampledTemplates, '\n')}
 
 RECENT categories (vary from these):
 ${Arr.join(recentCategories, ', ')}
@@ -96,4 +121,4 @@ Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
   })
 
   return result.output as TopicSuggestion
-}).pipe(Effect.withSpan('blog-generator.selectTopic'))
+})

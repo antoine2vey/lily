@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { plantCatalog } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { ilike, or, sql } from 'drizzle-orm'
-import { Context, Effect, Layer } from 'effect'
+import { Array, Context, Effect, Layer } from 'effect'
 
 export interface CatalogPlantRow {
   id: string
@@ -67,6 +67,10 @@ export interface IPlantCatalogRepository {
     query: string,
     lang: LanguageCode
   ) => Effect.Effect<CatalogPlantRow[], SqlError>
+  readonly findRandomNames: (
+    count: number,
+    lang: LanguageCode
+  ) => Effect.Effect<string[], SqlError>
 }
 
 export class PlantCatalogRepository extends Context.Tag(
@@ -117,6 +121,18 @@ export const PlantCatalogRepositoryLive = Layer.effect(
 
         return rows as CatalogPlantRow[]
       }),
+
+      findRandomNames: Effect.fn('PlantCatalogRepository.findRandomNames')(
+        function* (count: number, lang: LanguageCode) {
+          const rows = yield* db
+            .select({ name: translationQuery(lang).as('name') })
+            .from(plantCatalog)
+            .orderBy(sql`random()`)
+            .limit(count)
+
+          return Array.map(rows, (r) => r.name)
+        }
+      ),
     }
   })
 )
