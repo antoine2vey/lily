@@ -23,6 +23,7 @@
 import { BunContext } from '@effect/platform-bun'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
+import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
 import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
 import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
@@ -67,7 +68,7 @@ import {
   RedisMessageQueueLive,
 } from '@lily/api/services/message-queue/redis.provider'
 import { ConsolePushServiceLive } from '@lily/api/services/push/console.provider'
-import { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
+import { ExpoPlusApnsPushServiceLive } from '@lily/api/services/push/expo-plus-apns.provider'
 import { RagService } from '@lily/api/services/rag/service'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
@@ -134,6 +135,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
 )
 
 const RepositoriesGroup2 = Layer.mergeAll(
+  ActivityPushTokenRepositoryLive,
   AnalyticsRepositoryLive,
   GiftCodeRepositoryLive,
   ScanRepositoryLive,
@@ -184,16 +186,38 @@ const AlerterLive = Layer.unwrapEffect(
   })
 )
 
+// Dev override: `PUSH_PROVIDER=expo` forces real Expo push even when
+// NODE_ENV=development. Useful for testing Live Activities on a physical
+// device without flipping the whole app into production mode (email stays
+// on console). Leave unset to get the usual dev-safe console logging.
+const PushProviderOverrideConfig = Config.option(Config.string('PUSH_PROVIDER'))
+
 const ExternalServicesLive = Layer.unwrapEffect(
   Effect.gen(function* () {
     const nodeEnv = yield* NodeEnvConfig
+    const pushOverride = yield* PushProviderOverrideConfig
+
     if (nodeEnv === 'production') {
-      return Layer.mergeAll(ExpoPushServiceLive, ResendEmailServiceLive)
+      return Layer.mergeAll(ExpoPlusApnsPushServiceLive, ResendEmailServiceLive)
     }
+
+    const forceExpoPush = Option.match(pushOverride, {
+      onNone: () => false,
+      onSome: (v) => v.toLowerCase() === 'expo',
+    })
+    // In dev, PUSH_PROVIDER=expo uses the combined provider (Expo for regular
+    // push + direct APNs for Live Activities). Without the override, console
+    // logging only — no real delivery.
+    const pushLayer = forceExpoPush
+      ? ExpoPlusApnsPushServiceLive
+      : ConsolePushServiceLive
+
     yield* Effect.log(
-      '[DEV] Using console providers for push notifications and email'
+      forceExpoPush
+        ? '[DEV] PUSH_PROVIDER=expo → Expo (regular push) + direct-APNs (Live Activity)'
+        : '[DEV] Using console providers for push notifications and email'
     )
-    return Layer.mergeAll(ConsolePushServiceLive, ConsoleEmailServiceLive)
+    return Layer.mergeAll(pushLayer, ConsoleEmailServiceLive)
   })
 )
 

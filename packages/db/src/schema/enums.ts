@@ -100,3 +100,19 @@ export const devicePlatformEnum = pgEnum('device_platform', [
   'android',
   'web',
 ])
+
+// iOS Live Activity push tokens come in two shapes:
+//   - `start`  = push-to-start token (one per device, rotates; used to *start*
+//                an activity remotely on iOS 17.2+)
+//   - `update` = per-activity token (one per running activity; used to update
+//                or end it)
+export const activityTokenKindEnum = pgEnum('activity_token_kind', [
+  'start',
+  'update',
+])
+
+export const activityStatusEnum = pgEnum('activity_status', [
+  'active',
+  'ended',
+  'expired',
+])

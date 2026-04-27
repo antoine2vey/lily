@@ -11,6 +11,7 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 import * as RevenueCatService from '@/services/revenuecat'
 import {
   apiEffectRunner,
@@ -23,6 +24,8 @@ import {
   getDeviceTimezone,
   getExpoPushToken,
   getPlatform,
+  reconcileLiveActivityTokens,
+  registerLiveActivityTokens,
 } from '@/utils/notifications'
 import {
   clearAuthStorage,
@@ -62,6 +65,12 @@ async function registerDeviceForPush(): Promise<string | null> {
 
     // Store the token ID for later unregistration
     await SecureStore.setItemAsync(DEVICE_TOKEN_ID_KEY, result.id)
+
+    // Wire up Live Activity push-to-start + per-activity token streams.
+    // Listeners live for the rest of the process — iOS re-emits rotated
+    // tokens through these subscriptions over the app's lifetime.
+    await registerLiveActivityTokens(result.id)
+
     return result.id
   } catch (error) {
     console.error('Failed to register device token:', error)
@@ -269,6 +278,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       Match.orElse(() => {})
     )
   }, [state, segments, router])
+
+  // Re-reconcile Live Activity tokens whenever the app comes back to the
+  // foreground. iOS may have created/ended activities via push while the
+  // app was backgrounded and the in-process listeners were idle; this
+  // catches them by re-reading `Activity.activities` synchronously. Also
+  // handles the case where iOS rotated the push-to-start token behind our
+  // back — the native module re-emits it on each foreground.
+  // auth tag matters for scheduling this; state is read fresh via ref.
+  useEffect(() => {
+    if (state._tag !== 'Authenticated') return
+
+    const prevState = { current: AppState.currentState as AppStateStatus }
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      const transitioningToActive =
+        prevState.current.match(/inactive|background/) && next === 'active'
+      prevState.current = next
+      if (!transitioningToActive) return
+      void (async () => {
+        const id = await SecureStore.getItemAsync(DEVICE_TOKEN_ID_KEY)
+        if (id) await reconcileLiveActivityTokens(id)
+      })()
+    })
+    return () => sub.remove()
+  }, [state._tag])
 
   const verifyMagicLink = useCallback(
     async (

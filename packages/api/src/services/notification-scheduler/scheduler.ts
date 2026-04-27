@@ -218,6 +218,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
             body,
             notificationIds,
             plantIds,
+            language,
           },
           retryCount: 0,
           createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
