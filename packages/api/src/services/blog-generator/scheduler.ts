@@ -12,8 +12,8 @@ import { researchTopic } from './researcher'
 import { selectTopic } from './topics'
 import type { TopicSuggestion } from './types'
 
-const MAX_POSTS_PER_DAY = 12
-const MAX_TOPIC_ATTEMPTS = 3
+const MAX_POSTS_PER_DAY = 3
+const MAX_TOPIC_ATTEMPTS = 8
 
 const rejectPost = (postId: string, reason: string) =>
   Effect.gen(function* () {
@@ -117,13 +117,14 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   const selection = yield* Effect.iterate(
     {
       attempt: 1,
+      attemptedSlugs: [] as ReadonlyArray<string>,
       result: null as { post: BlogPost; topic: TopicSuggestion } | null,
     },
     {
       while: (s) => s.result === null && s.attempt <= MAX_TOPIC_ATTEMPTS,
       body: (s) =>
         Effect.gen(function* () {
-          const topic = yield* selectTopic
+          const topic = yield* selectTopic(s.attemptedSlugs)
           yield* Effect.log('Topic selected', {
             slug: topic.slug,
             category: topic.category,
@@ -136,12 +137,20 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
             tags: [...topic.tags],
           })
           if (post) {
-            return { attempt: s.attempt, result: { post, topic } }
+            return {
+              attempt: s.attempt,
+              attemptedSlugs: s.attemptedSlugs,
+              result: { post, topic },
+            }
           }
           yield* Effect.logWarning(
             `Topic '${topic.slug}' collided with existing post (attempt ${s.attempt}/${MAX_TOPIC_ATTEMPTS})`
           )
-          return { attempt: s.attempt + 1, result: null }
+          return {
+            attempt: s.attempt + 1,
+            attemptedSlugs: Array.append(s.attemptedSlugs, topic.slug),
+            result: null,
+          }
         }),
     }
   )

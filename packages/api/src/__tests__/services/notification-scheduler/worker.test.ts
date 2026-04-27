@@ -1,6 +1,9 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
   createMockDeadLetterRepository,
   createMockDeadLetterRepositoryWithCapture,
@@ -13,6 +16,7 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   consumeFromTopic,
   handleFailedMessage,
@@ -21,6 +25,16 @@ import {
 import type { PushMessage, QueueMessage } from '@lily/shared/server'
 import { Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
+
+// Empty mocks for the Live Activity path — worker unconditionally reads
+// these repos when TOPIC_CATEGORY[topic] === 'care'. With no tokens seeded,
+// the LA helper returns early and the care banner path is unchanged.
+const LaMocksLive = Layer.mergeAll(
+  createMockActivityPushTokenRepository(),
+  createMockCareScheduleRepository(),
+  createMockCareLogRepository([]),
+  createMockUserRepository([])
+)
 
 // Helper to create a test queue message
 const createTestQueueMessage = (
@@ -61,7 +75,8 @@ const runAndCapturePushes = async (
             onSendBatch: (msgs) => sentMessages.push(...msgs),
           }),
           createMockDeviceTokenRepository(mockDeviceTokens),
-          createMockNotificationRepository([notification])
+          createMockNotificationRepository([notification]),
+          LaMocksLive
         )
       ),
       Logger.withMinimumLogLevel(LogLevel.None)
@@ -92,7 +107,8 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -120,7 +136,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -155,7 +172,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -182,7 +200,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               createFailingPushService('Push failed'),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -221,7 +240,8 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -265,7 +285,8 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -305,7 +326,8 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -397,7 +419,8 @@ describe('Notification Worker', () => {
                 onSendBatch: (msgs) => sentMessages.push(...msgs),
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository(notifications)
+              createMockNotificationRepository(notifications),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -435,7 +458,8 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               dlqLayer,
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -462,7 +486,8 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               createMockDeadLetterRepository(),
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -496,7 +521,8 @@ describe('Notification Worker', () => {
             Layer.mergeAll(
               MockAlerterLive,
               dlqLayer,
-              createMockNotificationRepository([notification])
+              createMockNotificationRepository([notification]),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -591,7 +617,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              createMockDeadLetterRepository()
+              createMockDeadLetterRepository(),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -615,7 +642,8 @@ describe('Notification Worker', () => {
               createSuccessPushService(),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
-              createMockDeadLetterRepository()
+              createMockDeadLetterRepository(),
+              LaMocksLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)

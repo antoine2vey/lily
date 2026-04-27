@@ -1,5 +1,6 @@
 import {
   type IPushService,
+  type LiveActivityPushMessage,
   type PushMessage,
   PushSendError,
   PushService,
@@ -10,6 +11,7 @@ import { Array, Effect, Layer, Option, pipe } from 'effect'
 export interface MockPushServiceOptions {
   onSend?: (message: PushMessage) => void
   onSendBatch?: (messages: PushMessage[]) => void
+  onSendLiveActivity?: (message: LiveActivityPushMessage) => void
   shouldFail?: boolean
   failureMessage?: string
 }
@@ -58,6 +60,27 @@ export const createMockPushService = (
           id: `ticket-${crypto.randomUUID()}`,
           status: 'ok' as const,
         })) satisfies PushTicket[]
+      }),
+
+    sendLiveActivity: (message) =>
+      Effect.gen(function* () {
+        if (options.onSendLiveActivity) {
+          options.onSendLiveActivity(message)
+        }
+
+        if (options.shouldFail) {
+          return yield* new PushSendError({
+            message: pipe(
+              Option.fromNullable(options.failureMessage),
+              Option.getOrElse(() => 'Mock live activity failure')
+            ),
+          })
+        }
+
+        return {
+          id: `ticket-${crypto.randomUUID()}`,
+          status: 'ok',
+        } satisfies PushTicket
       }),
   }
 

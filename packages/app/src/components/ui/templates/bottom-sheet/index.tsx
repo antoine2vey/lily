@@ -143,9 +143,11 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
         }
 
         let closestIndex = 0
+        // biome-ignore lint/style/noNonNullAssertion: parsedSnapPoints is non-empty by construction (validated at input)
         let minDistance = Math.abs(height - parsedSnapPoints[0]!)
 
         for (let i = 1; i < parsedSnapPoints.length; i++) {
+          // biome-ignore lint/style/noNonNullAssertion: loop guard `i < length` keeps index in bounds
           const distance = Math.abs(height - parsedSnapPoints[i]!)
           if (distance < minDistance) {
             minDistance = distance
@@ -166,6 +168,7 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
           return
         }
 
+        // biome-ignore lint/style/noNonNullAssertion: guard above ensures 0 <= index < length
         const targetY = SCREEN_HEIGHT - parsedSnapPoints[index]!
 
         if (animated) {

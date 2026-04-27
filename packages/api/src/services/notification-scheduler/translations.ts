@@ -1,4 +1,4 @@
-import type { LanguageCode } from '@lily/shared'
+import type { CareType, LanguageCode } from '@lily/shared'
 import type { DeferredCareType } from '@lily/shared/server'
 import { Array, Match, Option, pipe } from 'effect'
 
@@ -702,6 +702,95 @@ export const buildSinglePlantContent = (
   language: LanguageCode
 ): { title: string; body: string } =>
   buildNotificationContent(type, [plantName], language)
+
+// ============================================================================
+// Live Activity translations
+//
+// The Live Activity widget is a pure render layer — it has no access to
+// i18next. We pre-render `headline` and `subheadline` here and ship them in
+// the ContentState.
+// ============================================================================
+
+type LiveActivityCareLabels = Record<CareType, (count: number) => string>
+
+const liveActivityLabels: Record<LanguageCode, LiveActivityCareLabels> = {
+  en: {
+    watering: (n) => `${n} to water`,
+    fertilization: (n) => `${n} to fertilize`,
+    misting: (n) => `${n} to mist`,
+    repotting: (n) => `${n} to repot`,
+  },
+  fr: {
+    watering: (n) => `${n} à arroser`,
+    fertilization: (n) => `${n} à fertiliser`,
+    misting: (n) => `${n} à brumiser`,
+    repotting: (n) => `${n} à rempoter`,
+  },
+}
+
+const liveActivityHeadline: Record<
+  LanguageCode,
+  (totalPlants: number) => string
+> = {
+  en: (n) =>
+    n === 1 ? '1 plant needs care today' : `${n} plants need care today`,
+  fr: (n) =>
+    n === 1
+      ? "1 plante a besoin de soins aujourd'hui"
+      : `${n} plantes ont besoin de soins aujourd'hui`,
+}
+
+export const buildLiveActivityHeadline = (
+  totalPlants: number,
+  language: LanguageCode
+): string => liveActivityHeadline[language](totalPlants)
+
+// Punchy generic title rendered as the bold first line of the lock-screen
+// activity. Intentionally human-warm rather than action-functional — the
+// muted headline below carries the precise count.
+const liveActivityTitle: Record<LanguageCode, string> = {
+  en: 'Quick care today',
+  fr: 'Petit soin du jour',
+}
+
+export const buildLiveActivityTitle = (language: LanguageCode): string =>
+  liveActivityTitle[language]
+
+// Short verb shown under each care-type badge in the hero row.
+const liveActivityCareTypeLabel: Record<
+  LanguageCode,
+  Record<CareType, string>
+> = {
+  en: {
+    watering: 'Water',
+    fertilization: 'Fertilize',
+    misting: 'Mist',
+    repotting: 'Repot',
+  },
+  fr: {
+    watering: 'Arroser',
+    fertilization: 'Fertiliser',
+    misting: 'Brumiser',
+    repotting: 'Rempoter',
+  },
+}
+
+export const buildLiveActivityCareTypeLabel = (
+  careType: CareType,
+  language: LanguageCode
+): string => liveActivityCareTypeLabel[language][careType]
+
+export const buildLiveActivitySubheadline = (
+  groups: readonly { careType: CareType; count: number }[],
+  language: LanguageCode
+): string | undefined => {
+  if (Array.isEmptyReadonlyArray(groups)) return undefined
+  const labels = liveActivityLabels[language]
+  return Array.join(
+    Array.map(groups, (g) => labels[g.careType](g.count)),
+    ' · '
+  )
+}
 
 export const buildNotificationContent = (
   type: DeferredCareType,

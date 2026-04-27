@@ -48,10 +48,12 @@ export const AnimatedMeshGradient: React.FC<IAnimatedMeshGradient> &
     >(() => {
       const result: IMeshGradientColor[] = [...colors]
       while (result.length < 4) {
-        const fallback =
-          DEFAULT_INITIAL_COLORS[result.length % DEFAULT_INITIAL_COLORS.length]!
+        const idx = result.length % DEFAULT_INITIAL_COLORS.length
+        // biome-ignore lint/style/noNonNullAssertion: modulo keeps idx in bounds of non-empty DEFAULT_INITIAL_COLORS
+        const fallback = DEFAULT_INITIAL_COLORS[idx]!
         result.push(fallback)
       }
+      // biome-ignore lint/style/noNonNullAssertion: loop above guarantees result.length >= 4
       return [result[0]!, result[1]!, result[2]!, result[3]!] as const
     }, [colors])
 

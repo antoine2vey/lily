@@ -1,5 +1,6 @@
 // Repository exports
 export * from '@lily/api/repositories/achievement.repository'
+export * from '@lily/api/repositories/activity-push-token.repository'
 export * from '@lily/api/repositories/blog-post.repository'
 export * from '@lily/api/repositories/care-log.repository'
 export * from '@lily/api/repositories/chat.repository'
