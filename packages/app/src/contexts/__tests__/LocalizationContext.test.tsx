@@ -37,6 +37,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   setItem: jest.fn(),
 }))
 
+// Mock expo-linking — LocalizationContext reads ?e2e_locale= from the deep link
+jest.mock('expo-linking', () => ({
+  getInitialURL: jest.fn(() => Promise.resolve(null)),
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  parse: jest.fn(() => ({ queryParams: {} })),
+}))
+
 import * as Localization from 'expo-localization'
 import {
   LocalizationProvider,
