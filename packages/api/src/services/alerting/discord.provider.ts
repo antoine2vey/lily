@@ -29,6 +29,7 @@ const COLOR_YELLOW = 15844367 // 0xF1C40F — warning
 // Discord embed limits: description 4096 chars, field value 1024, 25 fields max
 const DESC_MAX = 1800
 const FIELD_VALUE_MAX = 1000
+const TITLE_SNIPPET_MAX = 60
 
 const clamp = (s: string, n: number): string =>
   s.length > n ? `${Str.slice(0, n - 1)(s)}…` : s
@@ -56,7 +57,8 @@ const titleFor = (event: AlertEvent, environment: string): string =>
     ),
     Match.tag(
       'ProviderError',
-      (e) => `[${environment}] ⚠️ Provider error — ${e.provider} (${e.errorTag})`
+      (e) =>
+        `[${environment}] ⚠️ Provider error — ${e.provider} (${e.errorTag}): ${clamp(e.message, TITLE_SNIPPET_MAX)}`
     ),
     Match.tag(
       'UnhandledDefect',
