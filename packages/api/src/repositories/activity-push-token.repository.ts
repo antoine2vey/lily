@@ -1,8 +1,8 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { activityPushTokens } from '@lily/db/schema'
+import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
-import { and, eq, lt } from 'drizzle-orm'
+import { and, eq, isNull, lt, ne, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UpsertStartTokenData {
@@ -31,6 +31,8 @@ const mapRow = (
   status: row.status,
   startedAt: row.startedAt,
   endsAt: row.endsAt,
+  lastConfirmedAt: row.lastConfirmedAt,
+  lastFailedAt: row.lastFailedAt,
   updatedAt: row.updatedAt,
 })
 
@@ -77,6 +79,18 @@ export interface IActivityPushTokenRepository {
   readonly expireStaleOlderThan: (
     cutoff: Date
   ) => Effect.Effect<number, SqlError>
+  readonly markStartTokenConfirmed: (
+    userId: string,
+    deviceTokenId: string
+  ) => Effect.Effect<number, SqlError>
+  readonly endOrphanStartTokens: (
+    userId: string,
+    keepDeviceTokenId: string
+  ) => Effect.Effect<number, SqlError>
+  readonly expireUnconfirmedStartTokens: (params: {
+    unconfirmedOlderThan: Date
+    confirmedOlderThan: Date
+  }) => Effect.Effect<number, SqlError>
 }
 
 export class ActivityPushTokenRepository extends Context.Tag(
@@ -233,6 +247,81 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
               eq(activityPushTokens.kind, 'update'),
               eq(activityPushTokens.status, 'active'),
               lt(activityPushTokens.startedAt, cutoff)
+            )
+          )
+          .returning({ id: activityPushTokens.id })
+        return Array.length(rows)
+      }),
+
+      // Ground truth: an `update` row arriving for a (userId, deviceTokenId)
+      // pair proves the start-token for that pair successfully delivered to
+      // the device. Stamp the start-row so the eviction sweep won't kill it.
+      markStartTokenConfirmed: Effect.fn(
+        'ActivityPushTokenRepository.markStartTokenConfirmed'
+      )(function* (userId: string, deviceTokenId: string) {
+        const rows = yield* db
+          .update(activityPushTokens)
+          .set({ lastConfirmedAt: nowAsDate(), updatedAt: nowAsDate() })
+          .where(
+            and(
+              eq(activityPushTokens.userId, userId),
+              eq(activityPushTokens.deviceTokenId, deviceTokenId),
+              eq(activityPushTokens.kind, 'start')
+            )
+          )
+          .returning({ id: activityPushTokens.id })
+        return Array.length(rows)
+      }),
+
+      // Called when a fresh start-token registers. Marks any *other* start
+      // rows for the same user as `ended`, but only if the underlying
+      // device_token is no longer active — preserves multi-device users.
+      endOrphanStartTokens: Effect.fn(
+        'ActivityPushTokenRepository.endOrphanStartTokens'
+      )(function* (userId: string, keepDeviceTokenId: string) {
+        const rows = yield* db
+          .update(activityPushTokens)
+          .set({ status: 'ended', updatedAt: nowAsDate() })
+          .where(
+            and(
+              eq(activityPushTokens.userId, userId),
+              eq(activityPushTokens.kind, 'start'),
+              eq(activityPushTokens.status, 'active'),
+              ne(activityPushTokens.deviceTokenId, keepDeviceTokenId),
+              sql`EXISTS (SELECT 1 FROM ${deviceTokens} dt WHERE dt.id = ${activityPushTokens.deviceTokenId} AND dt.is_active = false)`
+            )
+          )
+          .returning({ id: activityPushTokens.id })
+        return Array.length(rows)
+      }),
+
+      // Background sweep: kills start-tokens that have never been confirmed
+      // (likely never delivered to a device) past `unconfirmedOlderThan`, and
+      // tokens not heard from in `confirmedOlderThan` (Apple has likely
+      // rotated them since). Both bounds are caller-controlled.
+      expireUnconfirmedStartTokens: Effect.fn(
+        'ActivityPushTokenRepository.expireUnconfirmedStartTokens'
+      )(function* (params: {
+        unconfirmedOlderThan: Date
+        confirmedOlderThan: Date
+      }) {
+        const rows = yield* db
+          .update(activityPushTokens)
+          .set({ status: 'expired', updatedAt: nowAsDate() })
+          .where(
+            and(
+              eq(activityPushTokens.kind, 'start'),
+              eq(activityPushTokens.status, 'active'),
+              or(
+                and(
+                  isNull(activityPushTokens.lastConfirmedAt),
+                  lt(activityPushTokens.startedAt, params.unconfirmedOlderThan)
+                ),
+                lt(
+                  activityPushTokens.lastConfirmedAt,
+                  params.confirmedOlderThan
+                )
+              )
             )
           )
           .returning({ id: activityPushTokens.id })

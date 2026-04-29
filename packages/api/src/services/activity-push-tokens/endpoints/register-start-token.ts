@@ -16,9 +16,16 @@ export const registerStartToken = (
     const repo = yield* ActivityPushTokenRepository
     const { id: userId } = yield* CurrentUser
 
-    return yield* repo.upsertStartToken({
+    const upserted = yield* repo.upsertStartToken({
       userId,
       deviceTokenId: request.deviceTokenId,
       token: request.startToken,
     })
+
+    // Drop orphan start-rows tied to dead device_tokens for this user — the
+    // device_token's `is_active = false` predicate keeps multi-device users
+    // safe.
+    yield* repo.endOrphanStartTokens(userId, request.deviceTokenId)
+
+    return upserted
   }).pipe(Effect.withSpan('ActivityPushTokensService.registerStartToken'))

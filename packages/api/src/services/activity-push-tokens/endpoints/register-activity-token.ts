@@ -26,11 +26,17 @@ export const registerActivityToken = (
       DateTime.addDuration(DateTime.unsafeNow(), ACTIVITY_TTL)
     )
 
-    return yield* repo.createActivity({
+    const created = yield* repo.createActivity({
       userId,
       deviceTokenId: request.deviceTokenId,
       activityId: request.activityId,
       token: request.updateToken,
       endsAt,
     })
+
+    // Receiving an update token proves the start-token for this device
+    // actually delivered. Stamp it so the eviction sweep spares it.
+    yield* repo.markStartTokenConfirmed(userId, request.deviceTokenId)
+
+    return created
   }).pipe(Effect.withSpan('ActivityPushTokensService.registerActivityToken'))
