@@ -34,6 +34,13 @@ export const activityPushTokens = pgTable(
       .notNull()
       .defaultNow(),
     endsAt: timestamp('ends_at', { withTimezone: true }),
+    // Set when ground truth confirms the token works on-device — currently
+    // when a `kind='update'` row arrives for the same (userId, deviceTokenId).
+    // Drives staleness eviction so we don't silently push to dead tokens.
+    lastConfirmedAt: timestamp('last_confirmed_at', { withTimezone: true }),
+    // Set when an APNs send returns a non-success status. Reserved for a
+    // future change-detection / circuit-breaker pass; not load-bearing yet.
+    lastFailedAt: timestamp('last_failed_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()

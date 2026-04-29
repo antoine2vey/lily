@@ -8,6 +8,16 @@ import { DateTime, Duration, Effect } from 'effect'
 // the next cycle to take the `start` path instead of attempting an update.
 const SOFT_TTL = Duration.hours(10)
 
+// Apple rotates push-to-start tokens on undocumented heuristics; we observed
+// rotation in <2 days. A start-token that has never been confirmed by a
+// matching `update` registration in 14d is overwhelmingly likely dead on
+// device — the alternative is a user who installed the app, registered, and
+// never opened it again. Either way, future sends are wasted.
+const UNCONFIRMED_TTL = Duration.days(14)
+// A confirmed token going 30d without a fresh confirmation almost certainly
+// rotated device-side; new push attempts would silently fail.
+const CONFIRMED_TTL = Duration.days(30)
+
 const expireStaleActivities = Effect.gen(function* () {
   const repo = yield* ActivityPushTokenRepository
   const cutoff = DateTime.toDateUtc(
@@ -70,8 +80,27 @@ const reconcileActiveActivities = Effect.gen(function* () {
   }
 })
 
+const expireStaleStartTokens = Effect.gen(function* () {
+  const repo = yield* ActivityPushTokenRepository
+  const now = DateTime.unsafeNow()
+  const count = yield* repo.expireUnconfirmedStartTokens({
+    unconfirmedOlderThan: DateTime.toDateUtc(
+      DateTime.subtractDuration(now, UNCONFIRMED_TTL)
+    ),
+    confirmedOlderThan: DateTime.toDateUtc(
+      DateTime.subtractDuration(now, CONFIRMED_TTL)
+    ),
+  })
+  if (count > 0) {
+    yield* Effect.log(
+      `[activity-scheduler] Expired ${count} stale start tokens`
+    )
+  }
+})
+
 const runTasks = Effect.gen(function* () {
   yield* expireStaleActivities
+  yield* expireStaleStartTokens
   yield* reconcileActiveActivities
 })
 

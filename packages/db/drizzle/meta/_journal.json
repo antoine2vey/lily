@@ -337,6 +337,13 @@
       "when": 1776883032925,
       "tag": "0047_add_activity_push_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1777452900000,
+      "tag": "0048_la_token_confirmation",
+      "breakpoints": true
     }
   ]
 }
