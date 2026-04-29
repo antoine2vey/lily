@@ -8,6 +8,7 @@ import {
   Option,
   pipe,
   Redacted,
+  String as Str,
 } from 'effect'
 import { importPKCS8, SignJWT } from 'jose'
 
@@ -20,6 +21,9 @@ const PRODUCTION = 'https://api.push.apple.com'
 
 // Apple rejects JWTs older than 60 min. 50 min leaves headroom for clock skew.
 const JWT_TTL_SECONDS = 50 * 60
+
+const nonEmpty = (s: string | undefined) =>
+  pipe(Option.fromNullable(s), Option.filter(Str.isNonEmpty))
 
 export interface ApnsConfig {
   readonly teamId: string
@@ -287,11 +291,22 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
             status?: number
             reason?: string
             message?: string
+            code?: string
           }
+          // HTTP/2 transport errors arrive as ErrnoException with `.code`
+          // (e.g. NGHTTP2_REFUSED_STREAM, ECONNRESET) and an often-empty
+          // `.message` — fall through to the code so the alert is actionable.
           const detail = pipe(
-            Option.fromNullable(maybe.reason),
-            Option.orElse(() => Option.fromNullable(maybe.message)),
-            Option.getOrElse(() => String(err))
+            nonEmpty(maybe.reason),
+            Option.orElse(() => nonEmpty(maybe.message)),
+            Option.orElse(() => nonEmpty(maybe.code)),
+            Option.orElse(() =>
+              pipe(
+                Option.fromNullable(maybe.status),
+                Option.map((s) => `HTTP ${s}`)
+              )
+            ),
+            Option.getOrElse(() => 'unknown transport error')
           )
           return new ApnsSendError({
             message: `APNs LA send failed: ${detail}`,

@@ -18,32 +18,33 @@ const sendWithLogging = (
   kind: 'end' | 'update',
   message: LiveActivityPushMessage,
   onInvalidated?: (reason: string) => Effect.Effect<void, SqlError>
-) =>
-  pushService.sendLiveActivity(message).pipe(
+) => {
+  const warn = (suffix: string) => (e: { readonly message: string }) =>
+    Effect.logWarning(`[live-activity] ${kind} ${suffix}: ${e.message}`)
+  return pushService.sendLiveActivity(message).pipe(
     Effect.tap((ticket) =>
       Effect.log(`[live-activity] ${kind} push accepted by APNs`, {
         apnsId: ticket.id,
       })
     ),
     Effect.catchTags({
-      PushSendError: (e) =>
-        Effect.logWarning(`[live-activity] ${kind} failed`, {
-          error: String(e),
-        }),
-      PushConfigError: (e) =>
-        Effect.logWarning(`[live-activity] ${kind} config error`, {
-          error: String(e),
-        }),
+      PushSendError: warn('failed'),
+      PushConfigError: warn('config error'),
       PushTokenInvalidatedError: (e) =>
-        Effect.gen(function* () {
-          yield* Effect.logInfo(`[live-activity] ${kind} token invalidated`, {
-            reason: e.reason,
-          })
-          if (onInvalidated) yield* onInvalidated(e.reason)
-        }),
+        Effect.logInfo(
+          `[live-activity] ${kind} token invalidated: ${e.reason}`
+        ).pipe(
+          Effect.zipRight(
+            Option.match(Option.fromNullable(onInvalidated), {
+              onNone: () => Effect.void,
+              onSome: (cb) => cb(e.reason),
+            })
+          )
+        ),
     }),
     Effect.ignore
   )
+}
 
 const refreshLiveActivity = (event: {
   userId: string

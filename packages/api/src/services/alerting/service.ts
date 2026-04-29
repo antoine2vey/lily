@@ -73,7 +73,8 @@ export type AlerterSettings = {
 
 export const AlerterConfig = Config.all({
   environment: Config.string('ALERT_ENVIRONMENT_NAME').pipe(
-    Config.withDefault('development')
+    Config.orElse(() => Config.string('NODE_ENV')),
+    Config.withDefault('unknown')
   ),
   dedupeWindow: Config.duration('ALERT_DEDUPE_WINDOW').pipe(
     Config.withDefault(Duration.minutes(5))
