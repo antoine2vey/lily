@@ -93,12 +93,18 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
 })
 
 const translateContent = Effect.fn('blog-generator.translateContent')(
-  function* (englishContent: string) {
+  function* (englishContent: string, validSlugs: readonly string[]) {
     const content: Record<string, string> = { en: englishContent }
 
     const translationLanguages = Array.filter(
       TARGET_LANGUAGES,
       (lang) => lang.code !== 'en'
+    )
+
+    const validSlugsList = pipe(
+      validSlugs,
+      Array.map((s) => `- ${s}`),
+      Array.join('\n')
     )
 
     yield* Effect.forEach(
@@ -111,7 +117,19 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
                 model: openai(FAST_MODEL),
                 maxRetries: 0,
                 system: TRANSLATION_PROMPT,
-                prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).\nReplace all "/en/blog/" links with "/${lang.code}/blog/".\n\n${englishContent}`,
+                prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).
+
+For every internal link of the form /en/blog/<slug>:
+  1. Replace "/en/" with "/${lang.code}/".
+  2. Keep the <slug> portion BYTE-FOR-BYTE — do NOT translate it.
+
+VALID SLUGS (the only slugs that may appear in /${lang.code}/blog/ links — copy verbatim, do not modify):
+${validSlugsList || '(no internal links should be present)'}
+
+If a link in the source uses a slug NOT in the list above, drop the link and keep the anchor text as plain prose.
+
+ENGLISH SOURCE:
+${englishContent}`,
               }),
             catch: mapOpenAIError(`Translation to ${lang.name}`),
           })
@@ -153,7 +171,7 @@ const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
   const result = yield* Effect.tryPromise({
     try: () =>
       generateText({
-        model: openai(CHAT_MODEL),
+        model: openai(FAST_MODEL),
         maxRetries: 0,
         output: Output.object({ schema: ReviewSchema }),
         system: REVIEW_SYSTEM_PROMPT,
@@ -251,7 +269,10 @@ export const generateAndReviewBlogPost = (
                   onSome: Effect.succeed,
                 }
               )
-              const translatedContent = yield* translateContent(enContent)
+              const translatedContent = yield* translateContent(
+                enContent,
+                validSlugs
+              )
               yield* repo.updateContent(postId, translatedContent)
 
               const commitShas = yield* publishBlogPost(
