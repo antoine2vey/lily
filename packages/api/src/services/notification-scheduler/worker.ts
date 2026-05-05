@@ -5,8 +5,10 @@ import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repos
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
 import {
   type InterruptionLevel,
+  type LiveActivityAlert,
   type LiveActivityContentState,
   MessageQueue,
   NOTIFICATION_TOPICS,
@@ -37,22 +39,28 @@ const resolveInterruptionLevel = (
 ): InterruptionLevel | undefined =>
   TOPIC_CATEGORY[topic] === 'care' ? 'time-sensitive' : undefined
 
-// Silently refresh the Live Activity card alongside a care reminder.
+// Refresh the Live Activity card alongside a care reminder.
 //
-// The regular Expo push already delivered the user-visible banner; the LA
-// here is pure ambient state (no `alert` field → no second banner).
+// Update path is silent — the regular Expo push already showed the banner.
+// Start path requires an `alert` (iOS production drops push-to-start without
+// one), so the caller passes title/body and we forward them. Users on the
+// start path see two banners back-to-back (regular Expo + LA-start);
+// consolidating to one is a separate UX change.
+//
 //   - Active update token → send an `update`.
 //   - Else push-to-start token (iOS 17.2+) → send a `start` (creates the card).
 //   - Else silently skip.
 //
-// Failures are logged but never propagate — the regular banner is source of truth.
+// Failures are logged but never propagate.
 const sendLiveActivityForCare = (
-  userId: string
+  userId: string,
+  startAlert: LiveActivityAlert
 ): Effect.Effect<
   void,
   SqlError,
   | PushService
   | ActivityPushTokenRepository
+  | DeviceTokenRepository
   | import('@lily/api/repositories/care-log.repository').CareLogRepository
   | import('@lily/api/repositories/care-schedule.repository').CareScheduleRepository
   | import('@lily/api/repositories/user.repository').UserRepository
@@ -133,6 +141,7 @@ const sendLiveActivityForCare = (
             to: tok.token,
             attributes: { userId, activityId },
             contentState,
+            alert: startAlert,
           })
           .pipe(
             Effect.tap((ticket) =>
@@ -152,13 +161,12 @@ const sendLiveActivityForCare = (
                   ...logCtx,
                   error: String(e),
                 }),
-              // Start token is dead — usually means the app has been
-              // uninstalled or iOS rotated the push-to-start token without
-              // us hearing about it. Next foreground will re-register.
               PushTokenInvalidatedError: (e) =>
                 Effect.logWarning(
                   '[worker] LA start-to-push token invalidated',
                   { ...logCtx, reason: e.reason }
+                ).pipe(
+                  Effect.zipRight(retireStartTokenForDevice(tok.deviceTokenId))
                 ),
             }),
             Effect.ignore
@@ -240,10 +248,17 @@ export const processMessage = Effect.fn('notification-worker.process')(
       )
     }
 
-    // For care topics on iOS 17.2+ subscribers, silently refresh the Live
-    // Activity card. The banner above is the only user-visible notification.
+    // For care topics on iOS 17.2+ subscribers, refresh the LA card. Updates
+    // are silent; starts re-use the regular banner's title/body as the LA
+    // alert because production iOS drops alert-less push-to-start. Users on
+    // the start path see the banner twice (regular + LA-start) — acceptable
+    // for now; consolidating those is a separate UX change.
     if (TOPIC_CATEGORY[message.topic] === 'care') {
-      yield* sendLiveActivityForCare(message.payload.userId)
+      yield* sendLiveActivityForCare(message.payload.userId, {
+        title: message.payload.title,
+        body: message.payload.body,
+        sound: 'default',
+      })
     }
 
     // Mark all notifications as sent

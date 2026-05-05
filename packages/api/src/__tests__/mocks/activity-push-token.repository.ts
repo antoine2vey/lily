@@ -159,6 +159,21 @@ export const createMockActivityPushTokenRepository = (
         })
         return count
       }),
+    endStartTokenByDeviceTokenId: (deviceTokenId) =>
+      Effect.sync(() => {
+        let count = 0
+        Array.forEach(store, (row, i) => {
+          if (
+            row.kind === 'start' &&
+            row.status === 'active' &&
+            row.deviceTokenId === deviceTokenId
+          ) {
+            store[i] = { ...row, status: 'ended', updatedAt: new Date() }
+            count++
+          }
+        })
+        return count
+      }),
     expireUnconfirmedStartTokens: (params) =>
       Effect.sync(() => {
         const unconfirmedMs = params.unconfirmedOlderThan.getTime()

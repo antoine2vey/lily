@@ -93,11 +93,15 @@ export type LiveActivityAlert = typeof LiveActivityAlert.Type
 // `to` is the APNs push token — either a push-to-start token (Start) or a
 // per-activity update token (Update/End).
 export const LiveActivityPushMessage = Schema.Union(
+  // `alert` is required on Start: production iOS silently drops push-to-start
+  // payloads without an alert (sandbox is permissive — that's why dev builds
+  // worked but TestFlight didn't). Apple's stance is that any push-started
+  // LA must surface a visible trigger to the user.
   Schema.TaggedStruct('LiveActivityStart', {
     to: Schema.String,
     attributes: CareTasksAttributes,
     contentState: LiveActivityContentState,
-    alert: Schema.optional(LiveActivityAlert),
+    alert: LiveActivityAlert,
   }),
   Schema.TaggedStruct('LiveActivityUpdate', {
     to: Schema.String,
