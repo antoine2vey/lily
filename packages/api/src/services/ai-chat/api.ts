@@ -6,7 +6,14 @@ import {
 } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
-import { ChatHistoryListResponse } from '@lily/shared/ai-chat'
+import {
+  ChatConversation,
+  ChatConversationKind,
+  ChatConversationListResponse,
+  ChatHistoryListResponse,
+  ConversationNotFoundError,
+  CreateConversationRequest,
+} from '@lily/shared/ai-chat'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -17,25 +24,60 @@ import {
 } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 
-// Path parameter for plant ID
-const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
+const conversationIdParam = HttpApiSchema.param('conversationId', Schema.UUID)
 
-// Request schema for streaming chat - only the new user message
 const StreamChatRequest = Schema.Struct({
   message: Schema.String,
   imageUrl: Schema.optional(Schema.String),
   imageKey: Schema.optional(Schema.String),
 })
 
-// Define the AI Chat API group - nested under plants
+const ConversationListParams = Schema.Struct({
+  ...PaginationParams.fields,
+  kind: Schema.optional(ChatConversationKind),
+})
+
 export const AIChatApi = HttpApiGroup.make('aiChat')
+  // ── Conversation-centric routes (new) ─────────────────────────────
   .add(
-    // POST /plants/:plantId/chat/stream - Send text and stream AI response
+    HttpApiEndpoint.post('createConversation')`/chat/conversations`
+      .setPayload(CreateConversationRequest)
+      .addSuccess(ChatConversation)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    HttpApiEndpoint.get('listConversations')`/chat/conversations`
+      .setUrlParams(ConversationListParams)
+      .addSuccess(ChatConversationListResponse)
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    HttpApiEndpoint.del(
+      'deleteConversation'
+    )`/chat/conversations/${conversationIdParam}`
+      .addError(ConversationNotFoundError, { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    HttpApiEndpoint.get(
+      'getConversationMessages'
+    )`/chat/conversations/${conversationIdParam}/messages`
+      .setUrlParams(PaginationParams)
+      .addSuccess(ChatHistoryListResponse)
+      .addError(ConversationNotFoundError, { status: 404 })
+      .addError(GCSUploadError, { status: 500 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     HttpApiEndpoint.post(
-      'streamChatMessage'
-    )`/plants/${plantIdParam}/chat/stream`
+      'streamConversationMessage'
+    )`/chat/conversations/${conversationIdParam}/stream`
       .setPayload(StreamChatRequest)
       .addError(LimitExceededError, { status: 403 })
+      .addError(ConversationNotFoundError, { status: 404 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(GCSUploadError, { status: 500 })
@@ -43,8 +85,9 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // POST /plants/:plantId/chat/upload - Upload image for chat
-    HttpApiEndpoint.post('uploadChatImage')`/plants/${plantIdParam}/chat/upload`
+    HttpApiEndpoint.post(
+      'uploadConversationImage'
+    )`/chat/conversations/${conversationIdParam}/upload`
       .setPayload(
         HttpApiSchema.Multipart(
           Schema.Struct({
@@ -58,19 +101,10 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
           imageKey: Schema.String,
         })
       )
-      .addError(PlantNotFoundError, { status: 404 })
+      .addError(ConversationNotFoundError, { status: 404 })
       .addError(GCSUploadError, { status: 500 })
       .addError(GCSConfigError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
-  )
-  .add(
-    // GET /plants/:plantId/chat/history - Fetch past chat messages
-    HttpApiEndpoint.get('getChatHistory')`/plants/${plantIdParam}/chat/history`
-      .setUrlParams(PaginationParams)
-      .addSuccess(ChatHistoryListResponse)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .middleware(Authentication)

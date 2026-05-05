@@ -26,8 +26,8 @@
       "default": "./src/domains/admin/analytics/index.ts"
     },
     "./ai-chat": {
-      "types": "./src/domains/ai-chat/schema.ts",
-      "default": "./src/domains/ai-chat/schema.ts"
+      "types": "./src/domains/ai-chat/index.ts",
+      "default": "./src/domains/ai-chat/index.ts"
     },
     "./auth": {
       "types": "./src/domains/auth/schema.ts",

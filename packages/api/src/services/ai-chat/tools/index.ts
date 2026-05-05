@@ -11,12 +11,28 @@ export type ToolContext = DiagnosisRepository | RagService
 export interface ToolDeps {
   readonly runtime: Runtime.Runtime<ToolContext>
   readonly userId: string
-  readonly plantId: string
   readonly imageKey?: string | undefined
-  readonly plantName: string
+  // Present only when the conversation is anchored to a specific plant.
+  readonly plantId?: string | undefined
+  readonly plantName?: string | undefined
 }
 
-export const buildPlantChatTools = (deps: ToolDeps): ToolSet => ({
+/**
+ * Build the toolset for a plant-anchored conversation.
+ * Includes both `searchPlantKnowledge` (RAG) and `createDiagnosis`.
+ */
+export const buildPlantChatTools = (
+  deps: ToolDeps & { plantId: string; plantName: string }
+): ToolSet => ({
   createDiagnosis: createDiagnosisTool(deps),
+  searchPlantKnowledge: searchPlantKnowledgeTool(deps),
+})
+
+/**
+ * Build the toolset for a free-form general conversation.
+ * Includes `searchPlantKnowledge` (RAG); diagnosis creation requires
+ * a plant binding so it is intentionally omitted.
+ */
+export const buildGeneralChatTools = (deps: ToolDeps): ToolSet => ({
   searchPlantKnowledge: searchPlantKnowledgeTool(deps),
 })

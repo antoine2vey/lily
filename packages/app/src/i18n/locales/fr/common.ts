@@ -9,6 +9,7 @@ export default {
     care: 'Soins',
     profile: 'Profil',
     add: 'Ajouter',
+    chat: 'Lily',
   },
   buttons: {
     cancel: 'Annuler',

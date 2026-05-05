@@ -137,20 +137,6 @@ describe('queryKeys', () => {
       expect(queryKeys.auth.currentUser()).toEqual(['auth', 'getCurrentUser'])
     })
   })
-
-  describe('chat', () => {
-    it('should have correct base key', () => {
-      expect(queryKeys.chat.all).toEqual(['chat'])
-    })
-
-    it('should generate history key with plantId', () => {
-      expect(queryKeys.chat.history('plant-123')).toEqual([
-        'chat',
-        'getChatHistory',
-        'plant-123',
-      ])
-    })
-  })
 })
 
 describe('invalidateKeys', () => {
@@ -163,7 +149,6 @@ describe('invalidateKeys', () => {
     expect(invalidateKeys).toHaveProperty('notifications')
     expect(invalidateKeys).toHaveProperty('achievements')
     expect(invalidateKeys).toHaveProperty('auth')
-    expect(invalidateKeys).toHaveProperty('chat')
   })
 
   it('should reference correct base keys', () => {
@@ -175,6 +160,5 @@ describe('invalidateKeys', () => {
     expect(invalidateKeys.notifications).toEqual(['notifications'])
     expect(invalidateKeys.achievements).toEqual(['achievements'])
     expect(invalidateKeys.auth).toEqual(['auth'])
-    expect(invalidateKeys.chat).toEqual(['chat'])
   })
 })

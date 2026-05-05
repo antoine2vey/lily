@@ -268,6 +268,7 @@ describe('Achievement Checker', () => {
       const event: AppEvent = {
         _tag: 'ChatMessageSent',
         userId: 'user-1',
+        conversationId: 'conv-plant-1',
         plantId: 'plant-1',
         messageId: 'msg-1',
       }
@@ -378,6 +379,7 @@ describe('Achievement Checker', () => {
       const event: AppEvent = {
         _tag: 'ChatMessageSent',
         userId: 'user-1',
+        conversationId: 'conv-plant-1',
         plantId: 'plant-1',
         messageId: 'msg-1',
       }

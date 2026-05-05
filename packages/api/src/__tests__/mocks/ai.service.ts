@@ -1,5 +1,6 @@
 import { AiService } from '@lily/api/services/ai/service'
 import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
+import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { Deferred, Effect, Layer, Option, pipe } from 'effect'
 
@@ -51,8 +52,8 @@ export const createMockAiService = (
         description: 'A mock plant for testing',
         wateringTips: 'Water when top soil is dry.',
       }),
-    plantChatStream: (
-      _plantId: string,
+    chatStream: (
+      _conversation: ChatConversation,
       _messages: UIMessage[],
       _imageOptions?: { imageUrl?: string; imageKey?: string }
     ) =>
@@ -95,6 +96,10 @@ export const createMockAiService = (
         description: 'A mock plant description',
         wateringTips: 'Water when top soil is dry.',
       }),
+    generateConversationTitle: (_input: {
+      userMessage: string
+      assistantReply: string
+    }) => Effect.succeed('Mock Conversation Title'),
     plantCardScanMultiple: (_urls: string[], _locale?: string) =>
       Effect.succeed({
         name: 'Mock Plant',

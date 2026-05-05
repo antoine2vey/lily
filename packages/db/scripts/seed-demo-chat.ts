@@ -8,7 +8,7 @@
  */
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
-import { chatMessages, plants, users } from '@lily/db/schema'
+import { chatConversations, chatMessages, plants, users } from '@lily/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Match, Option, pipe } from 'effect'
 
@@ -121,7 +121,27 @@ const run = Effect.gen(function* () {
   }
   const plantId = plantOpt.value.id
 
-  yield* db.delete(chatMessages).where(eq(chatMessages.plantId, plantId))
+  // Wipe existing plant conversation(s) for this user/plant; cascades messages
+  yield* db
+    .delete(chatConversations)
+    .where(
+      and(
+        eq(chatConversations.userId, userId),
+        eq(chatConversations.plantId, plantId),
+        eq(chatConversations.kind, 'plant')
+      )
+    )
+
+  const conversationRows = yield* db
+    .insert(chatConversations)
+    .values({ userId, kind: 'plant', plantId })
+    .returning({ id: chatConversations.id })
+  const conversationOpt = A.head(conversationRows)
+  if (Option.isNone(conversationOpt)) {
+    yield* Console.log('  Failed to create conversation row')
+    return
+  }
+  const conversationId = conversationOpt.value.id
 
   const messages = messagesForLocale(locale)
   for (const m of messages) {
@@ -130,7 +150,7 @@ const run = Effect.gen(function* () {
       content: m.content,
       parts: mkPart(m.content),
       userId,
-      plantId,
+      conversationId,
       createdAt: m.createdAt,
     })
   }

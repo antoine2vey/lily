@@ -1,12 +1,12 @@
 import { HttpServerResponse } from '@effect/platform'
 import type { SqlError } from '@effect/sql/SqlError'
 import { StreamTransformError } from '@lily/api/errors/defects'
-import { EventBus } from '@lily/api/events'
+import type { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
-import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
+import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
@@ -16,7 +16,8 @@ import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-imag
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { RagService } from '@lily/api/services/rag/service'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import type { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import type { ChatConversation } from '@lily/shared/ai-chat'
 import type {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -58,13 +59,6 @@ const SSE_HEADERS = {
   connection: 'keep-alive',
 }
 
-/**
- * Encode an async iterable of UI message chunks as SSE events.
- *
- * When `onComplete` is provided it runs after the stream chunks but
- * **before** the `[DONE]` sentinel, so the client receives `[DONE]`
- * only once persistence has succeeded (or exhausted retries).
- */
 const uiStreamToSse = (
   stream: AsyncIterable<unknown>,
   onComplete?: Effect.Effect<void>
@@ -101,7 +95,7 @@ const makeSseResponse = (
   )
 
 export const streamChatMessage = (
-  plantId: string,
+  conversation: ChatConversation,
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
@@ -123,11 +117,8 @@ export const streamChatMessage = (
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
-    const eventBus = yield* EventBus
-    const diagnosisRepo = yield* DiagnosisRepository
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
-    const usageTracker = yield* UsageTracker
     const gcs = yield* GCSService
 
     // If imageKey is provided, generate a fresh signed URL for AI processing
@@ -139,12 +130,8 @@ export const streamChatMessage = (
       })
     )
 
-    // Build the file part for DB persistence.
-    // Store raw GCS key (not the expiring signed URL) so we can
-    // regenerate signed URLs later when loading history.
     const fileParts = makeImageParts(request.imageKey)
 
-    // Create the new user message
     const userMessage: UIMessage = {
       id: generateMessageId('user'),
       role: 'user',
@@ -154,7 +141,6 @@ export const streamChatMessage = (
       }) as UIMessage['parts'],
     }
 
-    // Check if user has reached their AI chat limit
     const limitExceeded = yield* limitChecker.checkAiChatLimit(userId).pipe(
       Effect.map(() => false),
       Effect.catchTag('LimitExceededError', () => Effect.succeed(true))
@@ -168,12 +154,12 @@ export const streamChatMessage = (
       }
 
       yield* chatRepo.saveChat({
-        plantId,
+        conversationId: conversation.id,
         userId,
         messages: [userMessage, assistantUIMessage],
       })
+      yield* chatRepo.touchLastMessageAt(conversation.id)
 
-      // Stream quota message as SSE
       async function* quotaChunks() {
         yield { type: 'text-start', id: 'quota-msg' }
         yield {
@@ -187,18 +173,13 @@ export const streamChatMessage = (
       return makeSseResponse(uiStreamToSse(quotaChunks()))
     }
 
-    // Get previous messages from database (secure - server-side history)
     const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
-      plantId,
-      userId
+      conversation.id
     )
 
-    // Resolve raw GCS key references in historical messages to signed URLs
-    // so the AI can access images from previous conversations
     const resolvedPreviousMessages =
       yield* resolveMessageImageUrls(previousMessages)
 
-    // Combine history with new user message (use signed URL for AI, not raw key)
     const aiFileParts = makeImageParts(imageSignedUrl)
     const userMessageForAi: UIMessage = {
       id: userMessage.id,
@@ -223,35 +204,33 @@ export const streamChatMessage = (
     )
 
     const { stream: streamResult, completionDeferred } =
-      yield* aiService.plantChatStream(plantId, allMessages, imageOptions)
+      yield* aiService.chatStream(conversation, allMessages, imageOptions)
 
-    // Stream UI message chunks as SSE events.
-    // Persistence runs after the stream ends but before [DONE],
-    // so the client knows data is saved when it receives the sentinel.
     const uiStream = streamResult.toUIMessageStream()
+    const context = yield* Effect.context<
+      ChatRepository | DiagnosisRepository | EventBus | UsageTracker | AiService
+    >()
 
     const onComplete = Deferred.await(completionDeferred).pipe(
       Effect.timeout('30 seconds'),
       Effect.catchTag('TimeoutException', () =>
         Effect.logError('AI stream completion timed out', {
-          plantId,
+          conversationId: conversation.id,
           userId,
         }).pipe(Effect.as([] as readonly StepData[]))
       ),
       Effect.flatMap((steps) =>
-        persistChatCompletion(
-          { chatRepo, diagnosisRepo, eventBus, usageTracker },
-          { plantId, userId, userMessage, steps }
-        )
+        persistChatCompletion({ conversation, userId, userMessage, steps })
       ),
       Effect.retry(postStreamRetryPolicy),
       Effect.catchTag('SqlError', (error) =>
         Effect.logError('Failed to save chat message after stream', {
           error: String(error),
-          plantId,
+          conversationId: conversation.id,
           userId,
         })
-      )
+      ),
+      Effect.provide(context)
     )
 
     return makeSseResponse(uiStreamToSse(uiStream, onComplete))

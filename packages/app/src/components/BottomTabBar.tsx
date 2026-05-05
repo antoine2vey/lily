@@ -52,6 +52,12 @@ export const TAB_ROUTES: ReadonlyArray<TabRoute> = [
     labelKey: 'tabs.profile',
     icon: { active: 'person', inactive: 'person-outline' },
   },
+  {
+    name: 'chat',
+    path: '/chat',
+    labelKey: 'tabs.chat',
+    icon: { active: 'chat-bubble', inactive: 'chat-bubble-outline' },
+  },
 ]
 
 export const LEFT_ROUTES = Array.take(TAB_ROUTES, 2)

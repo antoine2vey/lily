@@ -8,7 +8,10 @@ import { z } from 'zod'
 
 import type { ToolDeps } from './index'
 
-export const createDiagnosisTool = (deps: ToolDeps) =>
+// Plant-only tool: caller is expected to provide plantId.
+type PlantToolDeps = ToolDeps & { plantId: string }
+
+export const createDiagnosisTool = (deps: PlantToolDeps) =>
   tool({
     description:
       'Create a structured plant diagnosis when you identify a disease, pest, or health issue. Use this when the user describes symptoms or shares a photo showing a problem.',

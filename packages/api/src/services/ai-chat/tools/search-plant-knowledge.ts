@@ -88,13 +88,14 @@ const FILLER_WORDS = new Set([
 ])
 
 /**
- * Remove filler words and the plant name from a query,
+ * Remove filler words and the plant name (if any) from a query,
  * keeping only substantive terms (nouns/adjectives).
  */
-const simplify = (query: string, plantName: string): string =>
+const simplify = (query: string, plantName: string | undefined): string =>
   pipe(
     String.toLowerCase(query),
-    String.replaceAll(String.toLowerCase(plantName), ''),
+    (s) =>
+      plantName ? String.replaceAll(String.toLowerCase(plantName), '')(s) : s,
     String.split(/\s+/),
     Array.filter(
       (word) => word.length > 1 && !FILLER_WORDS.has(String.toLowerCase(word))
@@ -120,11 +121,13 @@ export const searchPlantKnowledgeTool = (deps: ToolDeps) =>
           const ragService = yield* RagService
 
           const simplified = simplify(query, deps.plantName)
-          const queries = [
-            `${deps.plantName}: ${query}`,
-            `${deps.plantName}: ${simplified}`,
-            simplified,
-          ]
+          const queries = deps.plantName
+            ? [
+                `${deps.plantName}: ${query}`,
+                `${deps.plantName}: ${simplified}`,
+                simplified,
+              ]
+            : [query, simplified]
 
           for (const ragQuery of queries) {
             const chunks = yield* ragService.retrieve({
