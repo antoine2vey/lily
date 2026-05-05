@@ -149,6 +149,9 @@ export interface ApnsClient {
     attributesType?: string
     alert?: { title: string; body: string; sound?: 'default' }
     dismissalDate?: number
+    // Epoch seconds. APNs default (0 = "now or never") drops the push if the
+    // device is briefly offline — set this to give iOS a window to deliver.
+    expiration?: number
   }) => Effect.Effect<{ apnsId: string }, ApnsSendError>
 }
 
@@ -264,6 +267,9 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
               'apns-push-type': 'liveactivity',
               'apns-priority': '10',
               'content-type': 'application/json',
+              ...(args.expiration !== undefined
+                ? { 'apns-expiration': String(args.expiration) }
+                : {}),
             },
             body
           )

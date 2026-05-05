@@ -5,6 +5,7 @@ import {
   AdminGiftEvent,
   AdminGiftSubscriptionRequest,
   AdminGiftSubscriptionResponse,
+  AdminLiveActivityTriggerResponse,
   AdminRevokeGiftResponse,
   AdminRoleChangeRequest,
   AdminStatusChangeRequest,
@@ -165,6 +166,18 @@ export const AdminApi = HttpApiGroup.make('admin')
     HttpApiEndpoint.del('deleteGiftCode')`/gift-codes/${codeIdParam}`
       .addSuccess(GiftCode)
       .addError(GiftCodeNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // POST /admin/users/:id/live-activity/trigger-start - Force a fresh
+    // push-to-start for the user's active start tokens. Returns per-token
+    // outcomes so an operator can see APNs handoff status without waiting
+    // for a real care notification.
+    HttpApiEndpoint.post(
+      'triggerLiveActivityStart'
+    )`/users/${userIdParam}/live-activity/trigger-start`
+      .addSuccess(AdminLiveActivityTriggerResponse)
+      .addError(UserNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })
   )
   .prefix('/admin')

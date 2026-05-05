@@ -164,6 +164,36 @@ export const AdminGiftSubscriptionResponse = Schema.Struct({
 export type AdminGiftSubscriptionResponse =
   typeof AdminGiftSubscriptionResponse.Type
 
+// --- Live Activity diagnostic ---
+
+// Per-token outcome from a manual LA-start trigger. The `kind` distinguishes
+// successful APNs handoff from the various failure modes so the operator can
+// tell at a glance whether the issue is server-side or device-side.
+export const AdminLiveActivityTriggerOutcome = Schema.Struct({
+  deviceTokenId: Schema.String,
+  kind: Schema.Literal(
+    'accepted',
+    'send-error',
+    'config-error',
+    'token-invalidated'
+  ),
+  apnsId: Schema.optional(Schema.String),
+  reason: Schema.optional(Schema.String),
+})
+export type AdminLiveActivityTriggerOutcome =
+  typeof AdminLiveActivityTriggerOutcome.Type
+
+export const AdminLiveActivityTriggerResponse = Schema.Struct({
+  userId: Schema.String,
+  activityId: Schema.String,
+  // Null when there's nothing due today; the LA payload would be empty.
+  contentStateBuilt: Schema.Boolean,
+  startTokenCount: Schema.Number,
+  outcomes: Schema.Array(AdminLiveActivityTriggerOutcome),
+})
+export type AdminLiveActivityTriggerResponse =
+  typeof AdminLiveActivityTriggerResponse.Type
+
 // --- Gift Code schemas ---
 
 export const GiftCode = Schema.Struct({

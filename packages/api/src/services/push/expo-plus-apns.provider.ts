@@ -25,6 +25,10 @@ import Expo, {
 // Combines Expo (regular pushes) and direct APNs (Live Activities). Expo
 // Push v4 rejects raw APNs push-to-start tokens, so LA events split off.
 
+// 1h delivery window for LA starts. Default APNs expiration of 0 means
+// "deliver now or drop" — lethal if the device is briefly offline.
+const LA_START_EXPIRATION_SECONDS = 60 * 60
+
 // Terminal APNs reasons: token/activity is permanently unusable. Everything
 // else (network, 5xx, rate-limit) is transient and retries as PushSendError.
 const TERMINAL_APNS_REASONS = HashSet.make(
@@ -224,6 +228,8 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
               attributes: { ...m.attributes },
               attributesType: CARE_TASKS_ATTRIBUTES_TYPE,
               ...buildAlertField(m.alert),
+              expiration:
+                Math.floor(Date.now() / 1000) + LA_START_EXPIRATION_SECONDS,
             })
           ),
           Match.tag('LiveActivityUpdate', (m) =>
