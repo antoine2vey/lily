@@ -1,4 +1,9 @@
 import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
+import type { ChatConversation } from '@lily/shared/ai-chat'
+import {
+  type GenerateConversationTitleInput,
+  generateConversationTitle,
+} from '@lily/shared/services/ai/generate-conversation-title'
 import {
   plantCardScan,
   plantCardScanMultiple,
@@ -8,7 +13,7 @@ import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import type { UIMessage } from 'ai'
 import { Effect } from 'effect'
 
-import { type PlantChatImageOptions, plantChat } from '../ai-chat/plant-chat'
+import { chatStream, type PlantChatImageOptions } from '../ai-chat/plant-chat'
 
 export class AiService extends Effect.Service<AiService>()('AiService', {
   effect: Effect.gen(function* () {
@@ -25,14 +30,17 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
       // Note: not wrapped in alertOpenAI because this Effect fails on access
       // errors (PlantNotFoundError), not OpenAI errors — the AI SDK streams
       // errors asynchronously outside the Effect channel.
-      plantChatStream: (
-        plantId: string,
+      chatStream: (
+        conversation: ChatConversation,
         messages: UIMessage[],
         imageOptions?: PlantChatImageOptions
       ) =>
-        plantChat(plantId, messages, imageOptions).pipe(
-          Effect.withSpan('AiService.plantChatStream', {
-            attributes: { 'plant.id': plantId },
+        chatStream(conversation, messages, imageOptions).pipe(
+          Effect.withSpan('AiService.chatStream', {
+            attributes: {
+              'conversation.id': conversation.id,
+              'conversation.kind': conversation.kind,
+            },
           })
         ),
       plantCardScan: (url: string, locale = 'en') =>
@@ -51,6 +59,11 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
         plantDetect(url, locale).pipe(
           alertOpenAI,
           Effect.withSpan('AiService.classifyAndIdentify')
+        ),
+      generateConversationTitle: (input: GenerateConversationTitleInput) =>
+        generateConversationTitle(input).pipe(
+          alertOpenAI,
+          Effect.withSpan('AiService.generateConversationTitle')
         ),
     }
   }),

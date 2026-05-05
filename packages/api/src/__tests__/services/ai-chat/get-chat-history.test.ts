@@ -14,17 +14,17 @@ describe('getChatHistory', () => {
       createMockGCSService()
     )
 
-  it('should return chat history for plant and user with pagination info', async () => {
+  it('should return chat history for conversation with pagination info', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1' }).pipe(
+      getChatHistory({ conversationId: 'conv-plant-1' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
     expect(result.items.length).toBe(3)
-    expect(Array.every(result.items, (msg) => msg.plantId === 'plant-1')).toBe(
-      true
-    )
+    expect(
+      Array.every(result.items, (msg) => msg.conversationId === 'conv-plant-1')
+    ).toBe(true)
     expect(Array.every(result.items, (msg) => msg.userId === 'user-1')).toBe(
       true
     )
@@ -36,7 +36,7 @@ describe('getChatHistory', () => {
 
   it('should return empty array when no messages exist', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-nonexistent' }).pipe(
+      getChatHistory({ conversationId: 'conv-nonexistent' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -46,37 +46,33 @@ describe('getChatHistory', () => {
     expect(result.hasMore).toBe(false)
   })
 
-  it('should only return messages for current user', async () => {
+  it('should scope strictly to its conversation', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1' }).pipe(
+      getChatHistory({ conversationId: 'conv-plant-1' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    // user-2 has a message on plant-1 but should not be returned
-    expect(Array.every(result.items, (msg) => msg.userId === 'user-1')).toBe(
-      true
-    )
-    expect(Array.some(result.items, (msg) => msg.userId === 'user-2')).toBe(
-      false
-    )
+    // Other conversations (e.g. user-2's) must not appear here
+    expect(
+      Array.every(result.items, (msg) => msg.conversationId === 'conv-plant-1')
+    ).toBe(true)
   })
 
   it('should return messages sorted by createdAt ascending', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1' }).pipe(
+      getChatHistory({ conversationId: 'conv-plant-1' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    // Verify we have messages and they have createdAt fields
     expect(result.items.length).toBeGreaterThan(1)
     expect(Array.every(result.items, (msg) => msg.createdAt != null)).toBe(true)
   })
 
   it('should return messages with correct structure', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1' }).pipe(
+      getChatHistory({ conversationId: 'conv-plant-1' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -86,33 +82,35 @@ describe('getChatHistory', () => {
     expect(firstMessage).toHaveProperty('id')
     expect(firstMessage).toHaveProperty('role')
     expect(firstMessage).toHaveProperty('content')
-    expect(firstMessage?.plantId).toBe('plant-1')
+    expect(firstMessage?.conversationId).toBe('conv-plant-1')
     expect(firstMessage?.userId).toBe('user-1')
     expect(firstMessage).toHaveProperty('createdAt')
   })
 
-  it('should return different history for different plants', async () => {
-    const plant1Result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1' }).pipe(
+  it('should return different history for different conversations', async () => {
+    const conv1Result = await Effect.runPromise(
+      getChatHistory({ conversationId: 'conv-plant-1' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
-    const plant2Result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-2' }).pipe(
+    const conv2Result = await Effect.runPromise(
+      getChatHistory({ conversationId: 'conv-plant-2' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    expect(plant1Result.items.length).toBe(3)
-    expect(plant2Result.items.length).toBe(1)
-    expect(plant2Result.items[0]?.plantId).toBe('plant-2')
+    expect(conv1Result.items.length).toBe(3)
+    expect(conv2Result.items.length).toBe(1)
+    expect(conv2Result.items[0]?.conversationId).toBe('conv-plant-2')
   })
 
   it('should respect page and limit parameters', async () => {
     const result = await Effect.runPromise(
-      getChatHistory({ plantId: 'plant-1', page: 1, limit: 2 }).pipe(
-        Effect.provide(createTestLayer())
-      )
+      getChatHistory({
+        conversationId: 'conv-plant-1',
+        page: 1,
+        limit: 2,
+      }).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result.items.length).toBe(2)

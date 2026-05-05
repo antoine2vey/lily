@@ -14,6 +14,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
 import {
   careLogs,
+  chatConversations,
   chatMessages,
   plantCareSchedules,
   plants,
@@ -552,9 +553,10 @@ const seedDemoData = Effect.gen(function* () {
       yield* db
         .delete(careLogs)
         .where(inArray(careLogs.plantId, existingPlantIds))
+      // Cascades to chat_messages via FK
       yield* db
-        .delete(chatMessages)
-        .where(inArray(chatMessages.plantId, existingPlantIds))
+        .delete(chatConversations)
+        .where(inArray(chatConversations.plantId, existingPlantIds))
       yield* db
         .delete(plantCareSchedules)
         .where(inArray(plantCareSchedules.plantId, existingPlantIds))
@@ -1013,6 +1015,15 @@ const seedDemoData = Effect.gen(function* () {
     ])
     yield* Console.log('  Aloe Vera: 6 care logs (5-60 days ago)')
 
+    const aloeConversationRows = yield* db
+      .insert(chatConversations)
+      .values({ userId: user.id, kind: 'plant', plantId: aloeVera.id })
+      .returning({ id: chatConversations.id })
+    const aloeConversationOpt = A.head(aloeConversationRows)
+    if (Option.isNone(aloeConversationOpt)) {
+      throw new Error('Failed to create Aloe conversation')
+    }
+    const aloeConversationId = aloeConversationOpt.value.id
     // Staggered timestamps so the oldest pair appears at the top.
     const mkMsg = (
       role: 'user' | 'assistant',
@@ -1023,7 +1034,7 @@ const seedDemoData = Effect.gen(function* () {
       content,
       parts: [{ type: 'text', text: content }],
       userId: user.id,
-      plantId: aloeVera.id,
+      conversationId: aloeConversationId,
       createdAt,
     })
     yield* db

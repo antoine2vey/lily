@@ -4,17 +4,30 @@ import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
-import { chatMessages } from '@lily/db/schema'
+import { chatConversations, chatMessages } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
-import type { ChatHistoryListResponse, ChatMessage } from '@lily/shared/ai-chat'
+import type {
+  ChatConversation,
+  ChatConversationKind,
+  ChatConversationListResponse,
+  ChatHistoryListResponse,
+  ChatMessage,
+} from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { and, asc, count, eq, lt } from 'drizzle-orm'
+import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
-// Types for repository methods
+// ── Types ──────────────────────────────────────────────────────────
+
 export interface FindChatHistoryParams {
-  plantId: string
+  conversationId: string
+  page?: number
+  limit?: number
+}
+
+export interface ListConversationsParams {
   userId: string
+  kind?: ChatConversationKind
   page?: number
   limit?: number
 }
@@ -23,14 +36,28 @@ export interface CreateChatMessageData {
   role: 'user' | 'assistant'
   content: string
   imageKey?: string | undefined
-  plantId: string
+  conversationId: string
   userId: string
 }
 
-// Helper to map database row to API ChatMessage type (null -> undefined)
-const mapToChatMessage = (
-  row: typeof chatMessages.$inferSelect
-): ChatMessage => ({
+export interface SaveChatParams {
+  conversationId: string
+  userId: string
+  messages: UIMessage[]
+}
+
+export interface SavedChatMessage {
+  id: string
+  messageId: string
+  role: string
+}
+
+export type ChatMessageRow = typeof chatMessages.$inferSelect
+export type ChatConversationRow = typeof chatConversations.$inferSelect
+
+// ── Mappers ────────────────────────────────────────────────────────
+
+const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   id: row.id,
   role: row.role as 'user' | 'assistant',
   content: row.content,
@@ -40,44 +67,62 @@ const mapToChatMessage = (
     Option.filter((p): p is unknown[] => globalThis.Array.isArray(p)),
     Option.getOrUndefined
   ),
-  plantId: row.plantId,
+  conversationId: row.conversationId,
   userId: row.userId,
   createdAt: row.createdAt,
 })
 
-// Parameters for saving chat from streaming endpoint
-export interface SaveChatParams {
-  plantId: string
-  userId: string
-  messages: UIMessage[]
-}
+const mapToConversation = (row: ChatConversationRow): ChatConversation => ({
+  id: row.id,
+  userId: row.userId,
+  kind: row.kind as ChatConversationKind,
+  plantId: Option.getOrUndefined(Option.fromNullable(row.plantId)),
+  title: Option.getOrUndefined(Option.fromNullable(row.title)),
+  createdAt: row.createdAt,
+  lastMessageAt: row.lastMessageAt,
+})
 
-// Result of a saved chat message (DB row ID + AI SDK message ID)
-export interface SavedChatMessage {
-  id: string
-  messageId: string
-  role: string
-}
+// ── Service interface ──────────────────────────────────────────────
 
-// Raw DB row type for admin lookups
-export type ChatMessageRow = typeof chatMessages.$inferSelect
-
-// Repository service interface
 export interface IChatRepository {
+  // Conversations
+  readonly findConversationById: (
+    id: string
+  ) => Effect.Effect<ChatConversationRow | null, SqlError>
+  readonly findOrCreatePlantConversation: (params: {
+    userId: string
+    plantId: string
+  }) => Effect.Effect<ChatConversation, SqlError>
+  readonly createGeneralConversation: (params: {
+    userId: string
+    title?: string | undefined
+  }) => Effect.Effect<ChatConversation, SqlError>
+  readonly listConversations: (
+    params: ListConversationsParams
+  ) => Effect.Effect<ChatConversationListResponse, SqlError>
+  readonly deleteConversation: (params: {
+    id: string
+    userId: string
+  }) => Effect.Effect<void, SqlError>
+  readonly touchLastMessageAt: (id: string) => Effect.Effect<void, SqlError>
+  readonly updateConversationTitle: (params: {
+    id: string
+    title: string
+  }) => Effect.Effect<void, SqlError>
+
+  // Messages
   readonly findById: (
     id: string
   ) => Effect.Effect<ChatMessageRow | null, SqlError>
-  readonly findByPlantId: (
+  readonly findByConversationId: (
     params: FindChatHistoryParams
   ) => Effect.Effect<ChatHistoryListResponse, SqlError>
   readonly findMessagesBefore: (params: {
-    plantId: string
-    userId: string
+    conversationId: string
     beforeDate: Date
   }) => Effect.Effect<ChatMessageRow[], SqlError>
   readonly getMessagesAsUIMessages: (
-    plantId: string,
-    userId: string
+    conversationId: string
   ) => Effect.Effect<UIMessage[], SqlError>
   readonly create: (
     data: CreateChatMessageData
@@ -85,25 +130,138 @@ export interface IChatRepository {
   readonly saveChat: (
     params: SaveChatParams
   ) => Effect.Effect<SavedChatMessage[], SqlError>
-  readonly deleteByPlantId: (
-    plantId: string,
-    userId: string
-  ) => Effect.Effect<void, SqlError>
 }
 
-// Tag for dependency injection
+// ── Tag + Live ─────────────────────────────────────────────────────
+
 export class ChatRepository extends Context.Tag('ChatRepository')<
   ChatRepository,
   IChatRepository
 >() {}
 
-// Live implementation using PgDrizzle
 export const ChatRepositoryLive = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
 
     return {
+      findConversationById: Effect.fn('ChatRepository.findConversationById')(
+        function* (id: string) {
+          const [row] = yield* db
+            .select()
+            .from(chatConversations)
+            .where(eq(chatConversations.id, id))
+          return pipe(Option.fromNullable(row), Option.getOrNull)
+        }
+      ),
+
+      findOrCreatePlantConversation: Effect.fn(
+        'ChatRepository.findOrCreatePlantConversation'
+      )(function* (params: { userId: string; plantId: string }) {
+        const [existing] = yield* db
+          .select()
+          .from(chatConversations)
+          .where(
+            and(
+              eq(chatConversations.userId, params.userId),
+              eq(chatConversations.plantId, params.plantId),
+              eq(chatConversations.kind, 'plant')
+            )
+          )
+        if (existing) {
+          return mapToConversation(existing)
+        }
+        const [created] = yield* db
+          .insert(chatConversations)
+          .values({
+            userId: params.userId,
+            kind: 'plant',
+            plantId: params.plantId,
+          })
+          .returning()
+        // The partial unique index guarantees insert succeeds when no row exists
+        return mapToConversation(created!)
+      }),
+
+      createGeneralConversation: Effect.fn(
+        'ChatRepository.createGeneralConversation'
+      )(function* (params: { userId: string; title?: string | undefined }) {
+        const [created] = yield* db
+          .insert(chatConversations)
+          .values({
+            userId: params.userId,
+            kind: 'general',
+            title: Option.getOrNull(Option.fromNullable(params.title)),
+          })
+          .returning()
+        return mapToConversation(created!)
+      }),
+
+      listConversations: Effect.fn('ChatRepository.listConversations')(
+        function* (params: ListConversationsParams) {
+          const { page, limit, offset } = getPaginationParams(params)
+          const filterConditions = and(
+            eq(chatConversations.userId, params.userId),
+            ...(params.kind ? [eq(chatConversations.kind, params.kind)] : [])
+          )
+
+          const [countResult, rows] = yield* Effect.all(
+            [
+              db
+                .select({ value: count() })
+                .from(chatConversations)
+                .where(filterConditions),
+              db
+                .select()
+                .from(chatConversations)
+                .where(filterConditions)
+                .offset(offset)
+                .limit(limit)
+                .orderBy(desc(chatConversations.lastMessageAt)),
+            ],
+            { concurrency: 'unbounded' }
+          )
+
+          return paginate(
+            Array.map(rows, mapToConversation),
+            extractCount(countResult),
+            page,
+            limit
+          )
+        }
+      ),
+
+      deleteConversation: Effect.fn('ChatRepository.deleteConversation')(
+        function* (params: { id: string; userId: string }) {
+          yield* db
+            .delete(chatConversations)
+            .where(
+              and(
+                eq(chatConversations.id, params.id),
+                eq(chatConversations.userId, params.userId)
+              )
+            )
+        }
+      ),
+
+      touchLastMessageAt: Effect.fn('ChatRepository.touchLastMessageAt')(
+        function* (id: string) {
+          yield* db
+            .update(chatConversations)
+            .set({ lastMessageAt: sql`now()` })
+            .where(eq(chatConversations.id, id))
+        }
+      ),
+
+      updateConversationTitle: Effect.fn(
+        'ChatRepository.updateConversationTitle'
+      )(function* (params: { id: string; title: string }) {
+        yield* db
+          .update(chatConversations)
+          .set({ title: params.title })
+          .where(eq(chatConversations.id, params.id))
+      }),
+
       findById: Effect.fn('ChatRepository.findById')(function* (id: string) {
         const [row] = yield* db
           .select()
@@ -113,18 +271,13 @@ export const ChatRepositoryLive = Layer.effect(
       }),
 
       findMessagesBefore: Effect.fn('ChatRepository.findMessagesBefore')(
-        function* (params: {
-          plantId: string
-          userId: string
-          beforeDate: Date
-        }) {
+        function* (params: { conversationId: string; beforeDate: Date }) {
           const rows = yield* db
             .select()
             .from(chatMessages)
             .where(
               and(
-                eq(chatMessages.plantId, params.plantId),
-                eq(chatMessages.userId, params.userId),
+                eq(chatMessages.conversationId, params.conversationId),
                 lt(chatMessages.createdAt, params.beforeDate)
               )
             )
@@ -133,32 +286,31 @@ export const ChatRepositoryLive = Layer.effect(
         }
       ),
 
-      findByPlantId: Effect.fn('ChatRepository.findByPlantId')(function* (
-        params: FindChatHistoryParams
-      ) {
-        const { page, limit, offset } = getPaginationParams(params)
+      findByConversationId: Effect.fn('ChatRepository.findByConversationId')(
+        function* (params: FindChatHistoryParams) {
+          const { page, limit, offset } = getPaginationParams(params)
+          const filterConditions = eq(
+            chatMessages.conversationId,
+            params.conversationId
+          )
 
-        const filterConditions = and(
-          eq(chatMessages.plantId, params.plantId),
-          eq(chatMessages.userId, params.userId)
-        )
+          const countResult = yield* db
+            .select({ value: count() })
+            .from(chatMessages)
+            .where(filterConditions)
+          const total = extractCount(countResult)
 
-        const countResult = yield* db
-          .select({ value: count() })
-          .from(chatMessages)
-          .where(filterConditions)
-        const total = extractCount(countResult)
+          const rows = yield* db
+            .select()
+            .from(chatMessages)
+            .where(filterConditions)
+            .offset(offset)
+            .limit(limit)
+            .orderBy(asc(chatMessages.createdAt))
 
-        const rows = yield* db
-          .select()
-          .from(chatMessages)
-          .where(filterConditions)
-          .offset(offset)
-          .limit(limit)
-          .orderBy(asc(chatMessages.createdAt))
-
-        return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
-      }),
+          return paginate(Array.map(rows, mapToChatMessage), total, page, limit)
+        }
+      ),
 
       create: Effect.fn('ChatRepository.create')(function* (
         data: CreateChatMessageData
@@ -169,7 +321,7 @@ export const ChatRepositoryLive = Layer.effect(
             role: data.role,
             content: data.content,
             imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
-            plantId: data.plantId,
+            conversationId: data.conversationId,
             userId: data.userId,
           })
           .returning()
@@ -178,16 +330,11 @@ export const ChatRepositoryLive = Layer.effect(
 
       getMessagesAsUIMessages: Effect.fn(
         'ChatRepository.getMessagesAsUIMessages'
-      )(function* (plantId: string, userId: string) {
+      )(function* (conversationId: string) {
         const rows = yield* db
           .select()
           .from(chatMessages)
-          .where(
-            and(
-              eq(chatMessages.plantId, plantId),
-              eq(chatMessages.userId, userId)
-            )
-          )
+          .where(eq(chatMessages.conversationId, conversationId))
           .orderBy(asc(chatMessages.createdAt))
 
         // Only text and file parts are safe for convertToModelMessages.
@@ -196,8 +343,6 @@ export const ChatRepositoryLive = Layer.effect(
         const modelPartTypes = new Set(['text', 'file'])
 
         return Array.map(rows, (row): UIMessage => {
-          // If parts are stored, keep only model-compatible parts;
-          // otherwise construct from content
           const parts = pipe(
             Option.fromNullable(row.parts as unknown),
             Option.filter((p): p is Array<{ type: string; text?: string }> =>
@@ -224,12 +369,10 @@ export const ChatRepositoryLive = Layer.effect(
       saveChat: Effect.fn('ChatRepository.saveChat')(function* (
         params: SaveChatParams
       ) {
-        // Process each message, upserting by messageId
         const saved = yield* Effect.forEach(
           params.messages,
           (msg) =>
             Effect.gen(function* () {
-              // Extract text content from parts for backwards compatibility
               const textContent = pipe(
                 msg.parts,
                 Array.filter((p) => p.type === 'text'),
@@ -237,20 +380,18 @@ export const ChatRepositoryLive = Layer.effect(
                 Array.join('')
               )
 
-              // Check if message exists by messageId
               const existing = yield* db
                 .select({ id: chatMessages.id })
                 .from(chatMessages)
                 .where(
                   and(
                     eq(chatMessages.messageId, msg.id),
-                    eq(chatMessages.plantId, params.plantId),
+                    eq(chatMessages.conversationId, params.conversationId),
                     eq(chatMessages.userId, params.userId)
                   )
                 )
 
               if (Array.isEmptyArray(existing)) {
-                // Extract imageKey from file parts (stored as raw GCS key)
                 const imageKey = pipe(
                   msg.parts,
                   Array.findFirst(
@@ -273,7 +414,6 @@ export const ChatRepositoryLive = Layer.effect(
                   Option.getOrUndefined
                 )
 
-                // Insert new message and return DB row
                 const [row] = yield* db
                   .insert(chatMessages)
                   .values({
@@ -282,7 +422,7 @@ export const ChatRepositoryLive = Layer.effect(
                     content: textContent,
                     parts: msg.parts as unknown as Record<string, unknown>,
                     imageKey,
-                    plantId: params.plantId,
+                    conversationId: params.conversationId,
                     userId: params.userId,
                   })
                   .returning({
@@ -304,7 +444,6 @@ export const ChatRepositoryLive = Layer.effect(
                 )
               }
 
-              // Already exists — return existing row info
               return pipe(
                 Array.head(existing),
                 Option.map((row) => ({
@@ -318,20 +457,6 @@ export const ChatRepositoryLive = Layer.effect(
         )
 
         return Array.getSomes(saved)
-      }),
-
-      deleteByPlantId: Effect.fn('ChatRepository.deleteByPlantId')(function* (
-        plantId: string,
-        userId: string
-      ) {
-        yield* db
-          .delete(chatMessages)
-          .where(
-            and(
-              eq(chatMessages.plantId, plantId),
-              eq(chatMessages.userId, userId)
-            )
-          )
       }),
     }
   })

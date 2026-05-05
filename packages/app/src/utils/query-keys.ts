@@ -100,13 +100,6 @@ export const queryKeys = {
     suggested: () => [...queryKeys.social.all, 'getSuggestedUsers'] as const,
   },
 
-  // Chat domain
-  chat: {
-    all: ['chat'] as const,
-    history: (plantId: string) =>
-      [...queryKeys.chat.all, 'getChatHistory', plantId] as const,
-  },
-
   // Delegations domain
   delegations: {
     all: ['delegations'] as const,
@@ -134,6 +127,5 @@ export const invalidateKeys = {
   auth: queryKeys.auth.all,
   weather: queryKeys.weather.all,
   social: queryKeys.social.all,
-  chat: queryKeys.chat.all,
   delegations: queryKeys.delegations.all,
 } as const

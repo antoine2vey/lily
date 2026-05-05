@@ -1,33 +1,49 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
-// AI chat schemas
+// Conversation kind: free-form ('general') or scoped to a specific plant
+export const ChatConversationKind = Schema.Literal('general', 'plant')
+export type ChatConversationKind = typeof ChatConversationKind.Type
+
+// A conversation groups one or more messages
+export const ChatConversation = Schema.Struct({
+  id: Schema.String,
+  userId: Schema.String,
+  kind: ChatConversationKind,
+  plantId: Schema.optional(Schema.String),
+  title: Schema.optional(Schema.String),
+  createdAt: Schema.Date,
+  lastMessageAt: Schema.Date,
+})
+export type ChatConversation = typeof ChatConversation.Type
+
+// AI chat message — now scoped by conversationId, no longer plantId
 export const ChatMessage = Schema.Struct({
   id: Schema.String,
   role: Schema.Union(Schema.Literal('user'), Schema.Literal('assistant')),
   content: Schema.String,
   imageUrl: Schema.optional(Schema.String),
   parts: Schema.optional(Schema.Array(Schema.Unknown)),
-  plantId: Schema.String,
+  conversationId: Schema.String,
   userId: Schema.String,
   createdAt: Schema.Date,
 })
 
-export const ChatRequest = Schema.Struct({
-  message: Schema.optional(Schema.String),
-  // Note: file upload would be handled via multipart/form-data in actual implementation
+// Body for POST /chat/conversations
+export const CreateConversationRequest = Schema.Struct({
+  kind: ChatConversationKind,
+  plantId: Schema.optional(Schema.String),
+  title: Schema.optional(Schema.String),
 })
+export type CreateConversationRequest = typeof CreateConversationRequest.Type
 
-export const ChatResponse = Schema.Struct({
-  message: ChatMessage,
-  response: Schema.String,
-})
-
-// Chat history list response - uses standard pagination format
+// Paginated lists
 export const ChatHistoryListResponse = PaginatedResponse(ChatMessage)
 export type ChatHistoryListResponse = typeof ChatHistoryListResponse.Type
 
+export const ChatConversationListResponse = PaginatedResponse(ChatConversation)
+export type ChatConversationListResponse =
+  typeof ChatConversationListResponse.Type
+
 // Type exports
 export type ChatMessage = typeof ChatMessage.Type
-export type ChatRequest = typeof ChatRequest.Type
-export type ChatResponse = typeof ChatResponse.Type

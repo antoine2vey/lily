@@ -6,7 +6,6 @@ import type {
 } from '@lily/api/repositories/diagnosis.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
-import type { ToolDeps } from '@lily/api/services/ai-chat/tools/index'
 import type { ToolExecutionOptions } from 'ai'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -33,7 +32,7 @@ describe('createDiagnosisTool', () => {
   it('creates diagnosis with all fields including optional ones', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
     const rt = await managedRuntime.runtime()
-    const deps: ToolDeps = {
+    const deps = {
       runtime: rt,
       userId: 'user-1',
       plantId: 'plant-1',
@@ -58,7 +57,7 @@ describe('createDiagnosisTool', () => {
   it('creates diagnosis without optional fields', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
     const rt = await managedRuntime.runtime()
-    const deps: ToolDeps = {
+    const deps = {
       runtime: rt,
       userId: 'user-1',
       plantId: 'plant-1',
@@ -103,7 +102,7 @@ describe('createDiagnosisTool', () => {
     const trackingLayer = Layer.mergeAll(spyLayer, createMockRagService())
     const managedRuntime = ManagedRuntime.make(trackingLayer)
     const rt = await managedRuntime.runtime()
-    const deps: ToolDeps = {
+    const deps = {
       runtime: rt,
       userId: 'owner-42',
       plantId: 'plant-99',

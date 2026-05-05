@@ -16,7 +16,8 @@ export const CareLogCreatedEvent = Schema.TaggedStruct('CareLogCreated', {
 
 export const ChatMessageSentEvent = Schema.TaggedStruct('ChatMessageSent', {
   userId: Schema.String,
-  plantId: Schema.String,
+  conversationId: Schema.String,
+  plantId: Schema.optional(Schema.String),
   messageId: Schema.String,
 })
 

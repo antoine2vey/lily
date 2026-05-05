@@ -7,7 +7,7 @@ import {
   getLastCareAt,
   getNextCareAt,
 } from '@lily/shared'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Either, Match, Option, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -26,6 +26,7 @@ import { AnimatedImage } from '@/components/AnimatedImage'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useCarePlant } from '@/hooks/useCarePlant'
+import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlant } from '@/hooks/usePlant'
@@ -233,6 +234,7 @@ export function PlantDetailScreen() {
   const sharePlant = useSharePlant()
   const updatePlant = useUpdatePlant()
   const deletePlant = useDeletePlant()
+  const createConversation = useCreateConversation()
 
   const handleBack = useCallback(() => {
     router.back()
@@ -242,9 +244,16 @@ export function PlantDetailScreen() {
     setShowOptionsSheet(true)
   }, [])
 
-  const handleChat = useCallback(() => {
-    router.push(`/plant/${plantId}/chat`)
-  }, [plantId, router])
+  const handleChat = useCallback(async () => {
+    if (!plantId) return
+    const result = await createConversation.mutateAsync({
+      payload: { kind: 'plant', plantId },
+    })
+    Either.match(result, {
+      onLeft: () => undefined,
+      onRight: (created) => router.push(`/chat/${created.id}` as never),
+    })
+  }, [plantId, router, createConversation])
 
   const handleCareNow = useCallback(
     (careType: CareType) => {

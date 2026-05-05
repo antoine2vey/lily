@@ -19,6 +19,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
 import {
   careLogs,
+  chatConversations,
   chatMessages,
   dailyTips,
   diagnoses,
@@ -515,17 +516,23 @@ const seedAppleReviewer = Effect.gen(function* () {
 
   // 8. Create sample chat messages for first plant
   const firstPlant = getFirst(createdPlants)
+  const firstPlantConversation = getFirst(
+    yield* db
+      .insert(chatConversations)
+      .values({ userId: user.id, kind: 'plant', plantId: firstPlant.id })
+      .returning({ id: chatConversations.id })
+  )
   const chatEntries = [
     {
       userId: user.id,
-      plantId: firstPlant.id,
+      conversationId: firstPlantConversation.id,
       role: 'user',
       content: 'Why are the leaves on my Monstera turning yellow?',
       createdAt: hoursAgo(48),
     },
     {
       userId: user.id,
-      plantId: firstPlant.id,
+      conversationId: firstPlantConversation.id,
       role: 'assistant',
       content:
         'Yellow leaves on a Monstera can have several causes: overwatering (most common), underwatering, insufficient light, or natural aging of older leaves. Check if the soil is staying wet too long between waterings. The soil should dry out about 2 inches deep before watering again.',
@@ -533,14 +540,14 @@ const seedAppleReviewer = Effect.gen(function* () {
     },
     {
       userId: user.id,
-      plantId: firstPlant.id,
+      conversationId: firstPlantConversation.id,
       role: 'user',
       content: 'How often should I water it?',
       createdAt: hoursAgo(24),
     },
     {
       userId: user.id,
-      plantId: firstPlant.id,
+      conversationId: firstPlantConversation.id,
       role: 'assistant',
       content:
         'For your Monstera, water every 7-10 days during growing season (spring/summer) and every 2-3 weeks in winter. Always check the soil first - stick your finger 2 inches deep. If it feels dry, water thoroughly until it drains from the bottom. Empty the saucer after 30 minutes.',

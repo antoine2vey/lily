@@ -177,6 +177,7 @@ describe('InMemoryEventBus', () => {
               {
                 _tag: 'ChatMessageSent',
                 userId: 'u1',
+                conversationId: 'c1',
                 plantId: 'p1',
                 messageId: 'm1',
               },

@@ -25,6 +25,13 @@ export class OpenAIError extends Schema.TaggedError<OpenAIError>()(
   }
 ) {}
 
+// ── Conversation lookup error ──────────────────────────────────────
+
+export class ConversationNotFoundError extends Schema.TaggedError<ConversationNotFoundError>()(
+  'ConversationNotFoundError',
+  { id: Schema.String }
+) {}
+
 // ── Helper: unwrap AI SDK error → typed Effect error ───────────────
 
 const extractAPICallError = (error: unknown): APICallError | undefined => {

@@ -40,11 +40,21 @@ export const previewPrompt = (
       return yield* new ChatMessageNotFoundError()
     }
 
-    // 2. Load plant data
-    const plant = yield* plantRepo.findById(messageRow.plantId)
+    // 2. Resolve the conversation, then the plant it is anchored to
+    const conversation = yield* chatRepo.findConversationById(
+      messageRow.conversationId
+    )
+    if (!conversation || !conversation.plantId) {
+      return yield* new ChatMessageNotFoundError({
+        message: `Plant conversation not found for message (id: ${messageId})`,
+      })
+    }
+    const plantIdForMessage = conversation.plantId
+
+    const plant = yield* plantRepo.findById(plantIdForMessage)
     if (!plant) {
       return yield* new ChatMessageNotFoundError({
-        message: `Plant not found for message (plantId: ${messageRow.plantId})`,
+        message: `Plant not found for message (plantId: ${plantIdForMessage})`,
       })
     }
 
@@ -53,7 +63,7 @@ export const previewPrompt = (
 
     // 4. Load care history (same as plantChat: last 10)
     const careLogsResponse = yield* careLogRepo.findByPlantId({
-      plantId: messageRow.plantId,
+      plantId: plantIdForMessage,
       limit: 10,
     })
 
@@ -76,8 +86,7 @@ export const previewPrompt = (
 
     // 8. Load conversation history (messages before this one)
     const previousRows = yield* chatRepo.findMessagesBefore({
-      plantId: messageRow.plantId,
-      userId: messageRow.userId,
+      conversationId: messageRow.conversationId,
       beforeDate: messageRow.createdAt,
     })
 

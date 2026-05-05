@@ -10,8 +10,8 @@ import { ACCESS_TOKEN_KEY, API_BASE_URL } from '@/utils/client'
 
 export type { UIMessage }
 
-interface UsePlantChatOptions {
-  plantId: string
+interface UseConversationChatOptions {
+  conversationId: string
   initialMessages?: UIMessage[]
 }
 
@@ -26,10 +26,10 @@ const getMessageText = (msg: UIMessage): string =>
     Option.getOrElse(() => '')
   )
 
-export function usePlantChat({
-  plantId,
+export function useConversationChat({
+  conversationId,
   initialMessages,
-}: UsePlantChatOptions): ReturnType<typeof useChat> & {
+}: UseConversationChatOptions): ReturnType<typeof useChat> & {
   pendingImageUrl: React.RefObject<string | undefined>
 } {
   const pendingImageUrl = useRef<string | undefined>(undefined)
@@ -37,7 +37,7 @@ export function usePlantChat({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: `${API_BASE_URL}/api/plants/${plantId}/chat/stream`,
+        api: `${API_BASE_URL}/api/chat/conversations/${conversationId}/stream`,
         fetch: expoFetch as typeof globalThis.fetch,
         headers: async () => {
           const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
@@ -79,18 +79,14 @@ export function usePlantChat({
           }
         },
       }),
-    [plantId]
+    [conversationId]
   )
 
   const chat = useChat({
-    id: `plant-chat-${plantId}`,
+    id: `conversation-${conversationId}`,
     transport,
   })
 
-  // Sync initial messages from server history into the chat.
-  // useChat creates the Chat instance once on mount (with empty messages
-  // since history is still loading). When initialMessages resolves,
-  // we push them in via setMessages.
   const hasSyncedRef = useRef(false)
   useEffect(() => {
     if (

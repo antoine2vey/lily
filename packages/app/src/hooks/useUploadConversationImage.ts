@@ -1,12 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
 import { createFileFromUri, uploadMultipart } from '@/utils/upload'
 
-interface UploadChatImageResult {
+interface UploadResult {
   imageUrl: string
   imageKey: string
 }
 
-export function useUploadChatImage(plantId: string) {
+export function useUploadConversationImage(conversationId: string) {
   return useMutation({
     mutationFn: async (imageUri: string) => {
       const file = createFileFromUri(imageUri, {
@@ -14,8 +14,8 @@ export function useUploadChatImage(plantId: string) {
         type: 'image/jpeg',
       })
 
-      return uploadMultipart<UploadChatImageResult>(
-        `/api/plants/${plantId}/chat/upload`,
+      return uploadMultipart<UploadResult>(
+        `/api/chat/conversations/${conversationId}/upload`,
         [file]
       )
     },

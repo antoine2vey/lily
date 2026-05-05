@@ -1,6 +1,9 @@
 import type { HttpServerResponse } from '@effect/platform'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
-import { mockChatMessages } from '@lily/api/__tests__/fixtures/chat'
+import {
+  mockChatMessages,
+  mockPlantConversation,
+} from '@lily/api/__tests__/fixtures/chat'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -54,6 +57,8 @@ const emptyDelegationMock = createMockDelegationRepository({
   plants: [],
 })
 
+const testConversation = mockPlantConversation
+
 describe('streamChatMessage', () => {
   const createTestLayer = (
     opts: {
@@ -68,6 +73,7 @@ describe('streamChatMessage', () => {
     Layer.mergeAll(
       createMockChatRepository({
         messages: opts.messages ?? [...mockChatMessages],
+        conversations: [testConversation],
       }),
       createMockAiService({
         plantChatResponse: opts.plantChatResponse ?? 'AI response text',
@@ -98,7 +104,7 @@ describe('streamChatMessage', () => {
 
   it('should return a streaming response', async () => {
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'Hello plant!' }).pipe(
+      streamChatMessage(testConversation, { message: 'Hello plant!' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -112,7 +118,7 @@ describe('streamChatMessage', () => {
     const messages: ChatMessage[] = []
 
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'Test' }).pipe(
+      streamChatMessage(testConversation, { message: 'Test' }).pipe(
         Effect.provide(
           createTestLayer({
             messages,
@@ -138,7 +144,7 @@ describe('streamChatMessage', () => {
     const publishedEvents: AppEvent[] = []
 
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'User says hi' }).pipe(
+      streamChatMessage(testConversation, { message: 'User says hi' }).pipe(
         Effect.provide(
           createTestLayer({
             messages,
@@ -169,14 +175,14 @@ describe('streamChatMessage', () => {
         id: 'msg-1',
         role: 'user',
         content: 'Previous message',
-        plantId: 'plant-1',
+        conversationId: 'conv-plant-1',
         userId: 'user-1',
         createdAt: new Date(),
       },
     ]
 
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'New message' }).pipe(
+      streamChatMessage(testConversation, { message: 'New message' }).pipe(
         Effect.provide(
           createTestLayer({
             messages: existingMessages,
@@ -194,7 +200,7 @@ describe('streamChatMessage', () => {
     const messages: ChatMessage[] = []
 
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'Test' }).pipe(
+      streamChatMessage(testConversation, { message: 'Test' }).pipe(
         Effect.provide(
           createTestLayer({
             messages,
@@ -216,9 +222,10 @@ describe('streamChatMessage', () => {
 
   it('should handle different plant IDs', async () => {
     const result = await Effect.runPromise(
-      streamChatMessage('plant-xyz', { message: 'Hello' }).pipe(
-        Effect.provide(createTestLayer())
-      )
+      streamChatMessage(
+        { ...testConversation, id: 'conv-xyz', plantId: 'plant-xyz' },
+        { message: 'Hello' }
+      ).pipe(Effect.provide(createTestLayer()))
     )
 
     expect(result).toBeDefined()
@@ -226,7 +233,7 @@ describe('streamChatMessage', () => {
 
   it('should return content-type header for streaming response', async () => {
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: 'Test' }).pipe(
+      streamChatMessage(testConversation, { message: 'Test' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -237,7 +244,7 @@ describe('streamChatMessage', () => {
 
   it('should handle empty message', async () => {
     const result = await Effect.runPromise(
-      streamChatMessage('plant-1', { message: '' }).pipe(
+      streamChatMessage(testConversation, { message: '' }).pipe(
         Effect.provide(createTestLayer())
       )
     )
@@ -250,7 +257,7 @@ describe('streamChatMessage', () => {
       const publishedEvents: AppEvent[] = []
 
       const _response = await Effect.runPromise(
-        streamChatMessage('plant-1', { message: 'Test' }).pipe(
+        streamChatMessage(testConversation, { message: 'Test' }).pipe(
           Effect.provide(
             createTestLayer({
               messages: [],
@@ -273,7 +280,7 @@ describe('streamChatMessage', () => {
       const messages: ChatMessage[] = []
 
       const _response = await Effect.runPromise(
-        streamChatMessage('plant-1', { message: 'Test' }).pipe(
+        streamChatMessage(testConversation, { message: 'Test' }).pipe(
           Effect.provide(
             createTestLayer({
               messages,
@@ -296,7 +303,7 @@ describe('streamChatMessage', () => {
       const publishedEvents: AppEvent[] = []
 
       const result = await Effect.runPromise(
-        streamChatMessage('plant-1', {
+        streamChatMessage(testConversation, {
           message: 'My plant looks sick',
         }).pipe(
           Effect.provide(
