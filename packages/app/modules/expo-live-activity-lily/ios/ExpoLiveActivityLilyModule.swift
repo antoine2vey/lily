@@ -36,11 +36,10 @@ public class ExpoLiveActivityLilyModule: Module {
       // pushToStartToken is a Data? on the Activity type. Subscribing to
       // `pushToStartTokenUpdates` handles rotation — we also emit here so
       // the app can kick off a register call immediately.
-      let currentToken = Activity<CareTasksAttributes>.pushToStartToken
-      if let data = currentToken {
-        return data.map { String(format: "%02x", $0) }.joined()
+      guard let data = Activity<CareTasksAttributes>.pushToStartToken else {
+        return nil
       }
-      return nil
+      return data.map { String(format: "%02x", $0) }.joined()
     }
 
     AsyncFunction("listActiveActivities") { () -> [[String: String]] in

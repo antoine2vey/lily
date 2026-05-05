@@ -154,8 +154,43 @@ const withLiveActivityInfoPlist = (config) =>
   withInfoPlist(config, (cfg) => {
     cfg.modResults.NSSupportsLiveActivities = true
     cfg.modResults.NSSupportsLiveActivitiesFrequentUpdates = true
+    // Required for push-to-start: iOS only wakes the app to dispatch a
+    // remotely-started Live Activity if the host declares the
+    // `remote-notification` background mode. APNs returns 200 either way,
+    // but without this the LA push is silently discarded on-device.
+    const existing = Array.isArray(cfg.modResults.UIBackgroundModes)
+      ? cfg.modResults.UIBackgroundModes
+      : []
+    if (!existing.includes('remote-notification')) {
+      cfg.modResults.UIBackgroundModes = [...existing, 'remote-notification']
+    }
     return cfg
   })
+
+// App-extension `CFBundleShortVersionString` MUST match the host app's or
+// Apple's installer drops the .appex — push delivery still works but iOS
+// has no widget binary to render the LA. Expo's iOS scaffold hardcodes
+// host MARKETING_VERSION = 1.0 and never re-derives it from app.json on
+// incremental prebuilds, so we own the sync ourselves: both host and
+// widget targets get the value from `cfg.version` on every prebuild.
+const applyVersionSettings = (project, cfg) => {
+  const marketing = cfg.version ?? '1.0.0'
+  const buildNumber = cfg.ios?.buildNumber ?? '1'
+  const targetNames = new Set([
+    `"${WIDGET_TARGET_NAME}"`,
+    WIDGET_TARGET_NAME,
+    `"${cfg.name}"`,
+    cfg.name,
+  ])
+  const configurations = project.pbxXCBuildConfigurationSection()
+  for (const key in configurations) {
+    const c = configurations[key]
+    if (c?.buildSettings && targetNames.has(c.buildSettings.PRODUCT_NAME)) {
+      c.buildSettings.MARKETING_VERSION = marketing
+      c.buildSettings.CURRENT_PROJECT_VERSION = buildNumber
+    }
+  }
+}
 
 /** @type {import('@expo/config-plugins').ConfigPlugin} */
 const withWidgetExtensionTarget = (config) =>
@@ -163,12 +198,16 @@ const withWidgetExtensionTarget = (config) =>
     const project = cfg.modResults
     syncWidgetSources(cfg.modRequest.projectRoot)
 
-    // Idempotency: skip if the target is already there.
+    // Idempotency: skip target creation if already there, but always re-sync
+    // the widget version so app.json bumps flow through without --clean.
     const nativeTargets = project.pbxNativeTargetSection() || {}
     const exists = Object.values(nativeTargets).some(
       (t) => typeof t === 'object' && t && t.name === WIDGET_TARGET_NAME
     )
-    if (exists) return cfg
+    if (exists) {
+      applyVersionSettings(project, cfg)
+      return cfg
+    }
 
     const mainBundleId = cfg.ios?.bundleIdentifier || 'com.lilyapp.app'
     const widgetBundleId = `${mainBundleId}.LilyWidgets`
@@ -178,6 +217,9 @@ const withWidgetExtensionTarget = (config) =>
         '[withLiveActivity] ios.appleTeamId missing from app.json — widget extension will fail to sign on EAS. Add: { "ios": { "appleTeamId": "YOUR_10_CHAR_ID" } }'
       )
     }
+
+    const widgetMarketingVersion = cfg.version ?? '1.0.0'
+    const widgetBuildVersion = cfg.ios?.buildNumber ?? '1'
 
     // 1. Create the PBXNativeTarget. This sets up productReference and
     //    a blank buildConfigurationList, but *does not* create build phases.
@@ -294,6 +336,12 @@ const withWidgetExtensionTarget = (config) =>
         // app icon set named lily". Widgets don't need their own app icon
         // (the system uses the host app's), so clear the override.
         c.buildSettings.ASSETCATALOG_COMPILER_APPICON_NAME = '""'
+        // Sync version with host app — Info.plist references these via
+        // $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION). Mismatched
+        // versions cause Apple's installer to drop the .appex on deployed
+        // builds (see the comment where these are declared above).
+        c.buildSettings.MARKETING_VERSION = widgetMarketingVersion
+        c.buildSettings.CURRENT_PROJECT_VERSION = widgetBuildVersion
       }
     }
 
