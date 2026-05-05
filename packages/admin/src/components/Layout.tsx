@@ -11,6 +11,7 @@ const navItems = [
   { path: '/gift-subscription', label: 'Gift Sub' },
   { path: '/gift-history', label: 'Gift History' },
   { path: '/prompt-preview', label: 'Prompt Preview' },
+  { path: '/live-activity', label: 'Live Activity' },
 ] as const
 
 export const Layout = () => {
