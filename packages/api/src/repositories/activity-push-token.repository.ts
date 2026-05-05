@@ -87,6 +87,9 @@ export interface IActivityPushTokenRepository {
     userId: string,
     keepDeviceTokenId: string
   ) => Effect.Effect<number, SqlError>
+  readonly endStartTokenByDeviceTokenId: (
+    deviceTokenId: string
+  ) => Effect.Effect<number, SqlError>
   readonly expireUnconfirmedStartTokens: (params: {
     unconfirmedOlderThan: Date
     confirmedOlderThan: Date
@@ -289,6 +292,28 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
               eq(activityPushTokens.status, 'active'),
               ne(activityPushTokens.deviceTokenId, keepDeviceTokenId),
               sql`EXISTS (SELECT 1 FROM ${deviceTokens} dt WHERE dt.id = ${activityPushTokens.deviceTokenId} AND dt.is_active = false)`
+            )
+          )
+          .returning({ id: activityPushTokens.id })
+        return Array.length(rows)
+      }),
+
+      // Targeted invalidation: APNs returned BadDeviceToken/Unregistered for a
+      // specific device's start-row. Caller flips device_tokens.is_active too;
+      // both writes together stop the row from being silently re-activated by
+      // the upsertStartToken upsert path on next app launch (see
+      // register-start-token.ts).
+      endStartTokenByDeviceTokenId: Effect.fn(
+        'ActivityPushTokenRepository.endStartTokenByDeviceTokenId'
+      )(function* (deviceTokenId: string) {
+        const rows = yield* db
+          .update(activityPushTokens)
+          .set({ status: 'ended', updatedAt: nowAsDate() })
+          .where(
+            and(
+              eq(activityPushTokens.deviceTokenId, deviceTokenId),
+              eq(activityPushTokens.kind, 'start'),
+              eq(activityPushTokens.status, 'active')
             )
           )
           .returning({ id: activityPushTokens.id })

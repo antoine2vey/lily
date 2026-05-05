@@ -2,8 +2,10 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
+import type { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
 import type { AdminLiveActivityTriggerResponse } from '@lily/shared/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PushService } from '@lily/shared/server'
@@ -22,6 +24,7 @@ export const triggerLiveActivityStart = (
   UserNotFoundError | SqlError,
   | UserRepository
   | ActivityPushTokenRepository
+  | DeviceTokenRepository
   | PushService
   | CareLogRepository
   | CareScheduleRepository
@@ -50,13 +53,24 @@ export const triggerLiveActivityStart = (
 
     const outcomes = yield* Effect.forEach(
       startTokens,
-      (tok): Effect.Effect<Outcome, never, never> =>
+      (
+        tok
+      ): Effect.Effect<
+        Outcome,
+        SqlError,
+        ActivityPushTokenRepository | DeviceTokenRepository
+      > =>
         pushService
           .sendLiveActivity({
             _tag: 'LiveActivityStart',
             to: tok.token,
             attributes: { userId, activityId },
             contentState,
+            alert: {
+              title: contentState.title,
+              body: contentState.headline,
+              sound: 'default',
+            },
           })
           .pipe(
             Effect.map(
@@ -67,24 +81,26 @@ export const triggerLiveActivityStart = (
               })
             ),
             Effect.catchTags({
-              PushSendError: (e): Effect.Effect<Outcome> =>
-                Effect.succeed({
+              PushSendError: (e) =>
+                Effect.succeed<Outcome>({
                   deviceTokenId: tok.deviceTokenId,
                   kind: 'send-error',
                   reason: e.message,
                 }),
-              PushConfigError: (e): Effect.Effect<Outcome> =>
-                Effect.succeed({
+              PushConfigError: (e) =>
+                Effect.succeed<Outcome>({
                   deviceTokenId: tok.deviceTokenId,
                   kind: 'config-error',
                   reason: e.message,
                 }),
-              PushTokenInvalidatedError: (e): Effect.Effect<Outcome> =>
-                Effect.succeed({
-                  deviceTokenId: tok.deviceTokenId,
-                  kind: 'token-invalidated',
-                  reason: e.reason,
-                }),
+              PushTokenInvalidatedError: (e) =>
+                retireStartTokenForDevice(tok.deviceTokenId).pipe(
+                  Effect.as<Outcome>({
+                    deviceTokenId: tok.deviceTokenId,
+                    kind: 'token-invalidated',
+                    reason: e.reason,
+                  })
+                ),
             })
           ),
       { concurrency: 'unbounded' }
