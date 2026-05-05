@@ -30,6 +30,11 @@ const GiftSubscriptionPage = lazy(() =>
 const JobsPage = lazy(() =>
   import('@/pages/JobsPage').then((m) => ({ default: m.JobsPage }))
 )
+const LiveActivityPage = lazy(() =>
+  import('@/pages/LiveActivityPage').then((m) => ({
+    default: m.LiveActivityPage,
+  }))
+)
 const LoginPage = lazy(() =>
   import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage }))
 )
@@ -78,6 +83,7 @@ export const App = () => (
               />
               <Route path="/gift-history" element={<GiftHistoryPage />} />
               <Route path="/prompt-preview" element={<PromptPreviewPage />} />
+              <Route path="/live-activity" element={<LiveActivityPage />} />
             </Route>
           </Route>
         </Routes>
