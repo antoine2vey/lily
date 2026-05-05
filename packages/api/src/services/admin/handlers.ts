@@ -11,6 +11,7 @@ import { listGiftHistory } from '@lily/api/services/admin/endpoints/list-gift-hi
 import { listUsers } from '@lily/api/services/admin/endpoints/list-users'
 import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { revokeGiftSubscription } from '@lily/api/services/admin/endpoints/revoke-gift-subscription'
+import { triggerLiveActivityStart } from '@lily/api/services/admin/endpoints/trigger-live-activity-start'
 import { updateGiftCode } from '@lily/api/services/admin/endpoints/update-gift-code'
 import { updateRole } from '@lily/api/services/admin/endpoints/update-role'
 import { updateStatus } from '@lily/api/services/admin/endpoints/update-status'
@@ -64,5 +65,8 @@ export const AdminApiLive = (api: Api) =>
       )
       .handle('deleteGiftCode', ({ path: { codeId } }) =>
         deleteGiftCode(codeId).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('triggerLiveActivityStart', ({ path: { id } }) =>
+        triggerLiveActivityStart(id).pipe(withInfraErrorsAsDefect)
       )
   )

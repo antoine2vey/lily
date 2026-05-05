@@ -106,13 +106,28 @@ const sendLiveActivityForCare = (
     }
 
     const startTokens = yield* activityRepo.findStartTokensByUserId(userId)
-    if (Array.isEmptyReadonlyArray(startTokens)) return
+    if (Array.isEmptyReadonlyArray(startTokens)) {
+      yield* Effect.logInfo('[worker] LA start skipped — no start tokens', {
+        userId,
+      })
+      return
+    }
 
     const activityId = crypto.randomUUID()
+    yield* Effect.logInfo('[worker] LA start dispatching', {
+      userId,
+      activityId,
+      startTokenCount: startTokens.length,
+    })
     yield* Effect.forEach(
       startTokens,
-      (tok) =>
-        pushService
+      (tok) => {
+        const logCtx = {
+          userId,
+          activityId,
+          deviceTokenId: tok.deviceTokenId,
+        }
+        return pushService
           .sendLiveActivity({
             _tag: 'LiveActivityStart',
             to: tok.token,
@@ -120,13 +135,21 @@ const sendLiveActivityForCare = (
             contentState,
           })
           .pipe(
+            Effect.tap((ticket) =>
+              Effect.logInfo('[worker] LA start accepted by APNs', {
+                ...logCtx,
+                apnsId: ticket.id,
+              })
+            ),
             Effect.catchTags({
               PushSendError: (e) =>
                 Effect.logWarning('[worker] LA start failed', {
+                  ...logCtx,
                   error: String(e),
                 }),
               PushConfigError: (e) =>
                 Effect.logWarning('[worker] LA start config error', {
+                  ...logCtx,
                   error: String(e),
                 }),
               // Start token is dead — usually means the app has been
@@ -135,11 +158,12 @@ const sendLiveActivityForCare = (
               PushTokenInvalidatedError: (e) =>
                 Effect.logWarning(
                   '[worker] LA start-to-push token invalidated',
-                  { reason: e.reason }
+                  { ...logCtx, reason: e.reason }
                 ),
             }),
             Effect.ignore
-          ),
+          )
+      },
       { concurrency: 'unbounded' }
     )
   })
