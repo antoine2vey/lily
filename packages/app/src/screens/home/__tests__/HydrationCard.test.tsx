@@ -68,7 +68,7 @@ describe('HydrationCard', () => {
     expect(screen.getByText('Cactus')).toBeTruthy()
   })
 
-  it('shows +N indicator when more than 3 plants', () => {
+  it('renders all plants when more than 3', () => {
     const manyPlants = [
       ...mockPlants,
       { id: '4', name: 'Aloe' },
@@ -83,7 +83,8 @@ describe('HydrationCard', () => {
       />
     )
 
-    expect(screen.getByText('+2')).toBeTruthy()
+    expect(screen.getByText('Aloe')).toBeTruthy()
+    expect(screen.getByText('Snake Plant')).toBeTruthy()
   })
 
   it('calls onPlantPress when plant is pressed', () => {

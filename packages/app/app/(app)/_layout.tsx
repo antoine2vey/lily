@@ -69,6 +69,13 @@ export default function AppLayout() {
           }}
         />
         <Stack.Screen
+          name="chat/index"
+          options={{
+            headerShown: false,
+            presentation: 'card',
+          }}
+        />
+        <Stack.Screen
           name="achievements"
           options={{
             headerShown: false,

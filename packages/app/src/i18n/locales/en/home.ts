@@ -107,6 +107,11 @@ export default {
       '{count, plural, one {# plant needs attention} other {# plants need attention}}',
     action: 'View',
   },
+  askLily: {
+    title: 'Ask Lily',
+    subtitle:
+      'Diagnose problems, identify pests, get care tips — your plant expert in your pocket.',
+  },
   weather: {
     conditionSunny: 'Sunny',
     conditionCloudy: 'Cloudy',

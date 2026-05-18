@@ -108,6 +108,11 @@ export default {
       "{count, plural, one {# plante a besoin d'attention} other {# plantes ont besoin d'attention}}",
     action: 'Voir',
   },
+  askLily: {
+    title: 'Demander à Lily',
+    subtitle:
+      'Diagnostiquez les problèmes, identifiez les nuisibles, obtenez des conseils — votre expert plantes à portée de main.',
+  },
   weather: {
     conditionSunny: 'Ensoleillé',
     conditionCloudy: 'Nuageux',

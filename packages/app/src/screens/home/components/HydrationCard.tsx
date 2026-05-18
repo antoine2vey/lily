@@ -1,8 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array, pipe } from 'effect'
+import { Array } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { PlantImageBadge } from '@/components/PlantImageBadge'
 import { useIconColors } from '@/hooks/useIconColors'
 
@@ -19,7 +20,9 @@ interface HydrationCardProps {
   isLoading?: boolean | undefined
 }
 
-const MAX_VISIBLE_PLANTS = 3
+const AUTO_SCROLL_PX_PER_FRAME = 0.3
+const AUTO_SCROLL_START_DELAY_MS = 800
+const AUTO_SCROLL_MIN_PLANTS = 4
 
 interface PlantCircleProps {
   plant: Plant
@@ -66,14 +69,53 @@ export function HydrationCard({
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
+  const scrollRef = useRef<ScrollView>(null)
+  const offsetRef = useRef(0)
+  const lastScrolledIntPxRef = useRef(0)
+  const contentWidthRef = useRef(0)
+  const viewportWidthRef = useRef(0)
+  const userInteractedRef = useRef(false)
+  const plantCount = Array.length(plants)
+
+  useEffect(() => {
+    if (plantCount < AUTO_SCROLL_MIN_PLANTS) return
+
+    userInteractedRef.current = false
+    let rafId: number | null = null
+    let startTimer: ReturnType<typeof setTimeout> | null = null
+
+    const tick = () => {
+      const maxOffset = Math.max(
+        0,
+        contentWidthRef.current - viewportWidthRef.current
+      )
+      if (userInteractedRef.current || offsetRef.current >= maxOffset) {
+        rafId = null
+        return
+      }
+      offsetRef.current += AUTO_SCROLL_PX_PER_FRAME
+      const nextIntPx = Math.floor(offsetRef.current)
+      if (nextIntPx !== lastScrolledIntPxRef.current) {
+        lastScrolledIntPxRef.current = nextIntPx
+        scrollRef.current?.scrollTo({ x: nextIntPx, animated: false })
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+
+    startTimer = setTimeout(() => {
+      rafId = requestAnimationFrame(tick)
+    }, AUTO_SCROLL_START_DELAY_MS)
+
+    return () => {
+      if (startTimer) clearTimeout(startTimer)
+      if (rafId !== null) cancelAnimationFrame(rafId)
+    }
+  }, [plantCount])
+
   if (Array.isEmptyReadonlyArray(plants)) {
     return null
   }
 
-  const visiblePlants = pipe(plants, Array.take(MAX_VISIBLE_PLANTS))
-  const remainingCount = Array.length(plants) - MAX_VISIBLE_PLANTS
-
-  // Theme-aware gradient colors
   const gradientColors: [string, string, string] = isDark
     ? ['#1E2A1A', '#243320', '#2D3728']
     : ['#dceccb', '#eaf6df', '#ffffff']
@@ -128,9 +170,32 @@ export function HydrationCard({
         </View>
       </View>
 
-      {/* Plant Circles */}
-      <View className="flex-row items-start gap-5 mb-7">
-        {Array.map(visiblePlants, (plant) => (
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={32}
+        onLayout={(e) => {
+          viewportWidthRef.current = e.nativeEvent.layout.width
+        }}
+        onContentSizeChange={(w) => {
+          contentWidthRef.current = w
+        }}
+        onScrollBeginDrag={() => {
+          userInteractedRef.current = true
+        }}
+        onScroll={(e) => {
+          if (!userInteractedRef.current) return
+          offsetRef.current = e.nativeEvent.contentOffset.x
+        }}
+        style={{ marginHorizontal: -24, marginBottom: 28 }}
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          gap: 20,
+          alignItems: 'flex-start',
+        }}
+      >
+        {Array.map(plants, (plant) => (
           <PlantCircle
             key={plant.id}
             plant={plant}
@@ -138,22 +203,7 @@ export function HydrationCard({
             iconColors={iconColors}
           />
         ))}
-        {remainingCount > 0 && (
-          <View className="items-center gap-2">
-            <View
-              className="w-[72px] h-[72px] rounded-full items-center justify-center"
-              style={{ backgroundColor: isDark ? '#2D3728' : '#E8F5E8' }}
-            >
-              <Text
-                className="text-base font-bold"
-                style={{ color: iconColors.primary }}
-              >
-                +{remainingCount}
-              </Text>
-            </View>
-          </View>
-        )}
-      </View>
+      </ScrollView>
 
       {/* Water All Button */}
       <Pressable
