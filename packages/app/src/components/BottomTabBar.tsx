@@ -52,12 +52,6 @@ export const TAB_ROUTES: ReadonlyArray<TabRoute> = [
     labelKey: 'tabs.profile',
     icon: { active: 'person', inactive: 'person-outline' },
   },
-  {
-    name: 'chat',
-    path: '/chat',
-    labelKey: 'tabs.chat',
-    icon: { active: 'chat-bubble', inactive: 'chat-bubble-outline' },
-  },
 ]
 
 export const LEFT_ROUTES = Array.take(TAB_ROUTES, 2)
@@ -109,13 +103,14 @@ export function TabItem({
   return (
     <Pressable
       testID={testID}
+      accessibilityLabel={label}
       onPress={onPress}
-      className="flex-1 items-center justify-center gap-1"
+      className="flex-1 items-center justify-center"
     >
       <View className="relative">
         <MaterialIcons
           name={iconName}
-          size={24}
+          size={26}
           color={isFocused ? iconColors.primary : iconColors.muted}
         />
         {badgeCount > 0 && (
@@ -126,11 +121,6 @@ export function TabItem({
           </View>
         )}
       </View>
-      <Text
-        className={`text-[10px] ${isFocused ? 'text-primary font-bold' : 'text-slate-400 font-semibold'}`}
-      >
-        {label}
-      </Text>
     </Pressable>
   )
 }
