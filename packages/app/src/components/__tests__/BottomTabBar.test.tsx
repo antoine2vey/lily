@@ -37,10 +37,10 @@ describe('BottomTabBar', () => {
 
   it('renders all tab items', () => {
     render(<BottomTabBar {...defaultProps} />)
-    expect(screen.getByText('Home')).toBeTruthy()
-    expect(screen.getByText('Plants')).toBeTruthy()
-    expect(screen.getByText('Care')).toBeTruthy()
-    expect(screen.getByText('Profile')).toBeTruthy()
+    expect(screen.getByLabelText('Home')).toBeTruthy()
+    expect(screen.getByLabelText('Plants')).toBeTruthy()
+    expect(screen.getByLabelText('Care')).toBeTruthy()
+    expect(screen.getByLabelText('Profile')).toBeTruthy()
   })
 
   it('renders FAB button', () => {
@@ -67,7 +67,7 @@ describe('BottomTabBar', () => {
     mockPathname = '/'
     render(<BottomTabBar {...defaultProps} />)
 
-    fireEvent.press(screen.getByText('Plants'))
+    fireEvent.press(screen.getByLabelText('Plants'))
     expect(mockNavigate).toHaveBeenCalledWith('/plants')
   })
 
@@ -75,7 +75,7 @@ describe('BottomTabBar', () => {
     mockPathname = '/'
     render(<BottomTabBar {...defaultProps} />)
 
-    fireEvent.press(screen.getByText('Home'))
+    fireEvent.press(screen.getByLabelText('Home'))
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
