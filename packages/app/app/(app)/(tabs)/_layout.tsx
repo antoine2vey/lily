@@ -21,7 +21,6 @@ export default function TabsLayout() {
         <Tabs.Screen name="plants" options={{ title: t('tabs.plants') }} />
         <Tabs.Screen name="care" options={{ title: t('tabs.care') }} />
         <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
-        <Tabs.Screen name="chat" options={{ title: t('tabs.chat') }} />
       </Tabs>
 
       <LiquidGlassTabBar

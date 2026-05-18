@@ -24,6 +24,7 @@ import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
+import { AskLilyCta } from '@/screens/home/components/AskLilyCta'
 import { DailyProgressCard } from '@/screens/home/components/DailyProgressCard'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
@@ -372,6 +373,8 @@ export function HomeScreen() {
                     : { entering: FadeIn.duration(300) })}
                   className="pb-6"
                 >
+                  <AskLilyCta />
+
                   {achievementsData && <StreakCard data={achievementsData} />}
 
                   {careTasksData && (
