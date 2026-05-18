@@ -5,11 +5,12 @@ import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.rep
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
-import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { UserRepository } from '@lily/api/repositories/user.repository'
+import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { canAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { startOfDay } from '@lily/shared'
 import type { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type {
   CareMultiplePlantsRequest,
@@ -37,10 +38,19 @@ export const careMultiplePlants = (
     const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
+    const userRepo = yield* UserRepository
+    const { id: currentUserId } = yield* CurrentUser
 
     if (request.plantIds.length === 0) {
       return []
     }
+
+    const currentUser = yield* userRepo.findById(currentUserId)
+    const timezone = pipe(
+      Option.fromNullable(currentUser),
+      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.getOrElse(() => 'UTC')
+    )
 
     return yield* sql.withTransaction(
       Effect.gen(function* () {
@@ -87,7 +97,7 @@ export const careMultiplePlants = (
                 Option.getOrUndefined
               )
 
-              const nowDayStart = DateTime.startOf(nowDt, 'day')
+              const nowDayStart = startOfDay(nowDt, timezone)
               const nextCareAt = frequency
                 ? DateTime.toDateUtc(
                     DateTime.addDuration(nowDayStart, Duration.days(frequency))
