@@ -21,7 +21,7 @@ import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Logger, LogLevel } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const userId = 'user-1'
 
@@ -273,6 +273,106 @@ describe('executePlantCare', () => {
                 plants: [testPlant],
               }),
               createMockNotificationRepository(notifications),
+              createMockCareLogRepository([]),
+              createMockUserRepository([user]),
+              createMockDelegationRepository({}),
+              createMockEventBus(),
+              createMockCurrentUser({
+                id: userId,
+                name: 'Test User',
+                email: 'test@example.com',
+                username: 'testuser',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                role: 'user',
+                status: 'active',
+              }),
+              createMockWeatherProvider(),
+              createMockWeatherCache(),
+              createMockWeatherRepository()
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+    })
+  })
+
+  // Regression: daily-frequency tasks could be revalidated multiple times in
+  // the 1–2h window between local midnight and UTC midnight, because the next
+  // care date was truncated to UTC midnight instead of the user's local one.
+  // After the fix, the next care date must land strictly after the user's
+  // local end-of-today regardless of when (in that window) they validate.
+  describe('next care date is timezone-aware', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('does not let a daily task re-appear today when validated past local midnight (Paris)', async () => {
+      // 2026-05-18 00:30 Europe/Paris (UTC+2 in May) = 2026-05-17 22:30 UTC.
+      // Pre-fix: nextCareAt landed at 2026-05-18 00:00 UTC = 2026-05-18 02:00
+      // Paris — the same local day, so the task immediately re-appears.
+      vi.setSystemTime(new Date('2026-05-17T22:30:00.000Z'))
+
+      const testPlant = createTestPlant({
+        id: 'plant-1',
+        userId,
+        remindersEnabled: false,
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 1,
+            lastCareAt: new Date('2026-05-17T16:00:00.000Z'),
+            nextCareAt: new Date('2026-05-18T00:00:00.000Z'),
+          }),
+        ],
+      })
+      const plant = toPlantWithRoom(testPlant)
+      const schedule = createSchedule('plant-1', {
+        frequencyDays: 1,
+        lastCareAt: new Date('2026-05-17T16:00:00.000Z'),
+        nextCareAt: new Date('2026-05-18T00:00:00.000Z'),
+      })
+      const schedulesRef = [schedule]
+
+      const user = createTestUser({
+        id: userId,
+        careReminders: false,
+        timezone: 'Europe/Paris',
+        preferredNotificationTime: '09:00',
+        doNotDisturb: false,
+      })
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* executePlantCare(plant, {
+            plantId: 'plant-1',
+            careType: 'watering',
+          })
+
+          // End of "today" in Paris = 2026-05-18 23:59:59.999 Paris = 2026-05-18
+          // 21:59:59.999 UTC. nextCareAt must be strictly after this — otherwise
+          // the task re-appears in the same local day.
+          const endOfTodayParisUtc = new Date('2026-05-18T21:59:59.999Z')
+          const updated = schedulesRef[0]!
+          expect(updated.nextCareAt).not.toBeNull()
+          expect(updated.nextCareAt!.getTime()).toBeGreaterThan(
+            endOfTodayParisUtc.getTime()
+          )
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockPlantRepository({
+                plants: [testPlant],
+                schedules: schedulesRef,
+              }),
+              createMockCareScheduleRepository({
+                schedules: schedulesRef,
+                plants: [testPlant],
+              }),
+              createMockNotificationRepository([]),
               createMockCareLogRepository([]),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),

@@ -16,7 +16,7 @@ import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
-import { type CareType, roundCoord } from '@lily/shared'
+import { type CareType, roundCoord, startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
@@ -32,7 +32,12 @@ export interface ExecutePlantCareParams {
 
 // Apply weather adjustment to the next care date if user has weather enabled
 const applyWeatherAdjustment = (
-  userId: string,
+  user: {
+    weatherEnabled: boolean | null
+    latitude: number | null
+    longitude: number | null
+  },
+  timezone: string,
   plant: {
     id: string
     category: string | null
@@ -46,15 +51,11 @@ const applyWeatherAdjustment = (
 ): Effect.Effect<
   Date | undefined,
   never,
-  UserRepository | WeatherProvider | WeatherCache | WeatherRepository
+  WeatherProvider | WeatherCache | WeatherRepository
 > =>
   Effect.gen(function* () {
     if (!nextCareAt) return nextCareAt
-
-    const userRepo = yield* UserRepository
-    const user = yield* userRepo.findById(userId)
-
-    if (!user || !user.weatherEnabled || !user.latitude || !user.longitude) {
+    if (!user.weatherEnabled || !user.latitude || !user.longitude) {
       return nextCareAt
     }
 
@@ -81,7 +82,10 @@ const applyWeatherAdjustment = (
 
     // For manual care, skip flags don't apply — the user just performed the action,
     // so we always use adjustedWateringDays to schedule the next one.
-    const nowDayStart = DateTime.startOf(nowDt, 'day')
+    // Truncate to the user's local midnight, not UTC — otherwise daily schedules
+    // can land back inside the same local day when the user acts between local
+    // and UTC midnight, producing a task they can re-validate immediately.
+    const nowDayStart = startOfDay(nowDt, timezone)
     return pipe(
       Match.value(careType),
       Match.when('watering', () =>
@@ -97,14 +101,7 @@ const applyWeatherAdjustment = (
       Match.when('repotting', () => nextCareAt),
       Match.exhaustive
     )
-  }).pipe(
-    Effect.catchTag('SqlError', (e) =>
-      Effect.logWarning(
-        '[execute-plant-care] Weather adjustment failed, using original date',
-        { plantId: plant.id, error: String(e) }
-      ).pipe(Effect.as(nextCareAt))
-    )
-  )
+  })
 
 export const executePlantCare = (
   plant: PlantWithRoom,
@@ -128,6 +125,16 @@ export const executePlantCare = (
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
+    const userRepo = yield* UserRepository
+
+    // Load user once — both timezone (for day-boundary math) and weather flags
+    // (consumed inside applyWeatherAdjustment) come from the same row.
+    const user = yield* userRepo.findById(plant.userId)
+    const timezone = pipe(
+      Option.fromNullable(user),
+      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.getOrElse(() => 'UTC')
+    )
 
     const nowDt = DateTime.unsafeNow()
 
@@ -170,9 +177,11 @@ export const executePlantCare = (
       Option.getOrNull
     )
 
-    // Normalize to start-of-day so that daysUntil (which compares day
-    // boundaries) returns exactly `frequency` days, regardless of time-of-day.
-    const careDayStart = DateTime.startOf(careDt, 'day')
+    // Normalize to start-of-day in the user's local timezone so that the next
+    // care date lands at *their* midnight + N days. Truncating in UTC would let
+    // the next date fall back inside the same local day when validating between
+    // local and UTC midnight, making the task re-appear after one tap.
+    const careDayStart = startOfDay(careDt, timezone)
 
     // Calculate next care date from the care date (if frequency exists)
     const nextCareAt = pipe(
@@ -189,7 +198,8 @@ export const executePlantCare = (
     const adjustedNextCareAt = isPastCare
       ? Effect.succeed(nextCareAt)
       : applyWeatherAdjustment(
-          plant.userId,
+          user ?? { weatherEnabled: false, latitude: null, longitude: null },
+          timezone,
           {
             id: plant.id,
             category: plant.category,

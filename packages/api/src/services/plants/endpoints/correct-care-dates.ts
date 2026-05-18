@@ -10,9 +10,10 @@ import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
-import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
@@ -21,7 +22,8 @@ const correctSingleCareDate = (
   plantId: string,
   correctedDate: Date,
   careType: CareType,
-  plant: PlantWithRoom
+  plant: PlantWithRoom,
+  timezone: string
 ) =>
   Effect.gen(function* () {
     const careLogRepo = yield* CareLogRepository
@@ -68,11 +70,15 @@ const correctSingleCareDate = (
         next: Option.fromNullable(currentNextCare),
       }),
       Option.map(({ original, next }) => {
-        const originalDayStart = DateTime.startOf(
+        // Truncate to local-midnight (not UTC) so the delta reflects how many
+        // *calendar days* the user shifted the last-care date by — otherwise a
+        // correction within the local day but across the UTC boundary produces
+        // a delta of 0 (or ±1) that disagrees with the visible date change.
+        const originalDayStart = startOfDay(
           DateTime.unsafeMake(original),
-          'day'
+          timezone
         )
-        const correctedDayStart = DateTime.startOf(correctedDt, 'day')
+        const correctedDayStart = startOfDay(correctedDt, timezone)
         // Signed delta in ms (positive = corrected is later, negative = earlier)
         const deltaMs = DateTime.distance(originalDayStart, correctedDayStart)
         const nextMs = DateTime.toEpochMillis(DateTime.unsafeMake(next))
@@ -115,6 +121,14 @@ export const correctCareDates = (
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
+    const userRepo = yield* UserRepository
+
+    const user = yield* userRepo.findById(plant.userId)
+    const timezone = pipe(
+      Option.fromNullable(user),
+      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.getOrElse(() => 'UTC')
+    )
 
     // Correct watering date if provided
     if (request.lastWateredAt) {
@@ -122,7 +136,8 @@ export const correctCareDates = (
         request.id,
         request.lastWateredAt,
         'watering',
-        plant
+        plant,
+        timezone
       )
     }
 
@@ -132,7 +147,8 @@ export const correctCareDates = (
         request.id,
         request.lastFertilizedAt,
         'fertilization',
-        plant
+        plant,
+        timezone
       )
     }
 
