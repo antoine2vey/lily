@@ -7,6 +7,7 @@ import {
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, OpenAIError, PaginationParams } from '@lily/shared'
 import {
+  AlreadyCaredTodayError,
   FutureDateNotAllowedError,
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -256,6 +257,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(FutureDateNotAllowedError, { status: 400 })
+      .addError(AlreadyCaredTodayError, { status: 409 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

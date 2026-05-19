@@ -149,6 +149,23 @@ export const createMockCareLogRepository = (
         )
       ),
 
+    existsByPlantAndTypeInRange: (
+      plantId: string,
+      type: CareType,
+      startUtc: Date,
+      endUtc: Date
+    ) =>
+      Effect.succeed(
+        Array.some(
+          careLogs,
+          (log) =>
+            log.plantId === plantId &&
+            log.type === type &&
+            log.date >= startUtc &&
+            log.date < endUtc
+        )
+      ),
+
     findLatestByPlantAndType: (plantId: string, type: CareType) => {
       const byDateDesc = Order.reverse(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
