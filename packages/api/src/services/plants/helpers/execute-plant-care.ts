@@ -1,5 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
-import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -17,7 +17,10 @@ import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import { type CareType, roundCoord, startOfDay } from '@lily/shared'
-import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
+import {
+  AlreadyCaredTodayError,
+  FutureDateNotAllowedError,
+} from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
 
@@ -108,7 +111,7 @@ export const executePlantCare = (
   params: ExecutePlantCareParams
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | FutureDateNotAllowedError,
+  SqlError | FutureDateNotAllowedError | AlreadyCaredTodayError,
   | PlantRepository
   | CareLogRepository
   | CareScheduleRepository
@@ -126,6 +129,7 @@ export const executePlantCare = (
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
+    const careLogRepo = yield* CareLogRepository
 
     // Load user once — both timezone (for day-boundary math) and weather flags
     // (consumed inside applyWeatherAdjustment) come from the same row.
@@ -157,6 +161,21 @@ export const executePlantCare = (
 
     const careDate = DateTime.toDateUtc(careDt)
     const isPastCare = Option.isSome(Option.fromNullable(params.date))
+
+    // Idempotency: at most one care log per plant + careType per user-local day.
+    // Compare against the day containing careDt (so backdating to a day that
+    // already has a log is also blocked), in the user's timezone.
+    const dayStart = startOfDay(careDt, timezone)
+    const dayEnd = DateTime.addDuration(dayStart, Duration.days(1))
+    const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
+      params.plantId,
+      params.careType,
+      DateTime.toDateUtc(dayStart),
+      DateTime.toDateUtc(dayEnd)
+    )
+    if (alreadyLogged) {
+      return yield* new AlreadyCaredTodayError({ careType: params.careType })
+    }
 
     // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
     // Called before plant update so createCareLog sees the original health state

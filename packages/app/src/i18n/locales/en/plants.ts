@@ -134,6 +134,7 @@ export default {
       mistFailed: 'Failed to mist plant',
       repotted: '{name} repotted!',
       repotFailed: 'Failed to repot plant',
+      alreadyCaredToday: 'Already logged today',
       removedFromFavorites: '{name} removed from favorites',
       addedToFavorites: '{name} added to favorites!',
       favoriteFailed: 'Failed to update favorite',

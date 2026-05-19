@@ -258,13 +258,21 @@ export function PlantDetailScreen() {
   const handleCareNow = useCallback(
     (careType: CareType) => {
       if (!plantId) return
+      if (carePlant.isPending) return
       const keys = CARE_TOAST_KEYS[careType]
       carePlant.mutate(
         { path: { id: plantId }, payload: { careType } },
         {
           onSuccess: () =>
             toast.success(t(keys.success, { name: plant?.name })),
-          onError: () => toast.error(t(keys.error)),
+          onError: (error) => {
+            const tag = (error as { _tag?: string })._tag
+            if (tag === 'AlreadyCaredTodayError') {
+              toast.error(t('detail.toast.alreadyCaredToday'))
+              return
+            }
+            toast.error(t(keys.error))
+          },
         }
       )
     },
@@ -304,6 +312,7 @@ export function PlantDetailScreen() {
   const handlePastCareSelect = useCallback(
     (date: Date) => {
       if (!plantId || !activePastCareType) return
+      if (carePlant.isPending) return
       const keys = CARE_TOAST_KEYS[activePastCareType]
       carePlant.mutate(
         {
@@ -313,7 +322,14 @@ export function PlantDetailScreen() {
         {
           onSuccess: () =>
             toast.success(t(keys.success, { name: plant?.name })),
-          onError: () => toast.error(t(keys.error)),
+          onError: (error) => {
+            const tag = (error as { _tag?: string })._tag
+            if (tag === 'AlreadyCaredTodayError') {
+              toast.error(t('detail.toast.alreadyCaredToday'))
+              return
+            }
+            toast.error(t(keys.error))
+          },
         }
       )
     },

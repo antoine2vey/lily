@@ -21,6 +21,17 @@ export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotA
   HttpApiSchema.annotations({ status: 400 })
 ) {}
 
+export class AlreadyCaredTodayError extends Schema.TaggedError<AlreadyCaredTodayError>()(
+  'AlreadyCaredTodayError',
+  {
+    careType: Schema.String,
+    message: Schema.optionalWith(Schema.String, {
+      default: () => 'This care action was already logged today',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}
+
 export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthorizedError>()(
   'PlantNotAuthorizedError',
   {

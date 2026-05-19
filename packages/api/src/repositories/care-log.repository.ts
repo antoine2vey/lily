@@ -13,7 +13,7 @@ import type {
   RecentActivitiesListResponse,
   RecentActivity,
 } from '@lily/shared/care-log'
-import { and, count, desc, eq, gte, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 // Types for repository methods
@@ -82,6 +82,12 @@ export interface ICareLogRepository {
     plantId: string,
     type: CareType
   ) => Effect.Effect<CareLog | null, SqlError>
+  readonly existsByPlantAndTypeInRange: (
+    plantId: string,
+    type: CareType,
+    startUtc: Date,
+    endUtc: Date
+  ) => Effect.Effect<boolean, SqlError>
   readonly countTodayByUser: (
     userId: string,
     timezone: string
@@ -253,6 +259,29 @@ export const CareLogRepositoryLive = Layer.effect(
           .orderBy(desc(careLogs.date))
           .limit(1)
         return row ? mapToCareLog(row) : null
+      }),
+
+      existsByPlantAndTypeInRange: Effect.fn(
+        'CareLogRepository.existsByPlantAndTypeInRange'
+      )(function* (
+        plantId: string,
+        type: CareType,
+        startUtc: Date,
+        endUtc: Date
+      ) {
+        const [row] = yield* db
+          .select({ id: careLogs.id })
+          .from(careLogs)
+          .where(
+            and(
+              eq(careLogs.plantId, plantId),
+              eq(careLogs.type, type),
+              gte(careLogs.date, startUtc),
+              lt(careLogs.date, endUtc)
+            )
+          )
+          .limit(1)
+        return row !== undefined
       }),
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(

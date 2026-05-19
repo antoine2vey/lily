@@ -135,6 +135,7 @@ export default {
       mistFailed: 'Échec de la vaporisation',
       repotted: '{name} rempotée !',
       repotFailed: 'Échec du rempotage',
+      alreadyCaredToday: 'Déjà enregistré aujourd’hui',
       removedFromFavorites: '{name} retirée des favoris',
       addedToFavorites: '{name} ajoutée aux favoris !',
       favoriteFailed: 'Échec de la mise à jour',
