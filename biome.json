@@ -16,7 +16,8 @@
       "!**/android/build/**",
       "!**/.next/**",
       "!**/out/**",
-      "!**/coverage/**"
+      "!**/coverage/**",
+      "!**/public/search-index-*.json"
     ]
   },
   "formatter": {

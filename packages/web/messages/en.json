@@ -127,7 +127,18 @@
     "subheading": "Expert guides on watering, light, pests, and more — for every plant in your collection.",
     "empty": "No posts yet. Check back soon.",
     "metaTitle": "Plant Care Blog — Lily",
-    "metaDescription": "Expert guides on caring for your houseplants. Learn how to water, fertilize, and troubleshoot common plant problems."
+    "metaDescription": "Expert guides on caring for your houseplants. Learn how to water, fertilize, and troubleshoot common plant problems.",
+    "searchPlaceholder": "Search posts…",
+    "searchAriaLabel": "Search blog posts",
+    "searchClear": "Clear search",
+    "noResults": "No posts match your search.",
+    "searchResultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "paginationPrevious": "← Previous",
+    "paginationNext": "Next →",
+    "paginationLabel": "Blog pagination",
+    "paginationPage": "Page {page} of {total}",
+    "paginationPageNumber": "Go to page {page}",
+    "pageSuffix": "— Page {page}"
   },
   "BlogPost": {
     "home": "Home",
