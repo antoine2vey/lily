@@ -1,13 +1,16 @@
+import {
+  isLiquidGlassSupported,
+  LiquidGlassView,
+} from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import { now } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
 import type { Href } from 'expo-router'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Avatar } from '@/components/Avatar'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { Button } from '@/components/ui'
@@ -21,7 +24,6 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
 import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
-import { useUser } from '@/hooks/useUser'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
 import { AskLilyCta } from '@/screens/home/components/AskLilyCta'
@@ -33,6 +35,129 @@ import { StreakCard } from '@/screens/home/components/StreakCard'
 import { WeatherCard } from '@/screens/home/components/WeatherCard'
 import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
 import { useEffectQuery } from '@/utils/client'
+
+const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+
+function NotificationBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <View className="absolute -top-1 -right-1 bg-coral rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+      <Text
+        className="text-white text-[10px] font-bold"
+        style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+      >
+        {count > 99 ? '99+' : count}
+      </Text>
+    </View>
+  )
+}
+
+const pillShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.05,
+  shadowRadius: 2,
+  elevation: 1,
+} as const
+
+function StickyAddPill({
+  label,
+  iconColor,
+  onPress,
+}: {
+  label: string
+  iconColor: string
+  onPress: () => void
+}) {
+  const content = (
+    <Pressable
+      onPress={onPress}
+      testID="home-add-plant-pill"
+      accessibilityLabel={label}
+      className="flex-row items-center gap-1.5 h-11 pl-3 pr-4"
+    >
+      <MaterialIcons name="add" size={22} color={iconColor} />
+      <Text
+        className="text-sm text-text-primary dark:text-white"
+        style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
+
+  if (useGlass) {
+    return (
+      <LiquidGlassView interactive={false} style={{ borderRadius: 22 }}>
+        {content}
+      </LiquidGlassView>
+    )
+  }
+
+  return (
+    <View
+      className="rounded-full bg-white dark:bg-surface-dark"
+      style={pillShadow}
+    >
+      {content}
+    </View>
+  )
+}
+
+function StickyBell({
+  unreadCount,
+  iconColor,
+  onPress,
+}: {
+  unreadCount: number
+  iconColor: string
+  onPress: () => void
+}) {
+  const bellPressable = (
+    <Pressable
+      onPress={onPress}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <MaterialIcons
+        name="notifications"
+        size={24}
+        color={iconColor}
+        style={{ lineHeight: 24 }}
+      />
+    </Pressable>
+  )
+
+  const pill = useGlass ? (
+    <LiquidGlassView
+      interactive={false}
+      style={{ width: 44, height: 44, borderRadius: 22 }}
+    >
+      {bellPressable}
+    </LiquidGlassView>
+  ) : (
+    <View
+      className="bg-white dark:bg-surface-dark"
+      style={{ width: 44, height: 44, borderRadius: 22, ...pillShadow }}
+    >
+      {bellPressable}
+    </View>
+  )
+
+  return (
+    <View style={{ width: 44, height: 44 }}>
+      {pill}
+      <NotificationBadge count={unreadCount} />
+    </View>
+  )
+}
 
 function HomeContentSkeleton() {
   return (
@@ -209,9 +334,6 @@ export function HomeScreen() {
     return t('home:greeting.evening')
   }
 
-  const { data: userSettings } = useUser()
-  const userAvatar = userSettings?.image
-
   const hasPlants =
     Option.getOrElse(Option.fromNullable(plants?.total), () => 0) > 0
 
@@ -314,55 +436,15 @@ export function HomeScreen() {
             scrollEventThrottle={16}
           >
             <View className="flex-1 px-6">
-              {/* Header - always rendered */}
-              <View className="flex-row items-center justify-between pt-8 pb-4">
-                <View className="flex-1">
-                  <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
-                    {getGreeting()},{'\n'}
-                    {Option.getOrElse(Option.fromNullable(userName), () =>
-                      t('home:greeting.defaultName')
-                    )}{' '}
-                    ☀️
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-3">
-                  <Pressable onPress={() => router.push('/settings')}>
-                    <Avatar
-                      source={userAvatar ? { uri: userAvatar } : undefined}
-                      name={Option.getOrUndefined(
-                        Option.fromNullable(userName)
-                      )}
-                      size="md"
-                    />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => router.push('/(app)/notifications' as Href)}
-                    className="w-11 h-11 rounded-full bg-white dark:bg-surface-dark items-center justify-center"
-                    style={{
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.05,
-                      shadowRadius: 2,
-                      elevation: 1,
-                    }}
-                  >
-                    <MaterialIcons
-                      name="notifications"
-                      size={24}
-                      color={iconColors.textPrimary}
-                    />
-                    {unreadCount > 0 && (
-                      <View className="absolute -top-1 -right-1 bg-coral rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
-                        <Text
-                          className="text-white text-[10px] font-bold"
-                          style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-                        >
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
-                </View>
+              {/* Greeting - scrolls under sticky pills */}
+              <View className="pt-4 pb-4" style={{ paddingRight: 190 }}>
+                <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
+                  {getGreeting()},{'\n'}
+                  {Option.getOrElse(Option.fromNullable(userName), () =>
+                    t('home:greeting.defaultName')
+                  )}{' '}
+                  ☀️
+                </Text>
               </View>
 
               {/* Content */}
@@ -450,6 +532,29 @@ export function HomeScreen() {
           </Animated.ScrollView>
         )}
       </PullToRefresh>
+
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          top: insets.top + 12,
+          right: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <StickyAddPill
+          label={t('home:cta.addPlant', { defaultValue: 'Add plant' })}
+          iconColor={iconColors.textPrimary}
+          onPress={() => router.push('/add-plant/scanner')}
+        />
+        <StickyBell
+          unreadCount={unreadCount}
+          iconColor={iconColors.textPrimary}
+          onPress={() => router.push('/(app)/notifications' as Href)}
+        />
+      </View>
     </View>
   )
 }

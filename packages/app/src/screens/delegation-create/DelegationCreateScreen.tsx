@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { FormTextArea } from '@/components/FormTextArea'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { useCreateDelegation } from '@/hooks/useCreateDelegation'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlants } from '@/hooks/usePlants'
@@ -132,16 +133,7 @@ export function DelegationCreateScreen() {
     >
       {/* Header */}
       <View className="flex-row items-center px-4 pt-2 pb-4">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center rounded-full"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton />
         <Text
           className="flex-1 text-lg text-center font-bold text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_700Bold' }}

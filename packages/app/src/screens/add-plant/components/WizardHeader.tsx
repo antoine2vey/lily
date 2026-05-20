@@ -1,8 +1,7 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Option } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
-import { useIconColors } from '@/hooks/useIconColors'
+import { Text, View } from 'react-native'
+import { GlassBackButton } from '@/components/GlassBackButton'
 
 interface WizardHeaderProps {
   step: number
@@ -18,7 +17,6 @@ export function WizardHeader({
   title,
 }: WizardHeaderProps) {
   const { t } = useTranslation('addPlant')
-  const iconColors = useIconColors()
   const progress = (step / totalSteps) * 100
   const displayTitle = Option.getOrElse(Option.fromNullable(title), () =>
     t('wizardTitle')
@@ -28,16 +26,7 @@ export function WizardHeader({
     <View className="px-4 pt-2 pb-2 bg-background dark:bg-background-dark">
       {/* Header row */}
       <View className="flex-row items-center justify-between mb-3">
-        <Pressable
-          onPress={onBack}
-          className="w-10 h-10 items-center justify-center rounded-full active:bg-surface-tinted dark:active:bg-slate-800"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton onPress={onBack} />
         <Text className="text-lg font-bold text-text-primary dark:text-white flex-1 text-center">
           {displayTitle}
         </Text>

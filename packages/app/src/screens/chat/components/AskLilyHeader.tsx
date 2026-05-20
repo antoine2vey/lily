@@ -1,9 +1,7 @@
-import { MaterialIcons } from '@expo/vector-icons'
-import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { Avatar } from '@/components/Avatar'
-import { useIconColors } from '@/hooks/useIconColors'
+import { GlassBackButton } from '@/components/GlassBackButton'
 
 interface AskLilyHeaderProps {
   title?: string
@@ -12,22 +10,11 @@ interface AskLilyHeaderProps {
 
 export function AskLilyHeader({ title, showBack = true }: AskLilyHeaderProps) {
   const { t } = useTranslation('chat')
-  const iconColors = useIconColors()
 
   return (
     <View className="flex-row items-center px-4 py-3 border-b bg-background dark:bg-background-dark border-border dark:border-slate-700">
       {showBack ? (
-        <Pressable
-          testID="chat-back-button"
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton testID="chat-back-button" />
       ) : (
         <View className="w-10" />
       )}

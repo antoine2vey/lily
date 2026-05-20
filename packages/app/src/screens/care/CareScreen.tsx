@@ -248,26 +248,15 @@ export function CareScreen() {
       style={{ paddingTop: insets.top }}
     >
       {/* Header - always rendered */}
-      <View className="px-6 pt-2 pb-4">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-xs uppercase font-medium text-text-muted dark:text-slate-400">
-              {t('screen.todayDate', {
-                date: formatDate(today, i18n.language),
-              })}
-            </Text>
-            <Text className="text-3xl mt-1 font-bold text-text-primary dark:text-white">
-              {t('screen.title')}
-            </Text>
-          </View>
-          <Pressable className="w-10 h-10 rounded-full items-center justify-center bg-surface dark:bg-surface-dark">
-            <MaterialIcons
-              name="calendar-today"
-              size={22}
-              color={iconColors.textPrimary}
-            />
-          </Pressable>
-        </View>
+      <View className="px-6 pt-4 pb-4">
+        <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
+          {t('screen.title')}
+        </Text>
+        <Text className="text-xs uppercase mt-1 font-medium text-text-muted dark:text-slate-400">
+          {t('screen.todayDate', {
+            date: formatDate(today, i18n.language),
+          })}
+        </Text>
       </View>
 
       <PullToRefresh isRefreshing={isRefetching} onRefresh={refetch}>

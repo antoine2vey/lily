@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonBox } from '@/components/skeletons'
 import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useAuth } from '@/contexts/AuthContext'
@@ -148,16 +149,7 @@ export function SettingsScreen() {
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center rounded-full"
-        >
-          <MaterialIcons
-            name="arrow-back-ios-new"
-            size={20}
-            color={iconColors.primary}
-          />
-        </Pressable>
+        <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
           {t('settings:title')}
         </Text>

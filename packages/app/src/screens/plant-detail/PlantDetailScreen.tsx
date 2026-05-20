@@ -1,3 +1,7 @@
+import {
+  isLiquidGlassSupported,
+  LiquidGlassView,
+} from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import {
   type CareType,
@@ -12,7 +16,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dimensions, Image, Pressable, Text, View } from 'react-native'
+import {
+  Dimensions,
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native'
 import Animated, {
   interpolateColor,
   useAnimatedScrollHandler,
@@ -69,6 +80,70 @@ const CARE_TOAST_KEYS: Readonly<
 }
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
+
+const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+
+// biome-ignore lint/suspicious/noExplicitAny: Reanimated animated style types
+// don't satisfy exactOptionalPropertyTypes when extracted as a prop; the runtime
+// value is a normal ViewStyle subset.
+type AnimatedFallbackStyle = any
+
+function HeaderButton({
+  icon,
+  onPress,
+  iconColor,
+  testID,
+  animatedFallbackStyle,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap
+  onPress: () => void
+  iconColor: string
+  testID?: string
+  animatedFallbackStyle: AnimatedFallbackStyle
+}) {
+  if (useGlass) {
+    return (
+      <Pressable
+        onPress={onPress}
+        testID={testID}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      >
+        <LiquidGlassView
+          interactive={false}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialIcons
+            name={icon}
+            size={22}
+            color={iconColor}
+            style={{ lineHeight: 22 }}
+          />
+        </LiquidGlassView>
+      </Pressable>
+    )
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <Animated.View
+        className="w-10 h-10 rounded-full items-center justify-center"
+        style={animatedFallbackStyle}
+      >
+        <MaterialIcons name={icon} size={24} color={iconColor} />
+      </Animated.View>
+    </Pressable>
+  )
+}
 
 function PlantDetailSkeleton() {
   return (
@@ -644,43 +719,27 @@ export function PlantDetailScreen() {
         style={{ paddingTop: insets.top + 8 }}
         testID="plant-detail-header"
       >
-        <Pressable onPress={handleBack} testID="back-button">
-          <Animated.View
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={animatedButtonStyle}
-          >
-            <MaterialIcons
-              name="arrow-back"
-              size={24}
-              color={iconColors.textPrimary}
-            />
-          </Animated.View>
-        </Pressable>
+        <HeaderButton
+          icon="arrow-back"
+          onPress={handleBack}
+          iconColor={iconColors.textPrimary}
+          testID="back-button"
+          animatedFallbackStyle={animatedButtonStyle}
+        />
         <View className="flex-row gap-2">
-          <Pressable onPress={handleToggleFavorite}>
-            <Animated.View
-              className="w-10 h-10 rounded-full items-center justify-center"
-              style={animatedButtonStyle}
-            >
-              <MaterialIcons
-                name={plant.isFavorite ? 'favorite' : 'favorite-border'}
-                size={24}
-                color={iconColors.textPrimary}
-              />
-            </Animated.View>
-          </Pressable>
-          <Pressable onPress={handleMoreOptions} testID="more-options-button">
-            <Animated.View
-              className="w-10 h-10 rounded-full items-center justify-center"
-              style={animatedButtonStyle}
-            >
-              <MaterialIcons
-                name="more-vert"
-                size={24}
-                color={iconColors.textPrimary}
-              />
-            </Animated.View>
-          </Pressable>
+          <HeaderButton
+            icon={plant.isFavorite ? 'favorite' : 'favorite-border'}
+            onPress={handleToggleFavorite}
+            iconColor={iconColors.textPrimary}
+            animatedFallbackStyle={animatedButtonStyle}
+          />
+          <HeaderButton
+            icon="more-vert"
+            onPress={handleMoreOptions}
+            iconColor={iconColors.textPrimary}
+            testID="more-options-button"
+            animatedFallbackStyle={animatedButtonStyle}
+          />
         </View>
       </View>
 

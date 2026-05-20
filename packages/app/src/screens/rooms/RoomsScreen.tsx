@@ -23,6 +23,7 @@ import { toast } from 'sonner-native'
 import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { RoomCardSkeleton } from '@/components/skeletons'
 import { ToggleRow } from '@/components/ToggleRow'
 import { Input } from '@/components/ui/Input'
@@ -288,16 +289,7 @@ export function RoomsScreen() {
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center rounded-full"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton />
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('title')}
         </Text>

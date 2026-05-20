@@ -17,6 +17,7 @@ import Animated, {
   LinearTransition,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonBox } from '@/components/skeletons'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -301,16 +302,7 @@ export function NotificationsScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-6 pt-4 pb-2">
         <View className="flex-row items-center gap-3">
-          <Pressable
-            onPress={() => router.back()}
-            className="w-10 h-10 rounded-full bg-surface dark:bg-surface-dark items-center justify-center"
-          >
-            <MaterialIcons
-              name="arrow-back"
-              size={22}
-              color={iconColors.textPrimary}
-            />
-          </Pressable>
+          <GlassBackButton />
           <Text
             className="text-xl text-text-primary dark:text-white font-bold"
             style={{ fontFamily: 'SpaceGrotesk_700Bold' }}

@@ -1,8 +1,19 @@
+import {
+  isLiquidGlassSupported,
+  LiquidGlassView,
+} from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import {
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from '@/components/Badge'
@@ -23,6 +34,53 @@ import { useUser } from '@/hooks/useUser'
 import { ProfileHeader } from '@/screens/profile/components/ProfileHeader'
 import { ProfileMenuItem } from '@/screens/profile/components/ProfileMenuItem'
 import { StatsCard } from '@/screens/profile/components/StatsCard'
+
+const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+
+function SettingsBubble({
+  onPress,
+  iconColor,
+}: {
+  onPress: () => void
+  iconColor: string
+}) {
+  if (useGlass) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      >
+        <LiquidGlassView
+          interactive={false}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <MaterialIcons
+            name="settings"
+            size={22}
+            color={iconColor}
+            style={{ lineHeight: 22 }}
+          />
+        </LiquidGlassView>
+      </Pressable>
+    )
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      className="w-12 h-12 items-center justify-center rounded-full"
+    >
+      <MaterialIcons name="settings" size={24} color={iconColor} />
+    </Pressable>
+  )
+}
 
 function ProfileContentSkeleton() {
   return (
@@ -159,16 +217,10 @@ export function ProfileScreen() {
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('profile:title')}
         </Text>
-        <Pressable
+        <SettingsBubble
           onPress={() => router.push('/settings')}
-          className="w-12 h-12 items-center justify-center rounded-full"
-        >
-          <MaterialIcons
-            name="settings"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+          iconColor={iconColors.textPrimary}
+        />
       </View>
 
       {showSkeleton ? (

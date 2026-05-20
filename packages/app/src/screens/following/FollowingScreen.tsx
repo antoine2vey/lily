@@ -6,6 +6,7 @@ import { FlatList, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -78,16 +79,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
       style={{ paddingTop: insets.top }}
     >
       <View className="flex-row items-center px-4 pt-2 pb-3">
-        <Pressable
-          onPress={handleBack}
-          className="w-10 h-10 items-center justify-center rounded-full"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton onPress={handleBack} />
         <Text
           className="flex-1 text-lg text-text-primary dark:text-white text-center mr-10"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
