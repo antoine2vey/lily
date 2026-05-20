@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { Chip } from '@/components/Chip'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { Button } from '@/components/ui/Button'
 import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -187,16 +188,7 @@ export function AIIdentificationResultsScreen() {
         className="flex-row items-center justify-between px-4 pb-2 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top + 8 }}
       >
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full items-center justify-center"
-        >
-          <MaterialIcons
-            name="arrow-back-ios-new"
-            size={20}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton />
         <Text className="text-lg font-bold text-text-primary dark:text-white">
           {t('results.plantIdentified')}
         </Text>

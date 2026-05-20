@@ -1,3 +1,8 @@
+import {
+  isLiquidGlassSupported,
+  LiquidGlassContainerView,
+  LiquidGlassView,
+} from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import {
   type DateInput,
@@ -13,7 +18,7 @@ import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
@@ -39,6 +44,8 @@ import {
   isUnhealthy,
   mapApiHealthToCardHealth,
 } from '@/utils/health'
+
+const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
 
 interface CareStatus {
   daysUntil?: number | undefined
@@ -111,9 +118,143 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
   (plant) => healthOrderMap[plant.health]
 )
 
+function ActionButton({
+  icon,
+  onPress,
+  iconColor,
+  testID,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap
+  onPress: () => void
+  iconColor: string
+  testID?: string
+}) {
+  const pressable = (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <MaterialIcons
+        name={icon}
+        size={22}
+        color={iconColor}
+        style={{ lineHeight: 22 }}
+      />
+    </Pressable>
+  )
+
+  if (useGlass) {
+    return (
+      <LiquidGlassView
+        interactive={false}
+        style={{ width: 40, height: 40, borderRadius: 20 }}
+      >
+        {pressable}
+      </LiquidGlassView>
+    )
+  }
+
+  return (
+    <View
+      className="bg-white dark:bg-surface-dark shadow-soft"
+      style={{ width: 40, height: 40, borderRadius: 20 }}
+    >
+      {pressable}
+    </View>
+  )
+}
+
+function ActionButtons({
+  showSearch,
+  onSearchPress,
+  onSortPress,
+  iconColor,
+}: {
+  showSearch: boolean
+  onSearchPress: () => void
+  onSortPress: () => void
+  iconColor: string
+}) {
+  const buttons = (
+    <>
+      <ActionButton
+        icon={showSearch ? 'close' : 'search'}
+        onPress={onSearchPress}
+        iconColor={iconColor}
+        testID="search-button"
+      />
+      <ActionButton
+        icon="sort"
+        onPress={onSortPress}
+        iconColor={iconColor}
+        testID="sort-button"
+      />
+    </>
+  )
+
+  if (useGlass) {
+    return (
+      <LiquidGlassContainerView
+        spacing={8}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+      >
+        {buttons}
+      </LiquidGlassContainerView>
+    )
+  }
+
+  return <View className="flex-row items-center gap-3">{buttons}</View>
+}
+
+function RoomPill({
+  isSelected,
+  onPress,
+  children,
+}: {
+  isSelected: boolean
+  onPress: () => void
+  children: React.ReactNode
+}) {
+  const pressable = (
+    <Pressable
+      onPress={onPress}
+      className={`h-8 px-3 rounded-full flex-row items-center gap-1 ${
+        isSelected ? 'bg-primary' : ''
+      }`}
+    >
+      {children}
+    </Pressable>
+  )
+
+  if (isSelected) return pressable
+
+  if (useGlass) {
+    return (
+      <LiquidGlassView interactive={false} style={{ borderRadius: 16 }}>
+        {pressable}
+      </LiquidGlassView>
+    )
+  }
+
+  return (
+    <View className="bg-white dark:bg-surface-dark border border-border dark:border-slate-700 rounded-full">
+      {pressable}
+    </View>
+  )
+}
+
 function PlantsListSkeleton() {
   return (
-    <View className="px-5 pt-2 gap-3">
+    <View className="px-6 pt-2 gap-3">
       {Array.map([1, 2, 3, 4, 5, 6], (i) => (
         <PlantCardSkeleton key={i} />
       ))}
@@ -306,38 +447,20 @@ export function PlantsScreen() {
         }}
       >
         {/* Header - always rendered */}
-        <View className="flex-row items-center justify-between px-5 pt-12 pb-2">
-          <Text className="text-3xl font-bold tracking-tight text-text-primary dark:text-white">
+        <View className="flex-row items-center justify-between px-6 pt-4 pb-4">
+          <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
             {t('list.title')}
           </Text>
-          <View className="flex-row items-center gap-3">
-            <Pressable
-              onPress={handleToggleSearch}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-surface-dark shadow-soft"
-              testID="search-button"
-            >
-              <MaterialIcons
-                name={showSearch ? 'close' : 'search'}
-                size={24}
-                color={iconColors.textPrimary}
-              />
-            </Pressable>
-            <Pressable
-              onPress={() => setShowSortSheet(true)}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-surface-dark shadow-soft"
-              testID="sort-button"
-            >
-              <MaterialIcons
-                name="sort"
-                size={24}
-                color={iconColors.textPrimary}
-              />
-            </Pressable>
-          </View>
+          <ActionButtons
+            showSearch={showSearch}
+            onSearchPress={handleToggleSearch}
+            onSortPress={() => setShowSortSheet(true)}
+            iconColor={iconColors.textPrimary}
+          />
         </View>
 
         {showSearch && (
-          <View className="px-5 pb-2">
+          <View className="px-6 pb-2">
             <PlantSearchBar
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -360,17 +483,14 @@ export function PlantsScreen() {
             style={{ flexGrow: 0, flexShrink: 0 }}
             contentContainerStyle={{
               gap: 8,
-              paddingHorizontal: 20,
+              paddingHorizontal: 24,
+              paddingTop: 6,
               paddingBottom: 8,
             }}
           >
-            <Pressable
+            <RoomPill
+              isSelected={selectedRoomId === null}
               onPress={() => setSelectedRoomId(null)}
-              className={`h-8 px-3 rounded-full flex-row items-center ${
-                selectedRoomId === null
-                  ? 'bg-primary'
-                  : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
-              }`}
             >
               <Text
                 className={`text-xs font-medium ${
@@ -381,18 +501,14 @@ export function PlantsScreen() {
               >
                 {t('list.filterAll')}
               </Text>
-            </Pressable>
+            </RoomPill>
             {Array.map(roomsData, (room) => {
               const isSelected = selectedRoomId === room.id
               return (
-                <Pressable
+                <RoomPill
                   key={room.id}
+                  isSelected={isSelected}
                   onPress={() => setSelectedRoomId(isSelected ? null : room.id)}
-                  className={`h-8 px-3 rounded-full flex-row items-center gap-1 ${
-                    isSelected
-                      ? 'bg-primary'
-                      : 'bg-white dark:bg-surface-dark border border-border dark:border-slate-700'
-                  }`}
                 >
                   <Text className="text-xs">{room.icon}</Text>
                   <Text
@@ -404,7 +520,7 @@ export function PlantsScreen() {
                   >
                     {room.name}
                   </Text>
-                </Pressable>
+                </RoomPill>
               )
             })}
           </ScrollView>
@@ -447,13 +563,13 @@ export function PlantsScreen() {
                 <Animated.FlatList
                   data={filteredPlants}
                   renderItem={({ item }) => (
-                    <View className="w-full px-2 py-1.5">
+                    <View className="w-full py-1.5">
                       <PlantCard plant={item} onPress={handlePlantPress} />
                     </View>
                   )}
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={{ paddingBottom: tabBarInset }}
-                  contentContainerClassName="px-3 pt-2"
+                  contentContainerClassName="px-6 pt-2"
                   showsVerticalScrollIndicator={false}
                   testID="plants-grid"
                   onScroll={scrollHandler}

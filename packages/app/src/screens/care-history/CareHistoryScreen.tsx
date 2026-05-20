@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheet } from '@/components/BottomSheet'
 import { Chip } from '@/components/Chip'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { useCareHistory } from '@/hooks/useCareHistory'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlant } from '@/hooks/usePlant'
@@ -101,16 +102,7 @@ export function CareHistoryScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border/10 dark:border-slate-700/10">
         {/* Back button */}
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full items-center justify-center"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton />
 
         {/* Center title */}
         <View className="items-center">

@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { ListRow } from '@/components/ListRow'
 import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -19,16 +20,7 @@ export function AboutScreen() {
     >
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 border-b border-border dark:border-slate-700">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 items-center justify-center"
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={24}
-            color={iconColors.textPrimary}
-          />
-        </Pressable>
+        <GlassBackButton />
         <Text className="flex-1 text-lg text-center mr-10 font-semibold text-text-primary dark:text-white">
           {t('title')}
         </Text>

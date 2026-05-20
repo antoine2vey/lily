@@ -7,6 +7,7 @@ import { FlatList, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Avatar } from '@/components/Avatar'
+import { GlassBackButton } from '@/components/GlassBackButton'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useConversations } from '@/hooks/useConversations'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
@@ -116,20 +117,7 @@ export function ConversationsListScreen() {
     >
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-slate-700">
         <View className="flex-row items-center gap-2">
-          {router.canGoBack() && (
-            <Pressable
-              testID="chat-back-button"
-              onPress={() => router.back()}
-              hitSlop={8}
-              className="w-10 h-10 items-center justify-center -ml-2"
-            >
-              <MaterialIcons
-                name="chevron-left"
-                size={28}
-                color={iconColors.textPrimary}
-              />
-            </Pressable>
-          )}
+          {router.canGoBack() && <GlassBackButton testID="chat-back-button" />}
           <Text
             className="text-2xl text-text-primary dark:text-white"
             style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
