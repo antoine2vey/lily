@@ -32,6 +32,11 @@ export default {
   },
   edit: {
     title: 'Edit Profile',
+    firstNameLabel: 'First name',
+    firstNamePlaceholder: 'Enter your first name',
+    firstNameRequired: 'First name is required',
+    lastNameLabel: 'Last name (optional)',
+    lastNamePlaceholder: 'Enter your last name',
     displayNameLabel: 'Display Name',
     displayNamePlaceholder: 'Enter your name',
     bioLabel: 'Bio',

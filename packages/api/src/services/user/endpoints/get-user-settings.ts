@@ -22,6 +22,8 @@ export const getUserSettings = (): Effect.Effect<
 
     return {
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       image: user.image || undefined,
       bio: user.bio || undefined,

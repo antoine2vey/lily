@@ -4,7 +4,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
-import { type CareType, compact } from '@lily/shared'
+import { type CareType, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Match, Option, pipe } from 'effect'
@@ -29,8 +29,21 @@ export const updateUserSettings = (
       return yield* new UserNotFoundError()
     }
 
+    // firstName: empty/whitespace is silently dropped (no-op). UI enforces
+    // required-on-edit, so this is defense-in-depth.
+    const trimmedFirst = pipe(
+      Option.fromNullable(trimAndNullify(data.firstName)),
+      Option.getOrUndefined
+    )
+    // lastName: undefined = leave unchanged, anything else passes through
+    // trimAndNullify (whitespace collapses to null = clear the field).
+    const lastNameUpdate =
+      data.lastName === undefined ? undefined : trimAndNullify(data.lastName)
+
     const updateData = compact({
       name: data.name,
+      firstName: trimmedFirst,
+      lastName: lastNameUpdate,
       image: data.image,
       bio: data.bio,
       careReminders: data.notifications?.careReminders,
@@ -130,6 +143,8 @@ export const updateUserSettings = (
 
     return {
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       image: pipe(Option.fromNullable(user.image), Option.getOrUndefined),
       bio: pipe(Option.fromNullable(user.bio), Option.getOrUndefined),

@@ -10,6 +10,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MeshBackground } from '@/components'
+import { AppleSignInButton } from '@/components/auth/AppleSignInButton'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { Button, Input } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useThemeContext } from '@/contexts/ThemeContext'
@@ -119,6 +121,20 @@ export default function LoginScreen() {
                 >
                   {t('auth:login.submitButton')}
                 </Button>
+
+                <View className="flex-row items-center gap-3 my-1">
+                  <View className="flex-1 h-px bg-white/20" />
+                  <Text
+                    className="text-xs text-white/60 uppercase tracking-wide"
+                    style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                  >
+                    {t('auth:login.orContinueWith')}
+                  </Text>
+                  <View className="flex-1 h-px bg-white/20" />
+                </View>
+
+                <AppleSignInButton onError={setError} />
+                <GoogleSignInButton onError={setError} />
               </View>
 
               <Text

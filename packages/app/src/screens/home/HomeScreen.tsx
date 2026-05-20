@@ -186,11 +186,15 @@ export function HomeScreen() {
   const weather = useWeather()
   const { count: unreadCount } = useUnreadCount()
 
+  // Greeting prefers the user's real first name when available, falling back
+  // to their chosen @handle, then their raw name field (if somehow set without
+  // a handle). Null means "no name yet" → use the i18n default.
   const userName = pipe(
     Match.value(state),
     Match.when({ _tag: 'Authenticated' }, ({ user }) =>
       pipe(
-        Option.fromNullable(user.username),
+        Option.fromNullable(user.firstName),
+        Option.orElse(() => Option.fromNullable(user.username)),
         Option.orElse(() => Option.fromNullable(user.name)),
         Option.getOrNull
       )

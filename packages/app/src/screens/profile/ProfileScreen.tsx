@@ -188,12 +188,37 @@ export function ProfileScreen() {
                 Option.fromNullable(user?.image),
                 Option.flatMap(Option.fromNullable)
               )}
-              name={Option.getOrElse(Option.fromNullable(user?.name), () =>
-                t('profile:defaultBio')
+              name={pipe(
+                // Title prefers the real "First Last" name. Falls back to
+                // the @handle when no real name is on file (magic-link users
+                // who haven't filled it in yet), and finally to a generic
+                // label if even the handle is missing.
+                Option.fromNullable(user?.firstName),
+                Option.map((first) =>
+                  pipe(
+                    Option.fromNullable(user?.lastName),
+                    Option.match({
+                      onNone: () => first,
+                      onSome: (last) => `${first} ${last}`,
+                    })
+                  )
+                ),
+                Option.orElse(() => Option.fromNullable(user?.name)),
+                Option.getOrElse(() => t('profile:defaultBio'))
               )}
               username={pipe(
-                Option.fromNullable(user?.email),
-                Option.flatMap((email) => Array.head(String.split(email, '@'))),
+                // Prefer the chosen @handle. Fall back to the email
+                // local-part only if the user hasn't picked one yet
+                // (transient state before /(auth)/username completes).
+                Option.fromNullable(user?.name),
+                Option.orElse(() =>
+                  pipe(
+                    Option.fromNullable(user?.email),
+                    Option.flatMap((email) =>
+                      Array.head(String.split(email, '@'))
+                    )
+                  )
+                ),
                 Option.getOrUndefined
               )}
               memberSince={pipe(

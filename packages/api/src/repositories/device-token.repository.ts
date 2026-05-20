@@ -3,7 +3,7 @@ import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { deviceTokens } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
@@ -39,11 +39,10 @@ export interface IDeviceTokenRepository {
   readonly findByUserId: (
     userId: string
   ) => Effect.Effect<DeviceToken[], SqlError>
-  readonly findByTokenAndUserId: (
-    token: string,
-    userId: string
-  ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly create: (
+    data: CreateDeviceTokenData
+  ) => Effect.Effect<DeviceToken | null, SqlError>
+  readonly upsertByToken: (
     data: CreateDeviceTokenData
   ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly update: (
@@ -96,18 +95,6 @@ export const DeviceTokenRepositoryLive = Layer.effect(
         return Array.map(rows, mapToDeviceToken)
       }),
 
-      findByTokenAndUserId: Effect.fn(
-        'DeviceTokenRepository.findByTokenAndUserId'
-      )(function* (token: string, userId: string) {
-        const [row] = yield* db
-          .select()
-          .from(deviceTokens)
-          .where(
-            and(eq(deviceTokens.token, token), eq(deviceTokens.userId, userId))
-          )
-        return row ? mapToDeviceToken(row) : null
-      }),
-
       create: Effect.fn('DeviceTokenRepository.create')(function* (
         data: CreateDeviceTokenData
       ) {
@@ -121,6 +108,36 @@ export const DeviceTokenRepositoryLive = Layer.effect(
           .returning()
         return row ? mapToDeviceToken(row) : null
       }),
+
+      // Atomic upsert keyed on the unique `token` column. Handles three cases
+      // in a single SQL statement (no TOCTOU window):
+      //  - no row → INSERT
+      //  - same userId → bump `isActive`/`platform`/`updatedAt`
+      //  - different userId → reassign device to the current user (treated as
+      //    sign-out + sign-in on the same physical device).
+      upsertByToken: Effect.fn('DeviceTokenRepository.upsertByToken')(
+        function* (data: CreateDeviceTokenData) {
+          const [row] = yield* db
+            .insert(deviceTokens)
+            .values({
+              token: data.token,
+              platform: data.platform,
+              userId: data.userId,
+              isActive: true,
+            })
+            .onConflictDoUpdate({
+              target: deviceTokens.token,
+              set: {
+                userId: data.userId,
+                platform: data.platform,
+                isActive: true,
+                updatedAt: nowAsDate(),
+              },
+            })
+            .returning()
+          return row ? mapToDeviceToken(row) : null
+        }
+      ),
 
       update: Effect.fn('DeviceTokenRepository.update')(function* (
         id: string,

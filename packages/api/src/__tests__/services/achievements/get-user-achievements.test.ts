@@ -10,6 +10,10 @@ const createCurrentUserLayer = (userId: string) =>
     id: userId,
     email: 'test@test.com',
     name: 'Test User',
+
+    firstName: null,
+
+    lastName: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     role: 'user' as const,

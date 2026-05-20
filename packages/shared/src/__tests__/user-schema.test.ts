@@ -17,6 +17,8 @@ const validUser = {
   id: 'user-123',
   email: 'test@example.com',
   name: 'Test User',
+  firstName: null,
+  lastName: null,
   createdAt: '2024-01-01T00:00:00.000Z',
   updatedAt: '2024-01-15T00:00:00.000Z',
   emailVerified: true,
@@ -220,6 +222,8 @@ describe('User Schemas', () => {
     it('should decode valid settings', () => {
       const settings = {
         name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
         email: 'test@example.com',
         notifications: {
           careReminders: true,
@@ -258,6 +262,8 @@ describe('User Schemas', () => {
     it('should accept null for nullable fields', () => {
       const settings = {
         name: null,
+        firstName: null,
+        lastName: null,
         email: 'test@example.com',
         notifications: {
           careReminders: true,
@@ -295,6 +301,8 @@ describe('User Schemas', () => {
     it('should accept optional image and bio', () => {
       const settings = {
         name: 'Test',
+        firstName: null,
+        lastName: null,
         email: 'test@example.com',
         image: 'https://example.com/avatar.jpg',
         bio: 'Plant lover',

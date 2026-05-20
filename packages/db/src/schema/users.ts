@@ -8,6 +8,7 @@ import {
   userStatusEnum,
 } from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
+import { oauthIdentities } from '@lily/db/schema/oauth-identities'
 import { plants } from '@lily/db/schema/plants'
 import { rooms } from '@lily/db/schema/rooms'
 import { userFollows, userNudges } from '@lily/db/schema/social'
@@ -30,7 +31,15 @@ import {
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
+  // `name` is the @handle, picked via the username picker. Always either NULL
+  // or a valid `^[a-zA-Z0-9_]{3,30}$` value.
   name: text('name').unique(),
+  // Real first/last name. Populated from social-login providers on signup
+  // (Apple first-time `fullName`, Google `given_name`/`family_name`). Magic-
+  // link users start NULL and can fill them in via profile edit. `firstName`
+  // is required when present in an update; `lastName` is fully optional.
+  firstName: text('first_name'),
+  lastName: text('last_name'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -78,6 +87,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   deviceTokens: many(deviceTokens),
   refreshTokens: many(refreshTokens),
   magicLinks: many(magicLinks),
+  oauthIdentities: many(oauthIdentities),
   achievements: many(userAchievements),
   subscription: one(userSubscriptions),
   subscriptionUsage: many(subscriptionUsage),

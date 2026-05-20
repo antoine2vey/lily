@@ -16,6 +16,8 @@ import { describe, expect, it } from 'vitest'
 const ownerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser1.id,
   name: mockUser1.name,
+  firstName: null,
+  lastName: null,
   email: mockUser1.email,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -26,6 +28,8 @@ const ownerCurrentUser = Layer.succeed(CurrentUser, {
 const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser2.id,
   name: mockUser2.name,
+  firstName: null,
+  lastName: null,
   email: mockUser2.email,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -36,6 +40,8 @@ const caretakerCurrentUser = Layer.succeed(CurrentUser, {
 const thirdPartyCurrentUser = Layer.succeed(CurrentUser, {
   id: 'user-3',
   name: 'Third Party',
+  firstName: null,
+  lastName: null,
   email: 'third@example.com',
   createdAt: new Date(),
   updatedAt: new Date(),

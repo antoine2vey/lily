@@ -13,6 +13,8 @@ import { Effect, Layer } from 'effect'
 export const mockUserProfile: UserProfile = {
   id: 'user-1',
   name: 'Test User',
+  firstName: null,
+  lastName: null,
   email: 'test@example.com',
   username: 'testuser',
   createdAt: new Date('2024-01-01'),
@@ -24,6 +26,8 @@ export const mockUserProfile: UserProfile = {
 export const mockAdminProfile: UserProfile = {
   id: 'admin-1',
   name: 'Admin User',
+  firstName: null,
+  lastName: null,
   email: 'admin@example.com',
   username: 'adminuser',
   createdAt: new Date('2024-01-01'),

@@ -32,6 +32,8 @@ export const withSession = <A, E, R>(
       id: user.id,
       email: user.email,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       username: user.username,
       timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
       createdAt: user.createdAt,

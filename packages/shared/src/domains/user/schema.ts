@@ -20,6 +20,8 @@ export const User = Schema.Struct({
   id: Schema.String,
   email: Schema.String,
   name: Schema.NullOr(Schema.String),
+  firstName: Schema.NullOr(Schema.String),
+  lastName: Schema.NullOr(Schema.String),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
   emailVerified: Schema.Boolean,
@@ -63,6 +65,8 @@ export const UserUpdateRequest = Schema.Struct({
 // User settings schemas - simplified to use existing user fields plus default notification settings
 export const UserSettings = Schema.Struct({
   name: Schema.NullOr(Schema.String),
+  firstName: Schema.NullOr(Schema.String),
+  lastName: Schema.NullOr(Schema.String),
   email: Schema.String,
   image: Schema.optional(Schema.String),
   bio: Schema.optional(Schema.String), // Will default to empty string for now
@@ -95,6 +99,10 @@ export const UserSettings = Schema.Struct({
 
 export const UserSettingsUpdateRequest = Schema.Struct({
   name: Schema.optional(Schema.String),
+  // Required to be a non-empty string when present (validated server-side).
+  firstName: Schema.optional(Schema.String),
+  // Fully optional. Set to null to clear, omit to leave unchanged.
+  lastName: Schema.optional(Schema.NullOr(Schema.String)),
   image: Schema.optional(Schema.String),
   bio: Schema.optional(Schema.String),
   notifications: Schema.optional(

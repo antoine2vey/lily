@@ -18,6 +18,8 @@ export const createMockSession = (
         id: userId,
         email: 'test@example.com',
         name: 'Test User',
+        firstName: null,
+        lastName: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         role: 'user' as const,
@@ -45,6 +47,14 @@ export const createMockCurrentUser = (
     name: pipe(
       Option.fromNullable(options.name),
       Option.getOrElse(() => 'Test User')
+    ),
+    firstName: pipe(
+      Option.fromNullable(options.firstName),
+      Option.getOrElse<string | null>(() => null)
+    ),
+    lastName: pipe(
+      Option.fromNullable(options.lastName),
+      Option.getOrElse<string | null>(() => null)
     ),
     username: options.username,
     createdAt: pipe(

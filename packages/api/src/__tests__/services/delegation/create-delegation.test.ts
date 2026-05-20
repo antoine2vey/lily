@@ -31,6 +31,8 @@ const futureEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
 const mockCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser1.id,
   name: mockUser1.name,
+  firstName: null,
+  lastName: null,
   email: mockUser1.email,
   createdAt: new Date(),
   updatedAt: new Date(),

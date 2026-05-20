@@ -14,6 +14,8 @@ import { describe, expect, it } from 'vitest'
 const caretakerCurrentUser = Layer.succeed(CurrentUser, {
   id: mockUser2.id,
   name: mockUser2.name,
+  firstName: null,
+  lastName: null,
   email: mockUser2.email,
   createdAt: new Date(),
   updatedAt: new Date(),

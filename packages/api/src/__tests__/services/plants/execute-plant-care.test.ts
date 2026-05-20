@@ -130,6 +130,10 @@ describe('executePlantCare', () => {
               createMockCurrentUser({
                 id: userId,
                 name: 'Test User',
+
+                firstName: null,
+
+                lastName: null,
                 email: 'test@example.com',
                 username: 'testuser',
                 createdAt: new Date(),
@@ -209,6 +213,10 @@ describe('executePlantCare', () => {
               createMockCurrentUser({
                 id: userId,
                 name: 'Test User',
+
+                firstName: null,
+
+                lastName: null,
                 email: 'test@example.com',
                 username: 'testuser',
                 createdAt: new Date(),
@@ -280,6 +288,10 @@ describe('executePlantCare', () => {
               createMockCurrentUser({
                 id: userId,
                 name: 'Test User',
+
+                firstName: null,
+
+                lastName: null,
                 email: 'test@example.com',
                 username: 'testuser',
                 createdAt: new Date(),
@@ -380,6 +392,10 @@ describe('executePlantCare', () => {
               createMockCurrentUser({
                 id: userId,
                 name: 'Test User',
+
+                firstName: null,
+
+                lastName: null,
                 email: 'test@example.com',
                 username: 'testuser',
                 createdAt: new Date(),

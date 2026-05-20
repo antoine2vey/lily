@@ -50,6 +50,10 @@ describe('getCareAdjustments', () => {
         id: mockUser1.id,
         email: mockUser1.email,
         name: mockUser1.name,
+
+        firstName: null,
+
+        lastName: null,
         createdAt: mockUser1.createdAt,
         updatedAt: mockUser1.updatedAt,
         role: mockUser1.role,
@@ -85,6 +89,10 @@ describe('getCareAdjustments', () => {
         id: weatherUser.id,
         email: weatherUser.email,
         name: weatherUser.name,
+
+        firstName: null,
+
+        lastName: null,
         createdAt: weatherUser.createdAt,
         updatedAt: weatherUser.updatedAt,
         role: weatherUser.role,
@@ -126,6 +134,10 @@ describe('getCareAdjustments', () => {
         id: weatherUser.id,
         email: weatherUser.email,
         name: weatherUser.name,
+
+        firstName: null,
+
+        lastName: null,
         createdAt: weatherUser.createdAt,
         updatedAt: weatherUser.updatedAt,
         role: weatherUser.role,

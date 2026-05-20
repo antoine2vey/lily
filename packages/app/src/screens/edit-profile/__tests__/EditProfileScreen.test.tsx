@@ -90,7 +90,7 @@ describe('EditProfileScreen', () => {
 
   it('calls updateProfile when save is pressed', () => {
     mockedUseUser.mockReturnValue({
-      data: mockUsers[0],
+      data: { ...mockUsers[0], firstName: 'Test' },
       isLoading: false,
     })
 
@@ -99,6 +99,20 @@ describe('EditProfileScreen', () => {
     fireEvent.press(screen.getByText('Save'))
 
     expect(mockUpdateProfile).toHaveBeenCalled()
+  })
+
+  it('blocks save and shows error when firstName is empty', () => {
+    mockedUseUser.mockReturnValue({
+      data: { ...mockUsers[0], firstName: null },
+      isLoading: false,
+    })
+
+    render(<EditProfileScreen />)
+
+    fireEvent.press(screen.getByText('Save'))
+
+    expect(mockUpdateProfile).not.toHaveBeenCalled()
+    expect(screen.getByText('First name is required')).toBeTruthy()
   })
 
   it('shows loading indicator when updating', () => {

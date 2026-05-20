@@ -6,13 +6,17 @@ import type { DeviceToken } from '@lily/shared/device-token'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 export const createMockDeviceTokenRepository = (
-  tokens: DeviceToken[]
+  initial: DeviceToken[]
 ): Layer.Layer<DeviceTokenRepository> => {
+  // Mutable in-memory store so the upsert semantics actually mutate state
+  // (mirrors the unique constraint on `token` in the real DB).
+  const store: DeviceToken[] = [...initial]
+
   const repo: IDeviceTokenRepository = {
     findById: (id: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(tokens, (t) => t.id === id),
+          Array.findFirst(store, (t) => t.id === id),
           Option.getOrNull
         )
       ),
@@ -20,24 +24,13 @@ export const createMockDeviceTokenRepository = (
     findByToken: (token: string) =>
       Effect.succeed(
         pipe(
-          Array.findFirst(tokens, (t) => t.token === token),
+          Array.findFirst(store, (t) => t.token === token),
           Option.getOrNull
         )
       ),
 
     findByUserId: (userId: string) =>
-      Effect.succeed(Array.filter(tokens, (t) => t.userId === userId)),
-
-    findByTokenAndUserId: (token: string, userId: string) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(
-            tokens,
-            (t) => t.token === token && t.userId === userId
-          ),
-          Option.getOrNull
-        )
-      ),
+      Effect.succeed(Array.filter(store, (t) => t.userId === userId)),
 
     create: (data) => {
       const newToken: DeviceToken = {
@@ -49,25 +42,55 @@ export const createMockDeviceTokenRepository = (
         createdAt: new Date(),
         updatedAt: new Date(),
       }
+      store.push(newToken)
       return Effect.succeed(newToken)
     },
 
-    update: (id, data) => {
-      const tokenOption = Array.findFirst(tokens, (t) => t.id === id)
-      return Option.match(tokenOption, {
-        onNone: () => Effect.succeed(null),
-        onSome: (token) =>
-          Effect.succeed({ ...token, ...data, updatedAt: new Date() }),
-      })
+    upsertByToken: (data) => {
+      const idx = store.findIndex((t) => t.token === data.token)
+      if (idx === -1) {
+        const created: DeviceToken = {
+          id: `token-${crypto.randomUUID()}`,
+          token: data.token,
+          platform: data.platform,
+          isActive: true,
+          userId: data.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        store.push(created)
+        return Effect.succeed(created)
+      }
+      const existing = store[idx]!
+      const updated: DeviceToken = {
+        ...existing,
+        userId: data.userId,
+        platform: data.platform,
+        isActive: true,
+        updatedAt: new Date(),
+      }
+      store[idx] = updated
+      return Effect.succeed(updated)
     },
 
-    delete: (id) =>
-      Effect.succeed(
-        pipe(
-          Array.findFirst(tokens, (t) => t.id === id),
-          Option.getOrNull
-        )
-      ),
+    update: (id, data) => {
+      const idx = store.findIndex((t) => t.id === id)
+      if (idx === -1) return Effect.succeed(null)
+      const updated: DeviceToken = {
+        ...store[idx]!,
+        ...data,
+        updatedAt: new Date(),
+      }
+      store[idx] = updated
+      return Effect.succeed(updated)
+    },
+
+    delete: (id) => {
+      const idx = store.findIndex((t) => t.id === id)
+      if (idx === -1) return Effect.succeed(null)
+      const [removed] = store.splice(idx, 1)
+      return Effect.succeed(removed ?? null)
+    },
   }
 
   return Layer.succeed(DeviceTokenRepository, repo)

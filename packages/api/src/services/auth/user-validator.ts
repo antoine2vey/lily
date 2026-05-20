@@ -79,6 +79,8 @@ export const validateUserFromToken = <E>(
       id: user.id,
       email: user.email,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       username: Option.getOrUndefined(Option.fromNullable(user.name)),
       timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
       createdAt: user.createdAt,

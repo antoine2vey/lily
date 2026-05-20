@@ -1,5 +1,5 @@
 import type { LanguageCode } from '@lily/shared'
-import type { UserProfile } from '@lily/shared/auth'
+import type { OAuthSignInRequest, UserProfile } from '@lily/shared/auth'
 import { Duration, Effect, Match, Option, pipe, Schedule } from 'effect'
 import { useRouter, useSegments } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
@@ -122,6 +122,13 @@ type AuthContextValue = {
   setUsername: (
     username: string
   ) => Promise<{ success: boolean; error?: string | undefined }>
+  signInWithOAuth: (
+    input: Pick<OAuthSignInRequest, 'provider' | 'idToken' | 'fullName'>
+  ) => Promise<{
+    success: boolean
+    error?: string | undefined
+    status?: string | undefined
+  }>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -385,6 +392,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [verifyMagicLink]
   )
 
+  const signInWithOAuth = useCallback(
+    async (
+      input: Pick<OAuthSignInRequest, 'provider' | 'idToken' | 'fullName'>
+    ): Promise<{
+      success: boolean
+      error?: string | undefined
+      status?: string | undefined
+    }> => {
+      try {
+        const response = await apiEffectRunner('auth', 'oauthSignIn', {
+          payload: {
+            provider: input.provider,
+            idToken: input.idToken,
+            ...(input.fullName ? { fullName: input.fullName } : {}),
+            timezone: getDeviceTimezone(),
+            language: getDeviceLanguage(),
+          },
+        })
+
+        await Effect.runPromise(storeAccessToken(response.accessToken))
+        await Effect.runPromise(storeRefreshToken(response.refreshToken))
+        await Effect.runPromise(storeUserEmail(response.user.email))
+        setPendingEmail(response.user.email)
+
+        if (!response.user.username) {
+          setState({
+            _tag: 'NeedsUsername',
+            user: response.user,
+            accessToken: response.accessToken,
+          })
+        } else {
+          setState({
+            _tag: 'Authenticated',
+            user: response.user,
+            accessToken: response.accessToken,
+          })
+          registerDeviceForPush().catch((err) => {
+            console.warn('Push notification registration failed:', err)
+          })
+        }
+        return { success: true }
+      } catch (error) {
+        return {
+          success: false,
+          error: extractErrorMessage(error),
+          status: extractErrorField(error, 'status'),
+        }
+      }
+    },
+    []
+  )
+
   const setUsername = useCallback(
     async (username: string): Promise<{ success: boolean; error?: string }> => {
       try {
@@ -469,6 +528,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         pendingEmail,
         login,
         verifyMagicLink,
+        signInWithOAuth,
         setUsername,
         logout,
         refreshUser,
