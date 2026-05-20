@@ -1,9 +1,10 @@
-import { Array } from 'effect'
+import { Array, pipe } from 'effect'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
-import { BlogPostCard } from '@/components/BlogPostCard'
+import { BlogList } from '@/components/BlogList'
 import { JsonLd } from '@/components/JsonLd'
+import { paginatePosts } from '@/lib/blog-pagination'
 import { getAllPosts } from '@/lib/posts'
 
 interface Props {
@@ -53,7 +54,8 @@ export default async function BlogPage({ params }: Props) {
   const { locale } = await params
   setRequestLocale(locale)
   const t = await getTranslations({ locale, namespace: 'BlogIndex' })
-  const posts = getAllPosts(locale)
+  const allPosts = getAllPosts(locale)
+  const { items, page, totalPages } = paginatePosts(allPosts, 1)
 
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
@@ -77,12 +79,15 @@ export default async function BlogPage({ params }: Props) {
   const itemListSchema = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    itemListElement: Array.map(posts, (post, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      url: `https://withlily.app/${locale}/blog/${post.slug}`,
-      name: post.title,
-    })),
+    itemListElement: pipe(
+      items,
+      Array.map((post, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: `https://withlily.app/${locale}/blog/${post.slug}`,
+        name: post.title,
+      }))
+    ),
   }
 
   return (
@@ -103,16 +108,17 @@ export default async function BlogPage({ params }: Props) {
       </header>
 
       <section className="max-w-6xl mx-auto px-6">
-        {Array.match(posts, {
+        {Array.match(allPosts, {
           onEmpty: () => (
             <p className="text-center text-muted py-24">{t('empty')}</p>
           ),
-          onNonEmpty: (ps) => (
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.map(ps, (post) => (
-                <BlogPostCard key={post.slug} post={post} locale={locale} />
-              ))}
-            </div>
+          onNonEmpty: () => (
+            <BlogList
+              locale={locale}
+              pageItems={items}
+              page={page}
+              totalPages={totalPages}
+            />
           ),
         })}
       </section>

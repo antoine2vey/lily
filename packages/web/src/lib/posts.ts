@@ -35,11 +35,19 @@ function getPostsDirectory(locale: string) {
   return path.join(process.cwd(), 'content/posts', locale)
 }
 
-export function getAllPosts(locale = 'en'): PostMeta[] {
-  const dir = getPostsDirectory(locale)
-  if (!fs.existsSync(dir)) return []
+const postsCache = new Map<string, PostMeta[]>()
 
-  return pipe(
+export function getAllPosts(locale = 'en'): PostMeta[] {
+  const cached = postsCache.get(locale)
+  if (cached) return cached
+
+  const dir = getPostsDirectory(locale)
+  if (!fs.existsSync(dir)) {
+    postsCache.set(locale, [])
+    return []
+  }
+
+  const result = pipe(
     fs.readdirSync(dir),
     Array.filter(String.endsWith('.mdx')),
     Array.map((file) => {
@@ -64,6 +72,8 @@ export function getAllPosts(locale = 'en'): PostMeta[] {
       )
     )
   )
+  postsCache.set(locale, result)
+  return result
 }
 
 export function getPostBySlug(

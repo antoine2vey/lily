@@ -127,7 +127,18 @@
     "subheading": "Guides d'experts sur l'arrosage, la lumière, les nuisibles et plus encore.",
     "empty": "Aucun article pour l'instant. Revenez bientôt.",
     "metaTitle": "Blog Soins des Plantes — Lily",
-    "metaDescription": "Guides d'experts pour l'entretien de vos plantes d'intérieur. Apprenez à arroser, fertiliser et résoudre les problèmes courants."
+    "metaDescription": "Guides d'experts pour l'entretien de vos plantes d'intérieur. Apprenez à arroser, fertiliser et résoudre les problèmes courants.",
+    "searchPlaceholder": "Rechercher des articles…",
+    "searchAriaLabel": "Rechercher dans le blog",
+    "searchClear": "Effacer la recherche",
+    "noResults": "Aucun article ne correspond à votre recherche.",
+    "searchResultsCount": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+    "paginationPrevious": "← Précédent",
+    "paginationNext": "Suivant →",
+    "paginationLabel": "Pagination du blog",
+    "paginationPage": "Page {page} sur {total}",
+    "paginationPageNumber": "Aller à la page {page}",
+    "pageSuffix": "— Page {page}"
   },
   "BlogPost": {
     "home": "Accueil",
