@@ -57,6 +57,8 @@ export const setUsername = (
       id: updatedUser.id,
       email: updatedUser.email,
       name: updatedUser.name,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
       username: updatedUser.name || undefined,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt,

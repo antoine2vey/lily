@@ -32,6 +32,11 @@ export default {
   },
   edit: {
     title: 'Modifier le profil',
+    firstNameLabel: 'Prénom',
+    firstNamePlaceholder: 'Entrez votre prénom',
+    firstNameRequired: 'Le prénom est obligatoire',
+    lastNameLabel: 'Nom (optionnel)',
+    lastNamePlaceholder: 'Entrez votre nom',
     displayNameLabel: "Nom d'affichage",
     displayNamePlaceholder: 'Entrez votre nom',
     bioLabel: 'Bio',

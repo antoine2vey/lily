@@ -40,6 +40,7 @@ import { GiftCodeRepositoryLive } from '@lily/api/repositories/gift-code.reposit
 import { IngestJobRepositoryLive } from '@lily/api/repositories/ingest-job.repository'
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
+import { OAuthIdentityRepositoryLive } from '@lily/api/repositories/oauth-identity.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
 import { ProcessedChunkRepositoryLive } from '@lily/api/repositories/processed-chunk.repository'
@@ -67,6 +68,7 @@ import {
   RedisClientLive,
   RedisMessageQueueLive,
 } from '@lily/api/services/message-queue/redis.provider'
+import { OAuthVerifierServiceLive } from '@lily/api/services/oauth-verifier/service'
 import { ConsolePushServiceLive } from '@lily/api/services/push/console.provider'
 import { ExpoPlusApnsPushServiceLive } from '@lily/api/services/push/expo-plus-apns.provider'
 import { RagService } from '@lily/api/services/rag/service'
@@ -138,6 +140,7 @@ const RepositoriesGroup2 = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
   AnalyticsRepositoryLive,
   GiftCodeRepositoryLive,
+  OAuthIdentityRepositoryLive,
   ScanRepositoryLive,
   SubscriptionRepositoryLive,
   UserRepositoryLive,
@@ -233,6 +236,7 @@ const SelfContainedInfraLive = Layer.mergeAll(
   WeatherProviderLive,
   ExternalServicesLive,
   JWTServiceLive,
+  OAuthVerifierServiceLive,
   RateLimiterServiceLive,
   MagicLinkConfigLive
 ).pipe(Layer.provideMerge(BunContext.layer))

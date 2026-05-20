@@ -7,6 +7,7 @@ import {
   MagicLinkRequest,
   MagicLinkSentResponse,
   MagicLinkVerifyRequest,
+  OAuthSignInRequest,
   RefreshTokenRequest,
   RefreshTokenResponse,
   UsernameRequest,
@@ -50,6 +51,13 @@ export const AuthApi = HttpApiGroup.make('auth')
       .addSuccess(AuthResponse)
       .addError(AuthError, { status: 400 })
       .addError(RateLimitExceededError, { status: 429 })
+  )
+  .add(
+    // POST /auth/oauth/signin - Exchange Apple/Google ID token for our JWT pair
+    HttpApiEndpoint.post('oauthSignIn')`/oauth/signin`
+      .setPayload(OAuthSignInRequest)
+      .addSuccess(AuthResponse)
+      .addError(AuthError, { status: 400 })
   )
   .add(
     // POST /auth/refresh - Refresh access token using refresh token

@@ -1,17 +1,14 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
-import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
+import type { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import {
-  ACCESS_TOKEN_EXPIRY_SECONDS,
-  REFRESH_TOKEN_EXPIRY_MS,
-} from '@lily/api/services/auth/constants'
-import { JWTService } from '@lily/api/services/jwt/service'
+import { issueSession } from '@lily/api/services/auth/helpers/issue-session'
+import type { JWTService } from '@lily/api/services/jwt/service'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
-import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
 /**
  * Verify magic link token and exchange for JWT tokens
@@ -32,9 +29,7 @@ export const verifyMagicLink = ({
 > =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
-    const refreshTokenRepo = yield* RefreshTokenRepository
     const userRepo = yield* UserRepository
-    const jwtService = yield* JWTService
     const rateLimiter = yield* RateLimiterService
 
     // Validate UUID format
@@ -99,47 +94,5 @@ export const verifyMagicLink = ({
       })
     }
 
-    // Generate access token
-    const accessToken = yield* jwtService.signAccessToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-    })
-
-    // Generate refresh token
-    const refreshToken = yield* jwtService.generateRefreshToken()
-    const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
-    const refreshTokenExpiry = DateTime.toDateUtc(
-      DateTime.addDuration(
-        DateTime.unsafeNow(),
-        Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
-      )
-    )
-
-    // Store hashed refresh token
-    yield* refreshTokenRepo.create(
-      user.id,
-      refreshTokenHash,
-      refreshTokenExpiry
-    )
-
-    // Build user profile response
-    const userProfile = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      username: user.name || undefined,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      role: user.role,
-      status: user.status,
-    }
-
-    return {
-      user: userProfile,
-      accessToken,
-      refreshToken,
-      expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
-    }
+    return yield* issueSession(user)
   }).pipe(Effect.withSpan('AuthService.verifyMagicLink'))

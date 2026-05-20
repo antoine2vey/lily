@@ -19,6 +19,8 @@ export const getCurrentUser = (): Effect.Effect<
       id: user.id,
       email: user.email,
       name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       username: user.username,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

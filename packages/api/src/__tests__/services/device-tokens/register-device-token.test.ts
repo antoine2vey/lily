@@ -1,6 +1,7 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { registerDeviceToken } from '@lily/api/services/device-tokens/endpoints/register-device-token'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -12,7 +13,7 @@ describe('registerDeviceToken', () => {
       createMockCurrentUser({ id: userId })
     )
 
-  it('should create a new device token', async () => {
+  it('inserts a new device token when none exists', async () => {
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'new-expo-token',
@@ -26,60 +27,99 @@ describe('registerDeviceToken', () => {
     expect(result.isActive).toBe(true)
   })
 
-  it('should return existing token if already registered', async () => {
+  it('reactivates the same row when same user re-registers', async () => {
+    const layer = createTestLayer('user-1')
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'expo-push-token-123',
         platform: 'ios',
-      }).pipe(Effect.provide(createTestLayer()))
+      }).pipe(Effect.provide(layer))
     )
 
     expect(result.token).toBe('expo-push-token-123')
     expect(result.id).toBe('token-1')
     expect(result.isActive).toBe(true)
+
+    // Idempotent: registering twice still returns the same row id
+    const second = await Effect.runPromise(
+      registerDeviceToken({
+        token: 'expo-push-token-123',
+        platform: 'ios',
+      }).pipe(Effect.provide(layer))
+    )
+    expect(second.id).toBe('token-1')
   })
 
-  it('should update isActive to true when re-registering', async () => {
+  it('flips isActive back to true when re-registering an inactive token', async () => {
     const firstToken = mockDeviceTokens[0]
     if (!firstToken) throw new Error('Test setup: missing mock token')
-    const tokens = [
-      {
-        ...firstToken,
-        isActive: false,
-      },
-    ]
+    const layer = Layer.mergeAll(
+      createMockDeviceTokenRepository([{ ...firstToken, isActive: false }]),
+      createMockCurrentUser({ id: 'user-1' })
+    )
 
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'expo-push-token-123',
         platform: 'ios',
-      }).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            createMockDeviceTokenRepository(tokens),
-            createMockCurrentUser({ id: 'user-1' })
-          )
-        )
-      )
+      }).pipe(Effect.provide(layer))
     )
 
     expect(result.isActive).toBe(true)
   })
 
-  it('should create new token for different user', async () => {
+  it('reassigns existing token to current user (sign-out + sign-in on same device)', async () => {
+    // 'expo-push-token-123' currently belongs to user-1 in the fixture; user-3 claims it.
+    const layer = createTestLayer('user-3')
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'expo-push-token-123',
         platform: 'ios',
-      }).pipe(Effect.provide(createTestLayer('user-3')))
+      }).pipe(Effect.provide(layer))
     )
 
-    expect(result.token).toBe('expo-push-token-123')
+    // Same row id (reassigned, not duplicated — Postgres unique constraint preserved)
+    expect(result.id).toBe('token-1')
     expect(result.userId).toBe('user-3')
-    expect(result.id).not.toBe('token-1')
+    expect(result.isActive).toBe(true)
   })
 
-  it('should support android platform', async () => {
+  it('reassignment leaves the previous user with no claim to this device', async () => {
+    const layer = createTestLayer('user-3')
+
+    await Effect.runPromise(
+      registerDeviceToken({
+        token: 'expo-push-token-123',
+        platform: 'ios',
+      }).pipe(Effect.provide(layer))
+    )
+
+    // Verify by querying the repo: user-1 no longer owns this token
+    const remaining = await Effect.runPromise(
+      Effect.gen(function* () {
+        const repo = yield* DeviceTokenRepository
+        return yield* repo.findByUserId('user-1')
+      }).pipe(Effect.provide(layer))
+    )
+    expect(
+      remaining.find((t) => t.token === 'expo-push-token-123')
+    ).toBeUndefined()
+  })
+
+  it('updates platform when reassigning', async () => {
+    // Device might literally swap (iOS user signs out, new owner is on Android variant)
+    const layer = createTestLayer('user-3')
+    const result = await Effect.runPromise(
+      registerDeviceToken({
+        token: 'expo-push-token-123',
+        platform: 'android',
+      }).pipe(Effect.provide(layer))
+    )
+    expect(result.platform).toBe('android')
+    expect(result.id).toBe('token-1')
+  })
+
+  it('supports android platform on first registration', async () => {
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'android-token',
@@ -90,7 +130,7 @@ describe('registerDeviceToken', () => {
     expect(result.platform).toBe('android')
   })
 
-  it('should support web platform', async () => {
+  it('supports web platform on first registration', async () => {
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'web-token',
@@ -101,29 +141,7 @@ describe('registerDeviceToken', () => {
     expect(result.platform).toBe('web')
   })
 
-  it('should handle re-registering the same token multiple times', async () => {
-    // First registration
-    const result1 = await Effect.runPromise(
-      registerDeviceToken({
-        token: 'repeat-token',
-        platform: 'ios',
-      }).pipe(Effect.provide(createTestLayer()))
-    )
-    expect(result1.token).toBe('repeat-token')
-    expect(result1.isActive).toBe(true)
-  })
-
-  it('should create distinct tokens for different platforms same user', async () => {
-    const ios = await Effect.runPromise(
-      registerDeviceToken({
-        token: 'multi-platform-token',
-        platform: 'ios',
-      }).pipe(Effect.provide(createTestLayer()))
-    )
-    expect(ios.platform).toBe('ios')
-  })
-
-  it('should handle very long token strings', async () => {
+  it('handles very long token strings', async () => {
     const longToken = 'a'.repeat(500)
     const result = await Effect.runPromise(
       registerDeviceToken({
@@ -134,7 +152,7 @@ describe('registerDeviceToken', () => {
     expect(result.token).toBe(longToken)
   })
 
-  it('should set isActive to true for newly created tokens', async () => {
+  it('sets isActive to true for newly created tokens', async () => {
     const result = await Effect.runPromise(
       registerDeviceToken({
         token: 'brand-new-token',

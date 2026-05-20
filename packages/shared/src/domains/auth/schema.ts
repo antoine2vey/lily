@@ -18,6 +18,23 @@ export const UsernameRequest = Schema.Struct({
   username: Schema.String,
 })
 
+export const OAuthProvider = Schema.Literal('apple', 'google')
+export type OAuthProvider = typeof OAuthProvider.Type
+
+export const OAuthFullName = Schema.Struct({
+  givenName: Schema.optional(Schema.NullOr(Schema.String)),
+  familyName: Schema.optional(Schema.NullOr(Schema.String)),
+})
+
+export const OAuthSignInRequest = Schema.Struct({
+  provider: OAuthProvider,
+  idToken: Schema.String,
+  fullName: Schema.optional(OAuthFullName),
+  timezone: Schema.optional(Schema.String),
+  language: Schema.optional(LanguageCode),
+})
+export type OAuthSignInRequest = typeof OAuthSignInRequest.Type
+
 export const RefreshTokenRequest = Schema.Struct({
   refreshToken: Schema.String,
 })
@@ -26,6 +43,8 @@ export const UserProfile = Schema.Struct({
   id: Schema.String,
   email: Schema.String,
   name: Schema.NullOr(Schema.String),
+  firstName: Schema.NullOr(Schema.String),
+  lastName: Schema.NullOr(Schema.String),
   username: Schema.optional(Schema.String),
   timezone: Schema.optional(Schema.String),
   createdAt: Schema.Date,

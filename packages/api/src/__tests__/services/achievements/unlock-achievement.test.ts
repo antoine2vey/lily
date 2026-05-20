@@ -15,6 +15,10 @@ const createCurrentUserLayer = (
     id: userId,
     email: 'test@test.com',
     name: 'Test User',
+
+    firstName: null,
+
+    lastName: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     role,

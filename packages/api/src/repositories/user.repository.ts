@@ -27,6 +27,8 @@ export interface CreateUserData {
   emailVerified?: boolean
   timezone?: string
   language?: LanguageCode
+  firstName?: string | null
+  lastName?: string | null
 }
 
 export interface UpdateUserData {
@@ -52,6 +54,8 @@ export interface UpdateUserData {
   weatherEnabled?: boolean
   latitude?: number | null
   longitude?: number | null
+  firstName?: string | null
+  lastName?: string | null
 }
 
 export interface FindUsersFilters {

@@ -8,6 +8,9 @@ interface UpdateProfileData {
   name?: string
   bio?: string
   avatarUri?: string
+  firstName?: string
+  // null clears the existing value; undefined leaves it unchanged.
+  lastName?: string | null
 }
 
 export function useUpdateProfile() {
@@ -25,11 +28,15 @@ export function useUpdateProfile() {
         await uploadMultipart<{ url: string }>('/api/users/avatar', [file])
       }
 
-      // Update name/bio via settings endpoint
+      // Update name/bio/first/last via settings endpoint
       await apiEffectRunner('users', 'updateUserSettings', {
         payload: {
           ...(data.name !== undefined ? { name: data.name } : {}),
           ...(data.bio !== undefined ? { bio: data.bio } : {}),
+          ...(data.firstName !== undefined
+            ? { firstName: data.firstName }
+            : {}),
+          ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
         },
       })
     },

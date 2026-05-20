@@ -25,8 +25,11 @@ export function EditProfileScreen() {
   const mountedRef = useRef(true)
 
   const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined)
+  const [firstNameError, setFirstNameError] = useState<string | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
@@ -38,6 +41,12 @@ export function EditProfileScreen() {
   useEffect(() => {
     if (user) {
       setName(Option.getOrElse(Option.fromNullable(user.name), () => ''))
+      setFirstName(
+        Option.getOrElse(Option.fromNullable(user.firstName), () => '')
+      )
+      setLastName(
+        Option.getOrElse(Option.fromNullable(user.lastName), () => '')
+      )
       setBio(Option.getOrElse(Option.fromNullable(user.bio), () => ''))
       setAvatarUri(user.image)
     }
@@ -48,12 +57,23 @@ export function EditProfileScreen() {
   }
 
   const handleSave = () => {
+    // firstName is the only required field on profile edit.
+    if (firstName.trim().length === 0) {
+      setFirstNameError(t('profile:edit.firstNameRequired'))
+      return
+    }
+    setFirstNameError(null)
+
     const isLocalUri = avatarUri !== user?.image
+    const trimmedLast = lastName.trim()
 
     updateProfile(
       {
         name,
         bio,
+        firstName: firstName.trim(),
+        // Empty string clears the existing last name on the server.
+        lastName: trimmedLast.length > 0 ? trimmedLast : null,
         ...(isLocalUri && avatarUri ? { avatarUri } : {}),
       },
       {
@@ -149,6 +169,24 @@ export function EditProfileScreen() {
 
         {/* Form Fields */}
         <View className="px-6 gap-6">
+          <FormInput
+            label={t('profile:edit.firstNameLabel')}
+            value={firstName}
+            onChangeText={(v) => {
+              setFirstName(v)
+              if (firstNameError) setFirstNameError(null)
+            }}
+            placeholder={t('profile:edit.firstNamePlaceholder')}
+            {...(firstNameError ? { error: firstNameError } : {})}
+          />
+
+          <FormInput
+            label={t('profile:edit.lastNameLabel')}
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder={t('profile:edit.lastNamePlaceholder')}
+          />
+
           <FormInput
             label={t('profile:edit.displayNameLabel')}
             value={name}

@@ -44,6 +44,8 @@ export const defaultMockUser: UserProfile = {
   email: 'test@example.com',
   username: 'testuser',
   name: 'Test User',
+  firstName: null,
+  lastName: null,
   role: 'user',
   status: 'active',
   createdAt: mockNow(),

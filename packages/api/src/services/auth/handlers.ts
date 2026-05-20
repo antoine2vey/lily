@@ -3,6 +3,7 @@ import type { Api } from '@lily/api/api'
 import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
 import { logout } from '@lily/api/services/auth/endpoints/logout'
 import { magicLinkCallback } from '@lily/api/services/auth/endpoints/magic-link-callback'
+import { oauthSignIn } from '@lily/api/services/auth/endpoints/oauth-signin'
 import { refreshToken } from '@lily/api/services/auth/endpoints/refresh-token'
 import { sendMagicLink } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
@@ -26,6 +27,9 @@ export const AuthApiLive = (api: Api) =>
       )
       .handle('verifyMagicLink', ({ payload }) =>
         verifyMagicLink(payload).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('oauthSignIn', ({ payload }) =>
+        oauthSignIn(payload).pipe(withInfraErrorsAsDefect)
       )
       .handle('refreshToken', ({ payload }) =>
         refreshToken(payload).pipe(withInfraErrorsAsDefect)

@@ -26,6 +26,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lilyapp.app",
       "appleTeamId": "K7Y594Y8M3",
+      "usesAppleSignIn": true,
       "usesIAP": true,
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
@@ -62,6 +63,13 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.761780678731-iplm62u17pl0hanf9o3j9i9vsi7nt9pm"
+        }
+      ],
       [
         "expo-splash-screen",
         {

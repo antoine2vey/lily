@@ -104,6 +104,8 @@ export const issueServiceToken = (input: {
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         username: user.name || undefined,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
