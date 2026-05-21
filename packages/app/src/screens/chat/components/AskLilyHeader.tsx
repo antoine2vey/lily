@@ -2,14 +2,22 @@ import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
 import { Avatar } from '@/components/Avatar'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { GlassIconButton } from '@/components/GlassIconButton'
+import { useIconColors } from '@/hooks/useIconColors'
 
 interface AskLilyHeaderProps {
   title?: string
   showBack?: boolean
+  onMenuPress?: () => void
 }
 
-export function AskLilyHeader({ title, showBack = true }: AskLilyHeaderProps) {
+export function AskLilyHeader({
+  title,
+  showBack = true,
+  onMenuPress,
+}: AskLilyHeaderProps) {
   const { t } = useTranslation('chat')
+  const iconColors = useIconColors()
 
   return (
     <View className="flex-row items-center px-4 py-3 border-b bg-background dark:bg-background-dark border-border dark:border-slate-700">
@@ -33,6 +41,15 @@ export function AskLilyHeader({ title, showBack = true }: AskLilyHeaderProps) {
           </View>
         </View>
       </View>
+
+      {onMenuPress && (
+        <GlassIconButton
+          testID="chat-menu-button"
+          icon="menu"
+          iconColor={iconColors.textPrimary}
+          onPress={onMenuPress}
+        />
+      )}
     </View>
   )
 }

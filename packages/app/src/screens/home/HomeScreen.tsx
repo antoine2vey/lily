@@ -11,6 +11,8 @@ import { useCallback, useMemo, useRef } from 'react'
 import { Platform, Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GlassIconButton } from '@/components/GlassIconButton'
+import { ProgressBar } from '@/components/ProgressBar'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { Button } from '@/components/ui'
@@ -26,17 +28,170 @@ import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
-import { AskLilyCta } from '@/screens/home/components/AskLilyCta'
-import { DailyProgressCard } from '@/screens/home/components/DailyProgressCard'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
-import { PlantHealthAlert } from '@/screens/home/components/PlantHealthAlert'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
-import { StreakCard } from '@/screens/home/components/StreakCard'
-import { WeatherCard } from '@/screens/home/components/WeatherCard'
 import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
 import { useEffectQuery } from '@/utils/client'
 
 const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+
+interface AskLilyStickyPillProps {
+  onPress: () => void
+  primaryColor: string
+  label: string
+}
+
+function AskLilyStickyPill({
+  onPress,
+  primaryColor,
+  label,
+}: AskLilyStickyPillProps) {
+  const content = (
+    <Pressable
+      testID="home-ask-lily-pill"
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+    >
+      <View className="flex-row items-center h-10 pl-3 pr-4">
+        <MaterialIcons
+          name="auto-awesome"
+          size={16}
+          color={primaryColor}
+          style={{ lineHeight: 16 }}
+        />
+        <Text
+          className="ml-1.5 text-sm text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+        >
+          {label}
+        </Text>
+      </View>
+    </Pressable>
+  )
+
+  if (useGlass) {
+    return (
+      <LiquidGlassView interactive={false} style={{ borderRadius: 20 }}>
+        {content}
+      </LiquidGlassView>
+    )
+  }
+
+  return (
+    <View
+      className="bg-white dark:bg-surface-dark rounded-full"
+      style={{
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+      }}
+    >
+      {content}
+    </View>
+  )
+}
+
+interface TodaySectionProps {
+  label: string
+  completedToday: number
+  total: number
+  tasksDoneSuffix: string
+  metaText: string
+}
+
+function TodaySection({
+  label,
+  completedToday,
+  total,
+  tasksDoneSuffix,
+  metaText,
+}: TodaySectionProps) {
+  const progress = total > 0 ? completedToday / total : 0
+  return (
+    <View className="mb-6">
+      <Text className="text-[11px] uppercase tracking-wide font-medium text-text-muted dark:text-slate-400 mb-2">
+        {label}
+      </Text>
+      <View className="flex-row items-end justify-between mb-2.5">
+        <Text
+          className="text-base text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+        >
+          {`${completedToday}/${total} ${tasksDoneSuffix}`}
+        </Text>
+        <Text className="text-xs text-text-muted dark:text-slate-400">
+          {metaText}
+        </Text>
+      </View>
+      <ProgressBar progress={progress} />
+    </View>
+  )
+}
+
+interface WeatherInlineChipProps {
+  temperatureC: number
+  adjustedCount: number
+  adjustedSuffix: string
+}
+
+function WeatherInlineChip({
+  temperatureC,
+  adjustedCount,
+  adjustedSuffix,
+}: WeatherInlineChipProps) {
+  const meta = adjustedCount > 0 ? ` · ${adjustedCount} ${adjustedSuffix}` : ''
+  return (
+    <Text className="text-xs text-text-muted dark:text-slate-400 mt-1.5">
+      {`${Math.round(temperatureC)}°C${meta}`}
+    </Text>
+  )
+}
+
+interface NeedsAttentionRowProps {
+  count: number
+  title: string
+  subtitle: string
+  iconColor: string
+  mutedColor: string
+  onPress: () => void
+}
+
+function NeedsAttentionRow({
+  count,
+  title,
+  subtitle,
+  iconColor,
+  mutedColor,
+  onPress,
+}: NeedsAttentionRowProps) {
+  if (count === 0) return null
+  return (
+    <Pressable
+      testID="home-needs-attention-row"
+      onPress={onPress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      className="flex-row items-center py-3 mb-4"
+    >
+      <View className="w-9 h-9 rounded-full bg-coral/10 dark:bg-coral/20 items-center justify-center">
+        <MaterialIcons name="warning" size={18} color={iconColor} />
+      </View>
+      <View className="ml-3 flex-1">
+        <Text
+          className="text-sm text-text-primary dark:text-white"
+          style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+        >
+          {title}
+        </Text>
+        <Text className="text-xs text-text-muted dark:text-slate-400 mt-0.5">
+          {subtitle}
+        </Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={20} color={mutedColor} />
+    </Pressable>
+  )
+}
 
 function NotificationBadge({ count }: { count: number }) {
   if (count <= 0) return null
@@ -74,7 +229,7 @@ function StickyAddPill({
       onPress={onPress}
       testID="home-add-plant-pill"
       accessibilityLabel={label}
-      className="flex-row items-center gap-1.5 h-11 pl-3 pr-4"
+      className="flex-row items-center gap-1.5 h-10 pl-3 pr-4"
     >
       <MaterialIcons name="add" size={22} color={iconColor} />
       <Text
@@ -113,47 +268,13 @@ function StickyBell({
   iconColor: string
   onPress: () => void
 }) {
-  const bellPressable = (
-    <Pressable
-      onPress={onPress}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <MaterialIcons
-        name="notifications"
-        size={24}
-        color={iconColor}
-        style={{ lineHeight: 24 }}
-      />
-    </Pressable>
-  )
-
-  const pill = useGlass ? (
-    <LiquidGlassView
-      interactive={false}
-      style={{ width: 44, height: 44, borderRadius: 22 }}
-    >
-      {bellPressable}
-    </LiquidGlassView>
-  ) : (
-    <View
-      className="bg-white dark:bg-surface-dark"
-      style={{ width: 44, height: 44, borderRadius: 22, ...pillShadow }}
-    >
-      {bellPressable}
-    </View>
-  )
-
   return (
-    <View style={{ width: 44, height: 44 }}>
-      {pill}
+    <View style={{ width: 40, height: 40 }}>
+      <GlassIconButton
+        icon="notifications"
+        iconColor={iconColor}
+        onPress={onPress}
+      />
       <NotificationBadge count={unreadCount} />
     </View>
   )
@@ -311,6 +432,28 @@ export function HomeScreen() {
   const weather = useWeather()
   const { count: unreadCount } = useUnreadCount()
 
+  const { data: unhealthyData } = useEffectQuery('plants', 'getPlants', {
+    urlParams: {
+      page: '1',
+      limit: '1',
+      filter: 'needsAttention',
+      sort: 'added',
+      includeCaretaking: 'false',
+    },
+  })
+  const unhealthyCount = Option.getOrElse(
+    Option.fromNullable(unhealthyData?.total),
+    () => 0
+  )
+
+  const weatherTemperatureC = pipe(
+    weather.todayWeather,
+    Option.flatMap((w) =>
+      Option.fromNullable(w.temperatureMean ?? w.temperatureMax)
+    ),
+    Option.getOrUndefined
+  )
+
   // Greeting prefers the user's real first name when available, falling back
   // to their chosen @handle, then their raw name field (if somehow set without
   // a handle). Null means "no name yet" → use the i18n default.
@@ -445,6 +588,15 @@ export function HomeScreen() {
                   )}{' '}
                   ☀️
                 </Text>
+                {weatherTemperatureC !== undefined && (
+                  <WeatherInlineChip
+                    temperatureC={weatherTemperatureC}
+                    adjustedCount={weather.adjustmentSummary.adjustedCount}
+                    adjustedSuffix={t('home:weather.adjustedSuffix', {
+                      defaultValue: 'plants adjusted',
+                    })}
+                  />
+                )}
               </View>
 
               {/* Content */}
@@ -459,21 +611,21 @@ export function HomeScreen() {
                     : { entering: FadeIn.duration(300) })}
                   className="pb-6"
                 >
-                  <AskLilyCta />
-
-                  {achievementsData && <StreakCard data={achievementsData} />}
-
-                  {careTasksData && (
-                    <DailyProgressCard
+                  {careTasksData && achievementsData && (
+                    <TodaySection
+                      label={t('home:today.label', { defaultValue: 'Today' })}
                       completedToday={careTasksData.completedToday}
-                      remainingToday={
+                      total={
+                        careTasksData.completedToday +
                         Array.length(careTasksOverdue) +
                         Array.length(careTasksToday)
                       }
+                      tasksDoneSuffix={t('home:today.tasksDoneSuffix', {
+                        defaultValue: 'tasks done',
+                      })}
+                      metaText={`${t('home:streak.level', { level: achievementsData.level })} · ${t('home:streak.achievements', { count: achievementsData.unlockedCount })}`}
                     />
                   )}
-
-                  <WeatherCard weather={weather} />
 
                   <HydrationCard
                     plants={wateringPlants}
@@ -482,7 +634,23 @@ export function HomeScreen() {
                     isLoading={careAll.isPending}
                   />
 
-                  <PlantHealthAlert />
+                  <NeedsAttentionRow
+                    count={unhealthyCount}
+                    title={t('home:needsAttention.title', {
+                      defaultValue: 'Needs Attention',
+                    })}
+                    subtitle={t('home:needsAttention.subtitle', {
+                      count: unhealthyCount,
+                      defaultValue: `${unhealthyCount} plants`,
+                    })}
+                    iconColor={iconColors.coral}
+                    mutedColor={iconColors.muted}
+                    onPress={() =>
+                      router.push(
+                        '/(app)/(tabs)/plants?filter=needsAttention' as Href
+                      )
+                    }
+                  />
 
                   <WeeklySchedule
                     overdue={careTasksOverdue}
@@ -539,20 +707,29 @@ export function HomeScreen() {
           position: 'absolute',
           top: insets.top + 12,
           right: 24,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
+          alignItems: 'flex-end',
+          gap: 4,
         }}
       >
-        <StickyAddPill
-          label={t('home:cta.addPlant', { defaultValue: 'Add plant' })}
-          iconColor={iconColors.textPrimary}
-          onPress={() => router.push('/add-plant/scanner')}
-        />
-        <StickyBell
-          unreadCount={unreadCount}
-          iconColor={iconColors.textPrimary}
-          onPress={() => router.push('/(app)/notifications' as Href)}
+        <View
+          pointerEvents="box-none"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+        >
+          <StickyAddPill
+            label={t('home:cta.addPlant', { defaultValue: 'Add plant' })}
+            iconColor={iconColors.textPrimary}
+            onPress={() => router.push('/add-plant/scanner')}
+          />
+          <StickyBell
+            unreadCount={unreadCount}
+            iconColor={iconColors.textPrimary}
+            onPress={() => router.push('/(app)/notifications' as Href)}
+          />
+        </View>
+        <AskLilyStickyPill
+          label={t('home:askLily.shortLabel', { defaultValue: 'Ask Lily' })}
+          primaryColor={iconColors.primary}
+          onPress={() => router.push('/chat')}
         />
       </View>
     </View>
