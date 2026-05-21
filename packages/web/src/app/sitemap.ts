@@ -8,7 +8,7 @@ export const dynamic = 'force-static'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const locales = routing.locales
-  const staticPages = ['', '/about', '/blog', '/privacy', '/terms']
+  const staticPages = ['', '/about', '/blog', '/privacy', '/terms', '/support']
 
   const staticUrls: MetadataRoute.Sitemap = Array.flatMap(locales, (locale) =>
     Array.map(staticPages, (pagePath) => ({

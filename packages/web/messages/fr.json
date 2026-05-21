@@ -112,6 +112,7 @@
     "blog": "Blog",
     "privacy": "Politique de confidentialité",
     "terms": "Conditions d'utilisation",
+    "support": "Assistance",
     "contact": "Contact",
     "copyright": "© 2026 Lily. Tous droits réservés."
   },
@@ -248,5 +249,22 @@
     "s5Heading": "Nous contacter",
     "s5Text": "Pour toute question sur ces conditions, contactez-nous à",
     "metaDescription": "Consultez les Conditions d'utilisation de Lily, l'application de soins des plantes. Comprenez vos droits et nos politiques."
+  },
+  "Support": {
+    "back": "← Retour à Lily",
+    "heading": "Assistance",
+    "intro": "Besoin d'aide avec Lily ? Vous êtes au bon endroit. Vous trouverez ci-dessous les réponses aux questions fréquentes et les moyens de contacter notre équipe.",
+    "contactHeading": "Nous contacter",
+    "contactText": "Pour toute question, signalement de bug ou retour, écrivez à notre équipe à",
+    "contactResponseTime": "Nous répondons généralement sous 1 jour ouvré (lundi–vendredi, heure de Paris).",
+    "faqHeading": "Questions fréquentes",
+    "faqs": "Comment démarrer mon essai gratuit ?::Lily propose un essai gratuit de 7 jours sans carte bancaire requise. Téléchargez l'application sur l'App Store ou Google Play, créez un compte, et votre essai démarre automatiquement.|Comment gérer ou annuler mon abonnement ?::Les abonnements sont gérés via votre compte App Store ou Google Play. Sur iOS, ouvrez Réglages → [votre nom] → Abonnements → Lily. Sur Android, ouvrez Google Play → Profil → Paiements et abonnements → Abonnements. L'annulation stoppe les futurs renouvellements ; l'accès reste actif jusqu'à la fin de la période en cours.|Comment demander un remboursement ?::Les remboursements sont traités par Apple et Google, pas par Lily. Pour l'App Store, rendez-vous sur reportaproblem.apple.com. Pour Google Play, allez sur play.google.com/store/account et retrouvez la commande.|Comment supprimer mon compte et mes données ?::Vous pouvez supprimer votre compte directement depuis l'application : Réglages → Compte → Supprimer le compte. Vos plantes, journaux de soin, photos et données personnelles sont effacés définitivement sous 30 jours. Vous pouvez aussi écrire à privacy@withlily.app pour demander la suppression.|Comment exporter mes données ?::Écrivez à privacy@withlily.app depuis l'adresse liée à votre compte. Nous vous enverrons un export JSON de vos plantes, journaux de soin et données de compte sous 30 jours, comme l'exige le RGPD.|Pourquoi n'ai-je pas reçu de rappel de soin ?::Vérifiez que les notifications sont activées : Réglages iOS → Lily → Notifications, ou Réglages Android → Applications → Lily → Notifications. Dans Lily, allez dans Réglages → Notifications pour confirmer que les rappels sont actifs. Si le problème persiste, contactez-nous.|Mes photos de plantes sont-elles privées ?::Oui. Les photos soumises pour identification ou diagnostic IA sont traitées en temps réel et ne sont pas conservées après analyse. Consultez notre Politique de confidentialité pour plus de détails.|Quelle est la fiabilité du diagnostic IA ?::L'IA de Lily est un point de départ utile, mais ne remplace pas l'avis d'un expert. Pour les problèmes de santé critiques, consultez un professionnel de l'horticulture.",
+    "accountHeading": "Compte et demandes de données",
+    "accountText": "Pour les demandes RGPD/CCPA — accès, rectification, suppression ou portabilité des données — contactez notre équipe à",
+    "linksHeading": "Ressources liées",
+    "linkPrivacy": "Politique de confidentialité",
+    "linkTerms": "Conditions d'utilisation",
+    "linkBlog": "Blog soins des plantes",
+    "metaDescription": "Obtenez de l'aide avec Lily. Contactez l'assistance et trouvez les réponses aux questions sur les abonnements, la suppression de compte, l'export de données et les fonctionnalités."
   }
 }
