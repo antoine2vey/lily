@@ -113,6 +113,14 @@ const captureFor = (platform: Platform, locale: Locale) =>
 
     const outputDir = outputSourceDir(platform, locale)
 
+    // Android emulator's NAT'd loopback to the host is 10.0.2.2, not
+    // localhost. iOS sim shares host network so localhost works directly.
+    // METRO_URL can be overridden in the shell for LAN setups (e.g. a
+    // physical device that needs the host's LAN IP).
+    const defaultMetroUrl =
+      platform === 'android' ? 'http://10.0.2.2:8081' : 'http://localhost:8081'
+    const metroUrl = process.env.METRO_URL ?? defaultMetroUrl
+
     const args = [
       'test',
       FLOW_PATH,
@@ -120,6 +128,8 @@ const captureFor = (platform: Platform, locale: Locale) =>
       `LOCALE_CODE=${locale}`,
       '--env',
       `OUTPUT_DIR=${outputDir}`,
+      '--env',
+      `METRO_URL=${metroUrl}`,
     ]
 
     const env: Record<string, string> = {

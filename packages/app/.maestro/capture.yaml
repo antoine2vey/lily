@@ -40,8 +40,46 @@ env:
 # 2a. Tell Expo Dev Client which Metro bundle to load. Only relevant on
 #     dev builds where the dev client has no cached last-URL (fresh
 #     install, or sim was reset). Release builds ignore this URL path.
-#     METRO_URL defaults to http://localhost:8081 — override via env.
-- openLink: "lily://expo-development-client/?url=http://localhost:8081"
+#     METRO_URL is set per-platform by scripts/screenshots/run.ts:
+#     iOS → http://localhost:8081 (sim shares host network),
+#     Android → http://10.0.2.2:8081 (emulator's alias for host loopback).
+- openLink: "lily://expo-development-client/?url=${METRO_URL}"
+
+# 2b. Dismiss the expo-dev-launcher onboarding sheet ("This is the
+#     developer menu...") which appears after `clearState` wipes the
+#     "seen" flag. The sheet slides up with a ~300ms animation after
+#     the openLink intent — a single optional tap fires too early and
+#     no-ops while the sheet is still off-screen, then the sheet
+#     occludes the login screen for the rest of the flow.
+#
+#     Poll for up to ~10s: each iteration tries Continue (en) and
+#     Continuer (fr) as optional taps, then waits for any animation
+#     to settle before the next attempt. Once the sheet is dismissed
+#     (or never appeared), subsequent optional taps are no-ops.
+#     `login-email-input` assertion below confirms the dismiss worked.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - repeat:
+          times: 10
+          commands:
+            # Onboarding sheet (en/fr) — dismiss to reveal the launcher.
+            - tapOn:
+                text: "Continue"
+                optional: true
+            - tapOn:
+                text: "Continuer"
+                optional: true
+            # Launcher home view when `clearState` wiped the last-URL
+            # and openLink didn't auto-trigger a bundle fetch. Tapping
+            # `Reload` forces the launcher to download from the
+            # connected Metro URL and execute the JS bundle.
+            - tapOn:
+                text: "Reload"
+                optional: true
+            - waitForAnimationToEnd:
+                timeout: 1000
 
 # 3. Wait for the login screen. On Android this is the slowest wait of
 #    the flow — emulator is cold, JS bundle hasn't been evaluated yet.
@@ -50,15 +88,28 @@ env:
       id: login-email-input
     timeout: 120000
 
-# 4. Log in. Explicit submit-button tap instead of relying on
-#    `hideKeyboard` — on Android, `hideKeyboard` sends Back which can
-#    exit the app if the IME has already auto-dismissed. The button tap
-#    works identically on both platforms.
+# 4. Log in. Submit via the keyboard's "go" key (TextInput's
+#    onSubmitEditing → handleSubmit) rather than tapping the submit
+#    button. On Android the soft keyboard covers the button and Maestro
+#    can't tap views behind the IME. `hideKeyboard` is unsafe here — it
+#    sends Back which can exit the app if the IME has already auto-
+#    dismissed. `pressKey: Enter` fires the keyboard's submit action
+#    consistently on both platforms.
 - tapOn:
     id: login-email-input
 - inputText: "${DEMO_EMAIL}"
+- pressKey: Enter
+
+# 4a. Skip the post-login user-experience onboarding ("Welcome to Lily,
+#     Alex! Tell us about your plant experience"). The seed-demo user
+#     gets recreated by `clearState` cycles without `hasCompletedOnboarding`
+#     set, so this screen reliably gates the path to home. Optional
+#     because returning users (who finished onboarding once on the
+#     server) bypass it entirely. testID is more stable than matching
+#     localized "Skip onboarding" / "Passer l'introduction" text.
 - tapOn:
-    id: login-submit-button
+    id: onboarding-skip-button
+    optional: true
 
 # 5. Wait for home to render. `home-screen` testID is on the root View.
 #    On Android this includes the (tabs) group mounting, which is
@@ -145,6 +196,11 @@ env:
       id: "view-all-history"
     direction: DOWN
     timeout: 8000
+    # Default is 100% — the button sits at the bottom of the scroll
+    # view above the home-indicator safe area, so on Android it ends
+    # up ~80–90% visible at the natural scroll bottom. 60% is enough
+    # to confirm the element is anchored on screen and tappable.
+    visibilityPercentage: 60
 - tapOn:
     id: "view-all-history"
 - extendedWaitUntil:
@@ -154,11 +210,21 @@ env:
 - waitForAnimationToEnd
 - takeScreenshot: "${OUTPUT_DIR}/care-history"
 
-# 10c. AI identification results — deep link with mocked result JSON
-#      as a query param. The screen (AIIdentificationResultsScreen)
-#      parses `?result=<JSON>&photoUri=<url>` natively, so no source
-#      code changes are needed to render a populated state.
-- openLink: "lily:///add-plant/ai-results?photoUri=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1603095859718-b6300a0aad18%3Fw%3D800&result=%7B%22name%22%3A%22Monstera+Deliciosa%22%2C%22family%22%3A%22Araceae%22%2C%22confidence%22%3A0.94%2C%22alternatives%22%3A%5B%7B%22name%22%3A%22Monstera+Adansonii%22%2C%22confidence%22%3A0.03%7D%2C%7B%22name%22%3A%22Philodendron+Hederaceum%22%2C%22confidence%22%3A0.02%7D%5D%2C%22wateringFrequencyDays%22%3A7%2C%22luxNeeded%22%3A2000%2C%22humidityRating%22%3A4%2C%22petToxicityRating%22%3A3%2C%22fertilizationFrequencyDays%22%3A21%2C%22mistingFrequencyDays%22%3A3%2C%22repottingFrequencyDays%22%3A365%2C%22category%22%3A%22Tropical%22%2C%22description%22%3A%22The+beloved+split-leaf+philodendron%2C+famous+for+its+dramatic+fenestrations+and+easy+care.%22%2C%22wateringTips%22%3A%22Water+when+the+top+2+inches+of+soil+feel+dry.+Avoid+overwatering%3B+root+rot+is+common.%22%2C%22imageUrl%22%3A%22https%3A%2F%2Fimages.unsplash.com%2Fphoto-1603095859718-b6300a0aad18%3Fw%3D800%22%7D"
+# 10c. AI identification results — deep link with a `?demo=1` switch.
+#      The screen reads `demo=1` and renders a hardcoded fixture
+#      (DEMO_RESULT in AIIdentificationResultsScreen.tsx). Previously
+#      the result was passed inline as a URL-encoded JSON query string,
+#      but on Android `am start` (which Maestro uses for openLink)
+#      silently drops or mis-routes intents with URLs over ~500 chars
+#      containing `%` + `+` mixes — the result was the previous screen
+#      (care-history) staying in place and being screenshotted by
+#      mistake. The `ai-results-screen` testID assertion catches that
+#      class of regression now.
+- openLink: "lily:///add-plant/ai-results?demo=1"
+- extendedWaitUntil:
+    visible:
+      id: "ai-results-screen"
+    timeout: 15000
 - waitForAnimationToEnd
 - takeScreenshot: "${OUTPUT_DIR}/ai-results"
 
