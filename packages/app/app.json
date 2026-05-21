@@ -23,7 +23,7 @@
           "backgroundColor": "#1A1A1A"
         }
       },
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.lilyapp.app",
       "appleTeamId": "K7Y594Y8M3",
       "usesAppleSignIn": true,
