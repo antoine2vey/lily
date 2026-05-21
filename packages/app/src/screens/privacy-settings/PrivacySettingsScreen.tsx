@@ -56,7 +56,7 @@ export function PrivacySettingsScreen() {
           style: 'destructive',
           onPress: () =>
             Linking.openURL(
-              `mailto:privacy@lily.app?subject=${encodeURIComponent(t('settings:privacy.requestDeletionEmailSubject'))}`
+              `mailto:privacy@withlily.app?subject=${encodeURIComponent(t('settings:privacy.requestDeletionEmailSubject'))}`
             ),
         },
       ]
