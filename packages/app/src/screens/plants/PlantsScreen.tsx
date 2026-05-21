@@ -1,5 +1,4 @@
 import {
-  isLiquidGlassSupported,
   LiquidGlassContainerView,
   LiquidGlassView,
 } from '@callstack/liquid-glass'
@@ -18,10 +17,11 @@ import { Array, Match, Option, Order, pipe, String } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
+import { GlassIconButton } from '@/components/GlassIconButton'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { PlantCardSkeleton } from '@/components/skeletons'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
@@ -39,13 +39,12 @@ import {
   SortOptionsSheet,
 } from '@/screens/plants/components/SortOptionsSheet'
 import { useEffectQuery } from '@/utils/client'
+import { useGlass } from '@/utils/glass'
 import {
   type HealthStatus,
   isUnhealthy,
   mapApiHealthToCardHealth,
 } from '@/utils/health'
-
-const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
 
 interface CareStatus {
   daysUntil?: number | undefined
@@ -118,61 +117,6 @@ const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
   (plant) => healthOrderMap[plant.health]
 )
 
-function ActionButton({
-  icon,
-  onPress,
-  iconColor,
-  testID,
-}: {
-  icon: keyof typeof MaterialIcons.glyphMap
-  onPress: () => void
-  iconColor: string
-  testID?: string
-}) {
-  const pressable = (
-    <Pressable
-      onPress={onPress}
-      testID={testID}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <MaterialIcons
-        name={icon}
-        size={22}
-        color={iconColor}
-        style={{ lineHeight: 22 }}
-      />
-    </Pressable>
-  )
-
-  if (useGlass) {
-    return (
-      <LiquidGlassView
-        interactive={false}
-        style={{ width: 40, height: 40, borderRadius: 20 }}
-      >
-        {pressable}
-      </LiquidGlassView>
-    )
-  }
-
-  return (
-    <View
-      className="bg-white dark:bg-surface-dark shadow-soft"
-      style={{ width: 40, height: 40, borderRadius: 20 }}
-    >
-      {pressable}
-    </View>
-  )
-}
-
 function ActionButtons({
   showSearch,
   onSearchPress,
@@ -186,13 +130,13 @@ function ActionButtons({
 }) {
   const buttons = (
     <>
-      <ActionButton
+      <GlassIconButton
         icon={showSearch ? 'close' : 'search'}
         onPress={onSearchPress}
         iconColor={iconColor}
         testID="search-button"
       />
-      <ActionButton
+      <GlassIconButton
         icon="sort"
         onPress={onSortPress}
         iconColor={iconColor}

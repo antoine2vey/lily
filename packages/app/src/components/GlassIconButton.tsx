@@ -1,17 +1,13 @@
-import {
-  isLiquidGlassSupported,
-  LiquidGlassView,
-} from '@callstack/liquid-glass'
+import { LiquidGlassView } from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
-import { Platform, Pressable } from 'react-native'
-
-const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+import { Pressable } from 'react-native'
+import { useGlass } from '@/utils/glass'
 
 interface GlassIconButtonProps {
   icon: keyof typeof MaterialIcons.glyphMap
   onPress: () => void
   iconColor: string
-  testID?: string
+  testID?: string | undefined
 }
 
 export function GlassIconButton({

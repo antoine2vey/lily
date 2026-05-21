@@ -1,7 +1,3 @@
-import {
-  isLiquidGlassSupported,
-  LiquidGlassView,
-} from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import {
   type CareType,
@@ -16,14 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Dimensions,
-  Image,
-  Platform,
-  Pressable,
-  Text,
-  View,
-} from 'react-native'
+import { Dimensions, Image, Pressable, Text, View } from 'react-native'
 import Animated, {
   interpolateColor,
   useAnimatedScrollHandler,
@@ -35,6 +24,7 @@ import { captureRef } from 'react-native-view-shot'
 import { toast } from 'sonner-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { GlassIconButton } from '@/components/GlassIconButton'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useCarePlant } from '@/hooks/useCarePlant'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
@@ -56,6 +46,7 @@ import { PlantOptionsSheet } from '@/screens/plant-detail/components/PlantOption
 import { PlantShareCard } from '@/screens/plant-detail/components/PlantShareCard'
 import { RecentHistory } from '@/screens/plant-detail/components/RecentHistory'
 import { useEffectQuery } from '@/utils/client'
+import { useGlass } from '@/utils/glass'
 import { mapApiHealthToCardHealth } from '@/utils/health'
 
 const CARE_TOAST_KEYS: Readonly<
@@ -81,8 +72,6 @@ const CARE_TOAST_KEYS: Readonly<
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
-const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
-
 // biome-ignore lint/suspicious/noExplicitAny: Reanimated animated style types
 // don't satisfy exactOptionalPropertyTypes when extracted as a prop; the runtime
 // value is a normal ViewStyle subset.
@@ -103,29 +92,12 @@ function HeaderButton({
 }) {
   if (useGlass) {
     return (
-      <Pressable
+      <GlassIconButton
+        icon={icon}
         onPress={onPress}
+        iconColor={iconColor}
         testID={testID}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-      >
-        <LiquidGlassView
-          interactive={false}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <MaterialIcons
-            name={icon}
-            size={22}
-            color={iconColor}
-            style={{ lineHeight: 22 }}
-          />
-        </LiquidGlassView>
-      </Pressable>
+      />
     )
   }
 
