@@ -12,7 +12,7 @@ export type { UIMessage }
 
 interface UseConversationChatOptions {
   conversationId: string
-  initialMessages?: UIMessage[]
+  initialMessages?: UIMessage[] | undefined
 }
 
 const getMessageText = (msg: UIMessage): string =>

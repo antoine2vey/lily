@@ -2,7 +2,12 @@ import type { ChatConversationKind } from '@lily/shared/ai-chat'
 import { useEffectQuery } from '@/utils/client'
 
 export function useConversations(
-  opts: { kind?: ChatConversationKind; page?: number; limit?: number } = {}
+  opts: {
+    kind?: ChatConversationKind
+    page?: number
+    limit?: number
+    enabled?: boolean
+  } = {}
 ) {
   return useEffectQuery(
     'aiChat',
@@ -14,6 +19,6 @@ export function useConversations(
         ...(opts.kind ? { kind: opts.kind } : {}),
       },
     },
-    { staleTime: 30_000 }
+    { staleTime: 30_000, enabled: opts.enabled ?? true }
   )
 }

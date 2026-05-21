@@ -110,8 +110,21 @@ export default {
   },
   askLily: {
     title: 'Demander à Lily',
+    shortLabel: 'Demander à Lily',
     subtitle:
       'Diagnostiquez les problèmes, identifiez les nuisibles, obtenez des conseils — votre expert plantes à portée de main.',
+  },
+  today: {
+    label: "Aujourd'hui",
+    tasksDone:
+      '{done}/{total} {total, plural, one {tâche faite} other {tâches faites}}',
+  },
+  needsAttention: {
+    title: 'À surveiller',
+    subtitle: '{count, plural, one {# plante} other {# plantes}}',
+  },
+  cta: {
+    addPlant: 'Ajouter une plante',
   },
   weather: {
     conditionSunny: 'Ensoleillé',

@@ -12,6 +12,13 @@ export default {
     "J'aimerais vous aider, mais vous avez atteint votre limite mensuelle de conversations IA. Passez à Premium pour des conversations illimitées sur vos plantes ! 🌱",
   analyzing: 'Analyse en cours...',
   searching: 'Recherche en cours...',
+  drawer: {
+    title: 'Conversations',
+    newChat: 'Nouvelle conversation',
+    empty: 'Aucune conversation pour le moment.',
+    untitledGeneral: 'Nouvelle conversation',
+    untitledPlant: 'Discussion plante',
+  },
   suggestions: {
     default: {
       leavesYellowing: 'Pourquoi mes feuilles jaunissent-elles ?',
