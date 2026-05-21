@@ -1,9 +1,9 @@
 import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
-import { Array, Option, pipe } from 'effect'
+import { Array, Either, Option, pipe } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -17,11 +17,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SkeletonBox } from '@/components/skeletons'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
+import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useUploadConversationImage } from '@/hooks/useUploadConversationImage'
 import { AskLilyHeader } from '@/screens/chat/components/AskLilyHeader'
 import { ChatInput } from '@/screens/chat/components/ChatInput'
 import { ChatMessage } from '@/screens/chat/components/ChatMessage'
+import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 
 function hasNoVisibleContent(msg: UIMessage): boolean {
@@ -40,18 +42,32 @@ function hasNoVisibleContent(msg: UIMessage): boolean {
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets()
-  const { conversationId } = useLocalSearchParams<{ conversationId: string }>()
+  const { conversationId: paramId } = useLocalSearchParams<{
+    conversationId?: string
+  }>()
   const flatListRef = useRef<FlatList<UIMessage>>(null)
   const queryClient = useQueryClient()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const createConversation = useCreateConversation()
 
-  const safeId = Option.getOrElse(Option.fromNullable(conversationId), () => '')
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | undefined
+  >(paramId)
+  const [pendingMessage, setPendingMessage] = useState<{
+    content: string
+    imageUri?: string | undefined
+  } | null>(null)
+
+  useEffect(() => {
+    setActiveConversationId(paramId)
+  }, [paramId])
 
   const {
     isLoading: isLoadingHistory,
     initialMessages,
     error: historyError,
     refetch: _refetchHistory,
-  } = useConversationMessages(safeId)
+  } = useConversationMessages(activeConversationId)
   const refetchHistory = _refetchHistory as () => void
 
   const {
@@ -61,12 +77,23 @@ export function ChatScreen() {
     error: chatError,
     pendingImageUrl,
   } = useConversationChat({
-    conversationId: safeId,
+    conversationId: activeConversationId ?? '',
     initialMessages,
   })
 
-  const uploadImage = useUploadConversationImage(safeId)
+  const uploadImage = useUploadConversationImage(activeConversationId ?? '')
   const isStreaming = status === 'submitted' || status === 'streaming'
+
+  const openDrawer = useCallback(() => setDrawerOpen(true), [])
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+  const selectConversation = useCallback(
+    (id: string) => setActiveConversationId(id),
+    []
+  )
+  const resetConversation = useCallback(
+    () => setActiveConversationId(undefined),
+    []
+  )
 
   const displayMessages: UIMessage[] = pipe(
     chatMessages,
@@ -77,9 +104,9 @@ export function ChatScreen() {
     Array.reverse
   )
 
-  const handleSend = useCallback(
+  const sendInternal = useCallback(
     async (content: string, imageUri?: string) => {
-      if (!conversationId || isStreaming) return
+      if (isStreaming) return
 
       let uploadedImageKey: string | undefined
       let uploadedImageUrl: string | undefined
@@ -134,15 +161,39 @@ export function ChatScreen() {
         queryKey: ['aiChat', 'listConversations'],
       })
     },
-    [
-      conversationId,
-      isStreaming,
-      sendMessage,
-      queryClient,
-      uploadImage,
-      pendingImageUrl,
-    ]
+    [isStreaming, sendMessage, queryClient, uploadImage, pendingImageUrl]
   )
+
+  const handleSend = useCallback(
+    async (content: string, imageUri?: string) => {
+      if (activeConversationId) {
+        await sendInternal(content, imageUri)
+        return
+      }
+      // No conversation yet — create one lazily, then queue the message to be
+      // sent once the chat hooks have re-initialized with the new id.
+      const result = await createConversation.mutateAsync({
+        payload: { kind: 'general' },
+      })
+      Either.match(result, {
+        onLeft: () => undefined,
+        onRight: (created) => {
+          setActiveConversationId(created.id)
+          setPendingMessage({ content, imageUri })
+        },
+      })
+    },
+    [activeConversationId, sendInternal, createConversation]
+  )
+
+  // The chat hook's transport URL captures conversationId at init, so the
+  // first message has to wait for the hook to re-bind to the just-created id.
+  useEffect(() => {
+    if (!activeConversationId || !pendingMessage) return
+    const msg = pendingMessage
+    setPendingMessage(null)
+    sendInternal(msg.content, msg.imageUri)
+  }, [activeConversationId, pendingMessage, sendInternal])
 
   const renderMessage = useCallback(({ item }: { item: UIMessage }) => {
     const metadata = item.metadata as { createdAt?: string } | undefined
@@ -185,7 +236,7 @@ export function ChatScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader />
+        <AskLilyHeader onMenuPress={openDrawer} />
         <View className="flex-1 items-center justify-center p-6">
           <Text className="text-lg text-center font-semibold text-text-primary dark:text-white">
             Failed to load chat
@@ -207,7 +258,7 @@ export function ChatScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader />
+        <AskLilyHeader onMenuPress={openDrawer} />
         <Animated.View
           entering={FadeIn.duration(300)}
           className="flex-1 p-4 gap-4"
@@ -229,7 +280,7 @@ export function ChatScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <AskLilyHeader />
+        <AskLilyHeader onMenuPress={openDrawer} />
       </View>
     )
   }
@@ -240,7 +291,7 @@ export function ChatScreen() {
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
-      <AskLilyHeader />
+      <AskLilyHeader onMenuPress={openDrawer} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -274,6 +325,14 @@ export function ChatScreen() {
           disabled={isStreaming || uploadImage.isPending}
         />
       </KeyboardAvoidingView>
+
+      <ConversationsDrawer
+        visible={drawerOpen}
+        onClose={closeDrawer}
+        currentConversationId={activeConversationId}
+        onSelectConversation={selectConversation}
+        onNewChat={resetConversation}
+      />
     </View>
   )
 }

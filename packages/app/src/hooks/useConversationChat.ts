@@ -87,17 +87,13 @@ export function useConversationChat({
     transport,
   })
 
-  const hasSyncedRef = useRef(false)
+  const syncedIdRef = useRef<string | null>(null)
   useEffect(() => {
-    if (
-      initialMessages &&
-      Array.isNonEmptyReadonlyArray(initialMessages) &&
-      !hasSyncedRef.current
-    ) {
-      chat.setMessages(initialMessages)
-      hasSyncedRef.current = true
-    }
-  }, [initialMessages, chat.setMessages])
+    if (syncedIdRef.current === conversationId) return
+    if (initialMessages === undefined) return
+    chat.setMessages(initialMessages)
+    syncedIdRef.current = conversationId
+  }, [initialMessages, chat.setMessages, conversationId])
 
   return {
     ...chat,

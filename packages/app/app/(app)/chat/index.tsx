@@ -1,3 +1,3 @@
-import { ConversationsListScreen } from '@/screens/chat/ConversationsListScreen'
+import { ChatScreen } from '@/screens/chat/ChatScreen'
 
-export default ConversationsListScreen
+export default ChatScreen
