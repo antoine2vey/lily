@@ -1,14 +1,11 @@
-import {
-  isLiquidGlassSupported,
-  LiquidGlassView,
-} from '@callstack/liquid-glass'
+import { LiquidGlassView } from '@callstack/liquid-glass'
 import { MaterialIcons } from '@expo/vector-icons'
 import { now } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
 import type { Href } from 'expo-router'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef } from 'react'
-import { Platform, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassIconButton } from '@/components/GlassIconButton'
@@ -32,8 +29,7 @@ import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
 import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
 import { useEffectQuery } from '@/utils/client'
-
-const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
+import { useGlass } from '@/utils/glass'
 
 interface AskLilyStickyPillProps {
   onPress: () => void

@@ -1,16 +1,8 @@
-import {
-  isLiquidGlassSupported,
-  LiquidGlassView,
-} from '@callstack/liquid-glass'
+import { LiquidGlassView } from '@callstack/liquid-glass'
 import { Array } from 'effect'
 import { useTranslation } from 'react-i18next'
-import {
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { useGlass } from '@/utils/glass'
 
 type FilterOption = 'all' | 'watering' | 'fertilizing' | 'needsAttention'
 
@@ -40,8 +32,6 @@ const FILTERS: ReadonlyArray<FilterDefinition> = [
   { key: 'fertilizing', labelKey: 'filterNeedsFertilizing' },
   { key: 'needsAttention', labelKey: 'filterNeedsAttention' },
 ]
-
-const useGlass = isLiquidGlassSupported && Platform.OS === 'ios'
 
 function FilterPill({
   isSelected,
