@@ -23,6 +23,7 @@ describe('sendMagicLink', () => {
     options: {
       shouldExceedRateLimit?: boolean
       disableMagicLink?: boolean
+      reviewerEmails?: ReadonlyArray<string>
     } = {}
   ) =>
     Layer.mergeAll(
@@ -37,6 +38,7 @@ describe('sendMagicLink', () => {
       MockAlerterLive,
       Layer.succeed(MagicLinkConfig, {
         disableVerification: options.disableMagicLink ?? false,
+        reviewerEmails: options.reviewerEmails ?? [],
       })
     )
 
@@ -124,6 +126,7 @@ describe('sendMagicLink', () => {
             MockAlerterLive,
             Layer.succeed(MagicLinkConfig, {
               disableVerification: false,
+              reviewerEmails: [],
             })
           )
         )
@@ -222,6 +225,87 @@ describe('sendMagicLink', () => {
               disableMagicLink: true,
             })
           )
+        )
+      )
+
+      expect(result._tag).toBe('Failure')
+    })
+  })
+
+  describe('reviewer email allowlist', () => {
+    it('should return instantCode for an allowlisted reviewer email', async () => {
+      const result = await runWithConfig(
+        sendMagicLink({ email: 'apple-reviewer@withlily.app' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              reviewerEmails: ['apple-reviewer@withlily.app'],
+            })
+          )
+        )
+      )
+
+      expect(result.instantCode).toBeDefined()
+      const store = getMagicLinkStore()
+      expect(result.instantCode).toBe(store[0]?.token)
+    })
+
+    it('should not return instantCode for a non-allowlisted email', async () => {
+      const result = await runWithConfig(
+        sendMagicLink({ email: 'random@example.com' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              reviewerEmails: ['apple-reviewer@withlily.app'],
+            })
+          )
+        )
+      )
+
+      expect(result.instantCode).toBeUndefined()
+    })
+
+    it('should match allowlist case- and whitespace-insensitively', async () => {
+      const result = await runWithConfig(
+        sendMagicLink({ email: '  APPLE-REVIEWER@WITHLILY.APP  ' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              reviewerEmails: ['apple-reviewer@withlily.app'],
+            })
+          )
+        )
+      )
+
+      expect(result.instantCode).toBeDefined()
+    })
+
+    it('should not bypass when allowlist is empty', async () => {
+      const result = await runWithConfig(
+        sendMagicLink({ email: 'apple-reviewer@withlily.app' }).pipe(
+          Effect.provide(createTestLayer({ reviewerEmails: [] }))
+        )
+      )
+
+      expect(result.instantCode).toBeUndefined()
+    })
+
+    it('should still enforce rate limits for reviewer emails', async () => {
+      const result = await runExitWithConfig(
+        sendMagicLink({ email: 'apple-reviewer@withlily.app' }).pipe(
+          Effect.provide(
+            createTestLayer({
+              reviewerEmails: ['apple-reviewer@withlily.app'],
+              shouldExceedRateLimit: true,
+            })
+          )
+        )
+      )
+
+      expect(result._tag).toBe('Failure')
+    })
+
+    it('should still validate email format for reviewer-pattern strings', async () => {
+      const result = await runExitWithConfig(
+        sendMagicLink({ email: 'not-an-email' }).pipe(
+          Effect.provide(createTestLayer({ reviewerEmails: ['not-an-email'] }))
         )
       )
 

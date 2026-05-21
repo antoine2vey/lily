@@ -13,13 +13,34 @@ import {
 } from '@lily/api/services/rate-limiter/service'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import type { EmailService } from '@lily/shared/server'
-import { Config, Console, Context, Effect, Layer } from 'effect'
+import {
+  Array,
+  Config,
+  Console,
+  Context,
+  Effect,
+  Layer,
+  pipe,
+  String as Str,
+} from 'effect'
 import qrcode from 'qrcode-terminal'
 
 export class MagicLinkConfig extends Context.Tag('MagicLinkConfig')<
   MagicLinkConfig,
-  { readonly disableVerification: boolean }
+  {
+    readonly disableVerification: boolean
+    readonly reviewerEmails: ReadonlyArray<string>
+  }
 >() {}
+
+const parseReviewerEmails = (raw: string): ReadonlyArray<string> =>
+  pipe(
+    raw,
+    Str.split(','),
+    Array.map(Str.trim),
+    Array.filter((s) => s.length > 0),
+    Array.map(normalizeEmail)
+  )
 
 export const MagicLinkConfigLive = Layer.effect(
   MagicLinkConfig,
@@ -27,7 +48,13 @@ export const MagicLinkConfigLive = Layer.effect(
     const disableVerification = yield* Config.boolean(
       'DISABLE_MAGIC_LINK_VERIFICATION'
     )
-    return { disableVerification }
+    const reviewerEmailsRaw = yield* Config.string('REVIEWER_EMAILS').pipe(
+      Config.withDefault('')
+    )
+    return {
+      disableVerification,
+      reviewerEmails: parseReviewerEmails(reviewerEmailsRaw),
+    }
   })
 )
 
@@ -45,7 +72,7 @@ export const sendMagicLink = ({
 > =>
   Effect.gen(function* () {
     const rateLimiter = yield* RateLimiterService
-    const { disableVerification } = yield* MagicLinkConfig
+    const { disableVerification, reviewerEmails } = yield* MagicLinkConfig
 
     // Normalize email
     const normalized = normalizeEmail(email)
@@ -65,12 +92,26 @@ export const sendMagicLink = ({
     // Build callback URL for email
     const deepLink = `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`
 
-    // If verification is disabled, skip email and return code for instant login
-    // This is used for TestFlight/App Review testing
-    if (disableVerification) {
-      yield* Console.log(
-        '⚠️ Magic link verification disabled - returning instant code'
-      )
+    // Allowlisted reviewer emails (App Store / Play Store reviewers) skip the
+    // email step and receive the token inline so they can log in without
+    // accessing an external mailbox. The global disableVerification flag is
+    // intentionally separate — never enable it in production.
+    const isReviewer = Array.contains(reviewerEmails, normalized)
+
+    if (disableVerification || isReviewer) {
+      if (isReviewer) {
+        const alerter = yield* Alerter
+        yield* logAndAlertWarning(
+          alerter,
+          'auth',
+          'Reviewer instant login used',
+          { email: normalized }
+        )
+      } else {
+        yield* Console.log(
+          '⚠️ Magic link verification disabled - returning instant code'
+        )
+      }
       return {
         message: 'If an account exists, a magic link has been sent.',
         instantCode: token,
