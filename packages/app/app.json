@@ -62,7 +62,6 @@
       "expo-dev-client",
       "expo-router",
       "expo-secure-store",
-      "expo-font",
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",
@@ -122,22 +121,7 @@
       [
         "expo-font",
         {
-          "android": {
-            "fonts": [
-              {
-                "fontFamily": "material",
-                "fontDefinitions": [
-                  {
-                    "path": "./assets/fonts/MaterialIcons.ttf",
-                    "weight": 400
-                  }
-                ]
-              }
-            ]
-          },
-          "ios": {
-            "fonts": ["./assets/fonts/MaterialIcons.ttf"]
-          }
+          "fonts": ["./assets/fonts/material.ttf"]
         }
       ]
     ],

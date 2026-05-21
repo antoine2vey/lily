@@ -23,20 +23,61 @@ import { useIconColors } from '@/hooks/useIconColors'
 import type { PlantIdentificationResult } from '@/hooks/useIdentifyPlant'
 import { useReIdentifyPlant } from '@/hooks/useReIdentifyPlant'
 
+// Demo fixture used by the screenshot pipeline. The previous approach
+// passed the full result as a JSON-encoded query string, which is
+// fragile on Android: long URLs with `%` and `+` get re-interpreted by
+// the intent system and silently fail to navigate — leaving the
+// previous screen in place. A `?demo=1` switch keeps the deep link
+// short and the asset stable.
+const DEMO_RESULT: PlantIdentificationResult = {
+  name: 'Monstera Deliciosa',
+  family: 'Araceae',
+  confidence: 0.94,
+  alternatives: [
+    { name: 'Monstera Adansonii', confidence: 0.03 },
+    { name: 'Philodendron Hederaceum', confidence: 0.02 },
+  ],
+  wateringFrequencyDays: 7,
+  luxNeeded: 2000,
+  humidityRating: 4,
+  petToxicityRating: 3,
+  fertilizationFrequencyDays: 21,
+  mistingFrequencyDays: 3,
+  repottingFrequencyDays: 365,
+  category: 'Tropical',
+  description:
+    'The beloved split-leaf philodendron, famous for its dramatic fenestrations and easy care.',
+  wateringTips:
+    'Water when the top 2 inches of soil feel dry. Avoid overwatering; root rot is common.',
+  imageUrl:
+    'https://images.unsplash.com/photo-1603095859718-b6300a0aad18?w=800',
+}
+const DEMO_PHOTO_URI =
+  'https://images.unsplash.com/photo-1603095859718-b6300a0aad18?w=800'
+
 export function AIIdentificationResultsScreen() {
   const { t } = useTranslation('addPlant')
-  const params = useLocalSearchParams<{ photoUri?: string; result?: string }>()
+  const params = useLocalSearchParams<{
+    photoUri?: string
+    result?: string
+    demo?: string
+  }>()
   const iconColors = useIconColors()
-  const photoUri = params.photoUri ? decodeURIComponent(params.photoUri) : ''
+  const photoUri = params.demo
+    ? DEMO_PHOTO_URI
+    : params.photoUri
+      ? decodeURIComponent(params.photoUri)
+      : ''
 
   const parsedResult = useMemo((): PlantIdentificationResult | null => {
+    if (params.demo) return DEMO_RESULT
     if (!params.result) return null
     try {
       return JSON.parse(decodeURIComponent(params.result))
     } catch {
       return null
     }
-  }, [params.result])
+  }, [params.demo, params.result])
 
   const [result, setResult] = useState<PlantIdentificationResult | null>(
     parsedResult
@@ -182,7 +223,10 @@ export function AIIdentificationResultsScreen() {
   const confidencePercent = Math.round(result.confidence * 100)
 
   return (
-    <View className="flex-1 bg-background dark:bg-background-dark">
+    <View
+      testID="ai-results-screen"
+      className="flex-1 bg-background dark:bg-background-dark"
+    >
       {/* Header */}
       <View
         className="flex-row items-center justify-between px-4 pb-2 bg-background dark:bg-background-dark"

@@ -85,6 +85,7 @@ export function WelcomeStep({ onNext, onSkipOnboarding }: WelcomeStepProps) {
         </View>
 
         <Pressable
+          testID="onboarding-skip-button"
           onPress={onSkipOnboarding}
           className="mt-4 py-2 items-center"
         >

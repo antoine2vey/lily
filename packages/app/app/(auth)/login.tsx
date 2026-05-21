@@ -105,6 +105,8 @@ export default function LoginScreen() {
                   autoCorrect={false}
                   error={!!error}
                   pill
+                  returnKeyType="go"
+                  onSubmitEditing={handleSubmit}
                 />
                 {error && (
                   <Text className="text-error text-sm font-medium px-4 -mt-2">

@@ -1,12 +1,15 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { Badge, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
-import { useMemo } from 'react'
+import {
+  Badge,
+  Icon,
+  Label,
+  NativeTabs,
+  VectorIcon,
+} from 'expo-router/unstable-native-tabs'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { useCareBadgeCount } from '@/hooks/useCareBadgeCount'
 import { useIconColors } from '@/hooks/useIconColors'
-
-const TAB_ICON_SIZE = 24
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap
 
@@ -15,35 +18,16 @@ export default function TabsLayout() {
   const careBadgeCount = useCareBadgeCount()
   const iconColors = useIconColors()
 
-  const tabIcons = useMemo(() => {
-    const make = (name: MaterialIconName) => ({
-      icon: {
-        src: MaterialIcons.getImageSource(
-          name,
-          TAB_ICON_SIZE,
-          iconColors.muted
-        ),
-      },
-      selectedIcon: {
-        src: MaterialIcons.getImageSource(
-          name,
-          TAB_ICON_SIZE,
-          iconColors.primary
-        ),
-      },
-    })
-    return {
-      home: make('home'),
-      plants: make('local-florist'),
-      care: make('water-drop'),
-      person: make('person'),
-    }
-  }, [iconColors.muted, iconColors.primary])
+  const tabIcon = (name: MaterialIconName) => (
+    <Icon src={<VectorIcon family={MaterialIcons} name={name} />} />
+  )
 
   return (
     <View className="flex-1">
       <NativeTabs
         minimizeBehavior="onScrollDown"
+        backgroundColor={iconColors.background}
+        indicatorColor={iconColors.surfaceTinted}
         tintColor={iconColors.primary}
         iconColor={{
           default: iconColors.muted,
@@ -53,17 +37,21 @@ export default function TabsLayout() {
           fontFamily: 'SpaceGrotesk_400Regular',
           fontSize: 9,
           fontWeight: '400',
+          color: iconColors.textSecondary,
         }}
       >
-        <NativeTabs.Trigger name="index" options={tabIcons.home}>
+        <NativeTabs.Trigger name="index">
+          {tabIcon('home')}
           <Label>{t('tabs.home')}</Label>
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="plants" options={tabIcons.plants}>
+        <NativeTabs.Trigger name="plants">
+          {tabIcon('local-florist')}
           <Label>{t('tabs.plants')}</Label>
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="care" options={tabIcons.care}>
+        <NativeTabs.Trigger name="care">
+          {tabIcon('water-drop')}
           <Label>{t('tabs.care')}</Label>
           {careBadgeCount > 0 && (
             <Badge>
@@ -72,7 +60,8 @@ export default function TabsLayout() {
           )}
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="profile" options={tabIcons.person}>
+        <NativeTabs.Trigger name="profile">
+          {tabIcon('person')}
           <Label>{t('tabs.profile')}</Label>
         </NativeTabs.Trigger>
       </NativeTabs>
