@@ -12,6 +12,13 @@ export default {
     "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱",
   analyzing: 'Analyzing...',
   searching: 'Searching knowledge base...',
+  drawer: {
+    title: 'Conversations',
+    newChat: 'New conversation',
+    empty: 'No past conversations yet.',
+    untitledGeneral: 'New conversation',
+    untitledPlant: 'Plant chat',
+  },
   suggestions: {
     default: {
       leavesYellowing: 'Why are my leaves yellowing?',

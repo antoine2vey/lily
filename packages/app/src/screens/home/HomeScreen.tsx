@@ -93,7 +93,7 @@ interface TodaySectionProps {
   label: string
   completedToday: number
   total: number
-  tasksDoneSuffix: string
+  tasksDoneText: string
   metaText: string
 }
 
@@ -101,7 +101,7 @@ function TodaySection({
   label,
   completedToday,
   total,
-  tasksDoneSuffix,
+  tasksDoneText,
   metaText,
 }: TodaySectionProps) {
   const progress = total > 0 ? completedToday / total : 0
@@ -115,7 +115,7 @@ function TodaySection({
           className="text-base text-text-primary dark:text-white"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
         >
-          {`${completedToday}/${total} ${tasksDoneSuffix}`}
+          {tasksDoneText}
         </Text>
         <Text className="text-xs text-text-muted dark:text-slate-400">
           {metaText}
@@ -128,16 +128,14 @@ function TodaySection({
 
 interface WeatherInlineChipProps {
   temperatureC: number
-  adjustedCount: number
-  adjustedSuffix: string
+  adjustedText?: string | undefined
 }
 
 function WeatherInlineChip({
   temperatureC,
-  adjustedCount,
-  adjustedSuffix,
+  adjustedText,
 }: WeatherInlineChipProps) {
-  const meta = adjustedCount > 0 ? ` · ${adjustedCount} ${adjustedSuffix}` : ''
+  const meta = adjustedText ? ` · ${adjustedText}` : ''
   return (
     <Text className="text-xs text-text-muted dark:text-slate-400 mt-1.5">
       {`${Math.round(temperatureC)}°C${meta}`}
@@ -587,10 +585,13 @@ export function HomeScreen() {
                 {weatherTemperatureC !== undefined && (
                   <WeatherInlineChip
                     temperatureC={weatherTemperatureC}
-                    adjustedCount={weather.adjustmentSummary.adjustedCount}
-                    adjustedSuffix={t('home:weather.adjustedSuffix', {
-                      defaultValue: 'plants adjusted',
-                    })}
+                    adjustedText={
+                      weather.adjustmentSummary.adjustedCount > 0
+                        ? t('home:weather.adjustedPlants', {
+                            count: weather.adjustmentSummary.adjustedCount,
+                          })
+                        : undefined
+                    }
                   />
                 )}
               </View>
@@ -607,21 +608,28 @@ export function HomeScreen() {
                     : { entering: FadeIn.duration(300) })}
                   className="pb-6"
                 >
-                  {careTasksData && achievementsData && (
-                    <TodaySection
-                      label={t('home:today.label', { defaultValue: 'Today' })}
-                      completedToday={careTasksData.completedToday}
-                      total={
+                  {careTasksData &&
+                    achievementsData &&
+                    (() => {
+                      const total =
                         careTasksData.completedToday +
                         Array.length(careTasksOverdue) +
                         Array.length(careTasksToday)
-                      }
-                      tasksDoneSuffix={t('home:today.tasksDoneSuffix', {
-                        defaultValue: 'tasks done',
-                      })}
-                      metaText={`${t('home:streak.level', { level: achievementsData.level })} · ${t('home:streak.achievements', { count: achievementsData.unlockedCount })}`}
-                    />
-                  )}
+                      return (
+                        <TodaySection
+                          label={t('home:today.label', {
+                            defaultValue: 'Today',
+                          })}
+                          completedToday={careTasksData.completedToday}
+                          total={total}
+                          tasksDoneText={t('home:today.tasksDone', {
+                            done: careTasksData.completedToday,
+                            total,
+                          })}
+                          metaText={`${t('home:streak.level', { level: achievementsData.level })} · ${t('home:streak.achievements', { count: achievementsData.unlockedCount })}`}
+                        />
+                      )
+                    })()}
 
                   <HydrationCard
                     plants={wateringPlants}

@@ -109,8 +109,20 @@ export default {
   },
   askLily: {
     title: 'Ask Lily',
+    shortLabel: 'Ask Lily',
     subtitle:
       'Diagnose problems, identify pests, get care tips — your plant expert in your pocket.',
+  },
+  today: {
+    label: 'Today',
+    tasksDone: '{done}/{total} {total, plural, one {task} other {tasks}} done',
+  },
+  needsAttention: {
+    title: 'Needs Attention',
+    subtitle: '{count, plural, one {# plant} other {# plants}}',
+  },
+  cta: {
+    addPlant: 'Add plant',
   },
   weather: {
     conditionSunny: 'Sunny',

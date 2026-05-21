@@ -27,6 +27,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { GlassIconButton } from '@/components/GlassIconButton'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useCarePlant } from '@/hooks/useCarePlant'
+import { useConversationByPlant } from '@/hooks/useConversationByPlant'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -282,6 +283,8 @@ export function PlantDetailScreen() {
   const updatePlant = useUpdatePlant()
   const deletePlant = useDeletePlant()
   const createConversation = useCreateConversation()
+  const { findExisting: findExistingPlantChat } =
+    useConversationByPlant(plantId)
 
   const handleBack = useCallback(() => {
     router.back()
@@ -293,6 +296,11 @@ export function PlantDetailScreen() {
 
   const handleChat = useCallback(async () => {
     if (!plantId) return
+    const existing = await findExistingPlantChat()
+    if (Option.isSome(existing)) {
+      router.push(`/chat/${existing.value}` as never)
+      return
+    }
     const result = await createConversation.mutateAsync({
       payload: { kind: 'plant', plantId },
     })
@@ -300,7 +308,7 @@ export function PlantDetailScreen() {
       onLeft: () => undefined,
       onRight: (created) => router.push(`/chat/${created.id}` as never),
     })
-  }, [plantId, router, createConversation])
+  }, [plantId, router, createConversation, findExistingPlantChat])
 
   const handleCareNow = useCallback(
     (careType: CareType) => {

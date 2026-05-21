@@ -80,12 +80,12 @@ export function useConversationMessages(conversationId?: string) {
     { enabled: !!conversationId, staleTime: 0 }
   )
 
-  const initialMessages = useMemo<UIMessage[]>(
+  const initialMessages = useMemo<UIMessage[] | undefined>(
     () =>
       pipe(
         Option.fromNullable(query.data?.items),
         Option.map(Array.map(toUIMessage)),
-        Option.getOrElse(() => [] as UIMessage[])
+        Option.getOrUndefined
       ),
     [query.data?.items]
   )
