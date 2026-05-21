@@ -276,7 +276,7 @@ export function SettingsScreen() {
               }
               title={t('settings:support.contactUs')}
               showBorder
-              onPress={() => Linking.openURL('mailto:support@lily.app')}
+              onPress={() => Linking.openURL('mailto:support@withlily.app')}
             />
             <SettingsMenuItem
               icon={
