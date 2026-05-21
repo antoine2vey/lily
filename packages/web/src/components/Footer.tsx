@@ -63,6 +63,12 @@ export async function Footer() {
               {t('terms')}
             </a>
             <a
+              href={`/${locale}/support`}
+              className="hover:text-lily-text transition-colors"
+            >
+              {t('support')}
+            </a>
+            <a
               href="mailto:hello@withlily.app"
               className="hover:text-lily-text transition-colors"
             >

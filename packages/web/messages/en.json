@@ -112,6 +112,7 @@
     "blog": "Blog",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
+    "support": "Support",
     "contact": "Contact",
     "copyright": "© 2026 Lily. All rights reserved."
   },
@@ -248,5 +249,22 @@
     "s5Heading": "Contact Us",
     "s5Text": "For questions about these terms, reach us at",
     "metaDescription": "Read the Terms of Service for Lily, the plant care app. Understand your rights and our policies."
+  },
+  "Support": {
+    "back": "← Back to Lily",
+    "heading": "Support",
+    "intro": "Need help with Lily? You're in the right place. Below you'll find answers to common questions and ways to reach our team directly.",
+    "contactHeading": "Contact Us",
+    "contactText": "For any question, bug report, or feedback, email our support team at",
+    "contactResponseTime": "We typically respond within 1 business day (Monday–Friday, Paris time).",
+    "faqHeading": "Frequently Asked Questions",
+    "faqs": "How do I start my free trial?::Lily offers a 7-day free trial with no credit card required. Download the app from the App Store or Google Play, create an account, and your trial starts automatically.|How do I manage or cancel my subscription?::Subscriptions are managed through your App Store or Google Play account. On iOS, open Settings → [your name] → Subscriptions → Lily. On Android, open Google Play → Profile → Payments & subscriptions → Subscriptions. Cancelling stops future renewals; you keep access until the end of the current billing period.|How do I request a refund?::Refunds are handled by Apple and Google, not by Lily. For App Store refunds, visit reportaproblem.apple.com. For Google Play refunds, go to play.google.com/store/account and locate the order.|How do I delete my account and data?::You can delete your account directly from the app: Settings → Account → Delete Account. This permanently erases your plants, care logs, photos, and personal data within 30 days. You can also email privacy@withlily.app to request deletion.|How do I export my plant data?::Email privacy@withlily.app from the address linked to your account. We'll send you a JSON export of your plants, care logs, and account data within 30 days, as required by GDPR.|Why didn't I receive a care reminder?::Check that notifications are enabled: iOS Settings → Lily → Notifications, or Android Settings → Apps → Lily → Notifications. Inside Lily, go to Settings → Notifications to confirm reminders are switched on. If problems persist, email us.|Is my plant photo data private?::Yes. Photos submitted for AI identification or diagnosis are processed in real time and are not retained after analysis. See our Privacy Policy for full details.|How accurate is the AI plant diagnosis?::Lily's AI is a helpful starting point but not a substitute for expert advice. For critical plant-health issues, consult a professional horticulturist.",
+    "accountHeading": "Account & Data Requests",
+    "accountText": "For GDPR/CCPA requests — access, correction, deletion, or data portability — contact our data protection team at",
+    "linksHeading": "Related Resources",
+    "linkPrivacy": "Privacy Policy",
+    "linkTerms": "Terms of Service",
+    "linkBlog": "Plant Care Blog",
+    "metaDescription": "Get help with Lily. Contact support, find answers to common questions about subscriptions, account deletion, data export, and plant care features."
   }
 }
