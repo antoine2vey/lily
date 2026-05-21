@@ -138,8 +138,13 @@ export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
  * @returns Start of tomorrow (00:00:00.000) in the specified timezone
  */
 export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
-  const current = withTimeZone(DateTime.unsafeNow(), timezone)
-  const tomorrow = DateTime.add(current, { days: 1 })
+  // Add before applying the timezone — `DateTime.add` on a Zoned
+  // DateTime can throw `RangeError: Invalid time value` under Hermes
+  // for some timezones. Safe pattern: arithmetic on UTC, then zone.
+  const tomorrow = withTimeZone(
+    DateTime.add(DateTime.unsafeNow(), { days: 1 }),
+    timezone
+  )
   const parts = DateTime.toParts(tomorrow)
   return DateTime.toDateUtc(
     DateTime.unsafeMakeZoned(
