@@ -17,6 +17,8 @@ module.exports = {
       '<rootDir>/src/__tests__/mocks/react-native-purchases.ts',
     '^@ronradtke/react-native-markdown-display$':
       '<rootDir>/src/__tests__/mocks/react-native-markdown-display.tsx',
+    '^@callstack/liquid-glass$':
+      '<rootDir>/src/__tests__/mocks/liquid-glass.ts',
   },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
