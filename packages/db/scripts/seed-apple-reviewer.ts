@@ -54,7 +54,7 @@ const getAt = <T>(arr: T[], index: number): T => {
   return item.value
 }
 
-const APPLE_REVIEWER_EMAIL = 'apple-reviewer@lily.app'
+const APPLE_REVIEWER_EMAIL = 'apple-reviewer@withlily.app'
 const APPLE_REVIEWER_USERNAME = 'AppleReviewer'
 const APPLE_REVIEWER_TOKEN = 'apple-review-2024-lily-app'
 
@@ -699,8 +699,13 @@ const seedAppleReviewer = Effect.gen(function* () {
       }
     })
   )
-  yield* db.insert(dailyTips).values(tipEntries)
-  yield* Console.log(`Created ${tipEntries.length} daily tips`)
+  yield* db
+    .insert(dailyTips)
+    .values(tipEntries)
+    .onConflictDoNothing({ target: dailyTips.publishDate })
+  yield* Console.log(
+    `Created ${tipEntries.length} daily tips (existing skipped)`
+  )
 
   // Print summary
   yield* Console.log('')
