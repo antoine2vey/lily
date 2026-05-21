@@ -153,8 +153,14 @@ export const isYesterday = (
   dateTime: DateTime.DateTime,
   timezone: string
 ): boolean => {
-  const current = withTimeZone(DateTime.unsafeNow(), timezone)
-  const yesterday = DateTime.subtract(current, { days: 1 })
+  // Subtract before applying the timezone — `DateTime.subtract` on a
+  // Zoned DateTime can throw `RangeError: Invalid time value` under
+  // Hermes for some timezones (intermediate native Date round-trip).
+  // Match the safe pattern used by daysUntil/isOverdue above.
+  const yesterday = withTimeZone(
+    DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+    timezone
+  )
   const target = withTimeZone(dateTime, timezone)
   const targetParts = DateTime.toParts(target)
   const yesterdayParts = DateTime.toParts(yesterday)
