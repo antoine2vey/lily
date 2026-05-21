@@ -1,8 +1,9 @@
 import type { CareTasksResponse, CareType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array } from 'effect'
+import { Array, Effect } from 'effect'
 import { apiEffectRunner } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
+import { recordPositiveMoment } from '@/utils/rating-prompt'
 
 interface CompleteTaskParams {
   taskId: string
@@ -50,6 +51,9 @@ export function useCompleteTask() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.careTasks.list(), context.previous)
       }
+    },
+    onSuccess: () => {
+      Effect.runFork(recordPositiveMoment)
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.careTasks.all })
