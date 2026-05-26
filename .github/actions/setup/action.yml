@@ -32,4 +32,4 @@ runs:
 
     - name: Configure Turbo remote cache
       if: inputs.turbo-cache == 'true'
-      uses: rharkor/caching-for-turbo@v2
+      uses: rharkor/caching-for-turbo@v2.4.2
