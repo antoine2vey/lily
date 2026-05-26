@@ -34,17 +34,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo-cache: 'false'
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Install dependencies
-        run: bun install
 
       - name: Build
         working-directory: packages/app
