@@ -1,7 +1,4 @@
-export { AddPlantOptionsSheet } from './AddPlantOptionsSheet'
-export { AIIdentificationResultsScreen } from './AIIdentificationResultsScreen'
-export { AIScannerScreen } from './AIScannerScreen'
 export { ManualAddBasicInfoScreen } from './ManualAddBasicInfoScreen'
 export { ManualAddCareNeedsScreen } from './ManualAddCareNeedsScreen'
 export { ManualAddScheduleScreen } from './ManualAddScheduleScreen'
-export { NurseryCardScannerScreen } from './NurseryCardScannerScreen'
+export { UnifiedScannerScreen } from './UnifiedScannerScreen'
