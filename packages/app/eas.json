@@ -37,6 +37,11 @@
       "ios": {
         "appleId": "antoine.2vey@gmail.com",
         "ascAppId": "6758399014"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal",
+        "releaseStatus": "completed"
       }
     }
   }
