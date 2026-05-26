@@ -7,91 +7,56 @@ on:
       - 'v*'
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
-env:
-  BUN_VERSION: 1.3.8
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      api_db: ${{ steps.filter.outputs.api_db }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api_db:
+              - 'packages/api/**'
+              - 'packages/db/**'
+              - 'packages/shared/**'
+              - 'bun.lock'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/setup/**'
+
+  checks:
+    name: Lint · Typecheck · Test · Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
+      - uses: ./.github/actions/setup
+      - name: Run Turbo pipeline
+        run: bun x turbo run lint tsc test build
+      - name: Check bundle sizes
+        run: bash scripts/check-bundle-sizes.sh
 
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: bun install --frozen-lockfile
-      - name: Per-package tsc
-        run: bun run tsc
-      - name: Composite project-reference build
-        run: bun run tsc:build
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - name: Upload web build output
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: packages/web/out
-          retention-days: 7
-      - name: Upload admin build output
-        uses: actions/upload-artifact@v4
-        with:
-          name: admin-build
-          path: packages/admin/dist
-          retention-days: 7
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: bun install --frozen-lockfile
-      - run: bun run test
-
-  integration-tests:
+  integration:
+    name: Integration tests
+    needs: changes
+    if: needs.changes.outputs.api_db == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -103,42 +68,34 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data:rw
+    env:
+      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/lily_test
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/lily_test
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-
-      - run: bun install --frozen-lockfile
-      - name: Write test env file
-        run: |
-          cat > .env.test.local <<EOF
-          DATABASE_URL_TEST=postgres://postgres:postgres@localhost:5432/lily_test
-          DATABASE_URL=postgres://postgres:postgres@localhost:5432/lily_test
-          EOF
+      - uses: ./.github/actions/setup
       - name: Setup test database
         run: bun run db:setup-test
       - name: Run integration tests
         run: bun run test:integration
 
-  bundle-size:
-    needs: build
+  summary:
+    name: CI summary
+    if: always()
+    needs: [checks, integration]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Download web build
-        uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: packages/web/out
-      - name: Download admin build
-        uses: actions/download-artifact@v4
-        with:
-          name: admin-build
-          path: packages/admin/dist
-      - name: Check bundle sizes
-        run: bash scripts/check-bundle-sizes.sh
+      - name: Verify required jobs
+        run: |
+          checks='${{ needs.checks.result }}'
+          integration='${{ needs.integration.result }}'
+          echo "checks=$checks integration=$integration"
+          if [ "$checks" != 'success' ]; then
+            echo '::error::checks job did not succeed'
+            exit 1
+          fi
+          if [ "$integration" != 'success' ] && [ "$integration" != 'skipped' ]; then
+            echo '::error::integration job failed'
+            exit 1
+          fi
