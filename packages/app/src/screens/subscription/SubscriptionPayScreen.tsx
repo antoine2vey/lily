@@ -3,9 +3,10 @@ import { Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LoadingOverlay } from '@/components/LoadingOverlay'
+import { privacyUrl, termsUrl } from '@/constants/urls'
 import { useRevenueCat } from '@/contexts/RevenueCatContext'
 import { useIconColors } from '@/hooks/useIconColors'
 import { FeatureList } from '@/screens/subscription/components/FeatureList'
@@ -16,10 +17,10 @@ type BillingPeriod = 'monthly' | 'annual'
 
 export function SubscriptionPayScreen() {
   const insets = useSafeAreaInsets()
-  const { t } = useTranslation(['subscription', 'common'])
+  const { t, i18n } = useTranslation(['subscription', 'common'])
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
-  const { offerings, purchase, syncSubscription } = useRevenueCat()
+  const { offerings, purchase, restore, syncSubscription } = useRevenueCat()
   const iconColors = useIconColors()
 
   const PREMIUM_FEATURES = [
@@ -87,6 +88,32 @@ export function SubscriptionPayScreen() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRestore = async () => {
+    setIsLoading(true)
+    try {
+      await restore()
+      syncSubscription()
+
+      const message = RevenueCatService.isDevModeEnabled()
+        ? t('messages.restoreSimulated')
+        : t('messages.restoreSuccess')
+
+      Alert.alert(t('subscription:messages.success'), message, [
+        { text: t('common:buttons.ok') },
+      ])
+    } catch {
+      Alert.alert(t('messages.error'), t('messages.restoreFailed'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch(() => {
+      Alert.alert(t('messages.error'), t('messages.linkFailed'))
+    })
   }
 
   const monthlyPrice = pipe(
@@ -256,7 +283,11 @@ export function SubscriptionPayScreen() {
             </View>
 
             {/* Restore Purchase */}
-            <Pressable>
+            <Pressable
+              testID="restore-button"
+              onPress={handleRestore}
+              disabled={isLoading}
+            >
               <Text className="text-xs font-semibold text-text-muted dark:text-slate-400 underline">
                 {t('buttons.restore')}
               </Text>
@@ -264,13 +295,19 @@ export function SubscriptionPayScreen() {
 
             {/* Legal Links */}
             <View className="flex-row gap-4">
-              <Pressable>
-                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+              <Pressable
+                testID="terms-link"
+                onPress={() => openLink(termsUrl(i18n.language))}
+              >
+                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400 underline">
                   {t('legal.terms')}
                 </Text>
               </Pressable>
-              <Pressable>
-                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400">
+              <Pressable
+                testID="privacy-link"
+                onPress={() => openLink(privacyUrl(i18n.language))}
+              >
+                <Text className="text-[10px] font-medium text-text-muted dark:text-slate-400 underline">
                   {t('legal.privacy')}
                 </Text>
               </Pressable>

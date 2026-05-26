@@ -57,6 +57,7 @@ export default {
     restoreSimulated: 'Restauration simulée ! (Mode Dev)',
     restoreFailed: 'Échec de la restauration des achats. Veuillez réessayer.',
     restoring: 'Restauration...',
+    linkFailed: "Impossible d'ouvrir le lien. Veuillez réessayer.",
     success: 'Succès',
   },
   usage: {

@@ -56,6 +56,7 @@ export default {
     restoreSimulated: 'Restore simulated! (Dev Mode)',
     restoreFailed: 'Failed to restore purchases. Please try again.',
     restoring: 'Restoring...',
+    linkFailed: 'Could not open the link. Please try again.',
     success: 'Success',
   },
   usage: {
