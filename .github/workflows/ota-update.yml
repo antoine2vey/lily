@@ -20,19 +20,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if app/shared was actually affected
+        id: affected
+        run: |
+          # Defense in depth: the YAML `paths:` filter above has misfired at
+          # least once (run 26509635618 published an OTA for a blog-only diff).
+          # Confirm with a real git diff before paying for an EAS publish.
+          if git diff --name-only HEAD^1 HEAD \
+            | grep -E '^packages/(app|shared)/' \
+            | grep -vE '^packages/app/(eas|app)\.json$' \
+            | grep -q .; then
+            echo "result=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No packages/app or packages/shared changes in HEAD; skipping EAS publish."
+          fi
 
       - name: Setup
+        if: steps.affected.outputs.result == 'true'
         uses: ./.github/actions/setup
         with:
           turbo-cache: 'false'
 
       - name: Setup EAS
+        if: steps.affected.outputs.result == 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Publish update
+        if: steps.affected.outputs.result == 'true'
         working-directory: packages/app
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
