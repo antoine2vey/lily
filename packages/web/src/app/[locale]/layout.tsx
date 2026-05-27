@@ -1,7 +1,7 @@
-import { GoogleAnalytics } from '@next/third-parties/google'
 import type { Metadata } from 'next'
 import { Space_Grotesk } from 'next/font/google'
 import { notFound } from 'next/navigation'
+import Script from 'next/script'
 import { NextIntlClientProvider } from 'next-intl'
 import {
   getMessages,
@@ -18,6 +18,8 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-space-grotesk',
   display: 'swap',
+  preload: true,
+  adjustFontFallback: true,
 })
 
 interface Props {
@@ -102,12 +104,6 @@ const softwareApplicationSchema = {
     priceCurrency: 'USD',
     offerCount: '3',
   },
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '4.8',
-    ratingCount: '1024',
-    bestRating: '5',
-  },
 }
 
 const organizationSchema = {
@@ -125,13 +121,21 @@ const organizationSchema = {
 const webSiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
+  '@id': 'https://withlily.app/#website',
   name: 'Lily',
   url: 'https://withlily.app',
-  inLanguage: ['en', 'fr'],
   publisher: {
     '@type': 'Organization',
     name: 'Lily',
     url: 'https://withlily.app',
+  },
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: 'https://withlily.app/en/blog?q={search_term_string}',
+    },
+    'query-input': 'required name=search_term_string',
   },
 }
 
@@ -165,9 +169,17 @@ export default async function LocaleLayout({ children, params }: Props) {
             <StickyMobileCTA />
           </Providers>
         </NextIntlClientProvider>
-        <GoogleAnalytics
-          gaId={process.env.NEXT_PUBLIC_GA_ID ?? 'G-YX8RMN49KD'}
+        <Script
+          id="ga-loader"
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID ?? 'G-YX8RMN49KD'}`}
+          strategy="lazyOnload"
         />
+        <Script id="ga-init" strategy="lazyOnload">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${process.env.NEXT_PUBLIC_GA_ID ?? 'G-YX8RMN49KD'}');`}
+        </Script>
       </body>
     </html>
   )

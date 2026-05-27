@@ -88,22 +88,22 @@ export function Header() {
       className={`fixed z-50 bg-background transition-all duration-300 ${scrolled ? 'top-3 left-4 right-4 rounded-2xl' : 'top-0 left-0 right-0'}`}
       style={glassStyle}
     >
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <a href={`/${locale}`} className="flex items-center gap-2">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+        <a href={`/${locale}`} className="flex items-center gap-2 shrink-0">
           <span className="text-2xl">🌿</span>
           <span className="text-xl font-bold text-lily-text">Lily</span>
         </a>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <a
             href={`/${locale}/about`}
-            className="text-muted hover:text-lily-text text-sm font-medium transition-colors"
+            className="hidden sm:inline text-muted hover:text-lily-text text-sm font-medium transition-colors whitespace-nowrap"
           >
             {t('about')}
           </a>
           <a
             href={`/${locale}/blog`}
-            className="text-muted hover:text-lily-text text-sm font-medium transition-colors"
+            className="hidden sm:inline text-muted hover:text-lily-text text-sm font-medium transition-colors whitespace-nowrap"
           >
             {t('blog')}
           </a>
@@ -168,7 +168,7 @@ export function Header() {
 
           <a
             href={`/${locale}#pricing`}
-            className="shadow-neu-sm bg-background text-primary font-semibold px-5 py-2 rounded-full text-sm hover:shadow-neu-inset-sm transition-all duration-200"
+            className="shadow-neu-sm bg-background text-primary font-semibold px-4 sm:px-5 py-2 rounded-full text-sm hover:shadow-neu-inset-sm transition-all duration-200 whitespace-nowrap shrink-0"
           >
             {t('getApp')}
           </a>
