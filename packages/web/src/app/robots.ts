@@ -39,7 +39,7 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: 'Google-Extended',
-        disallow: '/',
+        allow: '/',
       },
     ],
     sitemap: 'https://withlily.app/sitemap.xml',
