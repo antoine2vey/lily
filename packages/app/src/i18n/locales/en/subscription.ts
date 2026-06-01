@@ -109,22 +109,4 @@ export default {
       support: 'Priority support',
     },
   },
-  redeem: {
-    title: 'Redeem Gift Code',
-    description: 'Enter your gift code to unlock premium features.',
-    inputLabel: 'Gift Code',
-    inputPlaceholder: 'Enter code here',
-    redeemButton: 'Redeem',
-    doneButton: 'Done',
-    success: 'Gift code redeemed! Enjoy premium access.',
-    error: 'Something went wrong. Please try again.',
-    errors: {
-      notFound: "This code doesn't exist. Please check and try again.",
-      inactive: 'This code is no longer active.',
-      expired: 'This code has expired.',
-      exhausted: 'This code has reached its maximum number of uses.',
-      alreadyRedeemed: "You've already used this code.",
-    },
-    link: 'Have a gift code?',
-  },
 } as const

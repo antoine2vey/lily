@@ -111,23 +111,4 @@ export default {
       support: 'Support prioritaire',
     },
   },
-  redeem: {
-    title: 'Utiliser un code cadeau',
-    description:
-      'Entrez votre code cadeau pour débloquer les fonctionnalités premium.',
-    inputLabel: 'Code cadeau',
-    inputPlaceholder: 'Entrez le code ici',
-    redeemButton: 'Utiliser',
-    doneButton: 'Terminé',
-    success: "Code cadeau utilisé ! Profitez de l'accès premium.",
-    error: "Une erreur s'est produite. Veuillez réessayer.",
-    errors: {
-      notFound: "Ce code n'existe pas. Vérifiez et réessayez.",
-      inactive: "Ce code n'est plus actif.",
-      expired: 'Ce code a expiré.',
-      exhausted: "Ce code a atteint son nombre maximum d'utilisations.",
-      alreadyRedeemed: 'Vous avez déjà utilisé ce code.',
-    },
-    link: 'Vous avez un code cadeau ?',
-  },
 } as const
