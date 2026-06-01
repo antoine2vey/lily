@@ -153,18 +153,6 @@ export function SubscriptionPayScreen() {
       ? `${monthlyPrice}${t('pricing.perMonth')}`
       : `${annualPrice}${t('pricing.perYear')}`
 
-  const productName =
-    billingPeriod === 'monthly'
-      ? t('disclosure.productMonthly')
-      : t('disclosure.productAnnual')
-
-  const productLength =
-    billingPeriod === 'monthly'
-      ? t('disclosure.lengthMonthly')
-      : t('disclosure.lengthAnnual')
-
-  const productPrice = billingPeriod === 'monthly' ? monthlyPrice : annualPrice
-
   return (
     <View
       className="flex-1 bg-background dark:bg-background-dark"
@@ -265,32 +253,6 @@ export function SubscriptionPayScreen() {
                     price: getPrice(),
                   })
                 : t('billing')}
-            </Text>
-          </View>
-
-          {/* Auto-Renewable Subscription Disclosure (Apple guideline 3.1.2) */}
-          <View className="mx-4 mt-2 p-4 rounded-xl bg-surface-tinted dark:bg-slate-800/40 border border-border/30 dark:border-slate-700/30 gap-2">
-            <Text className="text-[10px] font-bold uppercase tracking-wider text-text-secondary dark:text-slate-300">
-              {t('disclosure.sectionTitle')}
-            </Text>
-            <Text className="text-xs font-semibold text-text-primary dark:text-white">
-              {t('disclosure.productLine', {
-                name: productName,
-                length: productLength,
-                price: productPrice,
-              })}
-            </Text>
-            <Text className="text-[11px] leading-relaxed text-text-secondary dark:text-slate-400">
-              {hasFreeTrial
-                ? t('disclosure.trialAutoRenew', {
-                    days: trialDays,
-                    name: productName,
-                    price: getPrice(),
-                  })
-                : t('disclosure.autoRenew', { price: getPrice() })}
-            </Text>
-            <Text className="text-[11px] leading-relaxed text-text-secondary dark:text-slate-400">
-              {t('disclosure.agreement')}
             </Text>
           </View>
 

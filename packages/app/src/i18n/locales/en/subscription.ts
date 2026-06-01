@@ -32,20 +32,6 @@ export default {
     cancelSubscription: 'Cancel Subscription',
   },
   billing: 'Recurring billing, cancel anytime.',
-  disclosure: {
-    productMonthly: 'Lily Pro — Monthly',
-    productAnnual: 'Lily Pro — Annual',
-    lengthMonthly: '1 month',
-    lengthAnnual: '1 year',
-    sectionTitle: 'Auto-Renewable Subscription',
-    productLine: '{name} · {length} · {price}',
-    autoRenew:
-      'Payment is charged to your Apple ID at purchase confirmation. Your subscription renews automatically at {price} until canceled at least 24 hours before the end of the current period. You can manage or cancel your subscription anytime in your Apple ID Account Settings.',
-    trialAutoRenew:
-      'Your {days}-day free trial converts to a paid {name} subscription at {price} unless canceled at least 24 hours before the trial ends. Manage or cancel anytime in your Apple ID Account Settings.',
-    agreement:
-      'By subscribing you agree to our Terms of Service (EULA) and Privacy Policy.',
-  },
   trial: {
     badge: '{days} days free',
     startTrial: 'Start Free Trial',

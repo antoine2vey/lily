@@ -33,20 +33,6 @@ export default {
     cancelSubscription: "Annuler l'abonnement",
   },
   billing: 'Facturation récurrente, annulez à tout moment.',
-  disclosure: {
-    productMonthly: 'Lily Pro — Mensuel',
-    productAnnual: 'Lily Pro — Annuel',
-    lengthMonthly: '1 mois',
-    lengthAnnual: '1 an',
-    sectionTitle: 'Abonnement à renouvellement automatique',
-    productLine: '{name} · {length} · {price}',
-    autoRenew:
-      "Le paiement est débité de votre compte Apple ID à la confirmation de l'achat. Votre abonnement se renouvelle automatiquement à {price} sauf annulation au moins 24 heures avant la fin de la période en cours. Vous pouvez gérer ou annuler votre abonnement à tout moment dans les Réglages de votre compte Apple ID.",
-    trialAutoRenew:
-      "Votre essai gratuit de {days} jours se transforme en abonnement payant {name} à {price} sauf annulation au moins 24 heures avant la fin de l'essai. Gérez ou annulez à tout moment dans les Réglages de votre compte Apple ID.",
-    agreement:
-      "En vous abonnant, vous acceptez nos Conditions d'utilisation (CLUF) et notre Politique de confidentialité.",
-  },
   trial: {
     badge: '{days} jours gratuits',
     startTrial: "Commencer l'essai gratuit",
