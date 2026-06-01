@@ -14,7 +14,6 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
 import { PlanCard } from '@/screens/subscription/components/PlanCard'
 import { UsageMeter } from '@/screens/subscription/components/UsageMeter'
-import { RedeemGiftCodeSheet } from '@/screens/subscription/RedeemGiftCodeSheet'
 import * as RevenueCatService from '@/services/revenuecat'
 
 const USAGE_ICONS = {
@@ -29,7 +28,6 @@ export function SubscriptionUsageScreen() {
   const { data, isLoading, error } = useSubscriptionUsage()
   const { restore } = useRevenueCat()
   const [isRestoring, setIsRestoring] = useState(false)
-  const [showRedeemSheet, setShowRedeemSheet] = useState(false)
   const iconColors = useIconColors()
 
   const USAGE_CONFIG = {
@@ -236,13 +234,8 @@ export function SubscriptionUsageScreen() {
           </View>
         )}
 
-        {/* Redeem Code & Restore Purchases */}
-        <View className="items-center py-6 gap-3">
-          <Pressable onPress={() => setShowRedeemSheet(true)}>
-            <Text className="text-sm font-medium text-primary">
-              {t('redeem.link')}
-            </Text>
-          </Pressable>
+        {/* Restore Purchases */}
+        <View className="items-center py-6">
           <Pressable onPress={handleRestorePurchases} disabled={isRestoring}>
             <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
               {isRestoring ? t('messages.restoring') : t('buttons.restore')}
@@ -250,11 +243,6 @@ export function SubscriptionUsageScreen() {
           </Pressable>
         </View>
       </ScrollView>
-
-      <RedeemGiftCodeSheet
-        visible={showRedeemSheet}
-        onClose={() => setShowRedeemSheet(false)}
-      />
     </View>
   )
 }
