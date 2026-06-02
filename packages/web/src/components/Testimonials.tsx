@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { FadeIn } from '@/components/FadeIn'
 
-const APP_STORE_URL = 'https://apps.apple.com/app/lily-plant-care/id6504462690'
+const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 
 export function Testimonials() {
   const t = useTranslations('Testimonials')

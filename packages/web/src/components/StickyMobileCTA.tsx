@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 
-const APP_STORE_URL = 'https://apps.apple.com/app/lily-plant-care/id6504462690'
+const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
   'https://play.google.com/store/apps/details?id=com.lilyapp.plants'
 

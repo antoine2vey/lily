@@ -232,7 +232,7 @@ export default async function BlogPostPage({ params }: Props) {
           </p>
           <p className="text-muted mb-6">{t('ctaText')}</p>
           <a
-            href="https://apps.apple.com/app/lily-plant-care/id6504462690"
+            href="https://apps.apple.com/app/with-lily/id6758399014"
             className="inline-block bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-full transition-colors"
           >
             {t('ctaButton')}

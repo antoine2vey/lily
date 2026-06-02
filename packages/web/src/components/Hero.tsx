@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
 
-const APP_STORE_URL = 'https://apps.apple.com/app/lily-plant-care/id6504462690'
+const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
   'https://play.google.com/store/apps/details?id=com.lilyapp.plants'
 

@@ -95,7 +95,7 @@ const softwareApplicationSchema = {
   applicationCategory: 'LifestyleApplication',
   operatingSystem: 'iOS, Android',
   url: 'https://withlily.app',
-  downloadUrl: 'https://apps.apple.com/app/lily-plant-care/id6504462690',
+  downloadUrl: 'https://apps.apple.com/app/with-lily/id6758399014',
   screenshot: 'https://withlily.app/screenshots/home-screen.webp',
   offers: {
     '@type': 'AggregateOffer',
@@ -113,7 +113,7 @@ const organizationSchema = {
   url: 'https://withlily.app',
   logo: 'https://withlily.app/apple-touch-icon.png',
   sameAs: [
-    'https://apps.apple.com/app/lily-plant-care/id6504462690',
+    'https://apps.apple.com/app/with-lily/id6758399014',
     'https://play.google.com/store/apps/details?id=com.lilyapp.plants',
   ],
 }
