@@ -75,6 +75,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       apple: '/apple-touch-icon.png',
     },
     manifest: '/manifest.json',
+    itunes: {
+      appId: '6758399014',
+      appArgument: `https://withlily.app/${locale}`,
+    },
     alternates: {
       canonical: `https://withlily.app/${locale}`,
       languages: {
