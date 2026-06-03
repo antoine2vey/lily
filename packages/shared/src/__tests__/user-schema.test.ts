@@ -250,6 +250,7 @@ describe('User Schemas', () => {
           latitude: null,
           longitude: null,
         },
+        careLogsCount: 0,
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)
@@ -290,6 +291,7 @@ describe('User Schemas', () => {
           latitude: null,
           longitude: null,
         },
+        careLogsCount: 0,
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)
@@ -331,6 +333,7 @@ describe('User Schemas', () => {
           latitude: null,
           longitude: null,
         },
+        careLogsCount: 0,
       }
 
       const result = Schema.decodeSync(UserSettings)(settings)

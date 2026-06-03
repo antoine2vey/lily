@@ -4,6 +4,7 @@ import {
   wateringSpec,
 } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -77,6 +78,7 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
       createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareLogRepository([]),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants([testPlant]),
         plants: [testPlant],
@@ -137,6 +139,7 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
       createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareLogRepository([]),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants([testPlant]),
         plants: [testPlant],
@@ -197,6 +200,7 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
       createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareLogRepository([]),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants([testPlant]),
         plants: [testPlant],
@@ -255,6 +259,7 @@ describe('updateUserSettings - notification recalculation', () => {
       createMockCurrentUser({ id: 'user-1' }),
       trackingLayer,
       createMockPlantRepository({ plants: [testPlant] }),
+      createMockCareLogRepository([]),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants([testPlant]),
         plants: [testPlant],

@@ -63,8 +63,10 @@ export function ProfileScreen() {
     Option.fromNullable(plants?.total),
     () => 0
   )
-  // Mock care logs count - in production this would come from an API
-  const careLogsCount = 156
+  const careLogsCount = Option.getOrElse(
+    Option.fromNullable(user?.careLogsCount),
+    () => 0
+  )
   const achievementsProgress = achievements
     ? `${achievements.unlockedCount}/${achievements.totalCount}`
     : '0/0'

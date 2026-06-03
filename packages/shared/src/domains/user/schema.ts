@@ -95,6 +95,8 @@ export const UserSettings = Schema.Struct({
     latitude: Schema.NullOr(Schema.Number),
     longitude: Schema.NullOr(Schema.Number),
   }),
+  // All-time count of care logs across the user's plants
+  careLogsCount: Schema.Number,
 })
 
 export const UserSettingsUpdateRequest = Schema.Struct({

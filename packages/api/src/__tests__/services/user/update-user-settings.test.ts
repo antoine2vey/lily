@@ -1,6 +1,7 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
@@ -17,6 +18,7 @@ describe('updateUserSettings', () => {
       createMockCurrentUser({ id: userId }),
       createMockNotificationRepository([]),
       createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
       createMockCareScheduleRepository({
         schedules: schedulesFromPlants(mockPlants),
         plants: mockPlants,

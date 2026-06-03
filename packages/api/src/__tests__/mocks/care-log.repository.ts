@@ -10,7 +10,10 @@ import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
 export const createMockCareLogRepository = (
   careLogs: CareLog[],
-  options?: { todayCountByUser?: Record<string, number> }
+  options?: {
+    todayCountByUser?: Record<string, number>
+    countByUser?: Record<string, number>
+  }
 ): Layer.Layer<CareLogRepository> => {
   const repo: ICareLogRepository = {
     findByPlantId: (params: FindCareLogsParams) => {
@@ -144,6 +147,15 @@ export const createMockCareLogRepository = (
       Effect.succeed(
         pipe(
           Option.fromNullable(options?.todayCountByUser),
+          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.getOrElse(() => 0)
+        )
+      ),
+
+    countByUser: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(options?.countByUser),
           Option.flatMap((counts) => Option.fromNullable(counts[userId])),
           Option.getOrElse(() => 0)
         )

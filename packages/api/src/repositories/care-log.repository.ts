@@ -92,6 +92,7 @@ export interface ICareLogRepository {
     userId: string,
     timezone: string
   ) => Effect.Effect<number, SqlError>
+  readonly countByUser: (userId: string) => Effect.Effect<number, SqlError>
 }
 
 // Tag for dependency injection
@@ -297,6 +298,17 @@ export const CareLogRepositoryLive = Layer.effect(
           return extractCount(result)
         }
       ),
+
+      countByUser: Effect.fn('CareLogRepository.countByUser')(function* (
+        userId: string
+      ) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(careLogs)
+          .innerJoin(plants, eq(careLogs.plantId, plants.id))
+          .where(eq(plants.userId, userId))
+        return extractCount(result)
+      }),
     }
   })
 )

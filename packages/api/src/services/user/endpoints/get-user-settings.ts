@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { UserNotFoundError } from '@lily/shared/errors/user'
@@ -9,16 +10,19 @@ import { Effect } from 'effect'
 export const getUserSettings = (): Effect.Effect<
   UserSettings,
   SqlError | UserNotFoundError,
-  UserRepository | CurrentUser
+  UserRepository | CareLogRepository | CurrentUser
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
     const repo = yield* UserRepository
+    const careLogRepo = yield* CareLogRepository
     const user = yield* repo.findById(id)
 
     if (!user) {
       return yield* new UserNotFoundError()
     }
+
+    const careLogsCount = yield* careLogRepo.countByUser(id)
 
     return {
       name: user.name,
@@ -52,5 +56,6 @@ export const getUserSettings = (): Effect.Effect<
         latitude: user.latitude ?? null,
         longitude: user.longitude ?? null,
       },
+      careLogsCount,
     }
   }).pipe(Effect.withSpan('UserService.getUserSettings'))

@@ -1,4 +1,5 @@
 import type { SqlError } from '@effect/sql/SqlError'
+import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -15,13 +16,18 @@ export const updateUserSettings = (
 ): Effect.Effect<
   UserSettings,
   SqlError | UserNotFoundError,
-  UserRepository | CurrentUser | NotificationRepository | CareScheduleRepository
+  | UserRepository
+  | CurrentUser
+  | NotificationRepository
+  | CareScheduleRepository
+  | CareLogRepository
 > =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
     const repo = yield* UserRepository
     const notificationRepo = yield* NotificationRepository
     const scheduleRepo = yield* CareScheduleRepository
+    const careLogRepo = yield* CareLogRepository
 
     // Get current user settings to check if timezone/time changed
     const existingUser = yield* repo.findById(id)
@@ -72,6 +78,8 @@ export const updateUserSettings = (
     if (!user) {
       return yield* new UserNotFoundError()
     }
+
+    const careLogsCount = yield* careLogRepo.countByUser(id)
 
     // Check if timezone or preferred time changed
     const timezoneChanged =
@@ -179,5 +187,6 @@ export const updateUserSettings = (
         latitude: pipe(Option.fromNullable(user.latitude), Option.getOrNull),
         longitude: pipe(Option.fromNullable(user.longitude), Option.getOrNull),
       },
+      careLogsCount,
     }
   }).pipe(Effect.withSpan('UserService.updateUserSettings'))
