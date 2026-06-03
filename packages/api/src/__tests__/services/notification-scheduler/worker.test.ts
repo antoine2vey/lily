@@ -1,4 +1,7 @@
-import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
+import {
+  createTestDeviceToken,
+  mockDeviceTokens,
+} from '@lily/api/__tests__/fixtures/device-tokens'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
@@ -22,6 +25,8 @@ import {
   handleFailedMessage,
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
+import type { DeviceToken } from '@lily/shared/device-token'
+import type { Notification } from '@lily/shared/notification'
 import type { PushMessage, QueueMessage } from '@lily/shared/server'
 import { Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -55,17 +60,28 @@ const createTestQueueMessage = (
   ...overrides,
 })
 
-// Runs processMessage with the default user-1 mocks and returns the pushes
-// that were captured. Keeps per-test setup to a single line.
+// Runs processMessage and returns the pushes that were captured. Defaults to
+// user-1's fixture tokens + a single queued notification, so existing callers
+// stay one-liners. Pass `tokens` to exercise other per-account device sets, and
+// `notifications` when you want to inspect the seeded objects after the run —
+// the notification mock mutates them in place (e.g. status flips to 'sent').
 const runAndCapturePushes = async (
-  message: QueueMessage
+  message: QueueMessage,
+  {
+    tokens = mockDeviceTokens,
+    notifications = [
+      createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      }),
+    ],
+  }: {
+    tokens?: DeviceToken[]
+    notifications?: Notification[]
+  } = {}
 ): Promise<PushMessage[]> => {
   const sentMessages: PushMessage[] = []
-  const notification = createTestNotification({
-    id: 'notification-1',
-    userId: 'user-1',
-    status: 'queued',
-  })
   await Effect.runPromise(
     processMessage(message).pipe(
       Effect.provide(
@@ -74,8 +90,8 @@ const runAndCapturePushes = async (
           createMockPushService({
             onSendBatch: (msgs) => sentMessages.push(...msgs),
           }),
-          createMockDeviceTokenRepository(mockDeviceTokens),
-          createMockNotificationRepository([notification]),
+          createMockDeviceTokenRepository(tokens),
+          createMockNotificationRepository(notifications),
           LaMocksLive
         )
       ),
@@ -117,72 +133,153 @@ describe('Notification Worker', () => {
 
       // user-1 has 2 active tokens
       expect(sentMessages).toHaveLength(2)
+      // Each distinct device token receives exactly one push — proves the
+      // fan-out addresses every device, not the same one twice.
+      expect(new Set(sentMessages.map((m) => m.to))).toEqual(
+        new Set(['expo-push-token-123', 'expo-push-token-456'])
+      )
       expect(sentMessages[0]?.title).toBe('Test notification')
       expect(sentMessages[0]?.body).toBe('Test body')
     })
 
+    it('pushes to active devices only and skips inactive ones for one account', async () => {
+      const userId = 'mixed-device-user'
+      const tokens = [
+        createTestDeviceToken({
+          userId,
+          token: 'active-phone',
+          platform: 'ios',
+          isActive: true,
+        }),
+        createTestDeviceToken({
+          userId,
+          token: 'active-tablet',
+          platform: 'ios',
+          isActive: true,
+        }),
+        createTestDeviceToken({
+          userId,
+          token: 'retired-phone',
+          platform: 'android',
+          isActive: false,
+        }),
+      ]
+
+      const sentMessages = await runAndCapturePushes(
+        createTestQueueMessage({
+          payload: {
+            userId,
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: ['notification-1'],
+            plantIds: ['plant-1'],
+          },
+        }),
+        {
+          tokens,
+          notifications: [
+            createTestNotification({
+              id: 'notification-1',
+              userId,
+              status: 'queued',
+            }),
+          ],
+        }
+      )
+
+      // Only the two active devices are pushed; the inactive token is excluded.
+      expect(sentMessages).toHaveLength(2)
+      const targets = sentMessages.map((m) => m.to)
+      expect(new Set(targets)).toEqual(
+        new Set(['active-phone', 'active-tablet'])
+      )
+      expect(targets).not.toContain('retired-phone')
+    })
+
+    it('fans out to every active device when an account has more than two', async () => {
+      const userId = 'three-device-user'
+      const tokens = [
+        createTestDeviceToken({ userId, token: 'phone-1', platform: 'ios' }),
+        createTestDeviceToken({ userId, token: 'tablet-1', platform: 'ios' }),
+        createTestDeviceToken({
+          userId,
+          token: 'phone-2',
+          platform: 'android',
+        }),
+      ]
+
+      const sentMessages = await runAndCapturePushes(
+        createTestQueueMessage({
+          payload: {
+            userId,
+            title: 'Test notification',
+            body: 'Test body',
+            notificationIds: ['notification-1'],
+            plantIds: ['plant-1'],
+          },
+        }),
+        {
+          tokens,
+          notifications: [
+            createTestNotification({
+              id: 'notification-1',
+              userId,
+              status: 'queued',
+            }),
+          ],
+        }
+      )
+
+      // One push per device — fan-out is not capped at two.
+      expect(sentMessages).toHaveLength(3)
+      expect(new Set(sentMessages.map((m) => m.to))).toEqual(
+        new Set(['phone-1', 'tablet-1', 'phone-2'])
+      )
+    })
+
     it('should mark notification as sent on success', async () => {
-      const message = createTestQueueMessage()
       const notification = createTestNotification({
         id: 'notification-1',
         userId: 'user-1',
         status: 'queued',
       })
 
-      await Effect.runPromise(
-        processMessage(message).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockAlerterLive,
-              createSuccessPushService(),
-              createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
-              LaMocksLive
-            )
-          ),
-          Logger.withMinimumLogLevel(LogLevel.None)
-        )
-      )
+      await runAndCapturePushes(createTestQueueMessage(), {
+        notifications: [notification],
+      })
 
-      // Notification status is managed in the mock's internal state
-      expect(true).toBe(true)
+      // The notification mock mutates the seeded object in place, so we can
+      // read the post-send state directly off the reference we created.
+      expect(notification.status).toBe('sent')
+      expect(notification.sentAt).toBeDefined()
     })
 
     it('should still mark as sent when user has no active tokens', async () => {
-      const message = createTestQueueMessage({
-        payload: {
-          userId: 'user-2', // user-2 has no active tokens
-          title: 'Test',
-          body: 'Test body',
-          notificationIds: ['notification-1'],
-          plantIds: [],
-        },
-      })
-
       const notification = createTestNotification({
         id: 'notification-1',
         userId: 'user-2',
         status: 'queued',
       })
 
-      await Effect.runPromise(
-        processMessage(message).pipe(
-          Effect.provide(
-            Layer.mergeAll(
-              MockAlerterLive,
-              createSuccessPushService(),
-              createMockDeviceTokenRepository(mockDeviceTokens),
-              createMockNotificationRepository([notification]),
-              LaMocksLive
-            )
-          ),
-          Logger.withMinimumLogLevel(LogLevel.None)
-        )
+      // user-2 owns only an inactive token in the fixture, so there is nobody
+      // to push to. Default `tokens` (mockDeviceTokens) already include it.
+      const sentMessages = await runAndCapturePushes(
+        createTestQueueMessage({
+          payload: {
+            userId: 'user-2',
+            title: 'Test',
+            body: 'Test body',
+            notificationIds: ['notification-1'],
+            plantIds: [],
+          },
+        }),
+        { notifications: [notification] }
       )
 
-      // user-2 only has inactive token, so notification is still marked as sent
-      // Notification status is managed in the mock's internal state
-      expect(true).toBe(true)
+      // No active devices → zero pushes, but the notification is still drained
+      // from the pending queue (marked sent) so it isn't retried forever.
+      expect(sentMessages).toHaveLength(0)
+      expect(notification.status).toBe('sent')
     })
 
     it('should fail when push service fails', async () => {

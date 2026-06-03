@@ -27,6 +27,38 @@ describe('registerDeviceToken', () => {
     expect(result.isActive).toBe(true)
   })
 
+  it('registering a second device keeps the existing ones (additive, all active)', async () => {
+    const layer = createTestLayer('user-1')
+
+    // user-1 already owns token-1 + token-2 in the fixture; add a third device.
+    await Effect.runPromise(
+      registerDeviceToken({
+        token: 'second-device-token',
+        platform: 'android',
+      }).pipe(Effect.provide(layer))
+    )
+
+    // Query the repo: registering a new device must not clobber the others —
+    // all three rows coexist and stay active. This coexistence is exactly what
+    // the notification worker's per-user fan-out relies on.
+    const tokens = await Effect.runPromise(
+      Effect.gen(function* () {
+        const repo = yield* DeviceTokenRepository
+        return yield* repo.findByUserId('user-1')
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(tokens).toHaveLength(3)
+    expect(tokens.every((t) => t.isActive)).toBe(true)
+    expect(new Set(tokens.map((t) => t.token))).toEqual(
+      new Set([
+        'expo-push-token-123',
+        'expo-push-token-456',
+        'second-device-token',
+      ])
+    )
+  })
+
   it('reactivates the same row when same user re-registers', async () => {
     const layer = createTestLayer('user-1')
     const result = await Effect.runPromise(
