@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import { plants, rooms } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import { asc, count, eq } from 'drizzle-orm'
@@ -43,6 +44,7 @@ export interface IRoomRepository {
     id: string
   ) => Effect.Effect<typeof rooms.$inferSelect | null, SqlError>
   readonly getMaxOrder: (userId: string) => Effect.Effect<number, SqlError>
+  readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 }
 
 export class RoomRepository extends Context.Tag('RoomRepository')<
@@ -122,6 +124,16 @@ export const RoomRepositoryLive = Layer.effect(
           Option.map(Array.last(rows), (r) => r.order),
           () => 0
         )
+      }),
+
+      countByUserId: Effect.fn('RoomRepository.countByUserId')(function* (
+        userId: string
+      ) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(rooms)
+          .where(eq(rooms.userId, userId))
+        return extractCount(result)
       }),
     }
   })

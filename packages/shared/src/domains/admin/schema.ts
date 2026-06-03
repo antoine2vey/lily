@@ -1,7 +1,10 @@
 import { Schema } from 'effect'
+import { RecentActivity } from '../care-log/schema'
 import { PaginationParams } from '../common/pagination'
 import {
+  AppStore,
   SubscriptionEventType,
+  SubscriptionInfo,
   SubscriptionStatus,
   SubscriptionTier,
 } from '../subscriptions/schema'
@@ -37,6 +40,35 @@ export const AdminStatusChangeRequest = Schema.Struct({
 
 // Re-export User as AdminUser for clarity in admin context
 export { User as AdminUser }
+
+// --- Admin user overview (detail page aggregate) ---
+
+// Curated per-user engagement counts shown on the admin user-detail page.
+export const AdminUserStats = Schema.Struct({
+  plantCount: Schema.Number,
+  careLogsCount: Schema.Number,
+  achievementsCount: Schema.Number,
+  activeDeviceCount: Schema.Number,
+  roomsCount: Schema.Number,
+})
+export type AdminUserStats = typeof AdminUserStats.Type
+
+// Aggregate returned by GET /admin/users/:id/overview. `isStorePayer` is
+// computed server-side from the raw subscription row: a non-null
+// externalSubscriptionId means a real App Store / Play Store purchase
+// (admin gifts leave it null), so the admin UI blocks gifting when true to
+// avoid overwriting a paying customer's RevenueCat subscription.
+export const AdminUserOverview = Schema.Struct({
+  user: User,
+  subscription: SubscriptionInfo,
+  isStorePayer: Schema.Boolean,
+  store: Schema.NullOr(AppStore),
+  productId: Schema.NullOr(Schema.String),
+  stats: AdminUserStats,
+  // Most recent care actions (watered, fertilized, …) across the user's plants.
+  recentActivity: Schema.Array(RecentActivity),
+})
+export type AdminUserOverview = typeof AdminUserOverview.Type
 
 // --- Prompt Preview schemas ---
 

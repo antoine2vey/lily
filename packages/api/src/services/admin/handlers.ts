@@ -5,9 +5,13 @@ import { deleteGiftCode } from '@lily/api/services/admin/endpoints/delete-gift-c
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { getGiftCode } from '@lily/api/services/admin/endpoints/get-gift-code'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
+import { getUserOverview } from '@lily/api/services/admin/endpoints/get-user-overview'
+import { getUserPlants } from '@lily/api/services/admin/endpoints/get-user-plants'
 import { giftSubscription } from '@lily/api/services/admin/endpoints/gift-subscription'
 import { listGiftCodes } from '@lily/api/services/admin/endpoints/list-gift-codes'
 import { listGiftHistory } from '@lily/api/services/admin/endpoints/list-gift-history'
+import { listUserConversationMessages } from '@lily/api/services/admin/endpoints/list-user-conversation-messages'
+import { listUserConversations } from '@lily/api/services/admin/endpoints/list-user-conversations'
 import { listUsers } from '@lily/api/services/admin/endpoints/list-users'
 import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { revokeGiftSubscription } from '@lily/api/services/admin/endpoints/revoke-gift-subscription'
@@ -26,6 +30,22 @@ export const AdminApiLive = (api: Api) =>
       )
       .handle('getUser', ({ path: { id } }) =>
         getUser(id).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getUserOverview', ({ path: { id } }) =>
+        getUserOverview(id).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('getUserPlants', ({ path: { id }, urlParams }) =>
+        getUserPlants(id, urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle('listUserConversations', ({ path: { id }, urlParams }) =>
+        listUserConversations(id, urlParams).pipe(withInfraErrorsAsDefect)
+      )
+      .handle(
+        'listUserConversationMessages',
+        ({ path: { id, conversationId }, urlParams }) =>
+          listUserConversationMessages(id, conversationId, urlParams).pipe(
+            withInfraErrorsAsDefect
+          )
       )
       .handle('updateUser', ({ path: { id }, payload }) =>
         updateUser(id, payload).pipe(withInfraErrorsAsDefect)

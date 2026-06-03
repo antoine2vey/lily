@@ -91,6 +91,13 @@ export const createMockDeviceTokenRepository = (
       const [removed] = store.splice(idx, 1)
       return Effect.succeed(removed ?? null)
     },
+
+    countActiveByUserId: (userId: string) =>
+      Effect.succeed(
+        Array.length(
+          Array.filter(store, (t) => t.userId === userId && t.isActive)
+        )
+      ),
   }
 
   return Layer.succeed(DeviceTokenRepository, repo)

@@ -11,6 +11,7 @@ import {
   AdminStatusChangeRequest,
   AdminUser,
   AdminUserListParams,
+  AdminUserOverview,
   AdminUserUpdateRequest,
   GiftCode,
   GiftCodeCreateRequest,
@@ -18,6 +19,11 @@ import {
   GiftCodeWithRedemptions,
   PromptPreviewResponse,
 } from '@lily/shared/admin'
+import {
+  ChatConversationListResponse,
+  ChatHistoryListResponse,
+  ConversationNotFoundError,
+} from '@lily/shared/ai-chat'
 import {
   CannotModifySelfError,
   ChatMessageNotFoundError,
@@ -30,6 +36,7 @@ import {
   GiftCodeNotFoundError,
 } from '@lily/shared/errors/gift-code'
 import { UserNotFoundError } from '@lily/shared/errors/user'
+import { PlantsListResponse } from '@lily/shared/plant'
 import { Schema } from 'effect'
 
 // Path parameter for user ID
@@ -40,6 +47,9 @@ const messageIdParam = HttpApiSchema.param('messageId', Schema.UUID)
 
 // Path parameter for gift code ID
 const codeIdParam = HttpApiSchema.param('codeId', Schema.UUID)
+
+// Path parameter for chat conversation ID
+const conversationIdParam = HttpApiSchema.param('conversationId', Schema.UUID)
 
 // Define the Admin API group
 export const AdminApi = HttpApiGroup.make('admin')
@@ -178,6 +188,41 @@ export const AdminApi = HttpApiGroup.make('admin')
     )`/users/${userIdParam}/live-activity/trigger-start`
       .addSuccess(AdminLiveActivityTriggerResponse)
       .addError(UserNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/users/:id/overview - profile + subscription + stats aggregate
+    HttpApiEndpoint.get('getUserOverview')`/users/${userIdParam}/overview`
+      .addSuccess(AdminUserOverview)
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/users/:id/plants - the user's owned plants (paginated)
+    HttpApiEndpoint.get('getUserPlants')`/users/${userIdParam}/plants`
+      .setUrlParams(PaginationParams)
+      .addSuccess(PlantsListResponse)
+      .addError(UserNotFoundError, { status: 404 })
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/users/:id/conversations - the user's AI chat conversations
+    HttpApiEndpoint.get(
+      'listUserConversations'
+    )`/users/${userIdParam}/conversations`
+      .setUrlParams(PaginationParams)
+      .addSuccess(ChatConversationListResponse)
+      .addError(ForbiddenError, { status: 403 })
+  )
+  .add(
+    // GET /admin/users/:id/conversations/:conversationId/messages - the
+    // messages (user prompts + AI responses) of one conversation
+    HttpApiEndpoint.get(
+      'listUserConversationMessages'
+    )`/users/${userIdParam}/conversations/${conversationIdParam}/messages`
+      .setUrlParams(PaginationParams)
+      .addSuccess(ChatHistoryListResponse)
+      .addError(ConversationNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })
   )
   .prefix('/admin')

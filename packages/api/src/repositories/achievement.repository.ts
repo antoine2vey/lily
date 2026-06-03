@@ -18,6 +18,8 @@ export interface IAchievementRepository {
     userId: string
   ) => Effect.Effect<Array<typeof userAchievements.$inferSelect>, SqlError>
 
+  readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
+
   readonly hasAchievement: (
     userId: string,
     key: AchievementKey
@@ -78,6 +80,20 @@ export const AchievementRepositoryLive = Layer.effect(
           .from(userAchievements)
           .where(eq(userAchievements.userId, userId))
           .pipe(Effect.withSpan('AchievementRepository.findByUserId')),
+
+      countByUserId: Effect.fn('AchievementRepository.countByUserId')(
+        function* (userId: string) {
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(userAchievements)
+            .where(eq(userAchievements.userId, userId))
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
+        }
+      ),
 
       hasAchievement: Effect.fn('AchievementRepository.hasAchievement')(
         function* (userId: string, key: AchievementKey) {

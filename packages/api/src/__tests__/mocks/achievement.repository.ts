@@ -31,6 +31,13 @@ export const createMockAchievementRepository = (
         Array.filter(unlockedAchievements, (a) => a.userId === userId)
       ),
 
+    countByUserId: (userId: string) =>
+      Effect.succeed(
+        Array.length(
+          Array.filter(unlockedAchievements, (a) => a.userId === userId)
+        )
+      ),
+
     hasAchievement: (userId: string, key: AchievementKey) =>
       Effect.succeed(
         Array.some(

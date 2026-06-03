@@ -1,9 +1,10 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import { deviceTokens } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
-import { eq } from 'drizzle-orm'
+import { and, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 
 // Types for repository methods
@@ -50,6 +51,9 @@ export interface IDeviceTokenRepository {
     data: UpdateDeviceTokenData
   ) => Effect.Effect<DeviceToken | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<DeviceToken | null, SqlError>
+  readonly countActiveByUserId: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
 }
 
 // Tag for dependency injection
@@ -160,6 +164,21 @@ export const DeviceTokenRepositoryLive = Layer.effect(
           .where(eq(deviceTokens.id, id))
           .returning()
         return row ? mapToDeviceToken(row) : null
+      }),
+
+      countActiveByUserId: Effect.fn(
+        'DeviceTokenRepository.countActiveByUserId'
+      )(function* (userId: string) {
+        const result = yield* db
+          .select({ value: count() })
+          .from(deviceTokens)
+          .where(
+            and(
+              eq(deviceTokens.userId, userId),
+              eq(deviceTokens.isActive, true)
+            )
+          )
+        return extractCount(result)
       }),
     }
   })

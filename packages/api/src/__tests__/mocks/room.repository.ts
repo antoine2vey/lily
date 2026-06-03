@@ -84,6 +84,11 @@ export const createMockRoomRepository = (
         )
       )
     },
+
+    countByUserId: (userId: string) =>
+      Effect.succeed(
+        Array.length(Array.filter(roomsData, (r) => r.userId === userId))
+      ),
   }
 
   return Layer.succeed(RoomRepository, repo)

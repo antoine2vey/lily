@@ -22,11 +22,6 @@ const GiftHistoryPage = lazy(() =>
     default: m.GiftHistoryPage,
   }))
 )
-const GiftSubscriptionPage = lazy(() =>
-  import('@/pages/GiftSubscriptionPage').then((m) => ({
-    default: m.GiftSubscriptionPage,
-  }))
-)
 const JobsPage = lazy(() =>
   import('@/pages/JobsPage').then((m) => ({ default: m.JobsPage }))
 )
@@ -48,6 +43,14 @@ const PromptPreviewPage = lazy(() =>
 )
 const SearchPage = lazy(() =>
   import('@/pages/SearchPage').then((m) => ({ default: m.SearchPage }))
+)
+const UserDetailPage = lazy(() =>
+  import('@/pages/UserDetailPage').then((m) => ({
+    default: m.UserDetailPage,
+  }))
+)
+const UsersPage = lazy(() =>
+  import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage }))
 )
 
 const queryClient = new QueryClient()
@@ -71,10 +74,8 @@ export const App = () => (
               <Route path="/jobs" element={<JobsPage />} />
               <Route path="/jobs/new" element={<NewJobPage />} />
               <Route path="/search" element={<SearchPage />} />
-              <Route
-                path="/gift-subscription"
-                element={<GiftSubscriptionPage />}
-              />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/users/:id" element={<UserDetailPage />} />
               <Route path="/gift-codes" element={<GiftCodesPage />} />
               <Route path="/gift-codes/new" element={<GiftCodeFormPage />} />
               <Route
