@@ -2,6 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
+import { assertNotStorePayer } from '@lily/api/services/admin/helpers/assert-not-store-payer'
 import { withAdminTarget } from '@lily/api/services/admin/helpers/with-admin-target'
 import type { AdminUser } from '@lily/api/services/admin/middleware.types'
 import { computePeriodEnd } from '@lily/api/services/helpers/gift-duration'
@@ -11,7 +12,10 @@ import {
   GIFT_DURATION_LABELS,
   type GiftDuration,
 } from '@lily/shared/admin'
-import type { CannotModifySelfError } from '@lily/shared/errors/admin'
+import type {
+  CannotModifySelfError,
+  StorePayerProtectedError,
+} from '@lily/shared/errors/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
 import { DateTime, Effect, Option, pipe } from 'effect'
@@ -21,7 +25,10 @@ export const giftSubscription = (
   duration: GiftDuration
 ): Effect.Effect<
   AdminGiftSubscriptionResponse,
-  SqlError | UserNotFoundError | CannotModifySelfError,
+  | SqlError
+  | UserNotFoundError
+  | CannotModifySelfError
+  | StorePayerProtectedError,
   | UserRepository
   | SubscriptionRepository
   | AdminUser
@@ -30,6 +37,8 @@ export const giftSubscription = (
 > =>
   Effect.gen(function* () {
     const { user, currentAdmin } = yield* withAdminTarget(userId)
+    // Refuse to overwrite a real store-billed subscription (RevenueCat).
+    yield* assertNotStorePayer(userId)
     const subRepo = yield* SubscriptionRepository
 
     const periodStart = DateTime.toDate(DateTime.unsafeNow())

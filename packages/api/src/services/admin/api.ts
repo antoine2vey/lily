@@ -28,6 +28,7 @@ import {
   CannotModifySelfError,
   ChatMessageNotFoundError,
   ForbiddenError,
+  StorePayerProtectedError,
 } from '@lily/shared/errors/admin'
 import {
   GiftCodeDuplicateError,
@@ -111,6 +112,7 @@ export const AdminApi = HttpApiGroup.make('admin')
       .addSuccess(AdminGiftSubscriptionResponse)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
+      .addError(StorePayerProtectedError, { status: 409 })
       .addError(ForbiddenError, { status: 403 })
   )
   .add(
@@ -128,6 +130,7 @@ export const AdminApi = HttpApiGroup.make('admin')
       .addSuccess(AdminRevokeGiftResponse)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
+      .addError(StorePayerProtectedError, { status: 409 })
       .addError(ForbiddenError, { status: 403 })
   )
   .add(

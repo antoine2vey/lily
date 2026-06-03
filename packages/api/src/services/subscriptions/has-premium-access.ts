@@ -18,3 +18,19 @@ export const hasPremiumAccess = (
     Match.orElse(() => isWithinBillingPeriod)
   )
 }
+
+/**
+ * A "real store payer" has an active, paid subscription linked to an actual
+ * App Store / Play Store purchase (non-null externalSubscriptionId). Admin
+ * gifts never set externalSubscriptionId, so this reliably distinguishes a
+ * paying customer — whose row must not be clobbered by a gift/revoke upsert —
+ * from a gifted or free user. Single source of truth shared by the admin
+ * overview display flag and the gift/revoke server-side guard.
+ */
+export const isStorePayer = (
+  subscription: typeof userSubscriptions.$inferSelect | null
+): boolean =>
+  subscription !== null &&
+  subscription.tier === 'paid' &&
+  subscription.status === 'active' &&
+  subscription.externalSubscriptionId !== null

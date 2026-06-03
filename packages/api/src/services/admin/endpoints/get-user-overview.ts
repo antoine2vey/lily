@@ -7,6 +7,7 @@ import { SubscriptionRepository } from '@lily/api/repositories/subscription.repo
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { getCurrentSubscription } from '@lily/api/services/subscriptions/endpoints/get-current-subscription'
+import { isStorePayer } from '@lily/api/services/subscriptions/has-premium-access'
 import type { AdminUserOverview } from '@lily/shared/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Option } from 'effect'
@@ -65,19 +66,12 @@ export const getUserOverview = (
       { concurrency: 'unbounded' }
     )
 
-    // A real store payer has a RevenueCat-issued externalSubscriptionId; admin
-    // gifts never set it. The admin UI uses this to block gifting (which would
-    // overwrite the row) for paying customers.
-    const isStorePayer =
-      rawSubscription != null &&
-      rawSubscription.tier === 'paid' &&
-      rawSubscription.status === 'active' &&
-      rawSubscription.externalSubscriptionId != null
-
     return {
       user,
       subscription,
-      isStorePayer,
+      // Same predicate the gift/revoke endpoints enforce server-side, so the
+      // displayed flag and the guard never disagree.
+      isStorePayer: isStorePayer(rawSubscription),
       store: Option.getOrNull(Option.fromNullable(rawSubscription?.store)),
       productId: Option.getOrNull(
         Option.fromNullable(rawSubscription?.productId)

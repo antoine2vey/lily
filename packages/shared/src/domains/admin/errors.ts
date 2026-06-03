@@ -30,3 +30,17 @@ export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotF
   },
   HttpApiSchema.annotations({ status: 404 })
 ) {}
+
+// Raised when an admin gift/revoke would overwrite a real store-billed
+// (App Store / Play Store) subscription. Server-side backstop for the same
+// rule the admin UI enforces by disabling the controls.
+export class StorePayerProtectedError extends Schema.TaggedError<StorePayerProtectedError>()(
+  'StorePayerProtectedError',
+  {
+    message: Schema.optionalWith(Schema.String, {
+      default: () =>
+        'User has an active store-billed subscription; gifting or revoking would overwrite it',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}

@@ -153,4 +153,42 @@ describe('giftSubscription', () => {
     expect(diffDays).toBeGreaterThan(29.9)
     expect(diffDays).toBeLessThan(30.1)
   })
+
+  it('should refuse to overwrite a real store payer', async () => {
+    const result = await Effect.runPromiseExit(
+      giftSubscription('user-1', '1m').pipe(
+        Effect.provide(
+          baseLayers({
+            subscription: {
+              id: 'sub-1',
+              userId: 'user-1',
+              tier: 'paid',
+              status: 'active',
+              trialStartsAt: null,
+              trialEndsAt: null,
+              currentPeriodStart: new Date('2026-01-01'),
+              currentPeriodEnd: new Date('2026-02-01'),
+              canceledAt: null,
+              externalSubscriptionId: 'rc_real_123',
+              externalCustomerId: 'cust_1',
+              provider: 'revenuecat',
+              productId: 'lily_monthly',
+              store: 'APP_STORE',
+              createdAt: new Date('2026-01-01'),
+              updatedAt: new Date('2026-01-01'),
+            },
+          })
+        )
+      )
+    )
+
+    expect(Exit.isFailure(result)).toBe(true)
+    if (Exit.isFailure(result)) {
+      const error = Cause.failureOption(result.cause)
+      expect(error._tag).toBe('Some')
+      if (error._tag === 'Some') {
+        expect(error.value._tag).toBe('StorePayerProtectedError')
+      }
+    }
+  })
 })
