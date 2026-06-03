@@ -14,6 +14,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dimensions, Image, Pressable, Text, View } from 'react-native'
 import Animated, {
+  FadeIn,
   interpolateColor,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -25,10 +26,10 @@ import { toast } from 'sonner-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { GlassIconButton } from '@/components/GlassIconButton'
-import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useCarePlant } from '@/hooks/useCarePlant'
 import { useConversationByPlant } from '@/hooks/useConversationByPlant'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlant } from '@/hooks/usePlant'
@@ -42,6 +43,7 @@ import { CorrectCareDatesSheet } from '@/screens/plant-detail/components/Correct
 import { GallerySection } from '@/screens/plant-detail/components/GallerySection'
 import { IdealEnvironment } from '@/screens/plant-detail/components/IdealEnvironment'
 import { PastCareSheet } from '@/screens/plant-detail/components/PastCareSheet'
+import { PlantDetailSkeleton } from '@/screens/plant-detail/components/PlantDetailSkeleton'
 import { PlantHeader } from '@/screens/plant-detail/components/PlantHeader'
 import { PlantOptionsSheet } from '@/screens/plant-detail/components/PlantOptionsSheet'
 import { PlantShareCard } from '@/screens/plant-detail/components/PlantShareCard'
@@ -73,9 +75,7 @@ const CARE_TOAST_KEYS: Readonly<
 
 const HERO_HEIGHT = Dimensions.get('window').height * 0.45
 
-// biome-ignore lint/suspicious/noExplicitAny: Reanimated animated style types
-// don't satisfy exactOptionalPropertyTypes when extracted as a prop; the runtime
-// value is a normal ViewStyle subset.
+// biome-ignore lint/suspicious/noExplicitAny: Reanimated animated style types don't satisfy exactOptionalPropertyTypes when extracted as a prop; the runtime value is a normal ViewStyle subset.
 type AnimatedFallbackStyle = any
 
 function HeaderButton({
@@ -115,49 +115,6 @@ function HeaderButton({
         <MaterialIcons name={icon} size={24} color={iconColor} />
       </Animated.View>
     </Pressable>
-  )
-}
-
-function PlantDetailSkeleton() {
-  return (
-    <View
-      className="flex-1 bg-background dark:bg-background-dark"
-      testID="plant-detail-skeleton"
-    >
-      <SkeletonBox width="100%" height={HERO_HEIGHT} rounded="none" />
-      <View
-        className="bg-background dark:bg-background-dark px-6 pb-8 -mt-12"
-        style={{ borderTopLeftRadius: 40, borderTopRightRadius: 40 }}
-      >
-        <View className="w-12 h-1.5 bg-border dark:bg-slate-600 rounded-full mx-auto mt-4 mb-6 opacity-50" />
-        <SkeletonBox width="70%" height={24} rounded="sm" />
-        <View className="mt-2">
-          <SkeletonBox width="40%" height={14} rounded="sm" />
-        </View>
-        <View className="mt-8">
-          <SkeletonBox width="100%" height={80} rounded="lg" />
-        </View>
-        <View className="mt-10 flex-row gap-4">
-          <View className="flex-1">
-            <SkeletonBox width="100%" height={100} rounded="lg" />
-          </View>
-          <View className="flex-1">
-            <SkeletonBox width="100%" height={100} rounded="lg" />
-          </View>
-        </View>
-        <View className="mt-10">
-          <SkeletonBox width={120} height={20} rounded="sm" />
-          <View className="mt-3 flex-row gap-3">
-            {Array.map([1, 2, 3], (i) => (
-              <View key={i} className="items-center gap-2">
-                <SkeletonCircle size={48} />
-                <SkeletonBox width={48} height={12} rounded="sm" />
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
-    </View>
   )
 }
 
@@ -528,8 +485,23 @@ export function PlantDetailScreen() {
     }
   }, [plant])
 
-  if (isLoading && !plant) {
-    return <PlantDetailSkeleton />
+  const isInitialLoading = isLoading && !plant
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (showSkeleton) {
+    return (
+      <Animated.View
+        className="flex-1"
+        entering={FadeIn.duration(300)}
+        testID="plant-detail-skeleton-wrapper"
+      >
+        <PlantDetailSkeleton />
+      </Animated.View>
+    )
+  }
+
+  if (isInitialLoading) {
+    return null
   }
 
   if (error || !plant || !scheduleData) {

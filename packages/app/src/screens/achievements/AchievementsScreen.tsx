@@ -10,12 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { ProgressBar } from '@/components/ProgressBar'
 import { SectionHeader } from '@/components/SectionHeader'
-import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
+import { SkeletonBox } from '@/components/skeletons'
 import { useAchievements } from '@/hooks/useAchievements'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { AchievementCard } from '@/screens/achievements/components/AchievementCard'
 import { AchievementDetailModal } from '@/screens/achievements/components/AchievementDetailModal'
+import { AchievementsSkeleton } from '@/screens/achievements/components/AchievementsSkeleton'
 
 export function AchievementsScreen() {
   const insets = useSafeAreaInsets()
@@ -74,26 +75,8 @@ export function AchievementsScreen() {
             <SkeletonBox width={120} height={20} rounded="sm" />
           </View>
         </View>
-        <Animated.View entering={FadeIn.duration(300)} className="p-6">
-          <View className="items-center mb-6">
-            <SkeletonCircle size={80} />
-            <View className="mt-3">
-              <SkeletonBox width={100} height={24} rounded="sm" />
-            </View>
-            <View className="mt-2">
-              <SkeletonBox width={160} height={14} rounded="sm" />
-            </View>
-            <View className="mt-4 w-full px-8">
-              <SkeletonBox width="100%" height={8} rounded="full" />
-            </View>
-          </View>
-          <View className="flex-row flex-wrap mt-4">
-            {Array.map([1, 2, 3, 4], (i) => (
-              <View key={i} className="w-1/2 p-2">
-                <SkeletonBox width="100%" height={120} rounded="lg" />
-              </View>
-            ))}
-          </View>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <AchievementsSkeleton />
         </Animated.View>
       </View>
     )
@@ -132,56 +115,58 @@ export function AchievementsScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Level Header */}
-        <View className="px-6 py-6 items-center bg-surface dark:bg-surface-dark">
-          <View className="w-20 h-20 rounded-full items-center justify-center mb-3 bg-achievement-gold">
-            <MaterialIcons
-              name="emoji-events"
-              size={40}
-              color={iconColors.white}
-            />
-          </View>
-          <Text className="text-2xl font-bold text-text-primary dark:text-white">
-            {t('level', { level })}
-          </Text>
-          <Text className="text-sm mt-1 font-regular text-text-muted dark:text-slate-400">
-            {t('progress', { unlocked: unlockedCount, total: totalCount })}
-          </Text>
-          <View className="w-full mt-4 px-8">
-            <ProgressBar
-              testID="progress-bar"
-              progress={progress}
-              height={8}
-              color={iconColors.achievementGold}
-              showPercentage
-            />
-          </View>
-        </View>
-
-        {/* Achievement Categories */}
-        {pipe(
-          groupedAchievements,
-          Array.map((group) => (
-            <View key={group.category} className="px-4 py-4">
-              <SectionHeader title={CATEGORY_LABELS[group.category]} />
-              <View className="flex-row flex-wrap mt-2">
-                {pipe(
-                  group.achievements,
-                  Array.map((achievement) => (
-                    <View key={achievement.key} className="w-1/2">
-                      <AchievementCard
-                        achievement={achievement}
-                        onPress={() => setSelectedAchievement(achievement)}
-                      />
-                    </View>
-                  ))
-                )}
-              </View>
+      <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Level Header */}
+          <View className="px-6 py-6 items-center bg-surface dark:bg-surface-dark">
+            <View className="w-20 h-20 rounded-full items-center justify-center mb-3 bg-achievement-gold">
+              <MaterialIcons
+                name="emoji-events"
+                size={40}
+                color={iconColors.white}
+              />
             </View>
-          ))
-        )}
-      </ScrollView>
+            <Text className="text-2xl font-bold text-text-primary dark:text-white">
+              {t('level', { level })}
+            </Text>
+            <Text className="text-sm mt-1 font-regular text-text-muted dark:text-slate-400">
+              {t('progress', { unlocked: unlockedCount, total: totalCount })}
+            </Text>
+            <View className="w-full mt-4 px-8">
+              <ProgressBar
+                testID="progress-bar"
+                progress={progress}
+                height={8}
+                color={iconColors.achievementGold}
+                showPercentage
+              />
+            </View>
+          </View>
+
+          {/* Achievement Categories */}
+          {pipe(
+            groupedAchievements,
+            Array.map((group) => (
+              <View key={group.category} className="px-4 py-4">
+                <SectionHeader title={CATEGORY_LABELS[group.category]} />
+                <View className="flex-row flex-wrap mt-2">
+                  {pipe(
+                    group.achievements,
+                    Array.map((achievement) => (
+                      <View key={achievement.key} className="w-1/2">
+                        <AchievementCard
+                          achievement={achievement}
+                          onPress={() => setSelectedAchievement(achievement)}
+                        />
+                      </View>
+                    ))
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      </Animated.View>
 
       {/* Achievement Detail Modal */}
       <AchievementDetailModal

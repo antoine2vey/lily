@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from '@/components/Badge'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { GlassIconButton } from '@/components/GlassIconButton'
-import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
@@ -21,59 +20,10 @@ import { usePlants } from '@/hooks/usePlants'
 import { useSocialStats } from '@/hooks/useSocialStats'
 import { useSubscription } from '@/hooks/useSubscription'
 import { useUser } from '@/hooks/useUser'
+import { ProfileContentSkeleton } from '@/screens/profile/components/ProfileContentSkeleton'
 import { ProfileHeader } from '@/screens/profile/components/ProfileHeader'
 import { ProfileMenuItem } from '@/screens/profile/components/ProfileMenuItem'
 import { StatsCard } from '@/screens/profile/components/StatsCard'
-
-function ProfileContentSkeleton() {
-  return (
-    <View className="px-4">
-      {/* Profile Header Skeleton */}
-      <View className="items-center py-6">
-        <SkeletonCircle size={80} />
-        <View className="mt-3">
-          <SkeletonBox width={140} height={20} rounded="sm" />
-        </View>
-        <View className="mt-2">
-          <SkeletonBox width={100} height={14} rounded="sm" />
-        </View>
-        <View className="flex-row gap-6 mt-4">
-          <View className="items-center gap-1">
-            <SkeletonBox width={30} height={16} rounded="sm" />
-            <SkeletonBox width={60} height={12} rounded="sm" />
-          </View>
-          <View className="items-center gap-1">
-            <SkeletonBox width={30} height={16} rounded="sm" />
-            <SkeletonBox width={60} height={12} rounded="sm" />
-          </View>
-        </View>
-      </View>
-
-      {/* Stats Card Skeleton */}
-      <View className="flex-row gap-3 mb-4">
-        {Array.map([1, 2, 3], (i) => (
-          <View
-            key={i}
-            className="flex-1 bg-surface dark:bg-surface-dark rounded-xl py-4 items-center"
-          >
-            <SkeletonBox width={32} height={24} rounded="sm" className="mb-1" />
-            <SkeletonBox width={48} height={12} rounded="sm" />
-          </View>
-        ))}
-      </View>
-
-      {/* Menu Items Skeleton */}
-      <View className="gap-0">
-        {Array.map([1, 2, 3, 4, 5, 6], (i) => (
-          <View key={i} className="flex-row items-center p-4 gap-3">
-            <SkeletonCircle size={36} />
-            <SkeletonBox width="60%" height={16} rounded="sm" />
-          </View>
-        ))}
-      </View>
-    </View>
-  )
-}
 
 export function ProfileScreen() {
   const iconColors = useIconColors()
@@ -168,7 +118,7 @@ export function ProfileScreen() {
       </View>
 
       {showSkeleton ? (
-        <Animated.View entering={FadeIn.duration(300)}>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
           <ProfileContentSkeleton />
         </Animated.View>
       ) : isInitialLoading ? null : (

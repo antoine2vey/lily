@@ -4,21 +4,18 @@ import { Array, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheet } from '@/components/BottomSheet'
 import { Chip } from '@/components/Chip'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useCareHistory } from '@/hooks/useCareHistory'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlant } from '@/hooks/usePlant'
+import { CareHistorySkeleton } from '@/screens/care-history/components/CareHistorySkeleton'
 import { Timeline } from '@/screens/care-history/components/Timeline'
 import { LogCareSheet } from '@/screens/log-care/LogCareSheet'
 
@@ -77,22 +74,8 @@ export function CareHistoryScreen() {
           Array.filter((group) => !Array.isEmptyReadonlyArray(group.events))
         )
 
-  if (isLoading && !history) {
-    return (
-      <View
-        className="flex-1 bg-background dark:bg-background-dark"
-        style={{ paddingTop: insets.top }}
-      >
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
-        </View>
-      </View>
-    )
-  }
+  const isInitialLoading = isLoading && !history
+  const showSkeleton = useDelayedLoading(isInitialLoading)
 
   return (
     <View
@@ -140,18 +123,26 @@ export function CareHistoryScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24 }}
       >
-        {!filteredHistory || Array.isEmptyReadonlyArray(filteredHistory) ? (
-          <EmptyState
-            illustration="notification"
-            title={t('history.empty.title')}
-            description={t('history.empty.subtitle')}
-          />
-        ) : (
-          <Timeline
-            testID="timeline"
-            groups={filteredHistory}
-            onEventPress={handleEventPress}
-          />
+        {showSkeleton ? (
+          <Animated.View entering={FadeIn.duration(300)}>
+            <CareHistorySkeleton />
+          </Animated.View>
+        ) : isInitialLoading ? null : (
+          <Animated.View entering={FadeIn.duration(300)}>
+            {!filteredHistory || Array.isEmptyReadonlyArray(filteredHistory) ? (
+              <EmptyState
+                illustration="notification"
+                title={t('history.empty.title')}
+                description={t('history.empty.subtitle')}
+              />
+            ) : (
+              <Timeline
+                testID="timeline"
+                groups={filteredHistory}
+                onEventPress={handleEventPress}
+              />
+            )}
+          </Animated.View>
         )}
       </ScrollView>
 

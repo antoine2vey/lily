@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
 import { mockIsoStringFuture } from '@/__tests__/utils/dates'
 
@@ -103,6 +103,7 @@ describe('PlantDetailScreen', () => {
   })
 
   it('shows loading skeleton when loading', () => {
+    jest.useFakeTimers()
     mockedUseEffectQuery.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -112,7 +113,13 @@ describe('PlantDetailScreen', () => {
 
     render(<PlantDetailScreen />)
 
+    // Skeleton is delayed by 300ms to avoid flashing on fast responses
+    act(() => {
+      jest.advanceTimersByTime(300)
+    })
+
     expect(screen.getByTestId('plant-detail-skeleton')).toBeTruthy()
+    jest.useRealTimers()
   })
 
   it('shows error state when error occurs', () => {

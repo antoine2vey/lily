@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from '@/components'
 import { AnimatedImage } from '@/components/AnimatedImage'
@@ -21,25 +22,15 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Slider } from '@/components/Slider'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlant } from '@/hooks/usePlant'
 import { useUpdatePlant } from '@/hooks/useUpdatePlant'
 import { CategoryPicker } from '@/screens/add-plant/components/CategoryPicker'
 import { FrequencyPicker } from '@/screens/add-plant/components/FrequencyPicker'
+import { EditPlantSkeleton } from '@/screens/edit-plant/components/EditPlantSkeleton'
 import { RoomPicker } from '@/screens/rooms/components/RoomPicker'
-
-function LoadingScreen({
-  iconColors,
-}: {
-  iconColors: ReturnType<typeof useIconColors>
-}) {
-  return (
-    <View className="flex-1 items-center justify-center bg-background dark:bg-background-dark">
-      <ActivityIndicator size="large" color={iconColors.primary} />
-    </View>
-  )
-}
 
 export function EditPlantScreen() {
   const insets = useSafeAreaInsets()
@@ -248,8 +239,23 @@ export function EditPlantScreen() {
     )
   }
 
-  if (isLoading || !plant) {
-    return <LoadingScreen iconColors={iconColors} />
+  const isInitialLoading = isLoading && !plant
+  const showSkeleton = useDelayedLoading(isInitialLoading)
+
+  if (showSkeleton) {
+    return (
+      <Animated.View
+        entering={FadeIn.duration(300)}
+        className="flex-1"
+        style={{ paddingTop: insets.top }}
+      >
+        <EditPlantSkeleton />
+      </Animated.View>
+    )
+  }
+
+  if (isInitialLoading || !plant) {
+    return null
   }
 
   const hasChanges =
@@ -286,7 +292,8 @@ export function EditPlantScreen() {
       )
 
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(300)}
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
@@ -665,6 +672,6 @@ export function EditPlantScreen() {
         onClose={handleClosePhotoPicker}
         onPhoto={handlePhoto}
       />
-    </View>
+    </Animated.View>
   )
 }

@@ -14,7 +14,6 @@ import {
 } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { SkeletonBox } from '@/components/skeletons'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
@@ -23,6 +22,7 @@ import { useUploadConversationImage } from '@/hooks/useUploadConversationImage'
 import { AskLilyHeader } from '@/screens/chat/components/AskLilyHeader'
 import { ChatInput } from '@/screens/chat/components/ChatInput'
 import { ChatMessage } from '@/screens/chat/components/ChatMessage'
+import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
 
@@ -259,16 +259,8 @@ export function ChatScreen() {
         style={{ paddingTop: insets.top }}
       >
         <AskLilyHeader onMenuPress={openDrawer} />
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          className="flex-1 p-4 gap-4"
-        >
-          <View className="self-start">
-            <SkeletonBox width={220} height={60} rounded="lg" />
-          </View>
-          <View className="self-end">
-            <SkeletonBox width={180} height={40} rounded="lg" />
-          </View>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <ChatMessagesSkeleton />
         </Animated.View>
       </View>
     )

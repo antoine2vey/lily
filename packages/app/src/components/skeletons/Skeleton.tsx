@@ -11,19 +11,21 @@ const ROUNDED_VALUES: Record<string, number> = {
   full: 9999,
 }
 
+// Shimmer is just a bit whiter than the loading base above — a soft sweep,
+// not a bright highlight.
 const LIGHT_SHIMMER_COLORS = [
   'transparent',
-  'rgba(255,255,255,0.4)',
-  'rgba(255,255,255,0.7)',
-  'rgba(255,255,255,0.4)',
+  'rgba(255,255,255,0.25)',
+  'rgba(255,255,255,0.45)',
+  'rgba(255,255,255,0.25)',
   'transparent',
 ]
 
 const DARK_SHIMMER_COLORS = [
   'transparent',
-  'rgba(100,116,139,0.3)',
-  'rgba(148,163,184,0.4)',
-  'rgba(100,116,139,0.3)',
+  'rgba(255,255,255,0.08)',
+  'rgba(255,255,255,0.16)',
+  'rgba(255,255,255,0.08)',
   'transparent',
 ]
 

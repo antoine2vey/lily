@@ -8,7 +8,6 @@ import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { SkeletonBox } from '@/components/skeletons'
 import { ToggleRow } from '@/components/ToggleRow'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
@@ -17,6 +16,7 @@ import {
   useNotificationSettings,
   useUpdateNotificationSettings,
 } from '@/hooks/useNotificationSettings'
+import { NotificationSettingsSkeleton } from '@/screens/notification-settings/components/NotificationSettingsSkeleton'
 import {
   TimePickerModal,
   type TimePickerTarget,
@@ -265,22 +265,7 @@ export function NotificationSettingsScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-row items-center px-4 py-3">
-          <View className="w-10 h-10" />
-          <View className="flex-1 items-center mr-10">
-            <SkeletonBox width={140} height={20} rounded="sm" />
-          </View>
-        </View>
-        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-6">
-          {Array.map([1, 2, 3], (i) => (
-            <View key={i} className="mb-6">
-              <View className="ml-3 mb-2">
-                <SkeletonBox width={100} height={12} rounded="sm" />
-              </View>
-              <SkeletonBox width="100%" height={72} rounded="2xl" />
-            </View>
-          ))}
-        </Animated.View>
+        <NotificationSettingsSkeleton />
       </View>
     )
   }
@@ -290,7 +275,8 @@ export function NotificationSettingsScreen() {
   }
 
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(300)}
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
@@ -549,6 +535,6 @@ export function NotificationSettingsScreen() {
         selectedTimezone={timezone}
         onTimezoneChange={handleTimezoneChange}
       />
-    </View>
+    </Animated.View>
   )
 }

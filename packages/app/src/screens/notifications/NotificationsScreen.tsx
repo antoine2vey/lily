@@ -18,7 +18,6 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { SkeletonBox } from '@/components/skeletons'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import {
@@ -27,6 +26,7 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from '@/hooks/useNotifications'
+import { NotificationsSkeleton } from '@/screens/notifications/components/NotificationsSkeleton'
 import { resolveNotificationRoute } from '@/utils/notifications'
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -117,24 +117,6 @@ const groupByDate = (items: readonly Notification[]): SectionItem[] => {
 }
 
 // ─── Components ─────────────────────────────────────────────────
-
-function NotificationSkeleton() {
-  return (
-    <View className="px-6 py-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <View key={i} className="flex-row items-center gap-3 mb-4">
-          <SkeletonBox width={40} height={40} rounded="full" />
-          <View className="flex-1">
-            <SkeletonBox width="70%" height={14} rounded="sm" />
-            <View className="mt-1.5">
-              <SkeletonBox width="90%" height={12} rounded="sm" />
-            </View>
-          </View>
-        </View>
-      ))}
-    </View>
-  )
-}
 
 function DeleteAction() {
   return (
@@ -335,7 +317,7 @@ export function NotificationsScreen() {
       {/* Content */}
       {showSkeleton ? (
         <Animated.View entering={FadeIn.duration(300)}>
-          <NotificationSkeleton />
+          <NotificationsSkeleton />
         </Animated.View>
       ) : isInitialLoading ? null : notifications.length === 0 ? (
         <Animated.View

@@ -19,12 +19,12 @@ import { toast } from 'sonner-native'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SectionHeader } from '@/components/SectionHeader'
-import { CareTaskCardSkeleton, SkeletonBox } from '@/components/skeletons'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useCareTasks } from '@/hooks/useCareTasks'
 import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
+import { CareContentSkeleton } from '@/screens/care/components/CareContentSkeleton'
 import { CareTaskCard } from '@/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from '@/screens/care/components/DelegatedTasksSection'
 
@@ -58,50 +58,6 @@ const calculateDaysUntilDue = (dueDate: Date): number =>
     Option.map(daysUntil),
     Option.getOrElse(() => 0)
   )
-
-function CareContentSkeleton() {
-  return (
-    <View className="gap-6">
-      {/* Overdue section */}
-      <View>
-        <View className="flex-row items-center mb-3">
-          <SkeletonBox width={80} height={20} rounded="sm" />
-          <View className="ml-2">
-            <SkeletonBox width={24} height={20} rounded="full" />
-          </View>
-        </View>
-        <CareTaskCardSkeleton />
-        <CareTaskCardSkeleton />
-      </View>
-
-      {/* Today section */}
-      <View>
-        <SkeletonBox width={60} height={20} rounded="sm" />
-        <View className="mt-3">
-          <CareTaskCardSkeleton />
-          <CareTaskCardSkeleton />
-          <CareTaskCardSkeleton />
-        </View>
-      </View>
-
-      {/* Upcoming section */}
-      <View>
-        <SkeletonBox width={80} height={20} rounded="sm" />
-        <View className="mt-3">
-          <View className="mb-4">
-            <SkeletonBox width={70} height={12} rounded="sm" className="mb-2" />
-            <CareTaskCardSkeleton compact />
-            <CareTaskCardSkeleton compact />
-          </View>
-          <View className="mb-4">
-            <SkeletonBox width={80} height={12} rounded="sm" className="mb-2" />
-            <CareTaskCardSkeleton compact />
-          </View>
-        </View>
-      </View>
-    </View>
-  )
-}
 
 export function CareScreen() {
   const { t, i18n } = useTranslation('care')

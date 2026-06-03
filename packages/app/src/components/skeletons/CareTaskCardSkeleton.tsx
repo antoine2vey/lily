@@ -15,8 +15,8 @@ export function CareTaskCardSkeleton({
       <SkeletonCircle size={imageSize} />
       <View className="flex-1 ml-3">
         <SkeletonBox width="60%" height={compact ? 14 : 16} rounded="sm" />
-        <View className="mt-1">
-          <SkeletonBox width={70} height={20} rounded="full" />
+        <View className="flex-row items-center mt-1">
+          <SkeletonBox width={70} height={20} rounded="md" />
         </View>
       </View>
       <View className="w-10 h-10 items-center justify-center">

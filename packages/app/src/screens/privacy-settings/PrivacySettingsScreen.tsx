@@ -1,5 +1,4 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array } from 'effect'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
@@ -22,6 +21,7 @@ import {
   useToggleWeather,
   useWeatherSettings,
 } from '@/hooks/useWeatherSettings'
+import { PrivacySettingsSkeleton } from '@/screens/privacy-settings/components/PrivacySettingsSkeleton'
 
 export function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()
@@ -104,15 +104,10 @@ export function PrivacySettingsScreen() {
             <SkeletonBox width={120} height={20} rounded="sm" />
           </View>
         </View>
-        <Animated.View entering={FadeIn.duration(300)} className="px-6 py-4">
-          <SkeletonBox width="100%" height={14} rounded="sm" />
-          <View className="mt-6">
-            {Array.map([1, 2, 3], (i) => (
-              <View key={i} className="mb-4">
-                <SkeletonBox width="100%" height={64} rounded="lg" />
-              </View>
-            ))}
-          </View>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <PrivacySettingsSkeleton />
+          </ScrollView>
         </Animated.View>
       </View>
     )
@@ -135,147 +130,158 @@ export function PrivacySettingsScreen() {
         </Text>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Description */}
-        <View className="px-6 py-4">
-          <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
-            {t('settings:privacy.description')}
-          </Text>
-        </View>
-
-        {/* Visibility & Personalization Section */}
-        <View className="px-6 py-4">
-          <SectionHeader
-            title={t('settings:privacy.sections.visibilityPersonalization')}
-          />
-          <View className="mt-3">
-            <ToggleRow
-              testID="toggle-public-profile"
-              icon={
-                <MaterialIcons
-                  name="person"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              label={t('settings:privacy.publicProfile')}
-              description={t('settings:privacy.publicProfileDescription')}
-              value={settings.publicProfile}
-              onValueChange={(value) => handleToggle('publicProfile', value)}
-            />
-            <ToggleRow
-              icon={
-                <MaterialIcons
-                  name="insights"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              label={t('settings:privacy.shareGrowthData')}
-              description={t('settings:privacy.shareGrowthDataDescription')}
-              value={settings.shareGrowthData}
-              onValueChange={(value) => handleToggle('shareGrowthData', value)}
-            />
-            <ToggleRow
-              icon={
-                <MaterialIcons
-                  name="lightbulb"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              label={t('settings:privacy.personalizedTips')}
-              description={t('settings:privacy.personalizedTipsDescription')}
-              value={settings.personalizedTips}
-              onValueChange={(value) => handleToggle('personalizedTips', value)}
-            />
+      <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          {/* Description */}
+          <View className="px-6 py-4">
+            <Text className="text-sm font-regular text-text-muted dark:text-slate-400">
+              {t('settings:privacy.description')}
+            </Text>
           </View>
-        </View>
 
-        {/* Weather & Location Section */}
-        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
-          <SectionHeader
-            title={t(
-              'settings:privacy.sections.weatherLocation',
-              'Weather & Location'
-            )}
-          />
-          <View className="mt-3">
-            <ToggleRow
-              testID="toggle-weather"
-              icon={
-                <MaterialIcons
-                  name="cloud"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              label={t('settings:privacy.weatherEnabled', 'Weather-based care')}
-              description={t(
-                'settings:privacy.weatherEnabledDescription',
-                'Use your location to adjust care schedules based on local weather conditions'
+          {/* Visibility & Personalization Section */}
+          <View className="px-6 py-4">
+            <SectionHeader
+              title={t('settings:privacy.sections.visibilityPersonalization')}
+            />
+            <View className="mt-3">
+              <ToggleRow
+                testID="toggle-public-profile"
+                icon={
+                  <MaterialIcons
+                    name="person"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                label={t('settings:privacy.publicProfile')}
+                description={t('settings:privacy.publicProfileDescription')}
+                value={settings.publicProfile}
+                onValueChange={(value) => handleToggle('publicProfile', value)}
+              />
+              <ToggleRow
+                icon={
+                  <MaterialIcons
+                    name="insights"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                label={t('settings:privacy.shareGrowthData')}
+                description={t('settings:privacy.shareGrowthDataDescription')}
+                value={settings.shareGrowthData}
+                onValueChange={(value) =>
+                  handleToggle('shareGrowthData', value)
+                }
+              />
+              <ToggleRow
+                icon={
+                  <MaterialIcons
+                    name="lightbulb"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                label={t('settings:privacy.personalizedTips')}
+                description={t('settings:privacy.personalizedTipsDescription')}
+                value={settings.personalizedTips}
+                onValueChange={(value) =>
+                  handleToggle('personalizedTips', value)
+                }
+              />
+            </View>
+          </View>
+
+          {/* Weather & Location Section */}
+          <View className="px-6 py-4 border-t border-border dark:border-slate-700">
+            <SectionHeader
+              title={t(
+                'settings:privacy.sections.weatherLocation',
+                'Weather & Location'
               )}
-              value={weatherSettings?.enabled ?? false}
-              onValueChange={(value) => toggleWeather(value)}
             />
+            <View className="mt-3">
+              <ToggleRow
+                testID="toggle-weather"
+                icon={
+                  <MaterialIcons
+                    name="cloud"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                label={t(
+                  'settings:privacy.weatherEnabled',
+                  'Weather-based care'
+                )}
+                description={t(
+                  'settings:privacy.weatherEnabledDescription',
+                  'Use your location to adjust care schedules based on local weather conditions'
+                )}
+                value={weatherSettings?.enabled ?? false}
+                onValueChange={(value) => toggleWeather(value)}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Legal & Info Section */}
-        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
-          <SectionHeader title={t('settings:privacy.sections.legalInfo')} />
-          <View className="mt-3">
-            <ListRow
-              leftIcon={
-                <MaterialIcons
-                  name="policy"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              title={t('settings:about.privacyPolicy')}
-              showChevron
-              onPress={() =>
-                Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/privacy`)
-              }
-            />
-            <ListRow
-              leftIcon={
-                <MaterialIcons
-                  name="description"
-                  size={18}
-                  color={iconColors.primary}
-                />
-              }
-              title={t('settings:about.termsOfService')}
-              showChevron
-              onPress={() =>
-                Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/terms`)
-              }
-            />
+          {/* Legal & Info Section */}
+          <View className="px-6 py-4 border-t border-border dark:border-slate-700">
+            <SectionHeader title={t('settings:privacy.sections.legalInfo')} />
+            <View className="mt-3">
+              <ListRow
+                leftIcon={
+                  <MaterialIcons
+                    name="policy"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                title={t('settings:about.privacyPolicy')}
+                showChevron
+                onPress={() =>
+                  Linking.openURL(
+                    `${WEBSITE_BASE_URL}/${i18n.language}/privacy`
+                  )
+                }
+              />
+              <ListRow
+                leftIcon={
+                  <MaterialIcons
+                    name="description"
+                    size={18}
+                    color={iconColors.primary}
+                  />
+                }
+                title={t('settings:about.termsOfService')}
+                showChevron
+                onPress={() =>
+                  Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/terms`)
+                }
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Data Actions Section */}
-        <View className="px-6 py-4 border-t border-border dark:border-slate-700">
-          <SectionHeader title={t('settings:privacy.sections.yourData')} />
-          <View className="mt-4 gap-4">
-            {/* TODO: Wire export data to real API */}
-            <Button variant="secondary" disabled>
-              {t('settings:privacy.dataExportComingSoon')}
-            </Button>
+          {/* Data Actions Section */}
+          <View className="px-6 py-4 border-t border-border dark:border-slate-700">
+            <SectionHeader title={t('settings:privacy.sections.yourData')} />
+            <View className="mt-4 gap-4">
+              {/* TODO: Wire export data to real API */}
+              <Button variant="secondary" disabled>
+                {t('settings:privacy.dataExportComingSoon')}
+              </Button>
 
-            <Pressable
-              onPress={handleRequestDeletion}
-              className="py-3 items-center"
-            >
-              <Text className="text-sm font-medium text-coral">
-                {t('settings:privacy.requestDeletion')}
-              </Text>
-            </Pressable>
+              <Pressable
+                onPress={handleRequestDeletion}
+                className="py-3 items-center"
+              >
+                <Text className="text-sm font-medium text-coral">
+                  {t('settings:privacy.requestDeletion')}
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
     </View>
   )
 }

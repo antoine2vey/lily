@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
 import { mockFixedDate } from '@/__tests__/utils/dates'
 
@@ -48,7 +48,8 @@ describe('CareHistoryScreen', () => {
     })
   })
 
-  it('shows loading state initially', () => {
+  it('shows the skeleton (not the timeline) while loading initially', () => {
+    jest.useFakeTimers()
     mockedUseCareHistory.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -56,7 +57,20 @@ describe('CareHistoryScreen', () => {
 
     render(<CareHistoryScreen />)
 
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
+    // During the initial-load delay window nothing content-y renders yet.
+    expect(screen.queryByTestId('timeline')).toBeNull()
+
+    // After the 300ms delayed-loading window the skeleton replaces the spinner.
+    act(() => {
+      jest.advanceTimersByTime(300)
+    })
+
+    // The screen header still renders alongside the skeleton (no spinner).
+    expect(screen.queryByTestId('activity-indicator')).toBeNull()
+    expect(screen.getByText('Care History')).toBeTruthy()
+    expect(screen.queryByTestId('timeline')).toBeNull()
+
+    jest.useRealTimers()
   })
 
   it('displays care history title', () => {

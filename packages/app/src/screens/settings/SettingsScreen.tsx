@@ -8,7 +8,6 @@ import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { SkeletonBox } from '@/components/skeletons'
 import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
@@ -20,6 +19,7 @@ import { useUser } from '@/hooks/useUser'
 import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
 import { LanguageSelectionModal } from '@/screens/settings/components/LanguageSelectionModal'
 import { SettingsMenuItem } from '@/screens/settings/components/SettingsMenuItem'
+import { SettingsSkeleton } from '@/screens/settings/components/SettingsSkeleton'
 import { TemperatureUnitModal } from '@/screens/settings/components/TemperatureUnitModal'
 import { ThemeSelectionModal } from '@/screens/settings/components/ThemeSelectionModal'
 import { apiEffectRunner } from '@/utils/client'
@@ -114,27 +114,13 @@ export function SettingsScreen() {
 
   if (showSkeleton) {
     return (
-      <View
+      <Animated.View
+        entering={FadeIn.duration(300)}
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
-        <View className="flex-row items-center px-4 py-3">
-          <View className="w-10 h-10" />
-          <View className="flex-1 items-center mr-10">
-            <SkeletonBox width={100} height={20} rounded="sm" />
-          </View>
-        </View>
-        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-6">
-          {Array.map([1, 2, 3], (i) => (
-            <View key={i} className="mb-6">
-              <View className="ml-3 mb-2">
-                <SkeletonBox width={80} height={12} rounded="sm" />
-              </View>
-              <SkeletonBox width="100%" height={56} rounded="2xl" />
-            </View>
-          ))}
-        </Animated.View>
-      </View>
+        <SettingsSkeleton />
+      </Animated.View>
     )
   }
 
@@ -143,7 +129,8 @@ export function SettingsScreen() {
   }
 
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(300)}
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
@@ -428,6 +415,6 @@ export function SettingsScreen() {
         currentUnit={currentTempUnit}
         onSelect={handleTempUnitSelect}
       />
-    </View>
+    </Animated.View>
   )
 }

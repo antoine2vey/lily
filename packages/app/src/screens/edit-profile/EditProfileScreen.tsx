@@ -11,11 +11,14 @@ import {
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeIn } from 'react-native-reanimated'
 import { FormInput, FormTextArea } from '@/components'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useUpdateProfile } from '@/hooks/useUpdateProfile'
 import { useUser } from '@/hooks/useUser'
 import { AvatarPicker } from '@/screens/edit-profile/components/AvatarPicker'
+import { EditProfileSkeleton } from '@/screens/edit-profile/components/EditProfileSkeleton'
 
 export function EditProfileScreen() {
   const { t } = useTranslation(['profile', 'common'])
@@ -23,6 +26,9 @@ export function EditProfileScreen() {
   const { data: user, isLoading: isLoadingUser } = useUser()
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile()
   const mountedRef = useRef(true)
+
+  const isInitialLoading = isLoadingUser && !user
+  const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const [name, setName] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -115,22 +121,23 @@ export function EditProfileScreen() {
     }
   }
 
-  if (isLoadingUser) {
+  if (showSkeleton) {
     return (
-      <View className="flex-1 bg-background dark:bg-background-dark">
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            testID="activity-indicator"
-            size="large"
-            color={iconColors.primary}
-          />
-        </View>
-      </View>
+      <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+        <EditProfileSkeleton />
+      </Animated.View>
     )
   }
 
+  if (isInitialLoading) {
+    return null
+  }
+
   return (
-    <View className="flex-1 bg-background dark:bg-background-dark">
+    <Animated.View
+      entering={FadeIn.duration(300)}
+      className="flex-1 bg-background dark:bg-background-dark"
+    >
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-border/30 dark:border-slate-700/30">
         <Pressable onPress={handleCancel}>
@@ -204,6 +211,6 @@ export function EditProfileScreen() {
           />
         </View>
       </ScrollView>
-    </View>
+    </Animated.View>
   )
 }

@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassIconButton } from '@/components/GlassIconButton'
 import { ProgressBar } from '@/components/ProgressBar'
 import { PullToRefresh } from '@/components/PullToRefresh'
-import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
@@ -25,6 +24,7 @@ import { useUnreadCount } from '@/hooks/useNotifications'
 import { useRecentActivities } from '@/hooks/useRecentActivities'
 import { useWeather } from '@/hooks/useWeather'
 import { AchievementTeaser } from '@/screens/home/components/AchievementTeaser'
+import { HomeContentSkeleton } from '@/screens/home/components/HomeContentSkeleton'
 import { HydrationCard } from '@/screens/home/components/HydrationCard'
 import { RecentActivity } from '@/screens/home/components/RecentActivity'
 import { WeeklySchedule } from '@/screens/home/components/WeeklySchedule'
@@ -271,126 +271,6 @@ function StickyBell({
       />
       <NotificationBadge count={unreadCount} />
     </View>
-  )
-}
-
-function HomeContentSkeleton() {
-  return (
-    <>
-      {/* Streak Card */}
-      <View className="bg-surface dark:bg-surface-dark rounded-[24px] p-4 mb-4">
-        <View className="flex-row items-center gap-4">
-          <SkeletonCircle size={48} />
-          <View className="flex-1 gap-1.5">
-            <SkeletonBox width={80} height={10} rounded="sm" />
-            <SkeletonBox width={140} height={16} rounded="sm" />
-          </View>
-          <View className="items-end gap-1.5">
-            <SkeletonBox width={60} height={22} rounded="full" />
-            <SkeletonBox width={80} height={10} rounded="sm" />
-          </View>
-        </View>
-      </View>
-
-      {/* Weather Card */}
-      <View className="bg-surface dark:bg-surface-dark rounded-[24px] p-4 mb-4">
-        <View className="flex-row items-center gap-4">
-          <SkeletonCircle size={48} />
-          <View className="flex-1 gap-1.5">
-            <SkeletonBox width={60} height={10} rounded="sm" />
-            <SkeletonBox width={100} height={14} rounded="sm" />
-          </View>
-          <SkeletonBox width={90} height={22} rounded="full" />
-        </View>
-      </View>
-
-      {/* HydrationCard skeleton */}
-      <View
-        className="rounded-[32px] p-6 mb-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
-      >
-        <View className="flex-row items-start justify-between mb-6">
-          <View className="gap-1.5">
-            <SkeletonBox width={140} height={18} rounded="sm" />
-            <SkeletonBox width={180} height={14} rounded="sm" />
-          </View>
-          <SkeletonCircle size={40} />
-        </View>
-        <View className="flex-row gap-5 mb-7">
-          {Array.map([1, 2, 3], (i) => (
-            <View key={i} className="items-center gap-2">
-              <SkeletonCircle size={72} />
-              <SkeletonBox width={48} height={10} rounded="sm" />
-            </View>
-          ))}
-        </View>
-        <SkeletonBox width="100%" height={48} rounded="full" />
-      </View>
-
-      {/* Weekly Schedule */}
-      <View className="mb-8">
-        <View className="flex-row items-center gap-2 mb-3 px-1">
-          <SkeletonBox width={16} height={16} rounded="sm" />
-          <SkeletonBox width={120} height={16} rounded="sm" />
-        </View>
-        <View className="flex-row gap-2">
-          {Array.map([1, 2, 3, 4, 5, 6, 7], (i) => (
-            <View
-              key={i}
-              className="items-center py-3 rounded-2xl gap-2"
-              style={{ width: 48, backgroundColor: 'rgba(0,0,0,0.04)' }}
-            >
-              <SkeletonBox width={24} height={10} rounded="sm" />
-              <SkeletonBox width={20} height={16} rounded="sm" />
-              <SkeletonBox width={6} height={6} rounded="full" />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Achievement Teaser */}
-      <View className="mb-8">
-        <View className="flex-row items-center justify-between mb-3 px-1">
-          <SkeletonBox width={140} height={16} rounded="sm" />
-          <SkeletonBox width={50} height={14} rounded="sm" />
-        </View>
-        <View className="bg-surface dark:bg-surface-dark rounded-[20px] p-4 gap-4">
-          {Array.map([1, 2], (i) => (
-            <View key={i} className="gap-2">
-              <View className="flex-row items-center gap-3">
-                <SkeletonCircle size={36} />
-                <View className="flex-1 gap-1">
-                  <SkeletonBox width="55%" height={13} rounded="sm" />
-                  <SkeletonBox width="35%" height={11} rounded="sm" />
-                </View>
-                <SkeletonBox width={32} height={13} rounded="sm" />
-              </View>
-              <SkeletonBox width="100%" height={6} rounded="full" />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      <View className="flex-row items-center justify-between mb-4 px-1">
-        <SkeletonBox width={120} height={20} rounded="sm" />
-        <SkeletonBox width={50} height={14} rounded="sm" />
-      </View>
-      <View className="gap-3">
-        {Array.map([1, 2, 3], (i) => (
-          <View
-            key={i}
-            className="flex-row items-center bg-surface dark:bg-surface-dark rounded-[20px] p-4 gap-4"
-          >
-            <SkeletonCircle size={48} />
-            <View className="flex-1 gap-1.5">
-              <SkeletonBox width="70%" height={14} rounded="sm" />
-              <SkeletonBox width="40%" height={12} rounded="sm" />
-            </View>
-          </View>
-        ))}
-      </View>
-    </>
   )
 }
 

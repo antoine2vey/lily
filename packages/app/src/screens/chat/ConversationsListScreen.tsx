@@ -8,11 +8,11 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Avatar } from '@/components/Avatar'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useConversations } from '@/hooks/useConversations'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
+import { ConversationSkeletonRow } from './components/ConversationSkeletonRow'
 
 interface Conversation {
   id: string
@@ -57,18 +57,6 @@ const ConversationRow = ({ conversation }: { conversation: Conversation }) => {
     </Pressable>
   )
 }
-
-const SkeletonRow = () => (
-  <View className="flex-row items-center p-4 bg-surface dark:bg-surface-dark rounded-xl mb-2">
-    <SkeletonCircle size={40} />
-    <View className="flex-1 ml-3">
-      <SkeletonBox width="60%" height={16} rounded="sm" />
-      <View className="mt-1.5">
-        <SkeletonBox width={70} height={12} rounded="sm" />
-      </View>
-    </View>
-  </View>
-)
 
 export function ConversationsListScreen() {
   const insets = useSafeAreaInsets()
@@ -139,36 +127,38 @@ export function ConversationsListScreen() {
           entering={FadeIn.duration(300)}
           className="flex-1 px-4 pt-4"
         >
-          <SkeletonRow />
-          <SkeletonRow />
-          <SkeletonRow />
+          {Array.map(Array.range(1, 6), (i) => (
+            <ConversationSkeletonRow key={i} />
+          ))}
         </Animated.View>
-      ) : (
-        <FlatList
-          data={conversations}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 96 }}
-          ListEmptyComponent={
-            <View className="items-center py-16">
-              <Text className="text-base text-text-muted dark:text-slate-400 text-center px-8">
-                Start your first conversation with Lily — ask anything about
-                plant care, identification, or share a photo for help.
-              </Text>
-              <Pressable
-                onPress={handleNewChat}
-                className="mt-6 px-6 py-3 rounded-full bg-primary"
-              >
-                <Text
-                  className="text-white"
-                  style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                >
-                  Start a chat
+      ) : isInitialLoading ? null : (
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <FlatList
+            data={conversations}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 16, paddingBottom: 96 }}
+            ListEmptyComponent={
+              <View className="items-center py-16">
+                <Text className="text-base text-text-muted dark:text-slate-400 text-center px-8">
+                  Start your first conversation with Lily — ask anything about
+                  plant care, identification, or share a photo for help.
                 </Text>
-              </Pressable>
-            </View>
-          }
-        />
+                <Pressable
+                  onPress={handleNewChat}
+                  className="mt-6 px-6 py-3 rounded-full bg-primary"
+                >
+                  <Text
+                    className="text-white"
+                    style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                  >
+                    Start a chat
+                  </Text>
+                </Pressable>
+              </View>
+            }
+          />
+        </Animated.View>
       )}
     </View>
   )

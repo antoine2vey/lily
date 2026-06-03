@@ -125,8 +125,10 @@ export function DelegationDetailScreen() {
       </View>
 
       {showSkeleton ? (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <DelegationDetailSkeleton />
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+            <DelegationDetailSkeleton />
+          </ScrollView>
         </Animated.View>
       ) : isInitialLoading ? null : delegation ? (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">

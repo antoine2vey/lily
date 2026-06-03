@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native'
+import { act, render, screen } from '@testing-library/react-native'
 
 // Mock the client early to prevent msgpackr import issues
 jest.mock('@/utils/client', () => ({
@@ -42,8 +42,20 @@ jest.mock('expo-router', () => ({
 import { EditPlantScreen } from '../EditPlantScreen'
 
 describe('EditPlantScreen', () => {
-  it('renders loading state', () => {
-    const { toJSON } = render(<EditPlantScreen />)
-    expect(toJSON()).toBeTruthy()
+  it('shows skeleton after delay when plant data is loading', () => {
+    jest.useFakeTimers()
+
+    render(<EditPlantScreen />)
+
+    // useDelayedLoading defers the skeleton by 300ms to avoid flashing; during
+    // that window the initial-load branch renders null (the documented gap).
+    expect(screen.queryByTestId('edit-plant-skeleton')).toBeNull()
+
+    act(() => {
+      jest.advanceTimersByTime(300)
+    })
+
+    expect(screen.getByTestId('edit-plant-skeleton')).toBeTruthy()
+    jest.useRealTimers()
   })
 })

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { mockUsers } from '@/__tests__/fixtures/users'
 
 // Mock dependencies
@@ -28,7 +28,8 @@ describe('EditProfileScreen', () => {
     })
   })
 
-  it('shows loading state when user data is loading', () => {
+  it('shows skeleton after delay when user data is loading', () => {
+    jest.useFakeTimers()
     mockedUseUser.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -36,7 +37,15 @@ describe('EditProfileScreen', () => {
 
     render(<EditProfileScreen />)
 
-    expect(screen.getByTestId('activity-indicator')).toBeTruthy()
+    // useDelayedLoading defers the skeleton by 300ms to avoid flashing.
+    expect(screen.queryByTestId('edit-profile-skeleton')).toBeNull()
+
+    act(() => {
+      jest.advanceTimersByTime(300)
+    })
+
+    expect(screen.getByTestId('edit-profile-skeleton')).toBeTruthy()
+    jest.useRealTimers()
   })
 
   it('displays edit profile title', () => {

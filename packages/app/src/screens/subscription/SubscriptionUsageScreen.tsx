@@ -7,12 +7,12 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
-import { SkeletonBox } from '@/components/skeletons'
 import { useRevenueCat } from '@/contexts/RevenueCatContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useSubscriptionUsage } from '@/hooks/useSubscriptionUsage'
 import { PlanCard } from '@/screens/subscription/components/PlanCard'
+import { SubscriptionUsageSkeleton } from '@/screens/subscription/components/SubscriptionUsageSkeleton'
 import { UsageMeter } from '@/screens/subscription/components/UsageMeter'
 import * as RevenueCatService from '@/services/revenuecat'
 
@@ -111,17 +111,15 @@ export function SubscriptionUsageScreen() {
         className="flex-1 bg-background dark:bg-background-dark"
         style={{ paddingTop: insets.top }}
       >
+        {/* Header */}
         <View className="flex-row items-center px-4 py-3">
-          <View className="w-10 h-10" />
-          <View className="flex-1 items-center mr-10">
-            <SkeletonBox width={120} height={20} rounded="sm" />
-          </View>
+          <GlassBackButton />
+          <Text className="flex-1 text-lg text-center mr-10 font-bold text-text-primary dark:text-white">
+            {t('usage.title')}
+          </Text>
         </View>
-        <Animated.View entering={FadeIn.duration(300)} className="px-4 pt-4">
-          <SkeletonBox width="100%" height={200} rounded="2xl" />
-          <View className="mt-6">
-            <SkeletonBox width="100%" height={160} rounded="2xl" />
-          </View>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <SubscriptionUsageSkeleton />
         </Animated.View>
       </View>
     )
@@ -132,7 +130,8 @@ export function SubscriptionUsageScreen() {
   }
 
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(300)}
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
@@ -243,6 +242,6 @@ export function SubscriptionUsageScreen() {
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </Animated.View>
   )
 }
