@@ -17,6 +17,8 @@ const mockOverdueTask: CareTask = {
   roomIcon: null,
   type: 'watering',
   dueDate: new Date('2024-06-14'),
+  dueDayOffset: -1,
+  localDueDate: '2024-06-14',
   completed: false,
 }
 
@@ -29,6 +31,7 @@ describe('getCareTasks MCP tool', () => {
           today: [],
           upcoming: [],
           completedToday: 0,
+          windowDays: [],
         }),
     })
 

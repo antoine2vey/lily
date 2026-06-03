@@ -366,6 +366,10 @@ export function HomeScreen() {
     Option.fromNullable(careTasksData?.upcoming),
     () => [] as NonNullable<typeof careTasksData>['upcoming']
   )
+  const careTasksWindowDays = Option.getOrElse(
+    Option.fromNullable(careTasksData?.windowDays),
+    () => [] as NonNullable<typeof careTasksData>['windowDays']
+  )
 
   const wateringPlants = useMemo(
     () =>
@@ -540,6 +544,7 @@ export function HomeScreen() {
                     overdue={careTasksOverdue}
                     today={careTasksToday}
                     upcoming={careTasksUpcoming}
+                    windowDays={careTasksWindowDays}
                   />
 
                   {achievementsData && (

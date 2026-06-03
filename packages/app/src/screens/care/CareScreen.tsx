@@ -5,7 +5,7 @@ import {
   type CareType,
   daysUntil,
   formatDateHeader,
-  formatDayOfWeek,
+  formatPlainDateWeekday,
   parseApiDate,
 } from '@lily/shared'
 import { Array, DateTime, Match, Option, pipe, Record } from 'effect'
@@ -40,17 +40,6 @@ const formatDate = (
   dateTime: DateTime.DateTime,
   locale?: Intl.LocalesArgument
 ): string => formatDateHeader(dateTime, locale)
-
-const formatWeekday = (
-  date: Date,
-  fallback: string,
-  locale?: Intl.LocalesArgument
-): string =>
-  pipe(
-    parseApiDate(date),
-    Option.map((dt) => formatDayOfWeek(dt, locale)),
-    Option.getOrElse(() => fallback)
-  )
 
 const calculateDaysUntilDue = (dueDate: Date): number =>
   pipe(
@@ -180,16 +169,17 @@ export function CareScreen() {
     [tasks?.upcoming]
   )
 
+  // Group by the API's authoritative local due-date (YYYY-MM-DD in the user's
+  // timezone), not a device-local re-derivation — so the weekday a task appears
+  // under always matches the bucket the server assigned it to.
   const groupedThisWeek = useMemo(
     () =>
       pipe(
         upcomingTasks,
-        Array.groupBy((task) =>
-          formatWeekday(task.dueDate, t('unknownDay'), i18n.language)
-        ),
+        Array.groupBy((task) => task.localDueDate),
         Record.toEntries
       ),
-    [upcomingTasks, t, i18n.language]
+    [upcomingTasks]
   )
 
   const overdueCount = Array.length(overdueTasks)
@@ -298,10 +288,10 @@ export function CareScreen() {
                     <View>
                       <SectionHeader title={t('screen.sections.upcoming')} />
                       <View className="mt-3">
-                        {Array.map(groupedThisWeek, ([dayName, dayTasks]) => (
-                          <View key={dayName} className="mb-4 last:mb-0">
+                        {Array.map(groupedThisWeek, ([dayKey, dayTasks]) => (
+                          <View key={dayKey} className="mb-4 last:mb-0">
                             <Text className="text-xs uppercase mb-2 font-medium text-text-muted dark:text-slate-400">
-                              {dayName}
+                              {formatPlainDateWeekday(dayKey, i18n.language)}
                             </Text>
                             {Array.map(dayTasks, (task) => (
                               <CareTaskCard

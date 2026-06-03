@@ -11,6 +11,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
+import { CARE_TASK_WINDOW_DAYS } from '@lily/shared'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -815,6 +816,170 @@ describe('findCareTasks', () => {
       if (task._tag === 'Some') {
         expect(task.value.roomName).toBeNull()
         expect(task.value.roomIcon).toBeNull()
+      }
+    })
+  })
+
+  // These annotations are what let the home calendar render a task in the right
+  // day column without doing any timezone math of its own.
+  describe('local-day annotations for calendar sync', () => {
+    it('stamps every task with a numeric dueDayOffset and a YYYY-MM-DD localDueDate', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer()))
+      )
+
+      const allTasks = [...result.overdue, ...result.today, ...result.upcoming]
+      expect(allTasks.length).toBeGreaterThan(0)
+      Array.forEach(allTasks, (t) => {
+        expect(typeof t.dueDayOffset).toBe('number')
+        expect(t.localDueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      })
+    })
+
+    it('keeps offset signs consistent with the bucket (overdue<0, today=0, upcoming>=1)', async () => {
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer()))
+      )
+
+      expect(Array.every(result.overdue, (t) => t.dueDayOffset < 0)).toBe(true)
+      expect(Array.every(result.today, (t) => t.dueDayOffset === 0)).toBe(true)
+      expect(Array.every(result.upcoming, (t) => t.dueDayOffset >= 1)).toBe(
+        true
+      )
+    })
+
+    it('returns windowDays spanning today..+CARE_TASK_WINDOW_DAYS in the user timezone', async () => {
+      // user-1 is a UTC user; system time is 2025-01-29T14:00:00Z.
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer()))
+      )
+
+      expect(result.windowDays).toHaveLength(CARE_TASK_WINDOW_DAYS + 1)
+      expect(result.windowDays[0]).toBe('2025-01-29')
+      expect(result.windowDays[CARE_TASK_WINDOW_DAYS]).toBe('2025-02-05')
+    })
+
+    it('gives the +7-day boundary task its own column (the case that used to vanish)', async () => {
+      // REFERENCE_DATE + 7 days. Previously the grid only rendered +1..+6, so a
+      // task due on day +7 had no column. Now its localDueDate is in windowDays.
+      const sevenDaysOut = new Date('2025-02-05T12:00:00Z')
+      const plants: TestPlant[] = [
+        {
+          id: 'plant-boundary',
+          name: 'Boundary Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY',
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: sevenDaysOut,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          potWidthCm: null,
+          potHeightCm: null,
+          roomId: null,
+          userId: 'user-1',
+        },
+      ]
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', plants)))
+      )
+
+      const task = Array.findFirst(
+        result.upcoming,
+        (t) => t.plantId === 'plant-boundary'
+      )
+      expect(task._tag).toBe('Some')
+      if (task._tag === 'Some') {
+        expect(task.value.dueDayOffset).toBe(CARE_TASK_WINDOW_DAYS)
+        expect(result.windowDays).toContain(task.value.localDueDate)
+      }
+    })
+
+    it('annotates a task by the user profile timezone, not UTC (the cross-midnight repro)', async () => {
+      // System time 2025-01-29T23:30:00Z. In Europe/Paris (UTC+1) that is already
+      // 2025-01-30 00:30, so "today" in Paris is Jan 30.
+      vi.setSystemTime(new Date('2025-01-29T23:30:00Z'))
+
+      // Due 2025-01-30T23:30Z = 2025-01-31 00:30 Paris. Its UTC calendar day is
+      // Jan 30, but its Paris day is Jan 31 — exactly the skew that put a dot in
+      // the wrong (or no) column under the old UTC bucketing.
+      const crossMidnight = new Date('2025-01-30T23:30:00Z')
+      const parisPlants = [
+        {
+          id: 'plant-paris',
+          name: 'Paris Plant',
+          description: null,
+          imageUrl: null,
+          category: 'tropical',
+          dateAdded: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
+          humidityRating: 3,
+          lightingRating: 3,
+          petToxicityRating: 0,
+          wateringRating: 3,
+          health: 'HEALTHY' as const,
+          scheduleSpecs: [
+            wateringSpec({
+              frequencyDays: 7,
+              lastCareAt: new Date('2024-01-01'),
+              nextCareAt: crossMidnight,
+            }),
+          ],
+          remindersEnabled: true,
+          isFavorite: false,
+          potWidthCm: null,
+          potHeightCm: null,
+          roomId: null,
+          userId: 'user-paris',
+        },
+      ]
+
+      const parisUser = createTestUser({
+        id: 'user-paris',
+        timezone: 'Europe/Paris',
+      })
+      const layer = Layer.mergeAll(
+        createMockPlantRepository({ plants: parisPlants }),
+        createMockCareScheduleRepository({
+          schedules: schedulesFromPlants(parisPlants),
+          plants: parisPlants,
+        }),
+        createMockCurrentUser({ id: 'user-paris' }),
+        createMockUserRepository([...mockUsers, parisUser]),
+        createMockCareLogRepository([])
+      )
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(layer))
+      )
+
+      // Paris "today" is Jan 30, so the calendar axis starts there.
+      expect(result.windowDays[0]).toBe('2025-01-30')
+
+      const task = Array.findFirst(
+        result.upcoming,
+        (t) => t.plantId === 'plant-paris'
+      )
+      expect(task._tag).toBe('Some')
+      if (task._tag === 'Some') {
+        // Paris day Jan 31 = offset 1, NOT its UTC day (Jan 30 / offset 0).
+        expect(task.value.localDueDate).toBe('2025-01-31')
+        expect(task.value.dueDayOffset).toBe(1)
+        // And that day has a column, so the home calendar can render it.
+        expect(result.windowDays).toContain('2025-01-31')
       }
     })
   })

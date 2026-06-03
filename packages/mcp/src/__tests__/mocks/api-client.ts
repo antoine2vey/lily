@@ -25,6 +25,7 @@ export const createMockApiClient = (
         today: [],
         upcoming: [],
         completedToday: 0,
+        windowDays: [],
       }),
     queryKnowledge: () => Effect.succeed({ answer: '', sources: [] }),
     refreshToken: () => Effect.die(new Error('Not mocked')),

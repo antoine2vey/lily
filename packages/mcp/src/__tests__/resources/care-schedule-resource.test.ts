@@ -17,6 +17,8 @@ const mockOverdueTask: CareTask = {
   roomIcon: null,
   type: 'watering',
   dueDate: new Date('2024-06-08T00:00:00Z'),
+  dueDayOffset: -1,
+  localDueDate: '2024-06-08',
   completed: false,
 }
 
@@ -56,6 +58,7 @@ describe('readCareScheduleResource', () => {
             today: [],
             upcoming: [],
             completedToday: 0,
+            windowDays: [],
           }),
       }),
       JwtLayer

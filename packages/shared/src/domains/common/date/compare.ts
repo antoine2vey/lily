@@ -19,6 +19,36 @@ export const daysUntil = (target: DateTime.DateTime): number => {
 }
 
 /**
+ * Calculate the whole-day offset of a DateTime from a reference, in a timezone.
+ *
+ * Returns 0 if `dateTime` is the same calendar day as `referenceDate` in the
+ * given timezone, a negative number if it is an earlier day (overdue), and a
+ * positive number for future days. The difference is measured between local
+ * day-starts and rounded, so it stays correct across DST transitions (where a
+ * local day spans 23 or 25 hours).
+ *
+ * This is the client calendar's authoritative column index: a task with
+ * `localDayOffset === i` belongs in the i-th day column.
+ *
+ * @param dateTime - DateTime to measure
+ * @param referenceDate - Reference "today" DateTime
+ * @param timezone - IANA timezone string
+ * @returns Signed whole-day offset (0 = same local day as reference)
+ */
+export const localDayOffset = (
+  dateTime: DateTime.DateTime,
+  referenceDate: DateTime.DateTime,
+  timezone: string
+): number => {
+  const targetStart = startOfDay(dateTime, timezone)
+  const currentStart = startOfDay(referenceDate, timezone)
+  const distanceMs = DateTime.distance(currentStart, targetStart)
+  const sign = distanceMs >= 0 ? 1 : -1
+  const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
+  return sign * Math.round(days)
+}
+
+/**
  * Calculate days between two dates.
  *
  * @param from - Start DateTime

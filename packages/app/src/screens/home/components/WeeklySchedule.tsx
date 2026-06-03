@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CareTask } from '@lily/shared'
-import { formatDayOfWeekShort, now, parseApiDate } from '@lily/shared'
-import { Array, DateTime, Match, Option, pipe } from 'effect'
+import { formatPlainDateWeekdayShort, plainDateDayOfMonth } from '@lily/shared'
+import { Array, Match, pipe } from 'effect'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, Text, View } from 'react-native'
@@ -11,6 +11,9 @@ interface WeeklyScheduleProps {
   overdue: ReadonlyArray<CareTask>
   today: ReadonlyArray<CareTask>
   upcoming: ReadonlyArray<CareTask>
+  // Authoritative day axis from the API (index 0 = today), each entry a
+  // YYYY-MM-DD local date. The calendar renders one column per entry.
+  windowDays: ReadonlyArray<string>
 }
 
 interface DayColumn {
@@ -21,13 +24,8 @@ interface DayColumn {
   fertilizeCount: number
   mistingCount: number
   repottingCount: number
+  overdueCount: number
   isToday: boolean
-}
-
-const isSameDayUtc = (a: DateTime.DateTime, b: DateTime.DateTime): boolean => {
-  const pa = DateTime.toParts(a)
-  const pb = DateTime.toParts(b)
-  return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day
 }
 
 const countByType = (
@@ -40,41 +38,34 @@ const countByType = (
     Array.length
   )
 
+// Build one column per backend window day. Each task already carries its
+// server-computed `dueDayOffset` (0 = today, +N = N days ahead, in the user's
+// timezone), so a column just collects tasks whose offset matches its index —
+// no client-side date math, no timezone frame to drift out of sync.
 function buildWeekColumns(
-  overdue: ReadonlyArray<CareTask>,
   today: ReadonlyArray<CareTask>,
   upcoming: ReadonlyArray<CareTask>,
+  windowDays: ReadonlyArray<string>,
+  overdueCount: number,
   todayLabel: string,
   locale: string
 ): ReadonlyArray<DayColumn> {
-  const base = now()
-
-  return Array.makeBy(7, (i) => {
-    const dayDt = DateTime.add(base, { days: i })
-    const parts = DateTime.toParts(dayDt)
-
+  return Array.map(windowDays, (localDate, i) => {
+    // Column 0 is "today" and counts only tasks genuinely due today; overdue
+    // tasks are surfaced as a distinct badge rather than inflating today's dots.
     const tasksForDay =
-      i === 0
-        ? Array.appendAll(overdue, today)
-        : pipe(
-            upcoming,
-            Array.filter((task) =>
-              pipe(
-                parseApiDate(task.dueDate),
-                Option.map((dt) => isSameDayUtc(dt, dayDt)),
-                Option.getOrElse(() => false)
-              )
-            )
-          )
+      i === 0 ? today : Array.filter(upcoming, (t) => t.dueDayOffset === i)
 
     return {
       dayIndex: i,
-      dayLabel: i === 0 ? todayLabel : formatDayOfWeekShort(dayDt, locale),
-      dayNumber: parts.day,
+      dayLabel:
+        i === 0 ? todayLabel : formatPlainDateWeekdayShort(localDate, locale),
+      dayNumber: plainDateDayOfMonth(localDate),
       waterCount: countByType(tasksForDay, 'watering'),
       fertilizeCount: countByType(tasksForDay, 'fertilization'),
       mistingCount: countByType(tasksForDay, 'misting'),
       repottingCount: countByType(tasksForDay, 'repotting'),
+      overdueCount: i === 0 ? overdueCount : 0,
       isToday: i === 0,
     }
   })
@@ -88,7 +79,7 @@ interface DayDotProps {
 function DayDots({ count, color }: DayDotProps) {
   const dots = Array.makeBy(Math.min(count, 3), (i) => i)
   return (
-    <View className="flex-row gap-0.5 justify-center">
+    <View className="flex-row gap-0.5 justify-center items-center">
       {Array.map(dots, (i) => (
         <View
           key={i}
@@ -96,6 +87,14 @@ function DayDots({ count, color }: DayDotProps) {
           style={{ backgroundColor: color }}
         />
       ))}
+      {/* Counts above 3 would otherwise alias to exactly 3 dots — show the
+          overflow so the calendar doesn't undercount vs the care screen. */}
+      {count > 3 && (
+        <Text
+          className="text-[8px] font-bold ml-0.5"
+          style={{ color }}
+        >{`+${count - 3}`}</Text>
+      )}
     </View>
   )
 }
@@ -104,6 +103,7 @@ export function WeeklySchedule({
   overdue,
   today,
   upcoming,
+  windowDays,
 }: WeeklyScheduleProps) {
   const { t, i18n } = useTranslation('home')
   const iconColors = useIconColors()
@@ -112,13 +112,14 @@ export function WeeklySchedule({
   const columns = useMemo(
     () =>
       buildWeekColumns(
-        overdue,
         today,
         upcoming,
+        windowDays,
+        Array.length(overdue),
         t('weeklySchedule.today'),
         i18n.language
       ),
-    [overdue, today, upcoming, t, i18n.language]
+    [today, upcoming, windowDays, overdue, t, i18n.language]
   )
   return (
     <View className="mb-8">
@@ -145,7 +146,8 @@ export function WeeklySchedule({
               col.waterCount > 0 ||
               col.fertilizeCount > 0 ||
               col.mistingCount > 0 ||
-              col.repottingCount > 0
+              col.repottingCount > 0 ||
+              col.overdueCount > 0
             const bgColor = pipe(
               Match.value(col),
               Match.when({ isToday: true }, () =>
@@ -194,6 +196,19 @@ export function WeeklySchedule({
                 </Text>
                 {/* Dots */}
                 <View className="gap-1 min-h-[16px]">
+                  {/* Overdue indicator — kept distinct from today's dots so the
+                      today column mirrors the care screen's separate Overdue
+                      section instead of conflating the two. */}
+                  {col.overdueCount > 0 && (
+                    <View
+                      className="px-1.5 rounded-full self-center"
+                      style={{ backgroundColor: iconColors.coral }}
+                    >
+                      <Text className="text-[9px] font-bold text-white">
+                        {col.overdueCount}
+                      </Text>
+                    </View>
+                  )}
                   {col.waterCount > 0 && (
                     <DayDots
                       count={col.waterCount}

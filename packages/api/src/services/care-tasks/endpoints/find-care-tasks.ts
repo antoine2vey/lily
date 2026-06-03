@@ -5,12 +5,15 @@ import type { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import {
+  CARE_TASK_WINDOW_DAYS,
   type CareTask,
   type CareTasksResponse,
   endOfDay,
   isOverdueByDay,
   isToday,
   isUpcoming,
+  localDayKey,
+  localDayOffset,
 } from '@lily/shared'
 import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
 
@@ -48,7 +51,10 @@ export const findCareTasks = (): Effect.Effect<
     )
 
     const now = DateTime.unsafeNow()
-    const cutoffDt = endOfDay(DateTime.add(now, { days: 7 }), timezone)
+    const cutoffDt = endOfDay(
+      DateTime.add(now, { days: CARE_TASK_WINDOW_DAYS }),
+      timezone
+    )
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
 
     // Get pending schedules with plant info from schedule table
@@ -62,6 +68,7 @@ export const findCareTasks = (): Effect.Effect<
           DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
         ),
         Option.map((date) => {
+          const dueDt = DateTime.unsafeMake(date)
           return {
             id: `${s.plant.id}-${s.schedule.careType}`,
             plantId: s.plant.id,
@@ -79,6 +86,8 @@ export const findCareTasks = (): Effect.Effect<
             ),
             type: s.schedule.careType,
             dueDate: date,
+            dueDayOffset: localDayOffset(dueDt, now, timezone),
+            localDueDate: localDayKey(dueDt, timezone),
             completed: false,
           } satisfies CareTask
         })
@@ -93,7 +102,19 @@ export const findCareTasks = (): Effect.Effect<
       isToday(DateTime.unsafeMake(task.dueDate), now, timezone)
     )
     const upcoming = Array.filter(tasks, (task) =>
-      isUpcoming(DateTime.unsafeMake(task.dueDate), now, timezone)
+      isUpcoming(
+        DateTime.unsafeMake(task.dueDate),
+        now,
+        timezone,
+        CARE_TASK_WINDOW_DAYS
+      )
+    )
+
+    // Authoritative day axis for the home calendar: index 0 = today, through
+    // +CARE_TASK_WINDOW_DAYS. Built in the user's timezone so the client renders
+    // columns without doing any timezone math of its own.
+    const windowDays = Array.makeBy(CARE_TASK_WINDOW_DAYS + 1, (i) =>
+      localDayKey(DateTime.add(now, { days: i }), timezone)
     )
 
     // Count care actions completed today
@@ -105,5 +126,6 @@ export const findCareTasks = (): Effect.Effect<
       today: Array.sort(today, taskDueDateOrder),
       upcoming: Array.sort(upcoming, taskDueDateOrder),
       completedToday,
+      windowDays,
     }
   }).pipe(Effect.withSpan('CareTasksService.findCareTasks'))

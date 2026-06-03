@@ -1,5 +1,8 @@
 import { DateTime } from 'effect'
 
+/** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */
+const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
+
 /**
  * Apply a named timezone to a DateTime, returning a Zoned DateTime.
  * If no timezone is provided, returns the original DateTime unchanged.
@@ -104,6 +107,26 @@ export const endOfWeek = (
     },
     { timeZone: timezone, adjustForTimeZone: true }
   )
+}
+
+/**
+ * Get the calendar-day key (YYYY-MM-DD) for a DateTime in a specific timezone.
+ *
+ * This is the authoritative "which local day does this instant fall on" used to
+ * synchronize the API's care-task buckets with the client calendar. Building the
+ * key from zoned parts (not `toDateUtc`) means it never drifts across the UTC
+ * boundary the way `toLocaleDateString` without a timeZone would.
+ *
+ * @param dateTime - DateTime to key
+ * @param timezone - IANA timezone string (e.g. 'Europe/Paris')
+ * @returns Date key in YYYY-MM-DD form, in the given timezone
+ */
+export const localDayKey = (
+  dateTime: DateTime.DateTime,
+  timezone: string
+): string => {
+  const parts = DateTime.toParts(withTimeZone(dateTime, timezone))
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`
 }
 
 /**

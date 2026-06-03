@@ -46,6 +46,79 @@ export const formatDayOfWeekShort = (
   toNativeDate(dateTime).toLocaleDateString(locale, { weekday: 'short' })
 
 /**
+ * Anchor a plain YYYY-MM-DD date key at noon UTC.
+ *
+ * Backend day keys carry no time. Anchoring at noon (not midnight) means that
+ * even if a renderer formats in the device's local zone, the calendar date can
+ * never roll backward/forward — noon UTC stays on the same date for every
+ * practical offset. Returns None for an unparseable key.
+ */
+const plainDateAtUtcNoon = (
+  isoDate: string
+): Option.Option<DateTime.DateTime> => DateTime.make(`${isoDate}T12:00:00.000Z`)
+
+/**
+ * Format a plain YYYY-MM-DD date key as a short weekday (e.g. "Mon").
+ *
+ * Timezone-stable: the key is rendered as the literal calendar day it names,
+ * independent of the device timezone. Use for calendar column headers and care
+ * day-group labels that must match the API's local-day buckets exactly.
+ *
+ * @param isoDate - Date key in YYYY-MM-DD form
+ * @param locale - Optional locale (e.g. 'fr', 'en-US')
+ * @returns Short localized weekday, or the raw key if unparseable
+ */
+export const formatPlainDateWeekdayShort = (
+  isoDate: string,
+  locale?: Intl.LocalesArgument
+): string =>
+  pipe(
+    plainDateAtUtcNoon(isoDate),
+    Option.map((dt) =>
+      toNativeDate(dt).toLocaleDateString(locale, {
+        weekday: 'short',
+        timeZone: 'UTC',
+      })
+    ),
+    Option.getOrElse(() => isoDate)
+  )
+
+/**
+ * Format a plain YYYY-MM-DD date key as a full weekday (e.g. "Monday").
+ *
+ * @param isoDate - Date key in YYYY-MM-DD form
+ * @param locale - Optional locale (e.g. 'fr', 'en-US')
+ * @returns Full localized weekday, or the raw key if unparseable
+ */
+export const formatPlainDateWeekday = (
+  isoDate: string,
+  locale?: Intl.LocalesArgument
+): string =>
+  pipe(
+    plainDateAtUtcNoon(isoDate),
+    Option.map((dt) =>
+      toNativeDate(dt).toLocaleDateString(locale, {
+        weekday: 'long',
+        timeZone: 'UTC',
+      })
+    ),
+    Option.getOrElse(() => isoDate)
+  )
+
+/**
+ * Extract the day-of-month (1-31) from a plain YYYY-MM-DD date key.
+ *
+ * @param isoDate - Date key in YYYY-MM-DD form
+ * @returns Day of month, or 0 if unparseable
+ */
+export const plainDateDayOfMonth = (isoDate: string): number =>
+  pipe(
+    plainDateAtUtcNoon(isoDate),
+    Option.map((dt) => DateTime.toParts(dt).day),
+    Option.getOrElse(() => 0)
+  )
+
+/**
  * Format for "Next: Monday" style display.
  *
  * @param dateTime - DateTime to format

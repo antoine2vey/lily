@@ -19,6 +19,8 @@ import {
   formatLongDate,
   formatMemberSince,
   formatNextDate,
+  formatPlainDateWeekday,
+  formatPlainDateWeekdayShort,
   formatRelativeTime,
   formatShortDate,
   formatTime,
@@ -33,8 +35,11 @@ import {
   isThisWeek,
   isToday,
   isYesterday,
+  localDayKey,
+  localDayOffset,
   now,
   parseApiDate,
+  plainDateDayOfMonth,
   startOfDay,
   withTimeZone,
 } from '../domains/common/date'
@@ -1428,6 +1433,92 @@ describe('Date Utilities', () => {
       const fiveDaysAgo = new Date('2024-06-10T12:00:00Z').getTime()
       const result = daysSince(fiveDaysAgo)
       expect(result).toBe(5)
+    })
+  })
+
+  describe('localDayKey', () => {
+    it('returns the UTC calendar day for a UTC timezone', () => {
+      const dt = DateTime.unsafeMake('2025-01-29T23:30:00Z')
+      expect(localDayKey(dt, 'UTC')).toBe('2025-01-29')
+    })
+
+    it('rolls into the next day for a timezone ahead of UTC', () => {
+      // 23:30Z is 00:30 the next day in Paris (UTC+1) and 08:30 in Tokyo (UTC+9)
+      const dt = DateTime.unsafeMake('2025-01-29T23:30:00Z')
+      expect(localDayKey(dt, 'Europe/Paris')).toBe('2025-01-30')
+      expect(localDayKey(dt, 'Asia/Tokyo')).toBe('2025-01-30')
+    })
+
+    it('rolls into the previous day for a timezone behind UTC', () => {
+      // 02:00Z is 21:00 the previous day in New York (UTC-5)
+      const dt = DateTime.unsafeMake('2025-01-29T02:00:00Z')
+      expect(localDayKey(dt, 'America/New_York')).toBe('2025-01-28')
+    })
+
+    it('zero-pads single-digit month and day', () => {
+      const dt = DateTime.unsafeMake('2025-03-05T12:00:00Z')
+      expect(localDayKey(dt, 'UTC')).toBe('2025-03-05')
+    })
+  })
+
+  describe('localDayOffset', () => {
+    const ref = DateTime.unsafeMake('2025-01-29T14:00:00Z')
+
+    it('is 0 for the same calendar day', () => {
+      const target = DateTime.unsafeMake('2025-01-29T20:00:00Z')
+      expect(localDayOffset(target, ref, 'UTC')).toBe(0)
+    })
+
+    it('is positive for future days and negative for past days', () => {
+      expect(
+        localDayOffset(DateTime.unsafeMake('2025-01-30T08:00:00Z'), ref, 'UTC')
+      ).toBe(1)
+      expect(
+        localDayOffset(DateTime.unsafeMake('2025-01-28T08:00:00Z'), ref, 'UTC')
+      ).toBe(-1)
+    })
+
+    it('depends on the timezone, not UTC (cross-midnight skew)', () => {
+      // Reference 23:30Z is already Jan 30 in Paris; target is Jan 30 21:00Z.
+      const skewRef = DateTime.unsafeMake('2025-01-29T23:30:00Z')
+      const target = DateTime.unsafeMake('2025-01-30T20:00:00Z')
+      // UTC: Jan 29 -> Jan 30 = +1 day
+      expect(localDayOffset(target, skewRef, 'UTC')).toBe(1)
+      // Paris: both are Jan 30 = same day
+      expect(localDayOffset(target, skewRef, 'Europe/Paris')).toBe(0)
+    })
+
+    it('stays correct across a DST spring-forward transition', () => {
+      // Europe/Paris springs forward 2025-03-30 (a 23-hour local day).
+      const before = DateTime.unsafeMake('2025-03-29T10:00:00Z')
+      const after = DateTime.unsafeMake('2025-04-02T10:00:00Z')
+      expect(localDayOffset(after, before, 'Europe/Paris')).toBe(4)
+    })
+  })
+
+  describe('plain-date formatters', () => {
+    it('formats a YYYY-MM-DD key as a localized weekday', () => {
+      // 2025-01-29 is a Wednesday
+      expect(formatPlainDateWeekdayShort('2025-01-29', 'en-US')).toBe('Wed')
+      expect(formatPlainDateWeekday('2025-01-29', 'en-US')).toBe('Wednesday')
+      expect(formatPlainDateWeekday('2025-01-29', 'fr')).toBe('mercredi')
+    })
+
+    it('does not drift across the UTC boundary', () => {
+      // A pure date key must render as the day it names regardless of host zone.
+      expect(formatPlainDateWeekday('2025-02-05', 'en-US')).toBe('Wednesday')
+    })
+
+    it('extracts the day-of-month', () => {
+      expect(plainDateDayOfMonth('2025-01-29')).toBe(29)
+      expect(plainDateDayOfMonth('2025-02-05')).toBe(5)
+    })
+
+    it('falls back gracefully on an unparseable key', () => {
+      expect(formatPlainDateWeekdayShort('not-a-date', 'en-US')).toBe(
+        'not-a-date'
+      )
+      expect(plainDateDayOfMonth('not-a-date')).toBe(0)
     })
   })
 })
