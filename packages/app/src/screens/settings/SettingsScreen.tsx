@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
@@ -23,6 +23,7 @@ import { SettingsSkeleton } from '@/screens/settings/components/SettingsSkeleton
 import { TemperatureUnitModal } from '@/screens/settings/components/TemperatureUnitModal'
 import { ThemeSelectionModal } from '@/screens/settings/components/ThemeSelectionModal'
 import { apiEffectRunner } from '@/utils/client'
+import { openExternalUrl } from '@/utils/linking'
 import { queryKeys } from '@/utils/query-keys'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -251,7 +252,7 @@ export function SettingsScreen() {
               }
               title={t('settings:support.helpCenter')}
               showBorder
-              onPress={() => Linking.openURL(`${WEBSITE_BASE_URL}/${language}`)}
+              onPress={() => openExternalUrl(`${WEBSITE_BASE_URL}/${language}`)}
             />
             <SettingsMenuItem
               icon={
@@ -263,7 +264,7 @@ export function SettingsScreen() {
               }
               title={t('settings:support.contactUs')}
               showBorder
-              onPress={() => Linking.openURL('mailto:support@withlily.app')}
+              onPress={() => openExternalUrl('mailto:support@withlily.app')}
             />
             <SettingsMenuItem
               icon={

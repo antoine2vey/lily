@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
@@ -22,6 +22,7 @@ import {
   useWeatherSettings,
 } from '@/hooks/useWeatherSettings'
 import { PrivacySettingsSkeleton } from '@/screens/privacy-settings/components/PrivacySettingsSkeleton'
+import { openExternalUrl } from '@/utils/linking'
 
 export function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()
@@ -55,7 +56,7 @@ export function PrivacySettingsScreen() {
           text: t('settings:privacy.requestDeletion'),
           style: 'destructive',
           onPress: () =>
-            Linking.openURL(
+            openExternalUrl(
               `mailto:privacy@withlily.app?subject=${encodeURIComponent(t('settings:privacy.requestDeletionEmailSubject'))}`
             ),
         },
@@ -239,7 +240,7 @@ export function PrivacySettingsScreen() {
                 title={t('settings:about.privacyPolicy')}
                 showChevron
                 onPress={() =>
-                  Linking.openURL(
+                  openExternalUrl(
                     `${WEBSITE_BASE_URL}/${i18n.language}/privacy`
                   )
                 }
@@ -255,7 +256,7 @@ export function PrivacySettingsScreen() {
                 title={t('settings:about.termsOfService')}
                 showChevron
                 onPress={() =>
-                  Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}/terms`)
+                  openExternalUrl(`${WEBSITE_BASE_URL}/${i18n.language}/terms`)
                 }
               />
             </View>

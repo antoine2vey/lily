@@ -102,6 +102,20 @@ jest.mock('react-i18next', () => {
   }
 })
 
+// Mock @sentry/react-native globally. Its ESM build lives under a nested
+// node_modules path that Jest's transformIgnorePatterns doesn't transpile,
+// so any module importing it (e.g. @/utils/linking, @/hooks/useOTAUpdates)
+// would otherwise fail to load with "unexpected token".
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  setTag: jest.fn(),
+  wrap: (component: unknown) => component,
+}))
+
 // Note: @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
 // to avoid act() warnings from async font loading
 

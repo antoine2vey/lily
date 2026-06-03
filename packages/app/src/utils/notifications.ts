@@ -212,8 +212,16 @@ export async function registerLiveActivityTokens(
   // Push-to-start lifetime hook: fetch any current token, then subscribe
   // to OS rotations. Both paths hit the same backend endpoint which upserts.
   if (isPushToStartSupported()) {
-    const current = await requestPushToStartToken()
-    if (current) void postStartToken(deviceTokenId, current)
+    try {
+      const current = await requestPushToStartToken()
+      if (current) void postStartToken(deviceTokenId, current)
+    } catch (err) {
+      // iOS may launch us in the background (push-to-start wake-up) while the
+      // device is locked → the keychain is inaccessible and the native read
+      // throws "user interaction not allowed". Expected; the rotation
+      // subscription below re-fires once the device unlocks.
+      console.warn('push-to-start token unavailable (device locked?)', err)
+    }
   }
 
   const unsubStart = subscribeToPushToStartTokenUpdates((tok) => {

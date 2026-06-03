@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge } from '@/components/Badge'
@@ -24,6 +24,7 @@ import { ProfileContentSkeleton } from '@/screens/profile/components/ProfileCont
 import { ProfileHeader } from '@/screens/profile/components/ProfileHeader'
 import { ProfileMenuItem } from '@/screens/profile/components/ProfileMenuItem'
 import { StatsCard } from '@/screens/profile/components/StatsCard'
+import { openExternalUrl } from '@/utils/linking'
 
 export function ProfileScreen() {
   const iconColors = useIconColors()
@@ -276,7 +277,7 @@ export function ProfileScreen() {
                 }
                 title={t('profile:actions.helpSupport')}
                 onPress={() =>
-                  Linking.openURL(`${WEBSITE_BASE_URL}/${language}`)
+                  openExternalUrl(`${WEBSITE_BASE_URL}/${language}`)
                 }
               />
 

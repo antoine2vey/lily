@@ -37,19 +37,11 @@ export function useOTAUpdates() {
 
   // Report check/download errors to Sentry so they're visible in dashboards
   useEffect(() => {
-    if (checkError) {
-      Sentry.captureException(checkError, {
-        tags: { source: 'ota-update', phase: 'check' },
-      })
-    }
+    if (checkError) reportUpdateError(checkError, 'check')
   }, [checkError])
 
   useEffect(() => {
-    if (downloadError) {
-      Sentry.captureException(downloadError, {
-        tags: { source: 'ota-update', phase: 'download' },
-      })
-    }
+    if (downloadError) reportUpdateError(downloadError, 'download')
   }, [downloadError])
 
   // Native checkOnLaunch only runs on cold start — manually check on
@@ -65,6 +57,28 @@ export function useOTAUpdates() {
 
     return () => subscription.remove()
   }, [])
+}
+
+/**
+ * Normalize an expo-updates error and forward it to Sentry.
+ *
+ * `checkError`/`downloadError` arrive as plain `{ message }` objects rather
+ * than real `Error` instances, which makes Sentry title them
+ * "Object captured as exception with keys: message" and group them poorly.
+ * We wrap them in a real Error and downgrade transient server/network
+ * failures (5xx, timeouts) to `warning` so OTA-server blips stop paging as
+ * errors.
+ */
+function reportUpdateError(error: unknown, phase: 'check' | 'download') {
+  const message =
+    error instanceof Error
+      ? error.message
+      : String((error as { message?: unknown })?.message ?? error)
+  const isTransient = /HTTP response error 5\d\d|timeout|network/i.test(message)
+  Sentry.captureException(error instanceof Error ? error : new Error(message), {
+    level: isTransient ? 'warning' : 'error',
+    tags: { source: 'ota-update', phase },
+  })
 }
 
 function showUpdateToast(

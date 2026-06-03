@@ -1,12 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { ListRow } from '@/components/ListRow'
 import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useIconColors } from '@/hooks/useIconColors'
+import { openExternalUrl } from '@/utils/linking'
 
 export function AboutScreen() {
   const insets = useSafeAreaInsets()
@@ -65,7 +66,7 @@ export function AboutScreen() {
             showChevron
             onPress={() => {
               // TODO: Replace with a dedicated licenses screen
-              Linking.openURL(
+              openExternalUrl(
                 'https://github.com/lily-app/lily/blob/main/LICENSES.md'
               )
             }}
@@ -81,7 +82,7 @@ export function AboutScreen() {
             title={t('links.guidelines')}
             showChevron
             onPress={() =>
-              Linking.openURL(`${WEBSITE_BASE_URL}/${i18n.language}`)
+              openExternalUrl(`${WEBSITE_BASE_URL}/${i18n.language}`)
             }
           />
           <ListRow
@@ -100,7 +101,7 @@ export function AboutScreen() {
                 color={iconColors.textMuted}
               />
             }
-            onPress={() => Linking.openURL('https://instagram.com/lilyapp')}
+            onPress={() => openExternalUrl('https://instagram.com/lilyapp')}
           />
         </View>
 
