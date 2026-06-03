@@ -46,6 +46,11 @@ export const RedisMessageQueueLive = Layer.effect(
           })
         ),
 
+      // No span here: dequeue runs on every poll tick, so the queue is empty
+      // the vast majority of the time. Spanning the poll emitted millions of
+      // no-op spans/week. The hit path is instrumented in the worker's
+      // `notification-worker.consume` span instead (only opened when a message
+      // is actually dequeued).
       dequeue: (topic) =>
         Effect.tryPromise({
           try: async () => {
@@ -65,11 +70,7 @@ export const RedisMessageQueueLive = Layer.effect(
               message: `Failed to dequeue message from ${topic}`,
               cause: error,
             }),
-        }).pipe(
-          Effect.withSpan('Redis.dequeue', {
-            attributes: { 'queue.topic': topic },
-          })
-        ),
+        }),
 
       ack: (topic, rawData) =>
         Effect.tryPromise({

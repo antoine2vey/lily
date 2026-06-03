@@ -307,9 +307,13 @@ export const handleFailedMessage = Effect.fn('notification-worker.deadLetter')(
 
 // Consume and process messages from a single topic.
 // Returns true when a message was processed (caller should re-poll immediately).
-export const consumeFromTopic = Effect.fn('notification-worker.consume')(
-  function* (topic: NotificationTopic) {
-    yield* Effect.annotateCurrentSpan('topic', topic)
+//
+// The dequeue poll runs continuously and finds an empty queue most of the time;
+// to avoid emitting a span on every idle tick (millions of no-op spans/week),
+// the `notification-worker.consume` span is opened only once a message is
+// actually dequeued, wrapping the processing work on the hit path.
+export const consumeFromTopic = (topic: NotificationTopic) =>
+  Effect.gen(function* () {
     const queue = yield* MessageQueue
     const notificationRepo = yield* NotificationRepository
 
@@ -319,47 +323,54 @@ export const consumeFromTopic = Effect.fn('notification-worker.consume')(
 
     const { message, rawData } = result
 
-    yield* Effect.log('Processing notification', {
-      messageId: message.id,
-      topic,
-      retryCount: message.retryCount,
+    const processDequeued = Effect.gen(function* () {
+      yield* Effect.log('Processing notification', {
+        messageId: message.id,
+        topic,
+        retryCount: message.retryCount,
+      })
+
+      yield* Effect.either(
+        processMessage(message).pipe(Effect.retry(workerRetryPolicy))
+      ).pipe(
+        Effect.flatMap((processResult) =>
+          Either.match(processResult, {
+            onLeft: (error) =>
+              Effect.gen(function* () {
+                if (message.retryCount >= MAX_RETRIES - 1) {
+                  // Max retries reached, move to dead letter queue
+                  yield* handleFailedMessage(message, error)
+                } else {
+                  // Re-enqueue with incremented retry count
+                  yield* queue.enqueue(
+                    topic,
+                    Struct.evolve(message, { retryCount: (n) => n + 1 })
+                  )
+                  yield* Effect.forEach(message.payload.notificationIds, (id) =>
+                    notificationRepo.incrementRetryCount(id)
+                  )
+                  yield* Effect.logWarning('Retrying notification', {
+                    messageId: message.id,
+                    retryCount: message.retryCount + 1,
+                  })
+                }
+              }),
+            onRight: () => Effect.void,
+          })
+        )
+      )
+
+      yield* queue.ack(topic, rawData)
     })
 
-    yield* Effect.either(
-      processMessage(message).pipe(Effect.retry(workerRetryPolicy))
-    ).pipe(
-      Effect.flatMap((processResult) =>
-        Either.match(processResult, {
-          onLeft: (error) =>
-            Effect.gen(function* () {
-              if (message.retryCount >= MAX_RETRIES - 1) {
-                // Max retries reached, move to dead letter queue
-                yield* handleFailedMessage(message, error)
-              } else {
-                // Re-enqueue with incremented retry count
-                yield* queue.enqueue(
-                  topic,
-                  Struct.evolve(message, { retryCount: (n) => n + 1 })
-                )
-                yield* Effect.forEach(message.payload.notificationIds, (id) =>
-                  notificationRepo.incrementRetryCount(id)
-                )
-                yield* Effect.logWarning('Retrying notification', {
-                  messageId: message.id,
-                  retryCount: message.retryCount + 1,
-                })
-              }
-            }),
-          onRight: () => Effect.void,
-        })
-      )
+    yield* processDequeued.pipe(
+      Effect.withSpan('notification-worker.consume', {
+        attributes: { topic },
+      })
     )
 
-    yield* queue.ack(topic, rawData)
-
     return true
-  }
-)
+  })
 
 // Exhaustive topic validation using Effect Match
 // Fails at compile time if a topic is not handled, throws at runtime
