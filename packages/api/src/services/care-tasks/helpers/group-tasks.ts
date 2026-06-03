@@ -97,7 +97,10 @@ export const buildLiveActivityContentState = (
       Array.dedupe(Array.map(dueSchedules, (s) => s.plant.id))
     )
 
-    const title = buildLiveActivityTitle(language)
+    // Day-stable seed: rotates the lock-screen title once per day rather than
+    // on every activity update (which would flicker the bold first line).
+    const titleSeed = Math.floor(DateTime.toEpochMillis(now) / 86_400_000)
+    const title = buildLiveActivityTitle(language, titleSeed)
     const headline = buildLiveActivityHeadline(totalPlants, language)
     const subheadline = buildLiveActivitySubheadline(groups, language)
 

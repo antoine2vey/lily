@@ -4,6 +4,16 @@ import { Array, Match, Option, pipe } from 'effect'
 
 const MAX_PLANT_NAMES_IN_BODY = 5
 
+// Pluralization is language-specific. English uses the singular form only for
+// exactly 1; French treats both 0 and 1 as singular ("0 plante", "1 plante").
+// Centralizing this keeps every count-bearing notification grammatical across
+// the full range of values it can actually receive.
+const enPlural = (n: number, singular: string, plural: string): string =>
+  n === 1 ? singular : plural
+
+const frPlural = (n: number, singular: string, plural: string): string =>
+  n <= 1 ? singular : plural
+
 // Simple (non-care) notification translations
 type SimpleTranslation = {
   readonly title: (params: InternalNotificationParams) => string
@@ -99,68 +109,84 @@ type InternalNotificationParams = {
 
 type SimpleTranslationMap = Record<SimpleNotificationType, SimpleTranslation>
 
+// Voice rules:
+// - English addresses the user as "you" and names plants possessively
+//   ("your Monstera"). Where a plant name can be absent, the fallback is the
+//   bare noun ("plant") so the possessive stays in the template.
+// - French uses tutoiement throughout (tu / ton / ta / tes) and names plants
+//   as "ta <name>" — never vouvoiement.
 const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
   en: {
     new_follower: {
-      title: () => '👋 New follower',
+      title: () => '👋 New follower!',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} started following you`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} started following your plant journey`,
     },
     nudge_to_water: {
-      title: () => '💧 Nudge from a friend',
+      title: () => '💧 A friendly nudge',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'A friend')} is reminding you to check on your plants!`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'A friend')} thinks your plants could use a little love!`,
     },
     delegation_request: {
-      title: () => '🤝 Care request',
+      title: () => '🤝 Plant-sitting request',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} wants you to care for their plants`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} would love your help caring for their plants`,
     },
     delegation_accepted: {
-      title: () => '✅ Request accepted',
+      title: () => '✅ Request accepted!',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} accepted your care delegation`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} is happy to look after your plants`,
     },
     delegation_rejected: {
       title: () => '😔 Request declined',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} declined your care delegation`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} can't plant-sit for you right now`,
     },
     delegation_canceled: {
-      title: () => '🚫 Delegation canceled',
+      title: () => '🚫 Plant-sitting canceled',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} canceled the care delegation`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} called off the plant-sitting`,
     },
     delegation_activated: {
-      title: () => '🌱 Delegation started',
-      body: (p) =>
-        `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has started`,
-    },
-    delegation_completed: {
-      title: () => '🎉 Delegation ended',
-      body: (p) =>
-        `Care delegation for ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plants has ended`,
-    },
-    inactivity_nudge: {
-      title: () => '🌿 Your plants miss you!',
+      title: () => '🌱 Plant-sitting has begun',
       body: (p) => {
         const count = Option.getOrElse(
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return pipe(
-          Match.value(count > 0),
-          Match.when(
-            true,
-            () =>
-              `It's been a while since you checked in. Your ${count} plants are waiting for some love!`
-          ),
-          Match.orElse(
-            () =>
-              "It's been a while since you checked in. Your plants are waiting for some love!"
-          )
-        )
+        return `You're now caring for ${count} ${enPlural(count, 'plant', 'plants')}. Thanks for helping out!`
       },
+    },
+    delegation_completed: {
+      title: () => '🎉 Plant-sitting complete',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return `Your care for ${count} ${enPlural(count, 'plant', 'plants')} has wrapped up. Nicely done!`
+      },
+    },
+    inactivity_nudge: {
+      title: () => '🌿 Your plants miss you!',
+      body: (p) =>
+        Option.match(Option.fromNullable(p.plantCount), {
+          onNone: () =>
+            "It's been a while! Your plants would love a little attention.",
+          onSome: (count) =>
+            pipe(
+              Match.value(count),
+              Match.when(
+                1,
+                () =>
+                  "It's been a while! Your plant would love a little attention."
+              ),
+              Match.orElse(
+                () =>
+                  `It's been a while! Your ${count} plants would love a little attention.`
+              )
+            ),
+        }),
     },
     daily_tip: {
       title: (p) =>
@@ -180,13 +206,13 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       body: (p) => {
         const name = Option.getOrElse(
           Option.fromNullable(p.plantName),
-          () => 'Your plant'
+          () => 'plant'
         )
         const days = Option.getOrElse(
           Option.fromNullable(p.daysSincePhoto),
           () => 30
         )
-        return `${name} hasn't been photographed in ${days} days. Capture its progress!`
+        return `Your ${name} hasn't had a photo in ${days} ${enPlural(days, 'day', 'days')}. Capture how far it's come!`
       },
     },
     plant_parent_milestone: {
@@ -195,34 +221,34 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.daysSinceJoin),
           () => 30
         )
-        return `🎂 ${days} Days as a Plant Parent!`
+        return `🎂 ${days} days as a plant parent!`
       },
       body: (p) => {
         const days = Option.getOrElse(
           Option.fromNullable(p.daysSinceJoin),
           () => 30
         )
-        return `You joined Lily ${days} days ago. Your plants are lucky to have you!`
+        return `You joined Lily ${days} days ago. Your plants are lucky to have you! 🌿`
       },
     },
     gift_subscription: {
-      title: () => '🎁 You received a gift!',
+      title: () => '🎁 A gift for you!',
       body: (p) => {
         const duration = Option.getOrElse(
           Option.fromNullable(p.giftDuration),
           () => 'a special period'
         )
-        return `You've been gifted premium access for ${duration}. Enjoy!`
+        return `You've been gifted Lily Premium for ${duration}. Enjoy every feature! 🌿`
       },
     },
     resubscribe_nudge: {
-      title: () => '🌱 Some of your plants need care reminders',
+      title: () => '🌱 Some plants need reminders',
       body: (p) => {
         const count = Option.getOrElse(
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return `${count} plants aren't receiving care alerts. Upgrade to Premium to cover your entire garden!`
+        return `${count} ${enPlural(count, "plant isn't", "plants aren't")} getting care alerts. Go Premium to cover your whole garden!`
       },
     },
     streak_at_risk: {
@@ -231,15 +257,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.streakCount),
           () => 0
         )
-        return `🔥 Your ${streak}-day streak ends tonight!`
+        return `🔥 Don't lose your ${streak}-day streak!`
       },
-      body: (p) => {
-        const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
-          () => 'Your plants'
-        )
-        return `${name} still needs care. Don't break your streak!`
-      },
+      body: (p) =>
+        Option.match(Option.fromNullable(p.plantName), {
+          onNone: () =>
+            'Your plants still need care today. Keep the streak alive!',
+          onSome: (name) =>
+            `Your ${name} still needs care today. Keep the streak alive!`,
+        }),
     },
     streak_milestone: {
       title: (p) => {
@@ -254,7 +280,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.streakCount),
           () => 0
         )
-        return `You've cared for your plants every day for ${streak} days. That's dedication!`
+        return `You've cared for your plants ${streak} days straight. That's real dedication! 🌟`
       },
     },
     weekly_recap: {
@@ -272,7 +298,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.healthyCount),
           () => 0
         )
-        return `This week: ${tasks} care tasks, ${streak}-day streak, ${healthy} thriving plants.`
+        return `What a week! ${tasks} care ${enPlural(tasks, 'task', 'tasks')} done, a ${streak}-day streak, and ${healthy} ${enPlural(healthy, 'plant', 'plants')} thriving. 🌿`
       },
     },
     trial_ending: {
@@ -282,11 +308,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.trialDaysLeft),
           () => 3
         )
-        return `Your trial ends in ${days} ${days === 1 ? 'day' : 'days'}. Keep unlimited plants, AI advice, and care delegation!`
+        return `Just ${days} ${enPlural(days, 'day', 'days')} left of your trial. Keep unlimited plants, AI advice, and care delegation!`
       },
     },
     approaching_limit: {
-      title: () => "📈 You're approaching your limit",
+      title: () => "📈 You're close to your limit",
       body: (p) => {
         const used = Option.getOrElse(
           Option.fromNullable(p.usageCount),
@@ -297,7 +323,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.featureName),
           () => 'resources'
         )
-        return `You've used ${used}/${max} ${feature}. Upgrade to Premium for unlimited access!`
+        return `You've used ${used}/${max} ${feature} this month. Go Premium for unlimited access!`
       },
     },
     plant_anniversary: {
@@ -306,108 +332,118 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.anniversaryDuration),
           () => 'some time'
         )
-        return `🎂 Happy ${duration}!`
+        return `🎂 Happy ${duration} together!`
       },
       body: (p) => {
         const name = Option.getOrElse(
           Option.fromNullable(p.plantName),
-          () => 'Your plant'
+          () => 'plant'
         )
         const date = Option.getOrElse(
           Option.fromNullable(p.dateAdded),
           () => 'a while ago'
         )
-        return `You've been caring for ${name} since ${date}. Keep it up!`
+        return `You've been caring for your ${name} since ${date}. Here's to many more! 🌿`
       },
     },
   },
   fr: {
     new_follower: {
-      title: () => '👋 Nouveau follower',
+      title: () => '👋 Nouvel abonné !',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a commencé à vous suivre`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} suit désormais ton jardin`,
     },
     nudge_to_water: {
-      title: () => "💧 Rappel d'un ami",
+      title: () => "💧 Le petit rappel d'un ami",
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Un ami')} vous rappelle de vous occuper de vos plantes !`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Un ami')} pense que tes plantes mériteraient un peu d'attention !`,
     },
     delegation_request: {
       title: () => '🤝 Demande de garde',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} souhaite que vous gardiez ses plantes`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} aimerait que tu gardes ses plantes`,
     },
     delegation_accepted: {
-      title: () => '✅ Demande acceptée',
+      title: () => '✅ Demande acceptée !',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a accepté votre délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} va s'occuper de tes plantes avec plaisir`,
     },
     delegation_rejected: {
       title: () => '😔 Demande refusée',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a refusé votre délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} ne peut pas garder tes plantes pour le moment`,
     },
     delegation_canceled: {
-      title: () => '🚫 Délégation annulée',
+      title: () => '🚫 Garde annulée',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a annulé la délégation de soins`,
+        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a annulé la garde des plantes`,
     },
     delegation_activated: {
-      title: () => '🌱 Délégation commencée',
-      body: (p) =>
-        `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes a commencé`,
-    },
-    delegation_completed: {
-      title: () => '🎉 Délégation terminée',
-      body: (p) =>
-        `La délégation de soins pour ${Option.getOrElse(Option.fromNullable(p.plantCount), () => 0)} plantes est terminée`,
-    },
-    inactivity_nudge: {
-      title: () => '🌿 Vos plantes vous attendent !',
+      title: () => '🌱 La garde commence',
       body: (p) => {
         const count = Option.getOrElse(
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return pipe(
-          Match.value(count > 0),
-          Match.when(
-            true,
-            () =>
-              `Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos ${count} plantes attendent un peu d'amour !`
-          ),
-          Match.orElse(
-            () =>
-              "Cela fait un moment que vous n'avez pas pris de leurs nouvelles. Vos plantes attendent un peu d'amour !"
-          )
-        )
+        return `Tu prends soin de ${count} ${frPlural(count, 'plante', 'plantes')}. Merci de ton aide !`
       },
+    },
+    delegation_completed: {
+      title: () => '🎉 Garde terminée',
+      body: (p) => {
+        const count = Option.getOrElse(
+          Option.fromNullable(p.plantCount),
+          () => 0
+        )
+        return `Ta garde de ${count} ${frPlural(count, 'plante', 'plantes')} est terminée. Bravo !`
+      },
+    },
+    inactivity_nudge: {
+      title: () => "🌿 Tes plantes t'attendent !",
+      body: (p) =>
+        Option.match(Option.fromNullable(p.plantCount), {
+          onNone: () =>
+            "Ça fait un moment ! Tes plantes adoreraient un peu d'attention.",
+          onSome: (count) =>
+            pipe(
+              Match.value(count),
+              Match.when(
+                1,
+                () =>
+                  "Ça fait un moment ! Ta plante adorerait un peu d'attention."
+              ),
+              Match.orElse(
+                () =>
+                  `Ça fait un moment ! Tes ${count} plantes adoreraient un peu d'attention.`
+              )
+            ),
+        }),
     },
     daily_tip: {
       title: (p) =>
         Option.getOrElse(
           Option.fromNullable(p.tipTitle),
-          () => '🌱 Le saviez-vous ?'
+          () => '🌱 Le savais-tu ?'
         ),
       body: (p) =>
         Option.getOrElse(
           Option.fromNullable(p.tipBody),
           () =>
-            "Les plantes en pots de terre cuite sèchent plus vite que celles en plastique. Vérifiez l'humidité du sol !"
+            "Les plantes en pots de terre cuite sèchent plus vite que celles en plastique. Vérifie l'humidité du sol !"
         ),
     },
     photo_reminder: {
-      title: () => '📸 Suivi de croissance !',
+      title: () => '📸 Photo souvenir ?',
       body: (p) => {
         const name = Option.getOrElse(
           Option.fromNullable(p.plantName),
-          () => 'Votre plante'
+          () => 'plante'
         )
         const days = Option.getOrElse(
           Option.fromNullable(p.daysSincePhoto),
           () => 30
         )
-        return `${name} n'a pas été photographiée depuis ${days} jours. Capturez ses progrès !`
+        return `Aucune photo de ta ${name} depuis ${days} ${frPlural(days, 'jour', 'jours')}. Immortalise ses progrès !`
       },
     },
     plant_parent_milestone: {
@@ -423,27 +459,27 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.daysSinceJoin),
           () => 30
         )
-        return `Vous avez rejoint Lily il y a ${days} jours. Vos plantes ont de la chance de vous avoir !`
+        return `Tu as rejoint Lily il y a ${days} jours. Tes plantes ont bien de la chance ! 🌿`
       },
     },
     gift_subscription: {
-      title: () => '🎁 Vous avez reçu un cadeau !',
+      title: () => '🎁 Un cadeau pour toi !',
       body: (p) => {
         const duration = Option.getOrElse(
           Option.fromNullable(p.giftDuration),
           () => 'une période spéciale'
         )
-        return `On vous a offert un accès premium pour ${duration}. Profitez-en !`
+        return `On t'a offert Lily Premium pour ${duration}. Profites-en pleinement ! 🌿`
       },
     },
     resubscribe_nudge: {
-      title: () => '🌱 Certaines plantes manquent de rappels de soins',
+      title: () => '🌱 Certaines plantes manquent de rappels',
       body: (p) => {
         const count = Option.getOrElse(
           Option.fromNullable(p.plantCount),
           () => 0
         )
-        return `${count} plantes ne reçoivent pas de rappels. Passez à Premium pour couvrir tout votre jardin !`
+        return `${count} ${frPlural(count, 'plante ne reçoit', 'plantes ne reçoivent')} pas de rappels. Passe à Premium pour couvrir tout ton jardin !`
       },
     },
     streak_at_risk: {
@@ -452,15 +488,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.streakCount),
           () => 0
         )
-        return `🔥 Votre série de ${streak} jours se termine ce soir !`
+        return `🔥 Ne perds pas ta série de ${streak} jours !`
       },
-      body: (p) => {
-        const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
-          () => 'Vos plantes'
-        )
-        return `${name} a encore besoin de soins. Ne brisez pas votre série !`
-      },
+      body: (p) =>
+        Option.match(Option.fromNullable(p.plantName), {
+          onNone: () =>
+            "Tes plantes ont encore besoin de soins aujourd'hui. Garde le rythme !",
+          onSome: (name) =>
+            `Ta ${name} a encore besoin de soins aujourd'hui. Garde le rythme !`,
+        }),
     },
     streak_milestone: {
       title: (p) => {
@@ -475,11 +511,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.streakCount),
           () => 0
         )
-        return `Vous prenez soin de vos plantes chaque jour depuis ${streak} jours. Quelle dévotion !`
+        return `Tu prends soin de tes plantes depuis ${streak} jours d'affilée. Quelle dévotion ! 🌟`
       },
     },
     weekly_recap: {
-      title: () => '📊 Votre récap hebdomadaire',
+      title: () => '📊 Ton récap hebdomadaire',
       body: (p) => {
         const tasks = Option.getOrElse(
           Option.fromNullable(p.tasksCompleted),
@@ -493,21 +529,21 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.healthyCount),
           () => 0
         )
-        return `Cette semaine : ${tasks} soins, série de ${streak} jours, ${healthy} plantes en forme.`
+        return `Quelle semaine ! ${streak} ${frPlural(streak, 'jour', 'jours')} de série, ${tasks} ${frPlural(tasks, 'soin', 'soins')} et ${healthy} ${frPlural(healthy, 'plante en pleine forme', 'plantes en pleine forme')}. 🌿`
       },
     },
     trial_ending: {
-      title: () => '⏳ Votre essai Premium se termine bientôt',
+      title: () => '⏳ Ton essai Premium se termine bientôt',
       body: (p) => {
         const days = Option.getOrElse(
           Option.fromNullable(p.trialDaysLeft),
           () => 3
         )
-        return `Votre essai se termine dans ${days} ${days === 1 ? 'jour' : 'jours'}. Gardez plantes illimitées, conseils IA et délégation !`
+        return `Plus que ${days} ${frPlural(days, 'jour', 'jours')} d'essai. Garde plantes illimitées, conseils IA et délégation !`
       },
     },
     approaching_limit: {
-      title: () => '📈 Vous approchez de votre limite',
+      title: () => '📈 Tu approches de ta limite',
       body: (p) => {
         const used = Option.getOrElse(
           Option.fromNullable(p.usageCount),
@@ -518,7 +554,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.featureName),
           () => 'ressources'
         )
-        return `Vous avez utilisé ${used}/${max} ${feature}. Passez à Premium pour un accès illimité !`
+        return `Tu as utilisé ${used}/${max} ${feature} ce mois-ci. Passe à Premium pour un accès illimité !`
       },
     },
     plant_anniversary: {
@@ -527,18 +563,18 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.anniversaryDuration),
           () => 'un moment'
         )
-        return `🎂 Joyeux ${duration} !`
+        return `🎂 Joyeux ${duration} ensemble !`
       },
       body: (p) => {
         const name = Option.getOrElse(
           Option.fromNullable(p.plantName),
-          () => 'Votre plante'
+          () => 'plante'
         )
         const date = Option.getOrElse(
           Option.fromNullable(p.dateAdded),
           () => 'un moment'
         )
-        return `Vous prenez soin de ${name} depuis le ${date}. Continuez comme ça !`
+        return `Tu prends soin de ta ${name} depuis le ${date}. Encore plein d'autres à venir ! 🌿`
       },
     },
   },
@@ -588,7 +624,7 @@ const groupedPlantAnniversary: Record<
     )
     return {
       title: `🎂 ${count} plant anniversaries today!`,
-      body: `You've been caring for ${names}. Keep it up!`,
+      body: `Celebrating ${names}. Here's to many more! 🌿`,
     }
   },
   fr: (plantNames) => {
@@ -599,7 +635,7 @@ const groupedPlantAnniversary: Record<
     )
     return {
       title: `🎂 ${count} anniversaires de plantes aujourd'hui !`,
-      body: `Vous prenez soin de ${names}. Continuez comme ça !`,
+      body: `On célèbre ${names}. Encore plein d'autres à venir ! 🌿`,
     }
   },
 }
@@ -620,72 +656,71 @@ type CareTranslations = {
 
 type TranslationMap = Record<DeferredCareType, CareTranslations>
 
+// English names plants possessively ("your Monstera"); French uses tutoiement
+// and "ta <name>". Plural titles carry no possessive (the body lists names).
 const translations: Record<LanguageCode, TranslationMap> = {
   en: {
     watering_reminder: {
-      singleTitle: (name) => `💧 Time to water your ${name}`,
-      singleBody: (name) => `Your ${name} needs watering today.`,
-      pluralTitle: (count) => `💧 ${count} plants need watering`,
+      singleTitle: (name) => `💧 Your ${name} is thirsty`,
+      singleBody: (name) => `Time to give your ${name} a drink today.`,
+      pluralTitle: (count) => `💧 ${count} plants are thirsty`,
       andMore: (count) => `and ${count} more`,
     },
     fertilization_reminder: {
-      singleTitle: (name) => `🌿 Time to fertilize your ${name}`,
-      singleBody: (name) => `Your ${name} needs fertilizing today.`,
-      pluralTitle: (count) => `🌿 ${count} plants need fertilizing`,
+      singleTitle: (name) => `🌿 Feed your ${name} today`,
+      singleBody: (name) => `Your ${name} is ready for a little fertilizer.`,
+      pluralTitle: (count) => `🌿 ${count} plants are hungry`,
       andMore: (count) => `and ${count} more`,
     },
     misting_reminder: {
-      singleTitle: (name) => `🌫️ Time to mist your ${name}`,
-      singleBody: (name) => `Your ${name} needs misting today.`,
-      pluralTitle: (count) => `🌫️ ${count} plants need misting`,
+      singleTitle: (name) => `🌫️ Your ${name} loves a misting`,
+      singleBody: (name) => `Give your ${name} a refreshing mist today.`,
+      pluralTitle: (count) => `🌫️ ${count} plants want a misting`,
       andMore: (count) => `and ${count} more`,
     },
     repotting_reminder: {
-      singleTitle: (name) => `🪴 Time to repot your ${name}`,
-      singleBody: (name) => `Your ${name} is ready for repotting.`,
-      pluralTitle: (count) => `🪴 ${count} plants need repotting`,
+      singleTitle: (name) => `🪴 Your ${name} needs more room`,
+      singleBody: (name) => `Your ${name} is ready for a bigger pot.`,
+      pluralTitle: (count) => `🪴 ${count} plants are ready to repot`,
       andMore: (count) => `and ${count} more`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `⚠️ Your ${name} needs attention`,
+      singleTitle: (name) => `⚠️ Your ${name} needs you`,
       singleBody: (name) => `Your ${name} is overdue for care — don't forget!`,
-      pluralTitle: (count) => `⚠️ ${count} plants need attention`,
+      pluralTitle: (count) => `⚠️ ${count} plants need your attention`,
       andMore: (count) => `and ${count} more`,
     },
   },
   fr: {
     watering_reminder: {
-      singleTitle: (name) => `💧 Il est temps d'arroser votre ${name}`,
-      singleBody: (name) =>
-        `Votre ${name} a besoin d'être arrosé(e) aujourd'hui.`,
-      pluralTitle: (count) => `💧 ${count} plantes ont besoin d'arrosage`,
+      singleTitle: (name) => `💧 Ta ${name} a soif`,
+      singleBody: (name) => `Offre un peu d'eau à ta ${name} aujourd'hui.`,
+      pluralTitle: (count) => `💧 ${count} plantes ont soif`,
       andMore: (count) => `et ${count} de plus`,
     },
     fertilization_reminder: {
-      singleTitle: (name) => `🌿 Il est temps de fertiliser votre ${name}`,
-      singleBody: (name) =>
-        `Votre ${name} a besoin d'être fertilisé(e) aujourd'hui.`,
-      pluralTitle: (count) => `🌿 ${count} plantes ont besoin de fertilisant`,
+      singleTitle: (name) => `🌿 Nourris ta ${name} aujourd'hui`,
+      singleBody: (name) => `Ta ${name} a besoin d'un peu d'engrais.`,
+      pluralTitle: (count) => `🌿 ${count} plantes ont faim`,
       andMore: (count) => `et ${count} de plus`,
     },
     misting_reminder: {
-      singleTitle: (name) => `🌫️ Il est temps de brumiser votre ${name}`,
-      singleBody: (name) =>
-        `Votre ${name} a besoin d'être brumisé(e) aujourd'hui.`,
-      pluralTitle: (count) => `🌫️ ${count} plantes ont besoin de brumisation`,
+      singleTitle: (name) => `🌫️ Ta ${name} adore la brume`,
+      singleBody: (name) => `Offre une brumisation à ta ${name} aujourd'hui.`,
+      pluralTitle: (count) => `🌫️ ${count} plantes réclament une brumisation`,
       andMore: (count) => `et ${count} de plus`,
     },
     repotting_reminder: {
-      singleTitle: (name) => `🪴 Il est temps de rempoter votre ${name}`,
-      singleBody: (name) => `Votre ${name} est prêt(e) pour le rempotage.`,
-      pluralTitle: (count) => `🪴 ${count} plantes ont besoin de rempotage`,
+      singleTitle: (name) => `🪴 Ta ${name} a besoin de place`,
+      singleBody: (name) => `Ta ${name} a besoin d'un pot plus grand.`,
+      pluralTitle: (count) => `🪴 ${count} plantes sont à rempoter`,
       andMore: (count) => `et ${count} de plus`,
     },
     overdue_reminder: {
-      singleTitle: (name) => `⚠️ Votre ${name} a besoin d'attention`,
+      singleTitle: (name) => `⚠️ Ta ${name} te réclame`,
       singleBody: (name) =>
-        `Votre ${name} est en retard de soins — n'oubliez pas !`,
-      pluralTitle: (count) => `⚠️ ${count} plantes ont besoin d'attention`,
+        `Ta ${name} est en retard de soins — n'oublie pas !`,
+      pluralTitle: (count) => `⚠️ ${count} plantes réclament ton attention`,
       andMore: (count) => `et ${count} de plus`,
     },
   },
@@ -745,16 +780,46 @@ export const buildLiveActivityHeadline = (
   language: LanguageCode
 ): string => liveActivityHeadline[language](totalPlants)
 
-// Punchy generic title rendered as the bold first line of the lock-screen
-// activity. Intentionally human-warm rather than action-functional — the
-// muted headline below carries the precise count.
-const liveActivityTitle: Record<LanguageCode, string> = {
-  en: 'Quick care today',
-  fr: 'Petit soin du jour',
+// Pool of punchy generic titles for the bold first line of the lock-screen
+// activity. The muted headline below carries the precise count, so these stay
+// human-warm rather than functional. Callers pass a day-stable `seed` (see
+// buildContentState) so the title rotates day to day without flickering
+// between mid-day activity updates.
+const liveActivityTitles: Record<
+  LanguageCode,
+  Array.NonEmptyReadonlyArray<string>
+> = {
+  en: Array.make(
+    'Quick care today',
+    'A little plant love',
+    'Tend your jungle',
+    'Your green to-do',
+    'Plant care time',
+    'Your plants need you'
+  ),
+  fr: Array.make(
+    'Petit soin du jour',
+    "Un peu d'amour vert",
+    'Ton moment jardinage',
+    "C'est l'heure des soins",
+    'Chouchoute tes plantes',
+    "Tes plantes t'attendent"
+  ),
 }
 
-export const buildLiveActivityTitle = (language: LanguageCode): string =>
-  liveActivityTitle[language]
+// `seed` picks a title deterministically — pass a day-stable value so the
+// lock-screen title rotates daily but never changes mid-update. Defaults to
+// the first entry when no seed is supplied.
+export const buildLiveActivityTitle = (
+  language: LanguageCode,
+  seed = 0
+): string => {
+  const titles = liveActivityTitles[language]
+  const index = Math.abs(seed) % titles.length
+  return Option.getOrElse(Array.get(titles, index), () =>
+    Array.headNonEmpty(titles)
+  )
+}
 
 // Short verb shown under each care-type badge in the hero row.
 const liveActivityCareTypeLabel: Record<

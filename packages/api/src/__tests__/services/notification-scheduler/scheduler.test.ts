@@ -75,7 +75,7 @@ describe('Notification Scheduler', () => {
         'pending-1'
       )
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '💧 Time to water your Monstera'
+        '💧 Your Monstera is thirsty'
       )
     })
 
@@ -476,10 +476,10 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '💧 Time to water your Monstera'
+        '💧 Your Monstera is thirsty'
       )
       expect(enqueuedMessages[0]?.message.payload.body).toBe(
-        'Your Monstera needs watering today.'
+        'Time to give your Monstera a drink today.'
       )
     })
 
@@ -517,7 +517,7 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        "💧 Il est temps d'arroser votre Monstera"
+        '💧 Ta Monstera a soif'
       )
     })
 
@@ -558,7 +558,7 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '💧 2 plants need watering'
+        '💧 2 plants are thirsty'
       )
       expect(enqueuedMessages[0]?.message.payload.body).toBe('Monstera, Pothos')
     })
@@ -813,7 +813,7 @@ describe('Notification Scheduler', () => {
         'overdue-2',
       ])
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '⚠️ 2 plants need attention'
+        '⚠️ 2 plants need your attention'
       )
     })
 
@@ -845,7 +845,7 @@ describe('Notification Scheduler', () => {
 
       expect(enqueuedMessages).toHaveLength(1)
       expect(enqueuedMessages[0]?.message.payload.title).toBe(
-        '⚠️ Your Monstera needs attention'
+        '⚠️ Your Monstera needs you'
       )
       expect(enqueuedMessages[0]?.message.payload.body).toBe(
         "Your Monstera is overdue for care — don't forget!"
@@ -890,8 +890,8 @@ describe('Notification Scheduler', () => {
         ['Monstera'],
         'en'
       )
-      expect(result.title).toBe('💧 Time to water your Monstera')
-      expect(result.body).toBe('Your Monstera needs watering today.')
+      expect(result.title).toBe('💧 Your Monstera is thirsty')
+      expect(result.body).toBe('Time to give your Monstera a drink today.')
     })
 
     it('should build plural watering title', () => {
@@ -900,7 +900,7 @@ describe('Notification Scheduler', () => {
         ['Monstera', 'Pothos'],
         'en'
       )
-      expect(result.title).toBe('💧 2 plants need watering')
+      expect(result.title).toBe('💧 2 plants are thirsty')
       expect(result.body).toBe('Monstera, Pothos')
     })
 
@@ -910,7 +910,7 @@ describe('Notification Scheduler', () => {
         ['Fern', 'Cactus', 'Aloe'],
         'en'
       )
-      expect(result.title).toBe('🌿 3 plants need fertilizing')
+      expect(result.title).toBe('🌿 3 plants are hungry')
       expect(result.body).toBe('Fern, Cactus, Aloe')
     })
 
@@ -925,7 +925,7 @@ describe('Notification Scheduler', () => {
         'Palm',
       ]
       const result = buildNotificationContent('watering_reminder', names, 'en')
-      expect(result.title).toBe('💧 7 plants need watering')
+      expect(result.title).toBe('💧 7 plants are thirsty')
       expect(result.body).toBe(
         'Monstera, Pothos, Fern, Cactus, Aloe and 2 more'
       )
@@ -943,10 +943,8 @@ describe('Notification Scheduler', () => {
         ['Monstera'],
         'fr'
       )
-      expect(result.title).toBe("💧 Il est temps d'arroser votre Monstera")
-      expect(result.body).toBe(
-        "Votre Monstera a besoin d'être arrosé(e) aujourd'hui."
-      )
+      expect(result.title).toBe('💧 Ta Monstera a soif')
+      expect(result.body).toBe("Offre un peu d'eau à ta Monstera aujourd'hui.")
     })
 
     it('should build French plural watering content', () => {
@@ -955,7 +953,7 @@ describe('Notification Scheduler', () => {
         ['Monstera', 'Pothos', 'Fern'],
         'fr'
       )
-      expect(result.title).toBe("💧 3 plantes ont besoin d'arrosage")
+      expect(result.title).toBe('💧 3 plantes ont soif')
       expect(result.body).toBe('Monstera, Pothos, Fern')
     })
 
@@ -965,16 +963,14 @@ describe('Notification Scheduler', () => {
         ['Cactus'],
         'fr'
       )
-      expect(result.title).toBe('🌿 Il est temps de fertiliser votre Cactus')
-      expect(result.body).toBe(
-        "Votre Cactus a besoin d'être fertilisé(e) aujourd'hui."
-      )
+      expect(result.title).toBe("🌿 Nourris ta Cactus aujourd'hui")
+      expect(result.body).toBe("Ta Cactus a besoin d'un peu d'engrais.")
     })
 
     it('should truncate French plant names with correct suffix', () => {
       const names = ['Monstera', 'Pothos', 'Fern', 'Cactus', 'Aloe', 'Ivy']
       const result = buildNotificationContent('watering_reminder', names, 'fr')
-      expect(result.title).toBe("💧 6 plantes ont besoin d'arrosage")
+      expect(result.title).toBe('💧 6 plantes ont soif')
       expect(result.body).toBe(
         'Monstera, Pothos, Fern, Cactus, Aloe et 1 de plus'
       )

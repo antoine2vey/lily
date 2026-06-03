@@ -167,7 +167,7 @@ describe('respondToDelegation', () => {
     expect(notifications[0]).toMatchObject({
       userId: mockUser1.id,
       type: 'delegation_accepted',
-      title: '✅ Request accepted',
+      title: '✅ Request accepted!',
     })
     expect(notifications[0]?.body).toContain(mockUser2.name)
   })

@@ -163,12 +163,12 @@ describe('DelegationScheduler', () => {
       expect(notifications[0]).toMatchObject({
         userId: delegation.ownerId,
         type: 'delegation_activated',
-        title: '🌱 Delegation started',
+        title: '🌱 Plant-sitting has begun',
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_activated',
-        title: '🌱 Delegation started',
+        title: '🌱 Plant-sitting has begun',
       })
     })
 
@@ -189,12 +189,12 @@ describe('DelegationScheduler', () => {
       expect(notifications[0]).toMatchObject({
         userId: delegation.ownerId,
         type: 'delegation_completed',
-        title: '🎉 Delegation ended',
+        title: '🎉 Plant-sitting complete',
       })
       expect(notifications[1]).toMatchObject({
         userId: delegation.caretakerId,
         type: 'delegation_completed',
-        title: '🎉 Delegation ended',
+        title: '🎉 Plant-sitting complete',
       })
     })
     describe('error isolation', () => {
