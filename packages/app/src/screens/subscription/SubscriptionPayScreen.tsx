@@ -4,7 +4,6 @@ import { router } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LoadingOverlay } from '@/components/LoadingOverlay'
 import { privacyUrl, termsUrl } from '@/constants/urls'
 import { useRevenueCat } from '@/contexts/RevenueCatContext'
@@ -16,7 +15,6 @@ import * as RevenueCatService from '@/services/revenuecat'
 type BillingPeriod = 'monthly' | 'annual'
 
 export function SubscriptionPayScreen() {
-  const insets = useSafeAreaInsets()
   const { t, i18n } = useTranslation(['subscription', 'common'])
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>('annual')
   const [isLoading, setIsLoading] = useState(false)
@@ -118,12 +116,12 @@ export function SubscriptionPayScreen() {
 
   const monthlyPrice = pipe(
     Option.fromNullable(monthlyPackage?.product.priceString),
-    Option.getOrElse(() => '€4.99')
+    Option.getOrElse(() => '€2.99')
   )
 
   const annualPrice = pipe(
     Option.fromNullable(annualPackage?.product.priceString),
-    Option.getOrElse(() => '€29.99')
+    Option.getOrElse(() => '€24.99')
   )
 
   const introPrice = pipe(
@@ -154,12 +152,9 @@ export function SubscriptionPayScreen() {
       : `${annualPrice}${t('pricing.perYear')}`
 
   return (
-    <View
-      className="flex-1 bg-background dark:bg-background-dark"
-      style={{ paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background dark:bg-background-dark">
       {/* Close Button */}
-      <View className="absolute top-14 left-4 z-50">
+      <View className="absolute top-6 left-4 z-50">
         <Pressable
           testID="close-button"
           onPress={() => router.back()}
@@ -176,10 +171,10 @@ export function SubscriptionPayScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120, paddingTop: 60 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
         {/* Content */}
-        <View className="gap-6">
+        <View className="gap-6 pt-8">
           {/* Title Section */}
           <View className="items-center px-6 gap-2">
             {/* Premium Access Badge */}
@@ -204,7 +199,7 @@ export function SubscriptionPayScreen() {
             )}
 
             {/* Title */}
-            <Text className="text-3xl text-center font-bold text-text-primary dark:text-white">
+            <Text className="text-4xl pt-4 text-center font-bold text-text-primary dark:text-white">
               {t('headline')}
             </Text>
 
@@ -224,7 +219,7 @@ export function SubscriptionPayScreen() {
               onSelect={setBillingPeriod}
               monthlyPrice={monthlyPrice}
               annualPrice={annualPrice}
-              savingsPercent={33}
+              savingsPercent={30}
               trialText={
                 hasFreeTrial ? t('trial.badge', { days: trialDays }) : undefined
               }
