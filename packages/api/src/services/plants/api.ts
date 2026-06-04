@@ -23,6 +23,7 @@ import {
   PlantCorrectCareDatesRequest,
   PlantDetail,
   PlantPhotosListResponse,
+  PlantPhotoUploadResponse,
   PlantsListResponse,
   PlantUpdateRequest,
 } from '@lily/shared/plant'
@@ -231,7 +232,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
           })
         )
       )
-      .addSuccess(Schema.Void, { status: 201 })
+      .addSuccess(PlantPhotoUploadResponse, { status: 201 })
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
       .addError(GCSUploadError, { status: 500 })

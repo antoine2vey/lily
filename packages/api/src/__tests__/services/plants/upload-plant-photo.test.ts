@@ -28,15 +28,17 @@ describe('uploadPlantPhoto', () => {
       createMockCurrentUser({ id: 'user-1' })
     )
 
-  it('should upload photo successfully', async () => {
-    await Effect.runPromise(
+  it('returns the persisted photos so the client can reconcile', async () => {
+    const result = await Effect.runPromise(
       uploadPlantPhoto({ plantId: 'plant-1', files: [mockFile] }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    // If no error is thrown, the upload was successful
-    expect(true).toBe(true)
+    expect(result.photos).toHaveLength(1)
+    expect(result.photos[0]).toMatchObject({ plantId: 'plant-1' })
+    expect(typeof result.photos[0]?.id).toBe('string')
+    expect(typeof result.photos[0]?.url).toBe('string')
   })
 
   it('should publish PhotoUploaded event for each photo', async () => {
@@ -90,14 +92,13 @@ describe('uploadPlantPhoto', () => {
     ).toBe(true)
   })
 
-  it('should handle empty files array', async () => {
-    await Effect.runPromise(
+  it('returns an empty photo list for an empty files array', async () => {
+    const result = await Effect.runPromise(
       uploadPlantPhoto({ plantId: 'plant-1', files: [] }).pipe(
         Effect.provide(createTestLayer())
       )
     )
 
-    // Should complete without error with empty files
-    expect(true).toBe(true)
+    expect(result.photos).toHaveLength(0)
   })
 })

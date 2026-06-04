@@ -5,7 +5,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { nowAsDate } from '@lily/shared'
+import { nowAsDate, type PlantPhotoUploadResponse } from '@lily/shared'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
   GCSConfigError,
@@ -20,7 +20,7 @@ export const uploadPlantPhoto = ({
   plantId: string
   files: readonly PersistedFile[]
 }): Effect.Effect<
-  void,
+  PlantPhotoUploadResponse,
   SqlError | GCSUploadError | GCSConfigError | PlatformError,
   PlantRepository | GCSService | FileSystem | EventBus | CurrentUser
 > =>
@@ -57,6 +57,10 @@ export const uploadPlantPhoto = ({
         })
       )
     )
+
+    // Return the persisted photos so the client can reconcile its optimistic
+    // placeholder (local uri) with the real id + CDN url without a refetch.
+    return { photos: createdPhotos }
   }).pipe(
     Effect.withSpan('PlantsService.uploadPlantPhoto', {
       attributes: { 'plant.id': plantId },

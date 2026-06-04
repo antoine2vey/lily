@@ -146,6 +146,12 @@ export const PlantsListResponse = PaginatedResponse(Plant)
 // Plant photos list response - uses standard pagination format
 export const PlantPhotosListResponse = PaginatedResponse(PlantPhoto)
 
+// Returned by POST /plants/:id/photos so the client can reconcile its optimistic
+// placeholder with the persisted photo (real id + CDN url) without a refetch.
+export const PlantPhotoUploadResponse = Schema.Struct({
+  photos: Schema.Array(PlantPhoto),
+})
+
 // Plant detail with photos (for single plant endpoint)
 export const PlantDetail = Schema.Struct({
   ...Plant.fields,
@@ -195,5 +201,6 @@ export type AIIdentifyResponse = typeof AIIdentifyResponse.Type
 export type PlantPhoto = typeof PlantPhoto.Type
 export type PlantsListResponse = typeof PlantsListResponse.Type
 export type PlantPhotosListResponse = typeof PlantPhotosListResponse.Type
+export type PlantPhotoUploadResponse = typeof PlantPhotoUploadResponse.Type
 export type PlantDetail = typeof PlantDetail.Type
 export type DetectResponse = typeof DetectResponse.Type
