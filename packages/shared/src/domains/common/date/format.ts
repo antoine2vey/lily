@@ -308,6 +308,80 @@ export const formatMemberSince = (
   })
 
 /**
+ * Calendar breakdown of the elapsed time between two instants, as whole years,
+ * months, and days (e.g. 1 year, 2 months and 3 days).
+ */
+export interface CalendarAge {
+  years: number
+  months: number
+  days: number
+}
+
+const isLeapYear = (year: number): boolean =>
+  (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+
+/** Number of days in a given 1-indexed month of a given year. */
+const daysInMonth = (year: number, month: number): number =>
+  pipe(
+    Match.value(month),
+    Match.when(2, () => (isLeapYear(year) ? 29 : 28)),
+    Match.when(
+      (m: number) => Array.contains([4, 6, 9, 11], m),
+      () => 30
+    ),
+    Match.orElse(() => 31)
+  )
+
+/** The calendar month immediately preceding the given 1-indexed month. */
+const previousMonth = (
+  year: number,
+  month: number
+): { year: number; month: number } =>
+  pipe(
+    Match.value(month),
+    Match.when(1, () => ({ year: year - 1, month: 12 })),
+    Match.orElse((m: number) => ({ year, month: m - 1 }))
+  )
+
+/**
+ * Compute the calendar age between two instants as whole years, months, and
+ * days. Both inputs are read in their own zone, so pass same-zone DateTimes
+ * (e.g. both UTC) for stable results. Future `to`/`from` pairs clamp to zero.
+ *
+ * @example
+ * // ~33 days → { years: 0, months: 1, days: 2 }
+ * getCalendarAge(from, to)
+ */
+export const getCalendarAge = (
+  from: DateTime.DateTime,
+  to: DateTime.DateTime
+): CalendarAge => {
+  const start = DateTime.toParts(from)
+  const end = DateTime.toParts(to)
+
+  let years = end.year - start.year
+  let months = end.month - start.month
+  let days = end.day - start.day
+
+  if (days < 0) {
+    months -= 1
+    const borrow = previousMonth(end.year, end.month)
+    days += daysInMonth(borrow.year, borrow.month)
+  }
+
+  if (months < 0) {
+    years -= 1
+    months += 12
+  }
+
+  if (years < 0) {
+    return { years: 0, months: 0, days: 0 }
+  }
+
+  return { years, months, days }
+}
+
+/**
  * Format relative time with fallback to date (e.g., "2h ago" or "Jan 15").
  * Used for notifications and activity feeds.
  *
