@@ -22,12 +22,18 @@ jest.mock('@/hooks/useDelegatedTasks', () => ({
   useDelegatedTasks: jest.fn().mockReturnValue({ data: undefined }),
 }))
 
+jest.mock('@/hooks/useSkipWaitingPreference', () => ({
+  useSkipWaitingPreference: jest.fn(),
+}))
+
 import { useCareTasks } from '@/hooks/useCareTasks'
 import { useCompleteTask } from '@/hooks/useCompleteTask'
+import { useSkipWaitingPreference } from '@/hooks/useSkipWaitingPreference'
 import { CareScreen } from '../CareScreen'
 
 const mockedUseCareTasks = useCareTasks as jest.Mock
 const mockedUseCompleteTask = useCompleteTask as jest.Mock
+const mockedUseSkipWaitingPreference = useSkipWaitingPreference as jest.Mock
 
 describe('CareScreen', () => {
   const mockCompleteTask = jest.fn()
@@ -37,6 +43,16 @@ describe('CareScreen', () => {
     mockedUseCompleteTask.mockReturnValue({
       mutate: mockCompleteTask,
     })
+    // Default: power-user "skip waiting" off, so the undo countdown applies.
+    mockedUseSkipWaitingPreference.mockReturnValue({
+      skipWaiting: false,
+      setSkipWaiting: jest.fn(),
+      isLoading: false,
+    })
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   it('shows loading state initially', () => {
@@ -252,5 +268,74 @@ describe('CareScreen', () => {
     expect(screen.getByText('Monstera')).toBeTruthy()
     expect(screen.getByText('Fern')).toBeTruthy()
     expect(screen.getByText('Cactus')).toBeTruthy()
+  })
+
+  it('completes a task immediately when skip waiting is enabled', () => {
+    mockedUseSkipWaitingPreference.mockReturnValue({
+      skipWaiting: true,
+      setSkipWaiting: jest.fn(),
+      isLoading: false,
+    })
+    mockedUseCareTasks.mockReturnValue({
+      data: {
+        overdue: [
+          {
+            id: 'task-1',
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            plantImageUrl: null,
+            type: 'watering',
+            completed: false,
+            dueDate: mockFixedDate(2024, 1, 1),
+          },
+        ],
+        today: [],
+        upcoming: [],
+      },
+      isLoading: false,
+    })
+
+    render(<CareScreen />)
+
+    // Tapping the card fires completion synchronously — no undo countdown.
+    fireEvent.press(screen.getByText('Monstera'))
+
+    expect(mockCompleteTask).toHaveBeenCalledWith({
+      taskId: 'task-1',
+      plantId: 'plant-1',
+      type: 'watering',
+    })
+  })
+
+  it('defers completion (undo window) when skip waiting is disabled', () => {
+    // Pressing an overdue card schedules a 5s undo timeout; fake timers keep it
+    // from leaking past the test (the screen only clears it on undo/fire).
+    jest.useFakeTimers()
+    // Default mock has skipWaiting: false.
+    mockedUseCareTasks.mockReturnValue({
+      data: {
+        overdue: [
+          {
+            id: 'task-1',
+            plantId: 'plant-1',
+            plantName: 'Monstera',
+            plantImageUrl: null,
+            type: 'watering',
+            completed: false,
+            dueDate: mockFixedDate(2024, 1, 1),
+          },
+        ],
+        today: [],
+        upcoming: [],
+      },
+      isLoading: false,
+    })
+
+    render(<CareScreen />)
+
+    fireEvent.press(screen.getByText('Monstera'))
+
+    // Completion is deferred to the timeout, so the API is not called yet.
+    expect(mockCompleteTask).not.toHaveBeenCalled()
   })
 })

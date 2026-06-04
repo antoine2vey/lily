@@ -17,6 +17,10 @@ export default {
       cancel: 'Cancel',
     },
   },
+  skipWaiting: {
+    label: 'Skip waiting',
+    hint: 'Complete tasks instantly, without the undo countdown',
+  },
   tasks: {
     title: 'Care Tasks',
     today: 'Today',

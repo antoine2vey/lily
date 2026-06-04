@@ -24,9 +24,11 @@ import { useCareTasks } from '@/hooks/useCareTasks'
 import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useSkipWaitingPreference } from '@/hooks/useSkipWaitingPreference'
 import { CareContentSkeleton } from '@/screens/care/components/CareContentSkeleton'
 import { CareTaskCard } from '@/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from '@/screens/care/components/DelegatedTasksSection'
+import { SkipWaitingToggle } from '@/screens/care/components/SkipWaitingToggle'
 
 type TaskSectionType = 'overdue' | 'today' | 'upcoming'
 
@@ -55,6 +57,7 @@ export function CareScreen() {
   const tabBarInset = useTabBarInset()
   const { data: tasks, isLoading, isRefetching, refetch } = useCareTasks()
   const { mutate: completeTask } = useCompleteTask()
+  const { skipWaiting, setSkipWaiting } = useSkipWaitingPreference()
   const today = DateTime.unsafeNow()
 
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set())
@@ -93,6 +96,13 @@ export function CareScreen() {
   }
 
   const handleImmediateComplete = (task: CareTask) => {
+    // Power-user mode: bypass the undo countdown and complete immediately.
+    if (skipWaiting) {
+      handleCompleteTaskApi(task.id, task.plantId, task.type)
+      toast.success(`${task.plantName} ${t(`types.${task.type}.completed`)}!`)
+      return
+    }
+
     setPendingTaskIds((prev) => new Set(prev).add(task.id))
 
     const timeoutId = setTimeout(() => {
@@ -194,15 +204,18 @@ export function CareScreen() {
       style={{ paddingTop: insets.top }}
     >
       {/* Header - always rendered */}
-      <View className="px-6 pt-4 pb-4">
-        <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
-          {t('screen.title')}
-        </Text>
-        <Text className="text-xs uppercase mt-1 font-medium text-text-muted dark:text-slate-400">
-          {t('screen.todayDate', {
-            date: formatDate(today, i18n.language),
-          })}
-        </Text>
+      <View className="px-6 pt-4 pb-4 flex-row items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-2xl font-bold tracking-tight text-text-primary dark:text-white">
+            {t('screen.title')}
+          </Text>
+          <Text className="text-xs uppercase mt-1 font-medium text-text-muted dark:text-slate-400">
+            {t('screen.todayDate', {
+              date: formatDate(today, i18n.language),
+            })}
+          </Text>
+        </View>
+        <SkipWaitingToggle value={skipWaiting} onValueChange={setSkipWaiting} />
       </View>
 
       <PullToRefresh isRefreshing={isRefetching} onRefresh={refetch}>

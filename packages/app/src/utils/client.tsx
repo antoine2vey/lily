@@ -583,7 +583,10 @@ export async function apiEffectRunner<
 /**
  * Run an API effect and return Either<ApiFailure, Success>
  */
-async function runApiEffect<X extends keyof Client, Y extends keyof Client[X]>(
+export async function runApiEffect<
+  X extends keyof Client,
+  Y extends keyof Client[X],
+>(
   section: X,
   method: Y,
   params: GetRequestParams<X, Y>,

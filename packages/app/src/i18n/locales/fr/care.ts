@@ -17,6 +17,10 @@ export default {
       cancel: 'Annuler',
     },
   },
+  skipWaiting: {
+    label: 'Sans délai',
+    hint: "Termine les tâches instantanément, sans compte à rebours d'annulation",
+  },
   tasks: {
     title: 'Tâches de soins',
     today: "Aujourd'hui",
