@@ -113,16 +113,23 @@ export function PlantDetailSkeleton() {
           </View>
         </View>
 
-        {/* Gallery (mt-10): header + horizontal thumbnails */}
+        {/* Growth Journal (mt-10): header + age pill + 3 tiles */}
         <View className="mt-10">
-          <View className="flex-row justify-between items-center mb-4 px-1">
-            <SkeletonBox width={100} height={20} rounded="sm" />
+          <View className="flex-row justify-between items-center mb-3">
+            <SkeletonBox width={130} height={20} rounded="sm" />
+            <SkeletonBox width={64} height={16} rounded="sm" />
           </View>
-          <View className="flex-row" style={{ gap: 16 }}>
-            {Array.map([1, 2, 3, 4], (i) => (
-              <SkeletonBox key={i} width={96} height={96} rounded="2xl" />
+          <View className="mb-4">
+            <SkeletonBox width={180} height={24} rounded="full" />
+          </View>
+          <View className="flex-row mb-4" style={{ gap: 8 }}>
+            {Array.map([1, 2, 3], (i) => (
+              <View key={i} className="flex-1 aspect-square">
+                <SkeletonBox width="100%" height="100%" rounded="2xl" />
+              </View>
             ))}
           </View>
+          <SkeletonBox width="100%" height={48} rounded="2xl" />
         </View>
 
         {/* Recent History (mt-10 mb-4): section header + 3 items */}

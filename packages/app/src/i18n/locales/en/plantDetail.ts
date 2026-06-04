@@ -43,13 +43,20 @@ export default {
     doNow: 'Do Now',
   },
   gallery: {
-    title: 'Photo Gallery',
-    photoCount: '{count} photos',
     addPhoto: 'Add Photo',
     addFirstPhoto: 'Add First Photo',
     noPhotosTitle: 'No photos yet',
     noPhotosDescription:
       "Start documenting your plant's journey by adding your first photo",
+    journalTitle: 'Growth Journal',
+    viewAll: 'View all',
+    growingFor: 'Growing for {duration}',
+    ageYears: '{count, plural, one {# year} other {# years}}',
+    ageMonths: '{count, plural, one {# month} other {# months}}',
+    ageDays: '{count, plural, =0 {less than a day} one {# day} other {# days}}',
+    ageSeparator: ', ',
+    ageJoiner: ' and ',
+    photoCountBadge: '{count, plural, one {# photo} other {# photos}}',
   },
   photoViewer: {
     photoNotFound: 'Photo not found',

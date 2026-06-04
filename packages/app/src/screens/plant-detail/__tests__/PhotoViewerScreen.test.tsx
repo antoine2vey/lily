@@ -21,10 +21,9 @@ jest.mock('@/hooks/useDeletePhoto', () => ({
 }))
 
 describe('PhotoViewerScreen', () => {
+  // The viewer reads getPlantPhotos (a paginated list response).
   const mockPlantWithPhotos = {
-    id: 'plant-1',
-    name: 'Test Plant',
-    photos: [
+    items: [
       {
         id: 'photo-1',
         url: 'https://example.com/photo1.jpg',
@@ -38,6 +37,10 @@ describe('PhotoViewerScreen', () => {
         plantId: 'plant-1',
       },
     ],
+    total: 2,
+    page: 1,
+    limit: 100,
+    hasMore: false,
   }
 
   beforeEach(() => {
@@ -59,7 +62,7 @@ describe('PhotoViewerScreen', () => {
 
   it('renders error state when photo not found', () => {
     mockUseEffectQuery.mockReturnValue({
-      data: { ...mockPlantWithPhotos, photos: [] },
+      data: { ...mockPlantWithPhotos, items: [] },
       isLoading: false,
     })
 
@@ -68,7 +71,7 @@ describe('PhotoViewerScreen', () => {
     expect(screen.getByText('Photo not found')).toBeTruthy()
   })
 
-  it('displays photo at full size', () => {
+  it('renders a swipeable carousel of all photos', () => {
     mockUseEffectQuery.mockReturnValue({
       data: mockPlantWithPhotos,
       isLoading: false,
@@ -76,6 +79,33 @@ describe('PhotoViewerScreen', () => {
 
     render(<PhotoViewerScreen />)
     expect(screen.getByTestId('photo-viewer-screen')).toBeTruthy()
+    expect(screen.getByTestId('photo-viewer-carousel')).toBeTruthy()
+    expect(screen.getByTestId('photo-viewer-slide-photo-1')).toBeTruthy()
+    expect(screen.getByTestId('photo-viewer-slide-photo-2')).toBeTruthy()
+  })
+
+  it('shows pagination dots when there is more than one photo', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: mockPlantWithPhotos,
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.getByTestId('photo-viewer-dots')).toBeTruthy()
+  })
+
+  it('hides pagination dots for a single photo', () => {
+    mockUseEffectQuery.mockReturnValue({
+      data: {
+        ...mockPlantWithPhotos,
+        items: [mockPlantWithPhotos.items[0]],
+        total: 1,
+      },
+      isLoading: false,
+    })
+
+    render(<PhotoViewerScreen />)
+    expect(screen.queryByTestId('photo-viewer-dots')).toBeNull()
   })
 
   it('renders back button', () => {
@@ -130,10 +160,10 @@ describe('PhotoViewerScreen', () => {
     fireEvent.press(screen.getByTestId('photo-viewer-delete-button'))
     fireEvent.press(screen.getByText('Delete Photo'))
 
-    expect(mockDeletePhotoMutate).toHaveBeenCalledWith(
-      { path: { id: 'plant-1', photoId: 'photo-1' } },
-      expect.any(Object)
-    )
+    // Deletes the currently-visible photo (the deep-linked one) optimistically.
+    expect(mockDeletePhotoMutate).toHaveBeenCalledWith({
+      path: { id: 'plant-1', photoId: 'photo-1' },
+    })
   })
 
   it('closes modal when cancel pressed', () => {

@@ -40,7 +40,7 @@ import { useUploadPhoto } from '@/hooks/useUploadPhoto'
 import { CareSchedule } from '@/screens/plant-detail/components/CareSchedule'
 import { ChatCTA } from '@/screens/plant-detail/components/ChatCTA'
 import { CorrectCareDatesSheet } from '@/screens/plant-detail/components/CorrectCareDatesSheet'
-import { GallerySection } from '@/screens/plant-detail/components/GallerySection'
+import { GrowthJournalEntryCard } from '@/screens/plant-detail/components/GrowthJournalEntryCard'
 import { IdealEnvironment } from '@/screens/plant-detail/components/IdealEnvironment'
 import { PastCareSheet } from '@/screens/plant-detail/components/PastCareSheet'
 import { PlantDetailSkeleton } from '@/screens/plant-detail/components/PlantDetailSkeleton'
@@ -375,6 +375,10 @@ export function PlantDetailScreen() {
     router.push(`/plant/${plantId}/care-history`)
   }, [plantId, router])
 
+  const handleViewJournal = useCallback(() => {
+    router.push(`/plant/${plantId}/journal`)
+  }, [plantId, router])
+
   const handleEdit = useCallback(() => {
     router.push(`/plant/${plantId}/edit`)
   }, [plantId, router])
@@ -637,21 +641,24 @@ export function PlantDetailScreen() {
             />
           </View>
 
+          {/* Growth Journal */}
+          <View className="mt-10">
+            <GrowthJournalEntryCard
+              photos={photos}
+              plantDateAdded={plant.dateAdded}
+              totalCount={photos.length}
+              onPhotoPress={handlePhotoPress}
+              onPhoto={handlePhoto}
+              onViewJournal={handleViewJournal}
+            />
+          </View>
+
           {/* Ideal Environment */}
           <View className="mt-10">
             <IdealEnvironment
               sunlightPercentage={plant.lightingRating}
               waterPercentage={plant.wateringRating}
               humidityPercentage={plant.humidityRating}
-            />
-          </View>
-
-          {/* Gallery */}
-          <View className="mt-10">
-            <GallerySection
-              photos={photos}
-              onPhotoPress={handlePhotoPress}
-              onPhoto={handlePhoto}
             />
           </View>
 
