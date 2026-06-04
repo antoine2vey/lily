@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
+import { AppleIcon, GooglePlayIcon } from '@/components/BrandIcons'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
@@ -45,7 +46,7 @@ export async function Hero() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-3 shadow-neu-sm bg-background text-lily-text px-7 py-3.5 rounded-full font-semibold hover:shadow-neu-inset transition-all duration-200"
               >
-                <span>🍎</span>
+                <AppleIcon className="w-5 h-5" />
                 {t('appStore')}
               </a>
               <a
@@ -54,7 +55,7 @@ export async function Hero() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-3 shadow-neu-sm bg-background text-lily-text px-7 py-3.5 rounded-full font-semibold hover:shadow-neu-inset transition-all duration-200"
               >
-                <span>▶</span>
+                <GooglePlayIcon className="w-5 h-5" />
                 {t('googlePlay')}
               </a>
             </div>
@@ -62,7 +63,7 @@ export async function Hero() {
 
           <div className="flex justify-center">
             <div
-              className="w-64 rounded-[3rem] shadow-neu-lg overflow-hidden"
+              className="w-64 md:w-72 drop-shadow-[0_28px_56px_rgba(0,0,0,0.20)]"
               style={{
                 animation: 'fade-in-up 0.8s 0.3s ease-out forwards',
                 opacity: 1,
@@ -71,11 +72,11 @@ export async function Hero() {
               <Image
                 src="/screenshots/home-screen.webp"
                 alt="Lily app home screen"
-                width={256}
-                height={554}
+                width={600}
+                height={1265}
                 className="w-full h-auto"
                 priority
-                sizes="256px"
+                sizes="(max-width: 768px) 256px, 288px"
               />
             </div>
           </div>

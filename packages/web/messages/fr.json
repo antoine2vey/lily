@@ -28,7 +28,7 @@
   },
   "WhatIsLily": {
     "heading": "Qu'est-ce que Lily ?",
-    "text": "Lily est une application de soin des plantes pour iOS et Android qui vous aide à garder chacune de vos plantes en pleine forme. Elle combine un suivi personnalisé de votre collection, une identification des plantes par photo grâce à l'IA, des rappels de soins adaptés pour l'arrosage, la fertilisation et la brumisation, et un chat IA qui diagnostique les problèmes en se basant sur l'historique de soins de votre plante. Plus de 10 000 plantes sont suivies par les utilisateurs de Lily, et l'application a une note de 4,8 étoiles sur l'App Store. Essai gratuit de 7 jours — sans carte bancaire — puis 4,99 €/mois ou 29,99 €/an avec toutes les fonctionnalités incluses."
+    "text": "Lily est une application de soin des plantes pour iOS et Android qui vous aide à garder chacune de vos plantes en pleine forme. Elle combine un suivi personnalisé de votre collection, une identification des plantes par photo grâce à l'IA, des rappels de soins adaptés pour l'arrosage, la fertilisation et la brumisation, et un chat IA qui diagnostique les problèmes en se basant sur l'historique de soins de votre plante. Plus de 10 000 plantes sont suivies par les utilisateurs de Lily, et l'application a une note de 4,8 étoiles sur l'App Store. Essai gratuit de 7 jours — puis 2,99 €/mois ou 24,99 €/an avec toutes les fonctionnalités incluses."
   },
   "Features": {
     "heading": "Tout ce dont vos plantes ont besoin",
@@ -43,10 +43,10 @@
     "item3Description": "L'identification de Lily utilise l'appareil photo de votre téléphone pour reconnaître plus de 10 000 espèces instantanément. Prenez une photo et obtenez le nom, l'espèce et un profil de soins complet.",
     "item4Catchline": "Posez vos questions, obtenez des réponses d'expert",
     "item4Description": "Discutez avec une IA qui connaît votre plante en détail — son âge, son historique de soins, son environnement et sa santé. Obtenez un diagnostic pour les feuilles jaunes, les pointes brunes, les parasites ou tout autre problème.",
-    "item5Catchline": "Développez vos compétences, pas seulement vos plantes",
-    "item5Description": "Gagnez des badges et débloquez des objectifs en construisant des habitudes de soins régulières. Suivez vos séries, célébrez la croissance de votre collection et progressez en tant que parent de plantes.",
-    "item6Catchline": "Partagez votre jardin avec le monde",
-    "item6Description": "Créez un profil public, suivez d'autres passionnés de plantes et montrez votre collection à la communauté. Découvrez ce que les autres cultivent et inspirez-vous de leurs installations.",
+    "item5Catchline": "Chaque plante, dans les moindres détails",
+    "item5Description": "Touchez une plante pour voir son profil complet — état de santé, calendrier de soins personnalisé, lumière et humidité idéales, et un accès direct pour demander conseil à Lily sur cette plante précise.",
+    "item6Catchline": "Ajouter une plante prend quelques secondes",
+    "item6Description": "Une configuration guidée en trois étapes : prenez ou choisissez une photo, nommez votre plante, sélectionnez sa catégorie. Lily crée ensuite un plan de soins sur mesure — aucune expertise requise.",
     "item7Catchline": "Votre maison, parfaitement organisée",
     "item7Description": "Regroupez les plantes par pièce — salon, chambre, balcon — pour voir l'impact de chaque environnement sur la croissance. Suivez les conditions lumineuses et ajustez les soins par emplacement."
   },
@@ -67,29 +67,27 @@
   "FAQ": {
     "heading": "Questions fréquentes",
     "subheading": "Tout ce que vous devez savoir avant de commencer.",
-    "q0": "N'y a-t-il vraiment pas de carte bancaire requise ?",
-    "a0": "Oui, absolument. Vous téléchargez l'application, commencez votre essai gratuit de 7 jours, et on ne vous demande jamais vos coordonnées bancaires à l'avance. Vous ne saisissez vos informations de paiement que si vous choisissez de vous abonner après l'essai.",
-    "q1": "Que se passe-t-il à la fin de l'essai de 7 jours ?",
-    "a1": "Vous recevrez un rappel 3 jours avant la fin de l'essai. Si vous choisissez de ne pas vous abonner, votre compte reste actif en mode lecture seule — vous pouvez toujours consulter votre collection, mais vous ne recevrez plus de nouveaux rappels ni n'utiliserez les fonctionnalités IA.",
-    "q2": "En quoi Lily est-elle différente de Planta ou Greg ?",
-    "a2": "Lily combine la planification personnalisée des soins, le diagnostic IA et les fonctionnalités sociales en une seule application — sans les niveaux d'abonnement excessifs. Toutes les fonctionnalités sont disponibles dès le premier jour, et les calendriers sont adaptés aux conditions spécifiques de votre plante.",
-    "q3": "Puis-je annuler à tout moment ?",
-    "a3": "Oui. Vous gérez votre abonnement directement via les paramètres de l'App Store ou de Google Play. Il n'y a pas de frais d'annulation et vous gardez l'accès jusqu'à la fin de votre période de facturation.",
-    "q4": "Lily fonctionne-t-elle sur iPhone et Android ?",
-    "a4": "Oui. Lily est disponible sur iOS (iPhone et iPad) et Android. Vos données se synchronisent automatiquement sur tous vos appareils.",
-    "q5": "Quelle est la précision du diagnostic IA ?",
-    "a5": "L'IA est entraînée sur des milliers de maladies, nuisibles et problèmes de soins des plantes. Elle tient compte du contexte de votre plante spécifique — son âge, son historique, son environnement — ce qui rend ses conseils nettement plus précis que les outils génériques."
+    "q0": "Que se passe-t-il à la fin de l'essai de 7 jours ?",
+    "a0": "Vous recevrez un rappel 3 jours avant la fin de l'essai. Si vous choisissez de ne pas vous abonner, votre compte reste actif en mode lecture seule — vous pouvez toujours consulter votre collection, mais vous ne recevrez plus de nouveaux rappels ni n'utiliserez les fonctionnalités IA.",
+    "q1": "En quoi Lily est-elle différente de Planta ou Greg ?",
+    "a1": "Lily combine la planification personnalisée des soins, le diagnostic IA et les fonctionnalités sociales en une seule application — sans les niveaux d'abonnement excessifs. Toutes les fonctionnalités sont disponibles dès le premier jour, et les calendriers sont adaptés aux conditions spécifiques de votre plante.",
+    "q2": "Puis-je annuler à tout moment ?",
+    "a2": "Oui. Vous gérez votre abonnement directement via les paramètres de l'App Store ou de Google Play. Il n'y a pas de frais d'annulation et vous gardez l'accès jusqu'à la fin de votre période de facturation.",
+    "q3": "Lily fonctionne-t-elle sur iPhone et Android ?",
+    "a3": "Oui. Lily est disponible sur iOS (iPhone et iPad) et Android. Vos données se synchronisent automatiquement sur tous vos appareils.",
+    "q4": "Quelle est la précision du diagnostic IA ?",
+    "a4": "L'IA est entraînée sur des milliers de maladies, nuisibles et problèmes de soins des plantes. Elle tient compte du contexte de votre plante spécifique — son âge, son historique, son environnement — ce qui rend ses conseils nettement plus précis que les outils génériques."
   },
   "Pricing": {
     "badge": "7 jours d'essai gratuit",
     "heading": "Un tarif simple et transparent.",
     "subheading": "Tout inclus. Annulez à tout moment.",
-    "bestValue": "MEILLEURE OFFRE · ÉCONOMISEZ 50 %",
+    "bestValue": "MEILLEURE OFFRE · ÉCONOMISEZ 33 %",
     "monthly": "Mensuel",
     "annual": "Annuel",
     "perMonth": "/ mois",
     "perYear": "/ an",
-    "monthlyEquiv": "~2,50 $ / mois",
+    "monthlyEquiv": "~2,08 $ / mois",
     "startTrial": "Commencer l'essai gratuit",
     "feature0": "Plantes illimitées",
     "feature1": "Chat IA & diagnostic des plantes",
@@ -100,10 +98,9 @@
     "feature6": "Organisation par pièce",
     "feature7": "Délégation de plantes",
     "feature8": "Notifications push",
-    "trust0": "Aucune carte bancaire requise pour commencer",
-    "trust1": "Rappel envoyé 3 jours avant la fin de l'essai",
-    "trust2": "Annulation via App Store / Play Store, à tout moment",
-    "trust3": "Vos données de plantes vous appartiennent, pour toujours"
+    "trust0": "Rappel envoyé 3 jours avant la fin de l'essai",
+    "trust1": "Annulation via App Store / Play Store, à tout moment",
+    "trust2": "Vos données de plantes vous appartiennent, pour toujours"
   },
   "Footer": {
     "tagline": "Suivez chaque plante, ne manquez plus aucun soin.",
@@ -147,7 +144,7 @@
     "by": "par",
     "minRead": "{minutes} min de lecture",
     "ctaHeading": "Suivez vos plantes avec Lily",
-    "ctaText": "Obtenez des rappels de soins personnalisés et un diagnostic IA — gratuit pendant 7 jours, sans carte bancaire.",
+    "ctaText": "Obtenez des rappels de soins personnalisés et un diagnostic IA — gratuit pendant 7 jours.",
     "ctaButton": "Télécharger Lily gratuitement →",
     "backLink": "← Plus de guides de plantes",
     "metaTitleSuffix": "— Blog Lily"
@@ -165,7 +162,7 @@
     "missionText1": "Nous croyons que chaque plante m\u00e9rite une attention particuli\u00e8re, et que chaque parent de plante m\u00e9rite un petit coup de pouce. Les plantes am\u00e9liorent nos espaces, purifient notre air et apaisent nos esprits \u2014 mais seulement si elles survivent assez longtemps.",
     "missionText2": "Notre mission est simple : rendre le soin des plantes sans effort. Que vous ayez un cactus sur un rebord de fen\u00eatre ou une jungle dans chaque pi\u00e8ce, Lily s\u2019adapte \u00e0 votre collection et vous garde sur la bonne voie. Pas de culpabilit\u00e9, pas d\u2019approximation, juste des plantes en meilleure sant\u00e9.",
     "ctaHeading": "Pr\u00eat \u00e0 garder vos plantes en pleine forme ?",
-    "ctaText": "T\u00e9l\u00e9chargez Lily et commencez votre essai gratuit de 7 jours. Sans carte bancaire.",
+    "ctaText": "T\u00e9l\u00e9chargez Lily et commencez votre essai gratuit de 7 jours.",
     "ctaButton": "T\u00e9l\u00e9charger Lily gratuitement \u2192"
   },
   "Privacy": {

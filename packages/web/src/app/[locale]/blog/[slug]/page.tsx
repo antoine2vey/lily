@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import remarkGfm from 'remark-gfm'
+import { AppDownloadButton } from '@/components/AppDownloadButton'
 import { JsonLd } from '@/components/JsonLd'
 import { ReadingProgressBar } from '@/components/ReadingProgressBar'
 import { defaultAuthor } from '@/lib/authors'
@@ -231,12 +232,10 @@ export default async function BlogPostPage({ params }: Props) {
             {t('ctaHeading')}
           </p>
           <p className="text-muted mb-6">{t('ctaText')}</p>
-          <a
-            href="https://apps.apple.com/app/with-lily/id6758399014"
+          <AppDownloadButton
+            label={t('ctaButton')}
             className="inline-block bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-full transition-colors"
-          >
-            {t('ctaButton')}
-          </a>
+          />
         </div>
 
         <div className="mt-12 text-center">

@@ -9,7 +9,7 @@ export function Pricing() {
   const t = useTranslations('Pricing')
 
   const featureList = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => t(`feature${i}`))
-  const trustItems = [0, 1, 2, 3].map((i) => t(`trust${i}`))
+  const trustItems = [0, 1, 2].map((i) => t(`trust${i}`))
 
   return (
     <section id="pricing" className="py-24 bg-background">
@@ -33,7 +33,7 @@ export function Pricing() {
               {t('monthly')}
             </h3>
             <div className="mb-6">
-              <span className="text-4xl font-bold text-lily-text">$4.99</span>
+              <span className="text-4xl font-bold text-lily-text">$2.99</span>
               <span className="text-muted"> {t('perMonth')}</span>
             </div>
             <ul className="space-y-3 mb-8">
@@ -79,7 +79,7 @@ export function Pricing() {
                 {t('annual')}
               </h3>
               <div className="mb-1">
-                <span className="text-4xl font-bold text-white">$29.99</span>
+                <span className="text-4xl font-bold text-white">$24.99</span>
                 <span className="text-white/70"> {t('perYear')}</span>
               </div>
               <p className="text-white/70 text-sm mb-6">{t('monthlyEquiv')}</p>

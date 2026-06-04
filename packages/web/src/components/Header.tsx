@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useEffect, useRef, useState } from 'react'
+import { LilyMark } from '@/components/BrandIcons'
 import { locales } from '@/i18n/routing'
 
 function SunIcon() {
@@ -90,7 +91,7 @@ export function Header() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
         <a href={`/${locale}`} className="flex items-center gap-2 shrink-0">
-          <span className="text-2xl">🌿</span>
+          <LilyMark size={28} />
           <span className="text-xl font-bold text-lily-text">Lily</span>
         </a>
 

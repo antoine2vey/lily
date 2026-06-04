@@ -71,7 +71,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: ['/og-image.png'],
     },
     icons: {
-      icon: '/favicon.svg',
+      icon: [
+        { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+        { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+        { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      ],
       apple: '/apple-touch-icon.png',
     },
     manifest: '/manifest.json',
@@ -104,7 +108,7 @@ const softwareApplicationSchema = {
   offers: {
     '@type': 'AggregateOffer',
     lowPrice: '0',
-    highPrice: '29.99',
+    highPrice: '24.99',
     priceCurrency: 'USD',
     offerCount: '3',
   },

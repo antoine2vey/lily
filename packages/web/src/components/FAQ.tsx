@@ -8,7 +8,7 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   const t = useTranslations('FAQ')
 
-  const faqs = [0, 1, 2, 3, 4, 5].map((i) => ({
+  const faqs = [0, 1, 2, 3, 4].map((i) => ({
     question: t(`q${i}`),
     answer: t(`a${i}`),
   }))

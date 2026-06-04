@@ -48,15 +48,15 @@ export function FeatureSection({
             : `opacity-0 ${isEven ? '-translate-x-15' : 'translate-x-15'}`
         }`}
       >
-        <div className="relative w-64 md:w-72 rounded-[2.5rem] overflow-hidden shadow-neu-lg bg-background">
+        <div className="relative w-60 md:w-72 drop-shadow-[0_24px_48px_rgba(0,0,0,0.18)]">
           <Image
             src={`/screenshots/${screenshot}`}
             alt={catchline}
-            width={300}
-            height={600}
+            width={600}
+            height={1265}
             className="w-full h-auto"
             loading="lazy"
-            sizes="(max-width: 768px) 256px, 288px"
+            sizes="(max-width: 768px) 240px, 288px"
           />
         </div>
       </div>

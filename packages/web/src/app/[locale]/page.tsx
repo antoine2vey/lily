@@ -77,7 +77,7 @@ export default async function Home({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: pipe(
-      Array.range(0, 5),
+      Array.range(0, 4),
       Array.map((i) => ({
         '@type': 'Question',
         name: t(`q${i}`),

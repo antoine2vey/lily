@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server'
+import { AppleIcon, GooglePlayIcon, LilyMark } from '@/components/BrandIcons'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
@@ -15,7 +16,7 @@ export async function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🌿</span>
+                <LilyMark size={28} />
                 <span className="text-xl font-bold text-lily-text">Lily</span>
               </div>
               <p className="text-muted text-sm">{t('tagline')}</p>
@@ -27,7 +28,7 @@ export async function Footer() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 shadow-neu-sm bg-background text-lily-text px-5 py-2.5 rounded-full text-sm font-medium hover:shadow-neu-inset-sm transition-all duration-200"
               >
-                <span>🍎</span> {t('appStore')}
+                <AppleIcon className="w-4 h-4" /> {t('appStore')}
               </a>
               <a
                 href={GOOGLE_PLAY_URL}
@@ -35,7 +36,7 @@ export async function Footer() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 shadow-neu-sm bg-background text-lily-text px-5 py-2.5 rounded-full text-sm font-medium hover:shadow-neu-inset-sm transition-all duration-200"
               >
-                <span>▶</span> {t('googlePlay')}
+                <GooglePlayIcon className="w-4 h-4" /> {t('googlePlay')}
               </a>
             </div>
           </div>

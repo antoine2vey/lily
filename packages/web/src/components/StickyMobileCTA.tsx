@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
+import { AppleIcon, GooglePlayIcon } from '@/components/BrandIcons'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/with-lily/id6758399014'
 const GOOGLE_PLAY_URL =
@@ -36,7 +37,7 @@ export function StickyMobileCTA() {
         rel="noopener noreferrer"
         className="flex-1 inline-flex items-center justify-center gap-2 shadow-neu-sm bg-background text-lily-text py-3 rounded-full text-sm font-semibold hover:shadow-neu-inset transition-all duration-200"
       >
-        <span>🍎</span> {t('appStore')}
+        <AppleIcon className="w-4 h-4" /> {t('appStore')}
       </a>
       <a
         href={GOOGLE_PLAY_URL}
@@ -44,7 +45,7 @@ export function StickyMobileCTA() {
         rel="noopener noreferrer"
         className="flex-1 inline-flex items-center justify-center gap-2 shadow-neu-sm bg-background text-lily-text py-3 rounded-full text-sm font-semibold hover:shadow-neu-inset transition-all duration-200"
       >
-        <span>▶</span> {t('googlePlay')}
+        <GooglePlayIcon className="w-4 h-4" /> {t('googlePlay')}
       </a>
     </div>
   )
