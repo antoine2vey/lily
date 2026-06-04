@@ -1,6 +1,7 @@
 import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Either } from 'effect'
+import { plantDetailKey } from '@/utils/plant-cache'
 import { queryKeys } from '@/utils/query-keys'
 import {
   createFileFromUri,
@@ -8,13 +9,13 @@ import {
   uploadMultipart,
 } from '@/utils/upload'
 
+// Re-exported for existing importers (e.g. ManualAddScheduleScreen).
+export { plantDetailKey }
+
 interface UpdatePlantParams {
   path: { id: string }
   payload: Record<string, unknown>
 }
-
-export const plantDetailKey = (id: string) =>
-  ['plants', 'getPlant', { path: { id } }] as const
 
 export function useUpdatePlant() {
   const queryClient = useQueryClient()
