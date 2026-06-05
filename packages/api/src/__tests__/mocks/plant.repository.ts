@@ -7,7 +7,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { plants } from '@lily/db/schema'
-import { endOfDay, paginate } from '@lily/shared'
+import { endOfDay, type Orientation, paginate } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Layer, Option, Order, pipe } from 'effect'
 
@@ -18,6 +18,7 @@ interface MockRoom {
   name: string
   icon: string
   luminosity: number | null
+  orientation?: Orientation | null
   isOutdoor: boolean
 }
 
@@ -62,6 +63,10 @@ export const createMockPlantRepository = (
     pipe(
       Option.fromNullable(roomId),
       Option.flatMap((id) => Array.findFirst(rooms, (r) => r.id === id)),
+      Option.map((r) => ({
+        ...r,
+        orientation: Option.getOrNull(Option.fromNullable(r.orientation)),
+      })),
       Option.getOrNull
     )
 

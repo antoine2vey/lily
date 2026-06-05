@@ -27,6 +27,7 @@ const basePlant: PlantDetail = {
     name: 'Living Room',
     icon: '🛋️',
     luminosity: 4,
+    orientation: null,
     isOutdoor: false,
   },
   ownership: 'owned',

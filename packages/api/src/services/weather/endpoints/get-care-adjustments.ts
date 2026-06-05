@@ -4,7 +4,10 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
+import {
+  calculatePlantAdjustment,
+  toIndoorPlantContext,
+} from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherForLocation } from '@lily/api/services/weather/endpoints/get-weather'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
@@ -133,18 +136,14 @@ export const getCareAdjustments = (): Effect.Effect<
           calculatePlantAdjustment(
             {
               id: plant.id,
-              category: plant.category,
               wateringFrequencyDays: wateringSchedule.frequencyDays,
               wateringRating: plant.wateringRating,
-              isOutdoor: pipe(
-                Option.fromNullable(plant.room),
-                Option.map((r) => r.isOutdoor),
-                Option.getOrElse(() => false)
-              ),
+              ...toIndoorPlantContext(plant),
             },
             currentWeather,
             recentHistory,
-            forecast.daily
+            forecast.daily,
+            user.latitude
           )
         )
       }

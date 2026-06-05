@@ -14,6 +14,8 @@
 
 import {
   DEFAULT_ET0_MM_PER_DAY,
+  DEFAULT_HUMIDITY_RATING,
+  DEFAULT_LIGHTING_RATING,
   DEFAULT_TEMPERATURE_MAX_C,
   DEFAULT_TEMPERATURE_MIN_C,
   getCropCoefficient,
@@ -26,32 +28,120 @@ import {
   calculateTemperatureFactor,
   calculateWindFactor,
 } from '@lily/api/services/weather/algorithm/et0'
+import {
+  calculateIndoorDemandFactor,
+  type IndoorDemandInput,
+} from '@lily/api/services/weather/algorithm/indoor-light'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import type { CareAdjustment, WeatherData } from '@lily/shared'
+import type { CareAdjustment, Orientation, WeatherData } from '@lily/shared'
 import { PRECIP_SKIP_MM, TEMP_FERT_HIGH_C, TEMP_FERT_LOW_C } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface PlantForAdjustment {
-  readonly id: string
+/**
+ * Plant fields consumed by the indoor light/growth demand model. Optional so
+ * existing callers compile unchanged; the production call sites provide them.
+ * When absent (or when latitude is unknown) the indoor branch falls back to the
+ * legacy temperature-dampened behaviour.
+ */
+export interface IndoorPlantContext {
   readonly category: string | null
-  readonly wateringFrequencyDays: number
-  readonly wateringRating: number
   readonly isOutdoor: boolean
+  readonly lightingRating?: number
+  readonly humidityRating?: number
+  readonly roomLuminosity?: number | null
+  readonly roomOrientation?: string | null
 }
 
-export interface PlantForScheduleDelta {
+export interface PlantForAdjustment extends IndoorPlantContext {
   readonly id: string
-  readonly category: string | null
   readonly wateringFrequencyDays: number
   readonly wateringRating: number
-  readonly isOutdoor: boolean
+}
+
+export interface PlantForScheduleDelta extends IndoorPlantContext {
+  readonly id: string
+  readonly wateringFrequencyDays: number
+  readonly wateringRating: number
   readonly lastWateredAt: Date
   readonly nextWateringAt: Date
   readonly nextFertilizationAt: Date | null
   readonly fertilizationFrequencyDays: number | null
 }
+
+/**
+ * Flatten a plant + its room into the `IndoorPlantContext` shape. Owns the
+ * room-field derivation (isOutdoor / luminosity / orientation) in one place so
+ * the care-execution, scheduler, and preview call sites don't each repeat it.
+ */
+export const toIndoorPlantContext = (plant: {
+  readonly category: string | null
+  readonly lightingRating: number
+  readonly humidityRating: number
+  readonly room: {
+    readonly isOutdoor: boolean
+    readonly luminosity: number | null
+    readonly orientation: Orientation | null
+  } | null
+}): IndoorPlantContext => ({
+  category: plant.category,
+  lightingRating: plant.lightingRating,
+  humidityRating: plant.humidityRating,
+  isOutdoor: pipe(
+    Option.fromNullable(plant.room),
+    Option.map((r) => r.isOutdoor),
+    Option.getOrElse(() => false)
+  ),
+  roomLuminosity: pipe(
+    Option.fromNullable(plant.room),
+    Option.flatMap((r) => Option.fromNullable(r.luminosity)),
+    Option.getOrNull
+  ),
+  roomOrientation: pipe(
+    Option.fromNullable(plant.room),
+    Option.flatMap((r) => Option.fromNullable(r.orientation)),
+    Option.getOrNull
+  ),
+})
+
+/**
+ * Build the indoor demand input for a plant + weather day. Returns `None` when
+ * latitude is missing/non-finite — in that case the caller uses the legacy
+ * outdoor-style multiplier (the indoor model is location-aware by design).
+ */
+const indoorDemandInput = (
+  plant: IndoorPlantContext,
+  latitude: number | null,
+  day: WeatherData,
+  recentHistory: ReadonlyArray<WeatherData>
+): Option.Option<IndoorDemandInput> =>
+  pipe(
+    Option.fromNullable(latitude),
+    Option.filter((lat) => Number.isFinite(lat) && !plant.isOutdoor),
+    Option.map((lat) => ({
+      latitude: lat,
+      day,
+      recentHistory,
+      category: plant.category,
+      roomLuminosity: pipe(
+        Option.fromNullable(plant.roomLuminosity),
+        Option.getOrNull
+      ),
+      roomOrientation: pipe(
+        Option.fromNullable(plant.roomOrientation),
+        Option.getOrNull
+      ),
+      lightingRating: pipe(
+        Option.fromNullable(plant.lightingRating),
+        Option.getOrElse(() => DEFAULT_LIGHTING_RATING)
+      ),
+      humidityRating: pipe(
+        Option.fromNullable(plant.humidityRating),
+        Option.getOrElse(() => DEFAULT_HUMIDITY_RATING)
+      ),
+    }))
+  )
 
 export interface ScheduleDelta {
   readonly wateringDaysDelta: number
@@ -248,7 +338,8 @@ export function calculatePlantAdjustment(
   plant: PlantForAdjustment,
   currentWeather: WeatherData,
   recentHistory: ReadonlyArray<WeatherData>,
-  forecast: ReadonlyArray<WeatherData> = []
+  forecast: ReadonlyArray<WeatherData> = [],
+  latitude: number | null = null
 ): CareAdjustment {
   // Step 1: Determine crop coefficient
   const kc = getCropCoefficient(plant.category, plant.wateringRating)
@@ -283,8 +374,17 @@ export function calculatePlantAdjustment(
     plant.isOutdoor
   )
 
-  // Step 7: Combined multiplier and adjusted frequency
-  const combinedMultiplier = temperatureFactor * humidityFactor * windFactor
+  // Step 7: Combined multiplier and adjusted frequency.
+  // Indoor plants with a known latitude use the location-aware light/growth +
+  // VPD demand model; outdoor plants (and indoor plants without a location)
+  // keep the temperature × humidity × wind multiplier.
+  const combinedMultiplier = pipe(
+    indoorDemandInput(plant, latitude, currentWeather, recentHistory),
+    Option.match({
+      onNone: () => temperatureFactor * humidityFactor * windFactor,
+      onSome: calculateIndoorDemandFactor,
+    })
+  )
   const adjustedDays = computeAdjustedFrequency(
     plant.wateringFrequencyDays,
     combinedMultiplier
@@ -319,25 +419,34 @@ export function calculatePlantAdjustment(
 /**
  * Calculate the per-day weather multiplier for a single forecast day.
  *
- * For outdoor plants, all factors apply at full strength, plus precipitation
- * dampening (heavy rain day -> plant was watered by nature).
- *
- * For indoor plants, temperature is dampened, humidity and wind are neutral,
- * and precipitation is excluded entirely.
+ * Indoor plants with a known latitude use the location-aware light/growth + VPD
+ * demand model. Outdoor plants (and indoor plants without a location) use the
+ * temperature × humidity × wind multiplier, plus precipitation dampening for
+ * outdoor (heavy rain day -> plant was watered by nature).
  */
 function calculateDayMultiplier(
   day: WeatherData,
   recentHistory: ReadonlyArray<WeatherData>,
-  isOutdoor: boolean
+  plant: IndoorPlantContext,
+  latitude: number | null
 ): number {
-  const tempFactor = calculateTemperatureFactor(day, recentHistory, isOutdoor)
-  const humFactor = calculateHumidityFactor(day, isOutdoor)
-  const windFactor = calculateWindFactor(day, isOutdoor)
+  const indoorDemand = indoorDemandInput(plant, latitude, day, recentHistory)
+  if (Option.isSome(indoorDemand)) {
+    return calculateIndoorDemandFactor(indoorDemand.value)
+  }
+
+  const tempFactor = calculateTemperatureFactor(
+    day,
+    recentHistory,
+    plant.isOutdoor
+  )
+  const humFactor = calculateHumidityFactor(day, plant.isOutdoor)
+  const windFactor = calculateWindFactor(day, plant.isOutdoor)
 
   let multiplier = tempFactor * humFactor * windFactor
 
   // Precipitation dampening for outdoor plants only
-  if (isOutdoor) {
+  if (plant.isOutdoor) {
     const precip = pipe(
       Option.fromNullable(day.precipitation),
       Option.getOrElse(() => 0)
@@ -372,7 +481,8 @@ function calculateDayMultiplier(
 export function calculateScheduleDelta(
   plant: PlantForScheduleDelta,
   weatherCtx: WeatherContext,
-  nowMs: number
+  nowMs: number,
+  latitude: number | null = null
 ): ScheduleDelta {
   const { forecast, recentHistory } = weatherCtx
 
@@ -383,7 +493,7 @@ export function calculateScheduleDelta(
 
   // Compute per-day multipliers and average them
   const dayMultipliers = Array.map(forecast, (day) =>
-    calculateDayMultiplier(day, recentHistory, plant.isOutdoor)
+    calculateDayMultiplier(day, recentHistory, plant, latitude)
   )
 
   const avgMultiplier = pipe(

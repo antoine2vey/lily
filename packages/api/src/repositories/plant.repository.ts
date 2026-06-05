@@ -17,6 +17,7 @@ import {
   type CareType,
   endOfDay,
   nowAsDate,
+  type Orientation,
   type PaginatedResponse,
   type PlantFilter,
   type PlantHealthStatus,
@@ -67,6 +68,7 @@ export type RoomRef = {
   name: string
   icon: string
   luminosity: number | null
+  orientation: Orientation | null
   isOutdoor: boolean
 } | null
 
@@ -184,6 +186,7 @@ const roomSelect = {
   name: rooms.name,
   icon: rooms.icon,
   luminosity: rooms.luminosity,
+  orientation: rooms.orientation,
   isOutdoor: rooms.isOutdoor,
 }
 

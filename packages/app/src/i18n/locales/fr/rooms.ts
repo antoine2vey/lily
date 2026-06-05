@@ -57,6 +57,29 @@ export default {
     'Impossible de détecter la luminosité depuis la photo',
   lightingHint:
     'Prenez une photo de la pièce pour détecter la luminosité, ou sélectionnez manuellement',
+  orientation: 'Orientation de la fenêtre',
+  orientationLevels: {
+    N: 'Nord',
+    NE: 'Nord-Est',
+    E: 'Est',
+    SE: 'Sud-Est',
+    S: 'Sud',
+    SW: 'Sud-Ouest',
+    W: 'Ouest',
+    NW: 'Nord-Ouest',
+  },
+  detectOrientation: 'Détecter à la boussole',
+  orientationDetected: 'Orientation de la fenêtre définie',
+  orientationDetectFailed: "Impossible de détecter l'orientation",
+  orientationUseDirection: 'Utiliser cette direction',
+  orientationClear: 'Effacer',
+  orientationCalibrate:
+    'Bougez le téléphone en huit, ou approchez-vous de la fenêtre pour stabiliser le cap',
+  orientationPermissionDenied:
+    "L'autorisation de localisation est requise pour la boussole.",
+  orientationUnavailable: 'Boussole indisponible sur cet appareil.',
+  orientationHint:
+    'Tenez le téléphone à plat et pointez son bord supérieur vers la fenêtre — la flèche suit ce bord',
   filter: {
     allRooms: 'Toutes les pièces',
     noRoom: 'Sans pièce',

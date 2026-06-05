@@ -1,5 +1,6 @@
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
+import type { Orientation } from '@lily/shared'
 import { relations } from 'drizzle-orm'
 import {
   boolean,
@@ -15,6 +16,9 @@ export const rooms = pgTable('rooms', {
   name: text('name').notNull(),
   icon: text('icon').notNull().default('🏠'),
   luminosity: integer('luminosity'),
+  // Branded to the shared Orientation literal union (8-point compass). The DB
+  // column is plain text; values are validated at the schema boundary on write.
+  orientation: text('orientation').$type<Orientation>(),
   isOutdoor: boolean('is_outdoor').notNull().default(false),
   order: integer('order').notNull().default(0),
   userId: uuid('user_id')

@@ -18,6 +18,7 @@ export const createRoom = (
       name: request.name,
       icon: request.icon,
       luminosity: request.luminosity,
+      orientation: request.orientation,
       isOutdoor: request.isOutdoor,
       order: maxOrder + 1,
       userId,

@@ -55,6 +55,29 @@ export default {
   lightingDetectionFailed: 'Could not detect lighting from photo',
   lightingHint:
     'Take a photo of the room to auto-detect lighting, or select manually',
+  orientation: 'Window orientation',
+  orientationLevels: {
+    N: 'North',
+    NE: 'Northeast',
+    E: 'East',
+    SE: 'Southeast',
+    S: 'South',
+    SW: 'Southwest',
+    W: 'West',
+    NW: 'Northwest',
+  },
+  detectOrientation: 'Detect with compass',
+  orientationDetected: 'Window orientation set',
+  orientationDetectFailed: 'Could not detect orientation',
+  orientationUseDirection: 'Use this direction',
+  orientationClear: 'Clear',
+  orientationCalibrate:
+    'Move the phone in a figure-8, or step near the window to hold the heading steady',
+  orientationPermissionDenied:
+    'Location permission is needed to use the compass.',
+  orientationUnavailable: 'Compass not available on this device.',
+  orientationHint:
+    'Hold the phone flat and point its top edge at the window — the arrow follows the top edge',
   filter: {
     allRooms: 'All Rooms',
     noRoom: 'No Room',

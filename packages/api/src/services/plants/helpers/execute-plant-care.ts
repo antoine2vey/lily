@@ -12,7 +12,11 @@ import type { WeatherRepository } from '@lily/api/repositories/weather.repositor
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { calculatePlantAdjustment } from '@lily/api/services/weather/algorithm'
+import {
+  calculatePlantAdjustment,
+  type PlantForAdjustment,
+  toIndoorPlantContext,
+} from '@lily/api/services/weather/algorithm'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import { getWeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
@@ -41,13 +45,7 @@ const applyWeatherAdjustment = (
     longitude: number | null
   },
   timezone: string,
-  plant: {
-    id: string
-    category: string | null
-    wateringFrequencyDays: number
-    wateringRating: number
-    isOutdoor: boolean
-  },
+  plant: PlantForAdjustment,
   careType: CareType,
   nextCareAt: Date | undefined,
   nowDt: DateTime.Utc
@@ -80,7 +78,8 @@ const applyWeatherAdjustment = (
       plant,
       currentWeather,
       recentHistory,
-      forecast
+      forecast,
+      user.latitude
     )
 
     // For manual care, skip flags don't apply — the user just performed the action,
@@ -221,18 +220,13 @@ export const executePlantCare = (
           timezone,
           {
             id: plant.id,
-            category: plant.category,
             wateringFrequencyDays: pipe(
               Option.fromNullable(schedule),
               Option.map((s) => s.frequencyDays),
               Option.getOrElse(() => 7)
             ),
             wateringRating: plant.wateringRating,
-            isOutdoor: pipe(
-              Option.fromNullable(plant.room),
-              Option.map((r) => r.isOutdoor),
-              Option.getOrElse(() => false)
-            ),
+            ...toIndoorPlantContext(plant),
           },
           params.careType,
           nextCareAt,

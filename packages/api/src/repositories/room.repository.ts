@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import { plants, rooms } from '@lily/db/schema'
-import { nowAsDate } from '@lily/shared'
+import { nowAsDate, type Orientation } from '@lily/shared'
 import { asc, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 
@@ -10,6 +10,7 @@ export interface CreateRoomData {
   name: string
   icon: string
   luminosity?: number | undefined
+  orientation?: Orientation | undefined
   isOutdoor?: boolean | undefined
   order: number
   userId: string
@@ -20,6 +21,7 @@ export interface UpdateRoomData {
   icon?: string | undefined
   order?: number | undefined
   luminosity?: number | null | undefined
+  orientation?: Orientation | null | undefined
   isOutdoor?: boolean | undefined
 }
 
@@ -65,6 +67,7 @@ export const RoomRepositoryLive = Layer.effect(
             name: rooms.name,
             icon: rooms.icon,
             luminosity: rooms.luminosity,
+            orientation: rooms.orientation,
             isOutdoor: rooms.isOutdoor,
             order: rooms.order,
             userId: rooms.userId,

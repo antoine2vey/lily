@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import {
   LUMINOSITY_LEVELS,
   luxToLuminosityLevel,
+  type Orientation,
   type Plant,
 } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
@@ -36,6 +37,7 @@ import { useRooms } from '@/hooks/useRooms'
 import { useUpdateRoom } from '@/hooks/useUpdateRoom'
 import { EmojiPicker } from '@/screens/rooms/components/EmojiPicker'
 import { LuminosityPicker } from '@/screens/rooms/components/LuminosityPicker'
+import { OrientationPicker } from '@/screens/rooms/components/OrientationPicker'
 import { PlantSelector } from '@/screens/rooms/components/PlantSelector'
 import { queryKeys } from '@/utils/query-keys'
 import { uploadMultipart } from '@/utils/upload'
@@ -44,6 +46,7 @@ interface RoomFormState {
   name: string
   icon: string
   luminosity: number | null
+  orientation: Orientation | null
   isOutdoor: boolean
 }
 
@@ -51,6 +54,7 @@ const DEFAULT_FORM: RoomFormState = {
   name: '',
   icon: '🏠',
   luminosity: null,
+  orientation: null,
   isOutdoor: false,
 }
 
@@ -177,6 +181,7 @@ export function RoomsScreen() {
       name: string
       icon: string
       luminosity: number | null
+      orientation: Orientation | null
       isOutdoor: boolean
     }) => {
       setEditingRoomId(room.id)
@@ -184,6 +189,7 @@ export function RoomsScreen() {
         name: room.name,
         icon: room.icon,
         luminosity: room.luminosity,
+        orientation: room.orientation,
         isOutdoor: room.isOutdoor,
       })
       const plantsInRoom = Array.filter(allPlants, (p) => p.roomId === room.id)
@@ -209,6 +215,9 @@ export function RoomsScreen() {
           icon: form.icon,
           isOutdoor: form.isOutdoor,
           ...(form.luminosity != null ? { luminosity: form.luminosity } : {}),
+          ...(form.orientation != null
+            ? { orientation: form.orientation }
+            : {}),
         },
       },
       {
@@ -237,6 +246,7 @@ export function RoomsScreen() {
           name: form.name,
           icon: form.icon,
           luminosity: form.luminosity,
+          orientation: form.orientation,
           isOutdoor: form.isOutdoor,
         },
       },
@@ -501,6 +511,11 @@ function RoomForm({
         <LuminosityPicker
           value={form.luminosity}
           onChange={(luminosity) => onFormChange({ ...form, luminosity })}
+        />
+
+        <OrientationPicker
+          value={form.orientation}
+          onChange={(orientation) => onFormChange({ ...form, orientation })}
         />
 
         <View className="bg-surface dark:bg-surface-dark rounded-xl overflow-hidden">

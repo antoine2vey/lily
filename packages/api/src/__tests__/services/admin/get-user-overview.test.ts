@@ -54,6 +54,7 @@ const makeRoom = (id: string): RoomRow => ({
   name: `Room ${id}`,
   icon: 'plant',
   luminosity: null,
+  orientation: null,
   isOutdoor: false,
   order: 0,
   userId: 'user-1',

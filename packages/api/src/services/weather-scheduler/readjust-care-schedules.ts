@@ -5,9 +5,12 @@ import type { NotificationRepository } from '@lily/api/repositories/notification
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { calculateScheduleDelta } from '@lily/api/services/weather/algorithm'
+import {
+  calculateScheduleDelta,
+  toIndoorPlantContext,
+} from '@lily/api/services/weather/algorithm'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { roundCoord } from '@lily/shared'
+import { type Orientation, roundCoord } from '@lily/shared'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
 
 interface WeatherEnabledUser {
@@ -147,6 +150,8 @@ const readjustPlantSchedule = (
     name: string
     category: string | null
     wateringRating: number
+    lightingRating: number
+    humidityRating: number
     remindersEnabled: boolean
     userId: string
     room: {
@@ -154,12 +159,14 @@ const readjustPlantSchedule = (
       name: string
       icon: string
       luminosity: number | null
+      orientation: Orientation | null
       isOutdoor: boolean
     } | null
   },
   user: {
     id: string
     careReminders: boolean
+    latitude: number | null
   },
   weatherCtx: WeatherContext
 ): Effect.Effect<
@@ -210,14 +217,9 @@ const readjustPlantSchedule = (
     const delta = calculateScheduleDelta(
       {
         id: plant.id,
-        category: plant.category,
         wateringFrequencyDays: wateringSchedule.frequencyDays,
         wateringRating: plant.wateringRating,
-        isOutdoor: pipe(
-          Option.fromNullable(plant.room),
-          Option.map((r) => r.isOutdoor),
-          Option.getOrElse(() => false)
-        ),
+        ...toIndoorPlantContext(plant),
         lastWateredAt: wateringSchedule.lastCareAt,
         nextWateringAt: wateringSchedule.nextCareAt,
         nextFertilizationAt: pipe(
@@ -232,7 +234,8 @@ const readjustPlantSchedule = (
         ),
       },
       weatherCtx,
-      nowMs
+      nowMs,
+      user.latitude
     )
 
     yield* Effect.log(

@@ -28,6 +28,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import { readjustCareSchedules } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import type { WeatherData } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -54,8 +55,10 @@ const weatherUser = createTestUser({
 const indoorRoom = {
   id: 'room-indoor',
   name: 'Living Room',
+  // Lux value (bright indirect, level 3) — matches the default plant
+  // lightingRating of 3, so the indoor light model sees a well-lit room.
+  luminosity: 2000,
   icon: '🏠',
-  luminosity: 5,
   isOutdoor: false,
 }
 
@@ -63,7 +66,7 @@ const outdoorRoom = {
   id: 'room-outdoor',
   name: 'Balcony',
   icon: '🌿',
-  luminosity: 8,
+  luminosity: 40000,
   isOutdoor: true,
 }
 
@@ -574,19 +577,22 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         deltas.push(shift)
       }
 
-      // Indoor + heat wave: dampened factor 1.15 → adjustedDays 6 → delta -1 on first run
-      // Then converges to 0 on subsequent runs
-      expect(deltas[0]).toBe(-1)
+      // Indoor + outdoor heat wave: the location-aware indoor model does NOT
+      // accelerate watering, because a heat wave on the balcony does not change
+      // a climate-controlled room. Demand stays ~1.0 → delta 0 every run (the
+      // old proxy model wrongly read outdoor heat as indoor heat). The point of
+      // this test is stability: no drift across repeated runs.
+      expect(deltas[0]).toBe(0)
       expect(deltas[1]).toBe(0)
       expect(deltas[2]).toBe(0)
 
-      // Total shift should be exactly -1 day
+      // Total shift should be 0 — indoor schedule is unaffected by outdoor heat
       const totalShift = Math.round(
         (toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt) -
           originalNext.getTime()) /
           oneDayMs
       )
-      expect(totalShift).toBe(-1)
+      expect(totalShift).toBe(0)
     })
 
     it('indoor plant should barely move across 5 scheduler runs in cold', async () => {
@@ -639,6 +645,130 @@ describe('readjustCareSchedules — full pipeline integration', () => {
       )
       expect(totalShift).toBeGreaterThanOrEqual(0)
       expect(totalShift).toBeLessThanOrEqual(2)
+    })
+  })
+
+  // ─── New location-aware indoor model: signature behaviors end-to-end ─────
+  // These assert the NEW indoor light/photoperiod/VPD model all the way through
+  // readjustCareSchedules to the persisted nextCareAt (not just that it runs).
+  describe('indoor model: location-aware behavior (new)', () => {
+    const now = Date.now()
+    const threeDaysAgo = new Date(now - 3 * oneDayMs)
+    const midCycleNext = new Date(now + 4 * oneDayMs)
+
+    // A 7-day forecast dated in a given month (drives photoperiod) with fixed
+    // weather. The day-of-year — not the run time — sets the season.
+    const datedForecast = (
+      isoMonth: string,
+      day: Partial<WeatherData>
+    ): ReadonlyArray<WeatherData> =>
+      Array.makeBy(7, (i) => ({
+        date: `${isoMonth}-${String(18 + i).padStart(2, '0')}`,
+        temperatureMin: null,
+        temperatureMax: null,
+        temperatureMean: null,
+        humidity: null,
+        windSpeed: null,
+        precipitation: null,
+        solarRadiation: null,
+        et0: null,
+        cloudCover: null,
+        soilTemperature: null,
+        ...day,
+      }))
+
+    // Paris June: long bright days, mild. December: short days, cold, overcast.
+    const juneCtx = buildWeatherCtx(
+      datedForecast('2026-06', { temperatureMean: 20, cloudCover: 30 })
+    )
+    const decemberCtx = buildWeatherCtx(
+      datedForecast('2026-12', { temperatureMean: 3, cloudCover: 85 })
+    )
+
+    const dimRoom = {
+      id: 'room-dim',
+      name: 'Dim Hallway',
+      icon: '🌑',
+      luminosity: 80, // level 1 — vs the default lightingRating 3
+      isOutdoor: false,
+    }
+
+    const indoorFoliage = (id: string, roomId: string) =>
+      createTestPlant({
+        id,
+        name: id,
+        category: 'Foliage',
+        wateringRating: 3,
+        userId: weatherUser.id,
+        roomId,
+        scheduleSpecs: [
+          wateringSpec({
+            frequencyDays: 7,
+            lastCareAt: threeDaysAgo,
+            nextCareAt: new Date(midCycleNext),
+          }),
+        ],
+      })
+
+    // Run one plant through one weather context; return its persisted next
+    // watering date (ms).
+    const runOnce = async (
+      plant: ReturnType<typeof createTestPlant>,
+      ctx: WeatherContext
+    ): Promise<number> => {
+      const schedules = schedulesFromPlants([plant])
+      const layers = Layer.mergeAll(
+        createMockUserRepository([weatherUser]),
+        createMockPlantRepository({
+          plants: [plant],
+          rooms: [indoorRoom, outdoorRoom, dimRoom],
+        }),
+        createMockNotificationRepository([]),
+        createMockDelegationRepository(),
+        createMockCareScheduleRepository({ schedules, plants: [plant] })
+      )
+      await Effect.runPromise(
+        readjustCareSchedules([weatherUser], buildContextMap(ctx)).pipe(
+          Effect.provide(layers)
+        )
+      )
+      return toMs(findSchedule(schedules, plant.id, 'watering')?.nextCareAt)
+    }
+
+    it('waters an indoor plant SOONER in summer than in winter (photoperiod flows through)', async () => {
+      const juneNext = await runOnce(
+        indoorFoliage('indoor-june', 'room-indoor'),
+        juneCtx
+      )
+      const decemberNext = await runOnce(
+        indoorFoliage('indoor-december', 'room-indoor'),
+        decemberCtx
+      )
+      // Long bright summer days → active growth → water sooner → earlier date.
+      expect(juneNext).toBeLessThan(decemberNext)
+    })
+
+    it('waters a dim-room indoor plant LATER than a bright-room one (room luminosity flows through)', async () => {
+      const brightNext = await runOnce(
+        indoorFoliage('indoor-bright', 'room-indoor'),
+        decemberCtx
+      )
+      const dimNext = await runOnce(
+        indoorFoliage('indoor-dim', 'room-dim'),
+        decemberCtx
+      )
+      // A dim room slows growth → water less often → later date.
+      expect(dimNext).toBeGreaterThan(brightNext)
+    })
+
+    it('NEVER accelerates a light-starved plant, even in dry heated winter air (dormancy veto)', async () => {
+      const resultNext = await runOnce(
+        indoorFoliage('indoor-starved', 'room-dim'),
+        decemberCtx
+      )
+      // The veto: a dormant, light-starved plant must never have its watering
+      // pulled earlier — cold dry indoor air cannot shorten its schedule.
+      expect(resultNext).toBeGreaterThanOrEqual(midCycleNext.getTime())
     })
   })
 
