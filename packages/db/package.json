@@ -34,6 +34,7 @@
     "db:studio": "drizzle-kit studio",
     "seed:admin": "bun run scripts/seed-admin.ts",
     "seed:apple-reviewer": "bun run scripts/seed-apple-reviewer.ts",
+    "seed:android-reviewer": "bun run scripts/seed-android-reviewer.ts",
     "seed:tiers": "bun run scripts/seed-subscription-tiers.ts",
     "seed:demo": "bun run scripts/seed-demo-data.ts",
     "seed:demo-chat": "bun run scripts/seed-demo-chat.ts",

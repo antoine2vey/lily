@@ -1,0 +1,766 @@
+#!/usr/bin/env bun
+/**
+ * Shared reviewer-account seeding logic.
+ *
+ * Creates an app-store reviewer test account with rich demo data so reviewers
+ * (Apple App Store / Google Play) can exercise every feature without signing up.
+ * Pairs with the magic-link instant-login allowlist (`REVIEWER_EMAILS`) so the
+ * reviewer logs in with just the email — no OAuth / mailbox required.
+ *
+ * Used by `seed-apple-reviewer.ts` and `seed-android-reviewer.ts`.
+ * Run once against the target (usually production) DB before submission.
+ */
+
+import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import {
+  careLogs,
+  chatConversations,
+  chatMessages,
+  dailyTips,
+  diagnoses,
+  magicLinks,
+  notifications,
+  plantCareSchedules,
+  plantPhotos,
+  plantScans,
+  plants,
+  rooms,
+  subscriptionUsage,
+  userAchievements,
+  userSubscriptions,
+  users,
+} from '@lily/db/schema'
+import { eq } from 'drizzle-orm'
+import { Array as A, Console, Effect, Option, pipe } from 'effect'
+
+export interface ReviewerSeedConfig {
+  /** Human label for logs, e.g. 'Apple' or 'Android'. */
+  readonly label: string
+  readonly email: string
+  readonly username: string
+  /** Magic-link token used for the inline reviewer deep link. */
+  readonly token: string
+  /** Which store the demo subscription is attributed to. */
+  readonly store: 'APP_STORE' | 'PLAY_STORE'
+  /** Product identifier for the demo subscription (store-specific). */
+  readonly productId: string
+  /** Account language. Defaults to 'en'. */
+  readonly language?: 'en' | 'fr'
+  /** Label for the console hint pointing at the right store console. */
+  readonly consoleHint?: string
+}
+
+const getFirst = <T>(arr: T[]): T => {
+  const first = A.head(arr)
+  if (Option.isNone(first)) {
+    throw new Error('Expected array to have at least one element')
+  }
+  return first.value
+}
+
+const getAt = <T>(arr: T[], index: number): T => {
+  const item = A.get(arr, index)
+  if (Option.isNone(item)) {
+    throw new Error(`Expected array to have element at index ${index}`)
+  }
+  return item.value
+}
+
+const getExpiryDate = (): Date => {
+  const date = new Date()
+  date.setFullYear(date.getFullYear() + 1)
+  return date
+}
+
+const daysAgo = (days: number): Date => {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return date
+}
+
+const daysFromNow = (days: number): Date => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date
+}
+
+const hoursAgo = (hours: number): Date => {
+  const date = new Date()
+  date.setHours(date.getHours() - hours)
+  return date
+}
+
+// Sample plant data
+const DEMO_PLANTS = [
+  {
+    name: 'Monstera Deliciosa',
+    description:
+      'Beautiful Swiss cheese plant with fenestrated leaves. Loves humidity and indirect light.',
+    category: 'Tropical',
+    humidityRating: 4,
+    lightingRating: 3,
+    petToxicityRating: 2,
+    wateringRating: 3,
+    health: 'THRIVING' as const,
+    wateringFrequencyDays: 7,
+    fertilizationFrequencyDays: 30,
+    lastWateredAt: daysAgo(2),
+    nextWateringAt: daysFromNow(5),
+    lastFertilizedAt: daysAgo(15),
+    nextFertilizationAt: daysFromNow(15),
+    isFavorite: true,
+  },
+  {
+    name: 'Snake Plant',
+    description:
+      'Low-maintenance air purifier. Perfect for beginners and forgetful plant parents.',
+    category: 'Succulent',
+    humidityRating: 2,
+    lightingRating: 2,
+    petToxicityRating: 3,
+    wateringRating: 1,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 14,
+    fertilizationFrequencyDays: 60,
+    lastWateredAt: daysAgo(10),
+    nextWateringAt: daysFromNow(4),
+    lastFertilizedAt: daysAgo(45),
+    nextFertilizationAt: daysFromNow(15),
+    isFavorite: false,
+  },
+  {
+    name: 'Fiddle Leaf Fig',
+    description:
+      'Statement plant with large violin-shaped leaves. Needs consistent care.',
+    category: 'Tropical',
+    humidityRating: 4,
+    lightingRating: 4,
+    petToxicityRating: 2,
+    wateringRating: 4,
+    health: 'NEEDS_ATTENTION' as const,
+    wateringFrequencyDays: 7,
+    fertilizationFrequencyDays: 14,
+    lastWateredAt: daysAgo(10),
+    nextWateringAt: daysAgo(3), // Overdue!
+    lastFertilizedAt: daysAgo(20),
+    nextFertilizationAt: daysAgo(6), // Overdue!
+    isFavorite: true,
+  },
+  {
+    name: 'Pothos',
+    description:
+      'Hardy trailing vine that thrives on neglect. Great for shelves and hanging baskets.',
+    category: 'Vine',
+    humidityRating: 3,
+    lightingRating: 2,
+    petToxicityRating: 3,
+    wateringRating: 2,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 10,
+    fertilizationFrequencyDays: 30,
+    lastWateredAt: daysAgo(5),
+    nextWateringAt: daysFromNow(5),
+    lastFertilizedAt: daysAgo(20),
+    nextFertilizationAt: daysFromNow(10),
+    isFavorite: false,
+  },
+  {
+    name: 'Peace Lily',
+    description:
+      'Elegant white flowers and dark green leaves. Tells you when it needs water!',
+    category: 'Flowering',
+    humidityRating: 4,
+    lightingRating: 2,
+    petToxicityRating: 3,
+    wateringRating: 4,
+    health: 'RECOVERING' as const,
+    wateringFrequencyDays: 5,
+    fertilizationFrequencyDays: 30,
+    lastWateredAt: daysAgo(1),
+    nextWateringAt: daysFromNow(4),
+    lastFertilizedAt: daysAgo(25),
+    nextFertilizationAt: daysFromNow(5),
+    isFavorite: false,
+  },
+  {
+    name: 'Rubber Plant',
+    description:
+      'Sturdy plant with thick, glossy leaves. Great air purifier for the home.',
+    category: 'Tropical',
+    humidityRating: 3,
+    lightingRating: 3,
+    petToxicityRating: 2,
+    wateringRating: 3,
+    health: 'HEALTHY' as const,
+    wateringFrequencyDays: 10,
+    fertilizationFrequencyDays: 30,
+    lastWateredAt: daysAgo(7),
+    nextWateringAt: daysFromNow(3),
+    lastFertilizedAt: daysAgo(28),
+    nextFertilizationAt: daysFromNow(2),
+    isFavorite: false,
+  },
+]
+
+// Achievements to unlock for demo
+const DEMO_ACHIEVEMENTS = [
+  { achievement: 'FIRST_PLANT_ADDED' as const, daysAgo: 30 },
+  { achievement: 'WATERING_NOVICE' as const, daysAgo: 25 },
+  { achievement: 'PLANT_COLLECTOR' as const, daysAgo: 20 },
+  { achievement: 'DEDICATED_CARETAKER' as const, daysAgo: 15 },
+  { achievement: 'PHOTO_PRO' as const, daysAgo: 10 },
+] as const
+
+// Rooms for organizing plants
+const DEMO_ROOMS = [
+  {
+    name: 'Living Room',
+    icon: '🌞',
+    luminosity: 8,
+    isOutdoor: false,
+    order: 0,
+  },
+  { name: 'Bedroom', icon: '🛏️', luminosity: 4, isOutdoor: false, order: 1 },
+  { name: 'Bathroom', icon: '🚿', luminosity: 3, isOutdoor: false, order: 2 },
+  { name: 'Balcony', icon: '🌿', luminosity: 9, isOutdoor: true, order: 3 },
+]
+
+// Map plants to rooms by index: [Living Room, Living Room, Living Room, Bedroom, Bathroom, Balcony]
+const PLANT_ROOM_ASSIGNMENTS = [0, 0, 0, 1, 2, 3]
+
+// Daily tips for the content feed
+const DEMO_TIPS = [
+  {
+    title: { en: 'Morning Watering', fr: 'Arrosage matinal' },
+    body: {
+      en: 'Water your plants in the morning so they can absorb moisture before the heat of the day.',
+      fr: "Arrosez vos plantes le matin pour qu'elles absorbent l'eau avant la chaleur.",
+    },
+    category: 'watering',
+    tags: ['watering', 'morning', 'tips'],
+  },
+  {
+    title: { en: 'Check Your Soil', fr: 'Vérifiez votre terreau' },
+    body: {
+      en: "Stick your finger 2 inches into the soil. If it feels dry, it's time to water!",
+      fr: "Enfoncez votre doigt de 5 cm dans le sol. Si c'est sec, il est temps d'arroser !",
+    },
+    category: 'watering',
+    tags: ['watering', 'soil', 'beginners'],
+  },
+  {
+    title: { en: 'Humidity Boost', fr: "Boost d'humidité" },
+    body: {
+      en: 'Group tropical plants together to create a natural humidity microclimate.',
+      fr: 'Regroupez les plantes tropicales pour créer un microclimat humide naturel.',
+    },
+    category: 'humidity',
+    tags: ['humidity', 'tropical', 'tips'],
+  },
+  {
+    title: { en: 'Fertilizer Season', fr: 'Saison de fertilisation' },
+    body: {
+      en: 'Spring and summer are peak growing seasons. Start fertilizing every 2-4 weeks.',
+      fr: "Le printemps et l'été sont les saisons de croissance. Fertilisez toutes les 2-4 semaines.",
+    },
+    category: 'fertilization',
+    tags: ['fertilization', 'spring', 'growth'],
+  },
+  {
+    title: { en: 'Light Matters', fr: 'La lumière compte' },
+    body: {
+      en: 'Most houseplants prefer bright, indirect light. Direct sun can burn leaves.',
+      fr: 'La plupart des plantes préfèrent une lumière vive mais indirecte. Le soleil direct brûle les feuilles.',
+    },
+    category: 'light',
+    tags: ['light', 'placement', 'beginners'],
+  },
+]
+
+export const seedReviewer = (config: ReviewerSeedConfig) =>
+  Effect.gen(function* () {
+    const db = yield* PgDrizzle.PgDrizzle
+    const language = config.language ?? 'en'
+
+    yield* Console.log(
+      `Seeding ${config.label} reviewer test account with demo data...`
+    )
+    yield* Console.log('')
+
+    // 1. Create or update user
+    const existingUsers = yield* db
+      .select()
+      .from(users)
+      .where(eq(users.email, config.email))
+
+    const existingUserOption = A.head(existingUsers)
+    const user = Option.isSome(existingUserOption)
+      ? yield* Effect.gen(function* () {
+          const existingUser = existingUserOption.value
+          yield* Console.log(`User already exists: ${existingUser.email}`)
+
+          const updated = yield* db
+            .update(users)
+            .set({
+              emailVerified: true,
+              status: 'active',
+              name: config.username,
+              updatedAt: new Date(),
+              language,
+            })
+            .where(eq(users.id, existingUser.id))
+            .returning()
+
+          return getFirst(updated)
+        })
+      : yield* Effect.gen(function* () {
+          const created = yield* db
+            .insert(users)
+            .values({
+              email: config.email,
+              name: config.username,
+              emailVerified: true,
+              status: 'active',
+              role: 'user',
+              language,
+            })
+            .returning()
+
+          const newUser = getFirst(created)
+          yield* Console.log(`Created new user: ${newUser.email}`)
+          return newUser
+        })
+
+    // 2. Create magic link
+    yield* db.delete(magicLinks).where(eq(magicLinks.email, config.email))
+    const expiryDate = getExpiryDate()
+    yield* db.insert(magicLinks).values({
+      email: config.email,
+      token: config.token,
+      expiresAt: expiryDate,
+    })
+    yield* Console.log('Created magic link')
+
+    // 3. Clean up existing demo data for this user
+    yield* db.delete(diagnoses).where(eq(diagnoses.userId, user.id))
+    yield* db.delete(plants).where(eq(plants.userId, user.id))
+    yield* db.delete(rooms).where(eq(rooms.userId, user.id))
+    yield* db
+      .delete(userAchievements)
+      .where(eq(userAchievements.userId, user.id))
+    yield* db.delete(notifications).where(eq(notifications.userId, user.id))
+    yield* db.delete(plantScans).where(eq(plantScans.userId, user.id))
+    yield* db
+      .delete(userSubscriptions)
+      .where(eq(userSubscriptions.userId, user.id))
+    yield* db
+      .delete(subscriptionUsage)
+      .where(eq(subscriptionUsage.userId, user.id))
+    yield* Console.log('Cleaned up existing demo data')
+
+    // 4. Create rooms
+    const createdRooms = yield* db
+      .insert(rooms)
+      .values(
+        pipe(
+          DEMO_ROOMS,
+          A.map((room) => ({
+            name: room.name,
+            icon: room.icon,
+            luminosity: room.luminosity,
+            isOutdoor: room.isOutdoor,
+            order: room.order,
+            userId: user.id,
+          }))
+        )
+      )
+      .returning()
+
+    yield* Console.log(`Created ${createdRooms.length} rooms`)
+
+    // 5. Create demo plants with room assignments
+    const createdPlants = yield* db
+      .insert(plants)
+      .values(
+        pipe(
+          DEMO_PLANTS,
+          A.map((plant, index) => ({
+            name: plant.name,
+            description: plant.description,
+            category: plant.category,
+            humidityRating: plant.humidityRating,
+            lightingRating: plant.lightingRating,
+            petToxicityRating: plant.petToxicityRating,
+            wateringRating: plant.wateringRating,
+            health: plant.health,
+            isFavorite: plant.isFavorite,
+            userId: user.id,
+            roomId: getAt(createdRooms, getAt(PLANT_ROOM_ASSIGNMENTS, index))
+              .id,
+            dateAdded: daysAgo(30),
+          }))
+        )
+      )
+      .returning()
+
+    yield* Console.log(`Created ${createdPlants.length} demo plants`)
+
+    // 4b. Create care schedules for each plant
+    const scheduleEntries = pipe(
+      A.zip(createdPlants, DEMO_PLANTS),
+      A.flatMap(([created, demo]) => {
+        const entries: Array<{
+          plantId: string
+          careType: 'watering' | 'fertilization' | 'misting' | 'repotting'
+          frequencyDays: number
+          lastCareAt: Date
+          nextCareAt: Date
+        }> = [
+          {
+            plantId: created.id,
+            careType: 'watering',
+            frequencyDays: demo.wateringFrequencyDays,
+            lastCareAt: demo.lastWateredAt,
+            nextCareAt: demo.nextWateringAt,
+          },
+        ]
+        if (demo.fertilizationFrequencyDays) {
+          entries.push({
+            plantId: created.id,
+            careType: 'fertilization',
+            frequencyDays: demo.fertilizationFrequencyDays,
+            lastCareAt: demo.lastFertilizedAt,
+            nextCareAt: demo.nextFertilizationAt,
+          })
+        }
+        // Add misting for tropical/high-humidity plants
+        if (demo.humidityRating >= 4) {
+          entries.push({
+            plantId: created.id,
+            careType: 'misting',
+            frequencyDays: 2,
+            lastCareAt: daysAgo(1),
+            nextCareAt: daysFromNow(1),
+          })
+        }
+        return entries
+      })
+    )
+    yield* db.insert(plantCareSchedules).values(scheduleEntries)
+    yield* Console.log(
+      `Created ${scheduleEntries.length} care schedule entries`
+    )
+
+    // 5. Create care logs for each plant
+    const careLogEntries = pipe(
+      A.zip(createdPlants, DEMO_PLANTS),
+      A.flatMap(([plant, demo]) => {
+        const logs = []
+
+        // Add watering history
+        for (let i = 0; i < 8; i++) {
+          logs.push({
+            type: 'watering' as const,
+            plantId: plant.id,
+            date: daysAgo(i * demo.wateringFrequencyDays),
+            notes: i === 0 ? 'Soil was quite dry' : undefined,
+          })
+        }
+
+        // Add fertilization history
+        if (demo.fertilizationFrequencyDays) {
+          for (let i = 0; i < 3; i++) {
+            logs.push({
+              type: 'fertilization' as const,
+              plantId: plant.id,
+              date: daysAgo(i * demo.fertilizationFrequencyDays),
+              notes: i === 0 ? 'Used balanced 10-10-10 fertilizer' : undefined,
+            })
+          }
+        }
+
+        // Add misting history for tropical plants
+        if (demo.humidityRating >= 4) {
+          for (let i = 0; i < 5; i++) {
+            logs.push({
+              type: 'misting' as const,
+              plantId: plant.id,
+              date: daysAgo(i * 2),
+              notes: i === 0 ? 'Misted leaves thoroughly' : undefined,
+            })
+          }
+        }
+
+        return logs
+      })
+    )
+
+    yield* db.insert(careLogs).values(careLogEntries)
+    yield* Console.log(`Created ${careLogEntries.length} care log entries`)
+
+    // 6. Create plant photos for some plants
+    const photoEntries = pipe(
+      A.take(createdPlants, 3),
+      A.flatMap((plant, index) => [
+        {
+          plantId: plant.id,
+          url: `https://images.unsplash.com/photo-${1600000000000 + index}?w=800`,
+          takenAt: daysAgo(20),
+        },
+        {
+          plantId: plant.id,
+          url: `https://images.unsplash.com/photo-${1600000000001 + index}?w=800`,
+          takenAt: daysAgo(10),
+        },
+      ])
+    )
+
+    yield* db.insert(plantPhotos).values(photoEntries)
+    yield* Console.log(`Created ${photoEntries.length} plant photos`)
+
+    // 7. Create achievements
+    const achievementEntries = pipe(
+      DEMO_ACHIEVEMENTS,
+      A.map((a) => ({
+        userId: user.id,
+        achievement: a.achievement,
+        unlockedAt: daysAgo(a.daysAgo),
+      }))
+    )
+
+    yield* db.insert(userAchievements).values(achievementEntries)
+    yield* Console.log(`Unlocked ${achievementEntries.length} achievements`)
+
+    // 8. Create sample chat messages for first plant
+    const firstPlant = getFirst(createdPlants)
+    const firstPlantConversation = getFirst(
+      yield* db
+        .insert(chatConversations)
+        .values({ userId: user.id, kind: 'plant', plantId: firstPlant.id })
+        .returning({ id: chatConversations.id })
+    )
+    const chatEntries = [
+      {
+        userId: user.id,
+        conversationId: firstPlantConversation.id,
+        role: 'user',
+        content: 'Why are the leaves on my Monstera turning yellow?',
+        createdAt: hoursAgo(48),
+      },
+      {
+        userId: user.id,
+        conversationId: firstPlantConversation.id,
+        role: 'assistant',
+        content:
+          'Yellow leaves on a Monstera can have several causes: overwatering (most common), underwatering, insufficient light, or natural aging of older leaves. Check if the soil is staying wet too long between waterings. The soil should dry out about 2 inches deep before watering again.',
+        createdAt: hoursAgo(47),
+      },
+      {
+        userId: user.id,
+        conversationId: firstPlantConversation.id,
+        role: 'user',
+        content: 'How often should I water it?',
+        createdAt: hoursAgo(24),
+      },
+      {
+        userId: user.id,
+        conversationId: firstPlantConversation.id,
+        role: 'assistant',
+        content:
+          'For your Monstera, water every 7-10 days during growing season (spring/summer) and every 2-3 weeks in winter. Always check the soil first - stick your finger 2 inches deep. If it feels dry, water thoroughly until it drains from the bottom. Empty the saucer after 30 minutes.',
+        createdAt: hoursAgo(23),
+      },
+    ]
+
+    yield* db.insert(chatMessages).values(chatEntries)
+    yield* Console.log(`Created ${chatEntries.length} chat messages`)
+
+    // 9. Create sample notifications
+    const notificationEntries = [
+      {
+        userId: user.id,
+        plantId: getAt(createdPlants, 2).id, // Fiddle Leaf Fig (needs attention)
+        type: 'watering_reminder',
+        title: 'Water your Fiddle Leaf Fig',
+        body: 'Your Fiddle Leaf Fig is overdue for watering by 3 days.',
+        scheduledAt: daysAgo(1),
+        sentAt: daysAgo(1),
+        status: 'sent' as const,
+        isRead: false,
+      },
+      {
+        userId: user.id,
+        plantId: getAt(createdPlants, 0).id,
+        type: 'watering_reminder',
+        title: 'Water your Monstera Deliciosa',
+        body: 'Time to water your Monstera! The soil should be ready.',
+        scheduledAt: daysFromNow(5),
+        status: 'pending' as const,
+        isRead: false,
+      },
+      {
+        userId: user.id,
+        plantId: getAt(createdPlants, 5).id, // Rubber Plant
+        type: 'fertilization_reminder',
+        title: 'Fertilize your Rubber Plant',
+        body: 'Your Rubber Plant is due for fertilization in 2 days.',
+        scheduledAt: daysFromNow(2),
+        status: 'pending' as const,
+        isRead: false,
+      },
+    ]
+
+    yield* db.insert(notifications).values(notificationEntries)
+    yield* Console.log(`Created ${notificationEntries.length} notifications`)
+
+    // 10. Create subscription (paid tier so reviewer can test all features)
+    const periodStart = daysAgo(15)
+    const periodEnd = daysFromNow(15)
+    yield* db.insert(userSubscriptions).values({
+      userId: user.id,
+      tier: 'paid',
+      status: 'active',
+      trialStartsAt: daysAgo(30),
+      trialEndsAt: daysAgo(23),
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+      provider: 'revenuecat',
+      productId: config.productId,
+      store: config.store,
+    })
+    yield* db.insert(subscriptionUsage).values({
+      userId: user.id,
+      periodStart,
+      periodEnd,
+      aiChatsCount: 5,
+      cardScansCount: 2,
+      plantIdentifiesCount: 3,
+    })
+    yield* Console.log('Created subscription (paid tier)')
+
+    // 11. Create diagnoses for the Fiddle Leaf Fig (needs attention)
+    const fiddleLeafFig = getAt(createdPlants, 2)
+    yield* db.insert(diagnoses).values([
+      {
+        plantId: fiddleLeafFig.id,
+        userId: user.id,
+        diseaseName: 'Spider Mites',
+        severity: 'MODERATE',
+        confidence: 78,
+        symptoms: [
+          'Fine webbing on undersides of leaves',
+          'Tiny yellow spots on foliage',
+          'Leaves appear dusty',
+        ],
+        treatmentSteps: [
+          'Isolate the plant from other houseplants',
+          'Spray leaves with a mix of water and neem oil',
+          'Wipe leaves with a damp cloth every few days',
+          'Repeat treatment weekly for 3-4 weeks',
+        ],
+        preventionTips: [
+          'Mist leaves regularly to increase humidity',
+          'Inspect new plants before bringing them home',
+          'Keep leaves clean and dust-free',
+        ],
+        status: 'ACTIVE',
+      },
+      {
+        plantId: fiddleLeafFig.id,
+        userId: user.id,
+        diseaseName: 'Overwatering Stress',
+        severity: 'LOW',
+        confidence: 85,
+        symptoms: ['Yellowing lower leaves', 'Soft mushy stems near base'],
+        treatmentSteps: [
+          'Let soil dry out completely before watering again',
+          'Check drainage holes are not blocked',
+          'Remove any yellow or mushy leaves',
+        ],
+        preventionTips: [
+          'Always check soil moisture before watering',
+          'Use a well-draining potting mix',
+        ],
+        status: 'RESOLVED',
+        resolvedAt: daysAgo(5),
+      },
+    ])
+    yield* Console.log('Created 2 diagnoses')
+
+    // 12. Create plant scans
+    const scanEntries = pipe(
+      A.range(0, 5),
+      A.map((i) => ({
+        userId: user.id,
+        scanType: (i % 2 === 0 ? 'identify' : 'card') as 'identify' | 'card',
+        createdAt: daysAgo(i * 5),
+      }))
+    )
+    yield* db.insert(plantScans).values(scanEntries)
+    yield* Console.log(`Created ${scanEntries.length} plant scans`)
+
+    // 13. Create daily tips
+    const tipEntries = pipe(
+      DEMO_TIPS,
+      A.map((tip, index) => {
+        const date = daysAgo(index)
+        const yyyy = date.getFullYear()
+        const mm = String(date.getMonth() + 1).padStart(2, '0')
+        const dd = String(date.getDate()).padStart(2, '0')
+        return {
+          title: tip.title,
+          body: tip.body,
+          category: tip.category,
+          tags: tip.tags,
+          publishDate: `${yyyy}-${mm}-${dd}`,
+        }
+      })
+    )
+    yield* db
+      .insert(dailyTips)
+      .values(tipEntries)
+      .onConflictDoNothing({ target: dailyTips.publishDate })
+    yield* Console.log(
+      `Created ${tipEntries.length} daily tips (existing skipped)`
+    )
+
+    // Print summary
+    yield* Console.log('')
+    yield* Console.log('='.repeat(60))
+    yield* Console.log(`${config.label} Reviewer Account Created Successfully!`)
+    yield* Console.log('='.repeat(60))
+    yield* Console.log('')
+    yield* Console.log('Account Details:')
+    yield* Console.log(`  Email:    ${config.email}`)
+    yield* Console.log(`  Username: ${config.username}`)
+    yield* Console.log(`  User ID:  ${user.id}`)
+    yield* Console.log('')
+    yield* Console.log('Demo Data:')
+    yield* Console.log(`  Rooms:        ${createdRooms.length}`)
+    yield* Console.log(
+      `  Plants:       ${createdPlants.length} (various health states)`
+    )
+    yield* Console.log(`  Care logs:    ${careLogEntries.length} entries`)
+    yield* Console.log(`  Photos:       ${photoEntries.length}`)
+    yield* Console.log(`  Achievements: ${achievementEntries.length} unlocked`)
+    yield* Console.log(`  Chat history: ${chatEntries.length} messages`)
+    yield* Console.log(`  Notifications: ${notificationEntries.length}`)
+    yield* Console.log('  Subscription: paid (active)')
+    yield* Console.log('  Diagnoses:    2 (1 active, 1 resolved)')
+    yield* Console.log(`  Plant scans:  ${scanEntries.length}`)
+    yield* Console.log(`  Daily tips:   ${tipEntries.length}`)
+    yield* Console.log('')
+    yield* Console.log('Magic Link Details:')
+    yield* Console.log(`  Token:   ${config.token}`)
+    yield* Console.log(`  Expires: ${expiryDate.toISOString()}`)
+    yield* Console.log('')
+    yield* Console.log(
+      `Deep Link URL (for ${config.consoleHint ?? 'store console'}):`
+    )
+    yield* Console.log(`  lily://verify?code=${config.token}`)
+    yield* Console.log('')
+    yield* Console.log(
+      `Reviewer login: enter "${config.email}" on the sign-in screen (must be in REVIEWER_EMAILS).`
+    )
+    yield* Console.log('='.repeat(60))
+  })
