@@ -1,23 +1,22 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
-import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { Effect } from 'effect'
 
 // APNs returned a terminal token error (BadDeviceToken / Unregistered) for a
-// push-to-start. Flip the device token inactive and end the orphan start row.
-// Both writes together stop the row from being silently re-activated by
-// `upsertStartToken` on the next app launch — that path's invariant is
-// "only re-activate if the device_token is still active."
+// push-to-start. End the orphan start-token row so the next care send takes
+// the start path and the device can re-register a fresh token.
+//
+// We deliberately do NOT touch `device_tokens.is_active` here. That row drives
+// REGULAR Expo pushes, which are independent of the APNs Live Activity token —
+// a Live Activity `BadDeviceToken` says nothing about the Expo token's
+// validity. Deactivating it used to silently suppress a user's regular
+// notifications until the app happened to re-register. The Expo token's
+// lifecycle is owned by registration (`upsertByToken`) and explicit
+// unregister/logout (which deletes the row) — never by an LA-token failure.
 export const retireStartTokenForDevice = (
   deviceTokenId: string
-): Effect.Effect<
-  void,
-  SqlError,
-  ActivityPushTokenRepository | DeviceTokenRepository
-> =>
+): Effect.Effect<void, SqlError, ActivityPushTokenRepository> =>
   Effect.gen(function* () {
-    const deviceTokenRepo = yield* DeviceTokenRepository
     const activityRepo = yield* ActivityPushTokenRepository
-    yield* deviceTokenRepo.update(deviceTokenId, { isActive: false })
     yield* activityRepo.endStartTokenByDeviceTokenId(deviceTokenId)
   })

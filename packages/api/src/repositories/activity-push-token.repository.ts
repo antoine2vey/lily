@@ -299,10 +299,11 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       }),
 
       // Targeted invalidation: APNs returned BadDeviceToken/Unregistered for a
-      // specific device's start-row. Caller flips device_tokens.is_active too;
-      // both writes together stop the row from being silently re-activated by
-      // the upsertStartToken upsert path on next app launch (see
-      // register-start-token.ts).
+      // specific device's start-row, so mark it `ended`. The next registration
+      // re-activates it with whatever token the device vends; for a genuinely
+      // bad token (e.g. a dev-build sandbox token) it simply retries until the
+      // device provides a valid one — harmless now that retiring no longer
+      // touches `device_tokens.is_active` (see retire-start-token.ts).
       endStartTokenByDeviceTokenId: Effect.fn(
         'ActivityPushTokenRepository.endStartTokenByDeviceTokenId'
       )(function* (deviceTokenId: string) {

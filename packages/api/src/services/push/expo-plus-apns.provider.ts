@@ -29,15 +29,55 @@ import Expo, {
 // "deliver now or drop" — lethal if the device is briefly offline.
 const LA_START_EXPIRATION_SECONDS = 60 * 60
 
-// Terminal APNs reasons: token/activity is permanently unusable. Everything
-// else (network, 5xx, rate-limit) is transient and retries as PushSendError.
-const TERMINAL_APNS_REASONS = HashSet.make(
+// APNs reasons meaning THIS DEVICE's token is unusable — retire it and let the
+// device re-register. (`DeviceTokenNotForTopic` = the stored token isn't a
+// valid push-to-start token for our Live Activity topic.)
+const DEVICE_TERMINAL_REASONS = HashSet.make(
   'BadDeviceToken',
   'Unregistered',
-  'DeviceTokenNotForTopic',
+  'DeviceTokenNotForTopic'
+)
+
+// APNs reasons that are OUR fault, not the device's: an expired provider JWT,
+// or a topic our key isn't allowed to use. These must NEVER retire a user's
+// token — doing so would mass-delete every device the moment the key expires.
+// Surface them to the operator (the alert wrapper fires) and move on.
+const PROVIDER_FAULT_REASONS = HashSet.make(
   'ExpiredProviderToken',
   'TopicDisallowed'
 )
+
+// Pure classifier: an APNs failure → the typed push error. Exported for unit
+// tests. Device-terminal reasons retire the token; provider-fault reasons
+// alert without retiring; everything else (network, 5xx, rate-limit) is a
+// transient send error.
+export const mapApnsReasonToPushError = (e: {
+  message: string
+  reason?: string
+}): PushTokenInvalidatedError | PushConfigError | PushSendError => {
+  const reason = pipe(
+    Option.fromNullable(e.reason),
+    Option.getOrElse(() => '')
+  )
+  return Match.value(reason).pipe(
+    Match.when(
+      (r) => HashSet.has(DEVICE_TERMINAL_REASONS, r),
+      () =>
+        new PushTokenInvalidatedError({
+          message: `APNs token invalidated: ${reason}`,
+          reason,
+        })
+    ),
+    Match.when(
+      (r) => HashSet.has(PROVIDER_FAULT_REASONS, r),
+      () =>
+        new PushConfigError({
+          message: `APNs provider/auth fault (${reason}) — not retiring user token`,
+        })
+    ),
+    Match.orElse(() => new PushSendError({ message: e.message, cause: e }))
+  )
+}
 
 const buildAlertField = (
   alert:
@@ -255,27 +295,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
             })
           ),
           Match.exhaustive,
-          Effect.mapError((e) => {
-            const reason = pipe(
-              Option.fromNullable(e.reason),
-              Option.getOrElse(() => '')
-            )
-            return Match.value(HashSet.has(TERMINAL_APNS_REASONS, reason)).pipe(
-              Match.when(
-                true,
-                () =>
-                  new PushTokenInvalidatedError({
-                    message: `APNs token invalidated: ${reason}`,
-                    reason,
-                  })
-              ),
-              Match.when(
-                false,
-                () => new PushSendError({ message: e.message, cause: e })
-              ),
-              Match.exhaustive
-            )
-          })
+          Effect.mapError(mapApnsReasonToPushError)
         )
 
         return {
