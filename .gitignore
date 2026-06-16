@@ -5,6 +5,7 @@ node_modules/
 
 # Installed skills (regenerated from skills-lock.json)
 .agents/
+.claude/skills/
 
 # Yarn
 .yarn/*
