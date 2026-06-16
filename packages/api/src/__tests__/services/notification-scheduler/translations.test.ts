@@ -86,6 +86,60 @@ describe('buildSimpleContent — new notification translations', () => {
       expect(body).toContain('5')
       expect(body).toContain('3')
     })
+
+    it('en: drops the streak clause when streak is 0', () => {
+      const { body } = buildSimpleContent(
+        'weekly_recap',
+        { tasksCompleted: 8, streakCount: 0, healthyCount: 3 },
+        'en'
+      )
+      expect(body).not.toContain('0-day')
+      expect(body).toContain('8 care tasks done')
+      expect(body).toContain('3 plants thriving')
+    })
+
+    it('en: drops the plant clause when no plants are healthy', () => {
+      const { body } = buildSimpleContent(
+        'weekly_recap',
+        { tasksCompleted: 8, streakCount: 5, healthyCount: 0 },
+        'en'
+      )
+      expect(body).not.toContain('0 plants')
+      expect(body).toContain('8 care tasks done')
+      expect(body).toContain('5-day streak')
+    })
+
+    it('en: warm single-stat line when only tasks are non-zero', () => {
+      const { body } = buildSimpleContent(
+        'weekly_recap',
+        { tasksCompleted: 8, streakCount: 0, healthyCount: 0 },
+        'en'
+      )
+      expect(body).not.toContain('What a week!')
+      expect(body).not.toContain('0')
+      expect(body).toContain('8 care tasks done')
+    })
+
+    it('en: warm single-stat line when only a streak is non-zero', () => {
+      const { body } = buildSimpleContent(
+        'weekly_recap',
+        { tasksCompleted: 0, streakCount: 5, healthyCount: 0 },
+        'en'
+      )
+      expect(body).toContain('5-day care streak')
+      expect(body).not.toContain('0')
+    })
+
+    it('fr: drops zero clauses and never reports a 0', () => {
+      const { body } = buildSimpleContent(
+        'weekly_recap',
+        { tasksCompleted: 8, streakCount: 0, healthyCount: 3 },
+        'fr'
+      )
+      expect(body).not.toContain('0')
+      expect(body).toContain('8')
+      expect(body).toContain('3')
+    })
   })
 
   describe('trial_ending', () => {

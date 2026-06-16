@@ -14,6 +14,29 @@ const enPlural = (n: number, singular: string, plural: string): string =>
 const frPlural = (n: number, singular: string, plural: string): string =>
   n <= 1 ? singular : plural
 
+// Keep a recap clause only when its count is non-zero. Without this guard a 0
+// reaches the reader as "a 0-day streak" or "0 plants thriving" — technically
+// correct, emotionally wrong. We'd rather drop the clause than report a zero.
+const recapClause = (keep: boolean, text: string): Option.Option<string> =>
+  keep ? Option.some(text) : Option.none()
+
+// Natural-language list join, only ever called with 2+ clauses. English takes
+// an Oxford comma ("a, b, and c"); French omits it ("a, b et c"). Recaps carry
+// at most three stats, so 2 and 3 are the only lengths we handle.
+const joinClauses = (
+  parts: ReadonlyArray<string>,
+  conjunction: string,
+  oxford: boolean
+): string =>
+  Match.value(parts.length).pipe(
+    Match.when(3, () => {
+      const last = Option.getOrElse(Array.last(parts), () => '')
+      const head = Array.join(Array.dropRight(parts, 1), ', ')
+      return `${head}${oxford ? ',' : ''} ${conjunction} ${last}`
+    }),
+    Match.orElse(() => Array.join(parts, ` ${conjunction} `))
+  )
+
 // Simple (non-care) notification translations
 type SimpleTranslation = {
   readonly title: (params: InternalNotificationParams) => string
@@ -298,7 +321,42 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.healthyCount),
           () => 0
         )
-        return `What a week! ${tasks} care ${enPlural(tasks, 'task', 'tasks')} done, a ${streak}-day streak, and ${healthy} ${enPlural(healthy, 'plant', 'plants')} thriving. 🌿`
+        const clauses = Array.getSomes([
+          recapClause(
+            tasks > 0,
+            `${tasks} care ${enPlural(tasks, 'task', 'tasks')} done`
+          ),
+          recapClause(streak > 0, `a ${streak}-day streak going`),
+          recapClause(
+            healthy > 0,
+            `${healthy} ${enPlural(healthy, 'plant', 'plants')} thriving`
+          ),
+        ])
+        // Two or more wins → a celebratory recap. A single win → a warmer,
+        // tailored line, since "What a week!" oversells one lonely stat.
+        return Match.value(clauses).pipe(
+          Match.when(
+            (c) => c.length >= 2,
+            (c) => `What a week! ${joinClauses(c, 'and', true)}. 🌿`
+          ),
+          Match.orElse(() =>
+            Match.value({ tasks, streak }).pipe(
+              Match.when(
+                { tasks: (t) => t > 0 },
+                () =>
+                  `Nice week — ${tasks} care ${enPlural(tasks, 'task', 'tasks')} done. Your plants noticed. 🌿`
+              ),
+              Match.when(
+                { streak: (s) => s > 0 },
+                () => `Your ${streak}-day care streak is still going strong. 🌿`
+              ),
+              Match.orElse(
+                () =>
+                  `${healthy} ${enPlural(healthy, 'plant', 'plants')} thriving this week. Keep it up! 🌿`
+              )
+            )
+          )
+        )
       },
     },
     trial_ending: {
@@ -529,7 +587,46 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
           Option.fromNullable(p.healthyCount),
           () => 0
         )
-        return `Quelle semaine ! ${streak} ${frPlural(streak, 'jour', 'jours')} de série, ${tasks} ${frPlural(tasks, 'soin', 'soins')} et ${healthy} ${frPlural(healthy, 'plante en pleine forme', 'plantes en pleine forme')}. 🌿`
+        const clauses = Array.getSomes([
+          recapClause(
+            streak > 0,
+            `${streak} ${frPlural(streak, 'jour', 'jours')} de série`
+          ),
+          recapClause(
+            tasks > 0,
+            `${tasks} ${frPlural(tasks, 'soin', 'soins')}`
+          ),
+          recapClause(
+            healthy > 0,
+            `${healthy} ${frPlural(healthy, 'plante en pleine forme', 'plantes en pleine forme')}`
+          ),
+        ])
+        // Deux victoires ou plus → un récap enthousiaste. Une seule → une phrase
+        // plus chaleureuse, car "Quelle semaine !" en fait trop pour un seul chiffre.
+        return Match.value(clauses).pipe(
+          Match.when(
+            (c) => c.length >= 2,
+            (c) => `Quelle semaine ! ${joinClauses(c, 'et', false)}. 🌿`
+          ),
+          Match.orElse(() =>
+            Match.value({ tasks, streak }).pipe(
+              Match.when(
+                { tasks: (t) => t > 0 },
+                () =>
+                  `Belle semaine — ${tasks} ${frPlural(tasks, 'soin', 'soins')} ${frPlural(tasks, 'effectué', 'effectués')}. Tes plantes te remercient. 🌿`
+              ),
+              Match.when(
+                { streak: (s) => s > 0 },
+                () =>
+                  `Ta série de soins de ${streak} ${frPlural(streak, 'jour', 'jours')} continue. Bravo ! 🌿`
+              ),
+              Match.orElse(
+                () =>
+                  `${healthy} ${frPlural(healthy, 'plante en pleine forme', 'plantes en pleine forme')} cette semaine. Continue comme ça ! 🌿`
+              )
+            )
+          )
+        )
       },
     },
     trial_ending: {
