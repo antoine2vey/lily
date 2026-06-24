@@ -127,3 +127,6 @@ gcs-google-credentials.json
 # Claude worktrees
 .claude/worktrees/.reference/
 .reference
+
+# Private, non-public docs (internal strategy, pricing, competitive analysis)
+private-docs/

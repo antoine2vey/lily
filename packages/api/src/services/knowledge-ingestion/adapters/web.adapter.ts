@@ -3,6 +3,7 @@ import {
   sanitizeText,
   USER_AGENT,
 } from '@lily/api/services/knowledge-ingestion/adapters/reddit.adapter'
+import { fetchGuarded } from '@lily/api/services/knowledge-ingestion/adapters/ssrf-guard'
 import type {
   ISourceAdapter,
   RawDocumentInput,
@@ -32,23 +33,19 @@ const fetchWebPage = (
   url: string
 ): Effect.Effect<RawDocumentInput, AdapterError> =>
   Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () =>
-        fetch(url, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            Accept:
-              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-          redirect: 'follow',
-          signal: AbortSignal.timeout(30_000),
-        }),
-      catch: (e) =>
-        new AdapterError({
-          message: `Web fetch failed for ${url}: ${String(e)}`,
-          adapter: 'web',
-        }),
-    })
+    // SSRF guard: validates scheme + resolved IP and re-checks each redirect hop.
+    const response = yield* fetchGuarded(
+      url,
+      {
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+        signal: AbortSignal.timeout(30_000),
+      },
+      'web'
+    )
 
     if (!response.ok) {
       return yield* new AdapterError({

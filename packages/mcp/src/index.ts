@@ -23,7 +23,7 @@ import {
 } from '@lily/mcp/tools/handlers'
 import { WidgetResourcesLayer } from '@lily/mcp/widgets/resources'
 import { toolMetaMiddleware } from '@lily/mcp/widgets/tool-meta-middleware'
-import { Array, Effect, String as EffectString, Layer, pipe } from 'effect'
+import { Effect, String as EffectString, Layer, pipe } from 'effect'
 
 // ── MCP Auth Middleware ────────────────────────────────────────────────
 
@@ -137,11 +137,15 @@ const MiddlewareLayer = Layer.unwrapEffect(
     const origins = yield* McpAllowedOrigins
     const resourceMetadataUrl = `${serverUrl}/.well-known/oauth-protected-resource`
     const mcpAuthMiddleware = makeMcpAuthMiddleware(resourceMetadataUrl)
+    // Fail closed: when MCP_ALLOWED_ORIGINS is unset, `origins` is empty and the
+    // cors middleware allows NO cross-origin request. Previously this reflected
+    // any Origin (`() => true`) together with `credentials: true`, which would let
+    // any website read authenticated MCP responses. An explicit allowlist must be
+    // configured to enable browser CORS; non-browser MCP clients (bearer/OAuth)
+    // are unaffected since they do not enforce CORS.
     const mutableOrigins: string[] = [...origins]
     const corsMiddleware = HttpMiddleware.cors({
-      allowedOrigins: Array.isEmptyArray(mutableOrigins)
-        ? () => true
-        : mutableOrigins,
+      allowedOrigins: mutableOrigins,
       allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
       allowedMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       maxAge: 86400,

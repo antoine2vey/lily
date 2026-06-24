@@ -1,6 +1,8 @@
 {
   "name": "@lily/mcp",
   "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
   "description": "MCP server for Lily plant care",
   "type": "module",
   "sideEffects": false,

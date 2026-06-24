@@ -1,6 +1,8 @@
 {
   "name": "@lily/knowledge-db",
   "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
   "description": "Knowledge base database schema and client (pgvector)",
   "type": "module",
   "sideEffects": false,

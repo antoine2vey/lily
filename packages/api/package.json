@@ -1,6 +1,8 @@
 {
   "name": "@lily/api",
   "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
   "description": "Node.js API with Effect RPC",
   "type": "module",
   "sideEffects": false,

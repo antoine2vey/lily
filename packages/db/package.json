@@ -1,6 +1,8 @@
 {
   "name": "@lily/db",
   "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
   "description": "Database service and Drizzle configuration",
   "type": "module",
   "sideEffects": false,

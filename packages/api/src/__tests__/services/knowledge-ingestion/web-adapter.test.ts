@@ -1,7 +1,18 @@
+import { lookup } from 'node:dns/promises'
 import { webAdapter } from '@lily/api/services/knowledge-ingestion/adapters/web.adapter'
 import type { WebAdapterConfig } from '@lily/shared/knowledge'
 import { Array, Effect, Stream } from 'effect'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// The SSRF guard resolves each hostname via DNS before fetching. Stub it so
+// these unit tests stay hermetic (no live DNS): every hostname "resolves" to a
+// public address and therefore passes the guard. The resolved value is set in
+// beforeEach so it survives the afterEach mock reset. Dedicated allow/block
+// coverage for the guard itself lives in ssrf-guard.test.ts.
+vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
+// `lookup` is overloaded (single LookupAddress vs LookupAddress[] for { all: true }),
+// so treat the mock as a generic vi.fn to set an array resolved value freely.
+const mockLookup = lookup as unknown as ReturnType<typeof vi.fn>
 
 const makeHtml = (title: string, body: string) => `
 <!DOCTYPE html>
@@ -34,6 +45,10 @@ const mockFetch = (impl: () => Promise<Response>) => {
 }
 
 const originalFetch = globalThis.fetch
+
+beforeEach(() => {
+  mockLookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }])
+})
 
 afterEach(() => {
   globalThis.fetch = originalFetch

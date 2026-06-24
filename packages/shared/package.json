@@ -1,6 +1,8 @@
 {
   "name": "@lily/shared",
   "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
   "description": "Shared utilities and types",
   "type": "module",
   "sideEffects": false,

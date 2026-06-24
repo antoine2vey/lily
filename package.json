@@ -1,6 +1,7 @@
 {
   "name": "lily-monorepo",
   "version": "1.0.0",
+  "license": "AGPL-3.0-only",
   "devDependencies": {
     "@babel/runtime": "^7.28.6",
     "@biomejs/biome": "2.1.3",
