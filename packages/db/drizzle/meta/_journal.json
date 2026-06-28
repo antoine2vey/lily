@@ -344,6 +344,13 @@
       "when": 1777452900000,
       "tag": "0048_la_token_confirmation",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1782518400000,
+      "tag": "0049_add_refresh_token_replaced_by",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,14 @@ export interface IRefreshTokenRepository {
   readonly findValidByTokenHash: (
     tokenHash: string
   ) => Effect.Effect<RefreshToken | null, SqlError>
+  readonly findById: (
+    id: string
+  ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revoke: (id: string) => Effect.Effect<RefreshToken | null, SqlError>
+  readonly revokeWithReplacement: (
+    id: string,
+    replacedById: string
+  ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revokeAllForUser: (userId: string) => Effect.Effect<number, SqlError>
   readonly deleteExpiredAndRevoked: () => Effect.Effect<number, SqlError>
 }
@@ -103,6 +110,17 @@ export const RefreshTokenRepositoryLive = Layer.effect(
         return null
       }),
 
+      findById: Effect.fn('RefreshTokenRepository.findById')(function* (
+        id: string
+      ) {
+        const results = yield* db
+          .select()
+          .from(refreshTokens)
+          .where(eq(refreshTokens.id, id))
+
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
+
       revoke: Effect.fn('RefreshTokenRepository.revoke')(function* (
         id: string
       ) {
@@ -110,6 +128,21 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           .update(refreshTokens)
           .set({
             revokedAt: nowAsDate(),
+          })
+          .where(eq(refreshTokens.id, id))
+          .returning()
+
+        return pipe(results, Array.head, Option.getOrNull)
+      }),
+
+      revokeWithReplacement: Effect.fn(
+        'RefreshTokenRepository.revokeWithReplacement'
+      )(function* (id: string, replacedById: string) {
+        const results = yield* db
+          .update(refreshTokens)
+          .set({
+            revokedAt: nowAsDate(),
+            replacedBy: replacedById,
           })
           .where(eq(refreshTokens.id, id))
           .returning()

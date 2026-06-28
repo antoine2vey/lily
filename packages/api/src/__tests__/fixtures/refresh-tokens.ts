@@ -6,6 +6,7 @@ export const mockRefreshToken: RefreshToken = {
   tokenHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   revokedAt: null,
+  replacedBy: null,
   createdAt: new Date(),
 }
 
@@ -16,6 +17,7 @@ export const mockExpiredRefreshToken: RefreshToken = {
     'expired-hash-abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678',
   expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired 1 day ago
   revokedAt: null,
+  replacedBy: null,
   createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
 }
 
@@ -26,6 +28,7 @@ export const mockRevokedRefreshToken: RefreshToken = {
     'revoked-hash-abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678',
   expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Not expired
   revokedAt: new Date(Date.now() - 60 * 60 * 1000), // Revoked 1 hour ago
+  replacedBy: null,
   createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
 }
 
@@ -37,6 +40,7 @@ export const createMockRefreshToken = (
   tokenHash: crypto.randomUUID().replace(/-/g, '').repeat(2),
   expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   revokedAt: null,
+  replacedBy: null,
   createdAt: new Date(),
   ...overrides,
 })

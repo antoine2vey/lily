@@ -65,6 +65,7 @@ export const AuthApi = HttpApiGroup.make('auth')
       .setPayload(RefreshTokenRequest)
       .addSuccess(RefreshTokenResponse)
       .addError(AuthError, { status: 401 })
+      .addError(RateLimitExceededError, { status: 429 })
   )
   .add(
     // GET /auth/me - Get current user profile (requires auth)

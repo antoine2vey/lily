@@ -22,6 +22,7 @@ describe('logout', () => {
         tokenHash: string
         expiresAt: Date
         revokedAt: Date | null
+        replacedBy: string | null
         createdAt: Date
       }[]
     } = {}
@@ -34,6 +35,7 @@ describe('logout', () => {
         tokenHash: 'hash-1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revokedAt: null,
+        replacedBy: null,
         createdAt: new Date(),
       },
       {
@@ -42,6 +44,7 @@ describe('logout', () => {
         tokenHash: 'hash-2',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revokedAt: null,
+        replacedBy: null,
         createdAt: new Date(),
       },
     ]
@@ -93,6 +96,7 @@ describe('logout', () => {
         tokenHash: 'hash-1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revokedAt: null,
+        replacedBy: null,
         createdAt: new Date(),
       },
       {
@@ -101,6 +105,7 @@ describe('logout', () => {
         tokenHash: 'hash-2',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revokedAt: null,
+        replacedBy: null,
         createdAt: new Date(),
       },
     ]
@@ -128,6 +133,7 @@ describe('logout', () => {
         tokenHash: 'hash-1',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         revokedAt: new Date(), // Already revoked
+        replacedBy: null,
         createdAt: new Date(),
       },
     ]

@@ -1,6 +1,13 @@
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
-import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  type AnyPgColumn,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Magic links - stores one-time tokens for email verification
@@ -24,6 +31,15 @@ export const magicLinksRelations = relations(magicLinks, ({ one }) => ({
 /**
  * Refresh tokens - for token refresh without re-authentication
  * NOTE: 'tokenHash' stores SHA-256 hash of token, never the plaintext
+ *
+ * Tokens are rotated on every refresh: the presented token is revoked and a new
+ * one issued. `replacedBy` links a revoked token to its successor, forming a
+ * rotation chain. This enables:
+ *  - lost-response recovery: if a rotation response never reached the client,
+ *    presenting the revoked token whose successor is still unused re-issues a
+ *    fresh token instead of forcing a logout.
+ *  - reuse detection: presenting a revoked token whose chain has already moved
+ *    on signals theft, and the whole family is revoked.
  */
 export const refreshTokens = pgTable('refresh_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -33,6 +49,10 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  replacedBy: uuid('replaced_by').references(
+    (): AnyPgColumn => refreshTokens.id,
+    { onDelete: 'set null' }
+  ),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

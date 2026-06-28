@@ -27,6 +27,7 @@ export const createMockRefreshTokenRepository = (
           tokenHash,
           expiresAt,
           revokedAt: null,
+          replacedBy: null,
           createdAt: new Date(),
         }
         tokenStore.push(newToken)
@@ -55,6 +56,14 @@ export const createMockRefreshTokenRepository = (
         )
       ),
 
+    findById: (id: string) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(tokenStore, (t) => t.id === id),
+          Option.getOrNull
+        )
+      ),
+
     revoke: (id: string) =>
       Effect.gen(function* () {
         const index = Array.findFirstIndex(tokenStore, (t) => t.id === id)
@@ -70,6 +79,27 @@ export const createMockRefreshTokenRepository = (
         const updated = {
           ...token,
           revokedAt: new Date(),
+        }
+        tokenStore[index.value] = updated
+        return updated
+      }),
+
+    revokeWithReplacement: (id: string, replacedById: string) =>
+      Effect.gen(function* () {
+        const index = Array.findFirstIndex(tokenStore, (t) => t.id === id)
+        if (Option.isNone(index)) {
+          return null
+        }
+
+        const token = tokenStore[index.value]
+        if (!token) {
+          return null
+        }
+
+        const updated = {
+          ...token,
+          revokedAt: new Date(),
+          replacedBy: replacedById,
         }
         tokenStore[index.value] = updated
         return updated
