@@ -23,7 +23,8 @@ export interface IRefreshTokenRepository {
     tokenHash: string
   ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly findValidByTokenHash: (
-    tokenHash: string
+    tokenHash: string,
+    rotationGraceMs?: number
   ) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revoke: (id: string) => Effect.Effect<RefreshToken | null, SqlError>
   readonly revokeAllForUser: (userId: string) => Effect.Effect<number, SqlError>
@@ -76,28 +77,38 @@ export const RefreshTokenRepositoryLive = Layer.effect(
 
       findValidByTokenHash: Effect.fn(
         'RefreshTokenRepository.findValidByTokenHash'
-      )(function* (tokenHash: string) {
-        const currentTime = nowAsDate()
+      )(function* (tokenHash: string, rotationGraceMs = 0) {
+        const now = DateTime.unsafeMake(nowAsDate())
         const results = yield* db
           .select()
           .from(refreshTokens)
-          .where(
-            and(
-              eq(refreshTokens.tokenHash, tokenHash),
-              isNull(refreshTokens.revokedAt)
-            )
-          )
+          .where(eq(refreshTokens.tokenHash, tokenHash))
 
         const record = pipe(results, Array.head, Option.getOrNull)
 
-        // Check expiration manually
-        if (
-          record &&
-          DateTime.greaterThan(
-            DateTime.unsafeMake(record.expiresAt),
-            DateTime.unsafeMake(currentTime)
-          )
-        ) {
+        if (!record) {
+          return null
+        }
+
+        const notExpired = DateTime.greaterThan(
+          DateTime.unsafeMake(record.expiresAt),
+          now
+        )
+
+        // Active token, or one rotated so recently it's still inside the
+        // grace window (covers concurrent refreshes racing on rotation)
+        const notRevoked = pipe(
+          Option.fromNullable(record.revokedAt),
+          Option.match({
+            onNone: () => true,
+            onSome: (revokedAt) =>
+              rotationGraceMs > 0 &&
+              DateTime.distance(DateTime.unsafeMake(revokedAt), now) <=
+                rotationGraceMs,
+          })
+        )
+
+        if (notExpired && notRevoked) {
           return record
         }
         return null

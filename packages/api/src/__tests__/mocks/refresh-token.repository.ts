@@ -41,14 +41,16 @@ export const createMockRefreshTokenRepository = (
         )
       ),
 
-    findValidByTokenHash: (tokenHash: string) =>
+    findValidByTokenHash: (tokenHash: string, rotationGraceMs = 0) =>
       Effect.succeed(
         pipe(
           Array.findFirst(
             tokenStore,
             (t) =>
               t.tokenHash === tokenHash &&
-              t.revokedAt === null &&
+              (t.revokedAt === null ||
+                (rotationGraceMs > 0 &&
+                  Date.now() - t.revokedAt.getTime() <= rotationGraceMs)) &&
               t.expiresAt > new Date()
           ),
           Option.getOrNull

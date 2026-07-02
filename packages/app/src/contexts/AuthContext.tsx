@@ -14,9 +14,15 @@ import {
 import { AppState, type AppStateStatus } from 'react-native'
 import * as RevenueCatService from '@/services/revenuecat'
 import {
+  addAuthBreadcrumb,
+  trackAuthAnomaly,
+  trackForcedLogout,
+} from '@/utils/auth-telemetry'
+import {
   apiEffectRunner,
   extractErrorField,
   extractErrorMessage,
+  isAuthFailureError,
   setOnAuthFailure,
 } from '@/utils/client'
 import {
@@ -156,6 +162,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Register auth failure callback for token refresh failures
   useEffect(() => {
     const handleAuthFailure = async () => {
+      // The refresh path already captured the forced-logout event
+      addAuthBreadcrumb('auth_failure_clearing_session')
       // Clear all auth storage
       await Effect.runPromise(clearAuthStorage())
       setPendingEmail(null)
@@ -222,20 +230,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   Schedule.recurs(2),
                   Schedule.spaced(Duration.millis(1500))
                 ).pipe(
-                  Schedule.whileInput((error: unknown) => {
-                    const isAuthError =
-                      error &&
-                      typeof error === 'object' &&
-                      '_tag' in error &&
-                      (error._tag === 'UnauthorizedError' ||
-                        error._tag === 'SessionNotFoundError')
-                    return !isAuthError
-                  })
+                  // Retry transient failures only — an auth error already
+                  // went through token refresh inside runApiEffect, so
+                  // retrying it would just rotate/burn refresh attempts
+                  Schedule.whileInput(
+                    (error: unknown) => !isAuthFailureError(error)
+                  )
                 )
               ),
-              Effect.catchAll(() =>
+              Effect.catchAll((error) =>
                 Effect.gen(function* () {
-                  yield* removeStoredAccessToken()
+                  if (isAuthFailureError(error)) {
+                    trackForcedLogout('startup_check_auth_error')
+                    yield* removeStoredAccessToken()
+                  } else {
+                    // Transient failure (e.g. no network right after
+                    // launch) — keep tokens so the session can be restored
+                    // instead of forcing a re-login
+                    trackAuthAnomaly('startup_check_transient_failure', {
+                      message: extractErrorMessage(error),
+                    })
+                  }
                   setState({ _tag: 'Unauthenticated' })
                 })
               )
@@ -514,10 +529,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
           accessToken: state.accessToken,
         })
       }
-    } catch {
-      // Token might be invalid
-      await Effect.runPromise(clearAuthStorage())
-      setState({ _tag: 'Unauthenticated' })
+    } catch (error) {
+      if (isAuthFailureError(error)) {
+        // Token is invalid and refresh could not recover it
+        trackForcedLogout('refresh_user_auth_error')
+        await Effect.runPromise(clearAuthStorage())
+        setState({ _tag: 'Unauthenticated' })
+      } else {
+        // Transient failure (network, server) — keep the session, the
+        // profile will refresh on the next call
+        addAuthBreadcrumb('refresh_user_transient_failure', {
+          message: extractErrorMessage(error),
+        })
+      }
     }
   }, [state])
 

@@ -35,6 +35,7 @@ import {
 import {
   Array as A,
   Cause,
+  Clock,
   Deferred,
   Effect,
   Either,
@@ -47,6 +48,11 @@ import {
   String as Str,
 } from 'effect'
 import * as SecureStore from 'expo-secure-store'
+import {
+  addAuthBreadcrumb,
+  trackAuthAnomaly,
+  trackForcedLogout,
+} from '@/utils/auth-telemetry'
 
 // Type helpers to extract HttpApi type parameters
 type ExtractGroups<T> = T extends HttpApi.HttpApi<
@@ -300,18 +306,58 @@ function isUnauthorizedError(error: ApiFailure): boolean {
   )
 }
 
-// State for coordinating concurrent refresh requests
-type RefreshState = Option.Option<Deferred.Deferred<string, ApiFailure>>
+/**
+ * Check whether an unknown thrown value is (or wraps) a 401-style auth
+ * error. Handles ApiFailure objects thrown by apiEffectRunner as well as
+ * UnknownException wrappers from Effect.tryPromise.
+ */
+export function isAuthFailureError(error: unknown): boolean {
+  return pipe(
+    tryExtractKnownError(error),
+    Option.map(isUnauthorizedError),
+    Option.getOrElse(() => false)
+  )
+}
+
+// Coordination for token refresh across concurrent callers:
+// - `inFlight` makes the refresh single-flight
+// - `lastRefresh` lets 401s that raced with a just-completed refresh reuse
+//   its result instead of rotating the refresh token again — a cold-start
+//   burst of expired-token requests collapses into a single rotation
+type RefreshState = {
+  readonly inFlight: Option.Option<Deferred.Deferred<string, ApiFailure>>
+  readonly lastRefresh: Option.Option<{
+    readonly token: string
+    readonly atMillis: number
+  }>
+}
+
+// A refresh that completed this recently satisfies new refresh requests
+// directly (requests already in flight when it finished still carry the old
+// access token and will 401 without needing another rotation)
+const REFRESH_REUSE_WINDOW_MS = 10_000
 
 // Global ref for refresh state (initialized lazily)
 let refreshStateRef: Ref.Ref<RefreshState> | null = null
 
 const getRefreshStateRef = Effect.gen(function* () {
   if (refreshStateRef === null) {
-    refreshStateRef = yield* Ref.make<RefreshState>(Option.none())
+    refreshStateRef = yield* Ref.make<RefreshState>({
+      inFlight: Option.none(),
+      lastRefresh: Option.none(),
+    })
   }
   return refreshStateRef
 })
+
+// This caller's role, decided atomically inside Ref.modify
+type RefreshRole =
+  | { readonly _tag: 'Reuse'; readonly token: string }
+  | {
+      readonly _tag: 'Await'
+      readonly deferred: Deferred.Deferred<string, ApiFailure>
+    }
+  | { readonly _tag: 'Refresh' }
 
 /**
  * Get the current access token from secure storage
@@ -323,94 +369,166 @@ const getAccessToken = Effect.tryPromise({
 
 /**
  * Refresh the access token using the stored refresh token.
- * Uses Deferred + Ref to coordinate concurrent refresh requests.
+ *
+ * The server rotates the refresh token on every use and revokes the old one,
+ * so exactly one refresh may run at a time and its result must be shared:
+ * a duplicate request presenting the same (now revoked) token gets rejected
+ * and would log the user out. The role decision below happens in a single
+ * atomic Ref.modify so two concurrent callers can never both start a POST.
  */
 const refreshAccessToken: Effect.Effect<string, ApiFailure> = Effect.gen(
   function* () {
     const stateRef = yield* getRefreshStateRef
-    const currentState = yield* Ref.get(stateRef)
-
-    // If already refreshing, wait for existing refresh
-    if (Option.isSome(currentState)) {
-      return yield* Deferred.await(currentState.value)
-    }
-
-    // Start new refresh
+    const nowMillis = yield* Clock.currentTimeMillis
     const deferred = yield* Deferred.make<string, ApiFailure>()
-    yield* Ref.set(stateRef, Option.some(deferred))
 
-    const result = yield* Effect.tryPromise({
-      try: async () => {
-        const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
-        if (!refreshToken) {
-          throw new Error('No refresh token')
-        }
+    const claimRefresh = (state: RefreshState): [RefreshRole, RefreshState] => [
+      { _tag: 'Refresh' },
+      { ...state, inFlight: Option.some(deferred) },
+    ]
 
-        const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refreshToken }),
-        })
-
-        if (!response.ok) {
-          // Only clear tokens on auth errors, not server errors
-          if (response.status === 401 || response.status === 403) {
-            await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
-            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
-          }
-          throw new Error(`Refresh failed: ${response.status}`)
-        }
-
-        const data = await response.json()
-        const newAccessToken = data.accessToken as string
-        const newRefreshToken = data.refreshToken as string
-
-        // Store both tokens (server rotates refresh tokens)
-        await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
-        if (newRefreshToken) {
-          await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, newRefreshToken)
-        }
-
-        return newAccessToken
-      },
-      catch: (error): ApiFailure => {
-        const message =
-          error instanceof Error ? error.message : 'Token refresh failed'
-        // Only treat as auth error if it was an actual auth failure
-        const isAuthFailure =
-          pipe(message, Str.includes('401')) ||
-          pipe(message, Str.includes('403')) ||
-          pipe(message, Str.includes('No refresh token'))
-
-        if (isAuthFailure) {
-          return new UnauthorizedError({ message })
-        }
-        // Network/server errors should not be treated as auth failures
-        return {
-          _tag: 'UnknownError' as const,
-          message: `Token refresh failed: ${message}`,
-        }
-      },
-    }).pipe(
-      Effect.tapBoth({
-        onSuccess: (token) =>
-          Effect.all([
-            Deferred.succeed(deferred, token),
-            Ref.set(stateRef, Option.none()),
-          ]),
-        onFailure: (error) =>
-          Effect.all([
-            Deferred.fail(deferred, error),
-            Ref.set(stateRef, Option.none()),
-          ]),
-      })
+    const role = yield* Ref.modify(
+      stateRef,
+      (state): [RefreshRole, RefreshState] =>
+        pipe(
+          state.inFlight,
+          Option.match({
+            onSome: (existing): [RefreshRole, RefreshState] => [
+              { _tag: 'Await', deferred: existing },
+              state,
+            ],
+            onNone: (): [RefreshRole, RefreshState] =>
+              pipe(
+                state.lastRefresh,
+                Option.match({
+                  onSome: (last): [RefreshRole, RefreshState] =>
+                    nowMillis - last.atMillis <= REFRESH_REUSE_WINDOW_MS
+                      ? [{ _tag: 'Reuse', token: last.token }, state]
+                      : claimRefresh(state),
+                  onNone: () => claimRefresh(state),
+                })
+              ),
+          })
+        )
     )
 
-    return result
+    return yield* pipe(
+      Match.value(role),
+      Match.when({ _tag: 'Reuse' }, ({ token }) => Effect.succeed(token)),
+      Match.when({ _tag: 'Await' }, ({ deferred: existing }) =>
+        Deferred.await(existing)
+      ),
+      Match.when({ _tag: 'Refresh' }, () => performRefresh(stateRef, deferred)),
+      Match.exhaustive
+    )
   }
 )
+
+/**
+ * The single in-flight refresh POST. Resolves `deferred` so concurrent
+ * callers get the same outcome, and records the result in `lastRefresh`.
+ */
+const performRefresh = (
+  stateRef: Ref.Ref<RefreshState>,
+  deferred: Deferred.Deferred<string, ApiFailure>
+): Effect.Effect<string, ApiFailure> =>
+  Effect.tryPromise({
+    try: async () => {
+      const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
+      if (!refreshToken) {
+        addAuthBreadcrumb('refresh_no_token_stored')
+        throw new Error('No refresh token')
+      }
+
+      addAuthBreadcrumb('refresh_started')
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!response.ok) {
+        // Only clear tokens on auth errors, not server errors
+        if (response.status === 401 || response.status === 403) {
+          // Guard against wiping tokens another refresh just stored: only
+          // clear storage if it still holds the token we presented
+          const storedNow = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
+          if (storedNow !== null && storedNow !== refreshToken) {
+            const currentAccess =
+              await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
+            if (currentAccess) {
+              trackAuthAnomaly('refresh_race_recovered', {
+                status: response.status,
+              })
+              return currentAccess
+            }
+          }
+          await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY)
+          await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+          trackAuthAnomaly('refresh_rejected', { status: response.status })
+        } else {
+          // 429 (throttled) and 5xx land here — session stays intact
+          trackAuthAnomaly('refresh_failed_transient', {
+            status: response.status,
+          })
+        }
+        throw new Error(`Refresh failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      const newAccessToken = data.accessToken as string
+      const newRefreshToken = data.refreshToken as string
+
+      // Store both tokens (server rotates refresh tokens)
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken)
+      if (newRefreshToken) {
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, newRefreshToken)
+      }
+
+      addAuthBreadcrumb('refresh_succeeded')
+      return newAccessToken
+    },
+    catch: (error): ApiFailure => {
+      const message =
+        error instanceof Error ? error.message : 'Token refresh failed'
+      // Only treat as auth error if it was an actual auth failure
+      const isAuthFailure =
+        pipe(message, Str.includes('401')) ||
+        pipe(message, Str.includes('403')) ||
+        pipe(message, Str.includes('No refresh token'))
+
+      if (isAuthFailure) {
+        return new UnauthorizedError({ message })
+      }
+      // Network/server errors should not be treated as auth failures
+      return {
+        _tag: 'UnknownError' as const,
+        message: `Token refresh failed: ${message}`,
+      }
+    },
+  }).pipe(
+    Effect.tapBoth({
+      onSuccess: (token) =>
+        Effect.gen(function* () {
+          const atMillis = yield* Clock.currentTimeMillis
+          yield* Ref.set(stateRef, {
+            inFlight: Option.none(),
+            lastRefresh: Option.some({ token, atMillis }),
+          })
+          yield* Deferred.succeed(deferred, token)
+        }),
+      onFailure: (error) =>
+        Effect.gen(function* () {
+          yield* Ref.update(stateRef, (state) => ({
+            ...state,
+            inFlight: Option.none(),
+          }))
+          yield* Deferred.fail(deferred, error)
+        }),
+    })
+  )
 
 /**
  * Promise-based token refresh for backwards compatibility with upload.ts
@@ -638,6 +756,13 @@ async function handleTokenRefreshAndRetry<
 
       if (isAuthFailure && onAuthFailure) {
         // Only trigger logout on actual auth failures, not network errors
+        trackForcedLogout('refresh_rejected', {
+          message: pipe(
+            error,
+            Option.map(extractErrorMessage),
+            Option.getOrElse(() => 'unknown')
+          ),
+        })
         onAuthFailure()
       }
 

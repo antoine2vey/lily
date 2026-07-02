@@ -13,10 +13,11 @@ import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-lim
 import {
   clearRefreshTokenStore,
   createMockRefreshTokenRepository,
+  getRefreshTokenStore,
 } from '@lily/api/__tests__/mocks/refresh-token.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { refreshToken } from '@lily/api/services/auth/endpoints/refresh-token'
-import { Effect, Layer } from 'effect'
+import { Array, Cause, Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
 describe('refreshToken', () => {
@@ -29,6 +30,7 @@ describe('refreshToken', () => {
       tokens?: (typeof mockRefreshToken)[]
       users?: typeof mockUsers
       jwtOptions?: Parameters<typeof createMockJWTService>[0]
+      rateLimiterOptions?: Parameters<typeof createMockRateLimiterService>[0]
     } = {}
   ) =>
     Layer.mergeAll(
@@ -37,7 +39,7 @@ describe('refreshToken', () => {
       }),
       createMockUserRepository(options.users ?? mockUsers),
       createMockJWTService(options.jwtOptions ?? {}),
-      createMockRateLimiterService()
+      createMockRateLimiterService(options.rateLimiterOptions ?? {})
     )
 
   it('should return new access token for valid refresh token', async () => {
@@ -98,6 +100,96 @@ describe('refreshToken', () => {
     )
 
     expect(result._tag).toBe('Failure')
+  })
+
+  it('should honor a token rotated within the grace window', async () => {
+    // Simulates a concurrent refresh: the token was revoked seconds ago by
+    // another request from the same device
+    const justRotatedToken = {
+      ...mockRevokedRefreshToken,
+      revokedAt: new Date(Date.now() - 5 * 1000),
+    }
+
+    const result = await Effect.runPromise(
+      refreshToken({ refreshToken: 'just-rotated-token' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            tokens: [justRotatedToken],
+            jwtOptions: {
+              refreshTokenHash: justRotatedToken.tokenHash,
+            },
+          })
+        )
+      )
+    )
+
+    expect(result.accessToken).toBeDefined()
+    expect(result.refreshToken).toBeDefined()
+  })
+
+  it('should keep the original revocation time on grace-window reuse', async () => {
+    const revokedAt = new Date(Date.now() - 5 * 1000)
+    const justRotatedToken = {
+      ...mockRevokedRefreshToken,
+      revokedAt,
+    }
+
+    await Effect.runPromise(
+      refreshToken({ refreshToken: 'just-rotated-token' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            tokens: [justRotatedToken],
+            jwtOptions: {
+              refreshTokenHash: justRotatedToken.tokenHash,
+            },
+          })
+        )
+      )
+    )
+
+    const stored = Option.getOrNull(
+      Array.findFirst(
+        getRefreshTokenStore(),
+        (t) => t.id === justRotatedToken.id
+      )
+    )
+    expect(stored?.revokedAt).toEqual(revokedAt)
+  })
+
+  it('should fail with a token rotated before the grace window', async () => {
+    // mockRevokedRefreshToken was revoked 1 hour ago — far outside grace
+    const result = await Effect.runPromiseExit(
+      refreshToken({ refreshToken: 'revoked-token' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            tokens: [mockRevokedRefreshToken],
+            jwtOptions: {
+              refreshTokenHash: mockRevokedRefreshToken.tokenHash,
+            },
+          })
+        )
+      )
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('should propagate RateLimitExceededError when throttled', async () => {
+    const result = await Effect.runPromiseExit(
+      refreshToken({ refreshToken: 'valid-refresh-token' }).pipe(
+        Effect.provide(
+          createTestLayer({
+            rateLimiterOptions: { shouldExceedLimit: true },
+          })
+        )
+      )
+    )
+
+    expect(result._tag).toBe('Failure')
+    const failure = Exit.isFailure(result)
+      ? Option.getOrNull(Cause.failureOption(result.cause))
+      : null
+    expect(failure).toMatchObject({ _tag: 'RateLimitExceededError' })
   })
 
   it('should fail when user not found', async () => {
