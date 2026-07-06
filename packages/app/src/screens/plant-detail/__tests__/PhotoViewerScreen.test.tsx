@@ -4,7 +4,7 @@ import {
   resetNavigationMocks,
   setMockSearchParams,
 } from '@/__tests__/mocks/navigation'
-import { mockNow } from '@/__tests__/utils/dates'
+import { mockFixedDate } from '@/__tests__/utils/dates'
 import { PhotoViewerScreen } from '../PhotoViewerScreen'
 
 // Mock the hooks
@@ -22,18 +22,21 @@ jest.mock('@/hooks/useDeletePhoto', () => ({
 
 describe('PhotoViewerScreen', () => {
   // The viewer reads getPlantPhotos (a paginated list response).
+  // The carousel sorts newest-first, so the timestamps must be fixed and
+  // distinct: two mockNow() calls occasionally straddled a millisecond,
+  // nondeterministically reversing the order (flaky on CI).
   const mockPlantWithPhotos = {
     items: [
       {
         id: 'photo-1',
         url: 'https://example.com/photo1.jpg',
-        takenAt: mockNow(),
+        takenAt: mockFixedDate(2026, 6, 2),
         plantId: 'plant-1',
       },
       {
         id: 'photo-2',
         url: 'https://example.com/photo2.jpg',
-        takenAt: mockNow(),
+        takenAt: mockFixedDate(2026, 6, 1),
         plantId: 'plant-1',
       },
     ],
@@ -79,9 +82,18 @@ describe('PhotoViewerScreen', () => {
 
     render(<PhotoViewerScreen />)
     expect(screen.getByTestId('photo-viewer-screen')).toBeTruthy()
-    expect(screen.getByTestId('photo-viewer-carousel')).toBeTruthy()
+
+    // The visible (deep-linked) slide must be mounted
     expect(screen.getByTestId('photo-viewer-slide-photo-1')).toBeTruthy()
-    expect(screen.getByTestId('photo-viewer-slide-photo-2')).toBeTruthy()
+
+    // The second slide sits on the next page of a virtualized list, so its
+    // cell may legitimately not be mounted while off-screen (asserting on
+    // it was flaky on CI) — assert the carousel was fed every photo instead
+    const carousel = screen.getByTestId('photo-viewer-carousel')
+    expect(carousel.props.data).toMatchObject([
+      { id: 'photo-1' },
+      { id: 'photo-2' },
+    ])
   })
 
   it('shows pagination dots when there is more than one photo', () => {
