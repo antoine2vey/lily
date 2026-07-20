@@ -5,7 +5,9 @@ import { useRouter, useSegments } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import {
   createContext,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useContext,
   useEffect,
@@ -37,10 +39,12 @@ import {
   clearAuthStorage,
   getStoredAccessToken,
   getStoredUserEmail,
+  getStoredUserProfile,
   removeStoredAccessToken,
   storeAccessToken,
   storeRefreshToken,
   storeUserEmail,
+  storeUserProfile,
 } from '@/utils/storage'
 
 const DEVICE_TOKEN_ID_KEY = 'lily_device_token_id'
@@ -108,6 +112,80 @@ type AuthState =
   | { _tag: 'Authenticated'; user: UserProfile; accessToken: string }
   | { _tag: 'Unauthenticated' }
   | { _tag: 'NeedsUsername'; user: UserProfile; accessToken: string }
+
+// Session state for a known user — Authenticated when the profile is
+// complete, NeedsUsername otherwise
+const sessionStateFor = (user: UserProfile, accessToken: string): AuthState =>
+  pipe(
+    Option.fromNullable(user.username),
+    Option.match({
+      onNone: () => ({ _tag: 'NeedsUsername', user, accessToken }) as AuthState,
+      onSome: () => ({ _tag: 'Authenticated', user, accessToken }) as AuthState,
+    })
+  )
+
+/**
+ * Cache the profile for offline session restore. Fire-and-forget — a
+ * failed write only means the next offline launch falls back to login.
+ */
+function persistUserProfile(user: UserProfile): void {
+  Effect.runPromise(storeUserProfile(user)).catch((err) => {
+    console.warn('Failed to cache user profile:', err)
+  })
+}
+
+/**
+ * After an offline session restore, reconcile with the server once the
+ * network is back: refresh the profile and finish the normal post-auth
+ * setup (push registration). Runs detached with backoff. Auth failures
+ * are not retried — the client's token-refresh path routes those to the
+ * global auth-failure handler, which clears the session.
+ */
+function scheduleStartupReconcile(
+  setState: Dispatch<SetStateAction<AuthState>>
+): void {
+  const reconcile = Effect.tryPromise(() =>
+    apiEffectRunner('auth', 'getCurrentUser', {})
+  ).pipe(
+    Effect.retry(
+      Schedule.intersect(
+        Schedule.recurs(5),
+        Schedule.exponential(Duration.seconds(5))
+      ).pipe(
+        Schedule.whileInput((error: unknown) => !isAuthFailureError(error))
+      )
+    ),
+    Effect.tap((user) =>
+      Effect.sync(() => {
+        persistUserProfile(user)
+        // Only apply if the restored session is still active — the user
+        // may have logged out while we were waiting for the network
+        setState((prev) =>
+          pipe(
+            Match.value(prev),
+            Match.whenOr(
+              { _tag: 'Authenticated' },
+              { _tag: 'NeedsUsername' },
+              (current) => sessionStateFor(user, current.accessToken)
+            ),
+            Match.orElse(() => prev)
+          )
+        )
+        if (user.username) {
+          registerDeviceForPush().catch((err) => {
+            console.warn('Push notification registration failed:', err)
+          })
+        }
+      })
+    )
+  )
+
+  Effect.runPromise(reconcile).catch(() => {
+    // Still offline after all retries — keep the cached session; the
+    // profile refreshes on the next successful API interaction
+    addAuthBreadcrumb('startup_reconcile_exhausted')
+  })
+}
 
 type AuthContextValue = {
   state: AuthState
@@ -204,6 +282,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             ).pipe(
               Effect.tap((user) =>
                 Effect.sync(() => {
+                  persistUserProfile(user)
                   if (!user.username) {
                     setState({
                       _tag: 'NeedsUsername',
@@ -243,15 +322,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   if (isAuthFailureError(error)) {
                     trackForcedLogout('startup_check_auth_error')
                     yield* removeStoredAccessToken()
-                  } else {
-                    // Transient failure (e.g. no network right after
-                    // launch) — keep tokens so the session can be restored
-                    // instead of forcing a re-login
-                    trackAuthAnomaly('startup_check_transient_failure', {
-                      message: extractErrorMessage(error),
-                    })
+                    setState({ _tag: 'Unauthenticated' })
+                    return
                   }
-                  setState({ _tag: 'Unauthenticated' })
+                  // Transient failure (e.g. no network right after launch,
+                  // common when a notification tap wakes the app from the
+                  // lock screen). The tokens are still presumed valid —
+                  // restore the session from the cached profile instead of
+                  // bouncing to the login screen. If the token is actually
+                  // dead, the next API call goes through token refresh and
+                  // the global auth-failure handler clears the session.
+                  trackAuthAnomaly('startup_check_transient_failure', {
+                    message: extractErrorMessage(error),
+                  })
+                  const cachedUser = yield* getStoredUserProfile().pipe(
+                    Effect.catchAll(() =>
+                      Effect.succeed(Option.none<UserProfile>())
+                    )
+                  )
+                  pipe(
+                    cachedUser,
+                    Option.match({
+                      onNone: () => {
+                        // Nothing to restore — fall back to the login flow
+                        setState({ _tag: 'Unauthenticated' })
+                      },
+                      onSome: (user) => {
+                        addAuthBreadcrumb('startup_restored_from_cache')
+                        setState(sessionStateFor(user, accessToken))
+                        scheduleStartupReconcile(setState)
+                      },
+                    })
+                  )
                 })
               )
             ),
@@ -345,6 +447,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Store both tokens
         await Effect.runPromise(storeAccessToken(response.accessToken))
         await Effect.runPromise(storeRefreshToken(response.refreshToken))
+        persistUserProfile(response.user)
 
         if (!response.user.username) {
           setState({
@@ -429,6 +532,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await Effect.runPromise(storeAccessToken(response.accessToken))
         await Effect.runPromise(storeRefreshToken(response.refreshToken))
         await Effect.runPromise(storeUserEmail(response.user.email))
+        persistUserProfile(response.user)
         setPendingEmail(response.user.email)
 
         if (!response.user.username) {
@@ -465,6 +569,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const user = await apiEffectRunner('auth', 'setUsername', {
           payload: { username },
         })
+        persistUserProfile(user)
         if (state._tag === 'NeedsUsername' || state._tag === 'Authenticated') {
           setState({
             _tag: 'Authenticated',
@@ -516,6 +621,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
     try {
       const user = await apiEffectRunner('auth', 'getCurrentUser', {})
+      persistUserProfile(user)
       if (!user.username) {
         setState({
           _tag: 'NeedsUsername',

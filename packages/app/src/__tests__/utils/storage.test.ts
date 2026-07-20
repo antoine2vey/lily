@@ -184,10 +184,11 @@ describe('Storage Utilities', () => {
       const result = await Effect.runPromiseExit(clearAuthStorage())
 
       expect(Exit.isSuccess(result)).toBe(true)
-      expect(mockDeleteItemAsync).toHaveBeenCalledTimes(3)
+      expect(mockDeleteItemAsync).toHaveBeenCalledTimes(4)
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_access_token')
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_refresh_token')
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_user_email')
+      expect(mockDeleteItemAsync).toHaveBeenCalledWith('lily_user_profile')
     })
 
     it('should fail if any storage operation fails', async () => {
