@@ -1,5 +1,14 @@
 import type { LanguageCode } from '@lily/shared'
-import { Array as Arr, Match, Option, pipe, String as Str } from 'effect'
+// Type-only import — erased at compile time, so no server code is bundled
+import type { NotificationTopic } from '@lily/shared/server'
+import {
+  Array as Arr,
+  Match,
+  Option,
+  pipe,
+  Record as Rec,
+  String as Str,
+} from 'effect'
 import * as Device from 'expo-device'
 import * as Localization from 'expo-localization'
 import * as Notifications from 'expo-notifications'
@@ -268,6 +277,17 @@ const plantRoute = (data: Record<string, unknown>): Href => {
 }
 
 /**
+ * Route to a plant screen (single plant) or plants tab (multiple/none).
+ * For topics that are about plants but not about pending care tasks.
+ */
+const plantOrPlantsTabRoute = (data: Record<string, unknown>): Href => {
+  const plantIds = parsePlantIds(data.plantIds)
+  return plantIds.length === 1
+    ? (`/(app)/plant/${plantIds[0]}` as Href)
+    : ('/(app)/(tabs)/plants' as Href)
+}
+
+/**
  * Route to a delegation detail screen, or the delegations list as fallback.
  */
 const delegationRoute = (data: Record<string, unknown>): Href => {
@@ -277,6 +297,82 @@ const delegationRoute = (data: Record<string, unknown>): Href => {
     ? (`/(app)/delegation/${delegationId}` as Href)
     : ('/(app)/delegations' as Href)
 }
+
+type NotificationRouteResolver = (data: Record<string, unknown>) => Href | null
+
+/**
+ * Deep-link destination per notification topic. `satisfies Record<
+ * NotificationTopic, ...>` makes this exhaustive at compile time — adding a
+ * topic to NOTIFICATION_TOPICS in @lily/shared without mapping a route here
+ * fails `bun run tsc` (same pattern as TOPIC_CATEGORY in shared).
+ *
+ * A resolver may still return null when the payload lacks the data needed
+ * to navigate (e.g. new_follower without a senderId).
+ */
+const TOPIC_ROUTES = {
+  // Care reminders — single plant → plant screen, multiple/none → care tab
+  watering_reminder: plantRoute,
+  fertilization_reminder: plantRoute,
+  misting_reminder: plantRoute,
+  repotting_reminder: plantRoute,
+  overdue_reminder: plantRoute,
+  photo_reminder: plantRoute,
+
+  // Social — new follower → profile of the person who followed
+  new_follower: (data) => {
+    const senderId = typeof data.senderId === 'string' ? data.senderId : null
+    return senderId ? (`/(app)/public-profile/${senderId}` as Href) : null
+  },
+
+  // Social — nudge → care tab
+  nudge_to_water: () => '/(app)/(tabs)/care' as Href,
+
+  // Delegation topics → delegation detail or list fallback
+  delegation_request: delegationRoute,
+  delegation_accepted: delegationRoute,
+  delegation_rejected: delegationRoute,
+  delegation_canceled: delegationRoute,
+  delegation_activated: delegationRoute,
+  delegation_completed: delegationRoute,
+
+  // Daily tip → tip modal with content
+  daily_tip: (data) => {
+    const title =
+      typeof data.title === 'string' ? encodeURIComponent(data.title) : ''
+    const body =
+      typeof data.body === 'string' ? encodeURIComponent(data.body) : ''
+    return `/(app)/tip?title=${title}&body=${body}` as Href
+  },
+
+  // Engagement — inactivity → plants tab
+  inactivity_nudge: () => '/(app)/(tabs)/plants' as Href,
+
+  // Engagement — milestone → achievements
+  plant_parent_milestone: () => '/(app)/achievements' as Href,
+
+  // Gift — navigate to plants tab
+  gift_subscription: () => '/(app)/(tabs)/plants' as Href,
+
+  // Resubscribe nudge — navigate to upgrade screen
+  resubscribe_nudge: () => '/(app)/subscription/upgrade' as Href,
+
+  // Streaks — at risk → care tab (finish today's tasks), milestone →
+  // achievements
+  streak_at_risk: () => '/(app)/(tabs)/care' as Href,
+  streak_milestone: () => '/(app)/achievements' as Href,
+
+  // Weekly recap → home tab overview
+  weekly_recap: () => '/(app)/(tabs)' as Href,
+
+  // Subscription lifecycle — trial ending → subscription management,
+  // approaching plant limit → upgrade screen
+  trial_ending: () => '/(app)/subscription' as Href,
+  approaching_limit: () => '/(app)/subscription/upgrade' as Href,
+
+  // Anniversary — single plant → plant screen, otherwise plants tab
+  // (not the care tab: an anniversary has no pending care task)
+  plant_anniversary: plantOrPlantsTabRoute,
+} as const satisfies Record<NotificationTopic, NotificationRouteResolver>
 
 /**
  * Resolve the deep-link route for a notification based on its topic and data.
@@ -289,63 +385,40 @@ export const resolveNotificationRoute = (
   if (!topic) return null
 
   return pipe(
-    Match.value(topic),
-
-    // Care reminders — single plant → plant screen, multiple → care tab
-    Match.whenOr(
-      'watering_reminder',
-      'fertilization_reminder',
-      'misting_reminder',
-      'repotting_reminder',
-      'overdue_reminder',
-      'photo_reminder',
-      () => plantRoute(data)
-    ),
-
-    // Social — new follower → profile of the person who followed
-    Match.when('new_follower', () => {
-      const senderId = typeof data.senderId === 'string' ? data.senderId : null
-      return senderId ? (`/(app)/public-profile/${senderId}` as Href) : null
-    }),
-
-    // Social — nudge → care tab
-    Match.when('nudge_to_water', () => '/(app)/(tabs)/care' as Href),
-
-    // Delegation topics → delegation detail or list fallback
-    Match.when('delegation_request', () => delegationRoute(data)),
-    Match.when('delegation_accepted', () => delegationRoute(data)),
-    Match.when('delegation_rejected', () => delegationRoute(data)),
-    Match.when('delegation_canceled', () => delegationRoute(data)),
-    Match.when('delegation_activated', () => delegationRoute(data)),
-    Match.when('delegation_completed', () => delegationRoute(data)),
-
-    // Daily tip → tip modal with content
-    Match.when('daily_tip', () => {
-      const title =
-        typeof data.title === 'string' ? encodeURIComponent(data.title) : ''
-      const body =
-        typeof data.body === 'string' ? encodeURIComponent(data.body) : ''
-      return `/(app)/tip?title=${title}&body=${body}` as Href
-    }),
-
-    // Engagement — inactivity → plants tab
-    Match.when('inactivity_nudge', () => '/(app)/(tabs)/plants' as Href),
-
-    // Engagement — milestone → achievements
-    Match.when('plant_parent_milestone', () => '/(app)/achievements' as Href),
-
-    // Gift — navigate to plants tab
-    Match.when('gift_subscription', () => '/(app)/(tabs)/plants' as Href),
-
-    // Resubscribe nudge — navigate to upgrade screen
-    Match.when(
-      'resubscribe_nudge',
-      () => '/(app)/subscription/upgrade' as Href
-    ),
-
-    // Unknown topic — no navigation
-    Match.orElse(() => null)
+    Rec.get(TOPIC_ROUTES as Record<string, NotificationRouteResolver>, topic),
+    Option.match({
+      onNone: () => null,
+      onSome: (resolve) => resolve(data),
+    })
   )
+}
+
+// Whether the cold-start notification response has been consumed this JS
+// session. setupNotificationListeners re-runs on auth-state changes; only
+// the first call may route the launch tap, otherwise re-auth would
+// re-navigate to an old destination.
+let coldStartResponseHandled = false
+
+// Identifiers of notification responses already routed. A tap can surface
+// through both getLastNotificationResponseAsync and the response listener —
+// dedupe so it never navigates twice.
+const handledResponseIds = new Set<string>()
+
+const routeNotificationResponse = (
+  router: Router,
+  response: Notifications.NotificationResponse
+): void => {
+  const id = response.notification.request.identifier
+  if (handledResponseIds.has(id)) return
+
+  const data = response.notification.request.content.data
+  if (!data) return
+
+  const route = resolveNotificationRoute(data as Record<string, unknown>)
+  if (route) {
+    handledResponseIds.add(id)
+    router.push(route)
+  }
 }
 
 /**
@@ -353,16 +426,23 @@ export const resolveNotificationRoute = (
  * Returns a cleanup function to remove the listeners
  */
 export function setupNotificationListeners(router: Router): () => void {
+  // Cold start: a tap that launches the app from a killed state fires
+  // before the listener below is registered, so it never receives the
+  // response. expo-notifications replays it via
+  // getLastNotificationResponseAsync — route it exactly once per launch.
+  if (!coldStartResponseHandled) {
+    coldStartResponseHandled = true
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        routeNotificationResponse(router, response)
+      }
+    })
+  }
+
   // Handle notification tap when app is backgrounded/closed
   const responseSubscription =
     Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data
-      if (!data) return
-
-      const route = resolveNotificationRoute(data as Record<string, unknown>)
-      if (route) {
-        router.push(route)
-      }
+      routeNotificationResponse(router, response)
     })
 
   // Handle notifications received while app is foregrounded

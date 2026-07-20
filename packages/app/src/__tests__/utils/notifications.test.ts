@@ -135,6 +135,56 @@ describe('resolveNotificationRoute', () => {
     expect(route).toBe('/(app)/achievements')
   })
 
+  it('routes streak_at_risk to care tab', () => {
+    const route = resolveNotificationRoute({
+      topic: 'streak_at_risk',
+    })
+    expect(route).toBe('/(app)/(tabs)/care')
+  })
+
+  it('routes streak_milestone to achievements', () => {
+    const route = resolveNotificationRoute({
+      topic: 'streak_milestone',
+    })
+    expect(route).toBe('/(app)/achievements')
+  })
+
+  it('routes weekly_recap to home tab', () => {
+    const route = resolveNotificationRoute({
+      topic: 'weekly_recap',
+    })
+    expect(route).toBe('/(app)/(tabs)')
+  })
+
+  it('routes trial_ending to subscription screen', () => {
+    const route = resolveNotificationRoute({
+      topic: 'trial_ending',
+    })
+    expect(route).toBe('/(app)/subscription')
+  })
+
+  it('routes approaching_limit to upgrade screen', () => {
+    const route = resolveNotificationRoute({
+      topic: 'approaching_limit',
+    })
+    expect(route).toBe('/(app)/subscription/upgrade')
+  })
+
+  it('routes plant_anniversary with single plant to plant screen', () => {
+    const route = resolveNotificationRoute({
+      topic: 'plant_anniversary',
+      plantIds: 'plant-7',
+    })
+    expect(route).toBe('/(app)/plant/plant-7')
+  })
+
+  it('routes plant_anniversary without plants to plants tab', () => {
+    const route = resolveNotificationRoute({
+      topic: 'plant_anniversary',
+    })
+    expect(route).toBe('/(app)/(tabs)/plants')
+  })
+
   it('returns null for unknown topic', () => {
     const route = resolveNotificationRoute({
       topic: 'something_new',
