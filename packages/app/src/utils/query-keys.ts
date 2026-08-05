@@ -100,6 +100,12 @@ export const queryKeys = {
     suggested: () => [...queryKeys.social.all, 'getSuggestedUsers'] as const,
   },
 
+  // Vacation domain
+  vacation: {
+    all: ['vacation'] as const,
+    state: () => [...queryKeys.vacation.all, 'getVacation'] as const,
+  },
+
   // Delegations domain
   delegations: {
     all: ['delegations'] as const,
@@ -127,5 +133,6 @@ export const invalidateKeys = {
   auth: queryKeys.auth.all,
   weather: queryKeys.weather.all,
   social: queryKeys.social.all,
+  vacation: queryKeys.vacation.all,
   delegations: queryKeys.delegations.all,
 } as const

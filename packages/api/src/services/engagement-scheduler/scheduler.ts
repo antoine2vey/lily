@@ -15,6 +15,8 @@ import { buildSimpleContent } from '@lily/api/services/notification-scheduler/tr
 import {
   daysAgoAsDate,
   daysSince,
+  isOnVacation,
+  nowAsDate,
   pickNotificationTime,
   withTimeZone,
 } from '@lily/shared'
@@ -592,10 +594,21 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
 
   const engagementRepo = yield* EngagementRepository
 
-  const [usersWithTips, usersWithCareReminders] = yield* Effect.all([
+  const [allUsersWithTips, allUsersWithCareReminders] = yield* Effect.all([
     engagementRepo.getUsersWithTipsEnabled(),
     engagementRepo.getUsersWithCareRemindersEnabled(),
   ])
+
+  // Engagement notifications are muted while the recipient is on vacation
+  const now = nowAsDate()
+  const usersWithTips = Array.filter(
+    allUsersWithTips,
+    (u) => !isOnVacation(u, now)
+  )
+  const usersWithCareReminders = Array.filter(
+    allUsersWithCareReminders,
+    (u) => !isOnVacation(u, now)
+  )
 
   if (!Array.isEmptyReadonlyArray(usersWithTips)) {
     yield* Effect.all([

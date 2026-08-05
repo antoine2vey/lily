@@ -1,4 +1,4 @@
-import { Array, Data, Schema } from 'effect'
+import { Array, Data, pipe, Record, Schema } from 'effect'
 
 // Notification topics - extensible for new notification types
 // Add new topics here - the worker will fail at compile/runtime if not handled
@@ -68,6 +68,15 @@ export const TOPIC_CATEGORY = {
   approaching_limit: 'engagement',
   plant_anniversary: 'engagement',
 } as const satisfies Record<NotificationTopic, TopicCategory>
+
+// Topics muted while the recipient is on vacation: everything except
+// 'social' (delegation requests/responses must still reach the user).
+// Derived from TOPIC_CATEGORY so new topics are classified automatically.
+export const VACATION_MUTED_TOPICS: ReadonlyArray<NotificationTopic> = pipe(
+  Record.toEntries(TOPIC_CATEGORY),
+  Array.filter(([, category]) => category !== 'social'),
+  Array.map(([topic]) => topic)
+)
 
 // Derive subset types from the category map — adding a topic to
 // NOTIFICATION_TOPICS requires adding it to TOPIC_CATEGORY, which

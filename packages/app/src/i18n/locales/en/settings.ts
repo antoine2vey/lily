@@ -28,6 +28,8 @@ export default {
     title: 'Notification Settings',
     push: 'Push Notifications',
     pushDescription: 'Receive reminders for plant care',
+    vacationMode: 'Vacation Mode',
+    vacationActiveUntil: 'Until {{date}}',
     careReminders: 'Care Reminders',
     careRemindersDescription:
       "Get reminded when it's time to water or fertilize",

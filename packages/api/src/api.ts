@@ -25,6 +25,7 @@ import {
 } from '@lily/api/services/subscriptions/api'
 import { UsersApi } from '@lily/api/services/user/api'
 import { UsernameApi } from '@lily/api/services/username/api'
+import { VacationApi } from '@lily/api/services/vacation/api'
 import { WeatherApi } from '@lily/api/services/weather/api'
 
 // Create API that includes all services
@@ -52,6 +53,7 @@ export const Api = HttpApi.make('Api')
   .add(SubscriptionWebhooksApi.prefix('/api'))
   .add(SocialApi.prefix('/api'))
   .add(DelegationApi.prefix('/api'))
+  .add(VacationApi.prefix('/api'))
   .add(WeatherApi.prefix('/api'))
   .add(KnowledgeIngestionApi.prefix('/api'))
   .add(InternalApi)

@@ -5,7 +5,7 @@ import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('checkUsername', () => {
-  const createTestLayer = () => createMockUserRepository(mockUsers)
+  const createTestLayer = () => createMockUserRepository([...mockUsers])
 
   it('should return available: true for unused username', async () => {
     const result = await Effect.runPromise(

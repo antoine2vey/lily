@@ -26,7 +26,7 @@ describe('updateStatus', () => {
     const result = await Effect.runPromise(
       updateStatus('user-1', 'suspended').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -38,7 +38,7 @@ describe('updateStatus', () => {
     const result = await Effect.runPromise(
       updateStatus('user-1', 'banned').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -50,7 +50,7 @@ describe('updateStatus', () => {
     const result = await Effect.runPromiseExit(
       updateStatus('non-existent', 'suspended').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )

@@ -1,6 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
-import type { LanguageCode } from '@lily/shared'
+import type { LanguageCode, VacationStatus } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 
 export interface UserNotificationSettings {
@@ -11,6 +11,9 @@ export interface UserNotificationSettings {
   doNotDisturbStart: string | null
   doNotDisturbEnd: string | null
   language: LanguageCode
+  vacationStatus: VacationStatus
+  vacationStart: Date | null
+  vacationEnd: Date | null
 }
 
 /**
@@ -62,6 +65,22 @@ export const getUserNotificationSettings = (
       Option.getOrElse(() => 'en' as const)
     )
 
+    const vacationStatus = pipe(
+      userOption,
+      Option.map((u) => u.vacationStatus),
+      Option.getOrElse(() => 'none' as const)
+    )
+    const vacationStart = pipe(
+      userOption,
+      Option.flatMap((u) => Option.fromNullable(u.vacationStart)),
+      Option.getOrNull
+    )
+    const vacationEnd = pipe(
+      userOption,
+      Option.flatMap((u) => Option.fromNullable(u.vacationEnd)),
+      Option.getOrNull
+    )
+
     return {
       timezone,
       preferredTime,
@@ -70,6 +89,9 @@ export const getUserNotificationSettings = (
       doNotDisturbStart,
       doNotDisturbEnd,
       language,
+      vacationStatus,
+      vacationStart,
+      vacationEnd,
     }
   })
 

@@ -20,7 +20,7 @@ const createTestLayer = (userId = 'user-1') =>
   Layer.mergeAll(
     createMockPlantRepository({ plants: mockPlants }),
     createMockCurrentUser({ id: userId }),
-    createMockUserRepository(mockUsers)
+    createMockUserRepository([...mockUsers])
   )
 
 // Caretaking plants for includeCaretaking tests
@@ -54,7 +54,7 @@ const createCaretakingTestLayer = (userId = 'user-1') =>
       caretakingPlants: mockCaretakingPlants,
     }),
     createMockCurrentUser({ id: userId }),
-    createMockUserRepository(mockUsers)
+    createMockUserRepository([...mockUsers])
   )
 
 describe('findPlants', () => {
@@ -262,7 +262,7 @@ describe('findPlants', () => {
           schedules: schedulesFromPlants(mockOverduePlants),
         }),
         createMockCurrentUser({ id: userId }),
-        createMockUserRepository(mockUsers)
+        createMockUserRepository([...mockUsers])
       )
 
     it('should return only plants with nextWateringAt <= end of today', async () => {

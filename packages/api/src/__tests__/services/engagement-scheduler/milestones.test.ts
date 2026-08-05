@@ -19,6 +19,9 @@ const makeUser = (
   doNotDisturbEnd: null,
   language: 'en',
   createdAt: daysAgo(30),
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
   ...overrides,
 })
 

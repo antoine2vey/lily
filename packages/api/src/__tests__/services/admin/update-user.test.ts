@@ -26,7 +26,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { name: 'Updated Name' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -38,7 +38,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { email: 'newemail@example.com' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -50,7 +50,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { bio: 'New bio description' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -62,7 +62,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { status: 'suspended' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -74,7 +74,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromiseExit(
       updateUser('non-existent', { name: 'New Name' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -110,7 +110,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { name: 'Only Name Updated' }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -127,7 +127,7 @@ describe('updateUser', () => {
         bio: 'New bio',
       }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -143,7 +143,7 @@ describe('updateUser', () => {
         image: 'https://example.com/new-avatar.png',
       }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -155,7 +155,7 @@ describe('updateUser', () => {
     const result = await Effect.runPromise(
       updateUser('user-1', { emailVerified: false }).pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )

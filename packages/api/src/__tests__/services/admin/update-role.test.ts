@@ -26,7 +26,7 @@ describe('updateRole', () => {
     const result = await Effect.runPromise(
       updateRole('user-1', 'admin').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -38,7 +38,7 @@ describe('updateRole', () => {
     const result = await Effect.runPromiseExit(
       updateRole('non-existent', 'admin').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )

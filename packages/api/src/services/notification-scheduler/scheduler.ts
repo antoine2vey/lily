@@ -7,6 +7,7 @@ import {
   buildNotificationContent,
 } from '@lily/api/services/notification-scheduler/translations'
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
+import { isOnVacation } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   type DeferredCareType,
@@ -110,6 +111,20 @@ export const pollAndEnqueue = Effect.gen(function* () {
           userId: notification.userId,
         }
       )
+      continue
+    }
+
+    // Safety net: skip care/engagement notifications while the recipient is
+    // on vacation (social topics still go out — e.g. delegation responses)
+    if (
+      user &&
+      TOPIC_CATEGORY[topic] !== 'social' &&
+      isOnVacation(user, currentTime)
+    ) {
+      yield* Effect.log('Skipping notification - user on vacation', {
+        id: notification.id,
+        userId: notification.userId,
+      })
       continue
     }
 

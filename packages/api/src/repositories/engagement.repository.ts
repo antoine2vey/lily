@@ -9,7 +9,7 @@ import {
   userSubscriptions,
   users,
 } from '@lily/db/schema'
-import type { LanguageCode } from '@lily/shared'
+import type { LanguageCode, VacationStatus } from '@lily/shared'
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
@@ -23,6 +23,9 @@ export interface UserWithSettings {
   readonly doNotDisturbEnd: string | null
   readonly language: LanguageCode
   readonly createdAt: Date
+  readonly vacationStatus: VacationStatus
+  readonly vacationStart: Date | null
+  readonly vacationEnd: Date | null
 }
 
 export interface PlantWithoutRecentPhoto {
@@ -122,6 +125,9 @@ export const EngagementRepositoryLive = Layer.effect(
       doNotDisturbEnd: users.doNotDisturbEnd,
       language: users.language,
       createdAt: users.createdAt,
+      vacationStatus: users.vacationStatus,
+      vacationStart: users.vacationStart,
+      vacationEnd: users.vacationEnd,
     }
 
     return {

@@ -13,6 +13,8 @@ import {
   AlreadySentTodayError,
   CareRemindersDisabledError,
   DEFAULT_TIMEZONE,
+  isOnVacation,
+  nowAsDate,
   type OverduePlant,
   pickNotificationTime,
   startOfTodayAsDate,
@@ -36,6 +38,10 @@ export const processUserOverdueReminders = (
     if (!settings.careReminders) {
       return yield* new CareRemindersDisabledError({ userId })
     }
+
+    // Owner on vacation: only reminders routed to a (non-vacationing)
+    // caretaker may go out; everything owner-bound is muted below.
+    const ownerOnVacation = isOnVacation(settings, nowAsDate())
 
     const timezone = pipe(
       Option.fromNullable(settings.timezone),
@@ -83,29 +89,66 @@ export const processUserOverdueReminders = (
       randomValue * 0.5 // clamp to [0, 0.5) to always prefer morning window
     )
 
-    // Create one notification per eligible plant, all sharing the same scheduledAt
-    yield* Effect.forEach(eligible, (plant) =>
-      Effect.gen(function* () {
-        // Route to caretaker when delegated
-        const caretakerId = yield* delegationRepo.findActiveCaretakerForPlant(
-          plant.id
+    // Resolve delegation routing per plant (caretaker when delegated)
+    const routed = yield* Effect.forEach(eligible, (plant) =>
+      delegationRepo
+        .findActiveCaretakerForPlant(plant.id)
+        .pipe(Effect.map((caretakerId) => ({ plant, caretakerId })))
+    )
+
+    // One settings fetch per distinct caretaker to check their vacation
+    const caretakerIds = pipe(
+      routed,
+      Array.filterMap(({ caretakerId }) => Option.fromNullable(caretakerId)),
+      Array.dedupe
+    )
+    const caretakerOnVacation = Record.fromEntries(
+      yield* Effect.forEach(caretakerIds, (caretakerId) =>
+        getUserNotificationSettings(caretakerId).pipe(
+          Effect.map(
+            (caretakerSettings) =>
+              [
+                caretakerId,
+                isOnVacation(caretakerSettings, nowAsDate()),
+              ] as const
+          )
         )
-        const targetUserId = pipe(
+      )
+    )
+
+    // Mute owner-bound reminders while the owner is on vacation, and
+    // caretaker-bound reminders while that caretaker is on vacation.
+    const deliverable = Array.filter(routed, ({ caretakerId }) =>
+      pipe(
+        Option.fromNullable(caretakerId),
+        Option.match({
+          onNone: () => !ownerOnVacation,
+          onSome: (id) =>
+            pipe(
+              Record.get(caretakerOnVacation, id),
+              Option.getOrElse(() => false),
+              (onVacation) => !onVacation
+            ),
+        })
+      )
+    )
+
+    // Create one notification per deliverable plant, sharing the same scheduledAt
+    yield* Effect.forEach(deliverable, ({ plant, caretakerId }) =>
+      scheduleDeferredCareNotification({
+        type: 'overdue_reminder',
+        userId: pipe(
           Option.fromNullable(caretakerId),
           Option.getOrElse(() => userId)
-        )
-
-        yield* scheduleDeferredCareNotification({
-          type: 'overdue_reminder',
-          userId: targetUserId,
-          plantId: plant.id,
-          scheduledAt,
-        })
+        ),
+        plantId: plant.id,
+        scheduledAt,
       })
     )
 
-    // Send a daily nudge when free-tier plants overflow the cap
-    if (overflowCount > 0) {
+    // Send a daily nudge when free-tier plants overflow the cap — but not
+    // while the owner is on vacation (engagement topics are muted).
+    if (overflowCount > 0 && !ownerOnVacation) {
       const alreadySentNudge =
         yield* notificationRepo.hasNotificationOfTypeTodayForUser(
           userId,
@@ -122,7 +165,7 @@ export const processUserOverdueReminders = (
       }
     }
 
-    return Array.length(eligible)
+    return Array.length(deliverable)
   }).pipe(
     Effect.withSpan('overdue-scheduler.processUser', { attributes: { userId } })
   )

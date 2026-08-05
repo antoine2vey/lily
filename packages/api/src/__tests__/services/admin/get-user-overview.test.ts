@@ -89,7 +89,7 @@ describe('getUserOverview', () => {
       getUserOverview('user-1').pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockUserRepository(mockUsers),
+            createMockUserRepository([...mockUsers]),
             createMockSubscriptionRepository({}),
             createMockCareLogRepository(
               [makeCareLog('cl-1'), makeCareLog('cl-2')],
@@ -131,7 +131,7 @@ describe('getUserOverview', () => {
       getUserOverview('non-existent').pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockUserRepository(mockUsers),
+            createMockUserRepository([...mockUsers]),
             createMockSubscriptionRepository({}),
             createMockCareLogRepository([]),
             createMockAchievementRepository({ achievements: [] }),
@@ -150,7 +150,7 @@ describe('getUserOverview', () => {
       getUserOverview('user-1').pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockUserRepository(mockUsers),
+            createMockUserRepository([...mockUsers]),
             createMockSubscriptionRepository({
               subscription: makeSubRow({
                 externalSubscriptionId: 'rc_123',
@@ -181,7 +181,7 @@ describe('getUserOverview', () => {
       getUserOverview('user-1').pipe(
         Effect.provide(
           Layer.mergeAll(
-            createMockUserRepository(mockUsers),
+            createMockUserRepository([...mockUsers]),
             createMockSubscriptionRepository({
               subscription: makeSubRow({ externalSubscriptionId: null }),
               tier: 'paid',

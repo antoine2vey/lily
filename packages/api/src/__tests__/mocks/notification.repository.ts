@@ -137,6 +137,24 @@ export const createMockNotificationRepository = (
         notificationsState.push(...toKeep)
       }),
 
+    deletePendingByUserIdAndTypes: (
+      userId: string,
+      types: ReadonlyArray<string>
+    ) =>
+      Effect.sync(() => {
+        const toKeep = Array.filter(
+          notificationsState,
+          (n) =>
+            !(
+              n.userId === userId &&
+              Array.contains(types, n.type) &&
+              n.status === 'pending'
+            )
+        )
+        notificationsState.length = 0
+        notificationsState.push(...toKeep)
+      }),
+
     hasNotificationToday: (_userId: string, _plantId: string) =>
       Effect.succeed(false),
 
