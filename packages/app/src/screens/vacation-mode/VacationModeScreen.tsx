@@ -38,7 +38,7 @@ export function VacationModeScreen() {
   const { t } = useTranslation(['vacation', 'common'])
   const iconColors = useIconColors()
 
-  const { data, isLoading, error, refetch: _refetch } = useVacation()
+  const { data, isLoading, error, apiError, refetch: _refetch } = useVacation()
   const refetch = _refetch as () => void
   const { mutate: setVacation, isPending: isSaving } = useSetVacation()
   const { mutate: cancelVacation, isPending: isCanceling } = useCancelVacation()
@@ -85,7 +85,7 @@ export function VacationModeScreen() {
     if (start === null) return
 
     setVacation(
-      { payload: { startDate: start, endDate: dateIdToUtcDate(endDate) } },
+      { startDate: start, endDate: dateIdToUtcDate(endDate) },
       {
         onSuccess: () => {
           toast.success(
@@ -124,21 +124,18 @@ export function VacationModeScreen() {
             : t('vacation:scheduled.cancel'),
           style: 'destructive',
           onPress: () =>
-            cancelVacation(
-              {},
-              {
-                onSuccess: () => {
-                  toast.success(
-                    isEnding
-                      ? t('vacation:toast.ended')
-                      : t('vacation:toast.canceled')
-                  )
-                },
-                onError: () => {
-                  toast.error(t('vacation:errors.generic'))
-                },
-              }
-            ),
+            cancelVacation(undefined, {
+              onSuccess: () => {
+                toast.success(
+                  isEnding
+                    ? t('vacation:toast.ended')
+                    : t('vacation:toast.canceled')
+                )
+              },
+              onError: () => {
+                toast.error(t('vacation:errors.generic'))
+              },
+            }),
         },
       ]
     )
@@ -147,7 +144,10 @@ export function VacationModeScreen() {
   const isInitialLoading = isLoading && !data
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
-  if (error) {
+  // The client resolves API failures as an Either (apiError) instead of a
+  // rejected query (error) — treat both as the error state, otherwise the
+  // screen would render null forever on a failed request.
+  if (error || apiError) {
     return (
       <View
         className="flex-1 bg-background dark:bg-background-dark items-center justify-center p-6"
