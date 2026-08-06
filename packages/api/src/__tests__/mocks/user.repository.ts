@@ -77,16 +77,25 @@ export const createMockUserRepository = (
         longitude: null,
         temperatureUnit: 'celsius',
         deletedAt: null,
+        vacationStatus: 'none',
+        vacationStart: null,
+        vacationEnd: null,
       }
       return Effect.succeed(newUser)
     },
 
     update: (id, data) => {
-      const userOption = Array.findFirst(users, (u) => u.id === id)
-      return Option.match(userOption, {
+      const idx = Array.findFirstIndex(users, (u) => u.id === id)
+      return Option.match(idx, {
         onNone: () => Effect.succeed(null),
-        onSome: (user) =>
-          Effect.succeed({ ...user, ...data, updatedAt: new Date() }),
+        onSome: (i) =>
+          Effect.sync(() => {
+            // Persist like the real repository so follow-up reads within
+            // the same test observe the update
+            const updated = { ...users[i]!, ...data, updatedAt: new Date() }
+            users[i] = updated
+            return updated
+          }),
       })
     },
 
@@ -202,6 +211,30 @@ export const createMockUserRepository = (
     },
 
     findExpiredDeletions: () => Effect.succeed([]),
+
+    findVacationsToActivate: (now: Date) =>
+      Effect.succeed(
+        Array.filter(
+          users,
+          (u) =>
+            u.vacationStatus === 'scheduled' &&
+            u.vacationStart !== null &&
+            u.vacationStart.getTime() <= now.getTime() &&
+            u.deletedAt === null
+        )
+      ),
+
+    findVacationsToEnd: (now: Date) =>
+      Effect.succeed(
+        Array.filter(
+          users,
+          (u) =>
+            u.vacationStatus === 'active' &&
+            u.vacationEnd !== null &&
+            u.vacationEnd.getTime() <= now.getTime() &&
+            u.deletedAt === null
+        )
+      ),
   }
 
   return Layer.succeed(UserRepository, repo)

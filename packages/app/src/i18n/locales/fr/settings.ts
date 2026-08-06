@@ -28,6 +28,8 @@ export default {
     title: 'Paramètres de notifications',
     push: 'Notifications push',
     pushDescription: 'Recevoir des rappels pour les soins des plantes',
+    vacationMode: 'Mode vacances',
+    vacationActiveUntil: 'Jusqu’au {{date}}',
     careReminders: 'Rappels de soins',
     careRemindersDescription:
       "Soyez rappelé quand c'est l'heure d'arroser ou de fertiliser",

@@ -5,6 +5,8 @@ import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
   DEFAULT_TIMEZONE,
   daysAgoAsDate,
+  isOnVacation,
+  nowAsDate,
   pickNotificationTime,
 } from '@lily/shared'
 import { Array, Config, DateTime, Effect, Option, Random } from 'effect'
@@ -78,8 +80,9 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     category: tip.category,
   })
 
-  // Find all users with tips enabled
-  const users = yield* engagementRepo.getUsersWithTipsEnabled()
+  // Find all users with tips enabled — minus those on vacation
+  const allUsers = yield* engagementRepo.getUsersWithTipsEnabled()
+  const users = Array.filter(allUsers, (u) => !isOnVacation(u, nowAsDate()))
 
   if (Array.isEmptyReadonlyArray(users)) return
 

@@ -3,6 +3,7 @@ import {
   type CareScheduleRow,
   type CareType,
   type ICareScheduleRepository,
+  type OwnerScheduleRow,
   type ScheduleWithPlant,
   type UpsertScheduleData,
 } from '@lily/api/repositories/care-schedule.repository'
@@ -133,6 +134,28 @@ export const createMockCareScheduleRepository = (
 
       return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))
     },
+
+    findByOwnerWithPlant: (userId: string) =>
+      Effect.succeed(
+        pipe(
+          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.flatMap((plant) =>
+            pipe(
+              Array.filter(schedulesData, (s) => s.plantId === plant.id),
+              Array.map(
+                (schedule): OwnerScheduleRow => ({
+                  schedule,
+                  plant: {
+                    id: plant.id,
+                    userId: plant.userId,
+                    remindersEnabled: plant.remindersEnabled,
+                  },
+                })
+              )
+            )
+          )
+        )
+      ),
 
     upsert: (
       plantId: string,

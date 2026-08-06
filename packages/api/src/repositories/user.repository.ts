@@ -6,6 +6,7 @@ import {
   nowAsDate,
   type UserRole,
   type UserStatus,
+  type VacationStatus,
 } from '@lily/shared'
 import {
   and,
@@ -14,6 +15,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  isNull,
   lte,
   or,
   sql,
@@ -56,6 +58,9 @@ export interface UpdateUserData {
   longitude?: number | null
   firstName?: string | null
   lastName?: string | null
+  vacationStatus?: VacationStatus
+  vacationStart?: Date | null
+  vacationEnd?: Date | null
 }
 
 export interface FindUsersFilters {
@@ -121,6 +126,12 @@ export interface IUserRepository {
   ) => Effect.Effect<typeof users.$inferSelect | null, SqlError>
   readonly findExpiredDeletions: (
     cutoffDate: Date
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
+  readonly findVacationsToActivate: (
+    now: Date
+  ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
+  readonly findVacationsToEnd: (
+    now: Date
   ) => Effect.Effect<Array<typeof users.$inferSelect>, SqlError>
 }
 
@@ -335,6 +346,32 @@ export const UserRepositoryLive = Layer.effect(
           .from(users)
           .where(eq(users.tips, true))
           .pipe(Effect.withSpan('UserRepository.findTipsEnabled')),
+
+      findVacationsToActivate: (now: Date) =>
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.vacationStatus, 'scheduled'),
+              lte(users.vacationStart, now),
+              isNull(users.deletedAt)
+            )
+          )
+          .pipe(Effect.withSpan('UserRepository.findVacationsToActivate')),
+
+      findVacationsToEnd: (now: Date) =>
+        db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.vacationStatus, 'active'),
+              lte(users.vacationEnd, now),
+              isNull(users.deletedAt)
+            )
+          )
+          .pipe(Effect.withSpan('UserRepository.findVacationsToEnd')),
     }
   })
 )

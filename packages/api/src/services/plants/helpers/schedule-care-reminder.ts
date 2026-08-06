@@ -8,6 +8,7 @@ import {
   calculateScheduledAt,
 } from '@lily/api/services/notifications/timezone-scheduler'
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
+import { isOnVacation, nowAsDate } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 
 export type CareReminderType =
@@ -67,6 +68,13 @@ export const scheduleCareReminder = (
 
     // Skip if user has disabled care reminders globally
     if (!settings.careReminders) {
+      return
+    }
+
+    // Skip if the recipient is on vacation. Because this checks the
+    // *recipient* (caretaker when delegated), caretaker-routed reminders
+    // survive the owner's vacation, and a vacationing caretaker is muted.
+    if (isOnVacation(settings, nowAsDate())) {
       return
     }
 

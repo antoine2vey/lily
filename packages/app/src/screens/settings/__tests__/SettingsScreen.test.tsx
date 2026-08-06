@@ -17,6 +17,13 @@ jest.mock('@/utils/client', () => ({
 }))
 
 // Mock dependencies
+jest.mock('@/hooks/useVacation', () => ({
+  useVacation: jest.fn(() => ({
+    data: { status: 'none', startDate: null, endDate: null },
+    isLoading: false,
+  })),
+}))
+
 jest.mock('@/hooks/useUser', () => ({
   useUser: jest.fn(),
 }))

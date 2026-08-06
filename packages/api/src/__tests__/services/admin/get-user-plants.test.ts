@@ -14,7 +14,7 @@ describe('getUserPlants', () => {
     createTestPlant({ id: 'p3', userId: 'user-1' }),
   ]
   const layer = Layer.mergeAll(
-    createMockUserRepository(mockUsers),
+    createMockUserRepository([...mockUsers]),
     createMockPlantRepository({ plants })
   )
 

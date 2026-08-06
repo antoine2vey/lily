@@ -243,7 +243,7 @@ describe('findCareTasks', () => {
         plants,
       }),
       createMockCurrentUser({ id: userId }),
-      createMockUserRepository(mockUsers)
+      createMockUserRepository([...mockUsers])
     )
 
   it('should return tasks grouped by overdue, today, and upcoming', async () => {
@@ -516,7 +516,7 @@ describe('findCareTasks', () => {
           plants: tzPlants,
         }),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockUserRepository(mockUsers),
+        createMockUserRepository([...mockUsers]),
         createMockCareLogRepository([])
       )
 
@@ -783,7 +783,7 @@ describe('findCareTasks', () => {
           })),
         }),
         createMockCurrentUser({ id: 'user-1' }),
-        createMockUserRepository(mockUsers),
+        createMockUserRepository([...mockUsers]),
         createMockCareLogRepository([])
       )
 

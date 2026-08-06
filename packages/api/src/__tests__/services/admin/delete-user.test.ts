@@ -26,7 +26,7 @@ describe('deleteUser', () => {
     const result = await Effect.runPromise(
       deleteUser('user-1').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )
@@ -38,7 +38,7 @@ describe('deleteUser', () => {
     const result = await Effect.runPromiseExit(
       deleteUser('non-existent').pipe(
         Effect.provide(
-          Layer.merge(createMockUserRepository(mockUsers), mockAdminLayer)
+          Layer.merge(createMockUserRepository([...mockUsers]), mockAdminLayer)
         )
       )
     )

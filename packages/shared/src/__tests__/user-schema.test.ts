@@ -47,6 +47,9 @@ const validUser = {
   longitude: null,
   temperatureUnit: 'celsius' as const,
   deletedAt: null,
+  vacationStatus: 'none' as const,
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 describe('User Schemas', () => {

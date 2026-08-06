@@ -25,6 +25,7 @@ import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useSkipWaitingPreference } from '@/hooks/useSkipWaitingPreference'
+import { useVacation } from '@/hooks/useVacation'
 import { CareContentSkeleton } from '@/screens/care/components/CareContentSkeleton'
 import { CareTaskCard } from '@/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from '@/screens/care/components/DelegatedTasksSection'
@@ -51,11 +52,12 @@ const calculateDaysUntilDue = (dueDate: Date): number =>
   )
 
 export function CareScreen() {
-  const { t, i18n } = useTranslation('care')
+  const { t, i18n } = useTranslation(['care', 'vacation'])
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const tabBarInset = useTabBarInset()
   const { data: tasks, isLoading, isRefetching, refetch } = useCareTasks()
+  const { data: vacation } = useVacation()
   const { mutate: completeTask } = useCompleteTask()
   const { skipWaiting, setSkipWaiting } = useSkipWaitingPreference()
   const today = DateTime.unsafeNow()
@@ -234,6 +236,26 @@ export function CareScreen() {
               </Animated.View>
             ) : isInitialLoading ? null : (
               <Animated.View entering={FadeIn.duration(300)}>
+                {vacation?.status === 'active' && (
+                  <Pressable
+                    onPress={() => router.push('/vacation-mode')}
+                    className="flex-row items-center rounded-2xl p-4 mb-4 bg-primary-tint dark:bg-primary/20 border border-primary/30 active:opacity-80"
+                  >
+                    <MaterialIcons
+                      name="beach-access"
+                      size={22}
+                      color={iconColors.primary}
+                    />
+                    <Text className="flex-1 ml-3 text-sm font-medium text-text-primary dark:text-white">
+                      {t('vacation:banner.active')}
+                    </Text>
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={20}
+                      color={iconColors.primary}
+                    />
+                  </Pressable>
+                )}
                 {totalTasks === 0 && (
                   <View className="items-center py-12">
                     <MaterialIcons

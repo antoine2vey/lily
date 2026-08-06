@@ -72,6 +72,16 @@ export const delegationStatusEnum = pgEnum('delegation_status', [
 
 export const languageCodeEnum = pgEnum('language_code', ['en', 'fr'])
 
+// Vacation mode lifecycle: 'scheduled' between set-up and vacation_start,
+// 'active' until the end-routine has shifted schedules back, then 'none'.
+// The end-routine flips to 'none' only after the shift completes, so an
+// 'active' row past vacation_end means "end pending" (crash-safe retry).
+export const userVacationStatusEnum = pgEnum('user_vacation_status', [
+  'none',
+  'scheduled',
+  'active',
+])
+
 export const careTypeEnum = pgEnum('care_type', [
   'watering',
   'fertilization',

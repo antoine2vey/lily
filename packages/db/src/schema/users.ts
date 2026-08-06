@@ -6,6 +6,7 @@ import {
   temperatureUnitEnum,
   userRoleEnum,
   userStatusEnum,
+  userVacationStatusEnum,
 } from '@lily/db/schema/enums'
 import { deviceTokens, notifications } from '@lily/db/schema/notifications'
 import { oauthIdentities } from '@lily/db/schema/oauth-identities'
@@ -78,6 +79,11 @@ export const users = pgTable('users', {
   temperatureUnit: temperatureUnitEnum('temperature_unit')
     .notNull()
     .default('celsius'),
+  vacationStatus: userVacationStatusEnum('vacation_status')
+    .notNull()
+    .default('none'),
+  vacationStart: timestamp('vacation_start', { withTimezone: true }),
+  vacationEnd: timestamp('vacation_end', { withTimezone: true }),
 })
 
 export const usersRelations = relations(users, ({ many, one }) => ({

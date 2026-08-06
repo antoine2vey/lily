@@ -20,7 +20,7 @@ describe('uploadAvatar', () => {
 
   const createTestLayer = () =>
     Layer.mergeAll(
-      createMockUserRepository(mockUsers),
+      createMockUserRepository([...mockUsers]),
       createMockGCSService(),
       createMockFileService(),
       createMockFileSystem(),
@@ -38,7 +38,7 @@ describe('uploadAvatar', () => {
 
   it('should fail when user not found', async () => {
     const layer = Layer.mergeAll(
-      createMockUserRepository(mockUsers),
+      createMockUserRepository([...mockUsers]),
       createMockGCSService(),
       createMockFileService(),
       createMockFileSystem(),

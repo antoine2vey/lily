@@ -8,7 +8,7 @@ describe('getUser', () => {
   it('should return user when found', async () => {
     const result = await Effect.runPromise(
       getUser('user-1').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
+        Effect.provide(createMockUserRepository([...mockUsers]))
       )
     )
 
@@ -19,7 +19,7 @@ describe('getUser', () => {
   it('should fail with UserNotFoundError when user not found', async () => {
     const result = await Effect.runPromiseExit(
       getUser('non-existent').pipe(
-        Effect.provide(createMockUserRepository(mockUsers))
+        Effect.provide(createMockUserRepository([...mockUsers]))
       )
     )
 

@@ -37,6 +37,9 @@ export const mockUser1: User = {
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 export const mockUser2: User = {
@@ -73,6 +76,9 @@ export const mockUser2: User = {
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 export const mockUsers: User[] = [mockUser1, mockUser2]
@@ -111,6 +117,9 @@ export const mockAdminUser: User = {
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 export const mockSuspendedUser: User = {
@@ -147,6 +156,9 @@ export const mockSuspendedUser: User = {
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 export const makeUserWithSettings = (
@@ -160,6 +172,9 @@ export const makeUserWithSettings = (
   doNotDisturbEnd: null,
   language: 'en',
   createdAt: daysAgoAsDate(30),
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
   ...overrides,
 })
 
@@ -197,5 +212,8 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
   ...overrides,
 })

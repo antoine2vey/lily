@@ -1,7 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { TemperatureUnit } from '@lily/shared'
+import {
+  formatShortDate,
+  parseApiDate,
+  type TemperatureUnit,
+} from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, Match, pipe } from 'effect'
+import { Array, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
@@ -16,6 +20,7 @@ import { useLocalization } from '@/hooks/useLocalization'
 import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
 import { useTheme } from '@/hooks/useTheme'
 import { useUser } from '@/hooks/useUser'
+import { useVacation } from '@/hooks/useVacation'
 import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
 import { LanguageSelectionModal } from '@/screens/settings/components/LanguageSelectionModal'
 import { SettingsMenuItem } from '@/screens/settings/components/SettingsMenuItem'
@@ -44,9 +49,23 @@ export function SettingsScreen() {
   const { resetWelcome } = useWelcomeSeen()
   const { theme, setTheme } = useTheme()
   const { t, language, supportedLanguages } = useLocalization()
+  const { data: vacation } = useVacation()
   const [showThemeModal, setShowThemeModal] = useState(false)
   const [showLanguageModal, setShowLanguageModal] = useState(false)
   const [showTempUnitModal, setShowTempUnitModal] = useState(false)
+
+  const vacationValue = pipe(
+    Option.fromNullable(vacation),
+    Option.filter((v) => v.status === 'active'),
+    Option.flatMap((v) => Option.fromNullable(v.endDate)),
+    Option.flatMap((d) => parseApiDate(d)),
+    Option.map((dt) =>
+      t('settings:notifications.vacationActiveUntil', {
+        date: formatShortDate(dt),
+      })
+    ),
+    Option.getOrUndefined
+  )
 
   const currentTempUnit: TemperatureUnit =
     userSettings?.temperatureUnit ?? 'celsius'
@@ -211,7 +230,20 @@ export function SettingsScreen() {
                 />
               }
               title={t('settings:notifications.push')}
+              showBorder
               onPress={() => router.push('/notification-settings')}
+            />
+            <SettingsMenuItem
+              icon={
+                <MaterialIcons
+                  name="beach-access"
+                  size={22}
+                  color={iconColors.primary}
+                />
+              }
+              title={t('settings:notifications.vacationMode')}
+              {...(vacationValue ? { value: vacationValue } : {})}
+              onPress={() => router.push('/vacation-mode')}
             />
           </View>
         </View>

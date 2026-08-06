@@ -1,5 +1,7 @@
 import { Schema } from 'effect'
 
+import { VacationStatus } from '../vacation/schema'
+
 // Role, status, and language literals
 export const UserRole = Schema.Literal('user', 'admin')
 export const UserStatus = Schema.Literal(
@@ -50,6 +52,9 @@ export const User = Schema.Struct({
   longitude: Schema.NullOr(Schema.Number),
   temperatureUnit: TemperatureUnit,
   deletedAt: Schema.NullOr(Schema.Date),
+  vacationStatus: VacationStatus,
+  vacationStart: Schema.NullOr(Schema.Date),
+  vacationEnd: Schema.NullOr(Schema.Date),
 })
 
 export const UserCreateRequest = Schema.Struct({

@@ -69,7 +69,7 @@ describe('correctCareDates', () => {
         createMockPlantRepository({ plants }),
         createMockCareLogRepository(careLogs),
         createMockNotificationRepository([]),
-        createMockUserRepository(mockUsers),
+        createMockUserRepository([...mockUsers]),
         createMockCurrentUser({ id: 'user-1' }),
         createMockDelegationRepository(),
         createMockCareScheduleRepository({ schedules, plants })

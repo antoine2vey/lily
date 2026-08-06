@@ -592,4 +592,186 @@ describe('scheduleCareReminder', () => {
       expect(pending).toHaveLength(0)
     })
   })
+
+  describe('vacation muting', () => {
+    const createActiveDelegation = (
+      ownerId: string,
+      caretakerId: string
+    ): DelegationRow => ({
+      id: 'delegation-1',
+      ownerId,
+      caretakerId,
+      status: 'active',
+      message: null,
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-12-31'),
+      respondedAt: null,
+      canceledAt: null,
+      completedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    it('should not create notification when recipient is on active vacation', async () => {
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        timezone: 'UTC',
+        vacationStatus: 'active',
+        vacationStart: createFutureDate(-3),
+        vacationEnd: createFutureDate(4),
+      })
+
+      const pending = await runAndGetPendingNotifications(
+        {
+          plantId: 'plant-1',
+          userId: user.id,
+          type: 'watering_reminder',
+          scheduledDate: createFutureDate(7),
+          remindersEnabled: true,
+        },
+        user
+      )
+
+      expect(pending).toHaveLength(0)
+    })
+
+    it('should not create notification when scheduled vacation has already started', async () => {
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        timezone: 'UTC',
+        vacationStatus: 'scheduled',
+        vacationStart: createFutureDate(-1),
+        vacationEnd: createFutureDate(6),
+      })
+
+      const pending = await runAndGetPendingNotifications(
+        {
+          plantId: 'plant-1',
+          userId: user.id,
+          type: 'watering_reminder',
+          scheduledDate: createFutureDate(7),
+          remindersEnabled: true,
+        },
+        user
+      )
+
+      expect(pending).toHaveLength(0)
+    })
+
+    it('should create notification when vacation is only scheduled for the future', async () => {
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        timezone: 'UTC',
+        vacationStatus: 'scheduled',
+        vacationStart: createFutureDate(10),
+        vacationEnd: createFutureDate(20),
+      })
+
+      const pending = await runAndGetPendingNotifications(
+        {
+          plantId: 'plant-1',
+          userId: user.id,
+          type: 'watering_reminder',
+          scheduledDate: createFutureDate(7),
+          remindersEnabled: true,
+        },
+        user
+      )
+
+      expect(pending).toHaveLength(1)
+    })
+
+    it('should route to caretaker when owner is on vacation and plant is delegated', async () => {
+      const owner = createTestUser({
+        id: 'owner-1',
+        careReminders: true,
+        vacationStatus: 'active',
+        vacationStart: createFutureDate(-3),
+        vacationEnd: createFutureDate(4),
+      })
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        timezone: 'UTC',
+      })
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(caretaker.id)
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      // Owner is away, but the caretaker cares for the plant — reminder survives
+      expect(pending).toHaveLength(1)
+      expect(pending[0]?.userId).toBe(caretaker.id)
+    })
+
+    it('should not create notification when the caretaker is on vacation', async () => {
+      const owner = createTestUser({ id: 'owner-1', careReminders: true })
+      const caretaker = createTestUser({
+        id: 'caretaker-1',
+        careReminders: true,
+        vacationStatus: 'active',
+        vacationStart: createFutureDate(-3),
+        vacationEnd: createFutureDate(4),
+      })
+      const delegation = createActiveDelegation(owner.id, caretaker.id)
+
+      const pending = await Effect.runPromise(
+        Effect.gen(function* () {
+          yield* scheduleCareReminder({
+            plantId: 'plant-1',
+            userId: owner.id,
+            type: 'watering_reminder',
+            scheduledDate: createFutureDate(7),
+            remindersEnabled: true,
+          })
+          const repo = yield* NotificationRepository
+          return yield* repo.findPendingByUserId(caretaker.id)
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository([]),
+              createMockUserRepository([owner, caretaker]),
+              createMockDelegationRepository({
+                delegations: [delegation],
+                delegationPlants: [
+                  { delegationId: delegation.id, plantId: 'plant-1' },
+                ],
+              })
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+
+      expect(pending).toHaveLength(0)
+    })
+  })
 })

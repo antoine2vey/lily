@@ -28,6 +28,15 @@ export interface ScheduleWithPlant {
   }
 }
 
+export interface OwnerScheduleRow {
+  schedule: CareScheduleRow
+  plant: {
+    id: string
+    userId: string
+    remindersEnabled: boolean
+  }
+}
+
 export interface UpsertScheduleData {
   frequencyDays: number
   lastCareAt?: Date | null
@@ -51,6 +60,9 @@ export interface ICareScheduleRepository {
     Record<string, Array<OverduePlant>>,
     SqlError
   >
+  readonly findByOwnerWithPlant: (
+    userId: string
+  ) => Effect.Effect<Array<OwnerScheduleRow>, SqlError>
   readonly upsert: (
     plantId: string,
     careType: CareType,
@@ -195,6 +207,23 @@ export const CareScheduleRepositoryLive = Layer.effect(
           return Array.groupBy(mapped, (p) => p.userId)
         }
       ),
+
+      findByOwnerWithPlant: Effect.fn(
+        'CareScheduleRepository.findByOwnerWithPlant'
+      )(function* (userId: string) {
+        return yield* db
+          .select({
+            schedule: plantCareSchedules,
+            plant: {
+              id: plants.id,
+              userId: plants.userId,
+              remindersEnabled: plants.remindersEnabled,
+            },
+          })
+          .from(plantCareSchedules)
+          .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
+          .where(eq(plants.userId, userId))
+      }),
 
       upsert: Effect.fn('CareScheduleRepository.upsert')(function* (
         plantId: string,

@@ -82,6 +82,10 @@ export interface INotificationRepository {
     plantId: string,
     type: NotificationTopic
   ) => Effect.Effect<void, SqlError>
+  readonly deletePendingByUserIdAndTypes: (
+    userId: string,
+    types: ReadonlyArray<NotificationTopic>
+  ) => Effect.Effect<void, SqlError>
   readonly hasNotificationToday: (
     userId: string,
     plantId: string
@@ -252,6 +256,21 @@ export const NotificationRepositoryLive = Layer.effect(
             and(
               eq(notifications.plantId, plantId),
               eq(notifications.type, type),
+              eq(notifications.status, 'pending')
+            )
+          )
+      }),
+
+      deletePendingByUserIdAndTypes: Effect.fn(
+        'NotificationRepository.deletePendingByUserIdAndTypes'
+      )(function* (userId: string, types: ReadonlyArray<NotificationTopic>) {
+        if (types.length === 0) return
+        yield* db
+          .delete(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              inArray(notifications.type, [...types]),
               eq(notifications.status, 'pending')
             )
           )

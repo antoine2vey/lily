@@ -16,6 +16,7 @@ import profile from './profile'
 import rooms from './rooms'
 import settings from './settings'
 import subscription from './subscription'
+import vacation from './vacation'
 import welcome from './welcome'
 
 export default {
@@ -37,5 +38,6 @@ export default {
   plantDetail,
   logCare,
   notifications,
+  vacation,
   welcome,
 } as const

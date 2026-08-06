@@ -29,7 +29,7 @@ const baseLayers = (
   opts: Parameters<typeof createMockSubscriptionRepository>[0] = {}
 ) =>
   Layer.mergeAll(
-    createMockUserRepository(mockUsers),
+    createMockUserRepository([...mockUsers]),
     createMockSubscriptionRepository(opts),
     createMockNotificationRepository([]),
     createMockMessageQueue(),

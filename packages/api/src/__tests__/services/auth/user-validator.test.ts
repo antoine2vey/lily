@@ -40,6 +40,9 @@ const mockUser: User = {
   longitude: null,
   temperatureUnit: 'celsius',
   deletedAt: null,
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
 }
 
 const adminUser: User = {

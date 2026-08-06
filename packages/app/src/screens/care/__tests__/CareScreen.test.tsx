@@ -10,6 +10,13 @@ jest.mock('sonner-native', () => ({
   },
 }))
 
+jest.mock('@/hooks/useVacation', () => ({
+  useVacation: jest.fn(() => ({
+    data: { status: 'none', startDate: null, endDate: null },
+    isLoading: false,
+  })),
+}))
+
 jest.mock('@/hooks/useCareTasks', () => ({
   useCareTasks: jest.fn(),
 }))

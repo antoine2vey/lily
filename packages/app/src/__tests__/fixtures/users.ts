@@ -35,6 +35,9 @@ export const mockUsers: User[] = [
     deletedAt: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
+    vacationStatus: 'none',
+    vacationStart: null,
+    vacationEnd: null,
   },
   {
     id: 'user-2',
@@ -70,6 +73,9 @@ export const mockUsers: User[] = [
     deletedAt: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
+    vacationStatus: 'none',
+    vacationStart: null,
+    vacationEnd: null,
   },
 ]
 
@@ -109,5 +115,8 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   deletedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
+  vacationStatus: 'none',
+  vacationStart: null,
+  vacationEnd: null,
   ...overrides,
 })

@@ -11,7 +11,13 @@ import {
 } from '@lily/api/services/helpers/process-users'
 import { resolveTimezone } from '@lily/api/services/helpers/resolve-timezone'
 import { buildSimpleContent } from '@lily/api/services/notification-scheduler/translations'
-import { daysAgoAsDate, pickNotificationTime, withTimeZone } from '@lily/shared'
+import {
+  daysAgoAsDate,
+  isOnVacation,
+  nowAsDate,
+  pickNotificationTime,
+  withTimeZone,
+} from '@lily/shared'
 import { Array, DateTime, Effect, Random } from 'effect'
 
 // Only send on Sunday
@@ -88,8 +94,14 @@ const checkAndCreateWeeklyRecap = Effect.gen(function* () {
   yield* Effect.log('Running weekly recap check...')
 
   const engagementRepo = yield* EngagementRepository
-  const usersWithDigest =
+  const allUsersWithDigest =
     yield* engagementRepo.getUsersWithWeeklyDigestEnabled()
+
+  // Weekly recap is an engagement notification — muted during vacation
+  const usersWithDigest = Array.filter(
+    allUsersWithDigest,
+    (u) => !isOnVacation(u, nowAsDate())
+  )
 
   if (Array.isEmptyReadonlyArray(usersWithDigest)) return
 
