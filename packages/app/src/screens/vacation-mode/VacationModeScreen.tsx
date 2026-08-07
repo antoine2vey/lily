@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatShortDate, parseApiDate } from '@lily/shared'
 import { toDateId } from '@marceloterreiro/flash-calendar'
-import { DateTime, Match, Option, pipe } from 'effect'
+import { DateTime, Duration, Match, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -84,8 +84,22 @@ export function VacationModeScreen() {
     )
     if (start === null) return
 
+    // A single-day selection (first calendar tap sets start = end) means
+    // "away that whole day" — extend the end to the next midnight so the
+    // vacation covers the picked day instead of being rejected by the
+    // server's end-after-start validation.
+    const end =
+      !isActive && startDate === endDate
+        ? DateTime.toDateUtc(
+            DateTime.addDuration(
+              DateTime.unsafeMake(dateIdToUtcDate(endDate)),
+              Duration.days(1)
+            )
+          )
+        : dateIdToUtcDate(endDate)
+
     setVacation(
-      { startDate: start, endDate: dateIdToUtcDate(endDate) },
+      { startDate: start, endDate: end },
       {
         onSuccess: () => {
           toast.success(
