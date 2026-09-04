@@ -10,7 +10,7 @@ import type { DelegationRow } from '@lily/api/repositories/delegation.repository
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Fixed scenario, user timezone Europe/Paris (UTC+2 in August):
 //   vacationStart  = 2026-08-10T00:00:00Z (local day Aug 10)
@@ -43,6 +43,10 @@ const buildScenario = () => {
     id: 'plant-delegated',
     userId: owner.id,
   })
+  const plantDelegatedFuture = createTestPlant({
+    id: 'plant-delegated-future',
+    userId: owner.id,
+  })
 
   const schedules: CareScheduleRow[] = [
     // Overdue before the vacation even started: clamped to the floor
@@ -63,11 +67,19 @@ const buildScenario = () => {
       careType: 'watering',
       nextCareAt: new Date('2026-08-29T00:00:00.000Z'),
     }),
-    // Delegated plant that fell due mid-vacation: the caretaker handled it
+    // Delegated plant that fell due mid-vacation: the caretaker handled it.
+    // Not shifted, and — being past due at the effective end — not rebuilt
+    // either; the overdue scheduler owns it from here.
     createTestSchedule({
       plantId: plantDelegated.id,
       careType: 'watering',
       nextCareAt: new Date('2026-08-13T00:00:00.000Z'),
+    }),
+    // Delegated plant due after the vacation: reminder rebuilt for the caretaker
+    createTestSchedule({
+      plantId: plantDelegatedFuture.id,
+      careType: 'watering',
+      nextCareAt: new Date('2026-08-25T00:00:00.000Z'),
     }),
   ]
 
@@ -94,12 +106,19 @@ const buildScenario = () => {
     createMockNotificationRepository(notifications),
     createMockCareScheduleRepository({
       schedules,
-      plants: [plantOverdue, plantMid, plantFuture, plantDelegated],
+      plants: [
+        plantOverdue,
+        plantMid,
+        plantFuture,
+        plantDelegated,
+        plantDelegatedFuture,
+      ],
     }),
     createMockDelegationRepository({
       delegations: [delegation],
       delegationPlants: [
         { delegationId: delegation.id, plantId: plantDelegated.id },
+        { delegationId: delegation.id, plantId: plantDelegatedFuture.id },
       ],
     })
   )
@@ -123,6 +142,19 @@ const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
   ) as Promise<void>
 
 describe('endVacation', () => {
+  // endVacation rebuilds reminders only for schedules due after the real
+  // clock, so pin "now" to the moment the vacation ends. Without this the
+  // fixed August fixtures silently fall into the past once the calendar
+  // moves on and the reminder assertions stop seeing any rows.
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(EFFECTIVE_END)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('should shift mid-vacation schedules by the whole-day delta', async () => {
     const { owner, schedules, layer } = buildScenario()
 
@@ -213,7 +245,9 @@ describe('endVacation', () => {
     expect(byPlant('plant-overdue')?.userId).toBe(owner.id)
     expect(byPlant('plant-mid')?.userId).toBe(owner.id)
     expect(byPlant('plant-future')?.userId).toBe(owner.id)
-    expect(byPlant('plant-delegated')?.userId).toBe(caretaker.id)
+    expect(byPlant('plant-delegated-future')?.userId).toBe(caretaker.id)
+    // Past due and unshifted: left to the overdue scheduler, no reminder row.
+    expect(byPlant('plant-delegated')).toBeNull()
   })
 
   it('should be a no-op when rerun after completion (crash-retry safety)', async () => {
