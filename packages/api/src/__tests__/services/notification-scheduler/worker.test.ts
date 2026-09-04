@@ -1,8 +1,11 @@
+import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   createTestDeviceToken,
   mockDeviceTokens,
 } from '@lily/api/__tests__/fixtures/device-tokens'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
+import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -25,9 +28,14 @@ import {
   handleFailedMessage,
   processMessage,
 } from '@lily/api/services/notification-scheduler/worker'
+import type { ActivityPushToken } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
-import type { PushMessage, QueueMessage } from '@lily/shared/server'
+import type {
+  LiveActivityPushMessage,
+  PushMessage,
+  QueueMessage,
+} from '@lily/shared/server'
 import { Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -753,5 +761,99 @@ describe('Notification Worker', () => {
     // Note: Tests for retry/DLQ logic with consumeFromTopic are skipped because
     // the exponential backoff schedule makes them too slow. The retry and DLQ
     // logic is already tested via handleFailedMessage tests above.
+  })
+
+  describe('Live Activity start guard', () => {
+    const startToken = (
+      overrides: Partial<ActivityPushToken> = {}
+    ): ActivityPushToken => ({
+      id: 'apt-1',
+      userId: 'user-1',
+      deviceTokenId: 'token-1',
+      kind: 'start',
+      activityId: null,
+      token: 'start-token-1',
+      status: 'active',
+      startedAt: new Date(),
+      endsAt: null,
+      lastConfirmedAt: null,
+      lastFailedAt: null,
+      lastStartSentAt: null,
+      updatedAt: new Date(),
+      ...overrides,
+    })
+
+    // One plant due for watering today so buildLiveActivityContentState
+    // yields a card, plus a single push-to-start token and no active update
+    // row — the pure "start" path.
+    const runWithStartToken = async (
+      token: ActivityPushToken,
+      runs: number
+    ): Promise<LiveActivityPushMessage[]> => {
+      const laMessages: LiveActivityPushMessage[] = []
+      const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+      const layer = Layer.mergeAll(
+        MockAlerterLive,
+        createMockPushService({
+          onSendLiveActivity: (m) => laMessages.push(m),
+        }),
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        createMockNotificationRepository([
+          createTestNotification({
+            id: 'notification-1',
+            userId: 'user-1',
+            status: 'queued',
+          }),
+        ]),
+        createMockActivityPushTokenRepository({ tokens: [token] }),
+        createMockCareScheduleRepository({
+          plants: [plant],
+          schedules: [
+            createTestSchedule({
+              plantId: 'plant-1',
+              careType: 'watering',
+              nextCareAt: new Date(Date.now() - 60_000),
+            }),
+          ],
+        }),
+        createMockCareLogRepository([]),
+        createMockUserRepository([
+          createTestUser({ id: 'user-1', timezone: 'UTC' }),
+        ])
+      )
+      const message = createTestQueueMessage({ topic: 'watering_reminder' })
+      for (let i = 0; i < runs; i++) {
+        await Effect.runPromise(
+          processMessage(message).pipe(
+            Effect.provide(layer),
+            Logger.withMinimumLogLevel(LogLevel.None)
+          )
+        )
+      }
+      return laMessages
+    }
+
+    it('starts exactly one activity when the same user is processed twice', async () => {
+      const laMessages = await runWithStartToken(startToken(), 2)
+      const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
+      expect(starts).toHaveLength(1)
+    })
+
+    it('skips the start when one was dispatched inside the cooldown', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({ lastStartSentAt: new Date(Date.now() - 5 * 60_000) }),
+        1
+      )
+      expect(laMessages).toHaveLength(0)
+    })
+
+    it('starts again once the cooldown has elapsed', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({ lastStartSentAt: new Date(Date.now() - 16 * 60_000) }),
+        1
+      )
+      const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
+      expect(starts).toHaveLength(1)
+    })
   })
 })

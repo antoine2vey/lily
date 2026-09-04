@@ -41,6 +41,11 @@ export const activityPushTokens = pgTable(
     // Set when an APNs send returns a non-success status. Reserved for a
     // future change-detection / circuit-breaker pass; not load-bearing yet.
     lastFailedAt: timestamp('last_failed_at', { withTimezone: true }),
+    // Start rows only: when we last dispatched a push-to-start to this device.
+    // The worker refuses to start another activity within a short cooldown so
+    // a retry or an adjacent scheduler poll cannot create two identical cards
+    // before the device has registered its update token.
+    lastStartSentAt: timestamp('last_start_sent_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()

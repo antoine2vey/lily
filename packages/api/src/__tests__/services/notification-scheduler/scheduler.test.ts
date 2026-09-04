@@ -353,7 +353,7 @@ describe('Notification Scheduler', () => {
       ])
     })
 
-    it('should send separate messages per care type for same user', async () => {
+    it('merges every care type for the same user into one message', async () => {
       const enqueuedMessages: {
         topic: NotificationTopic
         message: QueueMessage
@@ -388,10 +388,225 @@ describe('Notification Scheduler', () => {
         [plant1, plant2]
       )
 
-      expect(enqueuedMessages).toHaveLength(2)
-      const topics = Arr.map(enqueuedMessages, (m) => m.topic)
-      expect(topics).toContain('watering_reminder')
-      expect(topics).toContain('fertilization_reminder')
+      expect(enqueuedMessages).toHaveLength(1)
+      const [only] = enqueuedMessages
+      // Watering outranks fertilization in CARE_TOPIC_PRIORITY.
+      expect(only?.topic).toBe('watering_reminder')
+      expect(only?.message.payload.notificationIds).toEqual([
+        'water-1',
+        'fert-1',
+      ])
+      expect(only?.message.payload.plantIds).toEqual(['plant-1', 'plant-2'])
+      expect(only?.message.payload.title).toBe('🌱 2 plants need care today')
+      expect(only?.message.payload.body).toBe(
+        'Monstera (watering), Pothos (fertilizing)'
+      )
+    })
+
+    it('merges watering + misting for one plant into a single banner', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'water-1',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'mist-1',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      const [only] = enqueuedMessages
+      expect(only?.topic).toBe('watering_reminder')
+      // One plant, one id — the app's single-plant deep link still resolves.
+      expect(only?.message.payload.plantIds).toEqual(['plant-1'])
+      expect(only?.message.payload.title).toBe(
+        '🌱 Your Monstera needs care today'
+      )
+      expect(only?.message.payload.body).toBe(
+        'Watering and misting are due today.'
+      )
+      // Both rows receive the merged content.
+      expect(notifications[0]?.status).toBe('queued')
+      expect(notifications[1]?.status).toBe('queued')
+      expect(notifications[1]?.title).toBe('🌱 Your Monstera needs care today')
+    })
+
+    it('routes a merged group containing overdue on the overdue topic', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'mist-1',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'overdue-1',
+          type: 'overdue_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'water-2',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      const [only] = enqueuedMessages
+      expect(only?.topic).toBe('overdue_reminder')
+      // Labels inside a plant follow priority order: overdue before misting.
+      expect(only?.message.payload.body).toBe(
+        'Monstera (overdue, misting), Pothos (watering)'
+      )
+    })
+
+    it('uses French digest copy for a mixed-type merge', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const frenchUser = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        doNotDisturb: false,
+        timezone: 'UTC',
+        language: 'fr',
+      })
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'water-1',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'mist-1',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'fert-2',
+          type: 'fertilization_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [frenchUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        "🌱 2 plantes ont besoin de soins aujourd'hui"
+      )
+      expect(enqueuedMessages[0]?.message.payload.body).toBe(
+        'Monstera (arrosage, brumisation), Pothos (fertilisation)'
+      )
+    })
+
+    it('keeps same-type merges on the existing per-type wording', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+
+      const plant1 = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+      const plant2 = createTestPlant({ id: 'plant-2', name: 'Pothos' })
+
+      const notifications = [
+        createTestNotification({
+          id: 'mist-1',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-1',
+        }),
+        createTestNotification({
+          id: 'mist-2',
+          type: 'misting_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-2',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [plant1, plant2]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.topic).toBe('misting_reminder')
+      expect(enqueuedMessages[0]?.message.payload.title).toBe(
+        '🌫️ 2 plants want a misting'
+      )
+      expect(enqueuedMessages[0]?.message.payload.body).toBe('Monstera, Pothos')
     })
 
     it('should send separate messages per user', async () => {

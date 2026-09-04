@@ -3,8 +3,10 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createDrainableScheduler } from '@lily/api/services/helpers/create-scheduler'
 import {
+  buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
-  buildNotificationContent,
+  type CareDigestItem,
+  pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations'
 import { isInDoNotDisturbWindow } from '@lily/api/services/notifications/timezone-scheduler'
 import { isOnVacation } from '@lily/shared'
@@ -151,10 +153,15 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   if (validNotifications.length === 0) return false
 
-  // Phase 2: Group by (userId, type)
-  const grouped = Array.groupBy(
-    validNotifications,
-    (n) => `${n.notification.userId}::${n.notification.type}`
+  // Phase 2: Group by user. Care reminders merge across care types (and
+  // plants) into one push per user per batch — a plant due for watering AND
+  // misting must not produce two banners, and the Live Activity refresh that
+  // follows each care push is per-user anyway. Everything else keeps the
+  // (userId, type) key.
+  const grouped = Array.groupBy(validNotifications, (n) =>
+    isCareReminderType(n.topic)
+      ? `${n.notification.userId}::care`
+      : `${n.notification.userId}::${n.notification.type}`
   )
 
   // Phase 3: Resolve plant names
@@ -180,12 +187,28 @@ export const pollAndEnqueue = Effect.gen(function* () {
         if (Option.isNone(first)) return
 
         const notificationIds = Array.map(group, (n) => n.notification.id)
-        const { topic } = first.value
         const userId = first.value.notification.userId
 
-        const plantIds = Array.filterMap(group, (n) =>
-          Option.fromNullable(n.notification.plantId)
+        // Deduped: a plant due for two care types contributes one id, so the
+        // app's single-plant deep link still resolves.
+        const plantIds = pipe(
+          Array.filterMap(group, (n) =>
+            Option.fromNullable(n.notification.plantId)
+          ),
+          Array.dedupe
         )
+
+        // Care groups span several topics; route the merged message on the
+        // most urgent one (overdue > watering > ...). All care topics share
+        // the same app deep link and interruption level, so the choice only
+        // affects which queue partition carries it.
+        const careTopics = Array.filterMap(group, (n) =>
+          isCareReminderType(n.topic) ? Option.some(n.topic) : Option.none()
+        )
+        const topic: NotificationTopic = Array.match(careTopics, {
+          onEmpty: () => first.value.topic,
+          onNonEmpty: (types) => pickDominantCareTopic(types),
+        })
 
         const user = userSettingsMap.get(userId)
         const language = Option.getOrElse(
@@ -218,11 +241,35 @@ export const pollAndEnqueue = Effect.gen(function* () {
             ? buildGroupedPlantAnniversaryContent(groupPlantNames, language)
             : passthroughContent
 
-        // Care reminders go through their own translated grouped title builder
-        // (e.g. "3 plants need watering"); everything else uses the helper above.
-        const { title, body } = isCareReminderType(topic)
-          ? buildNotificationContent(topic, groupPlantNames, language)
-          : resolveNonCareContent()
+        // Care reminders: one digest item per plant carrying every care type
+        // due for it. Rows whose plant has no resolvable name are dropped from
+        // the body (same as the old groupPlantNames behaviour).
+        const careItems: CareDigestItem[] = pipe(
+          Array.filterMap(group, ({ notification, topic: rowTopic }) => {
+            if (!isCareReminderType(rowTopic)) return Option.none()
+            const careType: DeferredCareType = rowTopic
+            return pipe(
+              Option.fromNullable(notification.plantId),
+              Option.flatMap((plantId) =>
+                pipe(
+                  Option.fromNullable(plantNameMap.get(plantId)),
+                  Option.map((plantName) => ({ plantId, plantName, careType }))
+                )
+              )
+            )
+          }),
+          Array.groupBy((r) => r.plantId),
+          Record.values,
+          Array.map((rows) => ({
+            plantName: Array.headNonEmpty(rows).plantName,
+            careTypes: Array.map(rows, (r) => r.careType),
+          }))
+        )
+
+        const { title, body } = Array.match(careItems, {
+          onEmpty: resolveNonCareContent,
+          onNonEmpty: (items) => buildCareDigestContent(items, language),
+        })
 
         yield* queue.enqueue(topic, {
           id: crypto.randomUUID(),

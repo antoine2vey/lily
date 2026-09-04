@@ -18,6 +18,7 @@ export const ActivityPushToken = Schema.Struct({
   endsAt: Schema.NullOr(Schema.Date),
   lastConfirmedAt: Schema.NullOr(Schema.Date),
   lastFailedAt: Schema.NullOr(Schema.Date),
+  lastStartSentAt: Schema.NullOr(Schema.Date),
   updatedAt: Schema.Date,
 })
 export type ActivityPushToken = typeof ActivityPushToken.Type

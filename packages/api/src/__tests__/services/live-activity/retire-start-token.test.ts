@@ -17,6 +17,7 @@ const startToken = (deviceTokenId: string): ActivityPushToken => ({
   endsAt: null,
   lastConfirmedAt: null,
   lastFailedAt: null,
+  lastStartSentAt: null,
   updatedAt: new Date(),
 })
 

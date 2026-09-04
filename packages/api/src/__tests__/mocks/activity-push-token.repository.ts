@@ -65,6 +65,7 @@ export const createMockActivityPushTokenRepository = (
           endsAt: null,
           lastConfirmedAt: null,
           lastFailedAt: null,
+          lastStartSentAt: null,
           updatedAt: new Date(),
         }
         store.push(row)
@@ -84,6 +85,7 @@ export const createMockActivityPushTokenRepository = (
           endsAt: d.endsAt,
           lastConfirmedAt: null,
           lastFailedAt: null,
+          lastStartSentAt: null,
           updatedAt: new Date(),
         }
         store.push(row)
@@ -169,6 +171,24 @@ export const createMockActivityPushTokenRepository = (
             row.deviceTokenId === deviceTokenId
           ) {
             store[i] = { ...row, status: 'ended', updatedAt: new Date() }
+            count++
+          }
+        })
+        return count
+      }),
+    markStartSent: (userId, deviceTokenIds) =>
+      Effect.sync(() => {
+        const now = new Date()
+        const targets = new Set(deviceTokenIds)
+        let count = 0
+        Array.forEach(store, (row, i) => {
+          if (
+            row.kind === 'start' &&
+            row.status === 'active' &&
+            row.userId === userId &&
+            targets.has(row.deviceTokenId)
+          ) {
+            store[i] = { ...row, lastStartSentAt: now, updatedAt: now }
             count++
           }
         })

@@ -19,6 +19,8 @@ import {
 } from '@lily/shared/server'
 import {
   Array,
+  DateTime,
+  Duration,
   Effect,
   Either,
   Match,
@@ -31,6 +33,27 @@ import {
 
 const MAX_RETRIES = 3
 
+// Minimum gap between two push-to-start dispatches to the same device. A
+// started activity only becomes visible to us once the device registers its
+// update token (seconds later, asynchronously), so without this a retry or an
+// adjacent scheduler poll would create a second identical card. Fifteen
+// minutes comfortably covers that round trip while leaving the next day's
+// reminder free to start a fresh activity.
+const LA_START_COOLDOWN = Duration.minutes(15)
+
+const isWithinStartCooldown = (
+  lastStartSentAt: Date | null,
+  now: DateTime.Utc
+): boolean =>
+  Option.match(Option.fromNullable(lastStartSentAt), {
+    onNone: () => false,
+    onSome: (sentAt) =>
+      Duration.lessThan(
+        DateTime.distance(DateTime.unsafeMake(sentAt), now),
+        LA_START_COOLDOWN
+      ),
+  })
+
 // Care reminders are the "do it today or it slips" cluster — we want them to
 // pierce Focus/DND on iOS 15+ so the plant actually gets cared for. Everything
 // else (social pings, engagement nudges) stays at the default 'active' level.
@@ -41,6 +64,10 @@ const resolveInterruptionLevel = (
 
 // Refresh the Live Activity card alongside a care reminder.
 //
+// The scheduler merges all of a user's due care reminders into one queue
+// message, so this runs once per user per delivery batch. The start cooldown
+// below covers what the merge cannot: worker retries and back-to-back polls.
+//
 // Update path is silent — the regular Expo push already showed the banner.
 // Start path requires an `alert` (iOS production drops push-to-start without
 // one), so the caller passes title/body and we forward them. Users on the
@@ -48,7 +75,8 @@ const resolveInterruptionLevel = (
 // consolidating to one is a separate UX change.
 //
 //   - Active update token → send an `update`.
-//   - Else push-to-start token (iOS 17.2+) → send a `start` (creates the card).
+//   - Else push-to-start token (iOS 17.2+) not started within the cooldown
+//     → send a `start` (creates the card).
 //   - Else silently skip.
 //
 // Failures are logged but never propagate.
@@ -113,13 +141,35 @@ const sendLiveActivityForCare = (
       // else: fall through to start-token path
     }
 
-    const startTokens = yield* activityRepo.findStartTokensByUserId(userId)
-    if (Array.isEmptyReadonlyArray(startTokens)) {
+    const allStartTokens = yield* activityRepo.findStartTokensByUserId(userId)
+    if (Array.isEmptyReadonlyArray(allStartTokens)) {
       yield* Effect.logInfo('[worker] LA start skipped — no start tokens', {
         userId,
       })
       return
     }
+
+    const now = DateTime.unsafeNow()
+    const startTokens = Array.filter(
+      allStartTokens,
+      (tok) => !isWithinStartCooldown(tok.lastStartSentAt, now)
+    )
+    const cooledDown = allStartTokens.length - startTokens.length
+    if (cooledDown > 0) {
+      yield* Effect.logInfo('[worker] LA start skipped — cooldown', {
+        userId,
+        skippedCount: cooledDown,
+      })
+    }
+    if (Array.isEmptyReadonlyArray(startTokens)) return
+
+    // Stamp BEFORE dispatching: if APNs times out and the message is retried,
+    // the retry must not start a second activity. A genuinely failed send
+    // simply waits out the cooldown; the next reminder starts a fresh card.
+    yield* activityRepo.markStartSent(
+      userId,
+      Array.map(startTokens, (tok) => tok.deviceTokenId)
+    )
 
     const activityId = crypto.randomUUID()
     yield* Effect.logInfo('[worker] LA start dispatching', {

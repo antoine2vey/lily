@@ -1,6 +1,6 @@
 import type { CareType, LanguageCode } from '@lily/shared'
 import type { DeferredCareType } from '@lily/shared/server'
-import { Array, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, Order, pipe, String } from 'effect'
 
 const MAX_PLANT_NAMES_IN_BODY = 5
 
@@ -982,4 +982,149 @@ export const buildNotificationContent = (
       : Array.join(visibleNames, ', ')
 
   return { title, body }
+}
+
+// ============================================================================
+// Care digest — one push per user per delivery batch
+//
+// The scheduler merges every due care reminder for a user (across plants and
+// care types) into a single banner. When only one care type is present the
+// existing per-type wording above is reused verbatim; the digest wording
+// below only kicks in for mixed care types.
+// ============================================================================
+
+// Fixed ordering for both the label list inside a plant and the topic chosen
+// for the merged queue message. Overdue first: it is the most urgent signal.
+export const CARE_TOPIC_PRIORITY = [
+  'overdue_reminder',
+  'watering_reminder',
+  'fertilization_reminder',
+  'misting_reminder',
+  'repotting_reminder',
+] as const satisfies Array.NonEmptyReadonlyArray<DeferredCareType>
+
+const careTopicRank = (type: DeferredCareType): number =>
+  Option.getOrElse(
+    Array.findFirstIndex(CARE_TOPIC_PRIORITY, (t) => t === type),
+    () => CARE_TOPIC_PRIORITY.length
+  )
+
+const careTopicOrder: Order.Order<DeferredCareType> = Order.mapInput(
+  Order.number,
+  careTopicRank
+)
+
+// Highest-priority topic among the given care types. Used by the scheduler to
+// pick a deterministic queue topic for a merged group.
+export const pickDominantCareTopic = (
+  types: Array.NonEmptyReadonlyArray<DeferredCareType>
+): DeferredCareType => Array.min(types, careTopicOrder)
+
+export interface CareDigestItem {
+  readonly plantName: string
+  readonly careTypes: Array.NonEmptyReadonlyArray<DeferredCareType>
+}
+
+type CareDigestTranslations = {
+  readonly label: Record<DeferredCareType, string>
+  readonly singleTitle: (plantName: string) => string
+  readonly singleBody: (labels: ReadonlyArray<string>) => string
+  readonly pluralTitle: (count: number) => string
+  readonly andMore: (count: number) => string
+}
+
+const careDigest: Record<LanguageCode, CareDigestTranslations> = {
+  en: {
+    label: {
+      overdue_reminder: 'overdue',
+      watering_reminder: 'watering',
+      fertilization_reminder: 'fertilizing',
+      misting_reminder: 'misting',
+      repotting_reminder: 'repotting',
+    },
+    singleTitle: (name) => `🌱 Your ${name} needs care today`,
+    singleBody: (labels) =>
+      `${String.capitalize(joinLabels(labels, 'and', true))} are due today.`,
+    pluralTitle: (count) => `🌱 ${count} plants need care today`,
+    andMore: (count) => `and ${count} more`,
+  },
+  fr: {
+    label: {
+      overdue_reminder: 'en retard',
+      watering_reminder: 'arrosage',
+      fertilization_reminder: 'fertilisation',
+      misting_reminder: 'brumisation',
+      repotting_reminder: 'rempotage',
+    },
+    singleTitle: (name) => `🌱 Ta ${name} a besoin de soins`,
+    singleBody: (labels) =>
+      `${String.capitalize(joinLabels(labels, 'et', false))} sont prévus aujourd'hui.`,
+    pluralTitle: (count) =>
+      `🌱 ${count} plantes ont besoin de soins aujourd'hui`,
+    andMore: (count) => `et ${count} de plus`,
+  },
+}
+
+// `joinClauses` handles 2–3 parts; four or more labels fall back to a plain
+// comma list so the sentence stays readable.
+const joinLabels = (
+  labels: ReadonlyArray<string>,
+  conjunction: string,
+  oxford: boolean
+): string =>
+  labels.length <= 3
+    ? joinClauses(labels, conjunction, oxford)
+    : Array.join(labels, ', ')
+
+const sortedLabels = (
+  types: Array.NonEmptyReadonlyArray<DeferredCareType>,
+  t: CareDigestTranslations
+): ReadonlyArray<string> =>
+  pipe(
+    Array.dedupe(types),
+    Array.sort(careTopicOrder),
+    Array.map((type) => t.label[type])
+  )
+
+export const buildCareDigestContent = (
+  items: Array.NonEmptyReadonlyArray<CareDigestItem>,
+  language: LanguageCode
+): { title: string; body: string } => {
+  const distinctTypes = pipe(
+    Array.flatMap(items, (i) => i.careTypes),
+    Array.dedupe
+  )
+
+  // Single care type across the batch → keep the established per-type copy.
+  if (distinctTypes.length === 1) {
+    const type = Array.headNonEmpty(items).careTypes[0]
+    return buildNotificationContent(
+      type,
+      Array.map(items, (i) => i.plantName),
+      language
+    )
+  }
+
+  const t = careDigest[language]
+
+  if (items.length === 1) {
+    const item = Array.headNonEmpty(items)
+    return {
+      title: t.singleTitle(item.plantName),
+      body: t.singleBody(sortedLabels(item.careTypes, t)),
+    }
+  }
+
+  const visible = Array.take(items, MAX_PLANT_NAMES_IN_BODY)
+  const remaining = items.length - MAX_PLANT_NAMES_IN_BODY
+  const entries = Array.map(
+    visible,
+    (i) => `${i.plantName} (${Array.join(sortedLabels(i.careTypes, t), ', ')})`
+  )
+  const list = Array.join(entries, ', ')
+
+  return {
+    title: t.pluralTitle(items.length),
+    body: remaining > 0 ? `${list} ${t.andMore(remaining)}` : list,
+  }
 }

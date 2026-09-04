@@ -2,7 +2,7 @@ import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
-import { and, eq, isNull, lt, ne, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 
 export interface UpsertStartTokenData {
@@ -33,6 +33,7 @@ const mapRow = (
   endsAt: row.endsAt,
   lastConfirmedAt: row.lastConfirmedAt,
   lastFailedAt: row.lastFailedAt,
+  lastStartSentAt: row.lastStartSentAt,
   updatedAt: row.updatedAt,
 })
 
@@ -94,6 +95,10 @@ export interface IActivityPushTokenRepository {
     unconfirmedOlderThan: Date
     confirmedOlderThan: Date
   }) => Effect.Effect<number, SqlError>
+  readonly markStartSent: (
+    userId: string,
+    deviceTokenIds: readonly string[]
+  ) => Effect.Effect<number, SqlError>
 }
 
 export class ActivityPushTokenRepository extends Context.Tag(
@@ -320,6 +325,29 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
           .returning({ id: activityPushTokens.id })
         return Array.length(rows)
       }),
+
+      // Stamp the moment a push-to-start was dispatched to these devices. The
+      // worker reads this back to enforce a start cooldown (see
+      // sendLiveActivityForCare); the stamp is written BEFORE the APNs call so
+      // a retry after a timeout cannot double-start.
+      markStartSent: Effect.fn('ActivityPushTokenRepository.markStartSent')(
+        function* (userId: string, deviceTokenIds: readonly string[]) {
+          if (deviceTokenIds.length === 0) return 0
+          const rows = yield* db
+            .update(activityPushTokens)
+            .set({ lastStartSentAt: nowAsDate(), updatedAt: nowAsDate() })
+            .where(
+              and(
+                eq(activityPushTokens.userId, userId),
+                eq(activityPushTokens.kind, 'start'),
+                eq(activityPushTokens.status, 'active'),
+                inArray(activityPushTokens.deviceTokenId, [...deviceTokenIds])
+              )
+            )
+            .returning({ id: activityPushTokens.id })
+          return Array.length(rows)
+        }
+      ),
 
       // Background sweep: kills start-tokens that have never been confirmed
       // (likely never delivered to a device) past `unconfirmedOlderThan`, and

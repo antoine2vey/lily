@@ -1,7 +1,12 @@
 import {
+  buildCareDigestContent,
   buildGroupedPlantAnniversaryContent,
+  buildNotificationContent,
   buildSimpleContent,
+  type CareDigestItem,
+  pickDominantCareTopic,
 } from '@lily/api/services/notification-scheduler/translations'
+import { Array } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('buildSimpleContent — new notification translations', () => {
@@ -317,5 +322,128 @@ describe('buildGroupedPlantAnniversaryContent', () => {
     )
     expect(title).toBe("🎂 6 anniversaires de plantes aujourd'hui !")
     expect(body).toContain('et 1 de plus')
+  })
+})
+
+describe('buildCareDigestContent', () => {
+  const item = (
+    plantName: string,
+    ...careTypes: Array.NonEmptyArray<CareDigestItem['careTypes'][number]>
+  ): CareDigestItem => ({ plantName, careTypes })
+
+  it('delegates to the per-type copy when only one care type is present', () => {
+    const items = Array.make(
+      item('Monstera', 'watering_reminder'),
+      item('Pothos', 'watering_reminder')
+    )
+    expect(buildCareDigestContent(items, 'en')).toEqual(
+      buildNotificationContent(
+        'watering_reminder',
+        ['Monstera', 'Pothos'],
+        'en'
+      )
+    )
+  })
+
+  it('en: single plant with several types lists the labels as a sentence', () => {
+    const result = buildCareDigestContent(
+      Array.make(item('Monstera', 'misting_reminder', 'watering_reminder')),
+      'en'
+    )
+    expect(result.title).toBe('🌱 Your Monstera needs care today')
+    // Priority order, not input order.
+    expect(result.body).toBe('Watering and misting are due today.')
+  })
+
+  it('en: three labels take an Oxford comma', () => {
+    const result = buildCareDigestContent(
+      Array.make(
+        item(
+          'Monstera',
+          'repotting_reminder',
+          'watering_reminder',
+          'fertilization_reminder'
+        )
+      ),
+      'en'
+    )
+    expect(result.body).toBe(
+      'Watering, fertilizing, and repotting are due today.'
+    )
+  })
+
+  it('fr: single plant with several types', () => {
+    const result = buildCareDigestContent(
+      Array.make(item('Monstera', 'misting_reminder', 'watering_reminder')),
+      'fr'
+    )
+    expect(result.title).toBe('🌱 Ta Monstera a besoin de soins')
+    expect(result.body).toBe("Arrosage et brumisation sont prévus aujourd'hui.")
+  })
+
+  it('en: several plants with mixed types, truncated after five', () => {
+    const items = Array.make(
+      item('A', 'watering_reminder', 'misting_reminder'),
+      item('B', 'fertilization_reminder'),
+      item('C', 'fertilization_reminder'),
+      item('D', 'fertilization_reminder'),
+      item('E', 'fertilization_reminder'),
+      item('F', 'fertilization_reminder'),
+      item('G', 'fertilization_reminder')
+    )
+    const result = buildCareDigestContent(items, 'en')
+    expect(result.title).toBe('🌱 7 plants need care today')
+    expect(result.body).toBe(
+      'A (watering, misting), B (fertilizing), C (fertilizing), D (fertilizing), E (fertilizing) and 2 more'
+    )
+  })
+
+  it('fr: several plants with mixed types, truncated after five', () => {
+    const items = Array.make(
+      item('A', 'overdue_reminder', 'watering_reminder'),
+      item('B', 'misting_reminder'),
+      item('C', 'misting_reminder'),
+      item('D', 'misting_reminder'),
+      item('E', 'misting_reminder'),
+      item('F', 'misting_reminder')
+    )
+    const result = buildCareDigestContent(items, 'fr')
+    expect(result.title).toBe("🌱 6 plantes ont besoin de soins aujourd'hui")
+    expect(result.body).toBe(
+      'A (en retard, arrosage), B (brumisation), C (brumisation), D (brumisation), E (brumisation) et 1 de plus'
+    )
+  })
+
+  it('dedupes repeated types within a plant', () => {
+    const result = buildCareDigestContent(
+      Array.make(
+        item(
+          'Monstera',
+          'watering_reminder',
+          'watering_reminder',
+          'misting_reminder'
+        )
+      ),
+      'en'
+    )
+    expect(result.body).toBe('Watering and misting are due today.')
+  })
+})
+
+describe('pickDominantCareTopic', () => {
+  it('prefers overdue over everything else', () => {
+    expect(
+      pickDominantCareTopic([
+        'misting_reminder',
+        'overdue_reminder',
+        'watering_reminder',
+      ])
+    ).toBe('overdue_reminder')
+  })
+
+  it('prefers watering over misting', () => {
+    expect(
+      pickDominantCareTopic(['misting_reminder', 'watering_reminder'])
+    ).toBe('watering_reminder')
   })
 })
