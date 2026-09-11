@@ -5,15 +5,11 @@ import type { DelegationRepository } from '@lily/api/repositories/delegation.rep
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
-import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { requireOwnedPlan } from '@lily/api/services/care-plans/helpers/require-owned-plan'
+import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
-import {
-  type CarePlanNotFoundError,
-  CarePlanNotProposedError,
-} from '@lily/shared/errors/care-plan'
+import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
 import { Array, Effect, Option, Order, pipe, Record } from 'effect'
 
 interface DatedCareStep {
@@ -48,11 +44,12 @@ export const scheduleTargetsFromSteps = (
     )
   )
 
+/** `plan` comes from `withCarePlanAuth` in the handler. */
 export const acceptCarePlan = (
-  planId: string
+  plan: CarePlan
 ): Effect.Effect<
   CarePlan,
-  CarePlanNotFoundError | CarePlanNotProposedError | SqlError,
+  CarePlanNotProposedError | SqlError,
   | CarePlanRepository
   | CareScheduleRepository
   | PlantRepository
@@ -65,12 +62,10 @@ export const acceptCarePlan = (
     const repo = yield* CarePlanRepository
     const scheduleRepo = yield* CareScheduleRepository
     const plantRepo = yield* PlantRepository
-    const { id: userId } = yield* CurrentUser
 
-    const plan = yield* requireOwnedPlan(planId)
     if (plan.status !== 'proposed') {
       return yield* new CarePlanNotProposedError({
-        planId,
+        planId: plan.id,
         status: plan.status,
       })
     }
@@ -108,7 +103,7 @@ export const acceptCarePlan = (
       { discard: true }
     )
 
-    const accepted = yield* repo.updateStatus(planId, userId, {
+    const accepted = yield* repo.updateStatus(plan.id, plan.userId, {
       status: 'accepted',
       acceptedAt: nowAsDate(),
     })
@@ -118,6 +113,6 @@ export const acceptCarePlan = (
     )
   }).pipe(
     Effect.withSpan('CarePlansService.acceptCarePlan', {
-      attributes: { 'carePlan.id': planId },
+      attributes: { 'carePlan.id': plan.id },
     })
   )

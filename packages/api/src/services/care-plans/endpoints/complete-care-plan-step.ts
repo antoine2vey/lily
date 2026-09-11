@@ -8,19 +8,12 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import type { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import {
-  requireOwnedPlan,
-  requireStep,
-} from '@lily/api/services/care-plans/helpers/require-owned-plan'
+import type { CarePlanStepContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { WeatherCache } from '@lily/api/services/weather/cache'
 import type { WeatherProvider } from '@lily/api/services/weather/provider'
 import { nowAsDate } from '@lily/shared'
 import type { CarePlan } from '@lily/shared/care-plan'
-import type {
-  CarePlanNotFoundError,
-  CarePlanStepNotFoundError,
-} from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
@@ -30,16 +23,15 @@ import { Effect, Option, pipe } from 'effect'
  * (care log, schedule advance, reminders); if the plant was already cared for
  * today the step is simply ticked without a second log. Free-text steps are
  * ticked directly. The plan flips to `completed` once every step is done.
+ *
+ * `{ plan, step }` come from `withCarePlanStep` in the handler.
  */
-export const completeCarePlanStep = (
-  planId: string,
-  stepId: string
-): Effect.Effect<
+export const completeCarePlanStep = ({
+  plan,
+  step,
+}: CarePlanStepContext): Effect.Effect<
   CarePlan,
-  | CarePlanNotFoundError
-  | CarePlanStepNotFoundError
-  | PlantNotFoundError
-  | SqlError,
+  PlantNotFoundError | SqlError,
   | CarePlanRepository
   | PlantRepository
   | CareLogRepository
@@ -57,14 +49,13 @@ export const completeCarePlanStep = (
     const repo = yield* CarePlanRepository
     const plantRepo = yield* PlantRepository
 
-    const plan = yield* requireOwnedPlan(planId)
-    const step = yield* requireStep(plan, stepId)
-
     if (Option.isSome(Option.fromNullable(step.completedAt))) {
       return plan
     }
 
-    const tickDirectly = repo.completeStep(stepId, { completedAt: nowAsDate() })
+    const tickDirectly = repo.completeStep(step.id, {
+      completedAt: nowAsDate(),
+    })
 
     yield* pipe(
       Option.fromNullable(step.careType),
@@ -79,7 +70,7 @@ export const completeCarePlanStep = (
             return yield* executePlantCare(plant, {
               plantId: plan.plantId,
               careType,
-              carePlanStepId: stepId,
+              carePlanStepId: step.id,
             }).pipe(
               Effect.catchTag('AlreadyCaredTodayError', () => tickDirectly),
               // Unreachable: no `date` is passed, so the care time is "now".
@@ -89,13 +80,13 @@ export const completeCarePlanStep = (
       })
     )
 
-    const settled = yield* repo.settleCompletion(planId)
+    const settled = yield* repo.settleCompletion(plan.id)
     return pipe(
       Option.fromNullable(settled),
       Option.getOrElse(() => plan)
     )
   }).pipe(
     Effect.withSpan('CarePlansService.completeCarePlanStep', {
-      attributes: { 'carePlan.id': planId, 'carePlanStep.id': stepId },
+      attributes: { 'carePlan.id': plan.id, 'carePlanStep.id': step.id },
     })
   )

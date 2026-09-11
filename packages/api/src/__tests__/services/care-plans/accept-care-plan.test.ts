@@ -16,6 +16,7 @@ import {
   acceptCarePlan,
   scheduleTargetsFromSteps,
 } from '@lily/api/services/care-plans/endpoints/accept-care-plan'
+import { withCarePlanAuth } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -93,7 +94,9 @@ const buildLayer = (
 describe('acceptCarePlan', () => {
   it('flips a proposed plan to accepted', async () => {
     const result = await Effect.runPromise(
-      acceptCarePlan('plan-1').pipe(Effect.provide(buildLayer()))
+      withCarePlanAuth('plan-1')
+        .pipe(Effect.flatMap(acceptCarePlan))
+        .pipe(Effect.provide(buildLayer()))
     )
     expect(result.status).toBe('accepted')
     expect(result.acceptedAt).toBeInstanceOf(Date)
@@ -103,7 +106,7 @@ describe('acceptCarePlan', () => {
   it('moves an existing schedule to the dated care-typed step', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* acceptCarePlan('plan-1')
+        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'watering')
       }).pipe(Effect.provide(buildLayer()))
@@ -114,7 +117,7 @@ describe('acceptCarePlan', () => {
   it('does not create a schedule for a care type the plant does not track', async () => {
     const schedule = await Effect.runPromise(
       Effect.gen(function* () {
-        yield* acceptCarePlan('plan-1')
+        yield* withCarePlanAuth('plan-1').pipe(Effect.flatMap(acceptCarePlan))
         const repo = yield* CareScheduleRepository
         return yield* repo.findByPlantAndType(plantId, 'misting')
       }).pipe(Effect.provide(buildLayer()))
@@ -124,9 +127,9 @@ describe('acceptCarePlan', () => {
 
   it('rejects a plan that is not proposed', async () => {
     const exit = await Effect.runPromiseExit(
-      acceptCarePlan('plan-1').pipe(
-        Effect.provide(buildLayer({ status: 'accepted' }))
-      )
+      withCarePlanAuth('plan-1')
+        .pipe(Effect.flatMap(acceptCarePlan))
+        .pipe(Effect.provide(buildLayer({ status: 'accepted' })))
     )
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
@@ -136,7 +139,9 @@ describe('acceptCarePlan', () => {
 
   it('is invisible to another user', async () => {
     const exit = await Effect.runPromiseExit(
-      acceptCarePlan('plan-1').pipe(Effect.provide(buildLayer({}, 'user-2')))
+      withCarePlanAuth('plan-1')
+        .pipe(Effect.flatMap(acceptCarePlan))
+        .pipe(Effect.provide(buildLayer({}, 'user-2')))
     )
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
