@@ -847,9 +847,48 @@ describe('Notification Worker', () => {
       expect(laMessages).toHaveLength(0)
     })
 
+    // Prod 2026-09-11: overdue digest at 06:42 local, regular reminder at
+    // 09:00 — the phone never confirmed the first start, so the second care
+    // message must not open a second identical card.
+    it('skips a start hours later while the earlier one is still unconfirmed', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({
+          lastStartSentAt: new Date(Date.now() - 2 * 3_600_000),
+          lastConfirmedAt: null,
+        }),
+        1
+      )
+      expect(laMessages).toHaveLength(0)
+    })
+
+    it('starts again when the device confirmed the earlier start', async () => {
+      // Confirmed after the start was sent, yet no active update row exists:
+      // that activity has since ended, so a fresh card is correct.
+      const laMessages = await runWithStartToken(
+        startToken({
+          lastStartSentAt: new Date(Date.now() - 2 * 3_600_000),
+          lastConfirmedAt: new Date(Date.now() - 3_600_000),
+        }),
+        1
+      )
+      const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
+      expect(starts).toHaveLength(1)
+    })
+
+    it('ignores a confirmation that predates the last start', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({
+          lastStartSentAt: new Date(Date.now() - 3_600_000),
+          lastConfirmedAt: new Date(Date.now() - 2 * 3_600_000),
+        }),
+        1
+      )
+      expect(laMessages).toHaveLength(0)
+    })
+
     it('starts again once the cooldown has elapsed', async () => {
       const laMessages = await runWithStartToken(
-        startToken({ lastStartSentAt: new Date(Date.now() - 16 * 60_000) }),
+        startToken({ lastStartSentAt: new Date(Date.now() - 11 * 3_600_000) }),
         1
       )
       const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')

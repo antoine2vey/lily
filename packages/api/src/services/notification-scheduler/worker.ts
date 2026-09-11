@@ -6,6 +6,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
+import type { ActivityPushToken } from '@lily/shared'
 import {
   type InterruptionLevel,
   type LiveActivityAlert,
@@ -33,25 +34,48 @@ import {
 
 const MAX_RETRIES = 3
 
-// Minimum gap between two push-to-start dispatches to the same device. A
-// started activity only becomes visible to us once the device registers its
-// update token (seconds later, asynchronously), so without this a retry or an
-// adjacent scheduler poll would create a second identical card. Fifteen
-// minutes comfortably covers that round trip while leaving the next day's
-// reminder free to start a fresh activity.
-const LA_START_COOLDOWN = Duration.minutes(15)
+// How long a push-to-start we dispatched is presumed to still be alive on
+// the device. A started activity only becomes visible to us once the device
+// registers its update token, and that registration needs the app to run in
+// the foreground with an unlocked keychain — a push-to-start that lands while
+// the phone sits on the nightstand is confirmed hours later, if at all. Until
+// that confirmation arrives, every further care message for the user (the
+// overdue digest at a random morning slot, then the regular reminder at the
+// preferred time) falls through to the start path and creates another
+// identical card. So the guard spans the activity's own lifetime: it mirrors
+// the 10h soft TTL after which the activity scheduler expires update rows,
+// and stays well under the 24h cadence of the next day's reminder.
+const LA_START_COOLDOWN = Duration.hours(10)
 
-const isWithinStartCooldown = (
-  lastStartSentAt: Date | null,
+// A start is "unresolved" while it was dispatched inside the cooldown and the
+// device has not registered an update token since. Once confirmed, reaching
+// the start path again means that activity is gone (its update token was
+// invalidated, or the row ended/expired), so a fresh start is correct.
+const hasUnresolvedStart = (
+  tok: Pick<ActivityPushToken, 'lastStartSentAt' | 'lastConfirmedAt'>,
   now: DateTime.Utc
 ): boolean =>
-  Option.match(Option.fromNullable(lastStartSentAt), {
+  Option.match(Option.fromNullable(tok.lastStartSentAt), {
     onNone: () => false,
-    onSome: (sentAt) =>
-      Duration.lessThan(
-        DateTime.distance(DateTime.unsafeMake(sentAt), now),
+    onSome: (sentAtDate) => {
+      const sentAt = DateTime.unsafeMake(sentAtDate)
+      const withinCooldown = Duration.lessThan(
+        DateTime.distance(sentAt, now),
         LA_START_COOLDOWN
-      ),
+      )
+      const confirmedSince = Option.match(
+        Option.fromNullable(tok.lastConfirmedAt),
+        {
+          onNone: () => false,
+          onSome: (confirmedAt) =>
+            DateTime.greaterThanOrEqualTo(
+              DateTime.unsafeMake(confirmedAt),
+              sentAt
+            ),
+        }
+      )
+      return withinCooldown && !confirmedSince
+    },
   })
 
 // Care reminders are the "do it today or it slips" cluster — we want them to
@@ -65,8 +89,10 @@ const resolveInterruptionLevel = (
 // Refresh the Live Activity card alongside a care reminder.
 //
 // The scheduler merges all of a user's due care reminders into one queue
-// message, so this runs once per user per delivery batch. The start cooldown
-// below covers what the merge cannot: worker retries and back-to-back polls.
+// message, so this runs once per user per delivery batch. The start guard
+// below covers what the merge cannot: worker retries, back-to-back polls, and
+// a second care batch later the same day (overdue digests are scheduled at a
+// random morning slot, regular reminders at the user's preferred time).
 //
 // Update path is silent — the regular Expo push already showed the banner.
 // Start path requires an `alert` (iOS production drops push-to-start without
@@ -75,8 +101,8 @@ const resolveInterruptionLevel = (
 // consolidating to one is a separate UX change.
 //
 //   - Active update token → send an `update`.
-//   - Else push-to-start token (iOS 17.2+) not started within the cooldown
-//     → send a `start` (creates the card).
+//   - Else push-to-start token (iOS 17.2+) with no unresolved earlier start
+//     (see hasUnresolvedStart) → send a `start` (creates the card).
 //   - Else silently skip.
 //
 // Failures are logged but never propagate.
@@ -152,14 +178,14 @@ const sendLiveActivityForCare = (
     const now = DateTime.unsafeNow()
     const startTokens = Array.filter(
       allStartTokens,
-      (tok) => !isWithinStartCooldown(tok.lastStartSentAt, now)
+      (tok) => !hasUnresolvedStart(tok, now)
     )
-    const cooledDown = allStartTokens.length - startTokens.length
-    if (cooledDown > 0) {
-      yield* Effect.logInfo('[worker] LA start skipped — cooldown', {
-        userId,
-        skippedCount: cooledDown,
-      })
+    const unresolved = allStartTokens.length - startTokens.length
+    if (unresolved > 0) {
+      yield* Effect.logInfo(
+        '[worker] LA start skipped — earlier start still unconfirmed',
+        { userId, skippedCount: unresolved }
+      )
     }
     if (Array.isEmptyReadonlyArray(startTokens)) return
 
