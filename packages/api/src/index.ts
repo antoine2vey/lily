@@ -17,6 +17,7 @@ import { startAnalyticsScheduler } from '@lily/api/services/analytics-scheduler/
 import { AuthApiLive } from '@lily/api/services/auth/handlers'
 import { startBlogGeneratorScheduler } from '@lily/api/services/blog-generator/scheduler'
 import { CareLogsApiLive } from '@lily/api/services/care-logs/handlers'
+import { CarePlansApiLive } from '@lily/api/services/care-plans/handlers'
 import { CareTasksApiLive } from '@lily/api/services/care-tasks/handlers'
 import { DelegationApiLive } from '@lily/api/services/delegation/handlers'
 import { startDelegationScheduler } from '@lily/api/services/delegation-scheduler/scheduler'
@@ -163,6 +164,7 @@ const CoreApiHandlers = Layer.mergeAll(
 
 const ExtensionApiHandlers = Layer.mergeAll(
   ActivityPushTokensApiLive(Api),
+  CarePlansApiLive(Api),
   AdminAnalyticsApiLive(Api),
   InternalApiLive(Api),
   KnowledgeApiLive(Api),

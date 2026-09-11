@@ -17,6 +17,30 @@ export default {
       cancel: 'Annuler',
     },
   },
+  plans: {
+    section: 'Plans',
+    fromLily: 'Suggéré par Lily',
+    progress: '{done} sur {total} terminées',
+    due: 'Pour le {date}',
+    dueToday: "Pour aujourd'hui",
+    overdue: 'En retard',
+    completed: 'Plan terminé',
+    deletePlan: {
+      title: 'Supprimer ce plan ?',
+      message:
+        'Les étapes seront retirées de vos tâches. Les changements de calendrier déjà appliqués sont conservés.',
+      confirm: 'Supprimer',
+      cancel: 'Annuler',
+    },
+    deleteStep: {
+      title: 'Retirer cette étape ?',
+      message: 'Seule cette étape est retirée. Le reste du plan est conservé.',
+      confirm: 'Retirer',
+      cancel: 'Annuler',
+    },
+    stepCompleted: 'Étape terminée',
+    stepReopened: 'Étape rouverte',
+  },
   skipWaiting: {
     label: 'Sans délai',
     hint: "Termine les tâches instantanément, sans compte à rebours d'annulation",

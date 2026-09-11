@@ -1,11 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
-import {
-  DiagnosisListResponse,
-  DiagnosisNotFoundError,
-  PaginationParams,
-} from '@lily/shared'
-import { Diagnosis } from '@lily/shared/diagnosis'
+import { DiagnosisListResponse, PaginationParams } from '@lily/shared'
 import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -14,7 +9,6 @@ import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 
 const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
-const diagnosisIdParam = HttpApiSchema.param('diagnosisId', Schema.UUID)
 
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(
@@ -23,15 +17,6 @@ export const DiagnosisApi = HttpApiGroup.make('diagnosis')
       .addSuccess(DiagnosisListResponse)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(GCSUploadError, { status: 500 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
-  )
-  .add(
-    HttpApiEndpoint.patch(
-      'resolveDiagnosis'
-    )`/plants/${plantIdParam}/diagnoses/${diagnosisIdParam}/resolve`
-      .addSuccess(Diagnosis)
-      .addError(DiagnosisNotFoundError, { status: 404 })
       .addError(GCSUploadError, { status: 500 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )

@@ -43,6 +43,7 @@ import { CorrectCareDatesSheet } from '@/screens/plant-detail/components/Correct
 import { GrowthJournalEntryCard } from '@/screens/plant-detail/components/GrowthJournalEntryCard'
 import { IdealEnvironment } from '@/screens/plant-detail/components/IdealEnvironment'
 import { PastCareSheet } from '@/screens/plant-detail/components/PastCareSheet'
+import { PlantCarePlans } from '@/screens/plant-detail/components/PlantCarePlans'
 import { PlantDetailSkeleton } from '@/screens/plant-detail/components/PlantDetailSkeleton'
 import { PlantHeader } from '@/screens/plant-detail/components/PlantHeader'
 import { PlantOptionsSheet } from '@/screens/plant-detail/components/PlantOptionsSheet'
@@ -640,6 +641,13 @@ export function PlantDetailScreen() {
               }
             />
           </View>
+
+          {/* AI care plans (accepted) */}
+          {plantId && (
+            <View className="mt-10">
+              <PlantCarePlans plantId={plantId} />
+            </View>
+          )}
 
           {/* Growth Journal */}
           <View className="mt-10">

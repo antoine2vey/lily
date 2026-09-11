@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -35,6 +36,10 @@ export interface ExecutePlantCareParams {
   readonly careType: CareType
   readonly notes?: string | undefined
   readonly date?: Date | undefined
+  // When the care action was initiated from a care-plan step, that exact step
+  // is marked done. Otherwise the earliest open step of the same care type on
+  // an accepted plan is completed (cross-completion with the regular task).
+  readonly carePlanStepId?: string | undefined
 }
 
 // Apply weather adjustment to the next care date if user has weather enabled
@@ -122,6 +127,7 @@ export const executePlantCare = (
   | DelegationRepository
   | EventBus
   | CurrentUser
+  | CarePlanRepository
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
@@ -129,6 +135,7 @@ export const executePlantCare = (
     const notificationRepo = yield* NotificationRepository
     const userRepo = yield* UserRepository
     const careLogRepo = yield* CareLogRepository
+    const carePlanRepo = yield* CarePlanRepository
 
     // Load user once — both timezone (for day-boundary math) and weather flags
     // (consumed inside applyWeatherAdjustment) come from the same row.
@@ -178,11 +185,32 @@ export const executePlantCare = (
 
     // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
     // Called before plant update so createCareLog sees the original health state
-    yield* createCareLog(params.plantId, {
+    const careLog = yield* createCareLog(params.plantId, {
       type: params.careType,
       notes: params.notes,
       date: careDate,
     })
+
+    // Care-plan bridging: link the care log to the plan step it satisfies.
+    const completedStep = yield* pipe(
+      Option.fromNullable(params.carePlanStepId),
+      Option.match({
+        onNone: () =>
+          carePlanRepo.completeEarliestOpenStep(
+            params.plantId,
+            params.careType,
+            { completedAt: careDate, careLogId: careLog.id }
+          ),
+        onSome: (stepId) =>
+          carePlanRepo.completeStep(stepId, {
+            completedAt: careDate,
+            careLogId: careLog.id,
+          }),
+      })
+    )
+    if (completedStep) {
+      yield* carePlanRepo.settleCompletion(completedStep.planId)
+    }
 
     // Get frequency from schedule table
     const schedule = yield* scheduleRepo.findByPlantAndType(

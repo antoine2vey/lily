@@ -17,6 +17,30 @@ export default {
       cancel: 'Cancel',
     },
   },
+  plans: {
+    section: 'Plans',
+    fromLily: 'Suggested by Lily',
+    progress: '{done} of {total} done',
+    due: 'Due {date}',
+    dueToday: 'Due today',
+    overdue: 'Overdue',
+    completed: 'Plan completed',
+    deletePlan: {
+      title: 'Delete this plan?',
+      message:
+        'The steps will be removed from your tasks. Schedule changes already applied are kept.',
+      confirm: 'Delete',
+      cancel: 'Cancel',
+    },
+    deleteStep: {
+      title: 'Remove this step?',
+      message: 'Only this step is removed. The rest of the plan stays.',
+      confirm: 'Remove',
+      cancel: 'Cancel',
+    },
+    stepCompleted: 'Step done',
+    stepReopened: 'Step reopened',
+  },
   skipWaiting: {
     label: 'Skip waiting',
     hint: 'Complete tasks instantly, without the undo countdown',

@@ -1,3 +1,4 @@
+import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockDiagnosisRepository } from '@lily/api/__tests__/mocks/diagnosis.repository'
 import { createMockRagService } from '@lily/api/__tests__/mocks/rag.service'
 import type {
@@ -17,6 +18,7 @@ const stubToolOptions: ToolExecutionOptions = {
 
 const testLayer = Layer.mergeAll(
   createMockDiagnosisRepository([]),
+  createMockCarePlanRepository(),
   createMockRagService()
 )
 
@@ -25,7 +27,14 @@ const baseParams = {
   severity: 'HIGH' as const,
   confidence: 85,
   symptoms: ['Yellow leaves', 'Mushy roots'],
-  treatmentSteps: ['Remove affected roots', 'Repot in fresh soil'],
+  treatmentSteps: [
+    { title: 'Remove affected roots', careType: 'none' as const },
+    {
+      title: 'Repot in fresh soil',
+      careType: 'repotting' as const,
+      dueInDays: 0,
+    },
+  ],
 }
 
 describe('createDiagnosisTool', () => {
@@ -47,10 +56,11 @@ describe('createDiagnosisTool', () => {
         preventionTips: ['Avoid overwatering', 'Ensure good drainage'],
       },
       stubToolOptions
-    )) as { diagnosisId: string }
+    )) as { diagnosisId: string; carePlanId: string }
 
     expect(result.diagnosisId).toBeDefined()
     expect(result.diagnosisId).toMatch(/^diagnosis-/)
+    expect(result.carePlanId).toMatch(/^care-plan-/)
     await managedRuntime.dispose()
   })
 
@@ -88,7 +98,6 @@ describe('createDiagnosisTool', () => {
           confidence: data.confidence,
           symptoms: data.symptoms,
           treatmentSteps: data.treatmentSteps,
-          status: 'ACTIVE',
           createdAt: new Date(),
           updatedAt: new Date(),
         })
@@ -96,10 +105,13 @@ describe('createDiagnosisTool', () => {
       findByPlantId: () => Effect.succeed({ items: [], total: 0 }),
       findById: () => Effect.succeed(null),
       linkChatMessage: () => Effect.void,
-      markResolved: () => Effect.succeed(null),
     } as unknown as IDiagnosisRepository)
 
-    const trackingLayer = Layer.mergeAll(spyLayer, createMockRagService())
+    const trackingLayer = Layer.mergeAll(
+      spyLayer,
+      createMockCarePlanRepository(),
+      createMockRagService()
+    )
     const managedRuntime = ManagedRuntime.make(trackingLayer)
     const rt = await managedRuntime.runtime()
     const deps = {
@@ -116,6 +128,7 @@ describe('createDiagnosisTool', () => {
     expect(createCalls[0]).toMatchObject({
       plantId: 'plant-99',
       userId: 'owner-42',
+      treatmentSteps: ['Remove affected roots', 'Repot in fresh soil'],
     })
     await managedRuntime.dispose()
   })

@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useConversation } from '@/hooks/useConversation'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
 import { useCreateConversation } from '@/hooks/useCreateConversation'
@@ -25,6 +26,7 @@ import { ChatMessage } from '@/screens/chat/components/ChatMessage'
 import { ChatMessagesSkeleton } from '@/screens/chat/components/ChatMessagesSkeleton'
 import { ConversationsDrawer } from '@/screens/chat/components/ConversationsDrawer'
 import { TypingIndicator } from '@/screens/chat/components/TypingIndicator'
+import { toolResultId } from '@/screens/chat/components/tool-renderers'
 
 function hasNoVisibleContent(msg: UIMessage): boolean {
   const hasText = Array.some(
@@ -39,6 +41,22 @@ function hasNoVisibleContent(msg: UIMessage): boolean {
   )
   return !hasText && !hasActiveToolLoading
 }
+
+/** Stable ids of completed diagnosis / plan tool results in these messages. */
+const collectToolResultIds = (
+  messages: ReadonlyArray<UIMessage>
+): ReadonlyArray<string> =>
+  pipe(
+    messages,
+    Array.flatMap((msg) =>
+      pipe(
+        msg.parts,
+        Array.filterMap((part) =>
+          isToolUIPart(part) ? toolResultId(part) : Option.none()
+        )
+      )
+    )
+  )
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets()
@@ -62,6 +80,11 @@ export function ChatScreen() {
     setActiveConversationId(paramId)
   }, [paramId])
 
+  // Plant-bound cards (diagnosis, care plan) need the conversation's plant id
+  // to read their server state and to act on it.
+  const { data: conversation } = useConversation(activeConversationId)
+  const conversationPlantId = conversation?.plantId
+
   const {
     isLoading: isLoadingHistory,
     initialMessages,
@@ -80,6 +103,43 @@ export function ChatScreen() {
     conversationId: activeConversationId ?? '',
     initialMessages,
   })
+
+  // Auto-open the sheet for a diagnosis / plan that just arrived. Results are
+  // tracked by their stable output id so the sheet survives the history
+  // refetch that swaps streamed messages for persisted ones. History loaded
+  // for a conversation is seeded as "seen" and never auto-opens.
+  const seenToolIdsRef = useRef<Set<string>>(new Set())
+  const sentInSessionRef = useRef(false)
+  const [autoOpenToolId, setAutoOpenToolId] = useState<string | null>(null)
+  const clearAutoOpen = useCallback(() => setAutoOpenToolId(null), [])
+
+  const trackedConversationRef = useRef(activeConversationId)
+  useEffect(() => {
+    if (trackedConversationRef.current === activeConversationId) return
+    trackedConversationRef.current = activeConversationId
+    seenToolIdsRef.current = new Set()
+    sentInSessionRef.current = false
+    setAutoOpenToolId(null)
+  }, [activeConversationId])
+
+  useEffect(() => {
+    Array.forEach(collectToolResultIds(initialMessages ?? []), (id) => {
+      seenToolIdsRef.current.add(id)
+    })
+  }, [initialMessages])
+
+  useEffect(() => {
+    if (!sentInSessionRef.current) return
+    const fresh = Array.filter(
+      collectToolResultIds(chatMessages),
+      (id) => !seenToolIdsRef.current.has(id)
+    )
+    if (!Array.isNonEmptyReadonlyArray(fresh)) return
+    Array.forEach(fresh, (id) => {
+      seenToolIdsRef.current.add(id)
+    })
+    setAutoOpenToolId(Array.headNonEmpty(fresh))
+  }, [chatMessages])
 
   const uploadImage = useUploadConversationImage(activeConversationId ?? '')
   const isStreaming = status === 'submitted' || status === 'streaming'
@@ -107,6 +167,7 @@ export function ChatScreen() {
   const sendInternal = useCallback(
     async (content: string, imageUri?: string) => {
       if (isStreaming) return
+      sentInSessionRef.current = true
 
       let uploadedImageKey: string | undefined
       let uploadedImageUrl: string | undefined
@@ -195,18 +256,24 @@ export function ChatScreen() {
     sendInternal(msg.content, msg.imageUri)
   }, [activeConversationId, pendingMessage, sendInternal])
 
-  const renderMessage = useCallback(({ item }: { item: UIMessage }) => {
-    const metadata = item.metadata as { createdAt?: string } | undefined
-    return (
-      <ChatMessage
-        message={item}
-        createdAt={pipe(
-          Option.fromNullable(metadata?.createdAt),
-          Option.getOrElse(() => nowAsIsoString())
-        )}
-      />
-    )
-  }, [])
+  const renderMessage = useCallback(
+    ({ item }: { item: UIMessage }) => {
+      const metadata = item.metadata as { createdAt?: string } | undefined
+      return (
+        <ChatMessage
+          message={item}
+          plantId={conversationPlantId}
+          autoOpenToolId={autoOpenToolId}
+          onAutoOpenHandled={clearAutoOpen}
+          createdAt={pipe(
+            Option.fromNullable(metadata?.createdAt),
+            Option.getOrElse(() => nowAsIsoString())
+          )}
+        />
+      )
+    },
+    [conversationPlantId, autoOpenToolId, clearAutoOpen]
+  )
 
   const showTypingIndicator = pipe(
     Array.last(chatMessages),

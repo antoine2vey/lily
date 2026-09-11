@@ -39,6 +39,10 @@
       "types": "./src/domains/care-log/schema.ts",
       "default": "./src/domains/care-log/schema.ts"
     },
+    "./care-plan": {
+      "types": "./src/domains/care-plan/schema.ts",
+      "default": "./src/domains/care-plan/schema.ts"
+    },
     "./common": {
       "types": "./src/domains/common/schema.ts",
       "default": "./src/domains/common/schema.ts"
@@ -79,9 +83,9 @@
       "types": "./src/domains/care-log/errors.ts",
       "default": "./src/domains/care-log/errors.ts"
     },
-    "./errors/diagnosis": {
-      "types": "./src/domains/diagnosis/errors.ts",
-      "default": "./src/domains/diagnosis/errors.ts"
+    "./errors/care-plan": {
+      "types": "./src/domains/care-plan/errors.ts",
+      "default": "./src/domains/care-plan/errors.ts"
     },
     "./errors/database": {
       "types": "./src/domains/common/errors.ts",

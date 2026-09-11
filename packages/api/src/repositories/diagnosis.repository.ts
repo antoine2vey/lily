@@ -5,7 +5,7 @@ import {
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
 import { diagnoses } from '@lily/db/schema'
-import { nowAsDate, paginate } from '@lily/shared'
+import { paginate } from '@lily/shared'
 import type { Diagnosis, DiagnosisListResponse } from '@lily/shared/diagnosis'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
@@ -44,8 +44,6 @@ const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({
     Option.fromNullable(row.preventionTips)
   ),
   imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
-  status: row.status,
-  resolvedAt: Option.getOrUndefined(Option.fromNullable(row.resolvedAt)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -62,10 +60,6 @@ export interface IDiagnosisRepository {
     diagnosisId: string,
     chatMessageId: string
   ) => Effect.Effect<void, SqlError>
-  readonly markResolved: (
-    id: string,
-    userId: string
-  ) => Effect.Effect<Diagnosis | null, SqlError>
 }
 
 export class DiagnosisRepository extends Context.Tag('DiagnosisRepository')<
@@ -159,26 +153,6 @@ export const DiagnosisRepositoryLive = Layer.effect(
             .where(eq(diagnoses.id, diagnosisId))
         }
       ),
-
-      markResolved: Effect.fn('DiagnosisRepository.markResolved')(function* (
-        id: string,
-        userId: string
-      ) {
-        const rows = yield* db
-          .update(diagnoses)
-          .set({
-            status: 'RESOLVED',
-            resolvedAt: nowAsDate(),
-          })
-          .where(and(eq(diagnoses.id, id), eq(diagnoses.userId, userId)))
-          .returning()
-
-        return pipe(
-          Array.head(rows),
-          Option.map(mapToDiagnosis),
-          Option.getOrNull
-        )
-      }),
     }
   })
 )

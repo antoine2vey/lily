@@ -55,6 +55,16 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
+    // Single conversation — the chat screen needs `kind`/`plantId` to scope
+    // plant-bound cards (diagnoses, care plans) rendered in the history.
+    HttpApiEndpoint.get(
+      'getConversation'
+    )`/chat/conversations/${conversationIdParam}`
+      .addSuccess(ChatConversation)
+      .addError(ConversationNotFoundError, { status: 404 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
     HttpApiEndpoint.del(
       'deleteConversation'
     )`/chat/conversations/${conversationIdParam}`

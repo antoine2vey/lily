@@ -1,12 +1,15 @@
 import { openai } from '@ai-sdk/openai'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
+import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import {
   buildGeneralSystemPrompt,
   buildPlantSystemPrompt,
   formatCareHistoryText,
+  formatCarePlansText,
 } from '@lily/api/services/ai-chat/build-system-prompt'
 import {
   buildGeneralChatTools,
@@ -189,6 +192,8 @@ const buildPlantContext = (
     const plantRepo = yield* PlantRepository
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
+    const carePlanRepo = yield* CarePlanRepository
+    const userRepo = yield* UserRepository
 
     const plant = yield* plantRepo.findById(plantId)
     if (!plant) {
@@ -204,10 +209,23 @@ const buildPlantContext = (
     const careHistoryText = formatCareHistoryText(careLogsResponse.items)
     const daysSinceAdded = daysSince(plant.dateAdded)
 
+    // Plans belong to the owner; a caretaker chatting about a delegated
+    // plant simply gets no plan context (owner-only feature).
+    const carePlans = yield* carePlanRepo.findByPlant(plantId, userId)
+    const carePlansText = formatCarePlansText(carePlans)
+
+    const user = yield* userRepo.findById(userId)
+    const timezone = pipe(
+      Option.fromNullable(user),
+      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.getOrElse(() => 'UTC')
+    )
+
     const systemPrompt = buildPlantSystemPrompt({
       plant: { ...plant, schedules },
       daysSinceAdded,
       careHistoryText,
+      carePlansText,
     })
 
     const tools = buildPlantChatTools({
@@ -216,6 +234,7 @@ const buildPlantContext = (
       plantId,
       ...(imageKey ? { imageKey } : {}),
       plantName: plant.name,
+      timezone,
     })
 
     return { systemPrompt, tools }

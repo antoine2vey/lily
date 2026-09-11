@@ -24,8 +24,6 @@ const mapToDiagnosis = (row: DiagnosisRecord): Diagnosis => ({
     Option.fromNullable(row.preventionTips)
   ),
   imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
-  status: row.status,
-  resolvedAt: Option.getOrUndefined(Option.fromNullable(row.resolvedAt)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -49,8 +47,6 @@ export const createMockDiagnosisRepository = (
         treatmentSteps: createData.treatmentSteps,
         preventionTips: createData.preventionTips ?? null,
         imageKey: createData.imageKey ?? null,
-        status: 'ACTIVE',
-        resolvedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -107,25 +103,6 @@ export const createMockDiagnosisRepository = (
         }
       }
       return Effect.void
-    },
-
-    markResolved: (id: string, userId: string) => {
-      const idx = diagnosesData.findIndex(
-        (d) => d.id === id && d.userId === userId
-      )
-      if (idx === -1) return Effect.succeed(null)
-
-      const existing = diagnosesData[idx]
-      if (!existing) return Effect.succeed(null)
-
-      const updated = {
-        ...existing,
-        status: 'RESOLVED' as const,
-        resolvedAt: new Date(),
-        updatedAt: new Date(),
-      }
-      diagnosesData[idx] = updated
-      return Effect.succeed(mapToDiagnosis(updated))
     },
   }
 

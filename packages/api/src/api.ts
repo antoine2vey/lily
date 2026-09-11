@@ -6,6 +6,7 @@ import { AdminAnalyticsApi } from '@lily/api/services/admin-analytics/api'
 import { AIChatApi } from '@lily/api/services/ai-chat/api'
 import { AuthApi } from '@lily/api/services/auth/api'
 import { CareLogsApi } from '@lily/api/services/care-logs/api'
+import { CarePlansApi } from '@lily/api/services/care-plans/api'
 import { CareTasksApi } from '@lily/api/services/care-tasks/api'
 import { DelegationApi } from '@lily/api/services/delegation/api'
 import { DeviceTokensApi } from '@lily/api/services/device-tokens/api'
@@ -43,6 +44,7 @@ export const Api = HttpApi.make('Api')
   .add(RoomsApi.prefix('/api'))
   .add(CareLogsApi.prefix('/api'))
   .add(CareTasksApi.prefix('/api'))
+  .add(CarePlansApi.prefix('/api'))
   .add(NotificationsApi.prefix('/api'))
   .add(DeviceTokensApi.prefix('/api'))
   .add(ActivityPushTokensApi.prefix('/api'))

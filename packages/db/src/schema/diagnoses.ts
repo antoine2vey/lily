@@ -1,8 +1,5 @@
 import { chatMessages } from '@lily/db/schema/chat'
-import {
-  diagnosisSeverityEnum,
-  diagnosisStatusEnum,
-} from '@lily/db/schema/enums'
+import { diagnosisSeverityEnum } from '@lily/db/schema/enums'
 import { plants } from '@lily/db/schema/plants'
 import { users } from '@lily/db/schema/users'
 import { relations } from 'drizzle-orm'
@@ -33,8 +30,6 @@ export const diagnoses = pgTable('diagnoses', {
   treatmentSteps: jsonb('treatment_steps').notNull().$type<string[]>(),
   preventionTips: jsonb('prevention_tips').$type<string[]>(),
   imageKey: text('image_key'),
-  status: diagnosisStatusEnum('status').notNull().default('ACTIVE'),
-  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

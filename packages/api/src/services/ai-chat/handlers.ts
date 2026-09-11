@@ -30,6 +30,9 @@ export const AIChatApiLive = (api: Api) =>
           ...(urlParams.kind !== undefined ? { kind: urlParams.kind } : {}),
         }).pipe(withInfraErrorsAsDefect)
       )
+      .handle('getConversation', ({ path: { conversationId } }) =>
+        withConversationAuth(conversationId).pipe(withInfraErrorsAsDefect)
+      )
       .handle('deleteConversation', ({ path: { conversationId } }) =>
         withConversationAuth(conversationId).pipe(
           Effect.flatMap(() => deleteConversation(conversationId)),

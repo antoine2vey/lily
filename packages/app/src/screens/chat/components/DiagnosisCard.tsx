@@ -1,9 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { useQueryClient } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import type { ReactNode } from 'react'
+import { Text, View } from 'react-native'
 import { useIconColors } from '@/hooks/useIconColors'
-import { useEffectMutation } from '@/utils/client'
 
 interface DiagnosisResult {
   diagnosisId: string
@@ -17,7 +16,16 @@ interface DiagnosisResult {
 
 interface DiagnosisCardProps {
   diagnosis: DiagnosisResult
-  plantId?: string | undefined
+  /**
+   * Replaces the static numbered treatment list. Used to embed the care plan
+   * (steps + "Add to tasks") so a diagnosis renders as one card, not two.
+   */
+  treatmentSlot?: ReactNode
+  /**
+   * `card`: bordered bubble with its own title (legacy inline use).
+   * `sheet`: content only, for a bottom sheet that already shows the title.
+   */
+  presentation?: 'card' | 'sheet'
 }
 
 const getSeverityColor = (severity: string): string =>
@@ -40,31 +48,39 @@ const getSeverityTextColor = (severity: string): string =>
     Match.orElse(() => 'text-text-muted')
   )
 
-export function DiagnosisCard({ diagnosis, plantId }: DiagnosisCardProps) {
+export function DiagnosisCard({
+  diagnosis,
+  treatmentSlot,
+  presentation = 'card',
+}: DiagnosisCardProps) {
   const iconColors = useIconColors()
-  const queryClient = useQueryClient()
-
-  const resolveMutation = useEffectMutation('diagnosis', 'resolveDiagnosis', {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['diagnosis'] })
-    },
-  })
-
   const severityBgColor = getSeverityColor(diagnosis.severity)
   const severityTextColor = getSeverityTextColor(diagnosis.severity)
 
+  const isSheet = presentation === 'sheet'
+
   return (
-    <View className="bg-surface dark:bg-surface-dark rounded-lg p-4 border border-border dark:border-slate-700 my-2">
-      {/* Header */}
-      <View className="flex-row items-center justify-between mb-3">
-        <View className="flex-1 mr-2">
-          <Text
-            className="text-base font-semibold text-text-primary dark:text-white"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-          >
-            {diagnosis.diseaseName}
-          </Text>
-        </View>
+    <View
+      className={
+        isSheet
+          ? 'pb-2'
+          : 'bg-surface dark:bg-surface-dark rounded-lg p-4 border border-border dark:border-slate-700 my-2'
+      }
+    >
+      {/* Header: the sheet already shows the title, keep only the severity */}
+      <View
+        className={`flex-row items-center mb-3 ${isSheet ? 'justify-end' : 'justify-between'}`}
+      >
+        {!isSheet && (
+          <View className="flex-1 mr-2">
+            <Text
+              className="text-base font-semibold text-text-primary dark:text-white"
+              style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+            >
+              {diagnosis.diseaseName}
+            </Text>
+          </View>
+        )}
         <View className={`px-2.5 py-1 rounded-full ${severityBgColor}`}>
           <Text
             className="text-xs font-semibold text-white"
@@ -121,95 +137,21 @@ export function DiagnosisCard({ diagnosis, plantId }: DiagnosisCardProps) {
         >
           Treatment
         </Text>
-        {diagnosis.treatmentSteps.map((step, idx) => (
-          <View key={step} className="flex-row items-start mb-1">
-            <Text
-              className="text-primary dark:text-primary-light mr-2 text-sm font-semibold"
-              style={{ fontFamily: 'SpaceGrotesk_600SemiBold', minWidth: 20 }}
-            >
-              {idx + 1}.
-            </Text>
-            <Text className="text-sm text-text-primary dark:text-white flex-1 font-regular">
-              {step}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Prevention Tips */}
-      {diagnosis.preventionTips && diagnosis.preventionTips.length > 0 && (
-        <View className="mb-3">
-          <Text
-            className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide mb-1.5"
-            style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-          >
-            Prevention
-          </Text>
-          {diagnosis.preventionTips.map((tip) => (
-            <View key={tip} className="flex-row items-start mb-1">
-              <MaterialIcons
-                name="shield"
-                size={14}
-                color={iconColors.primary}
-                style={{ marginRight: 6, marginTop: 2 }}
-              />
+        {treatmentSlot ??
+          diagnosis.treatmentSteps.map((step, idx) => (
+            <View key={step} className="flex-row items-start mb-1">
+              <Text
+                className="text-primary dark:text-primary-light mr-2 text-sm font-semibold"
+                style={{ fontFamily: 'SpaceGrotesk_600SemiBold', minWidth: 20 }}
+              >
+                {idx + 1}.
+              </Text>
               <Text className="text-sm text-text-primary dark:text-white flex-1 font-regular">
-                {tip}
+                {step}
               </Text>
             </View>
           ))}
-        </View>
-      )}
-
-      {/* Resolve Button */}
-      {!resolveMutation.isSuccess && (
-        <Pressable
-          onPress={() =>
-            resolveMutation.mutate({
-              path: {
-                plantId: plantId ?? '',
-                diagnosisId: diagnosis.diagnosisId,
-              },
-            })
-          }
-          disabled={resolveMutation.isPending}
-          className="flex-row items-center justify-center py-2.5 rounded-md bg-primary-tint dark:bg-primary/20 mt-1"
-        >
-          {resolveMutation.isPending ? (
-            <ActivityIndicator size="small" color={iconColors.primary} />
-          ) : (
-            <>
-              <MaterialIcons
-                name="check-circle"
-                size={18}
-                color={iconColors.primary}
-              />
-              <Text
-                className="text-sm font-semibold text-primary ml-1.5"
-                style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-              >
-                Mark Resolved
-              </Text>
-            </>
-          )}
-        </Pressable>
-      )}
-
-      {resolveMutation.isSuccess && (
-        <View className="flex-row items-center justify-center py-2.5 rounded-md bg-success/10 mt-1">
-          <MaterialIcons
-            name="check-circle"
-            size={18}
-            color={iconColors.primary}
-          />
-          <Text
-            className="text-sm font-semibold text-success ml-1.5"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-          >
-            Resolved
-          </Text>
-        </View>
-      )}
+      </View>
     </View>
   )
 }

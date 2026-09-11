@@ -3,11 +3,13 @@ import type { SqlError } from '@effect/sql/SqlError'
 import { StreamTransformError } from '@lily/api/errors/defects'
 import type { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
+import type { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
+import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { generateMessageId } from '@lily/api/services/ai-chat/generate-message-id'
 import { persistChatCompletion } from '@lily/api/services/ai-chat/persist-chat-completion'
@@ -108,6 +110,8 @@ export const streamChatMessage = (
   | CareLogRepository
   | CareScheduleRepository
   | DiagnosisRepository
+  | CarePlanRepository
+  | UserRepository
   | DelegationRepository
   | LimitChecker
   | UsageTracker
@@ -208,7 +212,12 @@ export const streamChatMessage = (
 
     const uiStream = streamResult.toUIMessageStream()
     const context = yield* Effect.context<
-      ChatRepository | DiagnosisRepository | EventBus | UsageTracker | AiService
+      | ChatRepository
+      | DiagnosisRepository
+      | CarePlanRepository
+      | EventBus
+      | UsageTracker
+      | AiService
     >()
 
     const onComplete = Deferred.await(completionDeferred).pipe(

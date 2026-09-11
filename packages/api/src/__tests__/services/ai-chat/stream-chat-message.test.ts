@@ -7,6 +7,7 @@ import {
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockChatRepository } from '@lily/api/__tests__/mocks/chat.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -21,6 +22,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { MockRagServiceLive } from '@lily/api/__tests__/mocks/rag.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
+import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import type { ChatMessage } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
@@ -88,6 +90,8 @@ describe('streamChatMessage', () => {
       createMockPlantRepository({ plants: mockPlants }),
       createMockCareLogRepository([]),
       createMockDiagnosisRepository([]),
+      createMockCarePlanRepository(),
+      createMockUserRepository([]),
       opts.aiChatLimitReached
         ? createMockLimitChecker({ aiChatLimitReached: true })
         : MockLimitCheckerLive,

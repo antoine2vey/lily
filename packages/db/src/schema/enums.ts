@@ -56,11 +56,6 @@ export const diagnosisSeverityEnum = pgEnum('diagnosis_severity', [
   'CRITICAL',
 ])
 
-export const diagnosisStatusEnum = pgEnum('diagnosis_status', [
-  'ACTIVE',
-  'RESOLVED',
-])
-
 export const delegationStatusEnum = pgEnum('delegation_status', [
   'pending',
   'accepted',
@@ -126,3 +121,15 @@ export const activityStatusEnum = pgEnum('activity_status', [
   'ended',
   'expired',
 ])
+
+// AI (or, later, user) authored one-off care checklists attached to a plant.
+// 'proposed' rows are created by the chat tool before the user accepts them;
+// they only ever surface inside their originating chat card.
+export const carePlanStatusEnum = pgEnum('care_plan_status', [
+  'proposed',
+  'accepted',
+  'completed',
+  'dismissed',
+])
+
+export const carePlanSourceEnum = pgEnum('care_plan_source', ['ai', 'user'])

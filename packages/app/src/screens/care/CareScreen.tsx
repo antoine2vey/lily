@@ -20,6 +20,7 @@ import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
+import { useCarePlans } from '@/hooks/useCarePlans'
 import { useCareTasks } from '@/hooks/useCareTasks'
 import { useCompleteTask } from '@/hooks/useCompleteTask'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
@@ -27,6 +28,7 @@ import { useIconColors } from '@/hooks/useIconColors'
 import { useSkipWaitingPreference } from '@/hooks/useSkipWaitingPreference'
 import { useVacation } from '@/hooks/useVacation'
 import { CareContentSkeleton } from '@/screens/care/components/CareContentSkeleton'
+import { CarePlansSection } from '@/screens/care/components/CarePlansSection'
 import { CareTaskCard } from '@/screens/care/components/CareTaskCard'
 import { DelegatedTasksSection } from '@/screens/care/components/DelegatedTasksSection'
 import { SkipWaitingToggle } from '@/screens/care/components/SkipWaitingToggle'
@@ -57,6 +59,7 @@ export function CareScreen() {
   const insets = useSafeAreaInsets()
   const tabBarInset = useTabBarInset()
   const { data: tasks, isLoading, isRefetching, refetch } = useCareTasks()
+  const { data: carePlans } = useCarePlans()
   const { data: vacation } = useVacation()
   const { mutate: completeTask } = useCompleteTask()
   const { skipWaiting, setSkipWaiting } = useSkipWaitingPreference()
@@ -197,7 +200,12 @@ export function CareScreen() {
   const overdueCount = Array.length(overdueTasks)
   const todayCount = Array.length(todayTasks)
   const upcomingCount = Array.length(upcomingTasks)
-  const totalTasks = overdueCount + todayCount + upcomingCount
+  const planCount = pipe(
+    Option.fromNullable(carePlans?.items),
+    Option.map(Array.length),
+    Option.getOrElse(() => 0)
+  )
+  const totalTasks = overdueCount + todayCount + upcomingCount + planCount
 
   return (
     <View
@@ -318,6 +326,9 @@ export function CareScreen() {
                       </View>
                     </View>
                   )}
+
+                  {/* AI care plans sit between today's care and the week ahead */}
+                  <CarePlansSection />
 
                   {upcomingCount > 0 && (
                     <View>

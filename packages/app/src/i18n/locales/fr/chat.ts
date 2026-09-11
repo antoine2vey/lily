@@ -12,6 +12,25 @@ export default {
     "J'aimerais vous aider, mais vous avez atteint votre limite mensuelle de conversations IA. Passez à Premium pour des conversations illimitées sur vos plantes ! 🌱",
   analyzing: 'Analyse en cours...',
   searching: 'Recherche en cours...',
+  planning: 'Préparation d’un plan de soins...',
+  summary: {
+    viewDiagnosis: 'Voir le diagnostic',
+    viewPlan: 'Voir le plan',
+    progress: '{done}/{total} faites',
+    diagnosisSubtitle:
+      'Diagnostic · {count, plural, one {# étape de traitement} other {# étapes de traitement}}',
+  },
+  carePlan: {
+    title: 'Plan de soins',
+    addToTasks: 'Ajouter aux tâches',
+    added: 'Ajouté aux tâches',
+    dismiss: 'Pas maintenant',
+    dismissed: 'Ignoré',
+    completed: 'Terminé',
+    dueToday: "aujourd'hui",
+    dueInDays: 'dans {count, plural, one {# jour} other {# jours}}',
+    stepsCount: '{count, plural, one {# étape} other {# étapes}}',
+  },
   drawer: {
     title: 'Conversations',
     newChat: 'Nouvelle conversation',

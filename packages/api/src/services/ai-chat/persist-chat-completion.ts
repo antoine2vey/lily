@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
+import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { AiService } from '@lily/api/services/ai/service'
@@ -84,11 +85,17 @@ export const persistChatCompletion = (
 ): Effect.Effect<
   void,
   SqlError,
-  ChatRepository | DiagnosisRepository | EventBus | UsageTracker | AiService
+  | ChatRepository
+  | DiagnosisRepository
+  | CarePlanRepository
+  | EventBus
+  | UsageTracker
+  | AiService
 > =>
   Effect.gen(function* () {
     const chatRepo = yield* ChatRepository
     const diagnosisRepo = yield* DiagnosisRepository
+    const carePlanRepo = yield* CarePlanRepository
     const eventBus = yield* EventBus
     const usageTracker = yield* UsageTracker
     const { conversation, userId, userMessage, steps } = params
@@ -191,6 +198,38 @@ export const persistChatCompletion = (
             })
           )
         })
+      )
+
+      // Care plans come from `proposeCarePlan` directly and from the plan a
+      // diagnosis auto-creates; both outputs carry `carePlanId`.
+      const createdCarePlanIds = pipe(
+        steps,
+        Array.flatMap((step) =>
+          pipe(
+            step.toolResults,
+            Array.filter(
+              (tr) =>
+                tr.toolName === 'proposeCarePlan' ||
+                tr.toolName === 'createDiagnosis'
+            ),
+            Array.filterMap((tr) =>
+              pipe(
+                Option.fromNullable(
+                  tr.output as { carePlanId?: string } | null
+                ),
+                Option.flatMap((output) =>
+                  Option.fromNullable(output.carePlanId)
+                )
+              )
+            )
+          )
+        )
+      )
+      yield* Effect.forEach(
+        createdCarePlanIds,
+        (carePlanId) =>
+          carePlanRepo.linkChatMessage(carePlanId, userMessageDbId),
+        { discard: true }
       )
     }
 

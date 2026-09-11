@@ -663,7 +663,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
           'Inspect new plants before bringing them home',
           'Keep leaves clean and dust-free',
         ],
-        status: 'ACTIVE',
       },
       {
         plantId: fiddleLeafFig.id,
@@ -681,8 +680,6 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
           'Always check soil moisture before watering',
           'Use a well-draining potting mix',
         ],
-        status: 'RESOLVED',
-        resolvedAt: daysAgo(5),
       },
     ])
     yield* Console.log('Created 2 diagnoses')

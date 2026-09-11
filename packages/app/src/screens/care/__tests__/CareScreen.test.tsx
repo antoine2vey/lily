@@ -29,6 +29,16 @@ jest.mock('@/hooks/useDelegatedTasks', () => ({
   useDelegatedTasks: jest.fn().mockReturnValue({ data: undefined }),
 }))
 
+jest.mock('@/hooks/useCarePlans', () => ({
+  useCarePlans: jest.fn().mockReturnValue({ data: undefined }),
+}))
+
+// The plans section owns its own queries and mutations; it is covered by
+// CarePlanChecklistCard tests and stubbed here to keep this screen isolated.
+jest.mock('@/screens/care/components/CarePlansSection', () => ({
+  CarePlansSection: () => null,
+}))
+
 jest.mock('@/hooks/useSkipWaitingPreference', () => ({
   useSkipWaitingPreference: jest.fn(),
 }))

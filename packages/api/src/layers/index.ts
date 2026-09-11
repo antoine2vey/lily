@@ -27,6 +27,7 @@ import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity
 import { AnalyticsRepositoryLive } from '@lily/api/repositories/analytics.repository'
 import { BlogPostRepositoryLive } from '@lily/api/repositories/blog-post.repository'
 import { CareLogRepositoryLive } from '@lily/api/repositories/care-log.repository'
+import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { ChatRepositoryLive } from '@lily/api/repositories/chat.repository'
 import { DailyTipRepositoryLive } from '@lily/api/repositories/daily-tip.repository'
@@ -138,6 +139,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
 
 const RepositoriesGroup2 = Layer.mergeAll(
   ActivityPushTokenRepositoryLive,
+  CarePlanRepositoryLive,
   AnalyticsRepositoryLive,
   GiftCodeRepositoryLive,
   OAuthIdentityRepositoryLive,

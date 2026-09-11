@@ -6,6 +6,7 @@ import {
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/auth'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
+import { createMockCarePlanRepository } from '@lily/api/__tests__/mocks/care-plan.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
@@ -124,6 +125,7 @@ describe('executePlantCare', () => {
               }),
               createMockNotificationRepository(notifications),
               createMockCareLogRepository([]),
+              createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
               createMockEventBus(),
@@ -207,6 +209,7 @@ describe('executePlantCare', () => {
               }),
               createMockNotificationRepository(notifications),
               createMockCareLogRepository([]),
+              createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
               createMockEventBus(),
@@ -282,6 +285,7 @@ describe('executePlantCare', () => {
               }),
               createMockNotificationRepository(notifications),
               createMockCareLogRepository([]),
+              createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
               createMockEventBus(),
@@ -386,6 +390,7 @@ describe('executePlantCare', () => {
               }),
               createMockNotificationRepository([]),
               createMockCareLogRepository([]),
+              createMockCarePlanRepository(),
               createMockUserRepository([user]),
               createMockDelegationRepository({}),
               createMockEventBus(),

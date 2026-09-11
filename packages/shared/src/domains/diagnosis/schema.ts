@@ -10,10 +10,6 @@ export const DiagnosisSeverity = Schema.Literal(
 
 export type DiagnosisSeverity = typeof DiagnosisSeverity.Type
 
-export const DiagnosisStatus = Schema.Literal('ACTIVE', 'RESOLVED')
-
-export type DiagnosisStatus = typeof DiagnosisStatus.Type
-
 export const Diagnosis = Schema.Struct({
   id: Schema.String,
   plantId: Schema.String,
@@ -26,8 +22,6 @@ export const Diagnosis = Schema.Struct({
   treatmentSteps: Schema.Array(Schema.String),
   preventionTips: Schema.optional(Schema.Array(Schema.String)),
   imageUrl: Schema.optional(Schema.String),
-  status: DiagnosisStatus,
-  resolvedAt: Schema.optional(Schema.Date),
   createdAt: Schema.Date,
   updatedAt: Schema.Date,
 })

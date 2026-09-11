@@ -15,7 +15,11 @@ import { Avatar } from '@/components/Avatar'
 import { MarkdownText } from '@/components/MarkdownText'
 import { useAuth } from '@/contexts/AuthContext'
 
-import { toolBubbleRenderers, toolFullWidthRenderers } from './tool-renderers'
+import {
+  FULL_WIDTH_TOOLS,
+  toolBubbleRenderers,
+  toolFullWidthRenderers,
+} from './tool-renderers'
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
@@ -26,11 +30,19 @@ type AnyToolPart = ToolUIPart | DynamicToolUIPart
 
 interface ChatMessageProps {
   message: UIMessage
-  plantId?: string
+  plantId?: string | undefined
   createdAt?: string
+  autoOpenToolId?: string | null | undefined
+  onAutoOpenHandled?: (() => void) | undefined
 }
 
-export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  plantId,
+  createdAt,
+  autoOpenToolId,
+  onAutoOpenHandled,
+}: ChatMessageProps) {
   const isUser = message.role === 'user'
   const { t } = useTranslation('chat')
   const { state } = useAuth()
@@ -43,12 +55,13 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
     Match.orElse(() => 'You')
   )
 
-  // Check if this message has a completed diagnosis tool
+  // Check if this message has a completed full-width tool (diagnosis or
+  // care plan): its text then renders above the card instead of in a bubble.
   const hasCompletedDiagnosis = Array.some(
     message.parts,
     (p) =>
       isToolUIPart(p) &&
-      getToolName(p) === 'createDiagnosis' &&
+      Array.contains(FULL_WIDTH_TOOLS, getToolName(p)) &&
       p.state === 'output-available'
   )
 
@@ -170,7 +183,14 @@ export function ChatMessage({ message, plantId, createdAt }: ChatMessageProps) {
       const toolName = getToolName(part)
       return pipe(
         Option.fromNullable(toolFullWidthRenderers[toolName]),
-        Option.flatMap((renderer) => renderer(part, index, plantId))
+        Option.flatMap((renderer) =>
+          renderer(part, index, {
+            t,
+            plantId,
+            autoOpenToolId,
+            onAutoOpenHandled,
+          })
+        )
       )
     })
   )

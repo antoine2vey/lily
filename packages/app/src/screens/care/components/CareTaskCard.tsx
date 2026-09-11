@@ -7,6 +7,10 @@ import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { Badge } from '@/components/Badge'
 import { useIconColors } from '@/hooks/useIconColors'
+import {
+  type CareTypeConfig,
+  getCareTypeConfig,
+} from '@/screens/care/components/care-type-config'
 import { UndoButton } from '@/screens/care/components/UndoButton'
 
 interface CareTaskCardProps {
@@ -29,40 +33,9 @@ interface CareTaskCardProps {
   isPendingCompletion?: boolean
 }
 
-interface TaskConfig {
-  icon: keyof typeof MaterialIcons.glyphMap
-  color: string
-  labelKey: CareType
-}
+type TaskConfig = CareTypeConfig
 
-const getTaskConfig = (
-  type: CareType,
-  iconColors: ReturnType<typeof useIconColors>
-): TaskConfig =>
-  pipe(
-    Match.value(type),
-    Match.when('watering', () => ({
-      icon: 'water-drop' as const,
-      color: iconColors.waterBlue,
-      labelKey: 'watering' as const,
-    })),
-    Match.when('fertilization', () => ({
-      icon: 'eco' as const,
-      color: iconColors.fertilizerOrange,
-      labelKey: 'fertilization' as const,
-    })),
-    Match.when('misting', () => ({
-      icon: 'grain' as const,
-      color: iconColors.waterBlue,
-      labelKey: 'misting' as const,
-    })),
-    Match.when('repotting', () => ({
-      icon: 'compost' as const,
-      color: iconColors.repotBrown,
-      labelKey: 'repotting' as const,
-    })),
-    Match.exhaustive
-  )
+const getTaskConfig = getCareTypeConfig
 
 const getTaskBadgeLabel = (
   labelKey: TaskConfig['labelKey'],

@@ -12,6 +12,25 @@ export default {
     "I'd love to help, but you've reached your monthly AI chat limit. Upgrade to Premium for unlimited conversations about your plants! 🌱",
   analyzing: 'Analyzing...',
   searching: 'Searching knowledge base...',
+  planning: 'Preparing a care plan...',
+  summary: {
+    viewDiagnosis: 'View diagnosis',
+    viewPlan: 'View plan',
+    progress: '{done}/{total} done',
+    diagnosisSubtitle:
+      'Diagnosis · {count, plural, one {# treatment step} other {# treatment steps}}',
+  },
+  carePlan: {
+    title: 'Care plan',
+    addToTasks: 'Add to tasks',
+    added: 'Added to tasks',
+    dismiss: 'Not now',
+    dismissed: 'Dismissed',
+    completed: 'Completed',
+    dueToday: 'today',
+    dueInDays: 'in {count, plural, one {# day} other {# days}}',
+    stepsCount: '{count, plural, one {# step} other {# steps}}',
+  },
   drawer: {
     title: 'Conversations',
     newChat: 'New conversation',

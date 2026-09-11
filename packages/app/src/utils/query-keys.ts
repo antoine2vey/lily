@@ -34,6 +34,14 @@ export const queryKeys = {
     list: () => [...queryKeys.careTasks.all, 'getCareTasks'] as const,
   },
 
+  // Care plans domain (AI-proposed checklists)
+  carePlans: {
+    all: ['carePlans'] as const,
+    list: () => [...queryKeys.carePlans.all, 'getCarePlans'] as const,
+    byPlant: (plantId: string) =>
+      [...queryKeys.carePlans.all, 'getPlantCarePlans', plantId] as const,
+  },
+
   // Subscriptions domain
   subscriptions: {
     all: ['subscriptions'] as const,
@@ -125,6 +133,7 @@ export const invalidateKeys = {
   plants: queryKeys.plants.all,
   careLogs: queryKeys.careLogs.all,
   careTasks: queryKeys.careTasks.all,
+  carePlans: queryKeys.carePlans.all,
   subscriptions: queryKeys.subscriptions.all,
   users: queryKeys.users.all,
   notifications: queryKeys.notifications.all,
