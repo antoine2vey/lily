@@ -57,14 +57,15 @@ const stepsFromPlan = (
   plan: CarePlan,
   proposal: ReadonlyArray<ProposedStep>
 ): StepView[] =>
-  Array.map(plan.steps, (s, i) => ({
+  Array.map(plan.steps, (s) => ({
     key: s.id,
     title: s.title,
     description: s.description,
     careType: s.careType,
-    // Relative offsets only exist on the proposal; keep them for display.
+    // Relative offsets only exist on the proposal; `position` is the original
+    // index so labels stay aligned even after a step was deleted.
     dueInDays: pipe(
-      Array.get(proposal, i),
+      Array.get(proposal, s.position),
       Option.flatMap((p) => Option.fromNullable(p.dueInDays)),
       Option.getOrUndefined
     ),

@@ -1,3 +1,4 @@
+import { Option, pipe } from 'effect'
 import { useEffectQuery } from '@/utils/client'
 
 /** Accepted plans for the Care tab. */
@@ -12,7 +13,14 @@ export function usePlantCarePlans(plantId: string | undefined) {
   return useEffectQuery(
     'carePlans',
     'getPlantCarePlans',
-    { path: { plantId: plantId ?? '' } },
+    {
+      path: {
+        plantId: pipe(
+          Option.fromNullable(plantId),
+          Option.getOrElse(() => '')
+        ),
+      },
+    },
     { enabled: Boolean(plantId) }
   )
 }

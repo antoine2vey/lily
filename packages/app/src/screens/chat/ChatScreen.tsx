@@ -123,7 +123,11 @@ export function ChatScreen() {
   }, [activeConversationId])
 
   useEffect(() => {
-    Array.forEach(collectToolResultIds(initialMessages ?? []), (id) => {
+    const history = pipe(
+      Option.fromNullable(initialMessages),
+      Option.getOrElse(() => [] as ReadonlyArray<UIMessage>)
+    )
+    Array.forEach(collectToolResultIds(history), (id) => {
       seenToolIdsRef.current.add(id)
     })
   }, [initialMessages])

@@ -1,8 +1,6 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import type { ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { useIconColors } from '@/hooks/useIconColors'
 
 interface DiagnosisResult {
   diagnosisId: string
@@ -53,7 +51,6 @@ export function DiagnosisCard({
   treatmentSlot,
   presentation = 'card',
 }: DiagnosisCardProps) {
-  const iconColors = useIconColors()
   const severityBgColor = getSeverityColor(diagnosis.severity)
   const severityTextColor = getSeverityTextColor(diagnosis.severity)
 
