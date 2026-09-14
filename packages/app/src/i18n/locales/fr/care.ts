@@ -67,6 +67,7 @@ export default {
     dueTomorrow: 'Prévu demain',
     overdue:
       '{count, plural, one {En retard de # jour} other {En retard de # jours}}',
+    daysLate: '{count} j',
     completedAt: 'Terminé le {date}',
   },
   types: {

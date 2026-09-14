@@ -66,6 +66,7 @@ export default {
     dueToday: 'Due today',
     dueTomorrow: 'Due tomorrow',
     overdue: 'Overdue by {count, plural, one {# day} other {# days}}',
+    daysLate: '{count}d',
     completedAt: 'Completed {date}',
   },
   types: {

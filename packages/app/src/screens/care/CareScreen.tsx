@@ -301,6 +301,7 @@ export function CareScreen() {
                           }
                           onUndo={() => handleUndo(task.id)}
                           overdue
+                          dueDayOffset={task.dueDayOffset}
                           isPendingCompletion={pendingTaskIds.has(task.id)}
                         />
                       ))}

@@ -29,6 +29,8 @@ interface CareTaskCardProps {
   onPlantPhotoPress: () => void
   onUndo?: () => void
   overdue?: boolean
+  /** Server-computed signed day offset in the user's timezone; negative when overdue. */
+  dueDayOffset?: number
   compact?: boolean
   isPendingCompletion?: boolean
 }
@@ -48,6 +50,7 @@ export function CareTaskCard({
   onPlantPhotoPress,
   onUndo,
   overdue = false,
+  dueDayOffset,
   compact = false,
   isPendingCompletion = false,
 }: CareTaskCardProps) {
@@ -78,6 +81,13 @@ export function CareTaskCard({
   )
 
   const isCompleted = task.completed || isPendingCompletion
+
+  const daysLate = pipe(
+    Option.fromNullable(dueDayOffset),
+    Option.filter(() => overdue && !isPendingCompletion),
+    Option.filter((offset) => offset < 0),
+    Option.map(Math.abs)
+  )
 
   return (
     <Pressable
@@ -115,7 +125,7 @@ export function CareTaskCard({
             </View>
           )}
         </View>
-        <View className="flex-row items-center mt-1">
+        <View className="flex-row items-center gap-1.5 mt-1">
           <Badge
             label={getTaskBadgeLabel(config.labelKey, t)}
             variant={overdue ? 'error' : 'info'}
@@ -128,6 +138,16 @@ export function CareTaskCard({
               />
             }
           />
+          {Option.match(daysLate, {
+            onNone: () => null,
+            onSome: (count) => (
+              <Badge
+                label={t('task.daysLate', { count })}
+                variant="error"
+                size="sm"
+              />
+            ),
+          })}
         </View>
       </View>
       {isPendingCompletion && onUndo ? (
