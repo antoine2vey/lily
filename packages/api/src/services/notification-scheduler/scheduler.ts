@@ -71,14 +71,43 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
   const currentTime = DateTime.toDateUtc(DateTime.unsafeNow())
 
+  // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
+  // reminders for plants that died since the row was scheduled, and Phase 3
+  // reuses it for names.
+  const allPlantIds = pipe(
+    Array.filterMap(pendingNotifications, (n) =>
+      Option.fromNullable(n.plantId)
+    ),
+    Array.dedupe
+  )
+  const plants = yield* plantRepo.findByIds(allPlantIds)
+  const livingPlantIds = new Set(
+    Array.filterMap(plants, (p) =>
+      p.diedAt === null ? Option.some(p.id) : Option.none()
+    )
+  )
+
   // Phase 1: Filter valid notifications and resolve topics
   type ValidNotification = {
     notification: Notification
     topic: NotificationTopic
   }
   const validNotifications: ValidNotification[] = []
+  const deadPlantNotificationIds: string[] = []
 
   for (const notification of pendingNotifications) {
+    // A plant in the cemetery (or gone) must never produce a push. Rows are
+    // deleted below so findPendingToSchedule does not return them every poll.
+    const plantIdOpt = Option.fromNullable(notification.plantId)
+    if (Option.isSome(plantIdOpt) && !livingPlantIds.has(plantIdOpt.value)) {
+      yield* Effect.log('Skipping notification - plant dead or missing', {
+        id: notification.id,
+        plantId: notification.plantId,
+      })
+      deadPlantNotificationIds.push(notification.id)
+      continue
+    }
+
     const topicOption = mapNotificationTypeToTopic(notification.type)
 
     if (Option.isNone(topicOption)) {
@@ -151,6 +180,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
     validNotifications.push({ notification, topic })
   }
 
+  yield* notificationRepo.deleteByIds(deadPlantNotificationIds)
+
   if (validNotifications.length === 0) return false
 
   // Phase 2: Group by user. Care reminders merge across care types (and
@@ -164,16 +195,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
       : `${n.notification.userId}::${n.notification.type}`
   )
 
-  // Phase 3: Resolve plant names
-  const allPlantIds = pipe(
-    Array.filterMap(validNotifications, (n) =>
-      Option.fromNullable(n.notification.plantId)
-    ),
-    Array.dedupe
-  )
-
-  const plants = yield* plantRepo.findByIds(allPlantIds)
-
+  // Phase 3: Resolve plant names (from the batch fetched before Phase 1)
   const plantNameMap = new Map(
     Array.map(plants, (p) => [p.id, p.name] as const)
   )

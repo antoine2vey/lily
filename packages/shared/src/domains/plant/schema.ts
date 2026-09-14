@@ -15,8 +15,39 @@ export type PlantHealthStatus = typeof PlantHealthStatus.Type
 export const PlantOwnership = Schema.Literal('owned', 'caretaking')
 export type PlantOwnership = typeof PlantOwnership.Type
 
-export const PlantFilter = Schema.Literal('needsAttention', 'overdue', 'all')
+// `dead` lists the cemetery; every other value implies living plants only.
+export const PlantFilter = Schema.Literal(
+  'needsAttention',
+  'overdue',
+  'all',
+  'dead'
+)
 export type PlantFilter = typeof PlantFilter.Type
+
+export const PlantDeathCause = Schema.Literal(
+  'overwatering',
+  'underwatering',
+  'pests',
+  'disease',
+  'light',
+  'cold',
+  'heat',
+  'repotting_shock',
+  'unknown'
+)
+export type PlantDeathCause = typeof PlantDeathCause.Type
+export const PLANT_DEATH_CAUSES: ReadonlyArray<PlantDeathCause> =
+  PlantDeathCause.literals
+
+export const PLANT_DEATH_NOTE_MAX_LENGTH = 500
+
+export const PlantDeathRequest = Schema.Struct({
+  cause: PlantDeathCause,
+  note: Schema.optional(
+    Schema.String.pipe(Schema.maxLength(PLANT_DEATH_NOTE_MAX_LENGTH))
+  ),
+})
+export type PlantDeathRequest = typeof PlantDeathRequest.Type
 
 export const PlantSort = Schema.Literal('added', 'name')
 export type PlantSort = typeof PlantSort.Type
@@ -50,6 +81,9 @@ export const Plant = Schema.Struct({
   potHeightCm: Schema.NullOr(Schema.Number),
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
+  diedAt: Schema.NullOr(Schema.Date),
+  deathCause: Schema.NullOr(PlantDeathCause),
+  deathNote: Schema.NullOr(Schema.String),
   ownership: Schema.optionalWith(PlantOwnership, {
     default: () => 'owned' as const,
   }),

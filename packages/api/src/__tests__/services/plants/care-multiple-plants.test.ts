@@ -275,6 +275,9 @@ describe('careMultiplePlants', () => {
       ...plant1,
       id: 'plant-room',
       roomId: 'room-1',
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
     }
     const rooms = [{ id: 'room-1', name: 'Living Room', icon: 'sofa' }]
     const schedules = schedulesFromPlants([plantWithRoom])

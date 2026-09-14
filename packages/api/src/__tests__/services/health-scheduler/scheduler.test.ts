@@ -28,6 +28,9 @@ const createTestPlant = (
   potWidthCm: null,
   potHeightCm: null,
   roomId: null,
+  diedAt: null,
+  deathCause: null,
+  deathNote: null,
   userId: 'user-1',
   ...overrides,
 })

@@ -1,12 +1,12 @@
 import { plantCareSchedules } from '@lily/db/schema/care-schedules'
 import { delegationPlants } from '@lily/db/schema/delegation'
 import { diagnoses } from '@lily/db/schema/diagnoses'
-import { plantHealthEnum } from '@lily/db/schema/enums'
+import { plantDeathCauseEnum, plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
 import { rooms } from '@lily/db/schema/rooms'
 import { users } from '@lily/db/schema/users'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   boolean,
   doublePrecision,
@@ -48,10 +48,19 @@ export const plants = pgTable(
     roomId: uuid('room_id').references(() => rooms.id, {
       onDelete: 'set null',
     }),
+    // A dead plant stays in the collection (history, photos, cemetery) but is
+    // excluded from every care/notification path. `diedAt === null` is the
+    // canonical "living" predicate — see api/repositories/helpers/living-plant.
+    diedAt: timestamp('died_at', { withTimezone: true }),
+    deathCause: plantDeathCauseEnum('death_cause'),
+    deathNote: text('death_note'),
   },
   (table) => [
     index('plants_user_id_idx').on(table.userId),
     index('plants_room_id_idx').on(table.roomId),
+    index('plants_user_id_living_idx')
+      .on(table.userId)
+      .where(sql`${table.diedAt} IS NULL`),
   ]
 )
 

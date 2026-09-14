@@ -132,6 +132,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -172,6 +175,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -209,6 +215,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: null,
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -245,6 +254,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -261,6 +273,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -312,6 +327,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -349,6 +367,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -390,6 +411,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -425,6 +449,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -465,6 +492,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -534,6 +564,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -607,6 +640,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -779,6 +815,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         name: 'Never Watered',
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -818,6 +857,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -867,6 +909,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 1,
@@ -904,6 +949,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 1,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 14,
@@ -945,6 +993,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -987,6 +1038,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 5,
@@ -1003,6 +1057,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 1,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 14,
@@ -1058,6 +1115,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1136,6 +1196,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1178,6 +1241,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         wateringRating: 3,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1225,6 +1291,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1277,6 +1346,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1321,6 +1393,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-indoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1366,6 +1441,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: true,
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,
@@ -1422,6 +1500,9 @@ describe('readjustCareSchedules — full pipeline integration', () => {
         remindersEnabled: false, // disabled
         userId: weatherUser.id,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: 7,

@@ -7,6 +7,8 @@ describe('PlantOptionsSheet', () => {
   const mockOnToggleFavorite = jest.fn()
   const mockOnShare = jest.fn()
   const mockOnDelete = jest.fn()
+  const mockOnSayGoodbye = jest.fn()
+  const mockOnBringBack = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -20,7 +22,10 @@ describe('PlantOptionsSheet', () => {
     onEdit: mockOnEdit,
     onToggleFavorite: mockOnToggleFavorite,
     onShare: mockOnShare,
+    onSayGoodbye: mockOnSayGoodbye,
+    onBringBack: mockOnBringBack,
     onDelete: mockOnDelete,
+    isDead: false,
   }
 
   it('displays plant name', () => {
@@ -55,10 +60,37 @@ describe('PlantOptionsSheet', () => {
     expect(screen.getByText('Share Plant Profile')).toBeTruthy()
   })
 
-  it('displays delete option', () => {
+  it('offers say goodbye, not delete, for a living plant', () => {
     render(<PlantOptionsSheet {...defaultProps} />)
 
-    expect(screen.getByText('Delete Plant')).toBeTruthy()
+    expect(screen.getByText('Say goodbye')).toBeTruthy()
+    expect(screen.queryByText('Delete permanently')).toBeNull()
+  })
+
+  it('offers bring back and delete for a dead plant', () => {
+    render(<PlantOptionsSheet {...defaultProps} isDead />)
+
+    expect(screen.getByText('Bring back')).toBeTruthy()
+    expect(screen.getByText('Delete permanently')).toBeTruthy()
+    expect(screen.queryByText('Say goodbye')).toBeNull()
+  })
+
+  it('calls onSayGoodbye and onClose when say goodbye is pressed', () => {
+    render(<PlantOptionsSheet {...defaultProps} />)
+
+    fireEvent.press(screen.getByText('Say goodbye'))
+
+    expect(mockOnSayGoodbye).toHaveBeenCalled()
+    expect(mockOnClose).toHaveBeenCalled()
+  })
+
+  it('calls onBringBack and onClose when bring back is pressed', () => {
+    render(<PlantOptionsSheet {...defaultProps} isDead />)
+
+    fireEvent.press(screen.getByText('Bring back'))
+
+    expect(mockOnBringBack).toHaveBeenCalled()
+    expect(mockOnClose).toHaveBeenCalled()
   })
 
   it('calls onEdit and onClose when edit is pressed', () => {
@@ -80,11 +112,11 @@ describe('PlantOptionsSheet', () => {
   })
 
   it('calls onDelete and onClose when delete is pressed', () => {
-    render(<PlantOptionsSheet {...defaultProps} />)
+    render(<PlantOptionsSheet {...defaultProps} isDead />)
 
-    fireEvent.press(screen.getByText('Delete Plant'))
+    fireEvent.press(screen.getByText('Delete permanently'))
 
-    expect(mockOnClose).toHaveBeenCalled()
     expect(mockOnDelete).toHaveBeenCalled()
+    expect(mockOnClose).toHaveBeenCalled()
   })
 })

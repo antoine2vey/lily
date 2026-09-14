@@ -32,7 +32,14 @@ export const getUserPlants = (
     )
     const { page, limit } = parsePaginationParams(params)
 
-    return yield* repo.findAll({ userId, timezone, page, limit })
+    // Admins see the cemetery inline (badge in the table); users never do.
+    return yield* repo.findAll({
+      userId,
+      timezone,
+      page,
+      limit,
+      includeDead: true,
+    })
   }).pipe(
     Effect.withSpan('AdminService.getUserPlants', {
       attributes: { 'user.id': userId },

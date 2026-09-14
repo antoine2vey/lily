@@ -19,7 +19,7 @@ import { useEffectQuery } from '@/utils/client'
 interface CareEvent {
   id: string
   plantId: string
-  type: CareType
+  type: CareType | 'died'
   notes?: string | undefined
   photoUrl?: string | undefined
   createdAt: string
@@ -122,6 +122,35 @@ interface UseCareHistoryParams {
   type?: 'all' | CareType
   page?: number
   limit?: number
+  /** When set, a synthetic "said goodbye" entry heads the timeline. */
+  diedAt?: Date | null | undefined
+}
+
+// The death is not a care log; it is rendered from the plant row so the
+// timeline has a terminal entry without a table behind it.
+const diedGroup = (plantId: string, diedAt: Date): CareHistoryGroup => {
+  const dateKey = getDateKey(diedAt)
+  return {
+    date: getApiDateGroupLabel(
+      dateKey,
+      pipe(
+        Option.fromNullable(Intl.DateTimeFormat().resolvedOptions().timeZone),
+        Option.getOrElse(() => 'UTC')
+      )
+    ),
+    events: [
+      {
+        id: `died-${plantId}`,
+        plantId,
+        type: 'died',
+        createdAt: pipe(
+          DateTime.make(diedAt),
+          Option.map(toIsoString),
+          Option.getOrElse(() => '')
+        ),
+      },
+    ],
+  }
 }
 
 export function useCareHistory({
@@ -129,6 +158,7 @@ export function useCareHistory({
   type = 'all',
   page = 1,
   limit = 50,
+  diedAt,
 }: UseCareHistoryParams) {
   const query = useEffectQuery(
     'careLogs',
@@ -151,6 +181,15 @@ export function useCareHistory({
   const groupedData = pipe(
     Option.fromNullable(query.data),
     Option.map((d) => groupByDate(d.items)),
+    Option.map((groups) =>
+      pipe(
+        Option.fromNullable(diedAt),
+        Option.match({
+          onNone: () => groups,
+          onSome: (d) => Array.prepend(groups, diedGroup(plantId, d)),
+        })
+      )
+    ),
     Option.getOrUndefined
   )
 

@@ -444,7 +444,18 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
                       <td className="py-2 text-gray-600">
                         {plant.category ?? '—'}
                       </td>
-                      <td className="py-2 text-gray-600">{plant.health}</td>
+                      <td className="py-2 text-gray-600">
+                        {plant.diedAt ? (
+                          <span
+                            className="rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-700"
+                            title={plant.deathCause ?? undefined}
+                          >
+                            Dead · {formatShortDate(plant.diedAt)}
+                          </span>
+                        ) : (
+                          plant.health
+                        )}
+                      </td>
                       <td className="py-2 text-gray-600">
                         {plant.room?.name ?? '—'}
                       </td>

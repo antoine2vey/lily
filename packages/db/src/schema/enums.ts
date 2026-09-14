@@ -22,6 +22,18 @@ export const plantHealthEnum = pgEnum('plant_health', [
   'RECOVERING',
 ])
 
+export const plantDeathCauseEnum = pgEnum('plant_death_cause', [
+  'overwatering',
+  'underwatering',
+  'pests',
+  'disease',
+  'light',
+  'cold',
+  'heat',
+  'repotting_shock',
+  'unknown',
+])
+
 export const achievementKeyEnum = pgEnum('achievement_key', [
   'FIRST_PLANT_ADDED',
   'WATERING_NOVICE',

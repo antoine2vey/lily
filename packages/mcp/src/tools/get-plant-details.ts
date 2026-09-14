@@ -1,5 +1,11 @@
 import { ApiClient } from '@lily/mcp/api-client'
-import { healthColor, healthLabel } from '@lily/mcp/widgets/health'
+import {
+  deathCauseLabel,
+  healthColor,
+  healthLabel,
+  MEMORIAL_COLOR,
+  MEMORIAL_LABEL,
+} from '@lily/mcp/widgets/health'
 import type { PlantDetail } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate, isOverdue, isToday } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
@@ -22,8 +28,31 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       { concurrency: 'unbounded' }
     )
 
-    const health = healthLabel(plant.health)
-    const color = healthColor(plant.health)
+    const diedAtOpt = Option.fromNullable(plant.diedAt)
+    const isDead = Option.isSome(diedAtOpt)
+    const health = isDead ? MEMORIAL_LABEL : healthLabel(plant.health)
+    const color = isDead ? MEMORIAL_COLOR : healthColor(plant.health)
+    const memorialLines = pipe(
+      diedAtOpt,
+      Option.match({
+        onNone: () => [] as string[],
+        onSome: (diedAt) => [
+          `- **Died**: ${formatIsoDate(diedAt)} (${deathCauseLabel(
+            pipe(
+              Option.fromNullable(plant.deathCause),
+              Option.getOrElse(() => 'unknown')
+            )
+          )})`,
+          ...pipe(
+            Option.fromNullable(plant.deathNote),
+            Option.match({
+              onNone: () => [] as string[],
+              onSome: (note) => [`- **Note**: ${note}`],
+            })
+          ),
+        ],
+      })
+    )
     const roomOpt = Option.fromNullable(plant.room)
 
     const room = pipe(
@@ -76,6 +105,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       `## ${plant.name}`,
       '',
       `- **Health**: ${health}`,
+      ...memorialLines,
       `- **Room**: ${room}`,
       `- **Category**: ${category}`,
       `- **Added**: ${formatIsoDate(plant.dateAdded)}`,
@@ -119,6 +149,8 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       name: plant.name,
       healthLabel: health,
       healthColor: color,
+      isDead,
+      diedAt: Option.getOrNull(Option.map(diedAtOpt, (d) => formatIsoDate(d))),
       category: Option.getOrNull(Option.fromNullable(plant.category)),
       roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
       roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),

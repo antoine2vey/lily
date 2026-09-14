@@ -3,6 +3,7 @@ import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-pus
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
+import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
@@ -266,6 +267,27 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const pushService = yield* PushService
     const deviceTokenRepo = yield* DeviceTokenRepository
     const notificationRepo = yield* NotificationRepository
+    const plantRepo = yield* PlantRepository
+
+    // Guard the enqueue→deliver window: a plant buried after the scheduler
+    // resolved it must not be nagged about. Only the all-dead case is
+    // dropped; a message that still names a living plant goes out as built
+    // (its text was resolved seconds earlier and cannot be rewritten here).
+    if (
+      TOPIC_CATEGORY[message.topic] === 'care' &&
+      Array.isNonEmptyReadonlyArray(message.payload.plantIds)
+    ) {
+      const plants = yield* plantRepo.findByIds(message.payload.plantIds)
+      const anyLiving = Array.some(plants, (p) => p.diedAt === null)
+      if (!anyLiving) {
+        yield* Effect.log('Dropping care push - every plant is dead', {
+          notificationIds,
+          plantIds: message.payload.plantIds,
+        })
+        yield* notificationRepo.markManyAsSent(notificationIds)
+        return
+      }
+    }
 
     // Get user's active device tokens
     const tokens = yield* deviceTokenRepo.findByUserId(message.payload.userId)

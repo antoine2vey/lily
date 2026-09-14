@@ -3,6 +3,7 @@ import achievements from './achievements'
 import addPlant from './addPlant'
 import auth from './auth'
 import care from './care'
+import cemetery from './cemetery'
 import chat from './chat'
 import common from './common'
 import delegations from './delegations'
@@ -26,6 +27,7 @@ export default {
   home,
   plants,
   care,
+  cemetery,
   chat,
   settings,
   profile,

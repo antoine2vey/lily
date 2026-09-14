@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
@@ -19,6 +20,7 @@ import {
   nowAsDate,
   type Orientation,
   type PaginatedResponse,
+  type PlantDeathCause,
   type PlantFilter,
   type PlantHealthStatus,
   type PlantOwnership,
@@ -61,6 +63,11 @@ export interface FindPlantsParams {
   userId: string
   timezone: string
   includeCaretaking?: boolean
+  /**
+   * Admin only: return living and dead plants together. Without it, every
+   * filter except `dead` restricts the result to living plants.
+   */
+  includeDead?: boolean
 }
 
 export type RoomRef = {
@@ -119,6 +126,12 @@ export interface UpdatePlantData {
   roomId?: string | null
 }
 
+export interface MarkPlantDeadData {
+  diedAt: Date
+  cause: PlantDeathCause
+  note: string | null
+}
+
 export interface FindPhotosParams {
   plantId: string
   page?: number
@@ -148,6 +161,13 @@ export interface IPlantRepository {
     data: UpdatePlantData
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
   readonly delete: (
+    id: string
+  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  readonly markDead: (
+    id: string,
+    data: MarkPlantDeadData
+  ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
+  readonly revive: (
     id: string
   ) => Effect.Effect<typeof plants.$inferSelect | null, SqlError>
   readonly findPhotos: (
@@ -219,8 +239,16 @@ function buildPlantFilters(
         )
       )
     }),
+    Match.when('dead', () => Option.some(isNotNull(plants.diedAt))),
     Match.orElse(() => Option.none())
   )
+
+  // `dead` lists the cemetery; everything else means living plants unless an
+  // admin caller explicitly asks for both.
+  const livingCondition =
+    params.filter === 'dead' || params.includeDead
+      ? Option.none()
+      : Option.some(isLivingPlant())
 
   const roomCondition = pipe(
     Option.fromNullable(params.roomId),
@@ -228,7 +256,7 @@ function buildPlantFilters(
   )
 
   return pipe(
-    [filterCondition, roomCondition],
+    [filterCondition, livingCondition, roomCondition],
     Array.filterMap((opt) => opt)
   )
 }
@@ -488,6 +516,31 @@ export const PlantRepositoryLive = Layer.effect(
         return pipe(Option.fromNullable(plant), Option.getOrNull)
       }),
 
+      markDead: Effect.fn('PlantRepository.markDead')(function* (
+        id: string,
+        data: MarkPlantDeadData
+      ) {
+        const [plant] = yield* db
+          .update(plants)
+          .set({
+            diedAt: data.diedAt,
+            deathCause: data.cause,
+            deathNote: data.note,
+          })
+          .where(eq(plants.id, id))
+          .returning()
+        return pipe(Option.fromNullable(plant), Option.getOrNull)
+      }),
+
+      revive: Effect.fn('PlantRepository.revive')(function* (id: string) {
+        const [plant] = yield* db
+          .update(plants)
+          .set({ diedAt: null, deathCause: null, deathNote: null })
+          .where(eq(plants.id, id))
+          .returning()
+        return pipe(Option.fromNullable(plant), Option.getOrNull)
+      }),
+
       findPhotos: Effect.fn('PlantRepository.findPhotos')(function* (
         params: FindPhotosParams
       ) {
@@ -557,6 +610,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set({ health: 'NEEDS_ATTENTION' })
           .where(
             and(
+              isLivingPlant(),
               or(eq(plants.health, 'HEALTHY'), eq(plants.health, 'THRIVING')),
               inArray(
                 plants.id,
@@ -586,6 +640,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set({ health: 'HEALTHY' })
           .where(
             and(
+              isLivingPlant(),
               eq(plants.health, 'NEEDS_ATTENTION'),
               notInArray(
                 plants.id,

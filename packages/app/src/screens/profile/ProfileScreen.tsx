@@ -12,6 +12,7 @@ import { WEBSITE_BASE_URL } from '@/constants/urls'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useAchievements } from '@/hooks/useAchievements'
+import { useDeadPlants } from '@/hooks/useDeadPlants'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
@@ -41,6 +42,7 @@ export function ProfileScreen() {
     role: 'both',
     status: 'active',
   })
+  const { total: deadPlantCount } = useDeadPlants()
   const insets = useSafeAreaInsets()
   const tabBarInset = useTabBarInset()
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
@@ -228,6 +230,27 @@ export function ProfileScreen() {
                   ) : undefined
                 }
                 onPress={() => router.push('/delegations')}
+              />
+
+              <ProfileMenuItem
+                icon={
+                  <MaterialIcons
+                    name="local-florist"
+                    size={20}
+                    color={iconColors.primary}
+                  />
+                }
+                title={t('cemetery:profileRow')}
+                badge={
+                  deadPlantCount > 0 ? (
+                    <Badge
+                      label={`${deadPlantCount}`}
+                      variant="neutral"
+                      size="sm"
+                    />
+                  ) : undefined
+                }
+                onPress={() => router.push('/cemetery')}
               />
 
               <ProfileMenuItem

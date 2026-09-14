@@ -468,6 +468,9 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         wateringRating: 3,
         userId,
         roomId: 'room-outdoor',
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         scheduleSpecs: [
           wateringSpec({
             frequencyDays: BASE_FREQ_DAYS,

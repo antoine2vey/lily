@@ -12,6 +12,9 @@ export interface AdminPlantItem {
   readonly imageUrl: string | null
   readonly room: { readonly name: string } | null
   readonly schedules: ReadonlyArray<unknown>
+  /** Set when the plant is in the user's cemetery. */
+  readonly diedAt: string | null
+  readonly deathCause: string | null
 }
 
 export const useAdminUserPlants = (id: string, page: number) =>

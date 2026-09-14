@@ -22,6 +22,7 @@ describe('LimitChecker', () => {
     usage?: typeof subscriptionUsage.$inferSelect | null
     tier?: 'free' | 'paid'
     plantCount?: number
+    livingPlantCount?: number
   }) => {
     return Layer.mergeAll(
       createMockSubscriptionRepository({
@@ -34,6 +35,13 @@ describe('LimitChecker', () => {
         plantCount: pipe(
           Option.fromNullable(options.plantCount),
           Option.getOrElse(() => 0)
+        ),
+        ...pipe(
+          Option.fromNullable(options.livingPlantCount),
+          Option.match({
+            onNone: () => ({}),
+            onSome: (livingPlantCount) => ({ livingPlantCount }),
+          })
         ),
       })
     )
@@ -80,6 +88,23 @@ describe('LimitChecker', () => {
           expect((error.error as LimitExceededError).current).toBe(5)
         }
       }
+    })
+
+    it('should not count dead plants against the free limit', async () => {
+      const testLayer = createTestLayers({
+        tier: 'free',
+        plantCount: 5, // Lifetime count is at the cap...
+        livingPlantCount: 4, // ...but one is in the cemetery
+      })
+
+      const result = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const limitChecker = yield* LimitChecker
+          yield* limitChecker.checkPlantLimit('user-1')
+        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
+      )
+
+      expect(Exit.isSuccess(result)).toBe(true)
     })
 
     it('should allow paid user to create unlimited plants', async () => {

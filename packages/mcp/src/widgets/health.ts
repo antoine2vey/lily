@@ -28,3 +28,22 @@ export const healthLabel = (health: string) =>
     Match.when('RECOVERING', () => 'Recovering'),
     Match.orElse(() => health)
   )
+
+/** Badge label for a plant in the cemetery; replaces the health label. */
+export const MEMORIAL_LABEL = 'In memory'
+export const MEMORIAL_COLOR = 'health-default'
+
+/** Human-readable death cause for tool text. */
+export const deathCauseLabel = (cause: string) =>
+  pipe(
+    Match.value(cause),
+    Match.when('overwatering', () => 'overwatering'),
+    Match.when('underwatering', () => 'underwatering'),
+    Match.when('pests', () => 'pests'),
+    Match.when('disease', () => 'disease'),
+    Match.when('light', () => 'light (too much or too little)'),
+    Match.when('cold', () => 'cold'),
+    Match.when('heat', () => 'heat'),
+    Match.when('repotting_shock', () => 'repotting shock'),
+    Match.orElse(() => 'unknown cause')
+  )

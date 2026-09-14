@@ -46,25 +46,26 @@ const sendWithLogging = (
   )
 }
 
-const refreshLiveActivity = (event: {
+const refreshLiveActivity = (params: {
   userId: string
-  plantId: string
-  type: CareType
+  exclude?: { plantId: string; careType: CareType }
 }) =>
   Effect.gen(function* () {
     const activityRepo = yield* ActivityPushTokenRepository
     const pushService = yield* PushService
-    const active = yield* activityRepo.findActiveActivityByUserId(event.userId)
+    const active = yield* activityRepo.findActiveActivityByUserId(params.userId)
     if (!active) return
 
-    // Exclude the just-completed (plantId, careType) pair — the schedule
-    // row's nextCareAt hasn't been updated yet (execute-plant-care does
-    // that AFTER publishing CareLogCreated), so without this exclusion we'd
-    // count the completed task as still due.
-    const contentState = yield* buildLiveActivityContentState(event.userId, {
-      plantId: event.plantId,
-      careType: event.type,
-    })
+    // CareLogCreated excludes the just-completed (plantId, careType) pair —
+    // the schedule row's nextCareAt hasn't been updated yet (execute-plant-care
+    // does that AFTER publishing), so without this exclusion we'd count the
+    // completed task as still due. Lifecycle events need no exclusion: the
+    // plant row is committed before they are published and findPendingByUser
+    // already skips dead plants.
+    const contentState = yield* buildLiveActivityContentState(
+      params.userId,
+      params.exclude
+    )
 
     const activityIdOpt = Option.fromNullable(active.activityId)
     const markEnded = Option.match(activityIdOpt, {
@@ -97,10 +98,19 @@ const refreshLiveActivity = (event: {
     )
   })
 
-// Only CareLogCreated is load-bearing for LA; other variants are no-ops.
+// CareLogCreated and PlantLifecycleChanged are load-bearing for LA; other
+// variants are no-ops.
 export const processEvent = (event: AppEvent) =>
   Match.value(event).pipe(
-    Match.tag('CareLogCreated', (e) => refreshLiveActivity(e)),
+    Match.tag('CareLogCreated', (e) =>
+      refreshLiveActivity({
+        userId: e.userId,
+        exclude: { plantId: e.plantId, careType: e.type },
+      })
+    ),
+    Match.tag('PlantLifecycleChanged', (e) =>
+      refreshLiveActivity({ userId: e.userId })
+    ),
     Match.orElse(() => Effect.void)
   )
 

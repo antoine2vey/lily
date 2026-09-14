@@ -9,7 +9,9 @@ import { LimitExceededError, OpenAIError, PaginationParams } from '@lily/shared'
 import {
   AlreadyCaredTodayError,
   FutureDateNotAllowedError,
+  PlantAlreadyDeadError,
   PlantNotAuthorizedError,
+  PlantNotDeadError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import {
@@ -21,6 +23,7 @@ import {
   Plant,
   PlantCareRequest,
   PlantCorrectCareDatesRequest,
+  PlantDeathRequest,
   PlantDetail,
   PlantPhotosListResponse,
   PlantPhotoUploadResponse,
@@ -206,11 +209,31 @@ export const PlantsApi = HttpApiGroup.make('plants')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    // DELETE /plants/:id - Delete plant
+    // DELETE /plants/:id - Delete plant permanently (owner only)
     HttpApiEndpoint.del('deletePlant')`/${plantIdParam}`
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // POST /plants/:id/death - "Say goodbye": move the plant to the cemetery
+    HttpApiEndpoint.post('markPlantDead')`/${plantIdParam}/death`
+      .setPayload(PlantDeathRequest)
+      .addSuccess(Plant)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(PlantAlreadyDeadError, { status: 409 })
+      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+  )
+  .add(
+    // DELETE /plants/:id/death - "Bring back": restore a plant from the cemetery
+    HttpApiEndpoint.del('revivePlant')`/${plantIdParam}/death`
+      .addSuccess(Plant)
+      .addError(PlantNotFoundError, { status: 404 })
+      .addError(PlantNotAuthorizedError, { status: 403 })
+      .addError(LimitExceededError, { status: 403 })
+      .addError(PlantNotDeadError, { status: 409 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(

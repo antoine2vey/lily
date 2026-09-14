@@ -18,10 +18,11 @@ import { Schema } from 'effect'
 
 export const ListPlants = Tool.make('list_plants', {
   description:
-    'Lists all your plants with their health status, room, and care info.',
+    'Lists your living plants with their health status, room, and care info. Use filter "dead" to list the cemetery (plants that died, with date and cause).',
   parameters: {
     filter: Schema.optionalWith(PlantFilter, { exact: true }).annotations({
-      description: 'Filter plants: all (default), needsAttention, or overdue',
+      description:
+        'Filter plants: all (default, living only), needsAttention, overdue, or dead (the cemetery)',
     }),
   },
   success: Schema.String,

@@ -114,7 +114,8 @@ export const LimitCheckerLive = Layer.effect(
             return
           }
 
-          const currentCount = yield* achievementRepo.countPlants(userId)
+          // Dead plants free their slot; the cemetery is not capped.
+          const currentCount = yield* achievementRepo.countLivingPlants(userId)
 
           if (currentCount >= tierConfig.maxPlants) {
             return yield* new LimitExceededError({

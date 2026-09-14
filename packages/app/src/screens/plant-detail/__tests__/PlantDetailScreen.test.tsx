@@ -49,6 +49,34 @@ jest.mock('@/hooks/useDeletePlant', () => ({
   }),
 }))
 
+jest.mock('@/hooks/useCarePlans', () => ({
+  usePlantCarePlans: () => ({ data: undefined, isLoading: false }),
+}))
+
+jest.mock('@/hooks/useCarePlanStepActions', () => ({
+  useCarePlanStepActions: () => ({
+    pendingStepIds: new Set<string>(),
+    toggleStep: jest.fn(),
+    undoStep: jest.fn(),
+  }),
+}))
+
+jest.mock('@/hooks/useMarkPlantDead', () => ({
+  useMarkPlantDead: () => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+}))
+
+jest.mock('@/hooks/useRevivePlant', () => ({
+  useRevivePlant: () => ({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+}))
+
 jest.mock('@/hooks/useDeletePhoto', () => ({
   useDeletePhoto: () => ({
     mutate: jest.fn(),
@@ -265,10 +293,10 @@ describe('PlantDetailScreen', () => {
     fireEvent.press(screen.getByTestId('more-options-button'))
 
     expect(screen.getByText('Edit Plant Details')).toBeTruthy()
-    expect(screen.getByText('Delete Plant')).toBeTruthy()
+    expect(screen.getByText('Say goodbye')).toBeTruthy()
   })
 
-  it('shows delete confirmation when delete is selected', () => {
+  it('offers say goodbye instead of delete for a living plant', () => {
     mockedUseEffectQuery.mockReturnValue({
       data: mockPlant,
       isLoading: false,
@@ -279,7 +307,34 @@ describe('PlantDetailScreen', () => {
     render(<PlantDetailScreen />)
 
     fireEvent.press(screen.getByTestId('more-options-button'))
-    fireEvent.press(screen.getByText('Delete Plant'))
+    expect(screen.queryByText('Delete permanently')).toBeNull()
+    fireEvent.press(screen.getByText('Say goodbye'))
+
+    expect(screen.getByTestId('say-goodbye-title')).toHaveTextContent(
+      `Say goodbye to ${mockPlant.name}?`
+    )
+  })
+
+  it('shows the memorial banner and delete confirmation for a dead plant', () => {
+    mockedUseEffectQuery.mockReturnValue({
+      data: {
+        ...mockPlant,
+        diedAt: new Date('2026-02-01'),
+        deathCause: 'overwatering',
+        deathNote: null,
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+    })
+
+    render(<PlantDetailScreen />)
+
+    expect(screen.getByTestId('memorial-banner')).toBeTruthy()
+    expect(screen.queryByTestId('care-schedule')).toBeNull()
+
+    fireEvent.press(screen.getByTestId('more-options-button'))
+    fireEvent.press(screen.getByText('Delete permanently'))
 
     expect(screen.getByText(`Delete ${mockPlant.name}?`)).toBeTruthy()
   })

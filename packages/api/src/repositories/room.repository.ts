@@ -1,9 +1,10 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import { plants, rooms } from '@lily/db/schema'
 import { nowAsDate, type Orientation } from '@lily/shared'
-import { asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 
 export interface CreateRoomData {
@@ -76,7 +77,9 @@ export const RoomRepositoryLive = Layer.effect(
             plantCount: count(plants.id),
           })
           .from(rooms)
-          .leftJoin(plants, eq(plants.roomId, rooms.id))
+          // Living-only lives in the join, not the WHERE: a room whose only
+          // plants are in the cemetery must still be listed (with count 0).
+          .leftJoin(plants, and(eq(plants.roomId, rooms.id), isLivingPlant()))
           .where(eq(rooms.userId, userId))
           .groupBy(rooms.id)
           .orderBy(asc(rooms.order), asc(rooms.name))

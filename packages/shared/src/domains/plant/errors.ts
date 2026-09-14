@@ -42,3 +42,23 @@ export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthoriz
   },
   HttpApiSchema.annotations({ status: 403 })
 ) {}
+
+export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadError>()(
+  'PlantAlreadyDeadError',
+  {
+    message: Schema.optionalWith(Schema.String, {
+      default: () => 'This plant is already in the cemetery',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}
+
+export class PlantNotDeadError extends Schema.TaggedError<PlantNotDeadError>()(
+  'PlantNotDeadError',
+  {
+    message: Schema.optionalWith(Schema.String, {
+      default: () => 'This plant is not in the cemetery',
+    }),
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}

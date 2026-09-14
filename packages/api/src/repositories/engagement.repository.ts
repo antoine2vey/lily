@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
 import {
   careLogs,
@@ -164,7 +165,7 @@ export const EngagementRepositoryLive = Layer.effect(
         const [result] = yield* db
           .select({ value: count() })
           .from(plants)
-          .where(eq(plants.userId, userId))
+          .where(and(eq(plants.userId, userId), isLivingPlant()))
 
         return pipe(
           Option.fromNullable(result),
@@ -179,7 +180,7 @@ export const EngagementRepositoryLive = Layer.effect(
         const rows = yield* db
           .select({ name: plants.name })
           .from(plants)
-          .where(eq(plants.userId, userId))
+          .where(and(eq(plants.userId, userId), isLivingPlant()))
 
         return Array.map(rows, (r) => r.name)
       }),
@@ -201,7 +202,7 @@ export const EngagementRepositoryLive = Layer.effect(
           })
           .from(plants)
           .leftJoin(plantPhotos, eq(plantPhotos.plantId, plants.id))
-          .where(eq(plants.userId, userId))
+          .where(and(eq(plants.userId, userId), isLivingPlant()))
           .groupBy(plants.id, plants.name, plants.userId, plants.dateAdded)
           .having(
             sql`(MAX(${plantPhotos.takenAt}) IS NOT NULL AND MAX(${plantPhotos.takenAt}) < ${beforeDate}) OR (MAX(${plantPhotos.takenAt}) IS NULL AND ${plants.dateAdded} < ${beforeDate})`
@@ -336,7 +337,9 @@ export const EngagementRepositoryLive = Layer.effect(
             dateAdded: plants.dateAdded,
           })
           .from(plants)
-          .where(sql`(${sql.join(conditions, sql` OR `)})`)
+          .where(
+            and(isLivingPlant(), sql`(${sql.join(conditions, sql` OR `)})`)
+          )
 
         return rows
       }),
@@ -350,6 +353,7 @@ export const EngagementRepositoryLive = Layer.effect(
           .where(
             and(
               eq(plants.userId, userId),
+              isLivingPlant(),
               inArray(plants.health, ['THRIVING', 'HEALTHY'])
             )
           )

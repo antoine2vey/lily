@@ -1,8 +1,9 @@
 import { ApiClient } from '@lily/mcp/api-client'
-import { healthLabel } from '@lily/mcp/widgets/health'
+import { deathCauseLabel, healthLabel } from '@lily/mcp/widgets/health'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import type { PlantFilter } from '@lily/shared'
+import { formatIsoDate } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
 /**
@@ -27,7 +28,10 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
 
   if (Array.isEmptyReadonlyArray(result.items)) {
     return {
-      text: 'You have no plants yet. Add some plants in the Lily app to get started!',
+      text:
+        filter === 'dead'
+          ? 'Your cemetery is empty — no plant has been lost yet.'
+          : 'You have no plants yet. Add some plants in the Lily app to get started!',
       plants: [] as readonly PlantSummary[],
     }
   }
@@ -36,7 +40,20 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
     result.items,
     { plants: [] as PlantSummary[], lines: [] as string[] },
     (acc, plant) => {
-      const healthBadge = `[${healthLabel(plant.health)}]`
+      // A plant in the cemetery shows when and why it died instead of health
+      const healthBadge = pipe(
+        Option.fromNullable(plant.diedAt),
+        Option.match({
+          onNone: () => `[${healthLabel(plant.health)}]`,
+          onSome: (diedAt) =>
+            `[In memory · died ${formatIsoDate(diedAt)} · ${deathCauseLabel(
+              pipe(
+                Option.fromNullable(plant.deathCause),
+                Option.getOrElse(() => 'unknown')
+              )
+            )}]`,
+        })
+      )
 
       const room = pipe(
         Option.fromNullable(plant.room),
@@ -65,8 +82,10 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
     }
   )
 
+  const heading = filter === 'dead' ? 'Your Cemetery' : 'Your Plants'
+
   return {
-    text: `## Your Plants (${Array.length(result.items)})\n\n${Array.join(lines, '\n')}`,
+    text: `## ${heading} (${Array.length(result.items)})\n\n${Array.join(lines, '\n')}`,
     plants,
   }
 })

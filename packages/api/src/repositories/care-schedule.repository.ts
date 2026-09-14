@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { plantCareSchedules, plants, rooms } from '@lily/db/schema'
 import {
   type CareType,
@@ -143,6 +144,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .where(
               and(
                 eq(plants.userId, userId),
+                isLivingPlant(),
                 isNotNull(plantCareSchedules.nextCareAt),
                 lte(plantCareSchedules.nextCareAt, cutoff)
               )
@@ -177,6 +179,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
             .where(
               and(
+                isLivingPlant(),
                 isNotNull(plantCareSchedules.nextCareAt),
                 lte(plantCareSchedules.nextCareAt, now)
               )
@@ -222,7 +225,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
           })
           .from(plantCareSchedules)
           .innerJoin(plants, eq(plantCareSchedules.plantId, plants.id))
-          .where(eq(plants.userId, userId))
+          .where(and(eq(plants.userId, userId), isLivingPlant()))
       }),
 
       upsert: Effect.fn('CareScheduleRepository.upsert')(function* (

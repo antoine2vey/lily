@@ -13,7 +13,13 @@ interface PlantOptionsSheetProps {
   onEdit: () => void
   onToggleFavorite: () => void
   onShare: () => void
+  /** Living plant: the primary end-of-life action. */
+  onSayGoodbye: () => void
+  /** Dead plant: restore from the cemetery. */
+  onBringBack: () => void
+  /** Dead plant only: permanent deletion. */
   onDelete: () => void
+  isDead: boolean
 }
 
 export function PlantOptionsSheet({
@@ -24,9 +30,13 @@ export function PlantOptionsSheet({
   onEdit,
   onToggleFavorite,
   onShare,
+  onSayGoodbye,
+  onBringBack,
   onDelete,
+  isDead,
 }: PlantOptionsSheetProps) {
   const { t } = useTranslation('plants')
+  const { t: tCemetery } = useTranslation('cemetery')
   const iconColors = useIconColors()
 
   const handleAction = (action: () => void) => () => {
@@ -79,14 +89,45 @@ export function PlantOptionsSheet({
           title={t('detail.options.shareProfile')}
           onPress={handleAction(onShare)}
         />
-        <ListRow
-          leftIcon={
-            <MaterialIcons name="delete" size={20} color={iconColors.coral} />
-          }
-          title={t('detail.options.deletePlant')}
-          destructive
-          onPress={handleAction(onDelete)}
-        />
+        {isDead ? (
+          <>
+            <ListRow
+              leftIcon={
+                <MaterialIcons
+                  name="restore"
+                  size={20}
+                  color={iconColors.primary}
+                />
+              }
+              title={tCemetery('actions.bringBack')}
+              onPress={handleAction(onBringBack)}
+            />
+            <ListRow
+              leftIcon={
+                <MaterialIcons
+                  name="delete"
+                  size={20}
+                  color={iconColors.coral}
+                />
+              }
+              title={tCemetery('actions.deletePermanently')}
+              destructive
+              onPress={handleAction(onDelete)}
+            />
+          </>
+        ) : (
+          <ListRow
+            leftIcon={
+              <MaterialIcons
+                name="local-florist"
+                size={20}
+                color={iconColors.textMuted}
+              />
+            }
+            title={tCemetery('actions.sayGoodbye')}
+            onPress={handleAction(onSayGoodbye)}
+          />
+        )}
       </View>
     </BottomSheet>
   )

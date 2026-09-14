@@ -13,6 +13,8 @@ type CareEventType =
   | 'repotting'
   | 'prune'
   | 'rotate'
+  // Synthetic terminal entry rendered from `plant.diedAt`, not a care log
+  | 'died'
 
 interface CareEvent {
   id: string
@@ -38,6 +40,7 @@ interface EventConfig {
     | 'repotting'
     | 'prune'
     | 'rotate'
+    | 'died'
 }
 
 const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
@@ -78,6 +81,12 @@ const getEventConfig = (type: CareEventType, isDark = false): EventConfig =>
       bgColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#F3E8FF',
       iconColor: isDark ? '#C084FC' : '#9333EA',
       labelKey: 'rotate' as const,
+    })),
+    Match.when('died', () => ({
+      icon: 'local-florist' as const,
+      bgColor: isDark ? 'rgba(100, 116, 139, 0.25)' : '#E2E8F0',
+      iconColor: isDark ? '#CBD5E1' : '#64748B',
+      labelKey: 'died' as const,
     })),
     Match.exhaustive
   )

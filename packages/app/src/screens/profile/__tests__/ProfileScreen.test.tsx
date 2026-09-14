@@ -32,6 +32,10 @@ jest.mock('@/hooks/useMyDelegations', () => ({
   useMyDelegations: jest.fn(),
 }))
 
+jest.mock('@/hooks/useDeadPlants', () => ({
+  useDeadPlants: jest.fn(() => ({ plants: [], total: 0, isLoading: false })),
+}))
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useAchievements } from '@/hooks/useAchievements'
 import { useMyDelegations } from '@/hooks/useMyDelegations'

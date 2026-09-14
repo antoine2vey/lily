@@ -6,6 +6,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { assertCanAccessPlant } from '@lily/api/services/plants/helpers/assert-can-access-plant'
+import { assertIsPlantOwner } from '@lily/api/services/plants/helpers/assert-is-plant-owner'
 import {
   type PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -41,3 +42,27 @@ export const withPlantAuth = (
 
     return plant
   }).pipe(Effect.withSpan('withPlantAuth'))
+
+/**
+ * Like `withPlantAuth` but owner-only: delegated caretakers are refused.
+ * Used by lifecycle endpoints (say goodbye, bring back, delete).
+ */
+export const withPlantOwnerAuth = (
+  plantId: string
+): Effect.Effect<
+  PlantWithRoom,
+  PlantNotFoundError | PlantNotAuthorizedError | SqlError,
+  PlantRepository | CurrentUser
+> =>
+  Effect.gen(function* () {
+    const repo = yield* PlantRepository
+    const plant = yield* repo.findById(plantId)
+
+    if (!plant) {
+      return yield* new PlantNotFoundError()
+    }
+
+    yield* assertIsPlantOwner(plant.userId)
+
+    return plant
+  }).pipe(Effect.withSpan('withPlantOwnerAuth'))

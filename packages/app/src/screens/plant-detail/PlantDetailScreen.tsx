@@ -12,7 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Dimensions, Image, Pressable, Text, View } from 'react-native'
+import { Alert, Dimensions, Image, Pressable, Text, View } from 'react-native'
 import Animated, {
   FadeIn,
   interpolateColor,
@@ -32,7 +32,9 @@ import { useCreateConversation } from '@/hooks/useCreateConversation'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useMarkPlantDead } from '@/hooks/useMarkPlantDead'
 import { usePlant } from '@/hooks/usePlant'
+import { useRevivePlant } from '@/hooks/useRevivePlant'
 import { useSharePlant } from '@/hooks/useSharePlant'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdatePlant } from '@/hooks/useUpdatePlant'
@@ -42,6 +44,7 @@ import { ChatCTA } from '@/screens/plant-detail/components/ChatCTA'
 import { CorrectCareDatesSheet } from '@/screens/plant-detail/components/CorrectCareDatesSheet'
 import { GrowthJournalEntryCard } from '@/screens/plant-detail/components/GrowthJournalEntryCard'
 import { IdealEnvironment } from '@/screens/plant-detail/components/IdealEnvironment'
+import { MemorialBanner } from '@/screens/plant-detail/components/MemorialBanner'
 import { PastCareSheet } from '@/screens/plant-detail/components/PastCareSheet'
 import { PlantCarePlans } from '@/screens/plant-detail/components/PlantCarePlans'
 import { PlantDetailSkeleton } from '@/screens/plant-detail/components/PlantDetailSkeleton'
@@ -49,6 +52,10 @@ import { PlantHeader } from '@/screens/plant-detail/components/PlantHeader'
 import { PlantOptionsSheet } from '@/screens/plant-detail/components/PlantOptionsSheet'
 import { PlantShareCard } from '@/screens/plant-detail/components/PlantShareCard'
 import { RecentHistory } from '@/screens/plant-detail/components/RecentHistory'
+import {
+  type SayGoodbyePayload,
+  SayGoodbyeSheet,
+} from '@/screens/plant-detail/components/SayGoodbyeSheet'
 import { useEffectQuery } from '@/utils/client'
 import { useGlass } from '@/utils/glass'
 import { mapApiHealthToCardHealth } from '@/utils/health'
@@ -183,6 +190,7 @@ function PlantHeroImage({ imageUrl }: PlantHeroImageProps) {
 
 export function PlantDetailScreen() {
   const { t } = useTranslation('plants')
+  const { t: tCemetery } = useTranslation('cemetery')
   const { plantId } = useLocalSearchParams<{ plantId: string }>()
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -191,6 +199,7 @@ export function PlantDetailScreen() {
 
   const [showOptionsSheet, setShowOptionsSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showGoodbyeSheet, setShowGoodbyeSheet] = useState(false)
   const [activePastCareType, setActivePastCareType] = useState<CareType | null>(
     null
   )
@@ -240,6 +249,8 @@ export function PlantDetailScreen() {
   const sharePlant = useSharePlant()
   const updatePlant = useUpdatePlant()
   const deletePlant = useDeletePlant()
+  const markPlantDead = useMarkPlantDead()
+  const revivePlant = useRevivePlant()
   const createConversation = useCreateConversation()
   const { findExisting: findExistingPlantChat } =
     useConversationByPlant(plantId)
@@ -427,6 +438,55 @@ export function PlantDetailScreen() {
     setShowDeleteConfirm(true)
   }, [])
 
+  const handleSayGoodbye = useCallback(() => {
+    setShowOptionsSheet(false)
+    setShowGoodbyeSheet(true)
+  }, [])
+
+  const handleConfirmGoodbye = useCallback(
+    async (payload: SayGoodbyePayload) => {
+      if (!plantId || !plant) return
+      const result = await markPlantDead.mutateAsync({
+        path: { id: plantId },
+        payload,
+      })
+      pipe(
+        result,
+        Either.match({
+          onLeft: () => toast.error(tCemetery('toast.goodbyeFailed')),
+          onRight: () => {
+            setShowGoodbyeSheet(false)
+            toast.success(tCemetery('toast.goodbye', { name: plant.name }))
+            router.back()
+          },
+        })
+      )
+    },
+    [plantId, plant, markPlantDead, router, tCemetery]
+  )
+
+  // The API enforces the free-tier plant limit on revive, exactly like on
+  // create, so the paywall alert mirrors the add-plant flow.
+  const handleBringBack = useCallback(async () => {
+    if (!plantId || !plant) return
+    const result = await revivePlant.mutateAsync({ path: { id: plantId } })
+    pipe(
+      result,
+      Either.match({
+        onLeft: (error) =>
+          pipe(
+            Match.value(error),
+            Match.when({ _tag: 'LimitExceededError' }, (e) =>
+              Alert.alert(tCemetery('limit.title'), e.message)
+            ),
+            Match.orElse(() => toast.error(tCemetery('toast.bringBackFailed')))
+          ),
+        onRight: () =>
+          toast.success(tCemetery('toast.broughtBack', { name: plant.name })),
+      })
+    )
+  }, [plantId, plant, revivePlant, tCemetery])
+
   const handleConfirmDelete = useCallback(() => {
     if (!plantId) return
     deletePlant.mutate(
@@ -514,6 +574,8 @@ export function PlantDetailScreen() {
   }
 
   const healthStatus = mapApiHealthToCardHealth(plant.health)
+  const diedAtOpt = Option.fromNullable(plant.diedAt)
+  const isDead = Option.isSome(diedAtOpt)
 
   // Map photos from plant data
   const photos = Array.map(
@@ -594,6 +656,7 @@ export function PlantDetailScreen() {
               health: healthStatus,
               potWidthCm: plant.potWidthCm,
               potHeightCm: plant.potHeightCm,
+              isDead,
             }}
           />
 
@@ -612,34 +675,58 @@ export function PlantDetailScreen() {
             <ChatCTA plantName={plant.name} onPress={handleChat} />
           </View>
 
-          {/* Care Schedule */}
+          {/* Care Schedule — or the memorial for a plant in the cemetery */}
           <View className="mt-10">
-            <CareSchedule
-              wateringDays={scheduleData.daysUntilWater}
-              wateringDate={formatApiDateAsNextDate(scheduleData.nextWaterAt)}
-              fertilizingDays={scheduleData.daysUntilFertilize}
-              fertilizingDate={formatApiDateAsNextDate(scheduleData.nextFertAt)}
-              mistingDays={scheduleData.daysUntilMist}
-              mistingDate={formatApiDateAsNextDate(scheduleData.nextMistAt)}
-              repottingDays={scheduleData.daysUntilRepot}
-              repottingDate={formatApiDateAsNextDate(scheduleData.nextRepotAt)}
-              onEdit={handleEditSchedule}
-              onWaterNow={handleWaterNow}
-              onFertilizeNow={handleFertilizeNow}
-              onMistNow={handleMistNow}
-              onRepotNow={handleRepotNow}
-              onWaterPast={handleWaterPast}
-              onFertilizePast={handleFertilizePast}
-              onMistPast={handleMistPast}
-              onRepotPast={handleRepotPast}
-              isWaterFirstTime={scheduleData.isWaterFirstTime}
-              isFertilizeFirstTime={scheduleData.isFertilizeFirstTime}
-              isMistFirstTime={scheduleData.isMistFirstTime}
-              isRepotFirstTime={scheduleData.isRepotFirstTime}
-              onCorrectDates={
-                scheduleData.hasAnyCareHistory ? handleCorrectDates : undefined
-              }
-            />
+            {pipe(
+              diedAtOpt,
+              Option.match({
+                onSome: (diedAt) => (
+                  <MemorialBanner
+                    diedAt={diedAt}
+                    cause={plant.deathCause}
+                    note={plant.deathNote}
+                  />
+                ),
+                onNone: () => (
+                  <CareSchedule
+                    wateringDays={scheduleData.daysUntilWater}
+                    wateringDate={formatApiDateAsNextDate(
+                      scheduleData.nextWaterAt
+                    )}
+                    fertilizingDays={scheduleData.daysUntilFertilize}
+                    fertilizingDate={formatApiDateAsNextDate(
+                      scheduleData.nextFertAt
+                    )}
+                    mistingDays={scheduleData.daysUntilMist}
+                    mistingDate={formatApiDateAsNextDate(
+                      scheduleData.nextMistAt
+                    )}
+                    repottingDays={scheduleData.daysUntilRepot}
+                    repottingDate={formatApiDateAsNextDate(
+                      scheduleData.nextRepotAt
+                    )}
+                    onEdit={handleEditSchedule}
+                    onWaterNow={handleWaterNow}
+                    onFertilizeNow={handleFertilizeNow}
+                    onMistNow={handleMistNow}
+                    onRepotNow={handleRepotNow}
+                    onWaterPast={handleWaterPast}
+                    onFertilizePast={handleFertilizePast}
+                    onMistPast={handleMistPast}
+                    onRepotPast={handleRepotPast}
+                    isWaterFirstTime={scheduleData.isWaterFirstTime}
+                    isFertilizeFirstTime={scheduleData.isFertilizeFirstTime}
+                    isMistFirstTime={scheduleData.isMistFirstTime}
+                    isRepotFirstTime={scheduleData.isRepotFirstTime}
+                    onCorrectDates={
+                      scheduleData.hasAnyCareHistory
+                        ? handleCorrectDates
+                        : undefined
+                    }
+                  />
+                ),
+              })
+            )}
           </View>
 
           {/* AI care plans (accepted) */}
@@ -719,7 +806,19 @@ export function PlantDetailScreen() {
         onEdit={handleEdit}
         onToggleFavorite={handleToggleFavorite}
         onShare={handleShare}
+        onSayGoodbye={handleSayGoodbye}
+        onBringBack={handleBringBack}
         onDelete={handleDelete}
+        isDead={isDead}
+      />
+
+      {/* Say Goodbye Sheet */}
+      <SayGoodbyeSheet
+        visible={showGoodbyeSheet}
+        plantName={plant.name}
+        isPending={markPlantDead.isPending}
+        onClose={() => setShowGoodbyeSheet(false)}
+        onConfirm={handleConfirmGoodbye}
       />
 
       {/* Past Care Sheet */}

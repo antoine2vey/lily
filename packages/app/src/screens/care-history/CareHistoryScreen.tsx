@@ -37,7 +37,14 @@ export function CareHistoryScreen() {
   const insets = useSafeAreaInsets()
 
   const { data: plant } = usePlant(plantId)
-  const { data: history, isLoading, refetch } = useCareHistory({ plantId })
+  const {
+    data: history,
+    isLoading,
+    refetch,
+  } = useCareHistory({
+    plantId,
+    diedAt: plant?.diedAt,
+  })
 
   const [showFilterSheet, setShowFilterSheet] = useState(false)
   const [showLogCareSheet, setShowLogCareSheet] = useState(false)

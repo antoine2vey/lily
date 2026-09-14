@@ -12,13 +12,6 @@ export default {
   share: {
     message: 'Découvrez ma plante « {name} » sur Lily !',
   },
-  delete: {
-    title: 'Supprimer {name} ?',
-    message:
-      "Cela supprimera définitivement tout l'historique des soins et les photos. Cette action est irréversible.",
-    confirm: 'Supprimer la plante',
-    cancel: 'Garder la plante',
-  },
   toast: {
     watered: '{name} arrosé !',
     waterFailed: "Échec de l'arrosage",
@@ -88,6 +81,5 @@ export default {
     potWidthPlaceholder: 'ex. 20',
     potHeightPlaceholder: 'ex. 15',
     dangerZone: 'Zone de danger',
-    deletePlant: 'Supprimer la plante',
   },
 } as const

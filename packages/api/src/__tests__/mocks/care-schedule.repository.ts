@@ -63,9 +63,14 @@ export const createMockCareScheduleRepository = (
     findByPlant: (plantId: string) =>
       Effect.succeed(Array.filter(schedulesData, (s) => s.plantId === plantId)),
 
+    // Mirrors the live repository: plants in the cemetery never surface in
+    // care tasks, overdue sweeps, or vacation rebuilds.
     findPendingByUser: (userId: string, cutoff: Date) => {
       const userPlantIds = pipe(
-        Array.filter(plantsData, (p) => p.userId === userId),
+        Array.filter(
+          plantsData,
+          (p) => p.userId === userId && p.diedAt === null
+        ),
         Array.map((p) => p.id)
       )
 
@@ -99,9 +104,16 @@ export const createMockCareScheduleRepository = (
 
     findOverdueByUser: () => {
       const now = new Date()
+      const livingPlantIds = pipe(
+        Array.filter(plantsData, (p) => p.diedAt === null),
+        Array.map((p) => p.id)
+      )
       const overdue = Array.filter(
         schedulesData,
-        (s) => s.nextCareAt !== null && s.nextCareAt.getTime() <= now.getTime()
+        (s) =>
+          Array.contains(livingPlantIds, s.plantId) &&
+          s.nextCareAt !== null &&
+          s.nextCareAt.getTime() <= now.getTime()
       )
 
       // Group by plant, then by user
@@ -138,7 +150,10 @@ export const createMockCareScheduleRepository = (
     findByOwnerWithPlant: (userId: string) =>
       Effect.succeed(
         pipe(
-          Array.filter(plantsData, (p) => p.userId === userId),
+          Array.filter(
+            plantsData,
+            (p) => p.userId === userId && p.diedAt === null
+          ),
           Array.flatMap((plant) =>
             pipe(
               Array.filter(schedulesData, (s) => s.plantId === plant.id),

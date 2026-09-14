@@ -63,6 +63,9 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-1',
     },
     {
@@ -90,6 +93,9 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-1',
     },
     {
@@ -122,6 +128,9 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-1',
     },
     {
@@ -149,6 +158,9 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-1',
     },
     {
@@ -176,6 +188,9 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-2',
     },
   ]
@@ -211,6 +226,9 @@ const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
       potWidthCm: null,
       potHeightCm: null,
       roomId: null,
+      diedAt: null,
+      deathCause: null,
+      deathNote: null,
       userId: 'user-1',
     },
   ]
@@ -450,6 +468,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
         {
@@ -477,6 +498,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
         {
@@ -504,6 +528,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
       ]
@@ -595,6 +622,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
       ]
@@ -644,6 +674,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
       ]
@@ -698,6 +731,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-null-tz',
         },
       ]
@@ -767,6 +803,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: 'room-1',
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
       ]
@@ -889,6 +928,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-1',
         },
       ]
@@ -943,6 +985,9 @@ describe('findCareTasks', () => {
           potWidthCm: null,
           potHeightCm: null,
           roomId: null,
+          diedAt: null,
+          deathCause: null,
+          deathNote: null,
           userId: 'user-paris',
         },
       ]
@@ -981,6 +1026,23 @@ describe('findCareTasks', () => {
         // And that day has a column, so the home calendar can render it.
         expect(result.windowDays).toContain('2025-01-31')
       }
+    })
+  })
+  describe('dead plants', () => {
+    it('never lists tasks for a plant in the cemetery', async () => {
+      const plants = createMockPlantsForCareTasks(REFERENCE_DATE)
+      const buried = Array.map(plants, (p) =>
+        p.id === 'plant-1' ? { ...p, diedAt: new Date('2025-01-20') } : p
+      )
+
+      const result = await Effect.runPromise(
+        findCareTasks().pipe(Effect.provide(createTestLayer('user-1', buried)))
+      )
+
+      const all = [...result.overdue, ...result.today, ...result.upcoming]
+      expect(Array.some(all, (t) => t.plantId === 'plant-1')).toBe(false)
+      // Other plants are unaffected
+      expect(Array.some(all, (t) => t.plantId === 'plant-2')).toBe(true)
     })
   })
 })

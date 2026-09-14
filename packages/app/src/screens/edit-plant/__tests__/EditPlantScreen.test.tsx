@@ -13,8 +13,8 @@ jest.mock('@/utils/client', () => ({
 }))
 
 // Mock hooks that use client
-jest.mock('@/hooks/useDeletePlant', () => ({
-  useDeletePlant: jest.fn(() => ({
+jest.mock('@/hooks/useMarkPlantDead', () => ({
+  useMarkPlantDead: jest.fn(() => ({
     mutate: jest.fn(),
     isPending: false,
   })),

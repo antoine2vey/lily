@@ -15,6 +15,8 @@ interface PlantHeaderProps {
     health: HealthStatus
     potWidthCm?: number | null | undefined
     potHeightCm?: number | null | undefined
+    /** In the cemetery: health is frozen, show a neutral memorial badge. */
+    isDead?: boolean | undefined
   }
 }
 
@@ -48,6 +50,7 @@ const getHealthBadgeLabel = (
 
 export function PlantHeader({ plant }: PlantHeaderProps) {
   const { t } = useTranslation('plants')
+  const { t: tCemetery } = useTranslation('cemetery')
   const badgeConfig = getHealthBadgeConfig(plant.health)
 
   const speciesLine =
@@ -69,11 +72,15 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
         >
           {plant.name}
         </Text>
-        <Badge
-          label={getHealthBadgeLabel(badgeConfig.labelKey, t)}
-          variant={badgeConfig.variant}
-          size="sm"
-        />
+        {plant.isDead ? (
+          <Badge label={tCemetery('badge')} variant="neutral" size="sm" />
+        ) : (
+          <Badge
+            label={getHealthBadgeLabel(badgeConfig.labelKey, t)}
+            variant={badgeConfig.variant}
+            size="sm"
+          />
+        )}
       </View>
       {(speciesLine ||
         (plant.potWidthCm != null && plant.potHeightCm != null)) && (

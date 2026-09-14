@@ -42,6 +42,9 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -74,6 +77,9 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -101,6 +107,9 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -132,6 +141,9 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -159,6 +171,9 @@ export const mockPlantsForCareTasks: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
@@ -190,6 +205,9 @@ export const mockPlantsNoCare: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({

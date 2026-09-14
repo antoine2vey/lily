@@ -11,13 +11,6 @@ export default {
   share: {
     message: 'Check out my plant "{name}" on Lily!',
   },
-  delete: {
-    title: 'Delete {name}?',
-    message:
-      'This will permanently remove all care history and photos. This action cannot be undone.',
-    confirm: 'Delete Plant',
-    cancel: 'Keep Plant',
-  },
   toast: {
     watered: '{name} watered!',
     waterFailed: 'Failed to water plant',
@@ -85,6 +78,5 @@ export default {
     potWidthPlaceholder: 'e.g. 20',
     potHeightPlaceholder: 'e.g. 15',
     dangerZone: 'Danger Zone',
-    deletePlant: 'Delete Plant',
   },
 } as const

@@ -330,6 +330,24 @@ describe('checkAndCreateOverdueReminders', () => {
       expect(overdueNotifs[0]?.userId).toBe('user-1')
     })
 
+    it('should NOT create reminders for a dead plant, however overdue', async () => {
+      const notifications: Notification[] = []
+      const plant = createTestPlant({
+        id: 'plant-dead',
+        name: 'Late Fern',
+        userId: 'user-1',
+        diedAt: daysAgo(1),
+        deathCause: 'underwatering',
+        scheduleSpecs: [wateringSpec({ nextCareAt: daysAgo(10) })],
+      })
+
+      await runCheck([plant], [defaultUser], notifications)
+
+      expect(
+        Arr.filter(notifications, (n) => n.type === 'overdue_reminder')
+      ).toHaveLength(0)
+    })
+
     it('should NOT create reminders when no plants are overdue', async () => {
       const notifications: Notification[] = []
       const plant = createTestPlant({

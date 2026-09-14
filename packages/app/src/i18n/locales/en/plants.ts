@@ -96,7 +96,6 @@ export default {
       removeFromFavorites: 'Remove from Favorites',
       setAsFavorite: 'Set as Favorite',
       shareProfile: 'Share Plant Profile',
-      deletePlant: 'Delete Plant',
     },
     delete: {
       title: 'Delete {name}?',

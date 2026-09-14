@@ -82,3 +82,24 @@ const result = await Effect.runPromise(
   )
 )
 ```
+
+## Dead plants (the cemetery)
+
+A plant with `died_at IS NOT NULL` is in the user's cemetery. It keeps every
+row (schedules, photos, care logs) but must not take part in care tasks,
+reminders, digests, nudges, health updates, user-facing counts, or the Live
+Activity.
+
+- Apply `isLivingPlant()` / `livingPlantSql` from
+  `src/repositories/helpers/living-plant.ts` to every new query that joins or
+  counts `plants` for one of those paths. For a `leftJoin` put the predicate in
+  the join condition, not the WHERE, or rows without plants disappear.
+- `PlantRepository.findAll`: `filter: 'dead'` lists the cemetery; every other
+  filter is living-only unless the caller passes `includeDead: true` (admin).
+- Lifecycle endpoints (`markPlantDead`, `revivePlant`, `deletePlant`) are
+  owner-only via `withPlantOwnerAuth`. Bury cancels pending notifications and
+  publishes `PlantLifecycleChanged`, which the Live Activity subscriber uses to
+  refresh the card. Revive re-runs `scheduleCareReminder` for future due dates
+  and enforces the plant limit through `countLivingPlants`.
+- Deliberately unfiltered: achievements (`countPlants`), admin analytics, and
+  care-log history/streaks (past care stays history).

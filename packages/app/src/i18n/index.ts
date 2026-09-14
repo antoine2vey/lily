@@ -27,6 +27,7 @@ i18n
       'home',
       'plants',
       'care',
+      'cemetery',
       'settings',
       'profile',
       'rooms',

@@ -19,6 +19,8 @@ import {
   type LimitExceededError,
   type NotificationNotFoundError,
   type PaymentProviderError,
+  type PlantAlreadyDeadError,
+  type PlantNotDeadError,
   type PlantNotFoundError,
   type RoomNotFoundError,
   type SessionNotFoundError,
@@ -114,6 +116,8 @@ export type ApiFailure =
   | SessionNotFoundError
   | LimitExceededError
   | PlantNotFoundError
+  | PlantAlreadyDeadError
+  | PlantNotDeadError
   | RoomNotFoundError
   | UserNotFoundError
   | PaymentProviderError
@@ -138,6 +142,8 @@ const KNOWN_ERROR_TAGS = [
   'SessionNotFoundError',
   'LimitExceededError',
   'PlantNotFoundError',
+  'PlantAlreadyDeadError',
+  'PlantNotDeadError',
   'RoomNotFoundError',
   'UserNotFoundError',
   'PaymentProviderError',

@@ -76,6 +76,14 @@ export const createMockPlantRepository = (
   ): PlantRecord[] => {
     let filtered = items
 
+    // Mirrors the live repository: `dead` lists the cemetery, everything else
+    // is living-only unless an admin caller passes `includeDead`.
+    if (params.filter === 'dead') {
+      filtered = Array.filter(filtered, (p) => p.diedAt !== null)
+    } else if (!params.includeDead) {
+      filtered = Array.filter(filtered, (p) => p.diedAt === null)
+    }
+
     if (params.filter === 'needsAttention') {
       filtered = Array.filter(filtered, (p) => p.health === 'NEEDS_ATTENTION')
     }
@@ -96,6 +104,29 @@ export const createMockPlantRepository = (
     }
 
     return filtered
+  }
+
+  // Shared by update/markDead/revive: mutates the working copy and mirrors
+  // the change onto the caller's original array so tests can observe it.
+  const patchPlant = (id: string, patch: Partial<PlantRecord>) => {
+    const idxOption = Array.findFirstIndex(plantsData, (p) => p.id === id)
+    if (Option.isNone(idxOption)) return Effect.succeed(null)
+    const idx = idxOption.value
+    const existing = plantsData[idx]
+    if (!existing) return Effect.succeed(null)
+    const updated = { ...existing, ...patch, updatedAt: new Date() }
+    plantsData[idx] = updated
+    const origIdxOption = Array.findFirstIndex(
+      originalPlantsData,
+      (p) => p.id === id
+    )
+    if (Option.isSome(origIdxOption)) {
+      const origPlant = originalPlantsData[origIdxOption.value]
+      if (origPlant) {
+        Object.assign(origPlant, patch)
+      }
+    }
+    return Effect.succeed(updated)
   }
 
   const repo: IPlantRepository = {
@@ -211,37 +242,16 @@ export const createMockPlantRepository = (
         potWidthCm: null,
         potHeightCm: null,
         roomId: Option.getOrNull(Option.fromNullable(createData.roomId)),
+        diedAt: null,
+        deathCause: null,
+        deathNote: null,
         userId: createData.userId,
       }
       plantsData.push(newPlant)
       return Effect.succeed(newPlant)
     },
 
-    update: (id, updateData) => {
-      const idxOption = Array.findFirstIndex(plantsData, (p) => p.id === id)
-      if (Option.isNone(idxOption)) return Effect.succeed(null)
-      const idx = idxOption.value
-      const existing = plantsData[idx]
-      if (!existing) return Effect.succeed(null)
-      const updated = {
-        ...existing,
-        ...updateData,
-        updatedAt: new Date(),
-      }
-      plantsData[idx] = updated
-      // Also propagate to original data so callers can observe the change
-      const origIdxOption = Array.findFirstIndex(
-        originalPlantsData,
-        (p) => p.id === id
-      )
-      if (Option.isSome(origIdxOption)) {
-        const origPlant = originalPlantsData[origIdxOption.value]
-        if (origPlant) {
-          Object.assign(origPlant, updateData)
-        }
-      }
-      return Effect.succeed(updated)
-    },
+    update: (id, updateData) => patchPlant(id, updateData),
 
     delete: (id) =>
       Effect.succeed(
@@ -250,6 +260,16 @@ export const createMockPlantRepository = (
           Option.getOrNull
         )
       ),
+
+    markDead: (id, data) =>
+      patchPlant(id, {
+        diedAt: data.diedAt,
+        deathCause: data.cause,
+        deathNote: data.note,
+      }),
+
+    revive: (id) =>
+      patchPlant(id, { diedAt: null, deathCause: null, deathNote: null }),
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(

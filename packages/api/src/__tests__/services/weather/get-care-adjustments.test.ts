@@ -33,6 +33,9 @@ const mockPlant = {
   potWidthCm: null,
   potHeightCm: null,
   roomId: null,
+  diedAt: null,
+  deathCause: null,
+  deathNote: null,
 }
 
 const mockCareSchedules = [

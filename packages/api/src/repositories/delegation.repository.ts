@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
@@ -291,7 +292,7 @@ export const DelegationRepositoryLive = Layer.effect(
             plantCareSchedules,
             eq(plants.id, plantCareSchedules.plantId)
           )
-          .where(eq(delegationPlants.delegationId, id))
+          .where(and(eq(delegationPlants.delegationId, id), isLivingPlant()))
 
         return {
           ...row,
@@ -430,7 +431,8 @@ export const DelegationRepositoryLive = Layer.effect(
           .where(
             and(
               eq(careDelegations.caretakerId, caretakerId),
-              eq(careDelegations.status, 'active')
+              eq(careDelegations.status, 'active'),
+              isLivingPlant()
             )
           )
 
@@ -549,7 +551,12 @@ export const DelegationRepositoryLive = Layer.effect(
             plantCareSchedules,
             eq(plants.id, plantCareSchedules.plantId)
           )
-          .where(eq(delegationPlants.delegationId, delegationId))
+          .where(
+            and(
+              eq(delegationPlants.delegationId, delegationId),
+              isLivingPlant()
+            )
+          )
 
         return groupPlantRows(rows)
       }),

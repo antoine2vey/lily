@@ -17,6 +17,7 @@ import {
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import {
   createFailingPushService,
   createMockPushService,
@@ -48,6 +49,18 @@ const LaMocksLive = Layer.mergeAll(
   createMockCareLogRepository([]),
   createMockUserRepository([])
 )
+
+// Every plant id the queue-message fixtures reference, all living. The
+// worker drops a care message whose plants are all dead, so tests that
+// exercise the happy path must be able to resolve their plants.
+const LivingPlantsLive = createMockPlantRepository({
+  plants: [
+    createTestPlant({ id: 'plant-1', userId: 'user-1' }),
+    createTestPlant({ id: 'plant-2', userId: 'user-1' }),
+    createTestPlant({ id: 'plant-3', userId: 'user-1' }),
+    createTestPlant({ id: 'plant-123', userId: 'user-1' }),
+  ],
+})
 
 // Helper to create a test queue message
 const createTestQueueMessage = (
@@ -100,7 +113,8 @@ const runAndCapturePushes = async (
           }),
           createMockDeviceTokenRepository(tokens),
           createMockNotificationRepository(notifications),
-          LaMocksLive
+          LaMocksLive,
+          LivingPlantsLive
         )
       ),
       Logger.withMinimumLogLevel(LogLevel.None)
@@ -132,7 +146,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -306,7 +321,8 @@ describe('Notification Worker', () => {
               createFailingPushService('Push failed'),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -346,7 +362,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -391,7 +408,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -432,7 +450,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -525,7 +544,8 @@ describe('Notification Worker', () => {
               }),
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository(notifications),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -564,7 +584,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               dlqLayer,
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -592,7 +613,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               createMockDeadLetterRepository(),
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -627,7 +649,8 @@ describe('Notification Worker', () => {
               MockAlerterLive,
               dlqLayer,
               createMockNotificationRepository([notification]),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -723,7 +746,8 @@ describe('Notification Worker', () => {
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([notification]),
               createMockDeadLetterRepository(),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -748,7 +772,8 @@ describe('Notification Worker', () => {
               createMockDeviceTokenRepository(mockDeviceTokens),
               createMockNotificationRepository([]),
               createMockDeadLetterRepository(),
-              LaMocksLive
+              LaMocksLive,
+              LivingPlantsLive
             )
           ),
           Logger.withMinimumLogLevel(LogLevel.None)
@@ -819,7 +844,8 @@ describe('Notification Worker', () => {
         createMockCareLogRepository([]),
         createMockUserRepository([
           createTestUser({ id: 'user-1', timezone: 'UTC' }),
-        ])
+        ]),
+        createMockPlantRepository({ plants: [plant] })
       )
       const message = createTestQueueMessage({ topic: 'watering_reminder' })
       for (let i = 0; i < runs; i++) {
@@ -893,6 +919,78 @@ describe('Notification Worker', () => {
       )
       const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
       expect(starts).toHaveLength(1)
+    })
+  })
+  describe('dead plant guard', () => {
+    const runWithPlants = async (
+      plants: ReturnType<typeof createTestPlant>[],
+      plantIds: string[]
+    ) => {
+      const sentMessages: PushMessage[] = []
+      const notification = createTestNotification({
+        id: 'notification-1',
+        userId: 'user-1',
+        status: 'queued',
+      })
+      await Effect.runPromise(
+        processMessage(
+          createTestQueueMessage({
+            topic: 'watering_reminder',
+            payload: {
+              userId: 'user-1',
+              title: 'Water time',
+              body: 'Your plants are thirsty',
+              notificationIds: ['notification-1'],
+              plantIds,
+            },
+          })
+        ).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockAlerterLive,
+              createMockPushService({
+                onSendBatch: (msgs) => sentMessages.push(...msgs),
+              }),
+              createMockDeviceTokenRepository(mockDeviceTokens),
+              createMockNotificationRepository([notification]),
+              LaMocksLive,
+              createMockPlantRepository({ plants })
+            )
+          ),
+          Logger.withMinimumLogLevel(LogLevel.None)
+        )
+      )
+      return { sentMessages, notification }
+    }
+
+    it('drops a care push whose every plant is dead and marks it sent', async () => {
+      const dead = createTestPlant({
+        id: 'plant-1',
+        userId: 'user-1',
+        diedAt: new Date(),
+      })
+      const { sentMessages, notification } = await runWithPlants(
+        [dead],
+        ['plant-1']
+      )
+
+      expect(sentMessages).toHaveLength(0)
+      expect(notification.status).toBe('sent')
+    })
+
+    it('still delivers when at least one plant is living', async () => {
+      const dead = createTestPlant({
+        id: 'plant-1',
+        userId: 'user-1',
+        diedAt: new Date(),
+      })
+      const alive = createTestPlant({ id: 'plant-2', userId: 'user-1' })
+      const { sentMessages } = await runWithPlants(
+        [dead, alive],
+        ['plant-1', 'plant-2']
+      )
+
+      expect(sentMessages.length).toBeGreaterThan(0)
     })
   })
 })

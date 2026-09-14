@@ -11,6 +11,7 @@ import {
 import type { AchievementKey, CareType } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
 
 export interface IAchievementRepository {
@@ -36,6 +37,10 @@ export interface IAchievementRepository {
   ) => Effect.Effect<number, SqlError>
 
   readonly countPlants: (userId: string) => Effect.Effect<number, SqlError>
+  /** Living plants only — the plan limit; achievements keep `countPlants`. */
+  readonly countLivingPlants: (
+    userId: string
+  ) => Effect.Effect<number, SqlError>
 
   readonly countPhotos: (userId: string) => Effect.Effect<number, SqlError>
 
@@ -156,6 +161,20 @@ export const AchievementRepositoryLive = Layer.effect(
           Option.getOrElse(() => 0)
         )
       }),
+
+      countLivingPlants: Effect.fn('AchievementRepository.countLivingPlants')(
+        function* (userId: string) {
+          const [result] = yield* db
+            .select({ count: count() })
+            .from(plants)
+            .where(and(eq(plants.userId, userId), isLivingPlant()))
+          return pipe(
+            Option.fromNullable(result),
+            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.getOrElse(() => 0)
+          )
+        }
+      ),
 
       countPhotos: Effect.fn('AchievementRepository.countPhotos')(function* (
         userId: string

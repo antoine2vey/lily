@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { carePlanSteps, carePlans, plants } from '@lily/db/schema'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type {
@@ -254,9 +255,12 @@ export const CarePlanRepositoryLive = Layer.effect(
           .select({ plan: carePlans, plant: plantSelect })
           .from(carePlans)
           .innerJoin(plants, eq(carePlans.plantId, plants.id))
+          // The Care tab checklist: a plant in the cemetery must not surface
+          // its plans there. By-id and by-plant lookups stay unfiltered.
           .where(
             and(
               eq(carePlans.userId, userId),
+              isLivingPlant(),
               ...pipe(
                 Option.fromNullable(status),
                 Option.map((s) => [eq(carePlans.status, s)]),

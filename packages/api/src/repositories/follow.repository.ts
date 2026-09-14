@@ -1,5 +1,6 @@
 import type { SqlError } from '@effect/sql/SqlError'
 import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
@@ -127,8 +128,9 @@ const isFollowingSubquery = (currentUserId: string) =>
     AND following_id = ${users.id}
   )`
 
+// Public counts only include living plants; the cemetery is private.
 const plantCountSubquery = () =>
-  sql<number>`(SELECT count(*)::int FROM plants WHERE plants.user_id = ${users.id})`
+  sql<number>`(SELECT count(*)::int FROM plants WHERE plants.user_id = ${users.id} AND plants.died_at IS NULL)`
 
 export const FollowRepositoryLive = Layer.effect(
   FollowRepository,
@@ -376,6 +378,7 @@ export const FollowRepositoryLive = Layer.effect(
               plantCount: sql<number>`(
                 SELECT count(*)::int FROM plants
                 WHERE plants.user_id = ${params.targetUserId}
+                AND plants.died_at IS NULL
               )`,
               followerCount: sql<number>`(
                 SELECT count(*)::int FROM user_follows
@@ -406,7 +409,7 @@ export const FollowRepositoryLive = Layer.effect(
               imageUrl: plants.imageUrl,
             })
             .from(plants)
-            .where(eq(plants.userId, params.targetUserId))
+            .where(and(eq(plants.userId, params.targetUserId), isLivingPlant()))
             .orderBy(desc(plants.dateAdded))
             .limit(9)
 

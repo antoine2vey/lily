@@ -96,7 +96,6 @@ export default {
       removeFromFavorites: 'Retirer des favoris',
       setAsFavorite: 'Ajouter aux favoris',
       shareProfile: 'Partager le profil',
-      deletePlant: 'Supprimer la plante',
     },
     delete: {
       title: 'Supprimer {name} ?',

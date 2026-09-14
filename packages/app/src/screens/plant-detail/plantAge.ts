@@ -51,6 +51,27 @@ export const humanizeAge = (age: CalendarAge, t: Translate): string => {
 }
 
 /**
+ * Cemetery variant: "Lived with you for {duration}" between the date the
+ * plant was added and the day it died. Age unit strings live in the
+ * `plantDetail` namespace, the sentence in `cemetery`, hence two `t`s.
+ */
+export const buildLivedWithYouLabel = (
+  dateAdded: Date,
+  diedAt: Date,
+  tCemetery: Translate,
+  tDetail: Translate
+): string =>
+  tCemetery('livedFor', {
+    duration: humanizeAge(
+      getCalendarAge(
+        DateTime.unsafeMake(dateAdded),
+        DateTime.unsafeMake(diedAt)
+      ),
+      tDetail
+    ),
+  })
+
+/**
  * Build the full "Growing for {duration}" label from the date a plant was added.
  */
 export const buildGrowingForLabel = (dateAdded: Date, t: Translate): string =>

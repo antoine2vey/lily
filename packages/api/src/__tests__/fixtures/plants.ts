@@ -56,6 +56,9 @@ export const mockPlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -88,6 +91,9 @@ export const mockPlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 14 })],
   },
@@ -109,6 +115,9 @@ export const mockPlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
@@ -160,6 +169,9 @@ export const mockOverduePlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -187,6 +199,9 @@ export const mockOverduePlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -214,6 +229,9 @@ export const mockOverduePlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [
       wateringSpec({
@@ -241,6 +259,9 @@ export const mockOverduePlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-1',
     scheduleSpecs: [wateringSpec({ frequencyDays: 30 })],
   },
@@ -262,6 +283,9 @@ export const mockOverduePlants: TestPlant[] = [
     potWidthCm: null,
     potHeightCm: null,
     roomId: null,
+    diedAt: null,
+    deathCause: null,
+    deathNote: null,
     userId: 'user-2',
     scheduleSpecs: [
       wateringSpec({
@@ -293,6 +317,9 @@ export const createTestPlant = (
   potWidthCm: null,
   potHeightCm: null,
   roomId: null,
+  diedAt: null,
+  deathCause: null,
+  deathNote: null,
   userId: 'user-1',
   scheduleSpecs: [wateringSpec()],
   ...overrides,

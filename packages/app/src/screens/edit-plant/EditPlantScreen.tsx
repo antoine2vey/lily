@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { getFrequencyDays } from '@lily/shared'
-import { Option } from 'effect'
+import { Either, Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -18,18 +18,18 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FormInput, FormTextArea } from '@/components'
 import { AnimatedImage } from '@/components/AnimatedImage'
-import { ConfirmationModal } from '@/components/ConfirmationModal'
 import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Slider } from '@/components/Slider'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { useDeletePlant } from '@/hooks/useDeletePlant'
 import { useIconColors } from '@/hooks/useIconColors'
+import { useMarkPlantDead } from '@/hooks/useMarkPlantDead'
 import { usePlant } from '@/hooks/usePlant'
 import { useUpdatePlant } from '@/hooks/useUpdatePlant'
 import { CategoryPicker } from '@/screens/add-plant/components/CategoryPicker'
 import { FrequencyPicker } from '@/screens/add-plant/components/FrequencyPicker'
 import { EditPlantSkeleton } from '@/screens/edit-plant/components/EditPlantSkeleton'
+import { SayGoodbyeSheet } from '@/screens/plant-detail/components/SayGoodbyeSheet'
 import { RoomPicker } from '@/screens/rooms/components/RoomPicker'
 
 export function EditPlantScreen() {
@@ -80,7 +80,7 @@ export function EditPlantScreen() {
 
   const { data: plant, isLoading } = usePlant(plantId)
   const { mutate: updatePlant, isPending: isUpdating } = useUpdatePlant()
-  const { mutate: deletePlant, isPending: isDeleting } = useDeletePlant()
+  const markPlantDead = useMarkPlantDead()
 
   const [photo, setPhoto] = useState<string | undefined>()
   const [name, setName] = useState('')
@@ -108,7 +108,7 @@ export function EditPlantScreen() {
   const [potWidthCm, setPotWidthCm] = useState<string>('')
   const [potHeightCm, setPotHeightCm] = useState<string>('')
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showGoodbyeSheet, setShowGoodbyeSheet] = useState(false)
 
   // Derive original schedule values — reused by both useEffect and hasChanges
   const originalScheduleData = useMemo(() => {
@@ -227,13 +227,18 @@ export function EditPlantScreen() {
     )
   }
 
-  const handleDelete = () => {
-    deletePlant(
-      { path: { id: plantId } },
+  const handleSayGoodbye = (payload: {
+    cause: Parameters<typeof markPlantDead.mutate>[0]['payload']['cause']
+    note?: string
+  }) => {
+    markPlantDead.mutate(
+      { path: { id: plantId }, payload },
       {
-        onSuccess: () => {
-          setShowDeleteConfirm(false)
-          router.replace('/(app)/(tabs)/plants')
+        onSuccess: (result) => {
+          if (Either.isRight(result)) {
+            setShowGoodbyeSheet(false)
+            router.replace('/(app)/(tabs)/plants')
+          }
         },
       }
     )
@@ -633,38 +638,37 @@ export function EditPlantScreen() {
             </View>
           </View>
 
-          {/* Danger Zone */}
-          <View>
-            <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-3 ml-1">
-              {t('plantDetail:edit.dangerZone')}
-            </Text>
-            <Pressable
-              onPress={() => setShowDeleteConfirm(true)}
-              className="bg-surface dark:bg-surface-dark rounded-2xl p-4 border border-error/20 flex-row items-center justify-center gap-2 active:bg-error/5"
-            >
-              <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
-              <Text className="text-base font-semibold text-error">
-                {t('plantDetail:edit.deletePlant')}
+          {/* Danger Zone: say goodbye. Permanent deletion lives in the cemetery. */}
+          {plant.diedAt === null && (
+            <View>
+              <Text className="text-xs font-bold uppercase tracking-wider text-text-muted dark:text-slate-400 mb-3 ml-1">
+                {t('plantDetail:edit.dangerZone')}
               </Text>
-            </Pressable>
-          </View>
+              <Pressable
+                onPress={() => setShowGoodbyeSheet(true)}
+                className="bg-surface dark:bg-surface-dark rounded-2xl p-4 border border-border/40 dark:border-slate-700/40 flex-row items-center justify-center gap-2 active:bg-surface-tinted"
+                testID="edit-say-goodbye"
+              >
+                <MaterialIcons
+                  name="local-florist"
+                  size={20}
+                  color={iconColors.textMuted}
+                />
+                <Text className="text-base font-semibold text-text-secondary dark:text-slate-300">
+                  {t('cemetery:actions.sayGoodbye')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        visible={showDeleteConfirm}
-        title={t('plantDetail:delete.title', { name: plant.name })}
-        message={t('plantDetail:delete.message')}
-        confirmLabel={
-          isDeleting
-            ? t('common:loading.deleting')
-            : t('plantDetail:delete.confirm')
-        }
-        cancelLabel={t('plantDetail:delete.cancel')}
-        destructive
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
+      <SayGoodbyeSheet
+        visible={showGoodbyeSheet}
+        plantName={plant.name}
+        isPending={markPlantDead.isPending}
+        onClose={() => setShowGoodbyeSheet(false)}
+        onConfirm={handleSayGoodbye}
       />
 
       <PhotoSourceSheet

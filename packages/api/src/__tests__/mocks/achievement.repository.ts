@@ -11,6 +11,8 @@ type UserAchievement = typeof userAchievements.$inferSelect
 export interface MockAchievementRepositoryData {
   achievements: UserAchievement[]
   plantCount?: number
+  /** Defaults to `plantCount` when omitted. */
+  livingPlantCount?: number
   careLogCounts?: Partial<Record<CareType, number>>
   photoCount?: number
   careStreak?: number
@@ -77,6 +79,15 @@ export const createMockAchievementRepository = (
       Effect.succeed(
         pipe(
           Option.fromNullable(data.plantCount),
+          Option.getOrElse(() => 0)
+        )
+      ),
+
+    countLivingPlants: (_userId: string) =>
+      Effect.succeed(
+        pipe(
+          Option.fromNullable(data.livingPlantCount),
+          Option.orElse(() => Option.fromNullable(data.plantCount)),
           Option.getOrElse(() => 0)
         )
       ),

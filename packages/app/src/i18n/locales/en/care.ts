@@ -93,6 +93,9 @@ export default {
       completed: 'Repotted',
       badge: 'REPOTTING',
     },
+    died: {
+      completed: 'Said goodbye',
+    },
     prune: {
       name: 'Prune',
       action: 'Prune',

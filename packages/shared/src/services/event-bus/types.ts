@@ -72,6 +72,16 @@ export const UserFollowedEvent = Schema.TaggedStruct('UserFollowed', {
   followingId: Schema.String,
 })
 
+// Emitted when a plant is marked dead or brought back. Subscribers that
+// derive per-user state from living plants (Live Activity) refresh on it.
+export const PlantLifecycleChangedEvent = Schema.TaggedStruct(
+  'PlantLifecycleChanged',
+  {
+    userId: Schema.String,
+    plantId: Schema.String,
+  }
+)
+
 // Union of all events
 export const AppEvent = Schema.Union(
   PlantCreatedEvent,
@@ -85,7 +95,8 @@ export const AppEvent = Schema.Union(
   RarePlantIdentifiedEvent,
   ReminderRespondedEvent,
   PlantSharedEvent,
-  UserFollowedEvent
+  UserFollowedEvent,
+  PlantLifecycleChangedEvent
 )
 
 export type AppEvent = typeof AppEvent.Type
@@ -98,6 +109,7 @@ export type AttentionRespondedEvent = typeof AttentionRespondedEvent.Type
 export type CareHistoryViewedEvent = typeof CareHistoryViewedEvent.Type
 export type DiseaseIdentifiedEvent = typeof DiseaseIdentifiedEvent.Type
 export type RarePlantIdentifiedEvent = typeof RarePlantIdentifiedEvent.Type
+export type PlantLifecycleChangedEvent = typeof PlantLifecycleChangedEvent.Type
 export type ReminderRespondedEvent = typeof ReminderRespondedEvent.Type
 export type PlantSharedEvent = typeof PlantSharedEvent.Type
 export type UserFollowedEvent = typeof UserFollowedEvent.Type

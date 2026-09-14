@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { StaleTime } from '@lily/shared'
-import { Array, Option, pipe } from 'effect'
+import { formatLongDate, StaleTime } from '@lily/shared'
+import { Array, DateTime, Option, pipe } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,12 +20,16 @@ import {
   groupPhotosByMonth,
   type PhotoGroup,
 } from '@/screens/plant-detail/growthJournalGrouping'
-import { buildGrowingForLabel } from '@/screens/plant-detail/plantAge'
+import {
+  buildGrowingForLabel,
+  buildLivedWithYouLabel,
+} from '@/screens/plant-detail/plantAge'
 import { useEffectQuery } from '@/utils/client'
 import { PHOTOS_LIMIT, PHOTOS_PAGE } from '@/utils/plant-cache'
 
 export function GrowthJournalScreen() {
   const { t, i18n } = useTranslation('plantDetail')
+  const { t: tCemetery } = useTranslation('cemetery')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
 
@@ -76,7 +80,15 @@ export function GrowthJournalScreen() {
     Option.match({
       onNone: () => `📸 ${photoBadge}`,
       onSome: (p) =>
-        `🌱 ${buildGrowingForLabel(p.dateAdded, t)} · ${photoBadge}`,
+        pipe(
+          Option.fromNullable(p.diedAt),
+          Option.match({
+            onNone: () =>
+              `🌱 ${buildGrowingForLabel(p.dateAdded, t)} · ${photoBadge}`,
+            onSome: (diedAt) =>
+              `🌷 ${buildLivedWithYouLabel(p.dateAdded, diedAt, tCemetery, t)} · ${photoBadge}`,
+          })
+        ),
     })
   )
 
@@ -160,6 +172,32 @@ export function GrowthJournalScreen() {
               groups={groups}
               onPhotoPress={handlePhotoPress}
             />
+
+            {/* Terminal entry for a plant in the cemetery */}
+            {pipe(
+              Option.fromNullable(plant?.diedAt),
+              Option.flatMap((d) => DateTime.make(d)),
+              Option.match({
+                onNone: () => null,
+                onSome: (diedAt) => (
+                  <View
+                    className="mt-6 flex-row items-center justify-center gap-2"
+                    testID="journal-died-footer"
+                  >
+                    <MaterialIcons
+                      name="local-florist"
+                      size={16}
+                      color={iconColors.textMuted}
+                    />
+                    <Text className="text-sm font-medium text-text-muted dark:text-slate-400">
+                      {tCemetery('diedOn', {
+                        date: formatLongDate(diedAt, i18n.language),
+                      })}
+                    </Text>
+                  </View>
+                ),
+              })
+            )}
           </Animated.View>
         )}
       </ScrollView>

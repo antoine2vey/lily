@@ -1,4 +1,8 @@
-import { buildGrowingForLabel, humanizeAge } from '../plantAge'
+import {
+  buildGrowingForLabel,
+  buildLivedWithYouLabel,
+  humanizeAge,
+} from '../plantAge'
 
 /** Fake translate mimicking the English ICU output for the age keys. */
 const fakeT = (
@@ -54,5 +58,35 @@ describe('buildGrowingForLabel', () => {
     // Far in the past so the duration is non-trivial regardless of "now".
     const label = buildGrowingForLabel(new Date('2020-01-01T00:00:00Z'), fakeT)
     expect(label.startsWith('Growing for ')).toBe(true)
+  })
+})
+
+describe('buildLivedWithYouLabel', () => {
+  const fakeCemeteryT = (
+    key: string,
+    options?: { count?: number; duration?: string }
+  ): string =>
+    key === 'livedFor' ? `Lived with you for ${options?.duration}` : key
+
+  it('measures the span between adoption and death, not today', () => {
+    expect(
+      buildLivedWithYouLabel(
+        new Date('2024-01-10T00:00:00Z'),
+        new Date('2024-03-12T00:00:00Z'),
+        fakeCemeteryT,
+        fakeT
+      )
+    ).toBe('Lived with you for 2 months and 2 days')
+  })
+
+  it('handles a same-day loss', () => {
+    expect(
+      buildLivedWithYouLabel(
+        new Date('2024-01-10T00:00:00Z'),
+        new Date('2024-01-10T12:00:00Z'),
+        fakeCemeteryT,
+        fakeT
+      )
+    ).toBe('Lived with you for less than a day')
   })
 })

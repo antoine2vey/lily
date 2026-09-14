@@ -34,6 +34,9 @@ const validPlant = {
   potHeightCm: null,
   roomId: null,
   room: null,
+  diedAt: null,
+  deathCause: null,
+  deathNote: null,
   schedules: [
     {
       careType: 'watering' as const,

@@ -1530,4 +1530,90 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages[0]?.topic).toBe('delegation_activated')
     })
   })
+  describe('dead plants', () => {
+    it('skips reminders for a dead plant and deletes the rows', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+      const deadPlant = createTestPlant({
+        id: 'plant-dead',
+        userId: 'user-1',
+        diedAt: new Date('2026-01-01'),
+        deathCause: 'pests',
+      })
+      const notifications = [
+        createTestNotification({
+          id: 'pending-dead',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-dead',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [deadPlant]
+      )
+
+      expect(enqueuedMessages).toHaveLength(0)
+      // Deleted, not left pending, so the next poll does not pick it up again
+      expect(notifications).toHaveLength(0)
+    })
+
+    it('drops only the dead plant from a mixed care batch', async () => {
+      const enqueuedMessages: {
+        topic: NotificationTopic
+        message: QueueMessage
+      }[] = []
+      const deadPlant = createTestPlant({
+        id: 'plant-dead',
+        name: 'Gone Fern',
+        userId: 'user-1',
+        diedAt: new Date('2026-01-01'),
+      })
+      const livingPlant = createTestPlant({
+        id: 'plant-alive',
+        name: 'Happy Pothos',
+        userId: 'user-1',
+      })
+      const notifications = [
+        createTestNotification({
+          id: 'pending-dead',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-dead',
+        }),
+        createTestNotification({
+          id: 'pending-alive',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(Date.now() - 60000),
+          userId: 'user-1',
+          plantId: 'plant-alive',
+        }),
+      ]
+
+      await runPollAndEnqueue(
+        notifications,
+        [defaultUser],
+        (topic, message) => enqueuedMessages.push({ topic, message }),
+        [deadPlant, livingPlant]
+      )
+
+      expect(enqueuedMessages).toHaveLength(1)
+      expect(enqueuedMessages[0]?.message.payload.plantIds).toEqual([
+        'plant-alive',
+      ])
+      expect(enqueuedMessages[0]?.message.payload.notificationIds).toEqual([
+        'pending-alive',
+      ])
+    })
+  })
 })

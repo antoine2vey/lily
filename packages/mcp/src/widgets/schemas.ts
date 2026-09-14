@@ -17,6 +17,9 @@ export interface PlantSummary {
   readonly roomIcon: string | null
   readonly ownership: string
   readonly ownerName: string | null
+  /** Plant is in the cemetery; the health badge then reads "In memory". */
+  readonly isDead: boolean
+  readonly diedAt: string | null
 }
 
 // ── Plant Detail (get_plant_details) ────────────────────────────────
@@ -38,6 +41,8 @@ export interface PlantDetail {
   readonly name: string
   readonly healthLabel: string
   readonly healthColor: string
+  readonly isDead: boolean
+  readonly diedAt: string | null
   readonly category: string | null
   readonly roomName: string | null
   readonly roomIcon: string | null

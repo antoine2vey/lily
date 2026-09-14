@@ -13,12 +13,17 @@ import { detect } from '@lily/api/services/plants/endpoints/detect'
 import { findPlantById } from '@lily/api/services/plants/endpoints/find-plant-by-id'
 import { findPlants } from '@lily/api/services/plants/endpoints/find-plants'
 import { getPlantPhotos } from '@lily/api/services/plants/endpoints/get-plant-photos'
+import { markPlantDead } from '@lily/api/services/plants/endpoints/mark-plant-dead'
+import { revivePlant } from '@lily/api/services/plants/endpoints/revive-plant'
 import { scanCard } from '@lily/api/services/plants/endpoints/scan-card'
 import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
 import { sharePlant } from '@lily/api/services/plants/endpoints/share-plant'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
-import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
+import {
+  withPlantAuth,
+  withPlantOwnerAuth,
+} from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
 
@@ -32,6 +37,7 @@ export const PlantsApiLive = (api: Api) =>
             Match.value(urlParams.filter),
             Match.when('needsAttention', () => 'needsAttention' as const),
             Match.when('overdue', () => 'overdue' as const),
+            Match.when('dead', () => 'dead' as const),
             Match.orElse(() => 'all' as const)
           ),
           sort: urlParams.sort === 'name' ? 'name' : 'added',
@@ -76,8 +82,20 @@ export const PlantsApiLive = (api: Api) =>
         )
       )
       .handle('deletePlant', ({ path: { id } }) =>
-        withPlantAuth(id).pipe(
+        withPlantOwnerAuth(id).pipe(
           Effect.zipRight(deletePlant({ id })),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('markPlantDead', ({ path: { id }, payload }) =>
+        withPlantOwnerAuth(id).pipe(
+          Effect.flatMap((plant) => markPlantDead(plant, payload)),
+          withInfraErrorsAsDefect
+        )
+      )
+      .handle('revivePlant', ({ path: { id } }) =>
+        withPlantOwnerAuth(id).pipe(
+          Effect.flatMap((plant) => revivePlant(plant)),
           withInfraErrorsAsDefect
         )
       )

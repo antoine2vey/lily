@@ -94,6 +94,9 @@ export default {
       completed: 'Rempoté',
       badge: 'REMPOTAGE',
     },
+    died: {
+      completed: 'Adieu',
+    },
     prune: {
       name: 'Taille',
       action: 'Tailler',
