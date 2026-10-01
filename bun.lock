@@ -190,6 +190,7 @@
         "@types/pg": "^8.16.0",
         "drizzle-kit": "^0.31.8",
         "typescript": "^6.0.2",
+        "vitest": "^3.2.4",
       },
     },
     "packages/knowledge-db": {
