@@ -14,6 +14,9 @@ check 'bun.lock has no v3-only effect packages' "$([ -z "$stale" ] && echo ok ||
 v3_imports=$(git grep -lE "from '@effect/(platform|sql|sql-drizzle|rpc|ai|cluster|workflow|experimental)(/[A-Za-z]+)?'" -- 'packages/**/*.ts' 'packages/**/*.tsx' | wc -l | tr -d ' ')
 check 'no imports of v3-only @effect packages' "$([ "$v3_imports" = 0 ] && echo ok || echo "FAIL: $v3_imports files")"
 
+dateparts=$(bun scripts/effect-v4-dateparts-check.ts 2>&1 | tail -1)
+check 'no v3 DateTime parts keys (tsc-invisible)' "$(case "$dateparts" in 0\ *) echo ok;; *) echo "FAIL: $dateparts";; esac)"
+
 bun run tsc --force --continue >"$LOG_DIR/tsc.log" 2>&1
 check 'bun run tsc' "$([ $? = 0 ] && echo ok || echo "FAIL: $(grep -cE 'error TS' "$LOG_DIR/tsc.log") errors, see $LOG_DIR/tsc.log")"
 
