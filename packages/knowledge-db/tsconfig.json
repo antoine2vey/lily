@@ -6,8 +6,10 @@
     "noEmit": false,
     "composite": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "types": ["bun"]
   },
   "include": ["src/**/*", "drizzle.config.ts"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules"],
+  "references": [{ "path": "../db" }]
 }

@@ -1,6 +1,6 @@
 import { contentCategoryEnum } from '@lily/knowledge-db/schema/enums'
 import { rawDocuments } from '@lily/knowledge-db/schema/raw-documents'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   type AnyPgColumn,
   customType,
@@ -13,16 +13,15 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+// Reads arrive as number[] from the halfvec codec on the knowledge PgClient
+// (halfvec.ts). Writes bind the '[...]' text form, wrapped in sql because
+// driverData types the read side.
 export const vector = customType<{
   data: number[]
-  driverParam: string
+  driverData: number[]
 }>({
   dataType: () => 'halfvec(3072)',
-  toDriver: (value) => `[${value.join(',')}]`,
-  fromDriver: (value) => {
-    const str = value as string
-    return str.slice(1, -1).split(',').map(Number)
-  },
+  toDriver: (value) => sql`${`[${value.join(',')}]`}`,
 })
 
 export const processedChunks = pgTable(

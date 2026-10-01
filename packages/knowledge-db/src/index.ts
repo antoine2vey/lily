@@ -1,5 +1,6 @@
-import { PgClient } from '@effect/sql-pg'
+import { PgClient, PgTypes } from '@effect/sql-pg'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
+import { registerHalfvec } from '@lily/knowledge-db/halfvec'
 import * as schema from '@lily/knowledge-db/schema'
 import type { PgRemoteDatabase } from 'drizzle-orm/pg-proxy'
 import { Config, Context, Effect, Layer } from 'effect'
@@ -9,9 +10,17 @@ export class KnowledgeDrizzle extends Context.Service<
   PgRemoteDatabase<Record<string, never>>
 >()('KnowledgeDrizzle') {}
 
-const KnowledgePgClientLive = PgClient.layerConfig({
-  url: Config.Redacted('KNOWLEDGE_DATABASE_URL'),
-})
+// The registry is filled after connecting because halfvec's OID is only
+// known once the client can ask the database for it.
+const KnowledgePgClientLive = PgClient.layerFrom(
+  Effect.gen(function* () {
+    const url = yield* Config.Redacted('KNOWLEDGE_DATABASE_URL')
+    const types = PgTypes.makeRegistry()
+    const client = yield* PgClient.make({ url, types })
+    yield* registerHalfvec(client, types)
+    return client
+  })
+)
 
 // Build KnowledgePgClientLive within the layer's own scope using a fresh MemoMap
 // (Layer.buildWithScope), so it never shares the outer graph's PgClient tag.
