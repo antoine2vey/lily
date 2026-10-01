@@ -8,12 +8,11 @@ bun run test exits 0                         ok
 @lily/app passing tests >= 909               ok
 @lily/shared passing tests >= 364            ok
 @lily/mcp passing tests >= 53                ok
-gate exit 0
 
-commit: b70b78ad
-@lily/knowledge-db:test: Tests 3 passed | 1 skipped (4)
+commit: 455ebae0
 @lily/db:test: Tests 7 skipped (7)
+@lily/knowledge-db:test: Tests 3 passed | 1 skipped (4)
 @lily/shared:test: Tests 370 passed (370)
 @lily/mcp:test: Tests 55 passed (55)
 @lily/app:test: Tests: 913 passed, 913 total
-@lily/api:test: Tests 1583 passed | 9 skipped (1592)
+@lily/api:test: Tests 1719 passed | 9 skipped (1728)
