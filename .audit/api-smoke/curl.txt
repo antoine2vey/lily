@@ -4,7 +4,7 @@ status: 200 (expected 200)
 {"status":"ok","database":"ok","redis":"ok"}
 
 ### openapi.json
-$ curl -o /private/tmp/claude-501/-Users-antoine2vey-projects-lily/de078d50-6065-426c-b5d9-2329ccdd52fe/scratchpad/u6b/smoke/openapi.json http://127.0.0.1:3000/openapi.json
+$ curl -o /private/tmp/claude-501/-Users-antoine2vey-projects-lily/de078d50-6065-426c-b5d9-2329ccdd52fe/scratchpad/smoke-rerun/openapi.json http://127.0.0.1:3000/openapi.json
 status: 200 (expected 200)
 
 
