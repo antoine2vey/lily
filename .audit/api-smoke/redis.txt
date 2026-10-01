@@ -1,5 +1,0 @@
-1
-1
-   1 cmd=client|list
-   1 cmd=rpoplpush
-   1 cmd=subscribe

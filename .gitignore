@@ -130,3 +130,5 @@ gcs-google-credentials.json
 
 # Private, non-public docs (internal strategy, pricing, competitive analysis)
 private-docs/
+# Local audit trails and agent run artifacts
+.audit/

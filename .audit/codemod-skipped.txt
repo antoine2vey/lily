@@ -1,5 +1,0 @@
-# effect-v4-codemod skipped sites: rule, location, reason, snippet (tab-separated)
-context/tag-to-service	packages/api/src/repositories/plant.repository.ts:54	Context.Tag.* type helper needs a hand port	Context.Tag.Service<typeof PgDrizzle.PgDrizzle>
-errors/catch-tag-keys	packages/api/src/services/helpers/error-handling.ts:22	UnknownException outside catchTag/catchTags; v4 tag is UnknownError	'UnknownException'
-errors/catch-tag-keys	packages/api/src/services/helpers/error-handling.ts:30	UnknownException outside catchTag/catchTags; v4 tag is UnknownError	UnknownException
-import/platform	packages/api/src/__tests__/mocks/command-executor.ts:1	no mechanical v4 home for CommandExecutor	CommandExecutor

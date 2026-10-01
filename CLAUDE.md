@@ -32,7 +32,7 @@ Use Effect modules for everything. Native JS equivalents are **forbidden**:
 - Nested ternaries → `Match.value().pipe(Match.when(...), Match.orElse(...))`
 - `str.toUpperCase/includes/split` → `String.*`
 - `new Date()` → `DateTime.nowUnsafe()`, `new Date(iso)` → `DateTime.make()`
-- `DateTime.make/makeUnsafe` parts use singular keys (`hour`, `minute`, `second`, `millisecond`). Plural v3 keys typecheck but are silently dropped; `scripts/effect-v4-dateparts-check.ts` catches them
+- `DateTime.make/makeUnsafe` parts use singular keys (`hour`, `minute`, `second`, `millisecond`). Plural v3 keys (`hours`, ...) typecheck but are silently dropped
 - Date math → `DateTime.distance` (returns a `Duration`), `Duration` module, `DateTime.toParts`
 - `x == null ? none : some(x)` → `Option.fromNullishOr`
 
