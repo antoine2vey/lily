@@ -39,9 +39,7 @@ export const verifyMagicLink = ({
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(code)) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Invalid code format' })
-      )
+      return yield* new AuthError({ message: 'Invalid code format' })
     }
 
     // Check rate limit
@@ -51,9 +49,7 @@ export const verifyMagicLink = ({
     const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(code)
 
     if (!magicLink) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Invalid or expired code' })
-      )
+      return yield* new AuthError({ message: 'Invalid or expired code' })
     }
 
     // Find or create user, syncing device fields on login
@@ -90,16 +86,12 @@ export const verifyMagicLink = ({
     )
 
     if (!user) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Failed to create user' })
-      )
+      return yield* new AuthError({ message: 'Failed to create user' })
     }
 
     // Check user status
     if (user.status !== 'active') {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Account is not active' })
-      )
+      return yield* new AuthError({ message: 'Account is not active' })
     }
 
     return yield* issueSession(user)

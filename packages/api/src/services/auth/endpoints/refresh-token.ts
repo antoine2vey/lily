@@ -48,9 +48,9 @@ export const refreshToken = ({
     )
 
     if (!storedToken) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Invalid or expired refresh token' })
-      )
+      return yield* new AuthError({
+        message: 'Invalid or expired refresh token',
+      })
     }
 
     // Rate limit per user to prevent abuse. Propagated as 429 so clients
@@ -66,16 +66,14 @@ export const refreshToken = ({
     if (!user) {
       // Revoke the token since user doesn't exist
       yield* refreshTokenRepo.revoke(storedToken.id)
-      return yield* Effect.fail(new AuthError({ message: 'User not found' }))
+      return yield* new AuthError({ message: 'User not found' })
     }
 
     // Check user status
     if (user.status !== 'active') {
       // Revoke all tokens for suspended/banned user
       yield* refreshTokenRepo.revokeAllForUser(user.id)
-      return yield* Effect.fail(
-        new AuthError({ message: 'Account is not active' })
-      )
+      return yield* new AuthError({ message: 'Account is not active' })
     }
 
     // Revoke the old refresh token (rotation). A token reused within the

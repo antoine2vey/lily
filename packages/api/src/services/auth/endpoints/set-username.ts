@@ -23,35 +23,26 @@ export const setUsername = (
     // Validate username format
     const username = EffectString.trim(request.username)
     if (username.length < 3) {
-      return yield* Effect.fail(
-        new AuthError({
-          message: 'Username must be at least 3 characters',
-        })
-      )
+      return yield* new AuthError({
+        message: 'Username must be at least 3 characters',
+      })
     }
     if (username.length > 30) {
-      return yield* Effect.fail(
-        new AuthError({
-          message: 'Username must be at most 30 characters',
-        })
-      )
+      return yield* new AuthError({
+        message: 'Username must be at most 30 characters',
+      })
     }
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      return yield* Effect.fail(
-        new AuthError({
-          message:
-            'Username can only contain letters, numbers, and underscores',
-        })
-      )
+      return yield* new AuthError({
+        message: 'Username can only contain letters, numbers, and underscores',
+      })
     }
 
     // Check if username is already taken (if different from current)
     if (currentUser.name !== username) {
       const existingUser = yield* userRepo.findByUsername(username)
       if (existingUser && existingUser.id !== currentUser.id) {
-        return yield* Effect.fail(
-          new AuthError({ message: 'Username is already taken' })
-        )
+        return yield* new AuthError({ message: 'Username is already taken' })
       }
     }
 
@@ -61,9 +52,7 @@ export const setUsername = (
     })
 
     if (!updatedUser) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Failed to update username' })
-      )
+      return yield* new AuthError({ message: 'Failed to update username' })
     }
 
     return {

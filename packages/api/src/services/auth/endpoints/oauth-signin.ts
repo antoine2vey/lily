@@ -130,12 +130,10 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                   const eitherVerified =
                     existing.emailVerified || verified.emailVerified
                   if (!eitherVerified) {
-                    return yield* Effect.fail(
-                      new AuthError({
-                        message:
-                          'An account with this email exists but cannot be verified for merging. Sign in with magic link first.',
-                      })
-                    )
+                    return yield* new AuthError({
+                      message:
+                        'An account with this email exists but cannot be verified for merging. Sign in with magic link first.',
+                    })
                   }
                   if (!existing.emailVerified && verified.emailVerified) {
                     const updated = yield* userRepo.update(existing.id, {
@@ -152,9 +150,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
           )
 
           if (!targetUser) {
-            return yield* Effect.fail(
-              new AuthError({ message: 'Failed to create user' })
-            )
+            return yield* new AuthError({ message: 'Failed to create user' })
           }
 
           yield* identityRepo.link({
@@ -172,9 +168,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
   )
 
   if (user.status !== 'active') {
-    return yield* Effect.fail(
-      new AuthError({ message: 'Account is not active' })
-    )
+    return yield* new AuthError({ message: 'Account is not active' })
   }
 
   return yield* issueSession(user)

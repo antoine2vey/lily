@@ -75,9 +75,7 @@ export const issueServiceToken = (input: {
     )
 
     if (user.status !== 'active') {
-      return yield* Effect.fail(
-        new AuthError({ message: `Account is ${user.status}` })
-      )
+      return yield* new AuthError({ message: `Account is ${user.status}` })
     }
 
     // Generate JWT access token
@@ -141,9 +139,7 @@ const resolveEmail = (input: {
     )
 
     if (!magicLink) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'Invalid or expired magic link' })
-      )
+      return yield* new AuthError({ message: 'Invalid or expired magic link' })
     }
 
     return magicLink.email

@@ -32,7 +32,11 @@ const plants = pgTable(plantsName, {
 
 // Stand-in for knowledge-db's halfvec column: a type the client has no
 // built-in codec for, whose binary wire format is not its text form.
-const point = customType<{ data: Array<number>; driverParam: string }>({
+const point = customType<{
+  data: Array<number>
+  driverData: string
+  driverParam: string
+}>({
   dataType: () => 'point',
   toDriver: (value) =>
     `(${Array.join(
@@ -40,12 +44,7 @@ const point = customType<{ data: Array<number>; driverParam: string }>({
       ','
     )})`,
   fromDriver: (value) =>
-    pipe(
-      value as string,
-      String.slice(1, -1),
-      String.split(','),
-      Array.map(Number)
-    ),
+    pipe(value, String.slice(1, -1), String.split(','), Array.map(Number)),
 })
 
 const points = pgTable(pointsName, {
