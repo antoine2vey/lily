@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 describe('ServiceAuthenticationLive', () => {
   const testSecret = 'test-service-secret-12345'
 
-  const configLayer = Layer.setConfigProvider(
+  const configLayer = ConfigProvider.layer(
     ConfigProvider.fromMap(new Map([['SERVICE_TOKEN_SECRET', testSecret]]))
   )
 

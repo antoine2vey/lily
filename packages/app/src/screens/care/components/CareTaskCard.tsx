@@ -76,14 +76,14 @@ export function CareTaskCard({
   )
 
   const imageUri = pipe(
-    Option.fromNullable(task.plantImageUrl),
+    Option.fromNullishOr(task.plantImageUrl),
     Option.getOrUndefined
   )
 
   const isCompleted = task.completed || isPendingCompletion
 
   const daysLate = pipe(
-    Option.fromNullable(dueDayOffset),
+    Option.fromNullishOr(dueDayOffset),
     Option.filter(() => overdue && !isPendingCompletion),
     Option.filter((offset) => offset < 0),
     Option.map(Math.abs)

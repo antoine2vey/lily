@@ -9,7 +9,7 @@ import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repos
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Fixed scenario, user timezone Europe/Paris (UTC+2 in August):
@@ -132,13 +132,13 @@ const findNext = (
 ): Date | null =>
   pipe(
     Array.findFirst(schedules, (s) => s.plantId === plantId),
-    Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+    Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
     Option.getOrNull
   )
 
 const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
   Effect.runPromise(
-    effect.pipe(Logger.withMinimumLogLevel(LogLevel.None))
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<void>
 
 describe('endVacation', () => {

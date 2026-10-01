@@ -61,23 +61,25 @@ export function ManualAddCareNeedsScreen() {
   const [watering, setWatering] = useState(50)
   const [light, setLight] = useState(
     pipe(
-      Option.fromNullable(prefill),
-      Option.flatMap((p) => Option.fromNullable(p.luxNeeded as number)),
+      Option.fromNullishOr(prefill),
+      Option.flatMap((p) => Option.fromNullishOr(p.luxNeeded as number)),
       Option.map(luxToSliderValue),
       Option.getOrElse(() => 50)
     )
   )
   const [humidity, setHumidity] = useState(
     pipe(
-      Option.fromNullable(prefill),
-      Option.flatMap((p) => Option.fromNullable(p.humidityRating as number)),
+      Option.fromNullishOr(prefill),
+      Option.flatMap((p) => Option.fromNullishOr(p.humidityRating as number)),
       Option.getOrElse(() => 50)
     )
   )
   const [petSafe, setPetSafe] = useState(
     pipe(
-      Option.fromNullable(prefill),
-      Option.flatMap((p) => Option.fromNullable(p.petToxicityRating as number)),
+      Option.fromNullishOr(prefill),
+      Option.flatMap((p) =>
+        Option.fromNullishOr(p.petToxicityRating as number)
+      ),
       Option.map((rating) => rating <= 50),
       Option.getOrElse(() => false)
     )

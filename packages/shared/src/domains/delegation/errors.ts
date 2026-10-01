@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFoundError>()(
@@ -6,7 +5,7 @@ export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFou
   {
     delegationId: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class DelegationNotAuthorizedError extends Schema.TaggedError<DelegationNotAuthorizedError>()(
@@ -16,7 +15,7 @@ export class DelegationNotAuthorizedError extends Schema.TaggedError<DelegationN
       default: () => 'You are not authorized to perform this action',
     }),
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}
 
 export class DelegationInvalidStatusError extends Schema.TaggedError<DelegationInvalidStatusError>()(
@@ -28,7 +27,7 @@ export class DelegationInvalidStatusError extends Schema.TaggedError<DelegationI
       default: () => 'Delegation is not in the correct status for this action',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class DelegationOverlapError extends Schema.TaggedError<DelegationOverlapError>()(
@@ -40,7 +39,7 @@ export class DelegationOverlapError extends Schema.TaggedError<DelegationOverlap
         'Some plants already have an active or accepted delegation for this period',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class DelegationDateError extends Schema.TaggedError<DelegationDateError>()(
@@ -48,11 +47,11 @@ export class DelegationDateError extends Schema.TaggedError<DelegationDateError>
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class CannotDelegateSelfError extends Schema.TaggedError<CannotDelegateSelfError>()(
   'CannotDelegateSelfError',
   {},
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}

@@ -58,16 +58,16 @@ export function ProfileScreen() {
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const activeDelegationCount = pipe(
-    Option.fromNullable(delegationsData?.total),
+    Option.fromNullishOr(delegationsData?.total),
     Option.getOrElse(() => 0)
   )
 
   const plantsCount = Option.getOrElse(
-    Option.fromNullable(plants?.total),
+    Option.fromNullishOr(plants?.total),
     () => 0
   )
   const careLogsCount = Option.getOrElse(
-    Option.fromNullable(user?.careLogsCount),
+    Option.fromNullishOr(user?.careLogsCount),
     () => 0
   )
   const achievementsProgress = achievements
@@ -136,35 +136,35 @@ export function ProfileScreen() {
             {/* Profile Header */}
             <ProfileHeader
               avatarUrl={pipe(
-                Option.fromNullable(user?.image),
-                Option.flatMap(Option.fromNullable)
+                Option.fromNullishOr(user?.image),
+                Option.flatMap(Option.fromNullishOr)
               )}
               name={pipe(
                 // Title prefers the real "First Last" name. Falls back to
                 // the @handle when no real name is on file (magic-link users
                 // who haven't filled it in yet), and finally to a generic
                 // label if even the handle is missing.
-                Option.fromNullable(user?.firstName),
+                Option.fromNullishOr(user?.firstName),
                 Option.map((first) =>
                   pipe(
-                    Option.fromNullable(user?.lastName),
+                    Option.fromNullishOr(user?.lastName),
                     Option.match({
                       onNone: () => first,
                       onSome: (last) => `${first} ${last}`,
                     })
                   )
                 ),
-                Option.orElse(() => Option.fromNullable(user?.name)),
+                Option.orElse(() => Option.fromNullishOr(user?.name)),
                 Option.getOrElse(() => t('profile:defaultBio'))
               )}
               username={pipe(
                 // Prefer the chosen @handle. Fall back to the email
                 // local-part only if the user hasn't picked one yet
                 // (transient state before /(auth)/username completes).
-                Option.fromNullable(user?.name),
+                Option.fromNullishOr(user?.name),
                 Option.orElse(() =>
                   pipe(
-                    Option.fromNullable(user?.email),
+                    Option.fromNullishOr(user?.email),
                     Option.flatMap((email) =>
                       Array.head(String.split(email, '@'))
                     )

@@ -9,17 +9,17 @@ interface ExifData {
 
 const luxFromBrightness = (exif: ExifData): Option.Option<number> =>
   pipe(
-    Option.fromNullable(exif.BrightnessValue),
+    Option.fromNullishOr(exif.BrightnessValue),
     Option.map((bv) => 80 * 2 ** bv)
   )
 
 const luxFromExposure = (exif: ExifData): Option.Option<number> =>
   pipe(
     Option.all({
-      fNumber: Option.fromNullable(exif.FNumber),
-      exposureTime: Option.fromNullable(exif.ExposureTime),
+      fNumber: Option.fromNullishOr(exif.FNumber),
+      exposureTime: Option.fromNullishOr(exif.ExposureTime),
       iso: pipe(
-        Option.fromNullable(exif.ISOSpeedRatings),
+        Option.fromNullishOr(exif.ISOSpeedRatings),
         Option.flatMap(Array.head)
       ),
     }),

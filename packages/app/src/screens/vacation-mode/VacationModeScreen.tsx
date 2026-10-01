@@ -24,14 +24,14 @@ import { VacationModeSkeleton } from '@/screens/vacation-mode/components/Vacatio
 
 const formatDisplayDate = (date: Date | null): string =>
   pipe(
-    Option.fromNullable(date),
+    Option.fromNullishOr(date),
     Option.flatMap((d) => parseApiDate(d)),
     Option.map((dt) => formatShortDate(dt)),
     Option.getOrElse(() => '')
   )
 
 const dateIdToUtcDate = (dateId: string): Date =>
-  DateTime.toDateUtc(DateTime.unsafeMake(`${dateId}T00:00:00.000Z`))
+  DateTime.toDateUtc(DateTime.makeUnsafe(`${dateId}T00:00:00.000Z`))
 
 export function VacationModeScreen() {
   const insets = useSafeAreaInsets()
@@ -54,14 +54,14 @@ export function VacationModeScreen() {
   useEffect(() => {
     setStartDate(
       pipe(
-        Option.fromNullable(data?.startDate),
+        Option.fromNullishOr(data?.startDate),
         Option.map(toDateId),
         Option.getOrNull
       )
     )
     setEndDate(
       pipe(
-        Option.fromNullable(data?.endDate),
+        Option.fromNullishOr(data?.endDate),
         Option.map(toDateId),
         Option.getOrNull
       )
@@ -76,9 +76,9 @@ export function VacationModeScreen() {
     // Active vacations keep their stored start verbatim — the server
     // rejects any change to it. Otherwise send the picked calendar day.
     const start = pipe(
-      Option.fromNullable(isActive ? data?.startDate : null),
+      Option.fromNullishOr(isActive ? data?.startDate : null),
       Option.orElse(() =>
-        pipe(Option.fromNullable(startDate), Option.map(dateIdToUtcDate))
+        pipe(Option.fromNullishOr(startDate), Option.map(dateIdToUtcDate))
       ),
       Option.getOrNull
     )
@@ -92,7 +92,7 @@ export function VacationModeScreen() {
       !isActive && startDate === endDate
         ? DateTime.toDateUtc(
             DateTime.addDuration(
-              DateTime.unsafeMake(dateIdToUtcDate(endDate)),
+              DateTime.makeUnsafe(dateIdToUtcDate(endDate)),
               Duration.days(1)
             )
           )
@@ -112,7 +112,7 @@ export function VacationModeScreen() {
           const tagged = err as { _tag?: string; message?: string }
           setFormError(
             pipe(
-              Option.fromNullable(tagged.message),
+              Option.fromNullishOr(tagged.message),
               Option.getOrElse(() => t('vacation:errors.generic'))
             )
           )

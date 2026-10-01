@@ -51,7 +51,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
   )}`
 
   const englishTitle = pipe(
-    Option.fromNullable(topic.title.en),
+    Option.fromNullishOr(topic.title.en),
     Option.orElse(() => Array.head(Record.values(topic.title) as string[])),
     Option.getOrElse(() => 'Untitled')
   )
@@ -61,7 +61,7 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
     Array.filter((p) => p.slug !== topic.slug),
     Array.map(
       (p) =>
-        `- /en/blog/${p.slug} — "${Option.getOrElse(Option.fromNullable(p.title.en), () => p.slug)}"`
+        `- /en/blog/${p.slug} — "${Option.getOrElse(Option.fromNullishOr(p.title.en), () => p.slug)}"`
     ),
     Array.join('\n')
   )
@@ -157,7 +157,7 @@ const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
 
   // Review the primary (English) content
   const primaryContent = pipe(
-    Option.fromNullable(content.content.en),
+    Option.fromNullishOr(content.content.en),
     Option.orElse(() => Array.head(Record.values(content.content) as string[])),
     Option.getOrElse(() => '')
   )
@@ -260,7 +260,7 @@ export const generateAndReviewBlogPost = (
             if (allDimensionsPassing) {
               // Translate only after review passes
               const enContent = yield* Option.match(
-                Option.fromNullable(generated.content.en),
+                Option.fromNullishOr(generated.content.en),
                 {
                   onNone: () =>
                     new BlogGenerationError({

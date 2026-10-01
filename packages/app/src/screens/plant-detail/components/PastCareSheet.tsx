@@ -22,7 +22,7 @@ export function PastCareSheet({
 
   const handleSelect = (daysAgo: number) => () => {
     const pastDate = pipe(
-      DateTime.unsafeNow(),
+      DateTime.nowUnsafe(),
       DateTime.subtractDuration(Duration.days(daysAgo)),
       DateTime.toDateUtc
     )

@@ -107,7 +107,7 @@ export const createMockChatRepository = (
           c.userId === params.userId &&
           (params.kind === undefined || c.kind === params.kind)
       )
-      const byRecentDesc = Order.reverse(
+      const byRecentDesc = Order.flip(
         Order.mapInput(
           Order.Date,
           (c: ChatConversation) => new Date(c.lastMessageAt)
@@ -115,11 +115,11 @@ export const createMockChatRepository = (
       )
       const sorted = Array.sort(filtered, byRecentDesc)
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit
@@ -187,11 +187,11 @@ export const createMockChatRepository = (
 
     findByConversationId: (params: FindChatHistoryParams) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit

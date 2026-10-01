@@ -21,7 +21,7 @@ const CONFIRMED_TTL = Duration.days(30)
 const expireStaleActivities = Effect.gen(function* () {
   const repo = yield* ActivityPushTokenRepository
   const cutoff = DateTime.toDateUtc(
-    DateTime.subtractDuration(DateTime.unsafeNow(), SOFT_TTL)
+    DateTime.subtractDuration(DateTime.nowUnsafe(), SOFT_TTL)
   )
   const count = yield* repo.expireStaleOlderThan(cutoff)
   if (count > 0) {
@@ -82,7 +82,7 @@ const reconcileActiveActivities = Effect.gen(function* () {
 
 const expireStaleStartTokens = Effect.gen(function* () {
   const repo = yield* ActivityPushTokenRepository
-  const now = DateTime.unsafeNow()
+  const now = DateTime.nowUnsafe()
   const count = yield* repo.expireUnconfirmedStartTokens({
     unconfirmedOlderThan: DateTime.toDateUtc(
       DateTime.subtractDuration(now, UNCONFIRMED_TTL)

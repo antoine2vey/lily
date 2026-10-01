@@ -23,14 +23,14 @@ const refreshWeatherData = Effect.gen(function* () {
   // Get users with weather enabled (filtered at DB level)
   const weatherUsers = yield* userRepo.findWeatherEnabled()
 
-  if (Array.isEmptyArray(weatherUsers)) {
+  if (Array.isArrayEmpty(weatherUsers)) {
     yield* Effect.log('No users with weather enabled, skipping')
     return
   }
 
   // Check if current UTC hour is a fetch hour for at least one timezone
-  const nowDt = DateTime.unsafeNow()
-  const utcHour = DateTime.toParts(nowDt).hours
+  const nowDt = DateTime.nowUnsafe()
+  const utcHour = DateTime.toParts(nowDt).hour
 
   // Collect distinct locations (rounded to 2dp)
   const locationRecord = Array.reduce(
@@ -42,13 +42,13 @@ const refreshWeatherData = Effect.gen(function* () {
     (acc, user) => {
       const lat = roundCoord(
         pipe(
-          Option.fromNullable(user.latitude),
+          Option.fromNullishOr(user.latitude),
           Option.getOrElse(() => 0)
         )
       )
       const lng = roundCoord(
         pipe(
-          Option.fromNullable(user.longitude),
+          Option.fromNullishOr(user.longitude),
           Option.getOrElse(() => 0)
         )
       )
@@ -74,17 +74,17 @@ const refreshWeatherData = Effect.gen(function* () {
     Record.values(locationRecord),
     Array.filter((loc) =>
       Array.some(loc.timezones, (tz) => {
-        const zoned = DateTime.unsafeMakeZoned(nowDt, {
+        const zoned = DateTime.makeZonedUnsafe(nowDt, {
           timeZone: tz,
           adjustForTimeZone: true,
         })
-        const localHour = DateTime.toParts(zoned).hours
+        const localHour = DateTime.toParts(zoned).hour
         return Array.contains(WEATHER_FETCH_HOURS, localHour)
       })
     )
   )
 
-  if (Array.isEmptyArray(locationsToFetch)) {
+  if (Array.isArrayEmpty(locationsToFetch)) {
     yield* Effect.log('No locations need refresh at current hour')
     return
   }

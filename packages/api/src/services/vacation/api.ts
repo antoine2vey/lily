@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   SetVacationRequest,
@@ -8,6 +7,7 @@ import {
   VacationNotFoundError,
   VacationState,
 } from '@lily/shared'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 // Define the Vacation API group
 export const VacationApi = HttpApiGroup.make('vacation')
@@ -29,7 +29,7 @@ export const VacationApi = HttpApiGroup.make('vacation')
   )
   .add(
     // DELETE /vacation - Cancel a scheduled vacation or end an active one now
-    HttpApiEndpoint.del('cancelVacation')`/`
+    HttpApiEndpoint.delete('cancelVacation')`/`
       .addSuccess(VacationState)
       .addError(VacationNotFoundError, { status: 404 })
       .addError(UserNotFoundError, { status: 404 })

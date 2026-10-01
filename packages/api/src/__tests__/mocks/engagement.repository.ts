@@ -29,33 +29,33 @@ export const createMockEngagementRepository = (
   data: MockEngagementRepositoryData = {}
 ): Layer.Layer<EngagementRepository> => {
   const usersWithTips = pipe(
-    Option.fromNullable(data.usersWithTips),
+    Option.fromNullishOr(data.usersWithTips),
     Option.getOrElse(() => [] as ReadonlyArray<UserWithSettings>)
   )
   const lastCareDates = pipe(
-    Option.fromNullable(data.lastCareDates),
+    Option.fromNullishOr(data.lastCareDates),
     Option.getOrElse(() => ({}) as Record<string, Date | null>)
   )
   const plantCounts = pipe(
-    Option.fromNullable(data.plantCounts),
+    Option.fromNullishOr(data.plantCounts),
     Option.getOrElse(() => ({}) as Record<string, number>)
   )
   const plantNames = pipe(
-    Option.fromNullable(data.plantNames),
+    Option.fromNullishOr(data.plantNames),
     Option.getOrElse(() => ({}) as Record<string, ReadonlyArray<string>>)
   )
   const plantsWithoutRecentPhoto = pipe(
-    Option.fromNullable(data.plantsWithoutRecentPhoto),
+    Option.fromNullishOr(data.plantsWithoutRecentPhoto),
     Option.getOrElse(
       () => ({}) as Record<string, ReadonlyArray<PlantWithoutRecentPhoto>>
     )
   )
   const notificationsInPeriod = pipe(
-    Option.fromNullable(data.notificationsInPeriod),
+    Option.fromNullishOr(data.notificationsInPeriod),
     Option.getOrElse(() => ({}) as Record<string, boolean>)
   )
   const notificationsForPlantInPeriod = pipe(
-    Option.fromNullable(data.notificationsForPlantInPeriod),
+    Option.fromNullishOr(data.notificationsForPlantInPeriod),
     Option.getOrElse(() => ({}) as Record<string, boolean>)
   )
 
@@ -65,7 +65,7 @@ export const createMockEngagementRepository = (
     getLastCareDate: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(lastCareDates[userId]),
+          Option.fromNullishOr(lastCareDates[userId]),
           Option.getOrElse(() => null)
         )
       ),
@@ -73,7 +73,7 @@ export const createMockEngagementRepository = (
     getPlantCountForUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(plantCounts[userId]),
+          Option.fromNullishOr(plantCounts[userId]),
           Option.getOrElse(() => 0)
         )
       ),
@@ -81,7 +81,7 @@ export const createMockEngagementRepository = (
     getPlantNamesForUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(plantNames[userId]),
+          Option.fromNullishOr(plantNames[userId]),
           Option.getOrElse(() => [] as ReadonlyArray<string>)
         )
       ),
@@ -89,7 +89,7 @@ export const createMockEngagementRepository = (
     getPlantsWithoutRecentPhoto: (userId: string, _beforeDate: Date) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(plantsWithoutRecentPhoto[userId]),
+          Option.fromNullishOr(plantsWithoutRecentPhoto[userId]),
           Option.getOrElse(() => [] as ReadonlyArray<PlantWithoutRecentPhoto>)
         )
       ),
@@ -97,7 +97,7 @@ export const createMockEngagementRepository = (
     hasNotificationInPeriod: (userId: string, type: string, _sinceDate: Date) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(notificationsInPeriod[`${userId}:${type}`]),
+          Option.fromNullishOr(notificationsInPeriod[`${userId}:${type}`]),
           Option.getOrElse(() => false)
         )
       ),
@@ -110,7 +110,7 @@ export const createMockEngagementRepository = (
     ) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(
+          Option.fromNullishOr(
             notificationsForPlantInPeriod[`${userId}:${type}:${plantId}`]
           ),
           Option.getOrElse(() => false)
@@ -124,7 +124,7 @@ export const createMockEngagementRepository = (
     getTrialingUsersWithTrialEndingSoon: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.trialingUsers),
+          Option.fromNullishOr(data.trialingUsers),
           Option.getOrElse(() => [] as ReadonlyArray<TrialingUser>)
         )
       ),
@@ -132,7 +132,7 @@ export const createMockEngagementRepository = (
     getPlantsWithAnniversary: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.plantsWithAnniversary),
+          Option.fromNullishOr(data.plantsWithAnniversary),
           Option.getOrElse(() => [] as ReadonlyArray<PlantAnniversary>)
         )
       ),
@@ -140,8 +140,8 @@ export const createMockEngagementRepository = (
     getHealthyPlantCountForUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.healthyPlantCounts),
-          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.fromNullishOr(data.healthyPlantCounts),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
         )
       ),
@@ -149,8 +149,8 @@ export const createMockEngagementRepository = (
     getCareLogsCountForWeek: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.careLogsForWeek),
-          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.fromNullishOr(data.careLogsForWeek),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
         )
       ),

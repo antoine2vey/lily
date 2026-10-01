@@ -1,6 +1,6 @@
 import type { UserSettings } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { Alert } from 'react-native'
 import { useLocationPermission } from '@/hooks/useLocationPermission'
 import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
@@ -60,7 +60,7 @@ export function useToggleWeather() {
         USER_SETTINGS_QUERY_KEY,
         (old) => {
           if (!old) return undefined
-          return Either.map(old, (settings) => ({
+          return Result.map(old, (settings) => ({
             ...settings,
             weather: {
               ...settings.weather,

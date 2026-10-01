@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Array, Either } from 'effect'
+import { Array, Result } from 'effect'
 import { runApiEffect } from '@/utils/client'
 
 // Same key/fetcher as `useEffectQuery('careTasks', 'getCareTasks', {})` in
@@ -30,9 +30,9 @@ export function useCareTabBadge(withCount: boolean): CareTabBadge {
     queryKey: CARE_TASKS_QUERY_KEY,
     queryFn: () => runApiEffect('careTasks', 'getCareTasks', {}),
     select: (result) => {
-      const count = Either.match(result, {
-        onLeft: () => 0,
-        onRight: (tasks) =>
+      const count = Result.match(result, {
+        onFailure: () => 0,
+        onSuccess: (tasks) =>
           Array.length(tasks.overdue) + Array.length(tasks.today),
       })
       return withCount ? count : count > 0

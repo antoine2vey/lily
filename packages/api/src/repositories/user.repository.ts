@@ -1,5 +1,4 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import {
   type LanguageCode,
@@ -21,6 +20,7 @@ import {
   sql,
 } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
 export interface CreateUserData {
@@ -153,10 +153,10 @@ const buildUserFilterConditions = (
 }
 
 // Tag for dependency injection
-export class UserRepository extends Context.Tag('UserRepository')<
+export class UserRepository extends Context.Service<
   UserRepository,
   IUserRepository
->() {}
+>()('UserRepository') {}
 
 // Live implementation using PgDrizzle
 export const UserRepositoryLive = Layer.effect(
@@ -170,7 +170,7 @@ export const UserRepositoryLive = Layer.effect(
 
       findById: Effect.fn('UserRepository.findById')(function* (id: string) {
         const [user] = yield* db.select().from(users).where(eq(users.id, id))
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       findByIds: Effect.fn('UserRepository.findByIds')(function* (
@@ -190,7 +190,7 @@ export const UserRepositoryLive = Layer.effect(
           .select()
           .from(users)
           .where(eq(users.email, email))
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       findByUsername: Effect.fn('UserRepository.findByUsername')(function* (
@@ -200,7 +200,7 @@ export const UserRepositoryLive = Layer.effect(
           .select()
           .from(users)
           .where(eq(users.name, username))
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       create: Effect.fn('UserRepository.create')(function* (
@@ -211,12 +211,12 @@ export const UserRepositoryLive = Layer.effect(
           .values({
             ...data,
             emailVerified: pipe(
-              Option.fromNullable(data.emailVerified),
+              Option.fromNullishOr(data.emailVerified),
               Option.getOrElse(() => false)
             ),
           })
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       update: Effect.fn('UserRepository.update')(function* (
@@ -228,7 +228,7 @@ export const UserRepositoryLive = Layer.effect(
           .set(data)
           .where(eq(users.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       delete: Effect.fn('UserRepository.delete')(function* (id: string) {
@@ -236,7 +236,7 @@ export const UserRepositoryLive = Layer.effect(
           .delete(users)
           .where(eq(users.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       softDelete: Effect.fn('UserRepository.softDelete')(function* (
@@ -250,7 +250,7 @@ export const UserRepositoryLive = Layer.effect(
           })
           .where(eq(users.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       findExpiredDeletions: Effect.fn('UserRepository.findExpiredDeletions')(
@@ -298,7 +298,7 @@ export const UserRepositoryLive = Layer.effect(
 
         return pipe(
           Array.head(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -312,7 +312,7 @@ export const UserRepositoryLive = Layer.effect(
           .set({ role, updatedAt: nowAsDate() })
           .where(eq(users.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       updateStatus: Effect.fn('UserRepository.updateStatus')(function* (
@@ -324,7 +324,7 @@ export const UserRepositoryLive = Layer.effect(
           .set({ status, updatedAt: nowAsDate() })
           .where(eq(users.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(user))
+        return Option.getOrNull(Option.fromNullishOr(user))
       }),
 
       findWeatherEnabled: () =>

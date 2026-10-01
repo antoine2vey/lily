@@ -14,7 +14,7 @@ const queryKnowledge = (params: { question: string; plantName?: string }) =>
     const ragService = yield* RagService
 
     const query = pipe(
-      Option.fromNullable(params.plantName),
+      Option.fromNullishOr(params.plantName),
       Option.match({
         onNone: () => params.question,
         onSome: (name) => `${name}: ${params.question}`,

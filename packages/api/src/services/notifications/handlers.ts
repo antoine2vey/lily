@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { deleteNotification } from '@lily/api/services/notifications/endpoints/delete-notification'
@@ -7,6 +6,7 @@ import { getUnreadCount } from '@lily/api/services/notifications/endpoints/get-u
 import { markAllRead } from '@lily/api/services/notifications/endpoints/mark-all-read'
 import { markNotificationRead } from '@lily/api/services/notifications/endpoints/mark-notification-read'
 import { Array, Option, pipe } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 const VALID_STATUSES: ReadonlyArray<string> = [
   'pending',
@@ -17,7 +17,7 @@ const VALID_STATUSES: ReadonlyArray<string> = [
 
 const safeParseInt = (value: string, fallback: number): number =>
   pipe(
-    Option.fromNullable(value),
+    Option.fromNullishOr(value),
     Option.flatMap((v) => {
       const parsed = Number.parseInt(v, 10)
       return Number.isNaN(parsed) ? Option.none() : Option.some(parsed)
@@ -28,7 +28,7 @@ const safeParseInt = (value: string, fallback: number): number =>
 export const NotificationsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'notifications', (handlers) =>
     handlers
-      .handle('getNotifications', ({ urlParams }) =>
+      .handle('getNotifications', ({ query: urlParams }) =>
         getNotifications({
           page: safeParseInt(urlParams.page, 1),
           limit: safeParseInt(urlParams.limit, 20),
@@ -41,10 +41,10 @@ export const NotificationsApiLive = (api: Api) =>
         getUnreadCount().pipe(withInfraErrorsAsDefect)
       )
       .handle('markAllRead', () => markAllRead().pipe(withInfraErrorsAsDefect))
-      .handle('markNotificationRead', ({ path: { notificationId } }) =>
+      .handle('markNotificationRead', ({ params: { notificationId } }) =>
         markNotificationRead(notificationId).pipe(withInfraErrorsAsDefect)
       )
-      .handle('deleteNotification', ({ path: { notificationId } }) =>
+      .handle('deleteNotification', ({ params: { notificationId } }) =>
         deleteNotification(notificationId).pipe(withInfraErrorsAsDefect)
       )
   )

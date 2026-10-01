@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class DeviceTokenNotFoundError extends Schema.TaggedError<DeviceTokenNotFoundError>()(
@@ -8,5 +7,5 @@ export class DeviceTokenNotFoundError extends Schema.TaggedError<DeviceTokenNotF
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

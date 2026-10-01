@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { PaginationParams } from '@lily/shared'
 import {
@@ -14,10 +13,17 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameters
-const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
-const logIdParam = HttpApiSchema.param('logId', Schema.UUID)
+const plantIdParam = HttpApiSchema.param(
+  'plantId',
+  Schema.String.check(Schema.isGUID())
+)
+const logIdParam = HttpApiSchema.param(
+  'logId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Query parameters for care logs listing (extends base pagination)
 export const CareLogsQueryParams = Schema.Struct({
@@ -83,7 +89,7 @@ export const CareLogsApi = HttpApiGroup.make('careLogs')
   )
   .add(
     // DELETE /plants/:plantId/logs/:logId - Delete a log entry
-    HttpApiEndpoint.del(
+    HttpApiEndpoint.delete(
       'deleteCareLog'
     )`/plants/${plantIdParam}/logs/${logIdParam}`
       .addSuccess(Schema.Struct({ message: Schema.String }))

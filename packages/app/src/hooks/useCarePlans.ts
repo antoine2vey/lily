@@ -16,7 +16,7 @@ export function usePlantCarePlans(plantId: string | undefined) {
     {
       path: {
         plantId: pipe(
-          Option.fromNullable(plantId),
+          Option.fromNullishOr(plantId),
           Option.getOrElse(() => '')
         ),
       },

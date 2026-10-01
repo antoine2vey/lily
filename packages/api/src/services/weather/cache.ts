@@ -21,7 +21,7 @@ export interface IWeatherCache {
   readonly removeLocation: (id: string) => Effect.Effect<void>
 }
 
-export class WeatherCache extends Context.Tag('WeatherCache')<
+export class WeatherCache extends Context.Service<
   WeatherCache,
   IWeatherCache
->() {}
+>()('WeatherCache') {}

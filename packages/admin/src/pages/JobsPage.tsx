@@ -23,12 +23,12 @@ export const JobsPage = () => {
   const deleteJob = useDeleteJob()
 
   const jobs = pipe(
-    Option.fromNullable(jobsData),
+    Option.fromNullishOr(jobsData),
     Option.getOrElse((): ReadonlyArray<IngestJob> => [])
   )
 
   const stats = pipe(
-    Option.fromNullable(statsData),
+    Option.fromNullishOr(statsData),
     Option.getOrElse(() => defaultStats)
   )
 
@@ -143,7 +143,7 @@ export const JobsPage = () => {
                       </td>
                       <td className="max-w-xs truncate px-4 py-3 text-sm">
                         {pipe(
-                          Option.fromNullable(job.error),
+                          Option.fromNullishOr(job.error),
                           Option.match({
                             onNone: () => (
                               <span className="text-gray-400">{'\u2014'}</span>

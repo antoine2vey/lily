@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -12,6 +11,7 @@ import {
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Match } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Cancel a scheduled vacation, or end an active one right now.

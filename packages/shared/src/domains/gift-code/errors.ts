@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class GiftCodeNotFoundError extends Schema.TaggedError<GiftCodeNotFoundError>()(
@@ -8,7 +7,7 @@ export class GiftCodeNotFoundError extends Schema.TaggedError<GiftCodeNotFoundEr
       default: () => 'Gift code not found',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class GiftCodeExpiredError extends Schema.TaggedError<GiftCodeExpiredError>()(
@@ -18,7 +17,7 @@ export class GiftCodeExpiredError extends Schema.TaggedError<GiftCodeExpiredErro
       default: () => 'This gift code has expired',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class GiftCodeExhaustedError extends Schema.TaggedError<GiftCodeExhaustedError>()(
@@ -28,7 +27,7 @@ export class GiftCodeExhaustedError extends Schema.TaggedError<GiftCodeExhausted
       default: () => 'This gift code has reached its maximum number of uses',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class GiftCodeInactiveError extends Schema.TaggedError<GiftCodeInactiveError>()(
@@ -38,7 +37,7 @@ export class GiftCodeInactiveError extends Schema.TaggedError<GiftCodeInactiveEr
       default: () => 'This gift code is no longer active',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class GiftCodeAlreadyRedeemedError extends Schema.TaggedError<GiftCodeAlreadyRedeemedError>()(
@@ -48,7 +47,7 @@ export class GiftCodeAlreadyRedeemedError extends Schema.TaggedError<GiftCodeAlr
       default: () => 'You have already redeemed this gift code',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class GiftCodeDuplicateError extends Schema.TaggedError<GiftCodeDuplicateError>()(
@@ -58,7 +57,7 @@ export class GiftCodeDuplicateError extends Schema.TaggedError<GiftCodeDuplicate
       default: () => 'A gift code with this name already exists',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class GiftCodeMaxUsagesTooLowError extends Schema.TaggedError<GiftCodeMaxUsagesTooLowError>()(
@@ -69,7 +68,7 @@ export class GiftCodeMaxUsagesTooLowError extends Schema.TaggedError<GiftCodeMax
         'Max usages cannot be less than the current number of redemptions',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class GiftCodeExpiryInPastError extends Schema.TaggedError<GiftCodeExpiryInPastError>()(
@@ -79,5 +78,5 @@ export class GiftCodeExpiryInPastError extends Schema.TaggedError<GiftCodeExpiry
       default: () => 'Expiry date must be in the future',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}

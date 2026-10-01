@@ -46,11 +46,11 @@ export function DelegationCard({ delegation, onPress }: DelegationCardProps) {
 
   const otherPersonName = isOwner
     ? pipe(
-        Option.fromNullable(delegation.caretakerName),
+        Option.fromNullishOr(delegation.caretakerName),
         Option.getOrElse(() => t('card.unknown'))
       )
     : pipe(
-        Option.fromNullable(delegation.ownerName),
+        Option.fromNullishOr(delegation.ownerName),
         Option.getOrElse(() => t('card.unknown'))
       )
 
@@ -89,7 +89,7 @@ export function DelegationCard({ delegation, onPress }: DelegationCardProps) {
       <View className="flex-row items-center">
         <Avatar
           source={pipe(
-            Option.fromNullable(otherPersonImage),
+            Option.fromNullishOr(otherPersonImage),
             Option.map((uri) => ({ uri })),
             Option.getOrUndefined
           )}

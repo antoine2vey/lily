@@ -1,11 +1,3 @@
-import {
-  FetchHttpClient,
-  type HttpApi,
-  HttpApiClient,
-  HttpClient,
-  HttpClientRequest,
-  type HttpClientResponse,
-} from '@effect/platform'
 import { Api } from '@lily/api/api'
 import {
   type CareLogNotFoundError,
@@ -40,15 +32,22 @@ import {
   Clock,
   Deferred,
   Effect,
-  Either,
   Exit,
   Match,
   Option,
   pipe,
   Ref,
+  Result,
   Schema,
   String as Str,
 } from 'effect'
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientRequest,
+  type HttpClientResponse,
+} from 'effect/http'
+import { type HttpApi, HttpApiClient } from 'effect/http-api'
 import * as SecureStore from 'expo-secure-store'
 import {
   addAuthBreadcrumb,
@@ -78,7 +77,7 @@ export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
 
 const rawApiUrl = pipe(
-  Option.fromNullable(process.env.EXPO_PUBLIC_API_URL),
+  Option.fromNullishOr(process.env.EXPO_PUBLIC_API_URL),
   Option.getOrThrow
 )
 
@@ -253,7 +252,7 @@ function tryExtractKnownError(value: unknown): Option.Option<ApiFailure> {
  */
 function extractApiFailureFromCause(cause: Cause.Cause<unknown>): ApiFailure {
   // Try to extract from Fail
-  const failureOpt = Cause.failureOption(cause)
+  const failureOpt = Cause.findErrorOption(cause)
 
   if (Option.isSome(failureOpt)) {
     const failure = failureOpt.value
@@ -565,7 +564,7 @@ class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
             Effect.gen(function* () {
               const token = yield* getAccessToken
               return pipe(
-                Option.fromNullable(token),
+                Option.fromNullishOr(token),
                 Option.match({
                   onNone: () => request,
                   onSome: (t) =>
@@ -630,17 +629,17 @@ type GetCleanSuccessType<
 /**
  * Result type for API operations - Either<ApiFailure, Success>
  */
-export type ApiResult<T> = Either.Either<T, ApiFailure>
+export type ApiResult<T> = Result.Result<T, ApiFailure>
 
 /**
  * Unwrap an ApiResult, throwing if it's a Left (error)
  */
 export function unwrapApiResult<T>(result: ApiResult<T>): T {
-  return Either.match(result, {
-    onLeft: (error) => {
+  return Result.match(result, {
+    onFailure: (error) => {
       throw error
     },
-    onRight: (value) => value,
+    onSuccess: (value) => value,
   })
 }
 
@@ -651,9 +650,9 @@ export function getApiResultData<T>(
   result: ApiResult<T> | undefined
 ): T | undefined {
   if (!result) return undefined
-  return Either.match(result, {
-    onLeft: () => undefined,
-    onRight: (value) => value,
+  return Result.match(result, {
+    onFailure: () => undefined,
+    onSuccess: (value) => value,
   })
 }
 
@@ -664,9 +663,9 @@ export function getApiResultError(
   result: ApiResult<unknown> | undefined
 ): ApiFailure | undefined {
   if (!result) return undefined
-  return Either.match(result, {
-    onLeft: (error) => error,
-    onRight: () => undefined,
+  return Result.match(result, {
+    onFailure: (error) => error,
+    onSuccess: () => undefined,
   })
 }
 
@@ -675,8 +674,8 @@ export function getApiResultError(
  */
 export function isApiResultSuccess<T>(
   result: ApiResult<T> | undefined
-): result is Either.Right<ApiFailure, T> {
-  return result !== undefined && Either.isRight(result)
+): result is Result.Success<T, ApiFailure> {
+  return result !== undefined && Result.isSuccess(result)
 }
 
 /**
@@ -684,8 +683,8 @@ export function isApiResultSuccess<T>(
  */
 export function isApiResultError<T>(
   result: ApiResult<T> | undefined
-): result is Either.Left<ApiFailure, T> {
-  return result !== undefined && Either.isLeft(result)
+): result is Result.Failure<T, ApiFailure> {
+  return result !== undefined && Result.isFailure(result)
 }
 
 /**
@@ -723,7 +722,7 @@ export async function runApiEffect<
   )
 
   return Exit.match(exit, {
-    onSuccess: (value) => Either.right(value as GetCleanSuccessType<X, Y>),
+    onSuccess: (value) => Result.succeed(value as GetCleanSuccessType<X, Y>),
     onFailure: (cause) => {
       const apiError = extractApiFailureFromCause(cause)
 
@@ -732,7 +731,7 @@ export async function runApiEffect<
         return handleTokenRefreshAndRetry(section, method, params)
       }
 
-      return Either.left(apiError)
+      return Result.fail(apiError)
     },
   })
 }
@@ -753,7 +752,7 @@ async function handleTokenRefreshAndRetry<
   return Exit.match(refreshExit, {
     onSuccess: () => runApiEffect(section, method, params, 1),
     onFailure: (cause) => {
-      const error = Cause.failureOption(cause)
+      const error = Cause.findErrorOption(cause)
       const isAuthFailure = pipe(
         error,
         Option.map((e) => isUnauthorizedError(e)),
@@ -772,7 +771,7 @@ async function handleTokenRefreshAndRetry<
         onAuthFailure()
       }
 
-      return Either.left(
+      return Result.fail(
         pipe(
           error,
           Option.getOrElse(

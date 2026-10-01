@@ -7,7 +7,7 @@ import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (n: number) =>
-  DateTime.toDateUtc(DateTime.add(DateTime.unsafeNow(), { days: n }))
+  DateTime.toDateUtc(DateTime.add(DateTime.nowUnsafe(), { days: n }))
 
 const makeTrialingUser = (
   overrides: Partial<TrialingUser> & { id: string }

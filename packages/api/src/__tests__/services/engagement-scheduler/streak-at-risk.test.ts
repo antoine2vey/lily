@@ -23,10 +23,10 @@ const findEveningTimezone = (): string | null => {
   ]
   for (const tz of candidates) {
     const zoned = DateTime.setZone(
-      DateTime.unsafeNow(),
-      DateTime.zoneUnsafeMakeNamed(tz)
+      DateTime.nowUnsafe(),
+      DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).hours >= 18) return tz
+    if (DateTime.toParts(zoned).hour >= 18) return tz
   }
   return null
 }
@@ -100,10 +100,10 @@ describe('processStreakAtRisk', () => {
     // We check dynamically to avoid time-of-day flakiness
     const tz = 'America/Los_Angeles'
     const localNow = DateTime.setZone(
-      DateTime.unsafeNow(),
-      DateTime.zoneUnsafeMakeNamed(tz)
+      DateTime.nowUnsafe(),
+      DateTime.zoneMakeNamedUnsafe(tz)
     )
-    const { hours } = DateTime.toParts(localNow)
+    const { hour: hours } = DateTime.toParts(localNow)
     if (hours >= 18) return // Can't test — already past 6 PM in LA
 
     const user = makeUserWithSettings({ id: 'user-1', timezone: tz })

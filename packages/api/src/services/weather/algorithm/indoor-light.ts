@@ -83,7 +83,7 @@ import {
   luxToLuminosityLevel,
   parseApiDate,
 } from '@lily/shared'
-import { Array, DateTime, Option, pipe, String } from 'effect'
+import { Array, DateTime, Duration, Option, pipe, String } from 'effect'
 
 const DEG_TO_RAD = Math.PI / 180
 const RAD_TO_DEG = 180 / Math.PI
@@ -100,8 +100,8 @@ const sum = (values: ReadonlyArray<number>): number =>
 const meanOfNonNull = (
   values: ReadonlyArray<number | null>
 ): Option.Option<number> =>
-  pipe(Array.filterMap(values, Option.fromNullable), (present) =>
-    Array.isNonEmptyReadonlyArray(present)
+  pipe(Array.filterMap(values, Option.fromNullishOr), (present) =>
+    Array.isReadonlyArrayNonEmpty(present)
       ? Option.some(sum(present) / present.length)
       : Option.none()
   )
@@ -157,18 +157,21 @@ export const dayOfYearFromIso = (date: string): Option.Option<number> =>
     parseApiDate(date),
     Option.map((dt) => {
       const parts = DateTime.toParts(dt)
-      const startOfYear = DateTime.unsafeMake({
+      const startOfYear = DateTime.makeUnsafe({
         year: parts.year,
         month: 1,
         day: 1,
       })
-      const dayStart = DateTime.unsafeMake({
+      const dayStart = DateTime.makeUnsafe({
         year: parts.year,
         month: parts.month,
         day: parts.day,
       })
       return (
-        Math.floor(DateTime.distance(startOfYear, dayStart) / MS_PER_DAY) + 1
+        Math.floor(
+          Duration.toMillis(DateTime.distance(startOfYear, dayStart)) /
+            MS_PER_DAY
+        ) + 1
       )
     })
   )
@@ -177,9 +180,9 @@ export const dayOfYearFromIso = (date: string): Option.Option<number> =>
 
 const categorySensitivity = (category: string | null): number =>
   pipe(
-    Option.fromNullable(category),
+    Option.fromNullishOr(category),
     Option.flatMap((cat) =>
-      Option.fromNullable(PHOTO_CATEGORY_SENSITIVITY[cat])
+      Option.fromNullishOr(PHOTO_CATEGORY_SENSITIVITY[cat])
     ),
     Option.getOrElse(() => PHOTO_DEFAULT_SENSITIVITY)
   )
@@ -242,9 +245,9 @@ export const orientationFactor = (
   orientation: string | null
 ): number => {
   const aspect = pipe(
-    Option.fromNullable(orientation),
+    Option.fromNullishOr(orientation),
     Option.map((o) => pipe(o, String.trim, String.toUpperCase)),
-    Option.flatMap((o) => Option.fromNullable(ORIENTATION_ASPECT[o])),
+    Option.flatMap((o) => Option.fromNullishOr(ORIENTATION_ASPECT[o])),
     Option.getOrElse(() => 0)
   )
   if (aspect === 0) return FACTOR_NEUTRAL
@@ -277,7 +280,7 @@ export const roomFitFactor = (
   category: string | null
 ): RoomFitResult =>
   pipe(
-    Option.fromNullable(roomLuminosity),
+    Option.fromNullishOr(roomLuminosity),
     Option.match({
       onNone: () => ({ factor: FACTOR_NEUTRAL, gap: 0 }),
       onSome: (lux) => {
@@ -295,7 +298,7 @@ export const roomFitFactor = (
         )
         // CAM/drought plants: a bright room may never ACCELERATE watering.
         const factor = pipe(
-          Option.fromNullable(category),
+          Option.fromNullishOr(category),
           Option.filter((cat) => CAM_CATEGORIES.has(cat)),
           Option.match({
             onNone: () => raw,
@@ -358,7 +361,7 @@ export const indoorVpdFactor = (
   humidityRating: number
 ): number => {
   const tOut = pipe(
-    Option.fromNullable(temperatureMean),
+    Option.fromNullishOr(temperatureMean),
     Option.getOrElse(() => DEFAULT_TEMPERATURE_MEAN_C)
   )
   const rhIndoor = clamp(

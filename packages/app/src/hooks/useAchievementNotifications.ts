@@ -154,7 +154,7 @@ export function useAchievementNotifications(
       Array.filter((a) => a.unlocked && !known.has(a.key))
     )
 
-    if (Array.isNonEmptyReadonlyArray(newlyUnlocked)) {
+    if (Array.isReadonlyArrayNonEmpty(newlyUnlocked)) {
       Array.forEach(newlyUnlocked, (a) => {
         known.add(a.key)
       })

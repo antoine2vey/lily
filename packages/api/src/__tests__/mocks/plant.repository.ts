@@ -43,29 +43,29 @@ export const createMockPlantRepository = (
   // Keep a reference to the original array for health scheduler mutations
   const originalPlantsData = data.plants
   const photos = Option.getOrElse(
-    Option.fromNullable(data.photos),
+    Option.fromNullishOr(data.photos),
     () => [] as PlantPhoto[]
   )
   const rooms = Option.getOrElse(
-    Option.fromNullable(data.rooms),
+    Option.fromNullishOr(data.rooms),
     () => [] as MockRoom[]
   )
   const caretakingPlants = Option.getOrElse(
-    Option.fromNullable(data.caretakingPlants),
+    Option.fromNullishOr(data.caretakingPlants),
     () => [] as MockCaretakingPlant[]
   )
   const schedulesData = Option.getOrElse(
-    Option.fromNullable(data.schedules),
+    Option.fromNullishOr(data.schedules),
     () => [] as CareScheduleRow[]
   )
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
-      Option.fromNullable(roomId),
+      Option.fromNullishOr(roomId),
       Option.flatMap((id) => Array.findFirst(rooms, (r) => r.id === id)),
       Option.map((r) => ({
         ...r,
-        orientation: Option.getOrNull(Option.fromNullable(r.orientation)),
+        orientation: Option.getOrNull(Option.fromNullishOr(r.orientation)),
       })),
       Option.getOrNull
     )
@@ -89,7 +89,7 @@ export const createMockPlantRepository = (
     }
 
     if (params.filter === 'overdue') {
-      const endOfTodayDt = endOfDay(DateTime.unsafeNow(), params.timezone)
+      const endOfTodayDt = endOfDay(DateTime.nowUnsafe(), params.timezone)
       const endOfTodayMs = DateTime.toEpochMillis(endOfTodayDt)
       // Check schedule table for overdue plants
       filtered = Array.filter(filtered, (p) =>
@@ -132,11 +132,11 @@ export const createMockPlantRepository = (
   const repo: IPlantRepository = {
     findAll: (params: FindPlantsParams) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit
@@ -160,7 +160,7 @@ export const createMockPlantRepository = (
       // Add caretaking plants when requested
       const caretakingItems: PlantWithRoom[] =
         params.includeCaretaking &&
-        Array.isNonEmptyReadonlyArray(caretakingPlants)
+        Array.isReadonlyArrayNonEmpty(caretakingPlants)
           ? pipe(
               Array.map(caretakingPlants, (cp) => cp.plant),
               (plants) => applyFilters(plants, params),
@@ -185,8 +185,8 @@ export const createMockPlantRepository = (
 
       const sortOrder =
         params.sort === 'name'
-          ? Order.mapInput(Order.string, (p: PlantWithRoom) => p.name)
-          : Order.mapInput(Order.reverse(Order.number), (p: PlantWithRoom) =>
+          ? Order.mapInput(Order.String, (p: PlantWithRoom) => p.name)
+          : Order.mapInput(Order.flip(Order.Number), (p: PlantWithRoom) =>
               p.dateAdded.getTime()
             )
       const sorted = Array.sort(allItems, sortOrder)
@@ -228,7 +228,7 @@ export const createMockPlantRepository = (
         id: `plant-${crypto.randomUUID()}`,
         name: createData.name,
         description: createData.description,
-        imageUrl: Option.getOrNull(Option.fromNullable(createData.imageUrl)),
+        imageUrl: Option.getOrNull(Option.fromNullishOr(createData.imageUrl)),
         category: createData.category,
         dateAdded: new Date(),
         updatedAt: new Date(),
@@ -241,7 +241,7 @@ export const createMockPlantRepository = (
         isFavorite: false,
         potWidthCm: null,
         potHeightCm: null,
-        roomId: Option.getOrNull(Option.fromNullable(createData.roomId)),
+        roomId: Option.getOrNull(Option.fromNullishOr(createData.roomId)),
         diedAt: null,
         deathCause: null,
         deathNote: null,
@@ -273,11 +273,11 @@ export const createMockPlantRepository = (
 
     findPhotos: (params: FindPhotosParams) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit

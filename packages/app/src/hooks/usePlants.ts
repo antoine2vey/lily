@@ -17,23 +17,23 @@ export function usePlants(params?: PlantsParams) {
     {
       urlParams: {
         page: pipe(
-          Option.fromNullable(params?.page),
+          Option.fromNullishOr(params?.page),
           Option.getOrElse(() => '1')
         ),
         limit: pipe(
-          Option.fromNullable(params?.limit),
+          Option.fromNullishOr(params?.limit),
           Option.getOrElse(() => '20')
         ),
         filter: pipe(
-          Option.fromNullable(params?.filter),
+          Option.fromNullishOr(params?.filter),
           Option.getOrElse(() => 'all')
         ),
         sort: pipe(
-          Option.fromNullable(params?.sort),
+          Option.fromNullishOr(params?.sort),
           Option.getOrElse(() => 'added')
         ),
         includeCaretaking: pipe(
-          Option.fromNullable(params?.includeCaretaking),
+          Option.fromNullishOr(params?.includeCaretaking),
           Option.getOrElse(() => 'false')
         ),
       },

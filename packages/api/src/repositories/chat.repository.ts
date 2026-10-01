@@ -1,9 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { chatConversations, chatMessages } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type {
@@ -16,6 +15,7 @@ import type {
 import type { UIMessage } from 'ai'
 import { and, asc, count, desc, eq, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -61,9 +61,9 @@ const mapToChatMessage = (row: ChatMessageRow): ChatMessage => ({
   id: row.id,
   role: row.role as 'user' | 'assistant',
   content: row.content,
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
+  imageUrl: Option.getOrUndefined(Option.fromNullishOr(row.imageKey)),
   parts: pipe(
-    Option.fromNullable(row.parts),
+    Option.fromNullishOr(row.parts),
     Option.filter((p): p is unknown[] => globalThis.Array.isArray(p)),
     Option.getOrUndefined
   ),
@@ -76,8 +76,8 @@ const mapToConversation = (row: ChatConversationRow): ChatConversation => ({
   id: row.id,
   userId: row.userId,
   kind: row.kind as ChatConversationKind,
-  plantId: Option.getOrUndefined(Option.fromNullable(row.plantId)),
-  title: Option.getOrUndefined(Option.fromNullable(row.title)),
+  plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
+  title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
   createdAt: row.createdAt,
   lastMessageAt: row.lastMessageAt,
 })
@@ -134,10 +134,10 @@ export interface IChatRepository {
 
 // ── Tag + Live ─────────────────────────────────────────────────────
 
-export class ChatRepository extends Context.Tag('ChatRepository')<
+export class ChatRepository extends Context.Service<
   ChatRepository,
   IChatRepository
->() {}
+>()('ChatRepository') {}
 
 export const ChatRepositoryLive = Layer.effect(
   ChatRepository,
@@ -151,7 +151,7 @@ export const ChatRepositoryLive = Layer.effect(
             .select()
             .from(chatConversations)
             .where(eq(chatConversations.id, id))
-          return pipe(Option.fromNullable(row), Option.getOrNull)
+          return pipe(Option.fromNullishOr(row), Option.getOrNull)
         }
       ),
 
@@ -191,7 +191,7 @@ export const ChatRepositoryLive = Layer.effect(
           .values({
             userId: params.userId,
             kind: 'general',
-            title: Option.getOrNull(Option.fromNullable(params.title)),
+            title: Option.getOrNull(Option.fromNullishOr(params.title)),
           })
           .returning()
         return mapToConversation(created!)
@@ -267,7 +267,7 @@ export const ChatRepositoryLive = Layer.effect(
           .select()
           .from(chatMessages)
           .where(eq(chatMessages.id, id))
-        return pipe(Option.fromNullable(row), Option.getOrNull)
+        return pipe(Option.fromNullishOr(row), Option.getOrNull)
       }),
 
       findMessagesBefore: Effect.fn('ChatRepository.findMessagesBefore')(
@@ -320,7 +320,7 @@ export const ChatRepositoryLive = Layer.effect(
           .values({
             role: data.role,
             content: data.content,
-            imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
+            imageKey: Option.getOrNull(Option.fromNullishOr(data.imageKey)),
             conversationId: data.conversationId,
             userId: data.userId,
           })
@@ -344,12 +344,12 @@ export const ChatRepositoryLive = Layer.effect(
 
         return Array.map(rows, (row): UIMessage => {
           const parts = pipe(
-            Option.fromNullable(row.parts as unknown),
+            Option.fromNullishOr(row.parts as unknown),
             Option.filter((p): p is Array<{ type: string; text?: string }> =>
               globalThis.Array.isArray(p)
             ),
             Option.map(Array.filter((p) => modelPartTypes.has(p.type))),
-            Option.filter(Array.isNonEmptyArray),
+            Option.filter(Array.isArrayNonEmpty),
             Option.getOrElse(() => [
               { type: 'text' as const, text: row.content },
             ])
@@ -357,7 +357,7 @@ export const ChatRepositoryLive = Layer.effect(
 
           return {
             id: pipe(
-              Option.fromNullable(row.messageId),
+              Option.fromNullishOr(row.messageId),
               Option.getOrElse(() => row.id)
             ),
             role: row.role as 'user' | 'assistant',
@@ -391,7 +391,7 @@ export const ChatRepositoryLive = Layer.effect(
                   )
                 )
 
-              if (Array.isEmptyArray(existing)) {
+              if (Array.isArrayEmpty(existing)) {
                 const imageKey = pipe(
                   msg.parts,
                   Array.findFirst(
@@ -432,11 +432,11 @@ export const ChatRepositoryLive = Layer.effect(
                   })
 
                 return pipe(
-                  Option.fromNullable(row),
+                  Option.fromNullishOr(row),
                   Option.map((r) => ({
                     id: r.id,
                     messageId: pipe(
-                      Option.fromNullable(r.messageId),
+                      Option.fromNullishOr(r.messageId),
                       Option.getOrElse(() => msg.id)
                     ),
                     role: r.role,

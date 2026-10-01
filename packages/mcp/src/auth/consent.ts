@@ -1,7 +1,7 @@
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { McpServerUrl } from '@lily/mcp/config'
 import { Effect, Option, pipe } from 'effect'
+import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 /**
  * Renders the consent/login page for MCP OAuth flow.
@@ -23,14 +23,14 @@ export const consentHandler = Effect.gen(function* () {
 
   // Resolve client_name from DB to prevent identity spoofing
   const clientName = yield* pipe(
-    Option.fromNullable(qs.get('client_id')),
+    Option.fromNullishOr(qs.get('client_id')),
     Option.match({
       onNone: () => Effect.succeed('MCP Client'),
       onSome: (id) =>
         Effect.map(oauthService.getClient(id), (opt) =>
           pipe(
             opt,
-            Option.flatMap((c) => Option.fromNullable(c.client_name)),
+            Option.flatMap((c) => Option.fromNullishOr(c.client_name)),
             Option.getOrElse(() => 'MCP Client')
           )
         ),

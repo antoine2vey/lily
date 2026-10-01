@@ -1,5 +1,5 @@
 import { publishBlogPost } from '@lily/api/services/blog-generator/github'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { ConfigProvider, Effect } from 'effect'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock octokit — vi.hoisted ensures fns are available when vi.mock is hoisted
@@ -69,7 +69,7 @@ describe('GitHub API — publishBlogPost', () => {
   it('should commit all files and push directly to main', async () => {
     const result = await Effect.runPromise(
       publishBlogPost('test-post', { en: '# English', fr: '# French' }).pipe(
-        Effect.provide(Layer.setConfigProvider(mockConfig))
+        Effect.provide(ConfigProvider.layer(mockConfig))
       )
     )
 
@@ -106,7 +106,7 @@ describe('GitHub API — publishBlogPost', () => {
 
     const result = await Effect.runPromiseExit(
       publishBlogPost('test-post', { en: '# Content' }).pipe(
-        Effect.provide(Layer.setConfigProvider(mockConfig))
+        Effect.provide(ConfigProvider.layer(mockConfig))
       )
     )
 

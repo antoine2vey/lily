@@ -1,6 +1,5 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   subscriptionEvents,
   subscriptionTiers,
@@ -30,8 +29,9 @@ import {
   pipe,
   Schema,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
-const encodeJson = Schema.encodeSync(Schema.parseJson(Schema.Unknown))
+const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 
 export interface CreateSubscriptionData {
   userId: string
@@ -139,9 +139,10 @@ export interface ISubscriptionRepository {
   ) => Effect.Effect<void, SqlError>
 }
 
-export class SubscriptionRepository extends Context.Tag(
-  'SubscriptionRepository'
-)<SubscriptionRepository, ISubscriptionRepository>() {}
+export class SubscriptionRepository extends Context.Service<
+  SubscriptionRepository,
+  ISubscriptionRepository
+>()('SubscriptionRepository') {}
 
 export const SubscriptionRepositoryLive = Layer.effect(
   SubscriptionRepository,
@@ -161,12 +162,12 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .select()
           .from(userSubscriptions)
           .where(eq(userSubscriptions.userId, userId))
-        return Option.getOrNull(Option.fromNullable(subscription))
+        return Option.getOrNull(Option.fromNullishOr(subscription))
       }),
 
       findByUserIds: Effect.fn('SubscriptionRepository.findByUserIds')(
         function* (userIds: readonly string[]) {
-          if (Array.isEmptyReadonlyArray(userIds)) return []
+          if (Array.isReadonlyArrayEmpty(userIds)) return []
           return yield* db
             .select()
             .from(userSubscriptions)
@@ -185,7 +186,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
                 externalSubscriptionId
               )
             )
-          return Option.getOrNull(Option.fromNullable(subscription))
+          return Option.getOrNull(Option.fromNullishOr(subscription))
         }
       ),
 
@@ -199,25 +200,25 @@ export const SubscriptionRepositoryLive = Layer.effect(
             tier: data.tier,
             status: data.status,
             trialStartsAt: Option.getOrNull(
-              Option.fromNullable(data.trialStartsAt)
+              Option.fromNullishOr(data.trialStartsAt)
             ),
             trialEndsAt: Option.getOrNull(
-              Option.fromNullable(data.trialEndsAt)
+              Option.fromNullishOr(data.trialEndsAt)
             ),
             currentPeriodStart: data.currentPeriodStart,
             currentPeriodEnd: data.currentPeriodEnd,
             externalSubscriptionId: Option.getOrNull(
-              Option.fromNullable(data.externalSubscriptionId)
+              Option.fromNullishOr(data.externalSubscriptionId)
             ),
             externalCustomerId: Option.getOrNull(
-              Option.fromNullable(data.externalCustomerId)
+              Option.fromNullishOr(data.externalCustomerId)
             ),
             provider: pipe(
-              Option.fromNullable(data.provider),
+              Option.fromNullishOr(data.provider),
               Option.getOrElse(() => 'revenuecat' as const)
             ),
-            productId: Option.getOrNull(Option.fromNullable(data.productId)),
-            store: Option.getOrNull(Option.fromNullable(data.store)),
+            productId: Option.getOrNull(Option.fromNullishOr(data.productId)),
+            store: Option.getOrNull(Option.fromNullishOr(data.store)),
           })
           .onConflictDoUpdate({
             target: userSubscriptions.userId,
@@ -225,30 +226,30 @@ export const SubscriptionRepositoryLive = Layer.effect(
               tier: data.tier,
               status: data.status,
               trialStartsAt: Option.getOrNull(
-                Option.fromNullable(data.trialStartsAt)
+                Option.fromNullishOr(data.trialStartsAt)
               ),
               trialEndsAt: Option.getOrNull(
-                Option.fromNullable(data.trialEndsAt)
+                Option.fromNullishOr(data.trialEndsAt)
               ),
               currentPeriodStart: data.currentPeriodStart,
               currentPeriodEnd: data.currentPeriodEnd,
               externalSubscriptionId: Option.getOrNull(
-                Option.fromNullable(data.externalSubscriptionId)
+                Option.fromNullishOr(data.externalSubscriptionId)
               ),
               externalCustomerId: Option.getOrNull(
-                Option.fromNullable(data.externalCustomerId)
+                Option.fromNullishOr(data.externalCustomerId)
               ),
               provider: pipe(
-                Option.fromNullable(data.provider),
+                Option.fromNullishOr(data.provider),
                 Option.getOrElse(() => 'revenuecat' as const)
               ),
-              productId: Option.getOrNull(Option.fromNullable(data.productId)),
-              store: Option.getOrNull(Option.fromNullable(data.store)),
+              productId: Option.getOrNull(Option.fromNullishOr(data.productId)),
+              store: Option.getOrNull(Option.fromNullishOr(data.store)),
               updatedAt: nowAsDate(),
             },
           })
           .returning()
-        return Option.getOrNull(Option.fromNullable(subscription))
+        return Option.getOrNull(Option.fromNullishOr(subscription))
       }),
 
       updateStatus: Effect.fn('SubscriptionRepository.updateStatus')(function* (
@@ -260,7 +261,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .set({ status, updatedAt: nowAsDate() })
           .where(eq(userSubscriptions.userId, userId))
           .returning()
-        return Option.getOrNull(Option.fromNullable(subscription))
+        return Option.getOrNull(Option.fromNullishOr(subscription))
       }),
 
       updateFromWebhook: Effect.fn('SubscriptionRepository.updateFromWebhook')(
@@ -280,7 +281,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
               )
             )
             .returning()
-          return Option.getOrNull(Option.fromNullable(subscription))
+          return Option.getOrNull(Option.fromNullishOr(subscription))
         }
       ),
 
@@ -293,7 +294,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             .set(updateData)
             .where(eq(userSubscriptions.userId, userId))
             .returning()
-          return Option.getOrNull(Option.fromNullable(subscription))
+          return Option.getOrNull(Option.fromNullishOr(subscription))
         }
       ),
 
@@ -309,7 +310,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
           })
           .where(eq(userSubscriptions.userId, userId))
           .returning()
-        return Option.getOrNull(Option.fromNullable(subscription))
+        return Option.getOrNull(Option.fromNullishOr(subscription))
       }),
 
       getTier: Effect.fn('SubscriptionRepository.getTier')(function* (
@@ -400,7 +401,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
                     eq(subscriptionUsage.periodStart, periodStart)
                   )
                 )
-              return Option.getOrNull(Option.fromNullable(existing))
+              return Option.getOrNull(Option.fromNullishOr(existing))
             }
 
             return newUsage
@@ -504,7 +505,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             )
             .returning()
 
-          return Option.getOrNull(Option.fromNullable(usage))
+          return Option.getOrNull(Option.fromNullishOr(usage))
         }
       ),
 

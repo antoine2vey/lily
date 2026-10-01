@@ -21,8 +21,8 @@ export const toPlantSummary = (plant: {
   readonly ownership?: string | null
   readonly ownerName?: string | null
 }): PlantSummary => {
-  const roomOpt = Option.fromNullable(plant.room)
-  const diedAtOpt = Option.fromNullable(plant.diedAt)
+  const roomOpt = Option.fromNullishOr(plant.room)
+  const diedAtOpt = Option.fromNullishOr(plant.diedAt)
   const isDead = Option.isSome(diedAtOpt)
 
   return {
@@ -35,9 +35,9 @@ export const toPlantSummary = (plant: {
     roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
     roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),
     ownership: pipe(
-      Option.fromNullable(plant.ownership),
+      Option.fromNullishOr(plant.ownership),
       Option.getOrElse(() => 'owned')
     ),
-    ownerName: Option.getOrNull(Option.fromNullable(plant.ownerName)),
+    ownerName: Option.getOrNull(Option.fromNullishOr(plant.ownerName)),
   }
 }

@@ -39,7 +39,7 @@ export function VacationDatePicker({
   const tomorrowId = toDateId(new Date(today.getTime() + 86400000))
 
   const calendarActiveDateRanges = pipe(
-    Option.fromNullable(startDate),
+    Option.fromNullishOr(startDate),
     Option.map((start) => [{ startId: start, endId: endDate ?? start }]),
     Option.getOrElse(() => [] as { startId: string; endId: string }[])
   )
@@ -72,7 +72,7 @@ export function VacationDatePicker({
 
   const formatDate = (dateId: string | null): string =>
     pipe(
-      Option.fromNullable(dateId),
+      Option.fromNullishOr(dateId),
       Option.flatMap((id) => parseApiDate(id)),
       Option.map((dt) => formatShortDate(dt)),
       Option.getOrElse(() => t('dateRange.selectDate'))

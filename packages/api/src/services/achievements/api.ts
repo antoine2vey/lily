@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   Achievement,
@@ -8,6 +7,7 @@ import {
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 // Define the Achievements API group - uses CurrentUser from auth middleware
 export const AchievementsApi = HttpApiGroup.make('achievements')

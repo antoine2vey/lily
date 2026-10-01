@@ -91,7 +91,7 @@ export function ProfileContentSkeleton() {
               </View>
               {/* trailing badge slot: mirrors `{badge && <View className="mr-2">}` */}
               {pipe(
-                Option.fromNullable(item.badgeWidth),
+                Option.fromNullishOr(item.badgeWidth),
                 Option.match({
                   onNone: () => null,
                   onSome: (badgeWidth) => (

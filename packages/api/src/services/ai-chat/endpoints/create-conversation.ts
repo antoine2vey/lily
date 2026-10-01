@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -10,6 +9,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CreateConversationParams {
   kind: 'general' | 'plant'

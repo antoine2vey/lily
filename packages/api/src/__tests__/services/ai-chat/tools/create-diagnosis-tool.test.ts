@@ -40,7 +40,7 @@ const baseParams = {
 describe('createDiagnosisTool', () => {
   it('creates diagnosis with all fields including optional ones', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
-    const rt = await managedRuntime.runtime()
+    const rt = await managedRuntime.context()
     const deps = {
       runtime: rt,
       userId: 'user-1',
@@ -66,7 +66,7 @@ describe('createDiagnosisTool', () => {
 
   it('creates diagnosis without optional fields', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
-    const rt = await managedRuntime.runtime()
+    const rt = await managedRuntime.context()
     const deps = {
       runtime: rt,
       userId: 'user-1',
@@ -113,7 +113,7 @@ describe('createDiagnosisTool', () => {
       createMockRagService()
     )
     const managedRuntime = ManagedRuntime.make(trackingLayer)
-    const rt = await managedRuntime.runtime()
+    const rt = await managedRuntime.context()
     const deps = {
       runtime: rt,
       userId: 'owner-42',

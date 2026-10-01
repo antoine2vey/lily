@@ -20,11 +20,11 @@ export function CameraPermissionRequest({
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const displayTitle = pipe(
-    Option.fromNullable(title),
+    Option.fromNullishOr(title),
     Option.getOrElse(() => t('scanner.cameraAccessTitle'))
   )
   const displayDescription = pipe(
-    Option.fromNullable(description),
+    Option.fromNullishOr(description),
     Option.getOrElse(() => t('scanner.cameraPermission'))
   )
 

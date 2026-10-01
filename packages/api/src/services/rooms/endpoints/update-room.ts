@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
@@ -8,6 +7,7 @@ import {
   type RoomUpdateRequest,
 } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const updateRoom = (params: {
   id: string

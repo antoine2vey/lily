@@ -73,12 +73,12 @@ export function CaretakerPicker({
         <View className="flex-row items-center rounded-2xl px-4 py-3 bg-surface dark:bg-surface-dark border-2 border-primary/50">
           <Avatar
             source={pipe(
-              Option.fromNullable(selectedUser.image),
+              Option.fromNullishOr(selectedUser.image),
               Option.map((uri) => ({ uri })),
               Option.getOrUndefined
             )}
             name={pipe(
-              Option.fromNullable(selectedUser.name),
+              Option.fromNullishOr(selectedUser.name),
               Option.getOrElse(() => 'User')
             )}
             size="sm"
@@ -88,7 +88,7 @@ export function CaretakerPicker({
             style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
           >
             {pipe(
-              Option.fromNullable(selectedUser.name),
+              Option.fromNullishOr(selectedUser.name),
               Option.getOrElse(() => t('caretakerPicker.unknown'))
             )}
           </Text>
@@ -112,7 +112,7 @@ export function CaretakerPicker({
 
   const users = [
     ...pipe(
-      Option.fromNullable(searchResults?.items),
+      Option.fromNullishOr(searchResults?.items),
       Option.getOrElse(
         () =>
           [] as Array<{
@@ -128,7 +128,7 @@ export function CaretakerPicker({
 
   const suggestedUsers = [
     ...pipe(
-      Option.fromNullable(suggested),
+      Option.fromNullishOr(suggested),
       Option.getOrElse(
         () =>
           [] as Array<{
@@ -175,7 +175,7 @@ export function CaretakerPicker({
                 <SearchResultSkeleton />
                 <SearchResultSkeleton />
               </View>
-            ) : Arr.isEmptyArray(users) ? (
+            ) : Arr.isArrayEmpty(users) ? (
               <View className="p-4 items-center">
                 <Text className="text-sm text-text-muted dark:text-slate-400">
                   {t('caretakerPicker.noResults')}
@@ -190,12 +190,12 @@ export function CaretakerPicker({
                 >
                   <Avatar
                     source={pipe(
-                      Option.fromNullable(user.image),
+                      Option.fromNullishOr(user.image),
                       Option.map((uri) => ({ uri })),
                       Option.getOrUndefined
                     )}
                     name={pipe(
-                      Option.fromNullable(user.name),
+                      Option.fromNullishOr(user.name),
                       Option.getOrElse(() => 'User')
                     )}
                     size="sm"
@@ -203,7 +203,7 @@ export function CaretakerPicker({
                   <View className="flex-1 ml-3">
                     <Text className="text-sm font-medium text-text-primary dark:text-white">
                       {pipe(
-                        Option.fromNullable(user.name),
+                        Option.fromNullishOr(user.name),
                         Option.getOrElse(() => t('caretakerPicker.unknown'))
                       )}
                     </Text>
@@ -214,7 +214,7 @@ export function CaretakerPicker({
           </Animated.View>
         )}
 
-        {showSuggested && Arr.isNonEmptyArray(suggestedUsers) && (
+        {showSuggested && Arr.isArrayNonEmpty(suggestedUsers) && (
           <Animated.View
             entering={FadeIn.duration(200)}
             className="absolute top-14 left-0 right-0 z-10 rounded-xl bg-surface dark:bg-surface-dark border border-border/50 dark:border-slate-700/50 shadow-lg max-h-60 overflow-hidden"
@@ -230,12 +230,12 @@ export function CaretakerPicker({
               >
                 <Avatar
                   source={pipe(
-                    Option.fromNullable(user.image),
+                    Option.fromNullishOr(user.image),
                     Option.map((uri) => ({ uri })),
                     Option.getOrUndefined
                   )}
                   name={pipe(
-                    Option.fromNullable(user.name),
+                    Option.fromNullishOr(user.name),
                     Option.getOrElse(() => 'User')
                   )}
                   size="sm"
@@ -243,7 +243,7 @@ export function CaretakerPicker({
                 <View className="flex-1 ml-3">
                   <Text className="text-sm font-medium text-text-primary dark:text-white">
                     {pipe(
-                      Option.fromNullable(user.name),
+                      Option.fromNullishOr(user.name),
                       Option.getOrElse(() => t('caretakerPicker.unknown'))
                     )}
                   </Text>

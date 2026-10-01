@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { GiftCodeRepository } from '@lily/api/repositories/gift-code.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { computePeriodEnd } from '@lily/api/services/helpers/gift-duration'
@@ -12,6 +11,7 @@ import {
   GiftCodeNotFoundError,
 } from '@lily/shared/errors/gift-code'
 import { DateTime, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const redeemGiftCode = (
   userId: string,
@@ -41,7 +41,7 @@ export const redeemGiftCode = (
 
     if (
       giftCode.expiresAt &&
-      isOverdue(DateTime.unsafeMake(giftCode.expiresAt))
+      isOverdue(DateTime.makeUnsafe(giftCode.expiresAt))
     ) {
       return yield* new GiftCodeExpiredError()
     }
@@ -62,7 +62,7 @@ export const redeemGiftCode = (
       return yield* new GiftCodeAlreadyRedeemedError()
     }
 
-    const periodStart = DateTime.toDate(DateTime.unsafeNow())
+    const periodStart = DateTime.toDate(DateTime.nowUnsafe())
     const periodEnd = computePeriodEnd(giftCode.duration)
 
     yield* Effect.all(

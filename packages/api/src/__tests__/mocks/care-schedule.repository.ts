@@ -29,21 +29,21 @@ export const createMockCareScheduleRepository = (
   data: MockCareScheduleData = {}
 ): Layer.Layer<CareScheduleRepository> => {
   const schedulesData: CareScheduleRow[] = pipe(
-    Option.fromNullable(data.schedules),
+    Option.fromNullishOr(data.schedules),
     Option.getOrElse(() => [] as CareScheduleRow[])
   )
   const plantsData = pipe(
-    Option.fromNullable(data.plants),
+    Option.fromNullishOr(data.plants),
     Option.getOrElse(() => [] as PlantRecord[])
   )
   const roomsData = pipe(
-    Option.fromNullable(data.rooms),
+    Option.fromNullishOr(data.rooms),
     Option.getOrElse(() => [] as MockRoom[])
   )
 
   const resolveRoom = (roomId: string | null) =>
     pipe(
-      Option.fromNullable(roomId),
+      Option.fromNullishOr(roomId),
       Option.flatMap((id) => Array.findFirst(roomsData, (r) => r.id === id)),
       Option.getOrNull
     )

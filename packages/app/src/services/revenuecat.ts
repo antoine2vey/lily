@@ -10,7 +10,7 @@ import Purchases, {
 
 const getApiKey = (): string =>
   pipe(
-    Option.fromNullable(
+    Option.fromNullishOr(
       Platform.OS === 'ios'
         ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY
         : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY

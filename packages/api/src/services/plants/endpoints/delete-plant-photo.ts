@@ -1,6 +1,6 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deletePlantPhoto = ({
   plantId,

@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -16,6 +15,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Array, DateTime, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * "Bring back": clear the death columns and rebuild reminders from the
@@ -56,13 +56,13 @@ export const revivePlant = (
     }
 
     const schedules = yield* scheduleRepo.findByPlant(plant.id)
-    const nowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
     yield* Effect.forEach(
       Array.filter(
         schedules,
         (schedule) =>
           schedule.nextCareAt !== null &&
-          DateTime.toEpochMillis(DateTime.unsafeMake(schedule.nextCareAt)) >
+          DateTime.toEpochMillis(DateTime.makeUnsafe(schedule.nextCareAt)) >
             nowMs
       ),
       (schedule) =>

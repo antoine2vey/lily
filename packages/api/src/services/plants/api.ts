@@ -1,9 +1,3 @@
-import {
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-  Multipart,
-} from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, OpenAIError, PaginationParams } from '@lily/shared'
 import {
@@ -42,10 +36,18 @@ import {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
+import { Multipart } from 'effect/http'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameter for plant ID
-const plantIdParam = HttpApiSchema.param('id', Schema.UUID)
-const photoIdParam = HttpApiSchema.param('photoId', Schema.UUID)
+const plantIdParam = HttpApiSchema.param(
+  'id',
+  Schema.String.check(Schema.isGUID())
+)
+const photoIdParam = HttpApiSchema.param(
+  'photoId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Query parameters for plants listing (extends base pagination)
 export const PlantsQueryParams = Schema.Struct({
@@ -81,12 +83,10 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/scan-card - Scan nursery card
     HttpApiEndpoint.post('scanCard')`/scan-card`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            images: Multipart.FilesSchema,
-            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
-          })
-        )
+        Schema.Struct({
+          images: Multipart.FilesSchema,
+          locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
@@ -101,12 +101,10 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/scan-card-multiple - Scan multiple nursery cards at once
     HttpApiEndpoint.post('scanCardMultiple')`/scan-card-multiple`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            images: Multipart.FilesSchema,
-            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
-          })
-        )
+        Schema.Struct({
+          images: Multipart.FilesSchema,
+          locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
@@ -123,14 +121,12 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/detect - Unified plant/card detection
     HttpApiEndpoint.post('detect')`/detect`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            images: Multipart.FilesSchema,
-            locale: Schema.optionalWith(Schema.String, {
-              default: () => 'en',
-            }),
-          })
-        )
+        Schema.Struct({
+          images: Multipart.FilesSchema,
+          locale: Schema.optionalWith(Schema.String, {
+            default: () => 'en',
+          }),
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(DetectResponse)
       .addError(LimitExceededError, { status: 403 })
@@ -145,12 +141,10 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/ai-identify - AI-identify species & care ratings
     HttpApiEndpoint.post('aiIdentify')`/ai-identify`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            images: Multipart.FilesSchema,
-            locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
-          })
-        )
+        Schema.Struct({
+          images: Multipart.FilesSchema,
+          locale: Schema.optionalWith(Schema.String, { default: () => 'en' }),
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(AIIdentifyResponse)
       .addError(LimitExceededError, { status: 403 })
@@ -194,12 +188,10 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // PUT /plants/:id - Update plant (multipart: JSON data + optional image)
     HttpApiEndpoint.put('updatePlant')`/${plantIdParam}`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            data: Schema.parseJson(PlantUpdateRequest),
-            image: Multipart.SingleFileSchema.pipe(Schema.optional),
-          })
-        )
+        Schema.Struct({
+          data: Schema.fromJsonString(PlantUpdateRequest),
+          image: Multipart.SingleFileSchema.pipe(Schema.optional),
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
@@ -210,7 +202,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     // DELETE /plants/:id - Delete plant permanently (owner only)
-    HttpApiEndpoint.del('deletePlant')`/${plantIdParam}`
+    HttpApiEndpoint.delete('deletePlant')`/${plantIdParam}`
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
@@ -228,7 +220,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     // DELETE /plants/:id/death - "Bring back": restore a plant from the cemetery
-    HttpApiEndpoint.del('revivePlant')`/${plantIdParam}/death`
+    HttpApiEndpoint.delete('revivePlant')`/${plantIdParam}/death`
       .addSuccess(Plant)
       .addError(PlantNotFoundError, { status: 404 })
       .addError(PlantNotAuthorizedError, { status: 403 })
@@ -249,11 +241,9 @@ export const PlantsApi = HttpApiGroup.make('plants')
     // POST /plants/:plantId/photos - Upload a new plant photo
     HttpApiEndpoint.post('uploadPlantPhoto')`/${plantIdParam}/photos`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            files: Multipart.FilesSchema,
-          })
-        )
+        Schema.Struct({
+          files: Multipart.FilesSchema,
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(PlantPhotoUploadResponse, { status: 201 })
       .addError(PlantNotFoundError, { status: 404 })
@@ -264,7 +254,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
   )
   .add(
     // DELETE /plants/:plantId/photos/:photoId - Remove a plant photo
-    HttpApiEndpoint.del(
+    HttpApiEndpoint.delete(
       'deletePlantPhoto'
     )`/${plantIdParam}/photos/${photoIdParam}`
       .addSuccess(Schema.Void)

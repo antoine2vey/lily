@@ -1,9 +1,9 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import type { KnowledgeQueryRequest } from '@lily/api/services/knowledge/api'
 import { RagService } from '@lily/api/services/rag/service'
 import { Array, Effect, Option, pipe } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 const queryKnowledge = Effect.fn('KnowledgeService.queryKnowledge')(function* (
   params: KnowledgeQueryRequest
@@ -11,7 +11,7 @@ const queryKnowledge = Effect.fn('KnowledgeService.queryKnowledge')(function* (
   const ragService = yield* RagService
 
   const query = pipe(
-    Option.fromNullable(params.plantName),
+    Option.fromNullishOr(params.plantName),
     Option.match({
       onNone: () => params.question,
       onSome: (name) => `${name}: ${params.question}`,

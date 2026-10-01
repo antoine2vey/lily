@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   CareScheduleRepository,
   type OwnerScheduleRow,
@@ -10,6 +9,7 @@ import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
   userId: string
@@ -61,24 +61,26 @@ export const endVacation = (
     const delegationRepo = yield* DelegationRepository
 
     const user = yield* userRepo.findById(userId)
-    const userOption = Option.fromNullable(user)
+    const userOption = Option.fromNullishOr(user)
     const timezone = pipe(
       userOption,
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
     // Missing vacationStart (defensive) degrades to delta 0 — the floor
     // clamp alone still moves overdue tasks to tomorrow.
     const vacationStart = pipe(
       userOption,
-      Option.flatMap((u) => Option.fromNullable(u.vacationStart)),
+      Option.flatMap((u) => Option.fromNullishOr(u.vacationStart)),
       Option.getOrElse(() => effectiveEnd)
     )
 
-    const effectiveEndDt = DateTime.unsafeMake(effectiveEnd)
-    const deltaMs = DateTime.distance(
-      startOfDay(DateTime.unsafeMake(vacationStart), timezone),
-      startOfDay(effectiveEndDt, timezone)
+    const effectiveEndDt = DateTime.makeUnsafe(effectiveEnd)
+    const deltaMs = Duration.toMillis(
+      DateTime.distance(
+        startOfDay(DateTime.makeUnsafe(vacationStart), timezone),
+        startOfDay(effectiveEndDt, timezone)
+      )
     )
     const floorMs = DateTime.toEpochMillis(
       DateTime.addDuration(
@@ -105,7 +107,7 @@ export const endVacation = (
     const isDelegated = (plantId: string): boolean =>
       pipe(
         Record.get(caretakerByPlant, plantId),
-        Option.flatMap(Option.fromNullable),
+        Option.flatMap(Option.fromNullishOr),
         Option.isSome
       )
 
@@ -116,12 +118,12 @@ export const endVacation = (
         if (nextCareAt === null || isDelegated(row.plant.id)) {
           return row
         }
-        const nextMs = DateTime.toEpochMillis(DateTime.unsafeMake(nextCareAt))
+        const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(nextCareAt))
         if (nextMs >= effectiveEndMs) {
           return row
         }
         const newNextCareAt = DateTime.toDateUtc(
-          DateTime.unsafeMake(Math.max(nextMs + deltaMs, floorMs))
+          DateTime.makeUnsafe(Math.max(nextMs + deltaMs, floorMs))
         )
         yield* scheduleRepo.updateByPlantAndType(
           row.plant.id,
@@ -155,13 +157,13 @@ export const endVacation = (
     // scheduleCareReminder is idempotent (delete-then-insert) and resolves
     // delegation routing itself, so delegated plants harmlessly refresh
     // their caretaker's row.
-    const nowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+    const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
     yield* Effect.forEach(
       Array.filter(
         shifted,
         (row) =>
           row.schedule.nextCareAt !== null &&
-          DateTime.toEpochMillis(DateTime.unsafeMake(row.schedule.nextCareAt)) >
+          DateTime.toEpochMillis(DateTime.makeUnsafe(row.schedule.nextCareAt)) >
             nowMs
       ),
       (row) =>

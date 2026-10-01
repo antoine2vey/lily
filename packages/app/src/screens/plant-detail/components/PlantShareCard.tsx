@@ -44,7 +44,7 @@ const getHealthLabel = (
 
 const computeAgeDays = (dateAdded: Date): number => {
   const days = daysUntilApiDate(dateAdded.toISOString())
-  return Option.match(Option.fromNullable(days), {
+  return Option.match(Option.fromNullishOr(days), {
     onNone: () => 0,
     onSome: (d) => Math.abs(d),
   })
@@ -84,7 +84,7 @@ export const PlantShareCard = forwardRef<View, PlantShareCardProps>(
             style={{ height: width / 2 - 2 * 32 }}
           >
             {pipe(
-              Option.fromNullable(plant.imageUrl),
+              Option.fromNullishOr(plant.imageUrl),
               Option.match({
                 onNone: () => (
                   <View className="flex-1 items-center justify-center">
@@ -116,7 +116,7 @@ export const PlantShareCard = forwardRef<View, PlantShareCardProps>(
               {EffectString.toUpperCase(plant.name)}
             </Text>
             {pipe(
-              Option.fromNullable(plant.category),
+              Option.fromNullishOr(plant.category),
               Option.match({
                 onNone: () => null,
                 onSome: (category) => (

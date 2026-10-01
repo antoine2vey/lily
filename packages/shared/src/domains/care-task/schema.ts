@@ -9,7 +9,7 @@ export const CareTask = Schema.Struct({
   roomName: Schema.NullOr(Schema.String),
   roomIcon: Schema.NullOr(Schema.String),
   type: CareType,
-  dueDate: Schema.Date,
+  dueDate: Schema.DateFromString,
   // Authoritative local-day position, computed server-side in the user's
   // profile timezone. The client buckets by these (integer / string equality)
   // instead of re-deriving day boundaries, so every surface agrees by

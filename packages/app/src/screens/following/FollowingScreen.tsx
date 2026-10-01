@@ -24,7 +24,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
   const { data, isLoading } = useFollowing(userId)
 
   const items = pipe(
-    Option.fromNullable(data),
+    Option.fromNullishOr(data),
     Option.map((d) => d.items),
     Option.getOrElse(
       () =>
@@ -38,7 +38,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
     )
   )
 
-  const isInitialLoading = isLoading && Array.isEmptyArray(items as unknown[])
+  const isInitialLoading = isLoading && Array.isArrayEmpty(items as unknown[])
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const handleBack = useCallback(() => {

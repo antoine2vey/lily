@@ -3,28 +3,28 @@ import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
-export const PlantHealthStatus = Schema.Literal(
+export const PlantHealthStatus = Schema.Literals([
   'THRIVING',
   'HEALTHY',
   'NEEDS_ATTENTION',
   'SICK',
-  'RECOVERING'
-)
+  'RECOVERING',
+])
 export type PlantHealthStatus = typeof PlantHealthStatus.Type
 
-export const PlantOwnership = Schema.Literal('owned', 'caretaking')
+export const PlantOwnership = Schema.Literals(['owned', 'caretaking'])
 export type PlantOwnership = typeof PlantOwnership.Type
 
 // `dead` lists the cemetery; every other value implies living plants only.
-export const PlantFilter = Schema.Literal(
+export const PlantFilter = Schema.Literals([
   'needsAttention',
   'overdue',
   'all',
-  'dead'
-)
+  'dead',
+])
 export type PlantFilter = typeof PlantFilter.Type
 
-export const PlantDeathCause = Schema.Literal(
+export const PlantDeathCause = Schema.Literals([
   'overwatering',
   'underwatering',
   'pests',
@@ -33,8 +33,8 @@ export const PlantDeathCause = Schema.Literal(
   'cold',
   'heat',
   'repotting_shock',
-  'unknown'
-)
+  'unknown',
+])
 export type PlantDeathCause = typeof PlantDeathCause.Type
 export const PLANT_DEATH_CAUSES: ReadonlyArray<PlantDeathCause> =
   PlantDeathCause.literals
@@ -44,19 +44,21 @@ export const PLANT_DEATH_NOTE_MAX_LENGTH = 500
 export const PlantDeathRequest = Schema.Struct({
   cause: PlantDeathCause,
   note: Schema.optional(
-    Schema.String.pipe(Schema.maxLength(PLANT_DEATH_NOTE_MAX_LENGTH))
+    Schema.String.pipe(
+      Schema.check(Schema.isMaxLength(PLANT_DEATH_NOTE_MAX_LENGTH))
+    )
   ),
 })
 export type PlantDeathRequest = typeof PlantDeathRequest.Type
 
-export const PlantSort = Schema.Literal('added', 'name')
+export const PlantSort = Schema.Literals(['added', 'name'])
 export type PlantSort = typeof PlantSort.Type
 
 export const PlantCareSchedule = Schema.Struct({
   careType: CareType,
   frequencyDays: Schema.Number,
-  lastCareAt: Schema.NullOr(Schema.Date),
-  nextCareAt: Schema.NullOr(Schema.Date),
+  lastCareAt: Schema.NullOr(Schema.DateFromString),
+  nextCareAt: Schema.NullOr(Schema.DateFromString),
 })
 
 export type PlantCareSchedule = typeof PlantCareSchedule.Type
@@ -67,8 +69,8 @@ export const Plant = Schema.Struct({
   description: Schema.NullOr(Schema.String),
   imageUrl: Schema.NullOr(Schema.String),
   category: Schema.NullOr(Schema.String),
-  dateAdded: Schema.Date,
-  updatedAt: Schema.Date,
+  dateAdded: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
   humidityRating: Schema.Number,
   lightingRating: Schema.Number,
   petToxicityRating: Schema.Number,
@@ -81,7 +83,7 @@ export const Plant = Schema.Struct({
   potHeightCm: Schema.NullOr(Schema.Number),
   roomId: Schema.NullOr(Schema.String),
   room: Schema.NullOr(RoomRef),
-  diedAt: Schema.NullOr(Schema.Date),
+  diedAt: Schema.NullOr(Schema.DateFromString),
   deathCause: Schema.NullOr(PlantDeathCause),
   deathNote: Schema.NullOr(Schema.String),
   ownership: Schema.optionalWith(PlantOwnership, {
@@ -118,7 +120,7 @@ export const EnhancedPlantCreateRequest = Schema.Struct({
   description: Schema.optional(Schema.String),
   category: Schema.optional(Schema.String),
   imageUrl: Schema.optional(Schema.String),
-  plantingDate: Schema.optional(Schema.Date),
+  plantingDate: Schema.optional(Schema.DateFromString),
   wateringFrequencyDays: Schema.Number,
   fertilizationFrequencyDays: Schema.optional(Schema.Number),
   mistingFrequencyDays: Schema.optional(Schema.Number),
@@ -163,14 +165,14 @@ export const AIIdentifyResponse = Schema.Struct({
 // Unified detect response (extends AIIdentifyResponse with classification)
 export const DetectResponse = Schema.Struct({
   ...AIIdentifyResponse.fields,
-  detectedType: Schema.Literal('plant', 'card', 'unknown'),
+  detectedType: Schema.Literals(['plant', 'card', 'unknown']),
 })
 
 // Plant photo schema
 export const PlantPhoto = Schema.Struct({
   id: Schema.String,
   url: Schema.String,
-  takenAt: Schema.Date,
+  takenAt: Schema.DateFromString,
   plantId: Schema.String,
 })
 
@@ -196,7 +198,7 @@ export const PlantDetail = Schema.Struct({
 export const PlantCareRequest = Schema.Struct({
   careType: CareType,
   notes: Schema.optional(Schema.String),
-  date: Schema.optional(Schema.Date),
+  date: Schema.optional(Schema.DateFromString),
 })
 
 export type PlantCareRequest = typeof PlantCareRequest.Type
@@ -221,8 +223,8 @@ export type CareMultiplePlantsResult = typeof CareMultiplePlantsResult.Type
 export type CareMultiplePlantsResponse = typeof CareMultiplePlantsResponse.Type
 
 export const PlantCorrectCareDatesRequest = Schema.Struct({
-  lastWateredAt: Schema.optional(Schema.Date),
-  lastFertilizedAt: Schema.optional(Schema.Date),
+  lastWateredAt: Schema.optional(Schema.DateFromString),
+  lastFertilizedAt: Schema.optional(Schema.DateFromString),
 })
 
 // Type exports

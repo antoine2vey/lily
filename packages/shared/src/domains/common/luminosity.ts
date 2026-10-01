@@ -23,7 +23,7 @@ export const isRoomCompatibleWithPlant = (
   plantLuxNeeded: number
 ): Option.Option<boolean> =>
   pipe(
-    Option.fromNullable(roomLuminosity),
+    Option.fromNullishOr(roomLuminosity),
     Option.map(
       (roomLux) =>
         luxToLuminosityLevel(roomLux) === luxToLuminosityLevel(plantLuxNeeded)

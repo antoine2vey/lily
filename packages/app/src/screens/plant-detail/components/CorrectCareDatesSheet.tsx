@@ -59,8 +59,8 @@ function CalendarModal({
 
   const rawDate = pipe(
     editingField === 'watering'
-      ? Option.fromNullable(wateringDate)
-      : Option.fromNullable(fertilizationDate),
+      ? Option.fromNullishOr(wateringDate)
+      : Option.fromNullishOr(fertilizationDate),
     Option.getOrElse(() => nowAsDate())
   )
   // Ensure the date is valid before passing to toDateId
@@ -147,7 +147,7 @@ export function CorrectCareDatesSheet({
   const formatDateDisplay = useCallback(
     (d: Date | null): string =>
       pipe(
-        Option.fromNullable(d),
+        Option.fromNullishOr(d),
         Option.flatMap((date) => parseApiDate(date)),
         Option.map((dt) => formatShortDate(dt, i18n.language)),
         Option.getOrElse(() => t('detail.correctDates.noDate'))

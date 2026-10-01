@@ -1,9 +1,9 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
 import { Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 const mockFile = {

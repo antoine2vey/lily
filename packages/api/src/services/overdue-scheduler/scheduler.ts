@@ -44,7 +44,7 @@ export const processUserOverdueReminders = (
     const ownerOnVacation = isOnVacation(settings, nowAsDate())
 
     const timezone = pipe(
-      Option.fromNullable(settings.timezone),
+      Option.fromNullishOr(settings.timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
 
@@ -67,7 +67,7 @@ export const processUserOverdueReminders = (
       (p) => p.overdueAt.getTime() < todayStart.getTime()
     )
 
-    if (Array.isEmptyReadonlyArray(strictlyOverdue)) return 0
+    if (Array.isReadonlyArrayEmpty(strictlyOverdue)) return 0
 
     // Sort by dateAdded ascending (oldest first), cap when tier has a plant limit
     const sorted = Array.sort(
@@ -99,7 +99,7 @@ export const processUserOverdueReminders = (
     // One settings fetch per distinct caretaker to check their vacation
     const caretakerIds = pipe(
       routed,
-      Array.filterMap(({ caretakerId }) => Option.fromNullable(caretakerId)),
+      Array.filterMap(({ caretakerId }) => Option.fromNullishOr(caretakerId)),
       Array.dedupe
     )
     const caretakerOnVacation = Record.fromEntries(
@@ -120,7 +120,7 @@ export const processUserOverdueReminders = (
     // caretaker-bound reminders while that caretaker is on vacation.
     const deliverable = Array.filter(routed, ({ caretakerId }) =>
       pipe(
-        Option.fromNullable(caretakerId),
+        Option.fromNullishOr(caretakerId),
         Option.match({
           onNone: () => !ownerOnVacation,
           onSome: (id) =>
@@ -138,7 +138,7 @@ export const processUserOverdueReminders = (
       scheduleDeferredCareNotification({
         type: 'overdue_reminder',
         userId: pipe(
-          Option.fromNullable(caretakerId),
+          Option.fromNullishOr(caretakerId),
           Option.getOrElse(() => userId)
         ),
         plantId: plant.id,

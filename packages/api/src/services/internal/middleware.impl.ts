@@ -11,9 +11,9 @@ import { Config, Effect, Layer, Redacted } from 'effect'
  * (provided via HttpApiSecurity.apiKey) against the stored secret
  * using timing-safe comparison.
  */
-export const ServiceAuthenticationLive = Layer.unwrapEffect(
+export const ServiceAuthenticationLive = Layer.unwrap(
   Effect.gen(function* () {
-    const secret = yield* Config.redacted('SERVICE_TOKEN_SECRET')
+    const secret = yield* Config.Redacted('SERVICE_TOKEN_SECRET')
     const secretValue = Redacted.value(secret)
 
     return Layer.succeed(

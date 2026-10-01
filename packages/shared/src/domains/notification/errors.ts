@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Data, Schema } from 'effect'
 
 export class NotificationNotFoundError extends Schema.TaggedError<NotificationNotFoundError>()(
@@ -8,7 +7,7 @@ export class NotificationNotFoundError extends Schema.TaggedError<NotificationNo
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 // ─── Overdue scheduler skip errors ──────────────────────────────────

@@ -1,6 +1,5 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { unwrapPgRows } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import type {
   SubscriptionStatus,
   SubscriptionTier,
@@ -42,6 +41,7 @@ import {
   Record,
   Schema,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface AnalyticsRange {
   readonly from: Date
@@ -52,7 +52,7 @@ export const resolveRange = (
   from: string | undefined,
   to: string | undefined
 ): AnalyticsRange => {
-  const current = DateTime.unsafeNow()
+  const current = DateTime.nowUnsafe()
   const defaultFrom = DateTime.subtract(current, { days: 30 })
   return {
     from: DateTime.toDate(
@@ -118,10 +118,10 @@ export interface IAnalyticsRepository {
   readonly getPaidChurn: Effect.Effect<PaidChurnResponse, SqlError>
 }
 
-export class AnalyticsRepository extends Context.Tag('AnalyticsRepository')<
+export class AnalyticsRepository extends Context.Service<
   AnalyticsRepository,
   IAnalyticsRepository
->() {}
+>()('AnalyticsRepository') {}
 
 // ============================================================================
 // Row types for raw query results
@@ -189,7 +189,7 @@ const CARE_REMINDER_TYPES = [
 const PLANT_BUCKETS = ['0', '1', '2-5', '6-10', '11-25', '25+'] as const
 
 const byString = <T>(pick: (x: T) => string): Order.Order<T> =>
-  Order.mapInput(Order.string, pick)
+  Order.mapInput(Order.String, pick)
 
 const groupPoints = <R>(
   rows: ReadonlyArray<R>,
@@ -692,7 +692,9 @@ export const AnalyticsRepositoryLive = Layer.effect(
       }
     })
 
-    const encodeSnapshotValue = Schema.encode(Schema.parseJson(Schema.Unknown))
+    const encodeSnapshotValue = Schema.encodeEffect(
+      Schema.fromJsonString(Schema.Unknown)
+    )
 
     const writeSnapshot = (
       date: string,

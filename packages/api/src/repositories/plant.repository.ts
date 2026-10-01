@@ -1,10 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
   delegationPlants,
@@ -50,6 +49,7 @@ import {
   Order,
   pipe,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 type Db = Context.Tag.Service<typeof PgDrizzle.PgDrizzle>
 
@@ -195,10 +195,10 @@ export interface IPlantRepository {
 }
 
 // Tag for dependency injection
-export class PlantRepository extends Context.Tag('PlantRepository')<
+export class PlantRepository extends Context.Service<
   PlantRepository,
   IPlantRepository
->() {}
+>()('PlantRepository') {}
 
 // Shared room selection shape for joins
 const roomSelect = {
@@ -222,7 +222,7 @@ function buildPlantFilters(
     ),
     Match.when('overdue', () => {
       const endOfTodayDate = DateTime.toDateUtc(
-        endOfDay(DateTime.unsafeNow(), params.timezone)
+        endOfDay(DateTime.nowUnsafe(), params.timezone)
       )
       return Option.some(
         inArray(
@@ -251,7 +251,7 @@ function buildPlantFilters(
       : Option.some(isLivingPlant())
 
   const roomCondition = pipe(
-    Option.fromNullable(params.roomId),
+    Option.fromNullishOr(params.roomId),
     Option.map((roomId) => eq(plants.roomId, roomId))
   )
 
@@ -310,7 +310,7 @@ export const PlantRepositoryLive = Layer.effect(
     const fetchSchedulesForPlants = Effect.fn(
       'PlantRepository.fetchSchedulesForPlants'
     )(function* (plantIds: readonly string[]) {
-      if (Array.isEmptyReadonlyArray(plantIds)) {
+      if (Array.isReadonlyArrayEmpty(plantIds)) {
         return new Map<string, PlantCareScheduleRef[]>()
       }
       const rows = yield* db
@@ -321,7 +321,7 @@ export const PlantRepositoryLive = Layer.effect(
       const grouped = new Map<string, PlantCareScheduleRef[]>()
       Array.forEach(rows, (r) => {
         const existing = pipe(
-          Option.fromNullable(grouped.get(r.plantId)),
+          Option.fromNullishOr(grouped.get(r.plantId)),
           Option.getOrElse(() => [] as PlantCareScheduleRef[])
         )
         existing.push({
@@ -368,7 +368,7 @@ export const PlantRepositoryLive = Layer.effect(
           toOwnedPlant(
             row,
             pipe(
-              Option.fromNullable(ownedScheduleMap.get(row.plant.id)),
+              Option.fromNullishOr(ownedScheduleMap.get(row.plant.id)),
               Option.getOrElse(() => [] as PlantCareScheduleRef[])
             )
           )
@@ -425,7 +425,7 @@ export const PlantRepositoryLive = Layer.effect(
           toCaretakingPlant(
             row,
             pipe(
-              Option.fromNullable(caretakingScheduleMap.get(row.plant.id)),
+              Option.fromNullishOr(caretakingScheduleMap.get(row.plant.id)),
               Option.getOrElse(() => [] as PlantCareScheduleRef[])
             )
           )
@@ -436,10 +436,10 @@ export const PlantRepositoryLive = Layer.effect(
         const sortOrder = pipe(
           Match.value(params.sort),
           Match.when('name', () =>
-            Order.mapInput(Order.string, (p: PlantWithRoom) => p.name)
+            Order.mapInput(Order.String, (p: PlantWithRoom) => p.name)
           ),
           Match.orElse(() =>
-            Order.mapInput(Order.reverse(Order.number), (p: PlantWithRoom) =>
+            Order.mapInput(Order.flip(Order.Number), (p: PlantWithRoom) =>
               p.dateAdded.getTime()
             )
           )
@@ -455,7 +455,7 @@ export const PlantRepositoryLive = Layer.effect(
       findByIds: Effect.fn('PlantRepository.findByIds')(function* (
         ids: readonly string[]
       ) {
-        if (Array.isEmptyReadonlyArray(ids)) return []
+        if (Array.isReadonlyArrayEmpty(ids)) return []
         const items = yield* db
           .select()
           .from(plants)
@@ -493,7 +493,7 @@ export const PlantRepositoryLive = Layer.effect(
         data: CreatePlantData
       ) {
         const [plant] = yield* db.insert(plants).values(data).returning()
-        return pipe(Option.fromNullable(plant), Option.getOrNull)
+        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
       }),
 
       update: Effect.fn('PlantRepository.update')(function* (
@@ -505,7 +505,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set(data)
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullable(plant), Option.getOrNull)
+        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
       }),
 
       delete: Effect.fn('PlantRepository.delete')(function* (id: string) {
@@ -513,7 +513,7 @@ export const PlantRepositoryLive = Layer.effect(
           .delete(plants)
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullable(plant), Option.getOrNull)
+        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
       }),
 
       markDead: Effect.fn('PlantRepository.markDead')(function* (
@@ -529,7 +529,7 @@ export const PlantRepositoryLive = Layer.effect(
           })
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullable(plant), Option.getOrNull)
+        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
       }),
 
       revive: Effect.fn('PlantRepository.revive')(function* (id: string) {
@@ -538,7 +538,7 @@ export const PlantRepositoryLive = Layer.effect(
           .set({ diedAt: null, deathCause: null, deathNote: null })
           .where(eq(plants.id, id))
           .returning()
-        return pipe(Option.fromNullable(plant), Option.getOrNull)
+        return pipe(Option.fromNullishOr(plant), Option.getOrNull)
       }),
 
       findPhotos: Effect.fn('PlantRepository.findPhotos')(function* (
@@ -571,7 +571,7 @@ export const PlantRepositoryLive = Layer.effect(
           .insert(plantPhotos)
           .values({ plantId, url })
           .returning()
-        return pipe(Option.fromNullable(photo), Option.getOrNull)
+        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
       }),
 
       addPhotos: Effect.fn('PlantRepository.addPhotos')(function* (
@@ -588,7 +588,7 @@ export const PlantRepositoryLive = Layer.effect(
           .delete(plantPhotos)
           .where(eq(plantPhotos.id, photoId))
           .returning()
-        return pipe(Option.fromNullable(photo), Option.getOrNull)
+        return pipe(Option.fromNullishOr(photo), Option.getOrNull)
       }),
 
       deletePhotoByPlantId: Effect.fn('PlantRepository.deletePhotoByPlantId')(

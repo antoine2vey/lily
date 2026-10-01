@@ -49,7 +49,7 @@ export const GCSUploadResponseSchema = Schema.Struct({
   key: Schema.String,
   url: Schema.String,
   bucketName: Schema.String,
-  uploadedAt: Schema.Date,
+  uploadedAt: Schema.DateFromString,
 })
 
 export type GCSUploadResponse = Schema.Schema.Type<
@@ -60,8 +60,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
   effect: Effect.gen(function* () {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
-      const projectIdRedacted = yield* Config.redacted('GCP_PROJECT_ID')
-      const credentialsJsonRedacted = yield* Config.redacted(
+      const projectIdRedacted = yield* Config.Redacted('GCP_PROJECT_ID')
+      const credentialsJsonRedacted = yield* Config.Redacted(
         'GCS_CREDENTIALS_JSON'
       )
 
@@ -77,7 +77,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
       })
 
       // Validate credentials against schema
-      const validatedCredentials = yield* Schema.decodeUnknown(
+      const validatedCredentials = yield* Schema.decodeUnknownEffect(
         GCSCredentialsSchema
       )(credentials).pipe(
         Effect.mapError(
@@ -93,7 +93,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
         credentials: validatedCredentials,
       }
 
-      return yield* Schema.decodeUnknown(GCSConfigSchema)(rawConfig).pipe(
+      return yield* Schema.decodeUnknownEffect(GCSConfigSchema)(rawConfig).pipe(
         Effect.mapError(
           (error) =>
             new GCSConfigError({
@@ -114,8 +114,8 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
     })
 
     const buckets = {
-      plant: storage.bucket(yield* Config.string('GCS_PLANT_BUCKET')),
-      ai: storage.bucket(yield* Config.string('GCS_AI_BUCKET')),
+      plant: storage.bucket(yield* Config.String('GCS_PLANT_BUCKET')),
+      ai: storage.bucket(yield* Config.String('GCS_AI_BUCKET')),
     }
 
     return {
@@ -129,7 +129,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
             request.contentType
           )
           // Validate request
-          const validatedRequest = yield* Schema.decodeUnknown(
+          const validatedRequest = yield* Schema.decodeUnknownEffect(
             GCSUploadRequestSchema
           )(request).pipe(
             Effect.mapError(
@@ -142,7 +142,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
 
           // Generate key if not provided
           const key = pipe(
-            Option.fromNullable(validatedRequest.key),
+            Option.fromNullishOr(validatedRequest.key),
             Option.getOrElse(
               () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
             )
@@ -207,7 +207,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
         Effect.gen(function* () {
           const uniqueKeys = Array.dedupe(keys)
 
-          if (Array.isEmptyArray(uniqueKeys)) return new Map<string, string>()
+          if (Array.isArrayEmpty(uniqueKeys)) return new Map<string, string>()
 
           const expiry =
             nowAsEpochMillis() + Duration.toMillis(Duration.hours(expiryHours))
@@ -241,7 +241,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
         Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan('gcs.fileName', request.fileName)
           // Validate request (same as uploadFile)
-          const validatedRequest = yield* Schema.decodeUnknown(
+          const validatedRequest = yield* Schema.decodeUnknownEffect(
             GCSUploadRequestSchema
           )(request).pipe(
             Effect.mapError(
@@ -254,7 +254,7 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
 
           // Generate key if not provided (same as uploadFile)
           const key = pipe(
-            Option.fromNullable(validatedRequest.key),
+            Option.fromNullishOr(validatedRequest.key),
             Option.getOrElse(
               () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
             )

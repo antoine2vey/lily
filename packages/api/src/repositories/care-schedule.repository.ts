@@ -1,6 +1,5 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCareSchedules, plants, rooms } from '@lily/db/schema'
 import {
   type CareType,
@@ -10,6 +9,7 @@ import {
 } from '@lily/shared'
 import { and, asc, eq, isNotNull, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types
 export type CareScheduleRow = typeof plantCareSchedules.$inferSelect
@@ -83,9 +83,10 @@ export interface ICareScheduleRepository {
 }
 
 // Tag for dependency injection
-export class CareScheduleRepository extends Context.Tag(
-  'CareScheduleRepository'
-)<CareScheduleRepository, ICareScheduleRepository>() {}
+export class CareScheduleRepository extends Context.Service<
+  CareScheduleRepository,
+  ICareScheduleRepository
+>()('CareScheduleRepository') {}
 
 // Shared room selection shape for joins
 const roomSelect = {
@@ -113,7 +114,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
               eq(plantCareSchedules.careType, careType)
             )
           )
-        return pipe(Option.fromNullable(row), Option.getOrNull)
+        return pipe(Option.fromNullishOr(row), Option.getOrNull)
       }),
 
       findByPlant: Effect.fn('CareScheduleRepository.findByPlant')(function* (
@@ -240,11 +241,11 @@ export const CareScheduleRepositoryLive = Layer.effect(
             careType,
             frequencyDays: data.frequencyDays,
             lastCareAt: pipe(
-              Option.fromNullable(data.lastCareAt),
+              Option.fromNullishOr(data.lastCareAt),
               Option.getOrNull
             ),
             nextCareAt: pipe(
-              Option.fromNullable(data.nextCareAt),
+              Option.fromNullishOr(data.nextCareAt),
               Option.getOrNull
             ),
           })
@@ -284,7 +285,7 @@ export const CareScheduleRepositoryLive = Layer.effect(
             )
           )
           .returning()
-        return pipe(Option.fromNullable(row), Option.getOrNull)
+        return pipe(Option.fromNullishOr(row), Option.getOrNull)
       }),
 
       deleteByPlantAndType: Effect.fn(

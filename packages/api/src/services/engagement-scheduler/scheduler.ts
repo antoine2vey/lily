@@ -80,7 +80,7 @@ export const processInactivityNudges = Effect.fn(
 
         const lastCareDate = yield* engagementRepo.getLastCareDate(user.id)
         yield* pipe(
-          Option.fromNullable(lastCareDate),
+          Option.fromNullishOr(lastCareDate),
           Option.match({
             onNone: () => Effect.void,
             onSome: (date) =>
@@ -141,7 +141,7 @@ export const processPhotoReminders = Effect.fn(
           daysAgoAsDate(PHOTO_STALENESS_DAYS)
         )
 
-        if (Array.isEmptyReadonlyArray(stalePlants)) {
+        if (Array.isReadonlyArrayEmpty(stalePlants)) {
           return yield* new SkipUserError({ reason: 'no_stale_plants' })
         }
 
@@ -167,7 +167,7 @@ export const processPhotoReminders = Effect.fn(
             if (alreadySent) return
 
             const daysSincePhotoVal = pipe(
-              Option.fromNullable(plant.lastPhotoAt),
+              Option.fromNullishOr(plant.lastPhotoAt),
               Option.match({
                 onNone: () => daysSince(plant.dateAdded),
                 onSome: (date) => daysSince(date),
@@ -276,15 +276,15 @@ export const processStreakAtRisk = Effect.fn(
         const timezone = resolveTimezone(user.timezone)
 
         const streak = pipe(
-          Option.fromNullable(streakMap.get(user.id)),
+          Option.fromNullishOr(streakMap.get(user.id)),
           Option.getOrElse(() => 0)
         )
         if (streak < STREAK_AT_RISK_MIN) {
           return yield* new SkipUserError({ reason: 'streak_too_short' })
         }
 
-        const localNow = withTimeZone(DateTime.unsafeNow(), timezone)
-        const { hours } = DateTime.toParts(localNow)
+        const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
+        const { hour: hours } = DateTime.toParts(localNow)
         if (hours < STREAK_AT_RISK_HOUR) {
           return yield* new SkipUserError({ reason: 'before_6pm' })
         }
@@ -362,7 +362,7 @@ export const processStreakMilestones = Effect.fn(
         const timezone = resolveTimezone(user.timezone)
 
         const streak = pipe(
-          Option.fromNullable(streakMap.get(user.id)),
+          Option.fromNullishOr(streakMap.get(user.id)),
           Option.getOrElse(() => 0)
         )
 
@@ -489,7 +489,7 @@ export const processPlantAnniversaries = Effect.fn(
   const anniversaryPlants =
     yield* engagementRepo.getPlantsWithAnniversary(ANNIVERSARY_MONTHS)
 
-  if (Array.isEmptyReadonlyArray(anniversaryPlants)) return
+  if (Array.isReadonlyArrayEmpty(anniversaryPlants)) return
 
   const userMap = new Map(
     Array.map(usersWithCareReminders, (u) => [u.id, u] as const)
@@ -610,7 +610,7 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
     (u) => !isOnVacation(u, now)
   )
 
-  if (!Array.isEmptyReadonlyArray(usersWithTips)) {
+  if (!Array.isReadonlyArrayEmpty(usersWithTips)) {
     yield* Effect.all([
       processInactivityNudges(usersWithTips),
       processPhotoReminders(usersWithTips),
@@ -618,7 +618,7 @@ export const checkAndCreateEngagementNotifications = Effect.gen(function* () {
     ])
   }
 
-  if (!Array.isEmptyReadonlyArray(usersWithCareReminders)) {
+  if (!Array.isReadonlyArrayEmpty(usersWithCareReminders)) {
     const achievementRepo = yield* AchievementRepository
     const streakMap = yield* achievementRepo.getBatchCareStreaks(
       Array.map(usersWithCareReminders, (u) => u.id)

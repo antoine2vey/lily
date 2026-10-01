@@ -20,7 +20,7 @@ export function PlantSearchBar({
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
   const placeholderText = Option.getOrElse(
-    Option.fromNullable(placeholder),
+    Option.fromNullishOr(placeholder),
     () => t('list.searchPlaceholder')
   )
   return (

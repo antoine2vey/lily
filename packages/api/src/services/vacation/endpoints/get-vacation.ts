@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { toVacationState } from '@lily/api/services/vacation/helpers/vacation-state'
 import type { VacationState } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getVacation = (): Effect.Effect<
   VacationState,

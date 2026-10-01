@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
@@ -11,6 +10,7 @@ import {
 } from '@lily/shared/errors/plant'
 import type { PlantDeathRequest } from '@lily/shared/plant'
 import { DateTime, Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * "Say goodbye": flag the plant as dead, drop its pending reminders and let
@@ -35,9 +35,9 @@ export const markPlantDead = (
     const eventBus = yield* EventBus
 
     const updated = yield* repo.markDead(plant.id, {
-      diedAt: DateTime.toDateUtc(DateTime.unsafeNow()),
+      diedAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
       cause: request.cause,
-      note: Option.getOrNull(Option.fromNullable(request.note)),
+      note: Option.getOrNull(Option.fromNullishOr(request.note)),
     })
     if (!updated) {
       return yield* new PlantNotFoundError({ plantId: plant.id })

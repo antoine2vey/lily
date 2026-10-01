@@ -25,11 +25,11 @@ export const getPaginationParams = (
   defaultLimit = 20
 ): PaginationOutput => {
   const page = pipe(
-    Option.fromNullable(input.page),
+    Option.fromNullishOr(input.page),
     Option.getOrElse(() => 1)
   )
   const limit = pipe(
-    Option.fromNullable(input.limit),
+    Option.fromNullishOr(input.limit),
     Option.getOrElse(() => defaultLimit)
   )
   const offset = (page - 1) * limit
@@ -60,6 +60,6 @@ export const extractCount = (
 ): number =>
   pipe(
     Array.head(result),
-    Option.flatMap((r) => Option.fromNullable(r.value)),
+    Option.flatMap((r) => Option.fromNullishOr(r.value)),
     Option.getOrElse(() => 0)
   )

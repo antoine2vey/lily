@@ -35,7 +35,9 @@ export function BlogList({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const q = pipe(
-      Option.fromNullable(new URLSearchParams(window.location.search).get('q')),
+      Option.fromNullishOr(
+        new URLSearchParams(window.location.search).get('q')
+      ),
       Option.getOrElse(() => '')
     )
     if (q) {
@@ -117,7 +119,7 @@ export function BlogList({
     () =>
       inSearchMode
         ? pipe(
-            Option.fromNullable(results),
+            Option.fromNullishOr(results),
             Option.getOrElse(() => [] as PostMeta[])
           )
         : pageItems,

@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Resolve a conversation by id and verify the current user owns it.

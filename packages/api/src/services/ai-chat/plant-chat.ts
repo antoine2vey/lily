@@ -114,7 +114,7 @@ export const chatStream = (
 ) =>
   Effect.gen(function* () {
     const { id: userId } = yield* CurrentUser
-    const runtime = yield* Effect.runtime<ToolContext>()
+    const runtime = yield* Effect.context<ToolContext>()
 
     const isPlant =
       conversation.kind === 'plant' && Boolean(conversation.plantId)
@@ -169,7 +169,7 @@ export const chatStream = (
           })),
         }))
 
-        Deferred.unsafeDone(completionDeferred, Effect.succeed(stepData))
+        Deferred.doneUnsafe(completionDeferred, Effect.succeed(stepData))
       },
     })
 
@@ -179,7 +179,7 @@ export const chatStream = (
 const buildPlantContext = (
   plantId: string,
   imageKey: string | undefined,
-  runtime: ReturnType<typeof Effect.runtime<ToolContext>> extends Effect.Effect<
+  runtime: ReturnType<typeof Effect.context<ToolContext>> extends Effect.Effect<
     infer R,
     unknown,
     unknown
@@ -216,8 +216,8 @@ const buildPlantContext = (
 
     const user = yield* userRepo.findById(userId)
     const timezone = pipe(
-      Option.fromNullable(user),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullishOr(user),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
 

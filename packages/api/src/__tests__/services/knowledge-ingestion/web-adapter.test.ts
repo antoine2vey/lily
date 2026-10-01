@@ -160,7 +160,7 @@ describe('webAdapter', () => {
     const invalidConfig = { type: 'reddit', subreddits: ['test'] } as never
 
     const result = await Effect.runPromise(
-      Stream.runCollect(webAdapter.fetch(invalidConfig)).pipe(Effect.either)
+      Stream.runCollect(webAdapter.fetch(invalidConfig)).pipe(Effect.result)
     )
 
     expect(result._tag).toBe('Left')

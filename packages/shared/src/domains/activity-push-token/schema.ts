@@ -1,9 +1,9 @@
 import { Schema } from 'effect'
 
-export const ActivityTokenKind = Schema.Literal('start', 'update')
+export const ActivityTokenKind = Schema.Literals(['start', 'update'])
 export type ActivityTokenKind = typeof ActivityTokenKind.Type
 
-export const ActivityStatus = Schema.Literal('active', 'ended', 'expired')
+export const ActivityStatus = Schema.Literals(['active', 'ended', 'expired'])
 export type ActivityStatus = typeof ActivityStatus.Type
 
 export const ActivityPushToken = Schema.Struct({
@@ -14,12 +14,12 @@ export const ActivityPushToken = Schema.Struct({
   activityId: Schema.NullOr(Schema.String),
   token: Schema.String,
   status: ActivityStatus,
-  startedAt: Schema.Date,
-  endsAt: Schema.NullOr(Schema.Date),
-  lastConfirmedAt: Schema.NullOr(Schema.Date),
-  lastFailedAt: Schema.NullOr(Schema.Date),
-  lastStartSentAt: Schema.NullOr(Schema.Date),
-  updatedAt: Schema.Date,
+  startedAt: Schema.DateFromString,
+  endsAt: Schema.NullOr(Schema.DateFromString),
+  lastConfirmedAt: Schema.NullOr(Schema.DateFromString),
+  lastFailedAt: Schema.NullOr(Schema.DateFromString),
+  lastStartSentAt: Schema.NullOr(Schema.DateFromString),
+  updatedAt: Schema.DateFromString,
 })
 export type ActivityPushToken = typeof ActivityPushToken.Type
 

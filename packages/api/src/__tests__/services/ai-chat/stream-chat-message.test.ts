@@ -1,4 +1,3 @@
-import type { HttpServerResponse } from '@effect/platform'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import {
   mockChatMessages,
@@ -27,6 +26,7 @@ import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-c
 import type { ChatMessage } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
 import { Effect, Layer, Stream } from 'effect'
+import type { HttpServerResponse } from 'effect/http'
 import { describe, expect, it } from 'vitest'
 
 /**

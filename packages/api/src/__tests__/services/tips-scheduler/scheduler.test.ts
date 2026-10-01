@@ -8,15 +8,15 @@ import type { Notification } from '@lily/shared/notification'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const disabledConfig = Layer.setConfigProvider(
+const disabledConfig = ConfigProvider.layer(
   ConfigProvider.fromMap(new Map([['TIPS_GENERATION_ENABLED', 'false']]))
 )
 
-const enabledConfig = Layer.setConfigProvider(
+const enabledConfig = ConfigProvider.layer(
   ConfigProvider.fromMap(new Map([['TIPS_GENERATION_ENABLED', 'true']]))
 )
 
-const emptyConfig = Layer.setConfigProvider(ConfigProvider.fromMap(new Map()))
+const emptyConfig = ConfigProvider.layer(ConfigProvider.fromMap(new Map()))
 
 const todayTip: DailyTip = {
   id: 'tip-today',

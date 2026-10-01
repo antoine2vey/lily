@@ -1,8 +1,8 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { getCareAdjustments } from '@lily/api/services/weather/endpoints/get-care-adjustments'
 import { getWeatherForUser } from '@lily/api/services/weather/endpoints/get-weather'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const WeatherApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'weather', (handlers) =>

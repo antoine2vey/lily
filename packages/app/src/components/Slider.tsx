@@ -33,7 +33,7 @@ export function Slider({
 }: SliderProps) {
   const iconColors = useIconColors()
   const resolvedIconBgColor = pipe(
-    Option.fromNullable(iconBgColor),
+    Option.fromNullishOr(iconBgColor),
     Option.getOrElse(() => iconColors.surfaceTinted)
   )
 

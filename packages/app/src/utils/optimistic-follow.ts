@@ -1,5 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
-import { Array as Arr, Either, Match, Option, pipe } from 'effect'
+import { Array as Arr, Match, Option, pipe, Result } from 'effect'
 import type { ApiResult } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
@@ -79,10 +79,10 @@ function hasTotalField(value: unknown): value is { readonly total: number } {
  * Returns None if the value is missing, not an Either, or is a Left.
  */
 function unwrapCachedEither(raw: unknown): Option.Option<unknown> {
-  if (!raw || !Either.isEither(raw) || Either.isLeft(raw)) {
+  if (!raw || !Result.isResult(raw) || Result.isFailure(raw)) {
     return Option.none()
   }
-  return Option.some(raw.right)
+  return Option.some(raw.success)
 }
 
 /**
@@ -157,7 +157,7 @@ export function optimisticFollowUpdate(
                     0,
                     profile.followerCount + followerDelta
                   )
-                  return Either.right({
+                  return Result.succeed({
                     ...profile,
                     isFollowing,
                     followerCount,
@@ -165,7 +165,7 @@ export function optimisticFollowUpdate(
                 }
               ),
               Match.when(isPaginatedData, (paginated) =>
-                Either.right({
+                Result.succeed({
                   ...paginated,
                   items: patchFollowableItems(
                     paginated.items,
@@ -175,7 +175,7 @@ export function optimisticFollowUpdate(
                 })
               ),
               Match.when(isFollowableArray, (items) =>
-                Either.right(
+                Result.succeed(
                   patchFollowableItems(items, targetUserId, isFollowing)
                 )
               ),
@@ -210,7 +210,7 @@ function updatePaginatedTotal(
           onNone: () => old,
           onSome: (data) =>
             hasTotalField(data)
-              ? Either.right({
+              ? Result.succeed({
                   ...data,
                   total: Math.max(0, data.total + delta),
                 })

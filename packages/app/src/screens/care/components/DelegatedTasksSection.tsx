@@ -20,7 +20,7 @@ export function DelegatedTasksSection() {
 
   const delegatedTasks = [
     ...pipe(
-      Option.fromNullable(tasks),
+      Option.fromNullishOr(tasks),
       Option.getOrElse(
         () =>
           [] as Array<{
@@ -36,7 +36,7 @@ export function DelegatedTasksSection() {
     ),
   ]
 
-  if (Arr.isEmptyArray(delegatedTasks)) {
+  if (Arr.isArrayEmpty(delegatedTasks)) {
     return null
   }
 
@@ -55,14 +55,14 @@ export function DelegatedTasksSection() {
       <View className="mt-3 gap-2">
         {Arr.map(visibleTasks, (task) => {
           const nextWatering = pipe(
-            Option.fromNullable(getNextCareAt(task.schedules, 'watering')),
+            Option.fromNullishOr(getNextCareAt(task.schedules, 'watering')),
             Option.flatMap(parseApiDate),
             Option.map(formatShortDate),
             Option.getOrElse(() => 'No schedule')
           )
 
           const ownerName = pipe(
-            Option.fromNullable(task.ownerName),
+            Option.fromNullishOr(task.ownerName),
             Option.getOrElse(() => 'Unknown')
           )
 
@@ -74,7 +74,7 @@ export function DelegatedTasksSection() {
             >
               <Avatar
                 source={pipe(
-                  Option.fromNullable(task.plantImage),
+                  Option.fromNullishOr(task.plantImage),
                   Option.map((uri) => ({ uri })),
                   Option.getOrUndefined
                 )}

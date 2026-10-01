@@ -14,7 +14,7 @@ const testConfigProvider = ConfigProvider.fromMap(
 )
 
 const JWTServiceTestLive = JWTServiceLive.pipe(
-  Layer.provide(Layer.setConfigProvider(testConfigProvider))
+  Layer.provide(ConfigProvider.layer(testConfigProvider))
 )
 
 describe('JWTService', () => {

@@ -69,7 +69,7 @@ export function OnboardingFlowScreen() {
 
   useEffect(() => {
     if (__DEV__ || hasSkippedRef.current || isLoading) return
-    if (plantsData && !Arr.isEmptyReadonlyArray(plantsData.items)) {
+    if (plantsData && !Arr.isReadonlyArrayEmpty(plantsData.items)) {
       hasSkippedRef.current = true
       skipOnboarding().then(() => router.replace('/(app)/(tabs)'))
     }

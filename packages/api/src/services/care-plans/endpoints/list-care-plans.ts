@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type {
@@ -6,6 +5,7 @@ import type {
   CarePlanStatus,
 } from '@lily/shared/care-plan'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const listCarePlans = (
   status?: CarePlanStatus

@@ -26,7 +26,7 @@ type DueState = 'none' | 'overdue' | 'today' | 'future'
 
 const dueStateOf = (step: CarePlanStep): DueState =>
   pipe(
-    Option.fromNullable(step.dueDate),
+    Option.fromNullishOr(step.dueDate),
     Option.flatMap(parseApiDate),
     Option.map(daysUntil),
     Option.match({
@@ -59,14 +59,14 @@ export function CarePlanChecklistCard({
 
   const doneCount = Array.length(
     Array.filter(plan.steps, (s) =>
-      Option.isSome(Option.fromNullable(s.completedAt))
+      Option.isSome(Option.fromNullishOr(s.completedAt))
     )
   )
   const totalCount = Array.length(plan.steps)
 
   const renderDueLabel = (step: CarePlanStep) => {
     const state = dueStateOf(step)
-    const isDone = Option.isSome(Option.fromNullable(step.completedAt))
+    const isDone = Option.isSome(Option.fromNullishOr(step.completedAt))
     if (state === 'none' || isDone) return null
     const label = pipe(
       Match.value(state),
@@ -75,7 +75,7 @@ export function CarePlanChecklistCard({
       Match.when('future', () =>
         t('plans.due', {
           date: pipe(
-            Option.fromNullable(step.dueDate),
+            Option.fromNullishOr(step.dueDate),
             Option.flatMap(parseApiDate),
             Option.map((d) => formatShortDate(d, i18n.language)),
             Option.getOrElse(() => '')
@@ -108,7 +108,7 @@ export function CarePlanChecklistCard({
             <AnimatedImage
               source={{
                 uri: pipe(
-                  Option.fromNullable(plan.plantImageUrl),
+                  Option.fromNullishOr(plan.plantImageUrl),
                   Option.getOrUndefined
                 ),
               }}
@@ -157,10 +157,10 @@ export function CarePlanChecklistCard({
       {/* Steps */}
       <View className="gap-1">
         {Array.map(plan.steps, (step) => {
-          const isDone = Option.isSome(Option.fromNullable(step.completedAt))
+          const isDone = Option.isSome(Option.fromNullishOr(step.completedAt))
           const isPending = pendingStepIds.has(step.id)
           const careConfig = pipe(
-            Option.fromNullable(step.careType),
+            Option.fromNullishOr(step.careType),
             Option.map((type) => getCareTypeConfig(type, iconColors)),
             Option.getOrUndefined
           )

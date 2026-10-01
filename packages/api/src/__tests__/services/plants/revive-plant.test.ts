@@ -59,7 +59,7 @@ const makeLayer = (options: {
 
 const failureTag = (exit: Exit.Exit<unknown, { _tag: string }>) =>
   Exit.isFailure(exit)
-    ? Option.map(Cause.failureOption(exit.cause), (e) => e._tag)
+    ? Option.map(Cause.findErrorOption(exit.cause), (e) => e._tag)
     : Option.none()
 
 describe('revivePlant', () => {

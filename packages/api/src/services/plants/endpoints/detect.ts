@@ -1,7 +1,3 @@
-import type { PlatformError } from '@effect/platform/Error'
-import type { FileSystem } from '@effect/platform/FileSystem'
-import type { PersistedFile } from '@effect/platform/Multipart'
-import type { SqlError } from '@effect/sql/SqlError'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
@@ -19,6 +15,10 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
+import type { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
+import type { PlatformError } from 'effect/PlatformError'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const detect = (
   images: readonly PersistedFile[],

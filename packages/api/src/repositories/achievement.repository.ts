@@ -1,5 +1,4 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
   plantPhotos,
@@ -11,6 +10,7 @@ import {
 import type { AchievementKey, CareType } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 import { isLivingPlant } from './helpers/living-plant'
 import { unwrapPgRows } from './helpers/pagination'
 
@@ -68,10 +68,10 @@ export interface IAchievementRepository {
   ) => Effect.Effect<ReadonlyMap<string, number>, SqlError>
 }
 
-export class AchievementRepository extends Context.Tag('AchievementRepository')<
+export class AchievementRepository extends Context.Service<
   AchievementRepository,
   IAchievementRepository
->() {}
+>()('AchievementRepository') {}
 
 export const AchievementRepositoryLive = Layer.effect(
   AchievementRepository,
@@ -93,8 +93,8 @@ export const AchievementRepositoryLive = Layer.effect(
             .from(userAchievements)
             .where(eq(userAchievements.userId, userId))
           return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.count)),
             Option.getOrElse(() => 0)
           )
         }
@@ -113,8 +113,8 @@ export const AchievementRepositoryLive = Layer.effect(
             )
           return (
             pipe(
-              Option.fromNullable(result),
-              Option.flatMap((r) => Option.fromNullable(r.count)),
+              Option.fromNullishOr(result),
+              Option.flatMap((r) => Option.fromNullishOr(r.count)),
               Option.getOrElse(() => 0)
             ) > 0
           )
@@ -130,7 +130,7 @@ export const AchievementRepositoryLive = Layer.effect(
           .values({ userId, achievement: key })
           .onConflictDoNothing()
           .returning()
-        return Option.getOrNull(Option.fromNullable(achievement))
+        return Option.getOrNull(Option.fromNullishOr(achievement))
       }),
 
       countCareLogsByType: Effect.fn(
@@ -142,8 +142,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .innerJoin(plants, eq(careLogs.plantId, plants.id))
           .where(and(eq(plants.userId, userId), eq(careLogs.type, type)))
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -156,8 +156,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .from(plants)
           .where(eq(plants.userId, userId))
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -169,8 +169,8 @@ export const AchievementRepositoryLive = Layer.effect(
             .from(plants)
             .where(and(eq(plants.userId, userId), isLivingPlant()))
           return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.count)),
             Option.getOrElse(() => 0)
           )
         }
@@ -185,8 +185,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .innerJoin(plants, eq(plantPhotos.plantId, plants.id))
           .where(eq(plants.userId, userId))
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -222,7 +222,7 @@ export const AchievementRepositoryLive = Layer.effect(
             pipe(
               unwrapPgRows<{ streak: unknown }>(result),
               Array.head,
-              Option.flatMap((row) => Option.fromNullable(row.streak)),
+              Option.flatMap((row) => Option.fromNullishOr(row.streak)),
               Option.getOrElse(() => 0)
             )
           )
@@ -237,8 +237,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .from(plantScans)
           .where(eq(plantScans.userId, userId))
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -254,8 +254,8 @@ export const AchievementRepositoryLive = Layer.effect(
             and(eq(plants.userId, userId), eq(plantPhotos.plantId, plantId))
           )
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.count)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.count)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -271,8 +271,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .where(eq(users.id, userId))
           .returning({ historyViewCount: users.historyViewCount })
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.historyViewCount)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -285,8 +285,8 @@ export const AchievementRepositoryLive = Layer.effect(
           .from(users)
           .where(eq(users.id, userId))
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.historyViewCount)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.historyViewCount)),
           Option.getOrElse(() => 0)
         )
       }),

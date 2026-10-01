@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { WebhookEventContext } from '@lily/api/services/subscriptions/endpoints/webhook/helpers'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const handleExpiration = (
   ctx: WebhookEventContext

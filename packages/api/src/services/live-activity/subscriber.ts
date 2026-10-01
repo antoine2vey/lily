@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { type AppEvent, EventBus } from '@lily/api/events'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
@@ -9,6 +8,7 @@ import {
   PushService,
 } from '@lily/shared/server'
 import { Effect, Match, Option, Queue } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Send a Live Activity push and swallow all three push-error tags with
 // uniform logging. On invalidation, optionally run a one-shot cleanup
@@ -34,8 +34,8 @@ const sendWithLogging = (
         Effect.logInfo(
           `[live-activity] ${kind} token invalidated: ${e.reason}`
         ).pipe(
-          Effect.zipRight(
-            Option.match(Option.fromNullable(onInvalidated), {
+          Effect.andThen(
+            Option.match(Option.fromNullishOr(onInvalidated), {
               onNone: () => Effect.void,
               onSome: (cb) => cb(e.reason),
             })
@@ -67,7 +67,7 @@ const refreshLiveActivity = (params: {
       params.exclude
     )
 
-    const activityIdOpt = Option.fromNullable(active.activityId)
+    const activityIdOpt = Option.fromNullishOr(active.activityId)
     const markEnded = Option.match(activityIdOpt, {
       onNone: () => Effect.void,
       onSome: (id) => Effect.asVoid(activityRepo.markEnded(id)),
@@ -118,7 +118,7 @@ export const startLiveActivitySubscriber = Effect.gen(function* () {
   const eventBus = yield* EventBus
   const queue = yield* eventBus.subscribe
 
-  yield* Effect.fork(
+  yield* Effect.forkChild(
     Effect.forever(
       Effect.gen(function* () {
         const event = yield* Queue.take(queue)

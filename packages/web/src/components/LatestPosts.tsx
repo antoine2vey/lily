@@ -7,7 +7,7 @@ import { getAllPosts } from '@/lib/posts'
 export async function LatestPosts() {
   const locale = await getLocale()
   const posts = pipe(getAllPosts(locale), Array.take(3))
-  if (Array.isEmptyArray(posts)) return null
+  if (Array.isArrayEmpty(posts)) return null
 
   const t = await getTranslations('LatestPosts')
 

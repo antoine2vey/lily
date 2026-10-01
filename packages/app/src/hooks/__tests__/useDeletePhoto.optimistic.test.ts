@@ -1,12 +1,12 @@
 import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 import { plantDetailKey, plantPhotosKey } from '@/utils/plant-cache'
 
 // Controls the Either the (mocked) delete mutation resolves with. Must be
 // `mock`-prefixed to be referenceable inside the hoisted jest.mock factory.
-let mockResult: unknown = Either.right(undefined)
+let mockResult: unknown = Result.succeed(undefined)
 
 // Delegate useEffectMutation to a REAL useMutation whose mutationFn resolves
 // our controllable Either — so the hook's onMutate/onSuccess/onError/onSettled
@@ -48,11 +48,11 @@ const makeClient = () =>
 const seed = (client: QueryClient) => {
   client.setQueryData(
     plantDetailKey(PLANT_ID),
-    Either.right({ id: PLANT_ID, photos: [photo('a'), photo('b')] })
+    Result.succeed({ id: PLANT_ID, photos: [photo('a'), photo('b')] })
   )
   client.setQueryData(
     plantPhotosKey(PLANT_ID),
-    Either.right({
+    Result.succeed({
       items: [photo('a'), photo('b')],
       total: 2,
       page: 1,
@@ -63,16 +63,16 @@ const seed = (client: QueryClient) => {
 }
 
 const detailIds = (client: QueryClient) =>
-  Either.getOrThrow(
-    client.getQueryData(plantDetailKey(PLANT_ID)) as Either.Either<
+  Result.getOrThrow(
+    client.getQueryData(plantDetailKey(PLANT_ID)) as Result.Result<
       { photos: Array<{ id: string }> },
       unknown
     >
   ).photos.map((p) => p.id)
 
 const listIds = (client: QueryClient) =>
-  Either.getOrThrow(
-    client.getQueryData(plantPhotosKey(PLANT_ID)) as Either.Either<
+  Result.getOrThrow(
+    client.getQueryData(plantPhotosKey(PLANT_ID)) as Result.Result<
       { items: Array<{ id: string }> },
       unknown
     >
@@ -84,7 +84,7 @@ describe('useDeletePhoto optimistic lifecycle', () => {
   })
 
   it('removes the photo from both caches and keeps it removed on success', async () => {
-    mockResult = Either.right(undefined)
+    mockResult = Result.succeed(undefined)
     const client = makeClient()
     seed(client)
 
@@ -105,7 +105,7 @@ describe('useDeletePhoto optimistic lifecycle', () => {
   it('rolls back both caches when the API resolves a typed Left failure', async () => {
     // A typed failure resolves as Either.left — it does NOT throw, so the fix
     // must roll back from onSuccess (not onError).
-    mockResult = Either.left({ _tag: 'PlantNotFoundError' })
+    mockResult = Result.fail({ _tag: 'PlantNotFoundError' })
     const client = makeClient()
     seed(client)
 

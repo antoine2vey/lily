@@ -1,6 +1,6 @@
-import { Tool, Toolkit } from '@effect/ai'
 import { PlantFilter } from '@lily/shared'
 import { Schema } from 'effect'
+import { Tool, Toolkit } from 'effect/ai'
 
 // ── Read-only Tools ────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ export const ListPlants = Tool.make('list_plants', {
   description:
     'Lists your living plants with their health status, room, and care info. Use filter "dead" to list the cemetery (plants that died, with date and cause).',
   parameters: {
-    filter: Schema.optionalWith(PlantFilter, { exact: true }).annotations({
+    filter: Schema.optionalKey(PlantFilter).annotate({
       description:
         'Filter plants: all (default, living only), needsAttention, overdue, or dead (the cemetery)',
     }),
@@ -32,7 +32,7 @@ export const GetPlantDetails = Tool.make('get_plant_details', {
   description:
     'Get detailed information about a specific plant including care schedules and recent history.',
   parameters: {
-    plantId: Schema.String.annotations({
+    plantId: Schema.String.annotate({
       description: 'The plant ID to get details for',
     }),
   },
@@ -55,20 +55,18 @@ export const CarePlant = Tool.make('care_plant', {
   description:
     'Record a care action (watering, fertilization, misting, or repotting) for a plant.',
   parameters: {
-    plantId: Schema.String.annotations({
+    plantId: Schema.String.annotate({
       description: 'The plant ID to care for',
     }),
-    type: Schema.Literal(
+    type: Schema.Literals([
       'watering',
       'fertilization',
       'misting',
-      'repotting'
-    ).annotations({
+      'repotting',
+    ]).annotate({
       description: 'Type of care action',
     }),
-    notes: Schema.optionalWith(Schema.String, {
-      exact: true,
-    }).annotations({
+    notes: Schema.optionalKey(Schema.String).annotate({
       description: 'Optional notes about the care',
     }),
   },
@@ -81,12 +79,10 @@ export const AskPlantQuestion = Tool.make('ask_plant_question', {
   description:
     'Search the plant care knowledge base. Returns relevant care advice from community and expert sources.',
   parameters: {
-    question: Schema.String.annotations({
+    question: Schema.String.annotate({
       description: 'The plant care question to search for',
     }),
-    plantName: Schema.optionalWith(Schema.String, {
-      exact: true,
-    }).annotations({
+    plantName: Schema.optionalKey(Schema.String).annotate({
       description: 'Optional plant name to focus the search (e.g. "Monstera")',
     }),
   },

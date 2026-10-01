@@ -32,7 +32,7 @@ export interface IMessageQueue {
 }
 
 // Context tag for dependency injection
-export class MessageQueue extends Context.Tag('MessageQueue')<
+export class MessageQueue extends Context.Service<
   MessageQueue,
   IMessageQueue
->() {}
+>()('MessageQueue') {}

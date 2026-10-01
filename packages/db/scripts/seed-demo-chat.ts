@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { DrizzleLive } from '@lily/db'
 /**
  * Reseed Aloe Vera's chat history in a specific locale. Called by the
  * screenshot pipeline between the en and fr Maestro captures so the
@@ -6,8 +7,7 @@
  *
  * Usage: LOCALE=fr bun run scripts/seed-demo-chat.ts
  */
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
-import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { chatConversations, chatMessages, plants, users } from '@lily/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Match, Option, pipe } from 'effect'

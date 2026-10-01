@@ -22,7 +22,7 @@ export function NotificationStep({
   const { t } = useTranslation('onboarding')
   const [loading, setLoading] = useState(false)
 
-  const hasPlant = Option.isSome(Option.fromNullable(data.plantName))
+  const hasPlant = Option.isSome(Option.fromNullishOr(data.plantName))
 
   const title = hasPlant
     ? t('notifications.titleWithPlant', {

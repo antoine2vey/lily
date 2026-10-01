@@ -44,12 +44,12 @@ export const createMockSubscriptionRepository = (
   options: MockSubscriptionOptions = {}
 ): Layer.Layer<SubscriptionRepository> => {
   const subscription = pipe(
-    Option.fromNullable(options.subscription),
+    Option.fromNullishOr(options.subscription),
     Option.getOrNull
   )
-  const usage = pipe(Option.fromNullable(options.usage), Option.getOrNull)
+  const usage = pipe(Option.fromNullishOr(options.usage), Option.getOrNull)
   const tier = pipe(
-    Option.fromNullable(options.tier),
+    Option.fromNullishOr(options.tier),
     Option.getOrElse(() => 'free' as SubscriptionTier)
   )
 
@@ -80,7 +80,7 @@ export const createMockSubscriptionRepository = (
     getOrCreateUsage: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(usage),
+          Option.fromNullishOr(usage),
           Option.getOrElse(() => ({
             id: 'usage-1',
             userId: 'user-1',
@@ -97,7 +97,7 @@ export const createMockSubscriptionRepository = (
     incrementUsage: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(usage),
+          Option.fromNullishOr(usage),
           Option.getOrElse(() => ({
             id: 'usage-1',
             userId: 'user-1',

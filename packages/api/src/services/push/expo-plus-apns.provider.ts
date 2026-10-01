@@ -56,7 +56,7 @@ export const mapApnsReasonToPushError = (e: {
   reason?: string
 }): PushTokenInvalidatedError | PushConfigError | PushSendError => {
   const reason = pipe(
-    Option.fromNullable(e.reason),
+    Option.fromNullishOr(e.reason),
     Option.getOrElse(() => '')
   )
   return Match.value(reason).pipe(
@@ -90,7 +90,7 @@ const buildAlertField = (
       title: alert.title,
       body: alert.body,
       ...pipe(
-        Option.fromNullable(alert.sound),
+        Option.fromNullishOr(alert.sound),
         Option.match({
           onNone: () => ({}),
           onSome: (sound) => ({ sound }),
@@ -202,7 +202,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
         if (ticket.status === 'error') {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(ticket.message),
+              Option.fromNullishOr(ticket.message),
               Option.getOrElse(() => 'Unknown push error')
             ),
             cause: ticket.details,
@@ -219,7 +219,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
           messages,
           (m) => !Expo.isExpoPushToken(m.to)
         )
-        if (Array.isNonEmptyArray(invalid)) {
+        if (Array.isArrayNonEmpty(invalid)) {
           return yield* new PushConfigError({
             message: `Invalid Expo push tokens: ${Array.join(
               Array.map(invalid, (t) => t.to),
@@ -285,7 +285,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
               deviceToken: m.to,
               event: 'end',
               ...pipe(
-                Option.fromNullable(m.contentState),
+                Option.fromNullishOr(m.contentState),
                 Option.match({
                   onNone: () => ({}),
                   onSome: (cs) => ({ contentState: encodeContentState(cs) }),

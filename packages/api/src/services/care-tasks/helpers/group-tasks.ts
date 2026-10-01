@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -15,6 +14,7 @@ import type {
   LiveActivityContentState,
 } from '@lily/shared/server'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // v3 adds server-rendered `title` + per-group `label` (widget can't reach i18next).
 const LIVE_ACTIVITY_SCHEMA_VERSION = 3
@@ -36,19 +36,19 @@ export const buildLiveActivityContentState = (
     const careLogRepo = yield* CareLogRepository
 
     const user = yield* userRepo.findById(userId)
-    const userOpt = Option.fromNullable(user)
+    const userOpt = Option.fromNullishOr(user)
     const timezone = pipe(
       userOpt,
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
     const language = pipe(
       userOpt,
-      Option.flatMap((u) => Option.fromNullable(u.language)),
+      Option.flatMap((u) => Option.fromNullishOr(u.language)),
       Option.getOrElse(() => 'en' as const)
     )
 
-    const now = DateTime.unsafeNow()
+    const now = DateTime.nowUnsafe()
     // Match find-care-tasks.ts boundary: end of today in user's timezone.
     const cutoffDt = endOfDay(now, timezone)
     const cutoffDate = DateTime.toDateUtc(cutoffDt)
@@ -58,7 +58,7 @@ export const buildLiveActivityContentState = (
     const dueSchedules = Array.filter(schedules, (s) => {
       const next = s.schedule.nextCareAt
       if (!next) return false
-      if (!DateTime.lessThanOrEqualTo(DateTime.unsafeMake(next), cutoffDt)) {
+      if (!DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(next), cutoffDt)) {
         return false
       }
       if (
@@ -71,7 +71,7 @@ export const buildLiveActivityContentState = (
       return true
     })
 
-    if (Array.isEmptyReadonlyArray(dueSchedules)) {
+    if (Array.isReadonlyArrayEmpty(dueSchedules)) {
       return null
     }
 

@@ -11,7 +11,7 @@ export const durationToDays = (duration: GiftDuration): Option.Option<number> =>
     Match.exhaustive
   )
 
-export const INFINITE_END = DateTime.unsafeMake(Date.UTC(2099, 11, 31))
+export const INFINITE_END = DateTime.makeUnsafe(Date.UTC(2099, 11, 31))
 
 export const computePeriodEnd = (duration: GiftDuration): Date =>
   pipe(
@@ -19,6 +19,6 @@ export const computePeriodEnd = (duration: GiftDuration): Date =>
     Option.match({
       onNone: () => DateTime.toDate(INFINITE_END),
       onSome: (days) =>
-        pipe(DateTime.unsafeNow(), DateTime.add({ days }), DateTime.toDate),
+        pipe(DateTime.nowUnsafe(), DateTime.add({ days }), DateTime.toDate),
     })
   )

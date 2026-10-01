@@ -1,7 +1,3 @@
-import type { PlatformError } from '@effect/platform/Error'
-import { FileSystem } from '@effect/platform/FileSystem'
-import type { PersistedFile } from '@effect/platform/Multipart'
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
   PlantRepository,
@@ -14,16 +10,11 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
-import {
-  Array,
-  DateTime,
-  Effect,
-  Option,
-  pipe,
-  Record,
-  String,
-  Struct,
-} from 'effect'
+import { Array, DateTime, Effect, Option, pipe, Record, String } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
+import type { PlatformError } from 'effect/PlatformError'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Upsert or delete a single optional care schedule.
@@ -69,7 +60,7 @@ export const updatePlant = (
     const scheduleRepo = yield* CareScheduleRepository
     yield* Effect.annotateCurrentSpan('plant.id', request.id)
 
-    const now = DateTime.toDateUtc(DateTime.unsafeNow())
+    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
     // If an image file was uploaded, upload to GCS and use the URL
     const imageUrl = image
@@ -84,7 +75,7 @@ export const updatePlant = (
             Array.last,
             Option.getOrElse(() => 'photo.jpg')
           )
-          const timestamp = DateTime.toEpochMillis(DateTime.unsafeNow())
+          const timestamp = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const { url } = yield* gcs.uploadFile({
             fileBuffer: Buffer.from(buffer),
             fileName: `plants/${request.id}/${timestamp}-${safeName}`,
@@ -92,11 +83,11 @@ export const updatePlant = (
           })
           return url
         })
-      : Option.getOrUndefined(Option.fromNullable(request.imageUrl))
+      : Option.getOrUndefined(Option.fromNullishOr(request.imageUrl))
 
     // Build update data from request, excluding care-related fields
     const data = pipe(
-      Record.fromEntries(Struct.entries({ ...request, imageUrl })),
+      Record.fromEntries(Record.toEntries({ ...request, imageUrl })),
       Record.remove('id'),
       Record.remove('wateringFrequencyDays'),
       Record.remove('fertilizationFrequencyDays'),
@@ -151,7 +142,7 @@ export const updatePlant = (
 
     const updated = yield* repo.findById(request.id)
     return pipe(
-      Option.fromNullable(updated),
+      Option.fromNullishOr(updated),
       Option.getOrElse(() => plant)
     )
   }).pipe(Effect.withSpan('PlantsService.updatePlant'))

@@ -10,7 +10,7 @@ import {
 } from '@/hooks/use-gift-codes'
 
 const enLabels = pipe(
-  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.fromNullishOr(GIFT_DURATION_LABELS.en),
   Option.getOrElse(() => ({
     '7d': '7 Days',
     '1m': '1 Month',

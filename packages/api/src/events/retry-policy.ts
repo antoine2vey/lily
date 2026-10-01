@@ -11,7 +11,7 @@ export const publishWithRetry = <E, R>(
 ): Effect.Effect<void, never, R> =>
   effect.pipe(
     Effect.retry(eventRetryPolicy),
-    Effect.catchAllCause((cause) =>
+    Effect.catchCause((cause) =>
       Effect.logWarning('[event-bus] Event publish failed after retries', {
         cause: Cause.pretty(cause),
       })

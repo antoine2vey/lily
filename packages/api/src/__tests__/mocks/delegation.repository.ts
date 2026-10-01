@@ -92,7 +92,7 @@ export const createMockDelegationRepository = (
               plantLinks,
               (l) =>
                 pipe(
-                  Option.fromNullable(findPlant(l.plantId)),
+                  Option.fromNullishOr(findPlant(l.plantId)),
                   Option.map((p) => ({
                     id: p.id,
                     name: p.name,
@@ -119,7 +119,7 @@ export const createMockDelegationRepository = (
       Effect.sync(() => {
         const idx = Array.findFirstIndex(delegations, (d) => d.id === id)
         Option.map(idx, (i) => {
-          Option.map(Option.fromNullable(delegations[i]), (d) => {
+          Option.map(Option.fromNullishOr(delegations[i]), (d) => {
             delegations[i] = {
               ...d,
               status,
@@ -198,7 +198,7 @@ export const createMockDelegationRepository = (
             const owner = findUser(d.ownerId)
             return Array.filterMap(plantLinks, (l) =>
               pipe(
-                Option.fromNullable(findPlant(l.plantId)),
+                Option.fromNullishOr(findPlant(l.plantId)),
                 Option.map(
                   (p): DelegatedTaskRow => ({
                     delegationId: d.id,
@@ -270,7 +270,7 @@ export const createMockDelegationRepository = (
           Array.filter(dpLinks, (l) => l.delegationId === delegationId),
           (l) =>
             pipe(
-              Option.fromNullable(findPlant(l.plantId)),
+              Option.fromNullishOr(findPlant(l.plantId)),
               Option.map((p) => ({
                 id: p.id,
                 name: p.name,

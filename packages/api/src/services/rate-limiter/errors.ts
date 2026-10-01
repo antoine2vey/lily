@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class RateLimitExceededError extends Schema.TaggedError<RateLimitExceededError>()(
@@ -11,5 +10,5 @@ export class RateLimitExceededError extends Schema.TaggedError<RateLimitExceeded
       default: () => 60,
     }),
   },
-  HttpApiSchema.annotations({ status: 429 })
+  { httpApiStatus: 429 }
 ) {}

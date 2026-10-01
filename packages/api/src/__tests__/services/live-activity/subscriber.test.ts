@@ -9,7 +9,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { processEvent } from '@lily/api/services/live-activity/subscriber'
 import type { ActivityPushToken } from '@lily/shared'
 import type { LiveActivityPushMessage } from '@lily/shared/server'
-import { Effect, Layer, Logger, LogLevel } from 'effect'
+import { Effect, Layer, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const updateToken = (): ActivityPushToken => ({
@@ -51,7 +51,7 @@ const run = (
           ])
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   ).then(() => sent)
 }

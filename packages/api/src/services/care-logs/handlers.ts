@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { createCareLog } from '@lily/api/services/care-logs/endpoints/create-care-log'
 import { deleteCareLog } from '@lily/api/services/care-logs/endpoints/delete-care-log'
@@ -10,18 +9,19 @@ import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handli
 import { withPlantAuth } from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const CareLogsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'careLogs', (handlers) =>
     handlers
-      .handle('getRecentActivities', ({ urlParams }) =>
+      .handle('getRecentActivities', ({ query: urlParams }) =>
         getRecentActivities({
           limit: parseInt(urlParams.limit, 10) || 10,
         }).pipe(withInfraErrorsAsDefect)
       )
-      .handle('getCareLogs', ({ path: { plantId }, urlParams }) =>
+      .handle('getCareLogs', ({ params: { plantId }, query: urlParams }) =>
         withPlantAuth(plantId).pipe(
-          Effect.zipRight(
+          Effect.andThen(
             getCareLogs({
               plantId,
               ...parsePaginationParams(urlParams),
@@ -35,27 +35,27 @@ export const CareLogsApiLive = (api: Api) =>
           withInfraErrorsAsDefect
         )
       )
-      .handle('createCareLog', ({ path: { plantId }, payload }) =>
+      .handle('createCareLog', ({ params: { plantId }, payload }) =>
         withPlantAuth(plantId).pipe(
-          Effect.zipRight(createCareLog(plantId, payload)),
+          Effect.andThen(createCareLog(plantId, payload)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('getCareLog', ({ path: { plantId, logId } }) =>
+      .handle('getCareLog', ({ params: { plantId, logId } }) =>
         withPlantAuth(plantId).pipe(
-          Effect.zipRight(getCareLog(plantId, logId)),
+          Effect.andThen(getCareLog(plantId, logId)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('updateCareLog', ({ path: { plantId, logId }, payload }) =>
+      .handle('updateCareLog', ({ params: { plantId, logId }, payload }) =>
         withPlantAuth(plantId).pipe(
-          Effect.zipRight(updateCareLog(plantId, logId, payload)),
+          Effect.andThen(updateCareLog(plantId, logId, payload)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('deleteCareLog', ({ path: { plantId, logId } }) =>
+      .handle('deleteCareLog', ({ params: { plantId, logId } }) =>
         withPlantAuth(plantId).pipe(
-          Effect.zipRight(deleteCareLog(plantId, logId)),
+          Effect.andThen(deleteCareLog(plantId, logId)),
           withInfraErrorsAsDefect
         )
       )

@@ -25,7 +25,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (!String.isEmpty(trimmedMessage) || attachedImage) {
       onSend(
         trimmedMessage,
-        Option.getOrUndefined(Option.fromNullable(attachedImage))
+        Option.getOrUndefined(Option.fromNullishOr(attachedImage))
       )
       setMessage('')
       setAttachedImage(null)

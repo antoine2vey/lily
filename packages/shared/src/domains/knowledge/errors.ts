@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class IngestJobNotFoundError extends Schema.TaggedError<IngestJobNotFoundError>()(
@@ -6,7 +5,7 @@ export class IngestJobNotFoundError extends Schema.TaggedError<IngestJobNotFound
   {
     jobId: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class AdapterError extends Schema.TaggedError<AdapterError>()(
@@ -15,7 +14,7 @@ export class AdapterError extends Schema.TaggedError<AdapterError>()(
     message: Schema.String,
     adapter: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 export class EmbeddingError extends Schema.TaggedError<EmbeddingError>()(
@@ -23,5 +22,5 @@ export class EmbeddingError extends Schema.TaggedError<EmbeddingError>()(
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}

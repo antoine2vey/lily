@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { ActivityPushToken, RegisterStartTokenRequest } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Idempotent upsert — Apple rotates push-to-start tokens per device.
 export const registerStartToken = (

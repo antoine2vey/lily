@@ -12,7 +12,7 @@ export function useMyDelegations(params?: MyDelegationsParams) {
       page: '1',
       limit: '20',
       role: pipe(
-        Option.fromNullable(params?.role),
+        Option.fromNullishOr(params?.role),
         Option.getOrElse(() => 'both')
       ),
       ...(params?.status ? { status: params.status } : {}),

@@ -34,7 +34,7 @@ export function UserSearchScreen() {
   const isLoading = isSearching ? isSearchLoading : isSuggestedLoading
   const currentData = isSearching
     ? pipe(
-        Option.fromNullable(searchResults),
+        Option.fromNullishOr(searchResults),
         Option.map((r) => r.items),
         Option.getOrElse(
           () =>
@@ -48,7 +48,7 @@ export function UserSearchScreen() {
         )
       )
     : pipe(
-        Option.fromNullable(suggested),
+        Option.fromNullishOr(suggested),
         Option.getOrElse(
           () =>
             [] as readonly {
@@ -62,7 +62,7 @@ export function UserSearchScreen() {
       )
 
   const isInitialLoading =
-    isLoading && Array.isEmptyArray(currentData as unknown[])
+    isLoading && Array.isArrayEmpty(currentData as unknown[])
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const handleClear = useCallback(() => {
@@ -139,7 +139,7 @@ export function UserSearchScreen() {
         </View>
       </View>
 
-      {!isSearching && !Array.isEmptyArray(currentData as unknown[]) && (
+      {!isSearching && !Array.isArrayEmpty(currentData as unknown[]) && (
         <View className="px-4 pt-2 pb-1">
           <Text
             className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide"

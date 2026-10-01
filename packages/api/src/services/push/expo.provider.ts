@@ -169,7 +169,7 @@ export const ExpoPushServiceLive = Layer.effect(
         if (ticket.status === 'error') {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(ticket.message),
+              Option.fromNullishOr(ticket.message),
               Option.getOrElse(() => 'Unknown push error')
             ),
             cause: ticket.details,
@@ -191,7 +191,7 @@ export const ExpoPushServiceLive = Layer.effect(
           messages,
           (m) => !Expo.isExpoPushToken(m.to)
         )
-        if (Array.isNonEmptyArray(invalidTokens)) {
+        if (Array.isArrayNonEmpty(invalidTokens)) {
           return yield* new PushConfigError({
             message: `Invalid Expo push tokens: ${Array.join(
               Array.map(invalidTokens, (t) => t.to),
@@ -257,7 +257,7 @@ export const ExpoPushServiceLive = Layer.effect(
         if (ticket.status === 'error') {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(ticket.message),
+              Option.fromNullishOr(ticket.message),
               Option.getOrElse(() => 'Unknown live activity push error')
             ),
             cause: ticket.details,

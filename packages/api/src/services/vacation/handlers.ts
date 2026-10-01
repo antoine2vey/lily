@@ -1,9 +1,9 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
 import { getVacation } from '@lily/api/services/vacation/endpoints/get-vacation'
 import { setVacation } from '@lily/api/services/vacation/endpoints/set-vacation'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const VacationApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'vacation', (handlers) =>

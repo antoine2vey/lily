@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deadLetterMessages } from '@lily/db/schema'
 import { desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
 export interface CreateDeadLetterData {
@@ -62,10 +62,10 @@ export interface IDeadLetterRepository {
 }
 
 // Tag for dependency injection
-export class DeadLetterRepository extends Context.Tag('DeadLetterRepository')<
+export class DeadLetterRepository extends Context.Service<
   DeadLetterRepository,
   IDeadLetterRepository
->() {}
+>()('DeadLetterRepository') {}
 
 // Live implementation using PgDrizzle
 export const DeadLetterRepositoryLive = Layer.effect(
@@ -85,8 +85,8 @@ export const DeadLetterRepositoryLive = Layer.effect(
             payload: data.payload,
             error: data.error,
             retryCount: data.retryCount,
-            userId: Option.getOrNull(Option.fromNullable(data.userId)),
-            plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
+            userId: Option.getOrNull(Option.fromNullishOr(data.userId)),
+            plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
           })
           .returning()
         return row ? mapToDeadLetterMessage(row) : null

@@ -1,7 +1,7 @@
 import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
-import { Array, Either, Option, pipe } from 'effect'
+import { Array, Option, pipe, Result } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -124,7 +124,7 @@ export function ChatScreen() {
 
   useEffect(() => {
     const history = pipe(
-      Option.fromNullable(initialMessages),
+      Option.fromNullishOr(initialMessages),
       Option.getOrElse(() => [] as ReadonlyArray<UIMessage>)
     )
     Array.forEach(collectToolResultIds(history), (id) => {
@@ -138,7 +138,7 @@ export function ChatScreen() {
       collectToolResultIds(chatMessages),
       (id) => !seenToolIdsRef.current.has(id)
     )
-    if (!Array.isNonEmptyReadonlyArray(fresh)) return
+    if (!Array.isReadonlyArrayNonEmpty(fresh)) return
     Array.forEach(fresh, (id) => {
       seenToolIdsRef.current.add(id)
     })
@@ -187,7 +187,7 @@ export function ChatScreen() {
         }
       }
 
-      const imageOption = Option.fromNullable(uploadedImageUrl)
+      const imageOption = Option.fromNullishOr(uploadedImageUrl)
       const messagePayload = pipe(
         imageOption,
         Option.match({
@@ -200,7 +200,7 @@ export function ChatScreen() {
       )
 
       const bodyOption = pipe(
-        Option.fromNullable(uploadedImageKey),
+        Option.fromNullishOr(uploadedImageKey),
         Option.map((key) => ({ imageKey: key }))
       )
 
@@ -240,9 +240,9 @@ export function ChatScreen() {
       const result = await createConversation.mutateAsync({
         payload: { kind: 'general' },
       })
-      Either.match(result, {
-        onLeft: () => undefined,
-        onRight: (created) => {
+      Result.match(result, {
+        onFailure: () => undefined,
+        onSuccess: (created) => {
           setActiveConversationId(created.id)
           setPendingMessage({ content, imageUri })
         },
@@ -270,7 +270,7 @@ export function ChatScreen() {
           autoOpenToolId={autoOpenToolId}
           onAutoOpenHandled={clearAutoOpen}
           createdAt={pipe(
-            Option.fromNullable(metadata?.createdAt),
+            Option.fromNullishOr(metadata?.createdAt),
             Option.getOrElse(() => nowAsIsoString())
           )}
         />

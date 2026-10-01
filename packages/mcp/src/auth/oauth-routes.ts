@@ -1,12 +1,8 @@
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from '@effect/platform'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { McpServerUrl } from '@lily/mcp/config'
 import { Array, Effect, Option, Schema } from 'effect'
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
 
@@ -14,19 +10,13 @@ const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
 
 const ClientRegistrationBody = Schema.Struct({
   redirect_uris: Schema.NonEmptyArray(Schema.String),
-  client_name: Schema.optionalWith(Schema.String, { exact: true }),
-  client_uri: Schema.optionalWith(Schema.String, { exact: true }),
-  logo_uri: Schema.optionalWith(Schema.String, { exact: true }),
-  scope: Schema.optionalWith(Schema.String, { exact: true }),
-  grant_types: Schema.optionalWith(Schema.Array(Schema.String), {
-    exact: true,
-  }),
-  response_types: Schema.optionalWith(Schema.Array(Schema.String), {
-    exact: true,
-  }),
-  token_endpoint_auth_method: Schema.optionalWith(Schema.String, {
-    exact: true,
-  }),
+  client_name: Schema.optionalKey(Schema.String),
+  client_uri: Schema.optionalKey(Schema.String),
+  logo_uri: Schema.optionalKey(Schema.String),
+  scope: Schema.optionalKey(Schema.String),
+  grant_types: Schema.optionalKey(Schema.Array(Schema.String)),
+  response_types: Schema.optionalKey(Schema.Array(Schema.String)),
+  token_endpoint_auth_method: Schema.optionalKey(Schema.String),
 })
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -109,12 +99,14 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
       const body = yield* request.json
       const oauthService = yield* OAuthService
 
-      const parsed = yield* Schema.decodeUnknown(ClientRegistrationBody)(body)
+      const parsed = yield* Schema.decodeUnknownEffect(ClientRegistrationBody)(
+        body
+      )
 
       const client = yield* oauthService.registerClient(parsed)
       return yield* jsonResponse(client, 201)
     }).pipe(
-      Effect.catchTag('ParseError', () =>
+      Effect.catchTag('SchemaError', () =>
         errorResponse('invalid_request', 'Invalid registration request body')
       ),
       Effect.catchTag('SqlError', () =>

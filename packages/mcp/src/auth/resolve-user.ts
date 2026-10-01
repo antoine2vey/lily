@@ -1,4 +1,3 @@
-import { HttpServerRequest } from '@effect/platform'
 import { ApiClient, CurrentJwt, CurrentUserId } from '@lily/mcp/api-client'
 import type { UserApiCredentials } from '@lily/mcp/auth/oauth-repository'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
@@ -11,6 +10,7 @@ import {
   Option,
   pipe,
 } from 'effect'
+import { HttpServerRequest } from 'effect/http'
 
 // ── JWT helpers ────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ const getJwtExp = (jwt: string): Option.Option<number> => {
     Option.flatMap((payload) => {
       try {
         const json = JSON.parse(atob(payload)) as { exp?: number }
-        return Option.fromNullable(json.exp)
+        return Option.fromNullishOr(json.exp)
       } catch {
         return Option.none()
       }
@@ -40,7 +40,7 @@ const getJwtExp = (jwt: string): Option.Option<number> => {
  */
 const isJwtExpired = (jwt: string): boolean => {
   const nowSeconds = Math.floor(
-    DateTime.toEpochMillis(DateTime.unsafeNow()) / 1000
+    DateTime.toEpochMillis(DateTime.nowUnsafe()) / 1000
   )
   return pipe(
     getJwtExp(jwt),

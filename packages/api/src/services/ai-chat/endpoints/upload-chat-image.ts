@@ -1,6 +1,3 @@
-import type { PlatformError } from '@effect/platform/Error'
-import { FileSystem } from '@effect/platform/FileSystem'
-import type { PersistedFile } from '@effect/platform/Multipart'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { nowAsEpochMillis } from '@lily/shared'
 import { GCSService } from '@lily/shared/services/file/gcs'
@@ -9,6 +6,9 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import { Array, Effect, pipe, String } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
+import type { PlatformError } from 'effect/PlatformError'
 
 export const uploadChatImage = ({
   conversationId,

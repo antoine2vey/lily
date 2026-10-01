@@ -16,7 +16,7 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
   const apiClient = yield* ApiClient
 
   const filter = pipe(
-    Option.fromNullable(params.filter),
+    Option.fromNullishOr(params.filter),
     Option.getOrElse(() => 'all' as const)
   )
 
@@ -26,7 +26,7 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
     limit: '100',
   })
 
-  if (Array.isEmptyReadonlyArray(result.items)) {
+  if (Array.isReadonlyArrayEmpty(result.items)) {
     return {
       text:
         filter === 'dead'
@@ -42,13 +42,13 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
     (acc, plant) => {
       // A plant in the cemetery shows when and why it died instead of health
       const healthBadge = pipe(
-        Option.fromNullable(plant.diedAt),
+        Option.fromNullishOr(plant.diedAt),
         Option.match({
           onNone: () => `[${healthLabel(plant.health)}]`,
           onSome: (diedAt) =>
             `[In memory · died ${formatIsoDate(diedAt)} · ${deathCauseLabel(
               pipe(
-                Option.fromNullable(plant.deathCause),
+                Option.fromNullishOr(plant.deathCause),
                 Option.getOrElse(() => 'unknown')
               )
             )}]`,
@@ -56,7 +56,7 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
       )
 
       const room = pipe(
-        Option.fromNullable(plant.room),
+        Option.fromNullishOr(plant.room),
         Option.map((r) => ` | ${r.icon} ${r.name}`),
         Option.getOrElse(() => '')
       )
@@ -67,7 +67,7 @@ export const listPlantsEffect = Effect.fn('MCP.listPlants')(function* (params: {
           'caretaking',
           () =>
             ` | Caretaking for ${pipe(
-              Option.fromNullable(plant.ownerName),
+              Option.fromNullishOr(plant.ownerName),
               Option.getOrElse(() => 'someone')
             )}`
         ),

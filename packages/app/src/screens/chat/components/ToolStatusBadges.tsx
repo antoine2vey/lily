@@ -73,7 +73,7 @@ export function CarePlanStatusBadge({
   const { t } = useTranslation('chat')
   const { data } = usePlantCarePlans(plantId)
   const plan = pipe(
-    Option.fromNullable(data?.items),
+    Option.fromNullishOr(data?.items),
     Option.flatMap((items) =>
       Array.findFirst(items, (p) => p.id === carePlanId)
     )
@@ -82,7 +82,7 @@ export function CarePlanStatusBadge({
 
   const done = Array.length(
     Array.filter(plan.value.steps, (s) =>
-      Option.isSome(Option.fromNullable(s.completedAt))
+      Option.isSome(Option.fromNullishOr(s.completedAt))
     )
   )
   const total = Array.length(plan.value.steps)

@@ -12,7 +12,7 @@ import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/schedu
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import type { User } from '@lily/shared'
 import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
-import { Array as Arr, Effect, Layer, Logger, LogLevel } from 'effect'
+import { Array as Arr, Effect, Layer, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Default user with all notifications enabled and DND off
@@ -39,7 +39,7 @@ const runPollAndEnqueue = (
           createMockPlantRepository({ plants: plantsData })
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 

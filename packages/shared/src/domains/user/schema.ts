@@ -3,15 +3,15 @@ import { Schema } from 'effect'
 import { VacationStatus } from '../vacation/schema'
 
 // Role, status, and language literals
-export const UserRole = Schema.Literal('user', 'admin')
-export const UserStatus = Schema.Literal(
+export const UserRole = Schema.Literals(['user', 'admin'])
+export const UserStatus = Schema.Literals([
   'active',
   'suspended',
   'banned',
-  'pending_deletion'
-)
-export const LanguageCode = Schema.Literal('en', 'fr')
-export const TemperatureUnit = Schema.Literal('celsius', 'fahrenheit')
+  'pending_deletion',
+])
+export const LanguageCode = Schema.Literals(['en', 'fr'])
+export const TemperatureUnit = Schema.Literals(['celsius', 'fahrenheit'])
 
 export type UserRole = typeof UserRole.Type
 export type UserStatus = typeof UserStatus.Type
@@ -24,8 +24,8 @@ export const User = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   firstName: Schema.NullOr(Schema.String),
   lastName: Schema.NullOr(Schema.String),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
   emailVerified: Schema.Boolean,
   image: Schema.NullOr(Schema.String),
   bio: Schema.NullOr(Schema.String),
@@ -51,10 +51,10 @@ export const User = Schema.Struct({
   latitude: Schema.NullOr(Schema.Number),
   longitude: Schema.NullOr(Schema.Number),
   temperatureUnit: TemperatureUnit,
-  deletedAt: Schema.NullOr(Schema.Date),
+  deletedAt: Schema.NullOr(Schema.DateFromString),
   vacationStatus: VacationStatus,
-  vacationStart: Schema.NullOr(Schema.Date),
-  vacationEnd: Schema.NullOr(Schema.Date),
+  vacationStart: Schema.NullOr(Schema.DateFromString),
+  vacationEnd: Schema.NullOr(Schema.DateFromString),
 })
 
 export const UserCreateRequest = Schema.Struct({

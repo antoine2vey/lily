@@ -69,8 +69,8 @@ export const createMockAchievementRepository = (
     countCareLogsByType: (_userId: string, type: CareType) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.careLogCounts),
-          Option.flatMap((counts) => Option.fromNullable(counts[type])),
+          Option.fromNullishOr(data.careLogCounts),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[type])),
           Option.getOrElse(() => 0)
         )
       ),
@@ -78,7 +78,7 @@ export const createMockAchievementRepository = (
     countPlants: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.plantCount),
+          Option.fromNullishOr(data.plantCount),
           Option.getOrElse(() => 0)
         )
       ),
@@ -86,8 +86,8 @@ export const createMockAchievementRepository = (
     countLivingPlants: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.livingPlantCount),
-          Option.orElse(() => Option.fromNullable(data.plantCount)),
+          Option.fromNullishOr(data.livingPlantCount),
+          Option.orElse(() => Option.fromNullishOr(data.plantCount)),
           Option.getOrElse(() => 0)
         )
       ),
@@ -95,7 +95,7 @@ export const createMockAchievementRepository = (
     countPhotos: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.photoCount),
+          Option.fromNullishOr(data.photoCount),
           Option.getOrElse(() => 0)
         )
       ),
@@ -103,7 +103,7 @@ export const createMockAchievementRepository = (
     getCareStreak: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.careStreak),
+          Option.fromNullishOr(data.careStreak),
           Option.getOrElse(() => 0)
         )
       ),
@@ -111,7 +111,7 @@ export const createMockAchievementRepository = (
     countScans: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.scanCount),
+          Option.fromNullishOr(data.scanCount),
           Option.getOrElse(() => 0)
         )
       ),
@@ -119,14 +119,14 @@ export const createMockAchievementRepository = (
     countPhotosForPlant: (_userId: string, _plantId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.plantPhotoCount),
+          Option.fromNullishOr(data.plantPhotoCount),
           Option.getOrElse(() => 0)
         )
       ),
 
     incrementHistoryViews: (_userId: string) => {
       const currentCount = pipe(
-        Option.fromNullable(data.historyViewCount),
+        Option.fromNullishOr(data.historyViewCount),
         Option.getOrElse(() => 0)
       )
       data.historyViewCount = currentCount + 1
@@ -136,7 +136,7 @@ export const createMockAchievementRepository = (
     getHistoryViewCount: (_userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.historyViewCount),
+          Option.fromNullishOr(data.historyViewCount),
           Option.getOrElse(() => 0)
         )
       ),
@@ -153,7 +153,7 @@ export const createMockAchievementRepository = (
     getBatchCareStreaks: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(data.batchCareStreaks),
+          Option.fromNullishOr(data.batchCareStreaks),
           Option.getOrElse(() => new Map<string, number>())
         )
       ),

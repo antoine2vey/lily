@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { oauthIdentities } from '@lily/db/schema/oauth-identities'
 import { and, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type OAuthIdentity = typeof oauthIdentities.$inferSelect
 export type OAuthProvider = 'apple' | 'google'
@@ -29,9 +29,10 @@ export interface IOAuthIdentityRepository {
   ) => Effect.Effect<OAuthIdentity | null, SqlError>
 }
 
-export class OAuthIdentityRepository extends Context.Tag(
-  'OAuthIdentityRepository'
-)<OAuthIdentityRepository, IOAuthIdentityRepository>() {}
+export class OAuthIdentityRepository extends Context.Service<
+  OAuthIdentityRepository,
+  IOAuthIdentityRepository
+>()('OAuthIdentityRepository') {}
 
 export const OAuthIdentityRepositoryLive = Layer.effect(
   OAuthIdentityRepository,

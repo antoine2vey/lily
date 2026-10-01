@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { weatherSnapshots } from '@lily/db/schema'
 import { and, desc, eq, lt } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface IWeatherRepository {
   readonly upsertSnapshot: (data: {
@@ -32,10 +32,10 @@ export interface IWeatherRepository {
   ) => Effect.Effect<number, SqlError>
 }
 
-export class WeatherRepository extends Context.Tag('WeatherRepository')<
+export class WeatherRepository extends Context.Service<
   WeatherRepository,
   IWeatherRepository
->() {}
+>()('WeatherRepository') {}
 
 export const WeatherRepositoryLive = Layer.effect(
   WeatherRepository,
@@ -71,7 +71,7 @@ export const WeatherRepositoryLive = Layer.effect(
 
       findRecentByLocation: (lat, lng, days) =>
         Effect.gen(function* () {
-          const cutoffDt = DateTime.subtract(DateTime.unsafeNow(), {
+          const cutoffDt = DateTime.subtract(DateTime.nowUnsafe(), {
             days,
           })
           const cutoffDateStr = DateTime.formatIsoDateUtc(cutoffDt)
@@ -96,7 +96,7 @@ export const WeatherRepositoryLive = Layer.effect(
 
       cleanupOldSnapshots: (olderThanDays) =>
         Effect.gen(function* () {
-          const cutoffDt = DateTime.subtract(DateTime.unsafeNow(), {
+          const cutoffDt = DateTime.subtract(DateTime.nowUnsafe(), {
             days: olderThanDays,
           })
           const cutoff = DateTime.toDateUtc(cutoffDt)

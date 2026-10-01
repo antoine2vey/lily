@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -10,6 +9,7 @@ import type { AdminLiveActivityTriggerResponse } from '@lily/shared/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PushService } from '@lily/shared/server'
 import { Array, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 type Outcome = AdminLiveActivityTriggerResponse['outcomes'][number]
 
@@ -41,7 +41,7 @@ export const triggerLiveActivityStart = (
     const startTokens = yield* activityRepo.findStartTokensByUserId(userId)
     const activityId = crypto.randomUUID()
 
-    if (!contentState || Array.isEmptyReadonlyArray(startTokens)) {
+    if (!contentState || Array.isReadonlyArrayEmpty(startTokens)) {
       return {
         userId,
         activityId,

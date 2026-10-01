@@ -10,7 +10,7 @@ import { DateTime, Effect, Exit, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helpers to create dates relative to now using DateTime
-const now = DateTime.unsafeNow()
+const now = DateTime.nowUnsafe()
 const dateFromNow = (parts: Partial<DateTime.DateTime.PartsForMath>): Date =>
   DateTime.toDateUtc(DateTime.add(now, parts))
 const nowAsDate = (): Date => DateTime.toDateUtc(now)
@@ -33,11 +33,11 @@ describe('LimitChecker', () => {
       createMockAchievementRepository({
         achievements: [],
         plantCount: pipe(
-          Option.fromNullable(options.plantCount),
+          Option.fromNullishOr(options.plantCount),
           Option.getOrElse(() => 0)
         ),
         ...pipe(
-          Option.fromNullable(options.livingPlantCount),
+          Option.fromNullishOr(options.livingPlantCount),
           Option.match({
             onNone: () => ({}),
             onSome: (livingPlantCount) => ({ livingPlantCount }),

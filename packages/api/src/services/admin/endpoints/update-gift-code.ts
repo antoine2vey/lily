@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type GiftCodeRecord,
   GiftCodeRepository,
@@ -12,6 +11,7 @@ import {
   GiftCodeNotFoundError,
 } from '@lily/shared/errors/gift-code'
 import { DateTime, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const updateGiftCode = (
   codeId: string,
@@ -28,7 +28,7 @@ export const updateGiftCode = (
   Effect.gen(function* () {
     const repo = yield* GiftCodeRepository
 
-    if (data.expiresAt && isOverdue(DateTime.unsafeMake(data.expiresAt))) {
+    if (data.expiresAt && isOverdue(DateTime.makeUnsafe(data.expiresAt))) {
       return yield* new GiftCodeExpiryInPastError()
     }
 

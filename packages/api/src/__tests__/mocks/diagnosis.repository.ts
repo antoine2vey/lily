@@ -14,16 +14,16 @@ const mapToDiagnosis = (row: DiagnosisRecord): Diagnosis => ({
   id: row.id,
   plantId: row.plantId,
   userId: row.userId,
-  chatMessageId: Option.getOrUndefined(Option.fromNullable(row.chatMessageId)),
+  chatMessageId: Option.getOrUndefined(Option.fromNullishOr(row.chatMessageId)),
   diseaseName: row.diseaseName,
   severity: row.severity,
   confidence: row.confidence,
   symptoms: row.symptoms,
   treatmentSteps: row.treatmentSteps,
   preventionTips: Option.getOrUndefined(
-    Option.fromNullable(row.preventionTips)
+    Option.fromNullishOr(row.preventionTips)
   ),
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
+  imageUrl: Option.getOrUndefined(Option.fromNullishOr(row.imageKey)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -56,11 +56,11 @@ export const createMockDiagnosisRepository = (
 
     findByPlantId: (params) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit

@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { NotificationNotFoundError } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deleteNotification = (
   notificationId: string

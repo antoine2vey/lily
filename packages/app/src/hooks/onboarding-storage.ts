@@ -50,8 +50,8 @@ export const completeOnboarding = Effect.all([
   multiRemove([ONBOARDING_KEYS.step, ONBOARDING_KEYS.data]),
 ]).pipe(Effect.catchTag('OnboardingStorageError', () => Effect.void))
 
-const OnboardingDataJson = Schema.parseJson(
-  Schema.Record({ key: Schema.String, value: Schema.Unknown })
+const OnboardingDataJson = Schema.fromJsonString(
+  Schema.Record(Schema.String, Schema.Unknown)
 )
 const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)
 const encodeOnboardingData = Schema.encodeSync(OnboardingDataJson)

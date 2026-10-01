@@ -64,8 +64,8 @@ export const buildLivedWithYouLabel = (
   tCemetery('livedFor', {
     duration: humanizeAge(
       getCalendarAge(
-        DateTime.unsafeMake(dateAdded),
-        DateTime.unsafeMake(diedAt)
+        DateTime.makeUnsafe(dateAdded),
+        DateTime.makeUnsafe(diedAt)
       ),
       tDetail
     ),
@@ -77,7 +77,7 @@ export const buildLivedWithYouLabel = (
 export const buildGrowingForLabel = (dateAdded: Date, t: Translate): string =>
   t('gallery.growingFor', {
     duration: humanizeAge(
-      getCalendarAge(DateTime.unsafeMake(dateAdded), now()),
+      getCalendarAge(DateTime.makeUnsafe(dateAdded), now()),
       t
     ),
   })

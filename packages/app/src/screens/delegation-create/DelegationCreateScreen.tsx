@@ -45,7 +45,7 @@ export function DelegationCreateScreen() {
   const [formError, setFormError] = useState<FormError>(null)
 
   const allPlantIds = pipe(
-    Option.fromNullable(plantsData?.items),
+    Option.fromNullishOr(plantsData?.items),
     Option.map(Arr.map((p: { id: string }) => p.id)),
     Option.getOrElse(() => [] as ReadonlyArray<string>)
   )
@@ -68,7 +68,7 @@ export function DelegationCreateScreen() {
 
   const isFormValid =
     selectedCaretaker !== null &&
-    Arr.isNonEmptyArray([...selectedPlantIds]) &&
+    Arr.isArrayNonEmpty([...selectedPlantIds]) &&
     startDate !== null &&
     endDate !== null
 
@@ -81,12 +81,12 @@ export function DelegationCreateScreen() {
         caretakerId: selectedCaretaker.id,
         plantIds: [...selectedPlantIds] as string[],
         startDate: pipe(
-          Option.fromNullable(startDate),
+          Option.fromNullishOr(startDate),
           Option.map((d) => `${d}T00:00:00.000Z`),
           Option.getOrElse(() => nowAsIsoString())
         ),
         endDate: pipe(
-          Option.fromNullable(endDate),
+          Option.fromNullishOr(endDate),
           Option.map((d) => `${d}T00:00:00.000Z`),
           Option.getOrElse(() => nowAsIsoString())
         ),
@@ -104,7 +104,7 @@ export function DelegationCreateScreen() {
         const errorMessage = pipe(
           Match.value(
             pipe(
-              Option.fromNullable(err._tag),
+              Option.fromNullishOr(err._tag),
               Option.getOrElse(() => 'Unknown')
             )
           ),
@@ -112,7 +112,7 @@ export function DelegationCreateScreen() {
           Match.when('DelegationOverlapError', () => t('errors.overlap')),
           Match.when('DelegationDateError', () =>
             pipe(
-              Option.fromNullable(err.message),
+              Option.fromNullishOr(err.message),
               Option.getOrElse(() => t('errors.invalidDate'))
             )
           ),

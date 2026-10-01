@@ -7,10 +7,9 @@ export interface SessionContext {
   readonly user: UserProfile
 }
 
-export class Session extends Context.Tag('Session')<
-  Session,
-  SessionContext
->() {}
+export class Session extends Context.Service<Session, SessionContext>()(
+  'Session'
+) {}
 
 /**
  * Wraps an effect to provide Session context from the current authenticated user.
@@ -35,7 +34,7 @@ export const withSession = <A, E, R>(
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username,
-      timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
+      timezone: Option.getOrUndefined(Option.fromNullishOr(user.timezone)),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       role: user.role,

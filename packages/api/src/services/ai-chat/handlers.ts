@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { createConversation } from '@lily/api/services/ai-chat/endpoints/create-conversation'
 import { deleteConversation } from '@lily/api/services/ai-chat/endpoints/delete-conversation'
@@ -10,6 +9,7 @@ import { withConversationAuth } from '@lily/api/services/ai-chat/helpers/assert-
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const AIChatApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'aiChat', (handlers) =>
@@ -24,16 +24,16 @@ export const AIChatApiLive = (api: Api) =>
           ...(payload.title !== undefined ? { title: payload.title } : {}),
         }).pipe(withInfraErrorsAsDefect)
       )
-      .handle('listConversations', ({ urlParams }) =>
+      .handle('listConversations', ({ query: urlParams }) =>
         listConversations({
           ...parsePaginationParams(urlParams),
           ...(urlParams.kind !== undefined ? { kind: urlParams.kind } : {}),
         }).pipe(withInfraErrorsAsDefect)
       )
-      .handle('getConversation', ({ path: { conversationId } }) =>
+      .handle('getConversation', ({ params: { conversationId } }) =>
         withConversationAuth(conversationId).pipe(withInfraErrorsAsDefect)
       )
-      .handle('deleteConversation', ({ path: { conversationId } }) =>
+      .handle('deleteConversation', ({ params: { conversationId } }) =>
         withConversationAuth(conversationId).pipe(
           Effect.flatMap(() => deleteConversation(conversationId)),
           withInfraErrorsAsDefect
@@ -41,7 +41,7 @@ export const AIChatApiLive = (api: Api) =>
       )
       .handle(
         'getConversationMessages',
-        ({ path: { conversationId }, urlParams }) =>
+        ({ params: { conversationId }, query: urlParams }) =>
           withConversationAuth(conversationId).pipe(
             Effect.flatMap(() =>
               getChatHistory({
@@ -54,7 +54,7 @@ export const AIChatApiLive = (api: Api) =>
       )
       .handle(
         'streamConversationMessage',
-        ({ path: { conversationId }, payload }) =>
+        ({ params: { conversationId }, payload }) =>
           withConversationAuth(conversationId).pipe(
             Effect.flatMap((conversation) =>
               streamChatMessage(conversation, {
@@ -72,7 +72,7 @@ export const AIChatApiLive = (api: Api) =>
       )
       .handle(
         'uploadConversationImage',
-        ({ path: { conversationId }, payload: { files } }) =>
+        ({ params: { conversationId }, payload: { files } }) =>
           withConversationAuth(conversationId).pipe(
             Effect.flatMap(() => uploadChatImage({ conversationId, files })),
             withInfraErrorsAsDefect

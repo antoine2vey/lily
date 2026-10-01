@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
@@ -6,7 +5,7 @@ export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class VacationNotFoundError extends Schema.TaggedError<VacationNotFoundError>()(
@@ -16,5 +15,5 @@ export class VacationNotFoundError extends Schema.TaggedError<VacationNotFoundEr
       default: () => 'No vacation is scheduled or active',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

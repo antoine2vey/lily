@@ -14,7 +14,7 @@ export const createMockRagService = (
   return Layer.succeed(RagService, {
     retrieve: () => Effect.succeed(chunks),
     formatContext: (inputChunks: ChunkSearchResult[]) =>
-      Array.isEmptyArray(inputChunks)
+      Array.isArrayEmpty(inputChunks)
         ? ''
         : inputChunks
             .map((c: ChunkSearchResult) => `[${c.source}]: ${c.content}`)

@@ -1,4 +1,4 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { rateLimits } from '@lily/db/schema/auth'
 import { eq } from 'drizzle-orm'
 import {
@@ -44,10 +44,10 @@ export interface IRateLimiterService {
 /**
  * Rate limiter context tag
  */
-export class RateLimiterService extends Context.Tag('RateLimiterService')<
+export class RateLimiterService extends Context.Service<
   RateLimiterService,
   IRateLimiterService
->() {}
+>()('RateLimiterService') {}
 
 /**
  * Live implementation of Rate Limiter Service
@@ -60,7 +60,7 @@ export const RateLimiterServiceLive = Layer.effect(
     return {
       checkRateLimit: Effect.fn('RateLimiterService.checkRateLimit')(
         function* (key: string, config: RateLimitConfig) {
-          const nowDt = DateTime.unsafeNow()
+          const nowDt = DateTime.nowUnsafe()
           const currentTime = DateTime.toDateUtc(nowDt)
           const windowStart = DateTime.toDateUtc(
             DateTime.subtract(nowDt, { seconds: config.windowSeconds })
@@ -88,9 +88,9 @@ export const RateLimiterServiceLive = Layer.effect(
 
           // Check if window has expired
           if (
-            DateTime.lessThan(
-              DateTime.unsafeMake(record.windowStart),
-              DateTime.unsafeMake(windowStart)
+            DateTime.isLessThan(
+              DateTime.makeUnsafe(record.windowStart),
+              DateTime.makeUnsafe(windowStart)
             )
           ) {
             // Reset the window
@@ -107,11 +107,11 @@ export const RateLimiterServiceLive = Layer.effect(
           // Check if rate limit exceeded
           if (record.count >= config.maxRequests) {
             const windowEndDt = DateTime.addDuration(
-              DateTime.unsafeMake(record.windowStart),
+              DateTime.makeUnsafe(record.windowStart),
               Duration.seconds(config.windowSeconds)
             )
             const retryAfter = Math.ceil(
-              DateTime.distance(nowDt, windowEndDt) / 1000
+              Duration.toMillis(DateTime.distance(nowDt, windowEndDt)) / 1000
             )
             return yield* new RateLimitExceededError({
               message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,

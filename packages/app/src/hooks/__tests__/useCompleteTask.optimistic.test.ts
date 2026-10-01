@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react-native'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // Controls how the mocked completion API behaves. Must be `mock`-prefixed to be
@@ -53,7 +53,7 @@ const makeClient = () =>
 const seed = (client: QueryClient) =>
   client.setQueryData(
     CARE_TASKS_QUERY_KEY,
-    Either.right({
+    Result.succeed({
       overdue: [task('1'), task('2')],
       today: [task('3')],
       upcoming: [],
@@ -62,8 +62,8 @@ const seed = (client: QueryClient) =>
   )
 
 const snapshot = (client: QueryClient) =>
-  Either.getOrThrow(
-    client.getQueryData(CARE_TASKS_QUERY_KEY) as Either.Either<
+  Result.getOrThrow(
+    client.getQueryData(CARE_TASKS_QUERY_KEY) as Result.Result<
       {
         overdue: Array<{ id: string }>
         today: Array<{ id: string }>

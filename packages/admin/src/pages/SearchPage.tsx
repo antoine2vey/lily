@@ -39,7 +39,7 @@ const ChunkCard = ({ chunk }: { readonly chunk: ChunkSearchResult }) => (
         {Math.round(chunk.similarity * 100)}%
       </span>
       {pipe(
-        Option.fromNullable(chunk.sourceUrl),
+        Option.fromNullishOr(chunk.sourceUrl),
         Option.match({
           onNone: () => (
             <span className="text-xs text-gray-500">{chunk.source}</span>
@@ -57,7 +57,7 @@ const ChunkCard = ({ chunk }: { readonly chunk: ChunkSearchResult }) => (
         })
       )}
       {pipe(
-        Option.fromNullable(chunk.plantType),
+        Option.fromNullishOr(chunk.plantType),
         Option.match({
           onNone: () => null,
           onSome: (pt) => (
@@ -68,7 +68,7 @@ const ChunkCard = ({ chunk }: { readonly chunk: ChunkSearchResult }) => (
         })
       )}
       {pipe(
-        Option.fromNullable(chunk.category),
+        Option.fromNullishOr(chunk.category),
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
@@ -105,7 +105,7 @@ export const SearchPage = () => {
   }
 
   const results = pipe(
-    Option.fromNullable(search.data),
+    Option.fromNullishOr(search.data),
     Option.getOrElse((): ReadonlyArray<ChunkSearchResult> => [])
   )
 
@@ -210,7 +210,7 @@ export const SearchPage = () => {
           <p className="mb-3 text-sm text-gray-500">
             {results.length} result{results.length !== 1 ? 's' : ''}
           </p>
-          {Array.isEmptyReadonlyArray(results) ? (
+          {Array.isReadonlyArrayEmpty(results) ? (
             <p className="text-sm text-gray-500">
               No matching chunks found. Try a different query or relax filters.
             </p>

@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import { Array, Effect, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface KnowledgeStatsResult {
   readonly totalChunks: number

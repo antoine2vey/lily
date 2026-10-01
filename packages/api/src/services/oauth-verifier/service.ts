@@ -30,20 +30,20 @@ export interface IOAuthVerifierService {
   ) => Effect.Effect<OAuthIdentity, OAuthVerificationError>
 }
 
-export class OAuthVerifierService extends Context.Tag('OAuthVerifierService')<
+export class OAuthVerifierService extends Context.Service<
   OAuthVerifierService,
   IOAuthVerifierService
->() {}
+>()('OAuthVerifierService') {}
 
 const OAuthConfig = Config.all({
   appleBundleId: Config.withDefault(
-    Config.string('APPLE_BUNDLE_ID'),
+    Config.String('APPLE_BUNDLE_ID'),
     'com.lilyapp.app'
   ),
-  googleWebClientId: Config.string('GOOGLE_OAUTH_WEB_CLIENT_ID'),
-  googleIosClientId: Config.option(Config.string('GOOGLE_OAUTH_IOS_CLIENT_ID')),
+  googleWebClientId: Config.String('GOOGLE_OAUTH_WEB_CLIENT_ID'),
+  googleIosClientId: Config.option(Config.String('GOOGLE_OAUTH_IOS_CLIENT_ID')),
   googleAndroidClientId: Config.option(
-    Config.string('GOOGLE_OAUTH_ANDROID_CLIENT_ID')
+    Config.String('GOOGLE_OAUTH_ANDROID_CLIENT_ID')
   ),
 })
 
@@ -123,15 +123,15 @@ export const OAuthVerifierServiceLive = Layer.effect(
               email: payload.email,
               emailVerified: coerceVerified(payload.email_verified),
               name: pipe(
-                Option.fromNullable(payload.name),
+                Option.fromNullishOr(payload.name),
                 Option.getOrElse<string | null>(() => null)
               ),
               firstName: pipe(
-                Option.fromNullable(payload.given_name),
+                Option.fromNullishOr(payload.given_name),
                 Option.getOrElse<string | null>(() => null)
               ),
               lastName: pipe(
-                Option.fromNullable(payload.family_name),
+                Option.fromNullishOr(payload.family_name),
                 Option.getOrElse<string | null>(() => null)
               ),
             } satisfies OAuthIdentity

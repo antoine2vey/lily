@@ -111,7 +111,7 @@ export function LogCareSheet({
   }
 
   const handleSave = () => {
-    if (Array.isEmptyReadonlyArray(plantIds)) return
+    if (Array.isReadonlyArrayEmpty(plantIds)) return
 
     saveCareLog(
       {
@@ -122,7 +122,7 @@ export function LogCareSheet({
         notes: String.isNonEmpty(String.trim(notes))
           ? String.trim(notes)
           : undefined,
-        photoUrl: Option.getOrUndefined(Option.fromNullable(photo)),
+        photoUrl: Option.getOrUndefined(Option.fromNullishOr(photo)),
       },
       {
         onSuccess: () => {
@@ -154,7 +154,7 @@ export function LogCareSheet({
       Option.getOrElse(() => t('unknownDate'))
     )
 
-  const canSave = !Array.isEmptyReadonlyArray(plantIds)
+  const canSave = !Array.isReadonlyArrayEmpty(plantIds)
   const isDark = iconColors.isDark
 
   return (

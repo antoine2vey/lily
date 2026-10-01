@@ -1,9 +1,9 @@
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
 import { McpServerUrl } from '@lily/mcp/config'
 import { Array, Effect, String as EffectString, Option, pipe } from 'effect'
+import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 const escapeHtml = (s: string) =>
   s
@@ -101,7 +101,7 @@ export const verifyHandler = Effect.gen(function* () {
 
   // Validate code_challenge_method — only S256 is supported
   const codeChallengeMethod = pipe(
-    Option.fromNullable(params.get('code_challenge_method')),
+    Option.fromNullishOr(params.get('code_challenge_method')),
     Option.getOrElse(() => 'S256')
   )
   if (codeChallengeMethod !== 'S256') {
@@ -109,14 +109,14 @@ export const verifyHandler = Effect.gen(function* () {
   }
 
   const scopes = pipe(
-    Option.fromNullable(params.get('scope')),
+    Option.fromNullishOr(params.get('scope')),
     Option.map((s) => EffectString.split(s, ' ')),
     Option.map(Array.fromIterable),
     Option.getOrElse(() => [] as string[])
   )
-  const state = Option.getOrUndefined(Option.fromNullable(params.get('state')))
+  const state = Option.getOrUndefined(Option.fromNullishOr(params.get('state')))
   const resource = Option.getOrUndefined(
-    Option.fromNullable(params.get('resource'))
+    Option.fromNullishOr(params.get('resource'))
   )
 
   // Store API credentials and create authorization code in parallel

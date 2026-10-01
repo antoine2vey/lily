@@ -31,11 +31,11 @@ export const calculateScheduledAt = (
 ): Effect.Effect<Date, never> =>
   Effect.gen(function* () {
     const tz = pipe(
-      Option.fromNullable(timezone),
+      Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
     const time = pipe(
-      Option.fromNullable(preferredTime),
+      Option.fromNullishOr(preferredTime),
       Option.getOrElse(() => DEFAULT_NOTIFICATION_TIME)
     )
 
@@ -80,11 +80,11 @@ export const calculateScheduledAt = (
     // Create a zoned DateTime for the base date
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
     )
 
     // Create DateTime from the base date
-    const baseDateTime = DateTime.unsafeMake(baseDate)
+    const baseDateTime = DateTime.makeUnsafe(baseDate)
 
     // Adjust to the user's timezone
     const zonedDateTime = DateTime.setZone(baseDateTime, zone)
@@ -92,14 +92,19 @@ export const calculateScheduledAt = (
     // Set the time to the user's preferred notification time
     const adjustedDateTime = pipe(
       zonedDateTime,
-      DateTime.setParts({ hours, minutes, seconds: 0, millis: 0 })
+      DateTime.setParts({
+        hour: hours,
+        minute: minutes,
+        second: 0,
+        millisecond: 0,
+      })
     )
 
     // Convert back to UTC for storage
     const utcDateTime = DateTime.toDateUtc(adjustedDateTime)
 
     // If the calculated time is in the past, add 1 day
-    const now = DateTime.toDateUtc(DateTime.unsafeNow())
+    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
     if (utcDateTime < now) {
       const nextDayDateTime = pipe(
         adjustedDateTime,
@@ -151,15 +156,15 @@ export const adjustForDoNotDisturb = (
 ): Effect.Effect<Date, never> =>
   Effect.gen(function* () {
     const tz = pipe(
-      Option.fromNullable(timezone),
+      Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
     const start = pipe(
-      Option.fromNullable(dndStart),
+      Option.fromNullishOr(dndStart),
       Option.getOrElse(() => DEFAULT_DND_START)
     )
     const end = pipe(
-      Option.fromNullable(dndEnd),
+      Option.fromNullishOr(dndEnd),
       Option.getOrElse(() => DEFAULT_DND_END)
     )
 
@@ -173,18 +178,18 @@ export const adjustForDoNotDisturb = (
 
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
     )
 
     // Convert scheduledAt to user's timezone
     const scheduledDateTime = pipe(
-      DateTime.unsafeMake(scheduledAt),
+      DateTime.makeUnsafe(scheduledAt),
       DateTime.setZone(zone)
     )
 
     // Get local time parts
     const parts = DateTime.toParts(scheduledDateTime)
-    const scheduledMinutes = parts.hours * 60 + parts.minutes
+    const scheduledMinutes = parts.hour * 60 + parts.minute
 
     const startMinutes = timeToMinutes(start)
     const endMinutes = timeToMinutes(end)
@@ -200,10 +205,10 @@ export const adjustForDoNotDisturb = (
     const adjusted = pipe(
       scheduledDateTime,
       DateTime.setParts({
-        hours: endHours,
-        minutes: endMins,
-        seconds: 0,
-        millis: 0,
+        hour: endHours,
+        minute: endMins,
+        second: 0,
+        millisecond: 0,
       })
     )
 
@@ -231,15 +236,15 @@ export const isInDoNotDisturbWindow = (
 ): Effect.Effect<boolean, never> =>
   Effect.gen(function* () {
     const tz = pipe(
-      Option.fromNullable(timezone),
+      Option.fromNullishOr(timezone),
       Option.getOrElse(() => DEFAULT_TIMEZONE)
     )
     const start = pipe(
-      Option.fromNullable(dndStart),
+      Option.fromNullishOr(dndStart),
       Option.getOrElse(() => DEFAULT_DND_START)
     )
     const end = pipe(
-      Option.fromNullable(dndEnd),
+      Option.fromNullishOr(dndEnd),
       Option.getOrElse(() => DEFAULT_DND_END)
     )
 
@@ -252,16 +257,16 @@ export const isInDoNotDisturbWindow = (
 
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
     )
 
     const zonedTime = pipe(
-      DateTime.unsafeMake(currentTime),
+      DateTime.makeUnsafe(currentTime),
       DateTime.setZone(zone)
     )
 
     const parts = DateTime.toParts(zonedTime)
-    const currentMinutes = parts.hours * 60 + parts.minutes
+    const currentMinutes = parts.hour * 60 + parts.minute
 
     return isInDndWindow(
       currentMinutes,

@@ -1,6 +1,6 @@
-import { HttpMiddleware, HttpServerRequest } from '@effect/platform'
 import { Alerter } from '@lily/api/services/alerting/service'
-import { DateTime, Effect } from 'effect'
+import { DateTime, Duration, Effect } from 'effect'
+import { HttpMiddleware, HttpServerRequest } from 'effect/http'
 
 /**
  * Combined request logger + 5xx alerter — a single pass through the middleware
@@ -10,11 +10,13 @@ import { DateTime, Effect } from 'effect'
 export const ObservabilityMiddleware = HttpMiddleware.make((app) =>
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest
-    const start = DateTime.unsafeNow()
+    const start = DateTime.nowUnsafe()
 
     const response = yield* app
 
-    const durationMs = DateTime.distance(start, DateTime.unsafeNow())
+    const durationMs = Duration.toMillis(
+      DateTime.distance(start, DateTime.nowUnsafe())
+    )
 
     yield* Effect.log(
       `${request.method} ${request.url} ${response.status} (${durationMs}ms)`

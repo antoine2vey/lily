@@ -43,13 +43,13 @@ export const respondToDelegation = Effect.fn(
   })
 
   const caretakerName = pipe(
-    Option.fromNullable(delegation.caretakerName),
+    Option.fromNullishOr(delegation.caretakerName),
     Option.getOrElse(() => 'Someone')
   )
 
   const owner = yield* userRepo.findById(delegation.ownerId)
   const ownerLanguage = Option.getOrElse(
-    Option.fromNullable(owner?.language),
+    Option.fromNullishOr(owner?.language),
     () => 'en' as const
   )
 
@@ -67,7 +67,7 @@ export const respondToDelegation = Effect.fn(
 
   const updated = yield* delegationRepo.findById(delegationId)
   return yield* pipe(
-    Option.fromNullable(updated),
+    Option.fromNullishOr(updated),
     Option.match({
       onNone: () => Effect.fail(new DelegationNotFoundError({ delegationId })),
       onSome: Effect.succeed,

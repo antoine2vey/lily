@@ -1,5 +1,4 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   oauthAccessTokens,
   oauthAuthorizationCodes,
@@ -9,6 +8,7 @@ import {
 } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -118,10 +118,10 @@ export interface IOAuthRepository {
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
-export class OAuthRepository extends Context.Tag('OAuthRepository')<
+export class OAuthRepository extends Context.Service<
   OAuthRepository,
   IOAuthRepository
->() {}
+>()('OAuthRepository') {}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -209,16 +209,16 @@ export const OAuthRepositoryLive = Layer.effect(
         const clientId = client.client_id ?? crypto.randomUUID()
         const clientIdIssuedAt = client.client_id_issued_at
           ? DateTime.toDateUtc(
-              DateTime.unsafeMake(client.client_id_issued_at * 1000)
+              DateTime.makeUnsafe(client.client_id_issued_at * 1000)
             )
-          : DateTime.toDateUtc(DateTime.unsafeNow())
+          : DateTime.toDateUtc(DateTime.nowUnsafe())
 
         yield* db.insert(oauthClients).values({
           clientId,
           clientSecret: client.client_secret ?? null,
           clientSecretExpiresAt: client.client_secret_expires_at
             ? DateTime.toDateUtc(
-                DateTime.unsafeMake(client.client_secret_expires_at * 1000)
+                DateTime.makeUnsafe(client.client_secret_expires_at * 1000)
               )
             : null,
           redirectUris: client.redirect_uris as string[],
@@ -366,7 +366,7 @@ export const OAuthRepositoryLive = Layer.effect(
       upsertUserApiCredentials: Effect.fn(
         'OAuthRepository.upsertUserApiCredentials'
       )(function* (creds: UserApiCredentials) {
-        const now = DateTime.toDateUtc(DateTime.unsafeNow())
+        const now = DateTime.toDateUtc(DateTime.nowUnsafe())
         yield* db
           .insert(oauthUserApiCredentials)
           .values({

@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 interface EndActivityError {
   readonly error: string

@@ -18,7 +18,7 @@ export function IconButton({
 }: IconButtonProps) {
   const iconColors = useIconColors()
   const iconColor = pipe(
-    Option.fromNullable(color),
+    Option.fromNullishOr(color),
     Option.getOrElse(() => iconColors.slate900)
   )
 

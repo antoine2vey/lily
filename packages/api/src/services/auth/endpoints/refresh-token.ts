@@ -96,7 +96,7 @@ export const refreshToken = ({
       yield* jwtService.hashRefreshToken(newRefreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
       DateTime.addDuration(
-        DateTime.unsafeNow(),
+        DateTime.nowUnsafe(),
         Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
       )
     )

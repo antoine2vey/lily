@@ -2,14 +2,14 @@ import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 import { PlantCareSchedule } from '../plant/schema'
 
-export const DelegationStatus = Schema.Literal(
+export const DelegationStatus = Schema.Literals([
   'pending',
   'accepted',
   'rejected',
   'active',
   'completed',
-  'canceled'
-)
+  'canceled',
+])
 export type DelegationStatus = typeof DelegationStatus.Type
 
 export const DelegationPlantSummary = Schema.Struct({
@@ -31,14 +31,14 @@ export const Delegation = Schema.Struct({
   caretakerImage: Schema.NullOr(Schema.String),
   status: DelegationStatus,
   message: Schema.NullOr(Schema.String),
-  startDate: Schema.Date,
-  endDate: Schema.Date,
+  startDate: Schema.DateFromString,
+  endDate: Schema.DateFromString,
   plants: Schema.Array(DelegationPlantSummary),
-  respondedAt: Schema.NullOr(Schema.Date),
-  canceledAt: Schema.NullOr(Schema.Date),
-  completedAt: Schema.NullOr(Schema.Date),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  respondedAt: Schema.NullOr(Schema.DateFromString),
+  canceledAt: Schema.NullOr(Schema.DateFromString),
+  completedAt: Schema.NullOr(Schema.DateFromString),
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 export type Delegation = typeof Delegation.Type
 
@@ -51,10 +51,10 @@ export const DelegationListItem = Schema.Struct({
   caretakerName: Schema.NullOr(Schema.String),
   caretakerImage: Schema.NullOr(Schema.String),
   status: DelegationStatus,
-  startDate: Schema.Date,
-  endDate: Schema.Date,
+  startDate: Schema.DateFromString,
+  endDate: Schema.DateFromString,
   plantCount: Schema.Number,
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 export type DelegationListItem = typeof DelegationListItem.Type
 

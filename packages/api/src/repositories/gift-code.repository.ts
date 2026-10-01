@@ -1,15 +1,15 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import {
   extractCount,
   getPaginationParams,
   type PaginationInput,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { giftCodeRedemptions, giftCodes, users } from '@lily/db/schema'
 import { compact } from '@lily/shared'
 import type { GiftDuration } from '@lily/shared/admin'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { Context, Effect, Layer, Option, String as Str } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type GiftCodeRecord = Omit<typeof giftCodes.$inferSelect, 'duration'> & {
   duration: GiftDuration
@@ -90,10 +90,10 @@ export interface IGiftCodeRepository {
   >
 }
 
-export class GiftCodeRepository extends Context.Tag('GiftCodeRepository')<
+export class GiftCodeRepository extends Context.Service<
   GiftCodeRepository,
   IGiftCodeRepository
->() {}
+>()('GiftCodeRepository') {}
 
 // Drizzle infers pgEnum as `string` — safely narrow to the known literal union
 const asRecord = (row: typeof giftCodes.$inferSelect): GiftCodeRecord =>
@@ -226,7 +226,7 @@ export const GiftCodeRepositoryLive = Layer.effect(
               eq(giftCodeRedemptions.userId, userId)
             )
           )
-        return Option.getOrNull(Option.fromNullable(found))
+        return Option.getOrNull(Option.fromNullishOr(found))
       }),
 
       findRedemptionsByCode: Effect.fn(

@@ -1,5 +1,4 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { magicLinks } from '@lily/db/schema/auth'
 import { hoursAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, gt, isNull, lt } from 'drizzle-orm'
@@ -13,6 +12,7 @@ import {
   Option,
   pipe,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Magic link record type
@@ -45,10 +45,10 @@ export interface IMagicLinkRepository {
 /**
  * Magic link repository context tag
  */
-export class MagicLinkRepository extends Context.Tag('MagicLinkRepository')<
+export class MagicLinkRepository extends Context.Service<
   MagicLinkRepository,
   IMagicLinkRepository
->() {}
+>()('MagicLinkRepository') {}
 
 /**
  * Live implementation of Magic Link Repository
@@ -106,9 +106,9 @@ export const MagicLinkRepositoryLive = Layer.effect(
           // Check expiration manually since drizzle gt() can be tricky with dates
           if (
             record &&
-            DateTime.greaterThan(
-              DateTime.unsafeMake(record.expiresAt),
-              DateTime.unsafeMake(currentTime)
+            DateTime.isGreaterThan(
+              DateTime.makeUnsafe(record.expiresAt),
+              DateTime.makeUnsafe(currentTime)
             )
           ) {
             return record

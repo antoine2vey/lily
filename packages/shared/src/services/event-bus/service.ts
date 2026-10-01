@@ -19,4 +19,6 @@ export interface IEventBus {
 }
 
 // Context tag for dependency injection
-export class EventBus extends Context.Tag('EventBus')<EventBus, IEventBus>() {}
+export class EventBus extends Context.Service<EventBus, IEventBus>()(
+  'EventBus'
+) {}

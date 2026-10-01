@@ -15,14 +15,14 @@ interface SaveCareLogInput {
 }
 
 const combineDateAndTime = (date: Date, time: Date): Date => {
-  const dateParts = DateTime.toParts(DateTime.unsafeMake(date))
-  const timeParts = DateTime.toParts(DateTime.unsafeMake(time))
-  const combined = DateTime.unsafeMake({
+  const dateParts = DateTime.toParts(DateTime.makeUnsafe(date))
+  const timeParts = DateTime.toParts(DateTime.makeUnsafe(time))
+  const combined = DateTime.makeUnsafe({
     year: dateParts.year,
     month: dateParts.month,
     day: dateParts.day,
-    hours: timeParts.hours,
-    minutes: timeParts.minutes,
+    hours: timeParts.hour,
+    minutes: timeParts.minute,
     seconds: 0,
     millis: 0,
   })

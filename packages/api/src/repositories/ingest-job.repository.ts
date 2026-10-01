@@ -1,8 +1,8 @@
-import { SqlError } from '@effect/sql/SqlError'
 import { ingestJobs, KnowledgeDrizzle } from '@lily/knowledge-db'
 import type { IngestJob, IngestJobStatus } from '@lily/shared/knowledge'
 import { count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import { SqlError } from 'effect/sql/SqlError'
 
 type IngestJobRow = typeof ingestJobs.$inferSelect
 
@@ -13,8 +13,8 @@ const mapToIngestJob = (row: IngestJobRow): IngestJob => ({
   status: row.status,
   documentsFetched: row.documentsFetched,
   chunksCreated: row.chunksCreated,
-  cursor: Option.getOrUndefined(Option.fromNullable(row.cursor)),
-  error: Option.getOrUndefined(Option.fromNullable(row.error)),
+  cursor: Option.getOrUndefined(Option.fromNullishOr(row.cursor)),
+  error: Option.getOrUndefined(Option.fromNullishOr(row.error)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -40,10 +40,10 @@ export interface IIngestJobRepository {
   readonly delete: (id: string) => Effect.Effect<boolean, SqlError>
 }
 
-export class IngestJobRepository extends Context.Tag('IngestJobRepository')<
+export class IngestJobRepository extends Context.Service<
   IngestJobRepository,
   IIngestJobRepository
->() {}
+>()('IngestJobRepository') {}
 
 export const IngestJobRepositoryLive = Layer.effect(
   IngestJobRepository,
@@ -156,7 +156,7 @@ export const IngestJobRepositoryLive = Layer.effect(
           .delete(ingestJobs)
           .where(eq(ingestJobs.id, id))
           .returning()
-        return Array.isNonEmptyArray(rows)
+        return Array.isArrayNonEmpty(rows)
       }),
     }
   })

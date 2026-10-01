@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Activate a user's vacation: delete their own pending care/engagement

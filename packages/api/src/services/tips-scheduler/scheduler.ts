@@ -16,7 +16,7 @@ import { generateDailyTip } from './generator'
 const TIP_DEDUP_DAYS = 3
 
 const getTodayDateString = (): string => {
-  const now = DateTime.unsafeNow()
+  const now = DateTime.nowUnsafe()
   const parts = DateTime.toParts(now)
   const month = globalThis.String(parts.month).padStart(2, '0')
   const day = globalThis.String(parts.day).padStart(2, '0')
@@ -28,15 +28,15 @@ const resolveLocalized = (
   localized: Record<string, string>,
   language: string
 ): string =>
-  Option.getOrElse(Option.fromNullable(localized[language]), () =>
-    Option.getOrElse(Option.fromNullable(localized.en), () => '')
+  Option.getOrElse(Option.fromNullishOr(localized[language]), () =>
+    Option.getOrElse(Option.fromNullishOr(localized.en), () => '')
   )
 
 // Core effect: check if tip exists for today, generate if not, send notifications
 export const checkAndGenerateTip = Effect.gen(function* () {
   // Feature flag check
   const enabled = yield* Config.withDefault(
-    Config.boolean('TIPS_GENERATION_ENABLED'),
+    Config.Boolean('TIPS_GENERATION_ENABLED'),
     false
   )
 
@@ -84,7 +84,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
   const allUsers = yield* engagementRepo.getUsersWithTipsEnabled()
   const users = Array.filter(allUsers, (u) => !isOnVacation(u, nowAsDate()))
 
-  if (Array.isEmptyReadonlyArray(users)) return
+  if (Array.isReadonlyArrayEmpty(users)) return
 
   yield* Effect.log('Sending daily tip notifications', {
     userCount: Array.length(users),
@@ -97,7 +97,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
     (user) =>
       Effect.gen(function* () {
         const timezone = Option.getOrElse(
-          Option.fromNullable(user.timezone),
+          Option.fromNullishOr(user.timezone),
           () => DEFAULT_TIMEZONE
         )
 
@@ -129,7 +129,7 @@ export const checkAndGenerateTip = Effect.gen(function* () {
         )
 
         const language = Option.getOrElse(
-          Option.fromNullable(user.language),
+          Option.fromNullishOr(user.language),
           () => 'en' as const
         )
 

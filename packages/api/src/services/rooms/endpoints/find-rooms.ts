@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { RoomRepository } from '@lily/api/repositories/room.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware'
 import type { RoomListWithCountsResponse } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const findRooms = (): Effect.Effect<
   RoomListWithCountsResponse,

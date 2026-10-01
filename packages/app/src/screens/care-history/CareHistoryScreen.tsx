@@ -31,7 +31,7 @@ export function CareHistoryScreen() {
   ]
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = Option.getOrElse(
-    Option.fromNullable(params.plantId),
+    Option.fromNullishOr(params.plantId),
     () => ''
   )
   const insets = useSafeAreaInsets()
@@ -68,7 +68,7 @@ export function CareHistoryScreen() {
       ? history
       : pipe(
           Option.getOrElse(
-            Option.fromNullable(history),
+            Option.fromNullishOr(history),
             () => [] as NonNullable<typeof history>
           ),
           Array.map((group) => ({
@@ -78,7 +78,7 @@ export function CareHistoryScreen() {
               Array.filter((event) => event.type === selectedFilter)
             ),
           })),
-          Array.filter((group) => !Array.isEmptyReadonlyArray(group.events))
+          Array.filter((group) => !Array.isReadonlyArrayEmpty(group.events))
         )
 
   const isInitialLoading = isLoading && !history
@@ -136,7 +136,7 @@ export function CareHistoryScreen() {
           </Animated.View>
         ) : isInitialLoading ? null : (
           <Animated.View entering={FadeIn.duration(300)}>
-            {!filteredHistory || Array.isEmptyReadonlyArray(filteredHistory) ? (
+            {!filteredHistory || Array.isReadonlyArrayEmpty(filteredHistory) ? (
               <EmptyState
                 illustration="notification"
                 title={t('history.empty.title')}

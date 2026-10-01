@@ -11,7 +11,7 @@ const CareTaskJson = Schema.Struct({
   completed: Schema.Boolean,
 })
 
-const CareScheduleJson = Schema.parseJson(
+const CareScheduleJson = Schema.fromJsonString(
   Schema.Struct({
     overdue: Schema.Array(CareTaskJson),
     today: Schema.Array(CareTaskJson),
@@ -19,7 +19,7 @@ const CareScheduleJson = Schema.parseJson(
   })
 )
 
-const encodeCareSchedule = Schema.encode(CareScheduleJson)
+const encodeCareSchedule = Schema.encodeEffect(CareScheduleJson)
 
 /**
  * MCP resource handler for care-schedule://today

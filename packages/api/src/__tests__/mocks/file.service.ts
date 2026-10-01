@@ -1,4 +1,3 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import {
   FileService,
   type FileTooLargeError,
@@ -9,6 +8,7 @@ import {
   type TooManyFilesError,
 } from '@lily/shared/services/file/fileservice'
 import { Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 
 export const createMockFileService = (): Layer.Layer<FileService> => {
   const mockService = {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Seed script to populate subscription tier configuration
  * Usage: bun run seed:tiers
@@ -6,8 +7,8 @@
  * This script seeds the subscription_tiers table with free and paid tier configs.
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { subscriptionTiers } from '@lily/db/schema'
 import { Console, Effect } from 'effect'
 

@@ -72,7 +72,7 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
         const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)
 
         const resolvedLanguage = pipe(
-          Option.fromNullable(stored),
+          Option.fromNullishOr(stored),
           Option.filter(isValidLanguage),
           Option.getOrElse(getDeviceLanguage)
         )

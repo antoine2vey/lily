@@ -97,7 +97,7 @@ const PLANT_NAMES = [
 
 // Sort longest first for greedy matching
 const byLengthDesc = Order.mapInput(
-  Order.reverse(Order.number),
+  Order.flip(Order.Number),
   (s: string) => s.length
 )
 

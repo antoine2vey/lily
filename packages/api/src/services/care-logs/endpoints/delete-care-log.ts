@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareLogNotFoundError } from '@lily/shared/errors/care-log'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Delete care log
 export const deleteCareLog = (

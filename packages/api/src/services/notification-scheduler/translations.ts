@@ -143,38 +143,38 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     new_follower: {
       title: () => '👋 New follower!',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} started following your plant journey`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} started following your plant journey`,
     },
     nudge_to_water: {
       title: () => '💧 A friendly nudge',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'A friend')} thinks your plants could use a little love!`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'A friend')} thinks your plants could use a little love!`,
     },
     delegation_request: {
       title: () => '🤝 Plant-sitting request',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} would love your help caring for their plants`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} would love your help caring for their plants`,
     },
     delegation_accepted: {
       title: () => '✅ Request accepted!',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} is happy to look after your plants`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} is happy to look after your plants`,
     },
     delegation_rejected: {
       title: () => '😔 Request declined',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} can't plant-sit for you right now`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} can't plant-sit for you right now`,
     },
     delegation_canceled: {
       title: () => '🚫 Plant-sitting canceled',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Someone')} called off the plant-sitting`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Someone')} called off the plant-sitting`,
     },
     delegation_activated: {
       title: () => '🌱 Plant-sitting has begun',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `You're now caring for ${count} ${enPlural(count, 'plant', 'plants')}. Thanks for helping out!`
@@ -184,7 +184,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🎉 Plant-sitting complete',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `Your care for ${count} ${enPlural(count, 'plant', 'plants')} has wrapped up. Nicely done!`
@@ -193,7 +193,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     inactivity_nudge: {
       title: () => '🌿 Your plants miss you!',
       body: (p) =>
-        Option.match(Option.fromNullable(p.plantCount), {
+        Option.match(Option.fromNullishOr(p.plantCount), {
           onNone: () =>
             "It's been a while! Your plants would love a little attention.",
           onSome: (count) =>
@@ -214,12 +214,12 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     daily_tip: {
       title: (p) =>
         Option.getOrElse(
-          Option.fromNullable(p.tipTitle),
+          Option.fromNullishOr(p.tipTitle),
           () => '🌱 Did you know?'
         ),
       body: (p) =>
         Option.getOrElse(
-          Option.fromNullable(p.tipBody),
+          Option.fromNullishOr(p.tipBody),
           () =>
             'Plants in terracotta pots dry out faster than those in plastic. Check your soil moisture!'
         ),
@@ -228,11 +228,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '📸 Time for a growth update!',
       body: (p) => {
         const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
+          Option.fromNullishOr(p.plantName),
           () => 'plant'
         )
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSincePhoto),
+          Option.fromNullishOr(p.daysSincePhoto),
           () => 30
         )
         return `Your ${name} hasn't had a photo in ${days} ${enPlural(days, 'day', 'days')}. Capture how far it's come!`
@@ -241,14 +241,14 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     plant_parent_milestone: {
       title: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSinceJoin),
+          Option.fromNullishOr(p.daysSinceJoin),
           () => 30
         )
         return `🎂 ${days} days as a plant parent!`
       },
       body: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSinceJoin),
+          Option.fromNullishOr(p.daysSinceJoin),
           () => 30
         )
         return `You joined Lily ${days} days ago. Your plants are lucky to have you! 🌿`
@@ -258,7 +258,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🎁 A gift for you!',
       body: (p) => {
         const duration = Option.getOrElse(
-          Option.fromNullable(p.giftDuration),
+          Option.fromNullishOr(p.giftDuration),
           () => 'a special period'
         )
         return `You've been gifted Lily Premium for ${duration}. Enjoy every feature! 🌿`
@@ -268,7 +268,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🌱 Some plants need reminders',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `${count} ${enPlural(count, "plant isn't", "plants aren't")} getting care alerts. Go Premium to cover your whole garden!`
@@ -277,13 +277,13 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     streak_at_risk: {
       title: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `🔥 Don't lose your ${streak}-day streak!`
       },
       body: (p) =>
-        Option.match(Option.fromNullable(p.plantName), {
+        Option.match(Option.fromNullishOr(p.plantName), {
           onNone: () =>
             'Your plants still need care today. Keep the streak alive!',
           onSome: (name) =>
@@ -293,14 +293,14 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     streak_milestone: {
       title: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `🔥 ${streak}-day streak!`
       },
       body: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `You've cared for your plants ${streak} days straight. That's real dedication! 🌟`
@@ -310,15 +310,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '📊 Your weekly plant recap',
       body: (p) => {
         const tasks = Option.getOrElse(
-          Option.fromNullable(p.tasksCompleted),
+          Option.fromNullishOr(p.tasksCompleted),
           () => 0
         )
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         const healthy = Option.getOrElse(
-          Option.fromNullable(p.healthyCount),
+          Option.fromNullishOr(p.healthyCount),
           () => 0
         )
         const clauses = Array.getSomes([
@@ -363,7 +363,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '⏳ Your Premium trial is ending soon',
       body: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.trialDaysLeft),
+          Option.fromNullishOr(p.trialDaysLeft),
           () => 3
         )
         return `Just ${days} ${enPlural(days, 'day', 'days')} left of your trial. Keep unlimited plants, AI advice, and care delegation!`
@@ -373,12 +373,12 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => "📈 You're close to your limit",
       body: (p) => {
         const used = Option.getOrElse(
-          Option.fromNullable(p.usageCount),
+          Option.fromNullishOr(p.usageCount),
           () => 0
         )
-        const max = Option.getOrElse(Option.fromNullable(p.usageMax), () => 0)
+        const max = Option.getOrElse(Option.fromNullishOr(p.usageMax), () => 0)
         const feature = Option.getOrElse(
-          Option.fromNullable(p.featureName),
+          Option.fromNullishOr(p.featureName),
           () => 'resources'
         )
         return `You've used ${used}/${max} ${feature} this month. Go Premium for unlimited access!`
@@ -387,18 +387,18 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     plant_anniversary: {
       title: (p) => {
         const duration = Option.getOrElse(
-          Option.fromNullable(p.anniversaryDuration),
+          Option.fromNullishOr(p.anniversaryDuration),
           () => 'some time'
         )
         return `🎂 Happy ${duration} together!`
       },
       body: (p) => {
         const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
+          Option.fromNullishOr(p.plantName),
           () => 'plant'
         )
         const date = Option.getOrElse(
-          Option.fromNullable(p.dateAdded),
+          Option.fromNullishOr(p.dateAdded),
           () => 'a while ago'
         )
         return `You've been caring for your ${name} since ${date}. Here's to many more! 🌿`
@@ -409,38 +409,38 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     new_follower: {
       title: () => '👋 Nouvel abonné !',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} suit désormais ton jardin`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} suit désormais ton jardin`,
     },
     nudge_to_water: {
       title: () => "💧 Le petit rappel d'un ami",
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => 'Un ami')} pense que tes plantes mériteraient un peu d'attention !`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => 'Un ami')} pense que tes plantes mériteraient un peu d'attention !`,
     },
     delegation_request: {
       title: () => '🤝 Demande de garde',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} aimerait que tu gardes ses plantes`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} aimerait que tu gardes ses plantes`,
     },
     delegation_accepted: {
       title: () => '✅ Demande acceptée !',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} va s'occuper de tes plantes avec plaisir`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} va s'occuper de tes plantes avec plaisir`,
     },
     delegation_rejected: {
       title: () => '😔 Demande refusée',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} ne peut pas garder tes plantes pour le moment`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} ne peut pas garder tes plantes pour le moment`,
     },
     delegation_canceled: {
       title: () => '🚫 Garde annulée',
       body: (p) =>
-        `${Option.getOrElse(Option.fromNullable(p.senderName), () => "Quelqu'un")} a annulé la garde des plantes`,
+        `${Option.getOrElse(Option.fromNullishOr(p.senderName), () => "Quelqu'un")} a annulé la garde des plantes`,
     },
     delegation_activated: {
       title: () => '🌱 La garde commence',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `Tu prends soin de ${count} ${frPlural(count, 'plante', 'plantes')}. Merci de ton aide !`
@@ -450,7 +450,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🎉 Garde terminée',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `Ta garde de ${count} ${frPlural(count, 'plante', 'plantes')} est terminée. Bravo !`
@@ -459,7 +459,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     inactivity_nudge: {
       title: () => "🌿 Tes plantes t'attendent !",
       body: (p) =>
-        Option.match(Option.fromNullable(p.plantCount), {
+        Option.match(Option.fromNullishOr(p.plantCount), {
           onNone: () =>
             "Ça fait un moment ! Tes plantes adoreraient un peu d'attention.",
           onSome: (count) =>
@@ -480,12 +480,12 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     daily_tip: {
       title: (p) =>
         Option.getOrElse(
-          Option.fromNullable(p.tipTitle),
+          Option.fromNullishOr(p.tipTitle),
           () => '🌱 Le savais-tu ?'
         ),
       body: (p) =>
         Option.getOrElse(
-          Option.fromNullable(p.tipBody),
+          Option.fromNullishOr(p.tipBody),
           () =>
             "Les plantes en pots de terre cuite sèchent plus vite que celles en plastique. Vérifie l'humidité du sol !"
         ),
@@ -494,11 +494,11 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '📸 Photo souvenir ?',
       body: (p) => {
         const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
+          Option.fromNullishOr(p.plantName),
           () => 'plante'
         )
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSincePhoto),
+          Option.fromNullishOr(p.daysSincePhoto),
           () => 30
         )
         return `Aucune photo de ta ${name} depuis ${days} ${frPlural(days, 'jour', 'jours')}. Immortalise ses progrès !`
@@ -507,14 +507,14 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     plant_parent_milestone: {
       title: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSinceJoin),
+          Option.fromNullishOr(p.daysSinceJoin),
           () => 30
         )
         return `🎂 ${days} jours en tant que parent de plantes !`
       },
       body: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.daysSinceJoin),
+          Option.fromNullishOr(p.daysSinceJoin),
           () => 30
         )
         return `Tu as rejoint Lily il y a ${days} jours. Tes plantes ont bien de la chance ! 🌿`
@@ -524,7 +524,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🎁 Un cadeau pour toi !',
       body: (p) => {
         const duration = Option.getOrElse(
-          Option.fromNullable(p.giftDuration),
+          Option.fromNullishOr(p.giftDuration),
           () => 'une période spéciale'
         )
         return `On t'a offert Lily Premium pour ${duration}. Profites-en pleinement ! 🌿`
@@ -534,7 +534,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '🌱 Certaines plantes manquent de rappels',
       body: (p) => {
         const count = Option.getOrElse(
-          Option.fromNullable(p.plantCount),
+          Option.fromNullishOr(p.plantCount),
           () => 0
         )
         return `${count} ${frPlural(count, 'plante ne reçoit', 'plantes ne reçoivent')} pas de rappels. Passe à Premium pour couvrir tout ton jardin !`
@@ -543,13 +543,13 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     streak_at_risk: {
       title: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `🔥 Ne perds pas ta série de ${streak} jours !`
       },
       body: (p) =>
-        Option.match(Option.fromNullable(p.plantName), {
+        Option.match(Option.fromNullishOr(p.plantName), {
           onNone: () =>
             "Tes plantes ont encore besoin de soins aujourd'hui. Garde le rythme !",
           onSome: (name) =>
@@ -559,14 +559,14 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     streak_milestone: {
       title: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `🔥 Série de ${streak} jours !`
       },
       body: (p) => {
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         return `Tu prends soin de tes plantes depuis ${streak} jours d'affilée. Quelle dévotion ! 🌟`
@@ -576,15 +576,15 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '📊 Ton récap hebdomadaire',
       body: (p) => {
         const tasks = Option.getOrElse(
-          Option.fromNullable(p.tasksCompleted),
+          Option.fromNullishOr(p.tasksCompleted),
           () => 0
         )
         const streak = Option.getOrElse(
-          Option.fromNullable(p.streakCount),
+          Option.fromNullishOr(p.streakCount),
           () => 0
         )
         const healthy = Option.getOrElse(
-          Option.fromNullable(p.healthyCount),
+          Option.fromNullishOr(p.healthyCount),
           () => 0
         )
         const clauses = Array.getSomes([
@@ -633,7 +633,7 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '⏳ Ton essai Premium se termine bientôt',
       body: (p) => {
         const days = Option.getOrElse(
-          Option.fromNullable(p.trialDaysLeft),
+          Option.fromNullishOr(p.trialDaysLeft),
           () => 3
         )
         return `Plus que ${days} ${frPlural(days, 'jour', 'jours')} d'essai. Garde plantes illimitées, conseils IA et délégation !`
@@ -643,12 +643,12 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
       title: () => '📈 Tu approches de ta limite',
       body: (p) => {
         const used = Option.getOrElse(
-          Option.fromNullable(p.usageCount),
+          Option.fromNullishOr(p.usageCount),
           () => 0
         )
-        const max = Option.getOrElse(Option.fromNullable(p.usageMax), () => 0)
+        const max = Option.getOrElse(Option.fromNullishOr(p.usageMax), () => 0)
         const feature = Option.getOrElse(
-          Option.fromNullable(p.featureName),
+          Option.fromNullishOr(p.featureName),
           () => 'ressources'
         )
         return `Tu as utilisé ${used}/${max} ${feature} ce mois-ci. Passe à Premium pour un accès illimité !`
@@ -657,18 +657,18 @@ const simpleTranslations: Record<LanguageCode, SimpleTranslationMap> = {
     plant_anniversary: {
       title: (p) => {
         const duration = Option.getOrElse(
-          Option.fromNullable(p.anniversaryDuration),
+          Option.fromNullishOr(p.anniversaryDuration),
           () => 'un moment'
         )
         return `🎂 Joyeux ${duration} ensemble !`
       },
       body: (p) => {
         const name = Option.getOrElse(
-          Option.fromNullable(p.plantName),
+          Option.fromNullishOr(p.plantName),
           () => 'plante'
         )
         const date = Option.getOrElse(
-          Option.fromNullable(p.dateAdded),
+          Option.fromNullishOr(p.dateAdded),
           () => 'un moment'
         )
         return `Tu prends soin de ta ${name} depuis le ${date}. Encore plein d'autres à venir ! 🌿`
@@ -946,7 +946,7 @@ export const buildLiveActivitySubheadline = (
   groups: readonly { careType: CareType; count: number }[],
   language: LanguageCode
 ): string | undefined => {
-  if (Array.isEmptyReadonlyArray(groups)) return undefined
+  if (Array.isReadonlyArrayEmpty(groups)) return undefined
   const labels = liveActivityLabels[language]
   return Array.join(
     Array.map(groups, (g) => labels[g.careType](g.count)),
@@ -1010,7 +1010,7 @@ const careTopicRank = (type: DeferredCareType): number =>
   )
 
 const careTopicOrder: Order.Order<DeferredCareType> = Order.mapInput(
-  Order.number,
+  Order.Number,
   careTopicRank
 )
 

@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
@@ -11,6 +10,7 @@ import { isStorePayer } from '@lily/api/services/subscriptions/has-premium-acces
 import type { AdminUserOverview } from '@lily/shared/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Aggregate read for the admin user-detail page: profile + subscription +
 // curated engagement stats in one round-trip. Reuses the existing per-user
@@ -72,9 +72,9 @@ export const getUserOverview = (
       // Same predicate the gift/revoke endpoints enforce server-side, so the
       // displayed flag and the guard never disagree.
       isStorePayer: isStorePayer(rawSubscription),
-      store: Option.getOrNull(Option.fromNullable(rawSubscription?.store)),
+      store: Option.getOrNull(Option.fromNullishOr(rawSubscription?.store)),
       productId: Option.getOrNull(
-        Option.fromNullable(rawSubscription?.productId)
+        Option.fromNullishOr(rawSubscription?.productId)
       ),
       stats: {
         plantCount,

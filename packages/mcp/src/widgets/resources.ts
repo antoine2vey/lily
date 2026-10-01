@@ -1,9 +1,9 @@
-import { McpServer } from '@effect/ai'
 import { careFeedbackTemplate } from '@lily/mcp/widgets/templates/care-feedback'
 import { careTasksTemplate } from '@lily/mcp/widgets/templates/care-tasks'
 import { plantDetailsTemplate } from '@lily/mcp/widgets/templates/plant-details'
 import { plantListTemplate } from '@lily/mcp/widgets/templates/plant-list'
 import { Effect, Layer } from 'effect'
+import { McpServer } from 'effect/ai'
 
 /**
  * Registers HTML widget templates as MCP resources with the

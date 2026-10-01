@@ -1,6 +1,6 @@
 import type { Notification, NotificationsListResponse } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
@@ -45,7 +45,7 @@ export function useMarkNotificationRead() {
         NOTIFICATIONS_QUERY_KEY,
         (old) => {
           if (!old) return undefined
-          return Either.map(old, (response) => ({
+          return Result.map(old, (response) => ({
             ...response,
             items: response.items.map((n: Notification) =>
               n.id === notificationId ? { ...n, isRead: true } : n
@@ -88,7 +88,7 @@ export function useMarkAllRead() {
         NOTIFICATIONS_QUERY_KEY,
         (old) => {
           if (!old) return undefined
-          return Either.map(old, (response) => ({
+          return Result.map(old, (response) => ({
             ...response,
             items: response.items.map((n: Notification) => ({
               ...n,
@@ -135,7 +135,7 @@ export function useDeleteNotification() {
         NOTIFICATIONS_QUERY_KEY,
         (old) => {
           if (!old) return undefined
-          return Either.map(old, (response) => ({
+          return Result.map(old, (response) => ({
             ...response,
             items: response.items.filter(
               (n: Notification) => n.id !== notificationId

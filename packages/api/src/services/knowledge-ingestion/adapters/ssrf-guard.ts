@@ -196,7 +196,7 @@ export const fetchGuarded = (
       }
 
       const nextUrl = pipe(
-        Option.fromNullable(location),
+        Option.fromNullishOr(location),
         Option.getOrElse(() => '')
       )
       current = new URL(nextUrl, current).toString()

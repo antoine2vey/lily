@@ -31,7 +31,7 @@ export function PlantSelector({
 
   const plants = [
     ...pipe(
-      Option.fromNullable(plantsData?.items),
+      Option.fromNullishOr(plantsData?.items),
       Option.getOrElse(
         () => [] as Array<{ id: string; name: string; imageUrl: string | null }>
       )
@@ -39,7 +39,7 @@ export function PlantSelector({
   ]
 
   const allSelected =
-    Arr.isNonEmptyArray(plants) && plants.length === selectedPlantIds.length
+    Arr.isArrayNonEmpty(plants) && plants.length === selectedPlantIds.length
 
   if (showSkeleton) {
     return (
@@ -73,7 +73,7 @@ export function PlantSelector({
         </Pressable>
       </View>
 
-      {Arr.isEmptyArray(plants) ? (
+      {Arr.isArrayEmpty(plants) ? (
         <View className="p-6 items-center rounded-2xl bg-surface dark:bg-surface-dark">
           <MaterialIcons name="eco" size={32} color={iconColors.textMuted} />
           <Text className="text-sm mt-2 text-text-muted dark:text-slate-400">
@@ -97,7 +97,7 @@ export function PlantSelector({
               >
                 <Avatar
                   source={pipe(
-                    Option.fromNullable(plant.imageUrl),
+                    Option.fromNullishOr(plant.imageUrl),
                     Option.map((uri) => ({ uri })),
                     Option.getOrUndefined
                   )}

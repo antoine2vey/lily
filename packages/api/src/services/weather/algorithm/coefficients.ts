@@ -198,8 +198,8 @@ export function getCropCoefficient(
   wateringRating: number
 ): number {
   const baseKc = pipe(
-    Option.fromNullable(category),
-    Option.flatMap((cat) => Option.fromNullable(CROP_COEFFICIENTS[cat])),
+    Option.fromNullishOr(category),
+    Option.flatMap((cat) => Option.fromNullishOr(CROP_COEFFICIENTS[cat])),
     Option.getOrElse(() => DEFAULT_KC)
   )
 

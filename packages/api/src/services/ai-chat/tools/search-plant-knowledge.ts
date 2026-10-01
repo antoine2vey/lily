@@ -1,6 +1,6 @@
 import { RagService } from '@lily/api/services/rag/service'
 import { tool } from 'ai'
-import { Array, Effect, pipe, Runtime, String } from 'effect'
+import { Array, Effect, pipe, String } from 'effect'
 import { z } from 'zod'
 
 import type { ToolDeps } from './index'
@@ -116,7 +116,7 @@ export const searchPlantKnowledgeTool = (deps: ToolDeps) =>
         ),
     }),
     execute: async ({ query }) =>
-      Runtime.runPromise(deps.runtime)(
+      Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
           const ragService = yield* RagService
 
@@ -133,7 +133,7 @@ export const searchPlantKnowledgeTool = (deps: ToolDeps) =>
             const chunks = yield* ragService.retrieve({
               query: ragQuery,
             })
-            if (!Array.isEmptyArray(chunks)) {
+            if (!Array.isArrayEmpty(chunks)) {
               return ragService.formatContext(chunks)
             }
           }

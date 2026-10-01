@@ -7,8 +7,9 @@
  * Scope: SqlError, RequestError, ResponseError, SystemError, BadArgument, UnknownException.
  * GCS, file-validation, and AI errors are declared on the API endpoints directly.
  */
-import type { SqlError } from '@effect/sql/SqlError'
+
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Use structural types for platform errors to handle module-boundary aliasing
 // (e.g. HttpClientError.RequestError vs HttpServerError.RequestError share the same _tag).

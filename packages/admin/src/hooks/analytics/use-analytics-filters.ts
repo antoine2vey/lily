@@ -26,7 +26,7 @@ export const useAnalyticsFilters = (): AnalyticsFilterState => {
   const [params, setParams] = useSearchParams()
 
   const preset = pipe(
-    Option.fromNullable(params.get('range')),
+    Option.fromNullishOr(params.get('range')),
     Option.filter(isPreset),
     Option.getOrElse(() => '30d' as AnalyticsRangePreset)
   )
@@ -51,7 +51,7 @@ export const useAnalyticsFilters = (): AnalyticsFilterState => {
 export const resolvePresetRange = (
   preset: AnalyticsRangePreset
 ): { from: string; to: string } => {
-  const now = DateTime.unsafeNow()
+  const now = DateTime.nowUnsafe()
   return {
     from: DateTime.formatIso(
       DateTime.subtract(now, { days: PRESET_DAYS[preset] })

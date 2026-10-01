@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CarePlanStepContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Clears the step only. A care log written when the step was completed stays
 // in the plant's history, mirroring the Care tab where undo is a client-side
@@ -30,7 +30,7 @@ export const uncompleteCarePlanStep = ({
         : yield* repo.findById(plan.id, plan.userId)
 
     return pipe(
-      Option.fromNullable(reopened),
+      Option.fromNullishOr(reopened),
       Option.getOrElse(() => plan)
     )
   }).pipe(

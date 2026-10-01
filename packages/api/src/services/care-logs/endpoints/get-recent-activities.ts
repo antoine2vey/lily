@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { RecentActivitiesListResponse } from '@lily/shared/care-log'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getRecentActivities = (params: {
   limit?: number
@@ -16,7 +16,7 @@ export const getRecentActivities = (params: {
     const { id: userId } = yield* CurrentUser
 
     const limit = pipe(
-      Option.fromNullable(params.limit),
+      Option.fromNullishOr(params.limit),
       Option.getOrElse(() => 10)
     )
 

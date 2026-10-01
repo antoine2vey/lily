@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import {
   CareLogRepository,
@@ -7,6 +6,7 @@ import {
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Get care logs
 export const getCareLogs = (
@@ -25,7 +25,7 @@ export const getCareLogs = (
 
     // Emit CareHistoryViewed on first page to track for HISTORY_HERO achievement
     const currentPage = pipe(
-      Option.fromNullable(params.page),
+      Option.fromNullishOr(params.page),
       Option.getOrElse(() => 1)
     )
     if (currentPage === 1) {

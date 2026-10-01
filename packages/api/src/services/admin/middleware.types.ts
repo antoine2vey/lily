@@ -1,15 +1,14 @@
-import { HttpApiMiddleware, HttpApiSecurity } from '@effect/platform'
 import type { UserProfile } from '@lily/shared/auth'
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Context } from 'effect'
+import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
 /**
  * Admin user context - CurrentUser with verified admin role
  */
-export class AdminUser extends Context.Tag('AdminUser')<
-  AdminUser,
-  UserProfile
->() {}
+export class AdminUser extends Context.Service<AdminUser, UserProfile>()(
+  'AdminUser'
+) {}
 
 /**
  * Admin authorization middleware

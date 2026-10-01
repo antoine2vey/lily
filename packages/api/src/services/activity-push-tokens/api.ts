@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   ActivityPushToken,
@@ -6,6 +5,7 @@ import {
   RegisterStartTokenRequest,
 } from '@lily/shared'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const activityIdParam = HttpApiSchema.param('activityId', Schema.String)
 

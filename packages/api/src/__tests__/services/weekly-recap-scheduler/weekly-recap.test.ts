@@ -20,8 +20,8 @@ const findSundayTimezone = (): string | null => {
   ]
   for (const tz of candidates) {
     const zoned = DateTime.setZone(
-      DateTime.unsafeNow(),
-      DateTime.zoneUnsafeMakeNamed(tz)
+      DateTime.nowUnsafe(),
+      DateTime.zoneMakeNamedUnsafe(tz)
     )
     if (DateTime.toParts(zoned).weekDay === 0) return tz
   }
@@ -40,8 +40,8 @@ const findNonSundayTimezone = (): string | null => {
   ]
   for (const tz of candidates) {
     const zoned = DateTime.setZone(
-      DateTime.unsafeNow(),
-      DateTime.zoneUnsafeMakeNamed(tz)
+      DateTime.nowUnsafe(),
+      DateTime.zoneMakeNamedUnsafe(tz)
     )
     if (DateTime.toParts(zoned).weekDay !== 0) return tz
   }

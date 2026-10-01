@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { TierConfig } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getTiers = (): Effect.Effect<
   TierConfig[],

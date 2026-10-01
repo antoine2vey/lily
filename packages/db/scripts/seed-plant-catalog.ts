@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Seed script to populate the plant_catalog table with common houseplants.
  * Usage: bun run scripts/seed-plant-catalog.ts
@@ -6,8 +7,8 @@
  * This is idempotent — it skips plants that already exist by scientific name.
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCatalog, plantCatalogTranslations } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Console, Effect } from 'effect'

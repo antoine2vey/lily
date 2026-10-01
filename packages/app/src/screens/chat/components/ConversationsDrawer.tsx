@@ -180,7 +180,7 @@ export function ConversationsDrawer({
   const conversations: Conversation[] = useMemo(
     () =>
       pipe(
-        Option.fromNullable(data?.items),
+        Option.fromNullishOr(data?.items),
         Option.map((items) =>
           Array.map(items, (c) => ({
             id: c.id,

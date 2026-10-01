@@ -6,7 +6,7 @@ import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helpers to create dates relative to now using DateTime
-const now = DateTime.unsafeNow()
+const now = DateTime.nowUnsafe()
 const dateFromNow = (parts: Partial<DateTime.DateTime.PartsForMath>): Date =>
   DateTime.toDateUtc(DateTime.add(now, parts))
 const nowAsDate = (): Date => DateTime.toDateUtc(now)

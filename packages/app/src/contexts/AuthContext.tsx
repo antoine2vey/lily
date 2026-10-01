@@ -117,7 +117,7 @@ type AuthState =
 // complete, NeedsUsername otherwise
 const sessionStateFor = (user: UserProfile, accessToken: string): AuthState =>
   pipe(
-    Option.fromNullable(user.username),
+    Option.fromNullishOr(user.username),
     Option.match({
       onNone: () => ({ _tag: 'NeedsUsername', user, accessToken }) as AuthState,
       onSome: () => ({ _tag: 'Authenticated', user, accessToken }) as AuthState,
@@ -317,7 +317,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                   )
                 )
               ),
-              Effect.catchAll((error) =>
+              Effect.catch((error) =>
                 Effect.gen(function* () {
                   if (isAuthFailureError(error)) {
                     trackForcedLogout('startup_check_auth_error')
@@ -336,7 +336,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     message: extractErrorMessage(error),
                   })
                   const cachedUser = yield* getStoredUserProfile().pipe(
-                    Effect.catchAll(() =>
+                    Effect.catch(() =>
                       Effect.succeed(Option.none<UserProfile>())
                     )
                   )
@@ -360,7 +360,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         })
       )
     }).pipe(
-      Effect.catchAll(() =>
+      Effect.catch(() =>
         Effect.sync(() => setState({ _tag: 'Unauthenticated' }))
       )
     )

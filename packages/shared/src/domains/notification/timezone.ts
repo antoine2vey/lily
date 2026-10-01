@@ -25,9 +25,11 @@ export class InvalidTimeFormatError extends Schema.TaggedError<InvalidTimeFormat
 
 // Schema for validating HH:mm time format
 export const TimeString = Schema.String.pipe(
-  Schema.pattern(TIME_PATTERN, {
-    message: () => 'Time must be in HH:mm format (00:00-23:59)',
-  })
+  Schema.check(
+    Schema.isPattern(TIME_PATTERN, {
+      message: 'Time must be in HH:mm format (00:00-23:59)',
+    })
+  )
 )
 
 export type TimeString = typeof TimeString.Type

@@ -1,25 +1,25 @@
 import { Schema } from 'effect'
 
 // Enums
-export const SubscriptionTier = Schema.Literal('free', 'paid')
+export const SubscriptionTier = Schema.Literals(['free', 'paid'])
 export type SubscriptionTier = typeof SubscriptionTier.Type
 
-export const SubscriptionStatus = Schema.Literal(
+export const SubscriptionStatus = Schema.Literals([
   'active',
   'trialing',
   'canceled',
   'expired',
-  'past_due'
-)
+  'past_due',
+])
 export type SubscriptionStatus = typeof SubscriptionStatus.Type
 
 export const PaymentProvider = Schema.Literal('revenuecat')
 export type PaymentProvider = typeof PaymentProvider.Type
 
-export const AppStore = Schema.Literal('APP_STORE', 'PLAY_STORE')
+export const AppStore = Schema.Literals(['APP_STORE', 'PLAY_STORE'])
 export type AppStore = typeof AppStore.Type
 
-export const SubscriptionEventType = Schema.Literal(
+export const SubscriptionEventType = Schema.Literals([
   'subscription_created',
   'subscription_updated',
   'subscription_canceled',
@@ -30,8 +30,8 @@ export const SubscriptionEventType = Schema.Literal(
   'payment_succeeded',
   'payment_failed',
   'usage_limit_reached',
-  'gift_code_redeemed'
-)
+  'gift_code_redeemed',
+])
 export type SubscriptionEventType = typeof SubscriptionEventType.Type
 
 // Tier configuration
@@ -55,13 +55,13 @@ export const Subscription = Schema.Struct({
   provider: Schema.optional(PaymentProvider),
   productId: Schema.optional(Schema.String),
   store: Schema.optional(AppStore),
-  trialStartsAt: Schema.NullOr(Schema.Date),
-  trialEndsAt: Schema.NullOr(Schema.Date),
-  currentPeriodStart: Schema.Date,
-  currentPeriodEnd: Schema.Date,
-  canceledAt: Schema.NullOr(Schema.Date),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  trialStartsAt: Schema.NullOr(Schema.DateFromString),
+  trialEndsAt: Schema.NullOr(Schema.DateFromString),
+  currentPeriodStart: Schema.DateFromString,
+  currentPeriodEnd: Schema.DateFromString,
+  canceledAt: Schema.NullOr(Schema.DateFromString),
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 export type Subscription = typeof Subscription.Type
 
@@ -69,8 +69,8 @@ export type Subscription = typeof Subscription.Type
 export const SubscriptionUsage = Schema.Struct({
   id: Schema.String,
   userId: Schema.String,
-  periodStart: Schema.Date,
-  periodEnd: Schema.Date,
+  periodStart: Schema.DateFromString,
+  periodEnd: Schema.DateFromString,
   aiChatsCount: Schema.Number,
   cardScansCount: Schema.Number,
   plantIdentifiesCount: Schema.Number,
@@ -101,9 +101,9 @@ export const CancelSubscriptionResponse = Schema.Struct({
 export type CancelSubscriptionResponse = typeof CancelSubscriptionResponse.Type
 
 // Usage field type for tracking
-export const UsageField = Schema.Literal(
+export const UsageField = Schema.Literals([
   'aiChats',
   'cardScans',
-  'plantIdentifies'
-)
+  'plantIdentifies',
+])
 export type UsageField = typeof UsageField.Type

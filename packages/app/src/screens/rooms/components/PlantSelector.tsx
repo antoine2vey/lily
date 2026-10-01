@@ -20,7 +20,7 @@ export function PlantSelector({
   const { t } = useTranslation('rooms')
   const iconColors = useIconColors()
 
-  if (Array.isEmptyReadonlyArray(plants)) {
+  if (Array.isReadonlyArrayEmpty(plants)) {
     return (
       <Text className="text-sm text-text-muted dark:text-slate-400 text-center py-4">
         {t('noUnassignedPlants')}
@@ -33,7 +33,7 @@ export function PlantSelector({
       {Array.map(plants, (plant) => {
         const isSelected = selectedIds.has(plant.id)
         const imageUri = pipe(
-          Option.fromNullable(plant.imageUrl),
+          Option.fromNullishOr(plant.imageUrl),
           Option.getOrUndefined
         )
 

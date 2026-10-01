@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type GiftCodeRecord,
   GiftCodeRepository,
 } from '@lily/api/repositories/gift-code.repository'
 import { GiftCodeNotFoundError } from '@lily/shared/errors/gift-code'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deleteGiftCode = (
   codeId: string

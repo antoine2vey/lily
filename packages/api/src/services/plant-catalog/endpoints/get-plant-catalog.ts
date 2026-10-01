@@ -13,7 +13,7 @@ export const getPlantCatalog = (query?: string) =>
     const lang = user?.language ?? 'en'
 
     return yield* pipe(
-      Option.fromNullable(query),
+      Option.fromNullishOr(query),
       Option.filter(Str.isNonEmpty),
       Option.match({
         onNone: () => catalogRepo.findAll(lang),

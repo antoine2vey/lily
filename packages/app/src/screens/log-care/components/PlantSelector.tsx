@@ -32,10 +32,10 @@ export function PlantSelector({
   const { data: plantsData } = usePlants()
   const iconColors = useIconColors()
   const loadedPlants = Option.getOrElse(
-    Option.fromNullable(plantsData?.items),
+    Option.fromNullishOr(plantsData?.items),
     () => [] as NonNullable<typeof plantsData>['items']
   )
-  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+  const displayLabel = Option.getOrElse(Option.fromNullishOr(label), () =>
     t('log.selectPlant')
   )
 
@@ -43,7 +43,7 @@ export function PlantSelector({
   const plants = pipe(
     [
       ...Option.getOrElse(
-        Option.fromNullable(initialPlants),
+        Option.fromNullishOr(initialPlants),
         () => [] as Plant[]
       ),
       ...loadedPlants,
@@ -98,7 +98,7 @@ export function PlantSelector({
         >
           {/* Plant image(s) on left - stacked when multiple */}
           <View className="absolute left-1.5 top-1.5 bottom-1.5 flex-row">
-            {Array.isEmptyReadonlyArray(selectedPlants) ? (
+            {Array.isReadonlyArrayEmpty(selectedPlants) ? (
               <View className="h-full aspect-square rounded-full bg-white dark:bg-surface-dark shadow-sm overflow-hidden items-center justify-center">
                 <MaterialIcons
                   name="eco"
@@ -122,7 +122,7 @@ export function PlantSelector({
                     <AnimatedImage
                       source={{
                         uri: Option.getOrUndefined(
-                          Option.fromNullable(plant.imageUrl)
+                          Option.fromNullishOr(plant.imageUrl)
                         ),
                       }}
                       className="w-full h-full"
@@ -137,7 +137,7 @@ export function PlantSelector({
           {/* Plant name */}
           <Text
             className={`flex-1 text-base font-bold pr-10 ${
-              !Array.isEmptyReadonlyArray(selectedPlants)
+              !Array.isReadonlyArrayEmpty(selectedPlants)
                 ? 'text-text-primary dark:text-white'
                 : 'text-text-muted dark:text-slate-400'
             }`}
@@ -183,7 +183,7 @@ export function PlantSelector({
                   <AnimatedImage
                     source={{
                       uri: Option.getOrUndefined(
-                        Option.fromNullable(plant.imageUrl)
+                        Option.fromNullishOr(plant.imageUrl)
                       ),
                     }}
                     className="w-12 h-12 mr-3"

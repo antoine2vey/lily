@@ -85,7 +85,7 @@ export const WeatherCacheLive = Layer.effect(
 
           return Option.some(JSON.parse(data) as WeatherForecast)
         }).pipe(
-          Effect.catchTag('UnknownException', (e) =>
+          Effect.catchTag('UnknownError', (e) =>
             warnAndAlert('findNearest')(e).pipe(
               Effect.as(Option.none<WeatherForecast>())
             )
@@ -110,7 +110,7 @@ export const WeatherCacheLive = Layer.effect(
             WEATHER_DATA_TTL_SECONDS
           )
         }).pipe(
-          Effect.catchTag('UnknownException', (e) => warnAndAlert('store')(e)),
+          Effect.catchTag('UnknownError', (e) => warnAndAlert('store')(e)),
           Effect.asVoid
         ),
 
@@ -130,7 +130,7 @@ export const WeatherCacheLive = Layer.effect(
             )
           )
         }).pipe(
-          Effect.catchTag('UnknownException', (e) =>
+          Effect.catchTag('UnknownError', (e) =>
             warnAndAlert('getAllLocations')(e).pipe(
               Effect.as(
                 [] as Array<{
@@ -148,7 +148,7 @@ export const WeatherCacheLive = Layer.effect(
           await redis.zrem(WEATHER_GEO_KEY, id)
           await redis.del(`${WEATHER_DATA_PREFIX}${id}`)
         }).pipe(
-          Effect.catchTag('UnknownException', (e) =>
+          Effect.catchTag('UnknownError', (e) =>
             warnAndAlert('removeLocation')(e)
           ),
           Effect.asVoid

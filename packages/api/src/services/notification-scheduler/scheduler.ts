@@ -69,14 +69,14 @@ export const pollAndEnqueue = Effect.gen(function* () {
     Array.map(fetchedUsers, (u) => [u.id, u] as const)
   )
 
-  const currentTime = DateTime.toDateUtc(DateTime.unsafeNow())
+  const currentTime = DateTime.toDateUtc(DateTime.nowUnsafe())
 
   // Batch-fetch every referenced plant up front: Phase 1 needs it to drop
   // reminders for plants that died since the row was scheduled, and Phase 3
   // reuses it for names.
   const allPlantIds = pipe(
     Array.filterMap(pendingNotifications, (n) =>
-      Option.fromNullable(n.plantId)
+      Option.fromNullishOr(n.plantId)
     ),
     Array.dedupe
   )
@@ -98,7 +98,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
   for (const notification of pendingNotifications) {
     // A plant in the cemetery (or gone) must never produce a push. Rows are
     // deleted below so findPendingToSchedule does not return them every poll.
-    const plantIdOpt = Option.fromNullable(notification.plantId)
+    const plantIdOpt = Option.fromNullishOr(notification.plantId)
     if (Option.isSome(plantIdOpt) && !livingPlantIds.has(plantIdOpt.value)) {
       yield* Effect.log('Skipping notification - plant dead or missing', {
         id: notification.id,
@@ -121,7 +121,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
     const topic = topicOption.value
 
     const user = Option.getOrNull(
-      Option.fromNullable(userSettingsMap.get(notification.userId))
+      Option.fromNullishOr(userSettingsMap.get(notification.userId))
     )
 
     // Safety net: skip care reminders if user has disabled them
@@ -215,7 +215,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
         // app's single-plant deep link still resolves.
         const plantIds = pipe(
           Array.filterMap(group, (n) =>
-            Option.fromNullable(n.notification.plantId)
+            Option.fromNullishOr(n.notification.plantId)
           ),
           Array.dedupe
         )
@@ -234,24 +234,24 @@ export const pollAndEnqueue = Effect.gen(function* () {
 
         const user = userSettingsMap.get(userId)
         const language = Option.getOrElse(
-          Option.fromNullable(user?.language),
+          Option.fromNullishOr(user?.language),
           () => 'en' as const
         )
 
         // Resolve per-group plant names once for content builders that need them.
         const groupPlantNames = Array.filterMap(plantIds, (id) =>
-          Option.fromNullable(plantNameMap.get(id))
+          Option.fromNullishOr(plantNameMap.get(id))
         )
 
         // Fall back to the title/body persisted on the first notification row.
         // Used by simple single-plant notifications (e.g. a lone anniversary).
         const passthroughContent = {
           title: Option.getOrElse(
-            Option.fromNullable(first.value.notification.title),
+            Option.fromNullishOr(first.value.notification.title),
             () => ''
           ),
           body: Option.getOrElse(
-            Option.fromNullable(first.value.notification.body),
+            Option.fromNullishOr(first.value.notification.body),
             () => ''
           ),
         }
@@ -271,10 +271,10 @@ export const pollAndEnqueue = Effect.gen(function* () {
             if (!isCareReminderType(rowTopic)) return Option.none()
             const careType: DeferredCareType = rowTopic
             return pipe(
-              Option.fromNullable(notification.plantId),
+              Option.fromNullishOr(notification.plantId),
               Option.flatMap((plantId) =>
                 pipe(
-                  Option.fromNullable(plantNameMap.get(plantId)),
+                  Option.fromNullishOr(plantNameMap.get(plantId)),
                   Option.map((plantName) => ({ plantId, plantName, careType }))
                 )
               )
@@ -305,7 +305,7 @@ export const pollAndEnqueue = Effect.gen(function* () {
             language,
           },
           retryCount: 0,
-          createdAt: DateTime.toDateUtc(DateTime.unsafeNow()),
+          createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
           scheduledAt: first.value.notification.scheduledAt,
         })
 

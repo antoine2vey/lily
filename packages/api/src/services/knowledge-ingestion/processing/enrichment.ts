@@ -59,7 +59,7 @@ export const enrichChunk = (
     )
 
     return yield* pipe(
-      Option.fromNullable(result.output),
+      Option.fromNullishOr(result.output),
       Option.match({
         onNone: () =>
           Effect.fail(

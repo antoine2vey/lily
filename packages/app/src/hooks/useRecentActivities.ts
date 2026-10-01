@@ -38,7 +38,7 @@ const toDate = (dateInput: Date | string): Date =>
     : pipe(
         parseApiDate(dateInput),
         Option.map(DateTime.toDateUtc),
-        Option.getOrElse(() => DateTime.toDateUtc(DateTime.unsafeNow()))
+        Option.getOrElse(() => DateTime.toDateUtc(DateTime.nowUnsafe()))
       )
 
 export function useRecentActivities(limit = 10) {
@@ -51,7 +51,7 @@ export function useRecentActivities(limit = 10) {
 
   // Transform API data to UI format
   const activities: UIActivity[] = pipe(
-    Option.fromNullable(query.data?.items),
+    Option.fromNullishOr(query.data?.items),
     Option.map(
       Array.map((item) => ({
         id: item.id,

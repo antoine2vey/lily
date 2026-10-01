@@ -47,7 +47,7 @@ export function Avatar({ source, name, size = 'md' }: AvatarProps) {
   const { dimension, textClass } = getSizeStyles(size)
 
   const initials = pipe(
-    Option.fromNullable(name),
+    Option.fromNullishOr(name),
     Option.map(getInitials),
     Option.getOrElse(() => '?')
   )

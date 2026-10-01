@@ -17,7 +17,7 @@ export const readPlantResource = (plant: PlantDetail) =>
         description: plant.description,
         imageUrl: plant.imageUrl,
         room: pipe(
-          Option.fromNullable(plant.room),
+          Option.fromNullishOr(plant.room),
           Option.map((r) => ({
             name: r.name,
             icon: r.icon,

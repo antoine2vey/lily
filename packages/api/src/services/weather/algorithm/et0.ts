@@ -122,7 +122,7 @@ export function calculateTemperatureFactor(
   )
 
   const currentMean = pipe(
-    Option.fromNullable(currentWeather.temperatureMean),
+    Option.fromNullishOr(currentWeather.temperatureMean),
     Option.getOrElse(() => DEFAULT_TEMPERATURE_MEAN_C)
   )
 
@@ -214,7 +214,7 @@ export function calculateHumidityFactor(
   if (!isOutdoor) return FACTOR_NEUTRAL
 
   const humidity = pipe(
-    Option.fromNullable(currentWeather.humidity),
+    Option.fromNullishOr(currentWeather.humidity),
     Option.getOrElse(() => DEFAULT_HUMIDITY_PERCENT)
   )
 
@@ -272,7 +272,7 @@ export function calculateWindFactor(
   if (!isOutdoor) return FACTOR_NEUTRAL
 
   const windSpeed = pipe(
-    Option.fromNullable(currentWeather.windSpeed),
+    Option.fromNullishOr(currentWeather.windSpeed),
     Option.getOrElse(() => DEFAULT_WIND_SPEED_MS)
   )
 

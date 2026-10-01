@@ -14,10 +14,10 @@ type GiftMetadata = typeof GiftMetadata.Type
 
 const emptyMetadata: GiftMetadata = {}
 
-const decodeMetadata = Schema.decodeOption(Schema.parseJson(GiftMetadata))
+const decodeMetadata = Schema.decodeOption(Schema.fromJsonString(GiftMetadata))
 
 const durationLabel: Record<string, string> = pipe(
-  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.fromNullishOr(GIFT_DURATION_LABELS.en),
   Option.getOrElse(() => ({}) as Record<string, string>)
 )
 
@@ -103,7 +103,7 @@ export const GiftHistoryPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {Array.isEmptyReadonlyArray(data.items) ? (
+                {Array.isReadonlyArrayEmpty(data.items) ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -117,7 +117,7 @@ export const GiftHistoryPage = () => {
                     data.items,
                     Array.map((event) => {
                       const meta = pipe(
-                        Option.fromNullable(event.metadata),
+                        Option.fromNullishOr(event.metadata),
                         Option.flatMap(decodeMetadata),
                         Option.getOrElse(() => emptyMetadata)
                       )
@@ -142,7 +142,7 @@ export const GiftHistoryPage = () => {
                           </td>
                           <td className="px-4 py-3 text-gray-600">
                             {pipe(
-                              Option.fromNullable(meta.duration),
+                              Option.fromNullishOr(meta.duration),
                               Option.map((d) => durationLabel[d] ?? d),
                               Option.getOrElse(() => '—')
                             )}

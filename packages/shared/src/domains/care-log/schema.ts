@@ -10,23 +10,23 @@ export const CareLog = Schema.Struct({
   id: Schema.String,
   type: CareType,
   notes: Schema.optional(Schema.String),
-  date: Schema.Date,
+  date: Schema.DateFromString,
   photoUrl: Schema.optional(Schema.String),
   plantId: Schema.String,
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 
 export const CareLogCreateRequest = Schema.Struct({
   type: CareType,
   notes: Schema.optional(Schema.String),
-  date: Schema.optional(Schema.Date),
+  date: Schema.optional(Schema.DateFromString),
   photoUrl: Schema.optional(Schema.String),
 })
 
 export const CareLogUpdateRequest = Schema.Struct({
   notes: Schema.optional(Schema.String),
-  date: Schema.optional(Schema.Date),
+  date: Schema.optional(Schema.DateFromString),
   photoUrl: Schema.optional(Schema.String),
 })
 
@@ -41,7 +41,7 @@ export const RecentActivity = Schema.Struct({
   plantId: Schema.String,
   plantName: Schema.String,
   plantImageUrl: Schema.optional(Schema.String),
-  date: Schema.Date,
+  date: Schema.DateFromString,
   notes: Schema.optional(Schema.String),
 })
 

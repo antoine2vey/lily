@@ -1,10 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careDelegations,
   delegationPlants,
@@ -28,6 +27,7 @@ import {
   Order,
   pipe,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CreateDelegationData {
   ownerId: string
@@ -158,10 +158,10 @@ export interface IDelegationRepository {
   ) => Effect.Effect<string | null, SqlError>
 }
 
-export class DelegationRepository extends Context.Tag('DelegationRepository')<
+export class DelegationRepository extends Context.Service<
   DelegationRepository,
   IDelegationRepository
->() {}
+>()('DelegationRepository') {}
 
 const ownerAlias = sql`owner_user`
 const caretakerAlias = sql`caretaker_user`
@@ -455,11 +455,11 @@ export const DelegationRepositoryLive = Layer.effect(
           (t) =>
             pipe(
               Array.findFirst(t.schedules, (s) => s.careType === 'watering'),
-              Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+              Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
               Option.map((d) => d.getTime()),
               Option.getOrElse(() => Number.MAX_SAFE_INTEGER)
             ),
-          Order.number
+          Order.Number
         )
       }),
 

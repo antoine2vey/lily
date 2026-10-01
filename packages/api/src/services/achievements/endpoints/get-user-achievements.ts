@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type {
@@ -8,6 +7,7 @@ import type {
 } from '@lily/shared'
 import { ACHIEVEMENT_KEYS, ACHIEVEMENTS } from '@lily/shared'
 import { Array, Effect, Match, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 interface ProgressCounts {
   plants: number
@@ -93,7 +93,7 @@ export const getUserAchievements = (): Effect.Effect<
           ),
           progress: getProgressForKey(counts, key),
           maxProgress: pipe(
-            Option.fromNullable(def.threshold),
+            Option.fromNullishOr(def.threshold),
             Option.getOrNull
           ),
         } satisfies AchievementWithProgress

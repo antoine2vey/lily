@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCatalog } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { ilike, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CatalogPlantRow {
   id: string
@@ -73,9 +73,10 @@ export interface IPlantCatalogRepository {
   ) => Effect.Effect<string[], SqlError>
 }
 
-export class PlantCatalogRepository extends Context.Tag(
-  'PlantCatalogRepository'
-)<PlantCatalogRepository, IPlantCatalogRepository>() {}
+export class PlantCatalogRepository extends Context.Service<
+  PlantCatalogRepository,
+  IPlantCatalogRepository
+>()('PlantCatalogRepository') {}
 
 export const PlantCatalogRepositoryLive = Layer.effect(
   PlantCatalogRepository,

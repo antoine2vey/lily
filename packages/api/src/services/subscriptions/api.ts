@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   PaymentProviderError,
@@ -17,6 +16,7 @@ import {
   GiftCodeNotFoundError,
 } from '@lily/shared/errors/gift-code'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 // RevenueCat webhook headers - authorization bearer token
 const RevenueCatWebhookHeaders = Schema.Struct({

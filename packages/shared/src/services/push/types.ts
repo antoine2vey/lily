@@ -4,12 +4,12 @@ import { CareType } from '../../domains/care/types'
 // iOS interruption levels (mapped 1:1 onto APS `interruption-level`).
 // `time-sensitive` breaks through Focus modes and appears prominently on
 // the lock screen — requires the matching entitlement on the iOS app.
-export const InterruptionLevel = Schema.Literal(
+export const InterruptionLevel = Schema.Literals([
   'active',
   'critical',
   'passive',
-  'time-sensitive'
-)
+  'time-sensitive',
+])
 export type InterruptionLevel = typeof InterruptionLevel.Type
 
 // Push message to send to a device
@@ -17,9 +17,7 @@ export const PushMessage = Schema.Struct({
   to: Schema.String, // Expo push token
   title: Schema.String,
   body: Schema.String,
-  data: Schema.optional(
-    Schema.Record({ key: Schema.String, value: Schema.Unknown })
-  ),
+  data: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   sound: Schema.optional(Schema.Literal('default')),
   badge: Schema.optional(Schema.Number),
   interruptionLevel: Schema.optional(InterruptionLevel),
@@ -29,7 +27,7 @@ export type PushMessage = typeof PushMessage.Type
 // Response from push service
 export const PushTicket = Schema.Struct({
   id: Schema.String,
-  status: Schema.Union(Schema.Literal('ok'), Schema.Literal('error')),
+  status: Schema.Union([Schema.Literal('ok'), Schema.Literal('error')]),
   message: Schema.optional(Schema.String),
 })
 export type PushTicket = typeof PushTicket.Type
@@ -67,7 +65,7 @@ export const LiveActivityContentState = Schema.Struct({
   // Care tasks the user has logged today; paired with the remaining-task count
   // it lets the widget render a progress bar without a second push round-trip.
   completedToday: Schema.Number,
-  updatedAt: Schema.Date,
+  updatedAt: Schema.DateFromString,
 })
 export type LiveActivityContentState = typeof LiveActivityContentState.Type
 
@@ -97,22 +95,24 @@ export const LiveActivityPushMessage = Schema.Union(
   // payloads without an alert (sandbox is permissive — that's why dev builds
   // worked but TestFlight didn't). Apple's stance is that any push-started
   // LA must surface a visible trigger to the user.
-  Schema.TaggedStruct('LiveActivityStart', {
-    to: Schema.String,
-    attributes: CareTasksAttributes,
-    contentState: LiveActivityContentState,
-    alert: LiveActivityAlert,
-  }),
-  Schema.TaggedStruct('LiveActivityUpdate', {
-    to: Schema.String,
-    contentState: LiveActivityContentState,
-    alert: Schema.optional(LiveActivityAlert),
-  }),
-  Schema.TaggedStruct('LiveActivityEnd', {
-    to: Schema.String,
-    contentState: Schema.optional(LiveActivityContentState),
-    dismissalPolicy: Schema.Literal('immediate', 'default'),
-  })
+  [
+    Schema.TaggedStruct('LiveActivityStart', {
+      to: Schema.String,
+      attributes: CareTasksAttributes,
+      contentState: LiveActivityContentState,
+      alert: LiveActivityAlert,
+    }),
+    Schema.TaggedStruct('LiveActivityUpdate', {
+      to: Schema.String,
+      contentState: LiveActivityContentState,
+      alert: Schema.optional(LiveActivityAlert),
+    }),
+    Schema.TaggedStruct('LiveActivityEnd', {
+      to: Schema.String,
+      contentState: Schema.optional(LiveActivityContentState),
+      dismissalPolicy: Schema.Literals(['immediate', 'default']),
+    }),
+  ]
 )
 export type LiveActivityPushMessage = typeof LiveActivityPushMessage.Type
 

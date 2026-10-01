@@ -193,7 +193,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .from(schema.careLogs)
 
         const logCount = pipe(
-          Option.fromNullable(careLogCount?.count),
+          Option.fromNullishOr(careLogCount?.count),
           Option.getOrElse(() => 0)
         )
 
@@ -259,7 +259,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.careLogs)
 
       const logCount = pipe(
-        Option.fromNullable(careLogCount?.count),
+        Option.fromNullishOr(careLogCount?.count),
         Option.getOrElse(() => 0)
       )
 

@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
 import { and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UpsertStartTokenData {
   userId: string
@@ -101,9 +101,10 @@ export interface IActivityPushTokenRepository {
   ) => Effect.Effect<number, SqlError>
 }
 
-export class ActivityPushTokenRepository extends Context.Tag(
-  'ActivityPushTokenRepository'
-)<ActivityPushTokenRepository, IActivityPushTokenRepository>() {}
+export class ActivityPushTokenRepository extends Context.Service<
+  ActivityPushTokenRepository,
+  IActivityPushTokenRepository
+>()('ActivityPushTokenRepository') {}
 
 export const ActivityPushTokenRepositoryLive = Layer.effect(
   ActivityPushTokenRepository,

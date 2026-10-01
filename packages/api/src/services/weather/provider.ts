@@ -14,7 +14,7 @@ export interface IWeatherProvider {
 
 // The service tag consumed by the rest of the app.
 // The live implementation is a FallbackWeatherProvider that wraps concrete providers.
-export class WeatherProvider extends Context.Tag('WeatherProvider')<
+export class WeatherProvider extends Context.Service<
   WeatherProvider,
   IWeatherProvider
->() {}
+>()('WeatherProvider') {}

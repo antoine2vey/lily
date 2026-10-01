@@ -74,9 +74,9 @@ export type AdminUserOverview = typeof AdminUserOverview.Type
 
 export const PromptPreviewMessage = Schema.Struct({
   id: Schema.String,
-  role: Schema.Union(Schema.Literal('user'), Schema.Literal('assistant')),
+  role: Schema.Union([Schema.Literal('user'), Schema.Literal('assistant')]),
   content: Schema.String,
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 
 export const PromptPreviewPlant = Schema.Struct({
@@ -111,9 +111,9 @@ export const PromptPreviewRagChunk = Schema.Struct({
 })
 
 export const PromptPreviewConversationEntry = Schema.Struct({
-  role: Schema.Union(Schema.Literal('user'), Schema.Literal('assistant')),
+  role: Schema.Union([Schema.Literal('user'), Schema.Literal('assistant')]),
   content: Schema.String,
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 
 export const PromptPreviewRequest = Schema.Struct({
@@ -142,7 +142,7 @@ export const AdminGiftEvent = Schema.Struct({
   userEmail: Schema.String,
   eventType: SubscriptionEventType,
   metadata: Schema.NullOr(Schema.String),
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 export type AdminGiftEvent = typeof AdminGiftEvent.Type
 
@@ -158,7 +158,7 @@ export type AdminRevokeGiftResponse = typeof AdminRevokeGiftResponse.Type
 
 // --- Gift Subscription schemas ---
 
-export const GiftDuration = Schema.Literal('7d', '1m', '1y', 'infinite')
+export const GiftDuration = Schema.Literals(['7d', '1m', '1y', 'infinite'])
 export type GiftDuration = typeof GiftDuration.Type
 
 export const GIFT_DURATION_LABELS: Record<
@@ -190,8 +190,8 @@ export const AdminGiftSubscriptionResponse = Schema.Struct({
   userId: Schema.String,
   tier: SubscriptionTier,
   status: SubscriptionStatus,
-  periodStart: Schema.Date,
-  periodEnd: Schema.Date,
+  periodStart: Schema.DateFromString,
+  periodEnd: Schema.DateFromString,
 })
 export type AdminGiftSubscriptionResponse =
   typeof AdminGiftSubscriptionResponse.Type
@@ -203,12 +203,12 @@ export type AdminGiftSubscriptionResponse =
 // tell at a glance whether the issue is server-side or device-side.
 export const AdminLiveActivityTriggerOutcome = Schema.Struct({
   deviceTokenId: Schema.String,
-  kind: Schema.Literal(
+  kind: Schema.Literals([
     'accepted',
     'send-error',
     'config-error',
-    'token-invalidated'
-  ),
+    'token-invalidated',
+  ]),
   apnsId: Schema.optional(Schema.String),
   reason: Schema.optional(Schema.String),
 })
@@ -283,8 +283,8 @@ export const RedeemGiftCodeResponse = Schema.Struct({
   message: Schema.String,
   tier: SubscriptionTier,
   status: SubscriptionStatus,
-  periodStart: Schema.Date,
-  periodEnd: Schema.Date,
+  periodStart: Schema.DateFromString,
+  periodEnd: Schema.DateFromString,
 })
 export type RedeemGiftCodeResponse = typeof RedeemGiftCodeResponse.Type
 

@@ -1,4 +1,4 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { Layer } from 'effect'
 
 export const createMockPgDrizzle = (): Layer.Layer<PgDrizzle.PgDrizzle> => {

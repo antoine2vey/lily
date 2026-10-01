@@ -66,10 +66,10 @@ const stepsFromPlan = (
     // index so labels stay aligned even after a step was deleted.
     dueInDays: pipe(
       Array.get(proposal, s.position),
-      Option.flatMap((p) => Option.fromNullable(p.dueInDays)),
+      Option.flatMap((p) => Option.fromNullishOr(p.dueInDays)),
       Option.getOrUndefined
     ),
-    completed: Option.isSome(Option.fromNullable(s.completedAt)),
+    completed: Option.isSome(Option.fromNullishOr(s.completedAt)),
   }))
 
 export function CarePlanCard({
@@ -86,7 +86,7 @@ export function CarePlanCard({
   const dismissMutation = useDismissCarePlan()
 
   const storedPlan = pipe(
-    Option.fromNullable(plansData?.items),
+    Option.fromNullishOr(plansData?.items),
     Option.flatMap((items) =>
       Array.findFirst(items, (p) => p.id === carePlanId)
     )
@@ -109,7 +109,7 @@ export function CarePlanCard({
 
   const dueLabel = (dueInDays: number | undefined) =>
     pipe(
-      Option.fromNullable(dueInDays),
+      Option.fromNullishOr(dueInDays),
       Option.map((days) =>
         days === 0
           ? t('chat:carePlan.dueToday')
@@ -202,7 +202,7 @@ export function CarePlanCard({
     <View className="mb-3 gap-1.5">
       {Array.map(stepViews, (step, idx) => {
         const careConfig = pipe(
-          Option.fromNullable(step.careType),
+          Option.fromNullishOr(step.careType),
           Option.map((type) => getCareTypeConfig(type, iconColors)),
           Option.getOrUndefined
         )

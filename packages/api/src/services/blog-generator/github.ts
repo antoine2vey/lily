@@ -12,8 +12,8 @@ const encodeBase64 = (str: string): string =>
  */
 export const publishBlogPost = (slug: string, content: LocalizedText) =>
   Effect.gen(function* () {
-    const token = yield* Config.string('GITHUB_TOKEN')
-    const fullRepo = yield* Config.string('GITHUB_REPO')
+    const token = yield* Config.String('GITHUB_TOKEN')
+    const fullRepo = yield* Config.String('GITHUB_REPO')
     const [owner, repo] = yield* pipe(Str.split(fullRepo, '/'), (parts) =>
       Array.length(parts) === 2
         ? Effect.succeed(parts as unknown as [string, string])
@@ -24,7 +24,7 @@ export const publishBlogPost = (slug: string, content: LocalizedText) =>
           )
     )
     const baseBranch = yield* Config.withDefault(
-      Config.string('GITHUB_BRANCH'),
+      Config.String('GITHUB_BRANCH'),
       'main'
     )
 

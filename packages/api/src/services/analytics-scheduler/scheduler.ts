@@ -15,7 +15,7 @@ import { DateTime, Effect } from 'effect'
 export const writeAnalyticsSnapshots = Effect.gen(function* () {
   const repo = yield* AnalyticsRepository
 
-  const todayUtc = DateTime.formatIsoDate(DateTime.unsafeNow())
+  const todayUtc = DateTime.formatIsoDate(DateTime.nowUnsafe())
 
   yield* Effect.log('Writing analytics snapshots', { date: todayUtc })
 

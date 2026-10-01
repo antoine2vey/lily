@@ -20,7 +20,7 @@ export const withTimeZone = (
         dateTime,
         timezone === 'UTC'
           ? DateTime.zoneMakeOffset(0)
-          : DateTime.zoneUnsafeMakeNamed(timezone)
+          : DateTime.zoneMakeNamedUnsafe(timezone)
       )
     : dateTime
 
@@ -37,15 +37,15 @@ export const startOfDay = (
 ): DateTime.DateTime => {
   const zoned = withTimeZone(dateTime, timezone)
   const parts = DateTime.toParts(zoned)
-  return DateTime.unsafeMakeZoned(
+  return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
       month: parts.month,
       day: parts.day,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      millis: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
     },
     { timeZone: timezone, adjustForTimeZone: true }
   )
@@ -64,15 +64,15 @@ export const endOfDay = (
 ): DateTime.DateTime => {
   const zoned = withTimeZone(dateTime, timezone)
   const parts = DateTime.toParts(zoned)
-  return DateTime.unsafeMakeZoned(
+  return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
       month: parts.month,
       day: parts.day,
-      hours: 23,
-      minutes: 59,
-      seconds: 59,
-      millis: 999,
+      hour: 23,
+      minute: 59,
+      second: 59,
+      millisecond: 999,
     },
     { timeZone: timezone, adjustForTimeZone: true }
   )
@@ -95,15 +95,15 @@ export const endOfWeek = (
   const dayOfWeek = parts.weekDay
   const daysUntilSunday = 7 - dayOfWeek
 
-  return DateTime.unsafeMakeZoned(
+  return DateTime.makeZonedUnsafe(
     {
       year: parts.year,
       month: parts.month,
       day: parts.day + daysUntilSunday,
-      hours: 23,
-      minutes: 59,
-      seconds: 59,
-      millis: 999,
+      hour: 23,
+      minute: 59,
+      second: 59,
+      millisecond: 999,
     },
     { timeZone: timezone, adjustForTimeZone: true }
   )
@@ -136,18 +136,18 @@ export const localDayKey = (
  * @returns Start of today (00:00:00.000) in the specified timezone
  */
 export const startOfTodayAsDate = (timezone = 'UTC'): Date => {
-  const current = withTimeZone(DateTime.unsafeNow(), timezone)
+  const current = withTimeZone(DateTime.nowUnsafe(), timezone)
   const parts = DateTime.toParts(current)
   return DateTime.toDateUtc(
-    DateTime.unsafeMakeZoned(
+    DateTime.makeZonedUnsafe(
       {
         year: parts.year,
         month: parts.month,
         day: parts.day,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        millis: 0,
+        hour: 0,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
       },
       { timeZone: timezone, adjustForTimeZone: true }
     )
@@ -165,20 +165,20 @@ export const startOfTomorrowAsDate = (timezone = 'UTC'): Date => {
   // DateTime can throw `RangeError: Invalid time value` under Hermes
   // for some timezones. Safe pattern: arithmetic on UTC, then zone.
   const tomorrow = withTimeZone(
-    DateTime.add(DateTime.unsafeNow(), { days: 1 }),
+    DateTime.add(DateTime.nowUnsafe(), { days: 1 }),
     timezone
   )
   const parts = DateTime.toParts(tomorrow)
   return DateTime.toDateUtc(
-    DateTime.unsafeMakeZoned(
+    DateTime.makeZonedUnsafe(
       {
         year: parts.year,
         month: parts.month,
         day: parts.day,
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
-        millis: 0,
+        hour: 0,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
       },
       { timeZone: timezone, adjustForTimeZone: true }
     )

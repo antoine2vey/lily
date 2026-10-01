@@ -9,12 +9,12 @@ type TaggedError = { readonly _tag: string }
 const isTaggedError: Predicate.Refinement<unknown, TaggedError> = (
   x
 ): x is TaggedError =>
-  Predicate.isRecord(x) && '_tag' in x && typeof x._tag === 'string'
+  Predicate.isObject(x) && '_tag' in x && typeof x._tag === 'string'
 
 const messageOf = (error: unknown): string => {
   if (error instanceof Error) return error.message
   if (
-    Predicate.isRecord(error) &&
+    Predicate.isObject(error) &&
     'message' in error &&
     typeof error.message === 'string'
   ) {

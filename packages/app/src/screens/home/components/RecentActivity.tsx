@@ -213,7 +213,7 @@ export function RecentActivity({
   const iconColors = useIconColors()
   const activityConfig = getActivityConfig(iconColors.isDark)
 
-  if (Array.isEmptyReadonlyArray(activities)) {
+  if (Array.isReadonlyArrayEmpty(activities)) {
     return (
       <View>
         <SectionHeader title={t('sections.recentActivity')} />

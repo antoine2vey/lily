@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class RoomNotFoundError extends Schema.TaggedError<RoomNotFoundError>()(
@@ -8,5 +7,5 @@ export class RoomNotFoundError extends Schema.TaggedError<RoomNotFoundError>()(
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

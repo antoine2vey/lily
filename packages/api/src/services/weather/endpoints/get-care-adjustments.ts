@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -19,6 +18,7 @@ import {
   WeatherNotAvailableError,
 } from '@lily/shared'
 import { Array, Effect, Option, pipe, String } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getCareAdjustments = (): Effect.Effect<
   ReadonlyArray<CareAdjustment>,
@@ -54,7 +54,7 @@ export const getCareAdjustments = (): Effect.Effect<
     const plantsResult = yield* plantRepo.findAll({
       userId: id,
       timezone: pipe(
-        Option.fromNullable(user.timezone),
+        Option.fromNullishOr(user.timezone),
         Option.getOrElse(() => 'UTC')
       ),
       page: 1,

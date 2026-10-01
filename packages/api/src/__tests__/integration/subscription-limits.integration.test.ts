@@ -114,7 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.plants.userId, user.id))
 
       const plantCount = pipe(
-        Option.fromNullable(countResult?.count),
+        Option.fromNullishOr(countResult?.count),
         Option.getOrElse(() => 0)
       )
 
@@ -124,7 +124,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
       const maxPlants = pipe(
-        Option.fromNullable(tierConfig?.maxPlants),
+        Option.fromNullishOr(tierConfig?.maxPlants),
         Option.getOrElse(() => 5)
       )
 
@@ -169,7 +169,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.plants.userId, user.id))
 
       const plantCount = pipe(
-        Option.fromNullable(countResult?.count),
+        Option.fromNullishOr(countResult?.count),
         Option.getOrElse(() => 0)
       )
 
@@ -179,7 +179,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
       const maxPlants = pipe(
-        Option.fromNullable(tierConfig?.maxPlants),
+        Option.fromNullishOr(tierConfig?.maxPlants),
         Option.getOrElse(() => 5)
       )
 
@@ -304,11 +304,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.subscriptionTiers.tier, 'free'))
 
       const maxChats = pipe(
-        Option.fromNullable(tierConfig?.maxAiChatsMonthly),
+        Option.fromNullishOr(tierConfig?.maxAiChatsMonthly),
         Option.getOrElse(() => 10)
       )
       const currentChats = pipe(
-        Option.fromNullable(usage?.aiChatsCount),
+        Option.fromNullishOr(usage?.aiChatsCount),
         Option.getOrElse(() => 0)
       )
 
@@ -391,11 +391,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .where(eq(schema.subscriptionTiers.tier, effectiveTier))
 
       const plantCount = pipe(
-        Option.fromNullable(countResult?.count),
+        Option.fromNullishOr(countResult?.count),
         Option.getOrElse(() => 0)
       )
       const maxPlants = pipe(
-        Option.fromNullable(tierConfig?.maxPlants),
+        Option.fromNullishOr(tierConfig?.maxPlants),
         Option.getOrElse(() => 5)
       )
 

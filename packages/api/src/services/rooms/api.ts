@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   Room,
@@ -8,8 +7,12 @@ import {
   RoomUpdateRequest,
 } from '@lily/shared'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const roomIdParam = HttpApiSchema.param('id', Schema.UUID)
+const roomIdParam = HttpApiSchema.param(
+  'id',
+  Schema.String.check(Schema.isGUID())
+)
 
 export const RoomsApi = HttpApiGroup.make('rooms')
   .add(
@@ -31,7 +34,7 @@ export const RoomsApi = HttpApiGroup.make('rooms')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    HttpApiEndpoint.del('deleteRoom')`/${roomIdParam}`
+    HttpApiEndpoint.delete('deleteRoom')`/${roomIdParam}`
       .addSuccess(Room)
       .addError(RoomNotFoundError, { status: 404 })
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

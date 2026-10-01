@@ -37,7 +37,7 @@ import type {
   PushMessage,
   QueueMessage,
 } from '@lily/shared/server'
-import { Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
+import { Effect, Layer, Option, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Empty mocks for the Live Activity path — worker unconditionally reads
@@ -117,7 +117,7 @@ const runAndCapturePushes = async (
           LivingPlantsLive
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
   return sentMessages
@@ -150,7 +150,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -325,7 +325,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -366,7 +366,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -412,7 +412,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -454,7 +454,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -548,7 +548,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -588,7 +588,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -617,7 +617,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -653,7 +653,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -698,7 +698,7 @@ describe('Notification Worker', () => {
               createMockNotificationRepository(notifications)
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -732,7 +732,7 @@ describe('Notification Worker', () => {
               createMockMessageQueue({
                 onDequeue: () => {
                   const msg = pipe(
-                    Option.fromNullable(queueMessages.shift()),
+                    Option.fromNullishOr(queueMessages.shift()),
                     Option.getOrNull
                   )
                   if (!msg) return null
@@ -750,7 +750,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -776,7 +776,7 @@ describe('Notification Worker', () => {
               LivingPlantsLive
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -852,7 +852,7 @@ describe('Notification Worker', () => {
         await Effect.runPromise(
           processMessage(message).pipe(
             Effect.provide(layer),
-            Logger.withMinimumLogLevel(LogLevel.None)
+            Effect.provideService(References.MinimumLogLevel, 'None')
           )
         )
       }
@@ -957,7 +957,7 @@ describe('Notification Worker', () => {
               createMockPlantRepository({ plants })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
       return { sentMessages, notification }

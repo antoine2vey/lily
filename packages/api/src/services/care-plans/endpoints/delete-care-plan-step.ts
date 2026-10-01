@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CarePlanStepContext } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /** `{ plan, step }` come from `withCarePlanStep` in the handler. */
 export const deleteCarePlanStep = ({
@@ -19,7 +19,7 @@ export const deleteCarePlanStep = ({
     // Removing the last open step can finish the plan.
     const settled = yield* repo.settleCompletion(plan.id)
     return pipe(
-      Option.fromNullable(settled),
+      Option.fromNullishOr(settled),
       Option.getOrElse(() => plan)
     )
   }).pipe(

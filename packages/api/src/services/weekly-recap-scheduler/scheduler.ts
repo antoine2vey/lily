@@ -38,7 +38,7 @@ export const processWeeklyRecap = Effect.fn(
       Effect.gen(function* () {
         const timezone = resolveTimezone(user.timezone)
 
-        const localNow = withTimeZone(DateTime.unsafeNow(), timezone)
+        const localNow = withTimeZone(DateTime.nowUnsafe(), timezone)
         const { weekDay } = DateTime.toParts(localNow)
         if (weekDay !== SUNDAY) {
           return yield* new SkipUserError({ reason: 'not_sunday' })
@@ -103,7 +103,7 @@ const checkAndCreateWeeklyRecap = Effect.gen(function* () {
     (u) => !isOnVacation(u, nowAsDate())
   )
 
-  if (Array.isEmptyReadonlyArray(usersWithDigest)) return
+  if (Array.isReadonlyArrayEmpty(usersWithDigest)) return
 
   yield* processWeeklyRecap(usersWithDigest)
 }).pipe(Effect.withSpan('weekly-recap-scheduler.check'))

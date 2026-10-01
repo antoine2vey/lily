@@ -42,13 +42,13 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
     })
 
     const ownerName = pipe(
-      Option.fromNullable(delegation.ownerName),
+      Option.fromNullishOr(delegation.ownerName),
       Option.getOrElse(() => 'Someone')
     )
 
     const caretaker = yield* userRepo.findById(delegation.caretakerId)
     const caretakerLanguage = Option.getOrElse(
-      Option.fromNullable(caretaker?.language),
+      Option.fromNullishOr(caretaker?.language),
       () => 'en' as const
     )
 

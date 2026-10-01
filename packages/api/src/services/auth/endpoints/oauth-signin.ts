@@ -14,14 +14,14 @@ const buildFullName = (
   fromToken: string | null
 ): string | null => {
   const fromPayload = pipe(
-    Option.fromNullable(fullName),
+    Option.fromNullishOr(fullName),
     Option.flatMap((parts) => {
       const given = pipe(
-        Option.fromNullable(parts.givenName),
+        Option.fromNullishOr(parts.givenName),
         Option.getOrElse(() => '')
       )
       const family = pipe(
-        Option.fromNullable(parts.familyName),
+        Option.fromNullishOr(parts.familyName),
         Option.getOrElse(() => '')
       )
       const combined = `${given} ${family}`.trim()
@@ -30,7 +30,7 @@ const buildFullName = (
   )
   return pipe(
     fromPayload,
-    Option.orElse(() => Option.fromNullable(fromToken)),
+    Option.orElse(() => Option.fromNullishOr(fromToken)),
     Option.getOrElse<string | null>(() => null)
   )
 }
@@ -88,7 +88,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
   )
 
   const linkedUser = yield* pipe(
-    Option.fromNullable(existingIdentity),
+    Option.fromNullishOr(existingIdentity),
     Option.match({
       onNone: () => Effect.succeed(null),
       onSome: (identity) =>
@@ -103,14 +103,14 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
   )
 
   const user = yield* pipe(
-    Option.fromNullable(linkedUser),
+    Option.fromNullishOr(linkedUser),
     Option.match({
       onNone: () =>
         Effect.gen(function* () {
           const existingByEmail = yield* userRepo.findByEmail(verified.email)
 
           const targetUser = yield* pipe(
-            Option.fromNullable(existingByEmail),
+            Option.fromNullishOr(existingByEmail),
             Option.match({
               onNone: () =>
                 // Intentionally do NOT populate `name` (the @handle) here —
@@ -140,7 +140,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                       emailVerified: true,
                     })
                     return pipe(
-                      Option.fromNullable(updated),
+                      Option.fromNullishOr(updated),
                       Option.getOrElse(() => existing)
                     )
                   }

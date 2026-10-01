@@ -1,6 +1,6 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { UsernameAvailability } from '@lily/shared/username'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Query parameter for username
 const usernameQuery = HttpApiSchema.param('username', Schema.String)

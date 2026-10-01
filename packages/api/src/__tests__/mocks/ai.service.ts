@@ -25,12 +25,12 @@ export const createMockAiService = (
   data: MockAiServiceData = {}
 ): Layer.Layer<AiService> => {
   const response = pipe(
-    Option.fromNullable(data.plantChatResponse),
+    Option.fromNullishOr(data.plantChatResponse),
     Option.getOrElse(() => 'Mock AI response')
   )
 
   const steps: readonly StepData[] = pipe(
-    Option.fromNullable(data.mockSteps),
+    Option.fromNullishOr(data.mockSteps),
     Option.getOrElse((): readonly StepData[] => [
       { text: response, toolResults: [] },
     ])

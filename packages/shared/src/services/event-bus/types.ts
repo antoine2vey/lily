@@ -83,7 +83,7 @@ export const PlantLifecycleChangedEvent = Schema.TaggedStruct(
 )
 
 // Union of all events
-export const AppEvent = Schema.Union(
+export const AppEvent = Schema.Union([
   PlantCreatedEvent,
   CareLogCreatedEvent,
   ChatMessageSentEvent,
@@ -96,8 +96,8 @@ export const AppEvent = Schema.Union(
   ReminderRespondedEvent,
   PlantSharedEvent,
   UserFollowedEvent,
-  PlantLifecycleChangedEvent
-)
+  PlantLifecycleChangedEvent,
+])
 
 export type AppEvent = typeof AppEvent.Type
 export type PlantCreatedEvent = typeof PlantCreatedEvent.Type

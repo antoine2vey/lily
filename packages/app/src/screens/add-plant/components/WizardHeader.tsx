@@ -18,7 +18,7 @@ export function WizardHeader({
 }: WizardHeaderProps) {
   const { t } = useTranslation('addPlant')
   const progress = (step / totalSteps) * 100
-  const displayTitle = Option.getOrElse(Option.fromNullable(title), () =>
+  const displayTitle = Option.getOrElse(Option.fromNullishOr(title), () =>
     t('wizardTitle')
   )
 

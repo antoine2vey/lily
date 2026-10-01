@@ -9,7 +9,7 @@ export function useConversation(conversationId?: string) {
     {
       path: {
         conversationId: pipe(
-          Option.fromNullable(conversationId),
+          Option.fromNullishOr(conversationId),
           Option.getOrElse(() => '')
         ),
       },

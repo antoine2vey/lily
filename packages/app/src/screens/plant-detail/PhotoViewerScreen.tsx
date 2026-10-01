@@ -26,7 +26,7 @@ import { PHOTOS_LIMIT, PHOTOS_PAGE } from '@/utils/plant-cache'
 
 // Newest photo first — matches the entry card and Growth Journal ordering.
 const photoRecentFirst: Order.Order<PlantPhoto> = Order.mapInput(
-  Order.reverse(Order.number),
+  Order.flip(Order.Number),
   (photo) => photo.takenAt.getTime()
 )
 
@@ -46,7 +46,7 @@ export function PhotoViewerScreen() {
   // Page through ALL of the plant's photos (the journal's source of truth),
   // not the detail's capped subset, so the carousel spans every picture.
   const { data, isLoading } = useEffectQuery('plants', 'getPlantPhotos', {
-    path: { id: Option.getOrElse(Option.fromNullable(plantId), () => '') },
+    path: { id: Option.getOrElse(Option.fromNullishOr(plantId), () => '') },
     urlParams: { page: PHOTOS_PAGE, limit: PHOTOS_LIMIT },
   })
 
@@ -55,7 +55,7 @@ export function PhotoViewerScreen() {
   const photos = useMemo(
     () =>
       pipe(
-        Option.fromNullable(data?.items),
+        Option.fromNullishOr(data?.items),
         Option.map((items) => Array.sort(items, photoRecentFirst)),
         Option.getOrElse(() => [] as ReadonlyArray<PlantPhoto>)
       ),
@@ -176,7 +176,7 @@ export function PhotoViewerScreen() {
     )
   }
 
-  if (Array.isEmptyReadonlyArray(photos)) {
+  if (Array.isReadonlyArrayEmpty(photos)) {
     return (
       <View
         className="flex-1 bg-black items-center justify-center"

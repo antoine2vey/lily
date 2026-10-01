@@ -92,7 +92,7 @@ export async function uploadMultipart<T>(
           if (errorBody._tag) {
             throw new UploadError(
               pipe(
-                Option.fromNullable(errorBody.message as string | undefined),
+                Option.fromNullishOr(errorBody.message as string | undefined),
                 Option.getOrElse(() => 'Request failed')
               ),
               errorBody as ApiFailure
@@ -115,7 +115,7 @@ export async function uploadMultipart<T>(
       if (errorBody._tag) {
         throw new UploadError(
           pipe(
-            Option.fromNullable(errorBody.message as string | undefined),
+            Option.fromNullishOr(errorBody.message as string | undefined),
             Option.getOrElse(() => 'Request failed')
           ),
           errorBody as ApiFailure
@@ -158,11 +158,11 @@ export function createFileFromUri(
   return {
     uri,
     name: pipe(
-      Option.fromNullable(options?.name),
+      Option.fromNullishOr(options?.name),
       Option.getOrElse(() => 'photo.jpg')
     ),
     type: pipe(
-      Option.fromNullable(options?.type),
+      Option.fromNullishOr(options?.type),
       Option.getOrElse(() => 'image/jpeg')
     ),
   }

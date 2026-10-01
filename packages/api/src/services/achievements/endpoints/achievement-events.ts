@@ -1,7 +1,7 @@
-import { HttpServerResponse } from '@effect/platform'
 import { AchievementNotifier } from '@lily/api/services/achievements/notifier'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect, Schedule, Stream } from 'effect'
+import { HttpServerResponse } from 'effect/http'
 
 const encoder = new TextEncoder()
 
@@ -10,7 +10,7 @@ export const achievementEvents = () =>
     const { id: userId } = yield* CurrentUser
     const notifier = yield* AchievementNotifier
 
-    const eventStream = Stream.unwrapScoped(
+    const eventStream = Stream.unwrap(
       Effect.gen(function* () {
         const dequeue = yield* notifier.subscribe
         return Stream.fromQueue(dequeue).pipe(

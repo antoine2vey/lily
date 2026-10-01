@@ -21,7 +21,7 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Logger, LogLevel } from 'effect'
+import { Array, Effect, Layer, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const userId = 'user-1'
@@ -148,7 +148,7 @@ describe('executePlantCare', () => {
               createMockWeatherRepository()
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
     })
@@ -232,7 +232,7 @@ describe('executePlantCare', () => {
               createMockWeatherRepository()
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
     })
@@ -308,7 +308,7 @@ describe('executePlantCare', () => {
               createMockWeatherRepository()
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
     })
@@ -413,7 +413,7 @@ describe('executePlantCare', () => {
               createMockWeatherRepository()
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
     })

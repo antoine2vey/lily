@@ -47,7 +47,7 @@ export const createMockUserRepository = (
         lastName: data.lastName ?? null,
         email: data.email,
         emailVerified: pipe(
-          Option.fromNullable(data.emailVerified),
+          Option.fromNullishOr(data.emailVerified),
           Option.getOrElse(() => false)
         ),
         image: null,

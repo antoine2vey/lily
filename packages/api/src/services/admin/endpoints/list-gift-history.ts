@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import {
   type PaginatedResponse,
@@ -8,6 +7,7 @@ import {
 } from '@lily/shared'
 import type { AdminGiftEvent } from '@lily/shared/admin'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const listGiftHistory = (
   params: PaginationParams

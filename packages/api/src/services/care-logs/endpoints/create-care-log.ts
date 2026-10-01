@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
@@ -7,6 +6,7 @@ import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CareLog, CareLogCreateRequest } from '@lily/shared/care-log'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const createCareLog = (
   plantId: string,

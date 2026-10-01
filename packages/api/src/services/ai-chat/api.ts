@@ -1,9 +1,3 @@
-import {
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-  Multipart,
-} from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { LimitExceededError, PaginationParams } from '@lily/shared'
 import {
@@ -23,8 +17,13 @@ import {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
+import { Multipart } from 'effect/http'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const conversationIdParam = HttpApiSchema.param('conversationId', Schema.UUID)
+const conversationIdParam = HttpApiSchema.param(
+  'conversationId',
+  Schema.String.check(Schema.isGUID())
+)
 
 const StreamChatRequest = Schema.Struct({
   message: Schema.String,
@@ -65,7 +64,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
   )
   .add(
-    HttpApiEndpoint.del(
+    HttpApiEndpoint.delete(
       'deleteConversation'
     )`/chat/conversations/${conversationIdParam}`
       .addError(ConversationNotFoundError, { status: 404 })
@@ -99,11 +98,9 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
       'uploadConversationImage'
     )`/chat/conversations/${conversationIdParam}/upload`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            files: Multipart.FilesSchema,
-          })
-        )
+        Schema.Struct({
+          files: Multipart.FilesSchema,
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(
         Schema.Struct({

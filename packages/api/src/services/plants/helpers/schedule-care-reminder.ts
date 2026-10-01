@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
@@ -10,6 +9,7 @@ import {
 import { getUserNotificationSettings } from '@lily/api/services/plants/helpers/user-settings'
 import { isOnVacation, nowAsDate } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type CareReminderType =
   | 'watering_reminder'
@@ -57,7 +57,7 @@ export const scheduleCareReminder = (
     const caretakerId =
       yield* delegationRepo.findActiveCaretakerForPlant(plantId)
     const recipientId = pipe(
-      Option.fromNullable(caretakerId),
+      Option.fromNullishOr(caretakerId),
       Option.getOrElse(() => userId)
     )
 

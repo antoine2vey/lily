@@ -18,7 +18,7 @@ export const UsernameRequest = Schema.Struct({
   username: Schema.String,
 })
 
-export const OAuthProvider = Schema.Literal('apple', 'google')
+export const OAuthProvider = Schema.Literals(['apple', 'google'])
 export type OAuthProvider = typeof OAuthProvider.Type
 
 export const OAuthFullName = Schema.Struct({
@@ -47,8 +47,8 @@ export const UserProfile = Schema.Struct({
   lastName: Schema.NullOr(Schema.String),
   username: Schema.optional(Schema.String),
   timezone: Schema.optional(Schema.String),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
   role: UserRole,
   status: UserStatus,
 })

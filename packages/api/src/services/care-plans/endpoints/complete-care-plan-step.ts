@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -17,6 +16,7 @@ import type { CarePlan } from '@lily/shared/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Completes one step. Care-typed steps go through the regular care flow
@@ -49,7 +49,7 @@ export const completeCarePlanStep = ({
     const repo = yield* CarePlanRepository
     const plantRepo = yield* PlantRepository
 
-    if (Option.isSome(Option.fromNullable(step.completedAt))) {
+    if (Option.isSome(Option.fromNullishOr(step.completedAt))) {
       return plan
     }
 
@@ -58,7 +58,7 @@ export const completeCarePlanStep = ({
     })
 
     yield* pipe(
-      Option.fromNullable(step.careType),
+      Option.fromNullishOr(step.careType),
       Option.match({
         onNone: () => tickDirectly,
         onSome: (careType) =>
@@ -82,7 +82,7 @@ export const completeCarePlanStep = ({
 
     const settled = yield* repo.settleCompletion(plan.id)
     return pipe(
-      Option.fromNullable(settled),
+      Option.fromNullishOr(settled),
       Option.getOrElse(() => plan)
     )
   }).pipe(

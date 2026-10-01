@@ -1,4 +1,3 @@
-import { HttpApi } from '@effect/platform'
 import { AchievementsApi } from '@lily/api/services/achievements/api'
 import { ActivityPushTokensApi } from '@lily/api/services/activity-push-tokens/api'
 import { AdminApi } from '@lily/api/services/admin/api'
@@ -28,6 +27,7 @@ import { UsersApi } from '@lily/api/services/user/api'
 import { UsernameApi } from '@lily/api/services/username/api'
 import { VacationApi } from '@lily/api/services/vacation/api'
 import { WeatherApi } from '@lily/api/services/weather/api'
+import { HttpApi } from 'effect/http-api'
 
 // Create API that includes all services
 // Health endpoint is at root level (/health)

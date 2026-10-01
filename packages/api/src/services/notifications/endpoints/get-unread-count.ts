@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { UnreadCountResponse } from '@lily/shared/notification'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getUnreadCount = (): Effect.Effect<
   UnreadCountResponse,

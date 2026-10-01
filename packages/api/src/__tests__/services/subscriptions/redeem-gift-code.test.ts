@@ -124,7 +124,7 @@ describe('redeemGiftCode', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('GiftCodeNotFoundError')
@@ -139,7 +139,7 @@ describe('redeemGiftCode', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('GiftCodeInactiveError')
@@ -154,7 +154,7 @@ describe('redeemGiftCode', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('GiftCodeExpiredError')
@@ -169,7 +169,7 @@ describe('redeemGiftCode', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('GiftCodeExhaustedError')
@@ -193,7 +193,7 @@ describe('redeemGiftCode', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('GiftCodeAlreadyRedeemedError')

@@ -28,7 +28,7 @@ import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/co
 import { uncompleteCarePlanStep } from '@lily/api/services/care-plans/endpoints/uncomplete-care-plan-step'
 import { withCarePlanStep } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { executePlantCare } from '@lily/api/services/plants/helpers/execute-plant-care'
-import { Array, Effect, Layer, Logger, LogLevel, Option } from 'effect'
+import { Array, Effect, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const userId = 'user-1'
@@ -158,7 +158,9 @@ const buildScenario = (scenario: Scenario = {}) => {
 }
 
 const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
-  Effect.runPromise(effect.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+  Effect.runPromise(
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
+  )
 
 describe('completeCarePlanStep', () => {
   it('ticks a free-text step without touching care logs', async () => {

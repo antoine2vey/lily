@@ -154,7 +154,7 @@ export const categorize = (content: string): ContentCategory => {
   }))
 
   const byScoreDesc = Order.mapInput(
-    Order.reverse(Order.number),
+    Order.flip(Order.Number),
     (s: { score: number }) => s.score
   )
 

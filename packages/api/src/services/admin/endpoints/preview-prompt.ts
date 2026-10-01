@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -15,6 +14,7 @@ import { daysSince, formatIsoDate } from '@lily/shared'
 import type { PromptPreviewResponse } from '@lily/shared/admin'
 import { ChatMessageNotFoundError } from '@lily/shared/errors/admin'
 import { Array, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const previewPrompt = (
   messageId: string
@@ -126,7 +126,7 @@ export const previewPrompt = (
       careHistory: Array.map(careLogsResponse.items, (log) => ({
         type: log.type,
         date: formatIsoDate(log.date),
-        notes: pipe(Option.fromNullable(log.notes), Option.getOrNull),
+        notes: pipe(Option.fromNullishOr(log.notes), Option.getOrNull),
       })),
       ragQuery,
       ragChunks: Array.map(ragChunks, (chunk) => ({

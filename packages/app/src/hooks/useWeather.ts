@@ -28,12 +28,12 @@ export function useWeather() {
   )
 
   const todayWeather: Option.Option<WeatherData> = pipe(
-    Option.fromNullable(forecastQuery.data?.daily),
+    Option.fromNullishOr(forecastQuery.data?.daily),
     Option.flatMap(Array.head)
   )
 
   const adjustmentSummary: AdjustmentSummary = pipe(
-    Option.fromNullable(adjustmentsQuery.data),
+    Option.fromNullishOr(adjustmentsQuery.data),
     Option.map((adjustments: readonly CareAdjustment[]) => ({
       adjustedCount: Array.length(
         Array.filter(adjustments, (a) => a.wateringMultiplier !== 1)

@@ -1,7 +1,3 @@
-import type { PlatformError } from '@effect/platform/Error'
-import { FileSystem } from '@effect/platform/FileSystem'
-import type { PersistedFile } from '@effect/platform/Multipart'
-import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -12,6 +8,10 @@ import type {
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
+import type { PlatformError } from 'effect/PlatformError'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const uploadPlantPhoto = ({
   plantId,

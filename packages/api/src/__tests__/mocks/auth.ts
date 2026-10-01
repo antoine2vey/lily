@@ -1,4 +1,3 @@
-import { HttpServerRequest } from '@effect/platform'
 import {
   Authentication,
   CurrentUser,
@@ -6,6 +5,7 @@ import {
 import { UnauthorizedError } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Layer } from 'effect'
+import { HttpServerRequest } from 'effect/http'
 
 /**
  * Mock user profile for testing

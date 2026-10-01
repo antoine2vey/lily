@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -11,6 +10,7 @@ import {
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Schedule (or reschedule) a vacation.
@@ -37,22 +37,22 @@ export const setVacation = (
       return yield* new UserNotFoundError()
     }
 
-    const nowDt = DateTime.unsafeNow()
-    const startDt = DateTime.unsafeMake(request.startDate)
-    const endDt = DateTime.unsafeMake(request.endDate)
+    const nowDt = DateTime.nowUnsafe()
+    const startDt = DateTime.makeUnsafe(request.startDate)
+    const endDt = DateTime.makeUnsafe(request.endDate)
 
-    if (DateTime.greaterThanOrEqualTo(startDt, endDt)) {
+    if (DateTime.isGreaterThanOrEqualTo(startDt, endDt)) {
       return yield* new VacationDateError({
         message: 'End date must be after start date',
       })
     }
-    if (DateTime.lessThanOrEqualTo(endDt, nowDt)) {
+    if (DateTime.isLessThanOrEqualTo(endDt, nowDt)) {
       return yield* new VacationDateError({
         message: 'End date must be in the future',
       })
     }
     if (
-      DateTime.distance(startDt, endDt) >
+      Duration.toMillis(DateTime.distance(startDt, endDt)) >
       Duration.toMillis(Duration.days(VACATION_MAX_DURATION_DAYS))
     ) {
       return yield* new VacationDateError({
@@ -64,10 +64,10 @@ export const setVacation = (
       Match.when('active', () =>
         Effect.gen(function* () {
           const startUnchanged = pipe(
-            Option.fromNullable(user.vacationStart),
+            Option.fromNullishOr(user.vacationStart),
             Option.map(
               (existing) =>
-                DateTime.toEpochMillis(DateTime.unsafeMake(existing)) ===
+                DateTime.toEpochMillis(DateTime.makeUnsafe(existing)) ===
                 DateTime.toEpochMillis(startDt)
             ),
             Option.getOrElse(() => false)
@@ -92,7 +92,7 @@ export const setVacation = (
             vacationStart: request.startDate,
             vacationEnd: request.endDate,
           })
-          const startsNow = DateTime.lessThanOrEqualTo(startDt, nowDt)
+          const startsNow = DateTime.isLessThanOrEqualTo(startDt, nowDt)
           if (startsNow) {
             yield* activateVacation(id)
           }

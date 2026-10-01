@@ -1,15 +1,15 @@
-import {
-  HttpClient,
-  type HttpClientError,
-  HttpClientRequest,
-  HttpClientResponse,
-} from '@effect/platform'
 import type { CareTasksResponse, CareType, LanguageCode } from '@lily/shared'
 import { ExternalServiceError } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
 import { Config, Context, Effect, Layer, Option, pipe, Redacted } from 'effect'
+import {
+  HttpClient,
+  type HttpClientError,
+  HttpClientRequest,
+  HttpClientResponse,
+} from 'effect/http'
 
 // ── Request-scoped context ─────────────────────────────────────────────
 
@@ -18,19 +18,17 @@ import { Config, Context, Effect, Layer, Option, pipe, Redacted } from 'effect'
  * Provided per-request via provideAuth so that HttpClient interceptors
  * can read it from context automatically.
  */
-export class CurrentJwt extends Context.Tag('CurrentJwt')<
-  CurrentJwt,
-  string
->() {}
+export class CurrentJwt extends Context.Service<CurrentJwt, string>()(
+  'CurrentJwt'
+) {}
 
 /**
  * Request-scoped service carrying the authenticated user's ID.
  * Provided alongside CurrentJwt by provideAuth.
  */
-export class CurrentUserId extends Context.Tag('CurrentUserId')<
-  CurrentUserId,
-  string
->() {}
+export class CurrentUserId extends Context.Service<CurrentUserId, string>()(
+  'CurrentUserId'
+) {}
 
 // ── Response types for knowledge query ─────────────────────────────────
 
@@ -103,10 +101,9 @@ export interface IApiClient {
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
-export class ApiClient extends Context.Tag('ApiClient')<
-  ApiClient,
-  IApiClient
->() {}
+export class ApiClient extends Context.Service<ApiClient, IApiClient>()(
+  'ApiClient'
+) {}
 
 // ── Live Layer ─────────────────────────────────────────────────────────
 
@@ -119,10 +116,10 @@ export class ApiClient extends Context.Tag('ApiClient')<
  *
  * Methods just build requests and pipe through the right client.
  */
-export const ApiClientLive = Layer.unwrapEffect(
+export const ApiClientLive = Layer.unwrap(
   Effect.gen(function* () {
-    const baseUrl = yield* Config.string('API_BASE_URL')
-    const serviceSecret = yield* Config.redacted('SERVICE_TOKEN_SECRET')
+    const baseUrl = yield* Config.String('API_BASE_URL')
+    const serviceSecret = yield* Config.Redacted('SERVICE_TOKEN_SECRET')
     const secretValue = Redacted.value(serviceSecret)
 
     return Layer.effect(
@@ -213,14 +210,14 @@ export const ApiClientLive = Layer.unwrapEffect(
 
           sendMagicLink: (params) =>
             HttpClientRequest.post(`${baseUrl}/internal/magic-link`).pipe(
-              HttpClientRequest.bodyUnsafeJson(params),
+              HttpClientRequest.bodyJsonUnsafe(params),
               internal<{ message: string }>,
               Effect.withSpan('ApiClient.sendMagicLink')
             ),
 
           issueServiceToken: (params) =>
             HttpClientRequest.post(`${baseUrl}/internal/service-token`).pipe(
-              HttpClientRequest.bodyUnsafeJson(params),
+              HttpClientRequest.bodyJsonUnsafe(params),
               internal<AuthResponse>,
               Effect.withSpan('ApiClient.issueServiceToken')
             ),
@@ -264,7 +261,7 @@ export const ApiClientLive = Layer.unwrapEffect(
             HttpClientRequest.post(
               `${baseUrl}/api/plants/${plantId}/care`
             ).pipe(
-              HttpClientRequest.bodyUnsafeJson(body),
+              HttpClientRequest.bodyJsonUnsafe(body),
               authed<Plant>,
               Effect.withSpan('ApiClient.carePlant')
             ),
@@ -277,7 +274,7 @@ export const ApiClientLive = Layer.unwrapEffect(
 
           queryKnowledge: (question, plantName) => {
             const body = pipe(
-              Option.fromNullable(plantName),
+              Option.fromNullishOr(plantName),
               Option.match({
                 onNone: () => ({ question }),
                 onSome: (name) => ({ question, plantName: name }),
@@ -286,7 +283,7 @@ export const ApiClientLive = Layer.unwrapEffect(
             return HttpClientRequest.post(
               `${baseUrl}/api/knowledge/query`
             ).pipe(
-              HttpClientRequest.bodyUnsafeJson(body),
+              HttpClientRequest.bodyJsonUnsafe(body),
               authed<KnowledgeQueryResult>,
               Effect.withSpan('ApiClient.queryKnowledge')
             )
@@ -294,7 +291,7 @@ export const ApiClientLive = Layer.unwrapEffect(
 
           refreshToken: (refreshTokenValue) =>
             HttpClientRequest.post(`${baseUrl}/api/auth/refresh`).pipe(
-              HttpClientRequest.bodyUnsafeJson({
+              HttpClientRequest.bodyJsonUnsafe({
                 refreshToken: refreshTokenValue,
               }),
               unauthenticated<RefreshTokenResponse>,

@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantScans } from '@lily/db/schema'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface IScanRepository {
   readonly create: (data: {
@@ -11,10 +11,10 @@ export interface IScanRepository {
   }) => Effect.Effect<typeof plantScans.$inferSelect, SqlError>
 }
 
-export class ScanRepository extends Context.Tag('ScanRepository')<
+export class ScanRepository extends Context.Service<
   ScanRepository,
   IScanRepository
->() {}
+>()('ScanRepository') {}
 
 export const ScanRepositoryLive = Layer.effect(
   ScanRepository,

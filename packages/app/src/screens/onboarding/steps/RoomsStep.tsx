@@ -1,4 +1,4 @@
-import { Array as Arr, Either } from 'effect'
+import { Array as Arr, Result } from 'effect'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
@@ -71,7 +71,7 @@ export function RoomsStep({ onNext, onSkip }: RoomsStepProps) {
 
     const created = Arr.filter(
       results,
-      (r) => r.status === 'fulfilled' && Either.isRight(r.value)
+      (r) => r.status === 'fulfilled' && Result.isSuccess(r.value)
     ).length
 
     setLoading(false)

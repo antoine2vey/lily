@@ -32,7 +32,7 @@ export function DelegationPlantList({
   const { t } = useTranslation('delegations')
   const iconColors = useIconColors()
 
-  if (Arr.isEmptyArray([...plants])) {
+  if (Arr.isArrayEmpty([...plants])) {
     return (
       <View className="items-center py-6">
         <Text className="text-sm text-text-muted dark:text-slate-400">
@@ -53,7 +53,7 @@ export function DelegationPlantList({
       <Animated.View entering={FadeIn.duration(300)} className="gap-2">
         {Arr.map(plants, (plant) => {
           const nextWatering = pipe(
-            Option.fromNullable(getNextCareAt(plant.schedules, 'watering')),
+            Option.fromNullishOr(getNextCareAt(plant.schedules, 'watering')),
             Option.flatMap(parseApiDate),
             Option.map(formatShortDate),
             Option.getOrElse(() => t('plants.noSchedule'))
@@ -67,7 +67,7 @@ export function DelegationPlantList({
             >
               <Avatar
                 source={pipe(
-                  Option.fromNullable(plant.imageUrl),
+                  Option.fromNullishOr(plant.imageUrl),
                   Option.map((uri) => ({ uri })),
                   Option.getOrUndefined
                 )}

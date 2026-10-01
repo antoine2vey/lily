@@ -51,7 +51,7 @@ export const chunkDocumentWithParent = (
       })
 
       return pipe(
-        Option.fromNullable(result.parent),
+        Option.fromNullishOr(result.parent),
         Option.match({
           onNone: () => ({ children: result.children }),
           onSome: (parent) => ({ parent, children: result.children }),
@@ -110,12 +110,12 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
     // Chunk content with parent-child structure
     const chunkResult = chunkDocumentWithParent(insertedDoc)
 
-    if (Array.isEmptyArray(chunkResult.children)) {
+    if (Array.isArrayEmpty(chunkResult.children)) {
       return { inserted: true, chunksCreated: 0 } as const
     }
 
     // Insert parent if present (no embedding — stored for LLM context only)
-    const parentOption = Option.fromNullable(chunkResult.parent)
+    const parentOption = Option.fromNullishOr(chunkResult.parent)
     const parentId: string | undefined = Option.isSome(parentOption)
       ? yield* Effect.gen(function* () {
           const parent = parentOption.value
@@ -165,7 +165,7 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
           )
 
           return pipe(
-            Option.fromNullable(enrichment),
+            Option.fromNullishOr(enrichment),
             Option.match({
               onNone: () => ({
                 content: child.content,

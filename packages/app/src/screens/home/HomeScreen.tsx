@@ -316,14 +316,14 @@ export function HomeScreen() {
     },
   })
   const unhealthyCount = Option.getOrElse(
-    Option.fromNullable(unhealthyData?.total),
+    Option.fromNullishOr(unhealthyData?.total),
     () => 0
   )
 
   const weatherTemperatureC = pipe(
     weather.todayWeather,
     Option.flatMap((w) =>
-      Option.fromNullable(w.temperatureMean ?? w.temperatureMax)
+      Option.fromNullishOr(w.temperatureMean ?? w.temperatureMax)
     ),
     Option.getOrUndefined
   )
@@ -335,9 +335,9 @@ export function HomeScreen() {
     Match.value(state),
     Match.when({ _tag: 'Authenticated' }, ({ user }) =>
       pipe(
-        Option.fromNullable(user.firstName),
-        Option.orElse(() => Option.fromNullable(user.username)),
-        Option.orElse(() => Option.fromNullable(user.name)),
+        Option.fromNullishOr(user.firstName),
+        Option.orElse(() => Option.fromNullishOr(user.username)),
+        Option.orElse(() => Option.fromNullishOr(user.name)),
         Option.getOrNull
       )
     ),
@@ -345,29 +345,29 @@ export function HomeScreen() {
   )
 
   const getGreeting = (): string => {
-    const hour = DateTime.toParts(now()).hours
+    const hour = DateTime.toParts(now()).hour
     if (hour < 12) return t('home:greeting.morning')
     if (hour < 18) return t('home:greeting.afternoon')
     return t('home:greeting.evening')
   }
 
   const hasPlants =
-    Option.getOrElse(Option.fromNullable(plants?.total), () => 0) > 0
+    Option.getOrElse(Option.fromNullishOr(plants?.total), () => 0) > 0
 
   const careTasksOverdue = Option.getOrElse(
-    Option.fromNullable(careTasksData?.overdue),
+    Option.fromNullishOr(careTasksData?.overdue),
     () => [] as NonNullable<typeof careTasksData>['overdue']
   )
   const careTasksToday = Option.getOrElse(
-    Option.fromNullable(careTasksData?.today),
+    Option.fromNullishOr(careTasksData?.today),
     () => [] as NonNullable<typeof careTasksData>['today']
   )
   const careTasksUpcoming = Option.getOrElse(
-    Option.fromNullable(careTasksData?.upcoming),
+    Option.fromNullishOr(careTasksData?.upcoming),
     () => [] as NonNullable<typeof careTasksData>['upcoming']
   )
   const careTasksWindowDays = Option.getOrElse(
-    Option.fromNullable(careTasksData?.windowDays),
+    Option.fromNullishOr(careTasksData?.windowDays),
     () => [] as NonNullable<typeof careTasksData>['windowDays']
   )
 
@@ -381,7 +381,7 @@ export function HomeScreen() {
           id: task.plantId,
           name: task.plantName,
           imageUrl: Option.getOrUndefined(
-            Option.fromNullable(task.plantImageUrl)
+            Option.fromNullishOr(task.plantImageUrl)
           ),
         }))
       ),
@@ -415,7 +415,7 @@ export function HomeScreen() {
   const handleActivityPress = (activityId: string) => {
     const activity = Array.findFirst(
       Option.getOrElse(
-        Option.fromNullable(recentActivities),
+        Option.fromNullishOr(recentActivities),
         () => [] as NonNullable<typeof recentActivities>
       ),
       (a) => a.id === activityId
@@ -461,7 +461,7 @@ export function HomeScreen() {
               <View className="pt-4 pb-4" style={{ paddingRight: 190 }}>
                 <Text className="text-2xl text-text-primary dark:text-white tracking-tight leading-tight font-bold">
                   {getGreeting()},{'\n'}
-                  {Option.getOrElse(Option.fromNullable(userName), () =>
+                  {Option.getOrElse(Option.fromNullishOr(userName), () =>
                     t('home:greeting.defaultName')
                   )}{' '}
                   ☀️

@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import { IngestJobNotFoundError } from '@lily/shared/errors/knowledge'
 import type { IngestJob } from '@lily/shared/knowledge'
 import { Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getIngestJob = (
   id: string
@@ -15,7 +15,7 @@ export const getIngestJob = (
     const repo = yield* IngestJobRepository
     const job = yield* repo.findById(id)
 
-    return yield* Option.match(Option.fromNullable(job), {
+    return yield* Option.match(Option.fromNullishOr(job), {
       onNone: () => Effect.fail(new IngestJobNotFoundError({ jobId: id })),
       onSome: Effect.succeed,
     })

@@ -10,7 +10,7 @@ export const WeatherProviderLive = Layer.effect(
     const openMeteo = createOpenMeteoProvider()
 
     // OpenWeatherMap is optional (needs API key)
-    const owmApiKey = yield* Config.string('OPENWEATHERMAP_API_KEY').pipe(
+    const owmApiKey = yield* Config.String('OPENWEATHERMAP_API_KEY').pipe(
       Config.withDefault('')
     )
 

@@ -1,7 +1,7 @@
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
 import { tool } from 'ai'
-import { Array, Effect, Option, pipe, Runtime } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
 import { carePlanStepSchema, toCreateStepData } from './care-plan-step-schema'
@@ -28,11 +28,11 @@ export const proposeCarePlanTool = (deps: PlantToolDeps) =>
         .describe('Ordered steps, most urgent first'),
     }),
     execute: async (params) =>
-      Runtime.runPromise(deps.runtime)(
+      Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
           const repo = yield* CarePlanRepository
           const timezone = pipe(
-            Option.fromNullable(deps.timezone),
+            Option.fromNullishOr(deps.timezone),
             Option.getOrElse(() => 'UTC')
           )
 

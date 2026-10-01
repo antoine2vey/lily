@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { User } from '@lily/shared/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getUser = (
   id: string

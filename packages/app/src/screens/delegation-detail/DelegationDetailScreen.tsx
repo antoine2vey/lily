@@ -41,7 +41,7 @@ export function DelegationDetailScreen() {
     authState._tag === 'Authenticated' ? authState.user.id : ''
 
   const userRole = pipe(
-    Option.fromNullable(delegation),
+    Option.fromNullishOr(delegation),
     Option.map((d) => (d.ownerId === currentUserId ? 'owner' : 'caretaker')),
     Option.getOrElse(() => 'owner' as const)
   )
@@ -146,12 +146,12 @@ export function DelegationDetailScreen() {
                 <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Avatar
                     source={pipe(
-                      Option.fromNullable(delegation.ownerImage),
+                      Option.fromNullishOr(delegation.ownerImage),
                       Option.map((uri) => ({ uri })),
                       Option.getOrUndefined
                     )}
                     name={pipe(
-                      Option.fromNullable(delegation.ownerName),
+                      Option.fromNullishOr(delegation.ownerName),
                       Option.getOrElse(() => t('detail.plantOwner'))
                     )}
                     size="lg"
@@ -165,7 +165,7 @@ export function DelegationDetailScreen() {
                       style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
                     >
                       {pipe(
-                        Option.fromNullable(delegation.ownerName),
+                        Option.fromNullishOr(delegation.ownerName),
                         Option.getOrElse(() => t('card.unknown'))
                       )}
                       {delegation.ownerId === currentUserId && (
@@ -191,12 +191,12 @@ export function DelegationDetailScreen() {
                 <View className="flex-row items-center p-4 rounded-xl bg-surface dark:bg-surface-dark">
                   <Avatar
                     source={pipe(
-                      Option.fromNullable(delegation.caretakerImage),
+                      Option.fromNullishOr(delegation.caretakerImage),
                       Option.map((uri) => ({ uri })),
                       Option.getOrUndefined
                     )}
                     name={pipe(
-                      Option.fromNullable(delegation.caretakerName),
+                      Option.fromNullishOr(delegation.caretakerName),
                       Option.getOrElse(() => t('detail.caretaker'))
                     )}
                     size="lg"
@@ -210,7 +210,7 @@ export function DelegationDetailScreen() {
                       style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
                     >
                       {pipe(
-                        Option.fromNullable(delegation.caretakerName),
+                        Option.fromNullishOr(delegation.caretakerName),
                         Option.getOrElse(() => t('card.unknown'))
                       )}
                       {delegation.caretakerId === currentUserId && (

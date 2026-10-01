@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type FindPlantsResult,
   PlantRepository,
@@ -8,6 +7,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware'
 import { getUserTimezone } from '@lily/api/services/plants/helpers/user-settings'
 import type { PlantFilter, PlantSort } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Get plants with pagination and filtering
 export const findPlants = (params: {
@@ -32,11 +32,11 @@ export const findPlants = (params: {
     Effect.withSpan('PlantsService.findPlants', {
       attributes: {
         'plant.filter': pipe(
-          Option.fromNullable(params.filter),
+          Option.fromNullishOr(params.filter),
           Option.getOrElse(() => 'all')
         ),
         'plant.sort': pipe(
-          Option.fromNullable(params.sort),
+          Option.fromNullishOr(params.sort),
           Option.getOrElse(() => 'added')
         ),
       },

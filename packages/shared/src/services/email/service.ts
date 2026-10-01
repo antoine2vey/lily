@@ -13,7 +13,7 @@ export interface IEmailService {
 }
 
 // Context tag for dependency injection
-export class EmailService extends Context.Tag('EmailService')<
+export class EmailService extends Context.Service<
   EmailService,
   IEmailService
->() {}
+>()('EmailService') {}

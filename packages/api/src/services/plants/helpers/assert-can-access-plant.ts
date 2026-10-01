@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const canAccessPlant = (
   plantUserId: string,

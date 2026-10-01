@@ -34,7 +34,7 @@ export const createScheduler = <E, R>(config: {
   task: Effect.Effect<void, E, R>
 }): Effect.Effect<void, never, R> => {
   const safeTask = config.task.pipe(
-    Effect.catchAllCause((cause) =>
+    Effect.catchCause((cause) =>
       Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
         cause: Cause.pretty(cause),
       })
@@ -44,12 +44,12 @@ export const createScheduler = <E, R>(config: {
 
   return Effect.gen(function* () {
     if (config.runOnStartup) {
-      yield* Effect.fork(safeTask)
+      yield* Effect.forkChild(safeTask)
     }
 
-    yield* Effect.fork(
+    yield* Effect.forkChild(
       Effect.forever(
-        Effect.sleep(config.interval).pipe(Effect.zipRight(safeTask))
+        Effect.sleep(config.interval).pipe(Effect.andThen(safeTask))
       )
     )
 
@@ -73,7 +73,7 @@ export const createDrainableScheduler = <E, R>(config: {
   task: Effect.Effect<boolean, E, R>
 }): Effect.Effect<void, never, R> => {
   const safeTask = config.task.pipe(
-    Effect.catchAllCause((cause) => {
+    Effect.catchCause((cause) => {
       const pretty = Cause.pretty(cause)
       return Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
         cause: pretty,
@@ -94,10 +94,10 @@ export const createDrainableScheduler = <E, R>(config: {
 
   return Effect.gen(function* () {
     if (config.runOnStartup) {
-      yield* Effect.fork(safeTask)
+      yield* Effect.forkChild(safeTask)
     }
 
-    yield* Effect.fork(loop)
+    yield* Effect.forkChild(loop)
 
     yield* Effect.log(`[${config.name}] Drainable scheduler started`, {
       interval: String(config.interval),

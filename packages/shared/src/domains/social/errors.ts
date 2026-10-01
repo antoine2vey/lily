@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class UserNotPublicError extends Schema.TaggedError<UserNotPublicError>()(
@@ -6,7 +5,7 @@ export class UserNotPublicError extends Schema.TaggedError<UserNotPublicError>()
   {
     userId: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}
 
 export class AlreadyFollowingError extends Schema.TaggedError<AlreadyFollowingError>()(
@@ -14,7 +13,7 @@ export class AlreadyFollowingError extends Schema.TaggedError<AlreadyFollowingEr
   {
     targetUserId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class NotFollowingError extends Schema.TaggedError<NotFollowingError>()(
@@ -22,13 +21,13 @@ export class NotFollowingError extends Schema.TaggedError<NotFollowingError>()(
   {
     targetUserId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class CannotFollowSelfError extends Schema.TaggedError<CannotFollowSelfError>()(
   'CannotFollowSelfError',
   {},
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>()(
@@ -38,7 +37,7 @@ export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>
       default: () => 'You can only nudge this user once per day',
     }),
   },
-  HttpApiSchema.annotations({ status: 429 })
+  { httpApiStatus: 429 }
 ) {}
 
 export class NudgeNotAllowedError extends Schema.TaggedError<NudgeNotAllowedError>()(
@@ -48,5 +47,5 @@ export class NudgeNotAllowedError extends Schema.TaggedError<NudgeNotAllowedErro
       default: () => 'You can only nudge users you follow',
     }),
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}

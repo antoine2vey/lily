@@ -464,7 +464,7 @@ export function setupNotificationListeners(router: Router): () => void {
 export function getDeviceTimezone(): string {
   try {
     return pipe(
-      Option.fromNullable(Intl.DateTimeFormat().resolvedOptions().timeZone),
+      Option.fromNullishOr(Intl.DateTimeFormat().resolvedOptions().timeZone),
       Option.filter(Str.isNonEmpty),
       Option.getOrElse(() => 'UTC')
     )
@@ -480,7 +480,7 @@ export function getDeviceTimezone(): string {
 export const getDeviceLanguage = (): LanguageCode =>
   pipe(
     Arr.head(Localization.getLocales()),
-    Option.flatMap((locale) => Option.fromNullable(locale.languageCode)),
+    Option.flatMap((locale) => Option.fromNullishOr(locale.languageCode)),
     Option.match({
       onNone: () => 'en' as const,
       onSome: (code) =>

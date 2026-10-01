@@ -169,7 +169,7 @@ const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
       </span>
       <span className="text-xs text-gray-500">{chunk.source}</span>
       {pipe(
-        Option.fromNullable(chunk.plantType),
+        Option.fromNullishOr(chunk.plantType),
         Option.match({
           onNone: () => null,
           onSome: (pt) => (
@@ -180,7 +180,7 @@ const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
         })
       )}
       {pipe(
-        Option.fromNullable(chunk.category),
+        Option.fromNullishOr(chunk.category),
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
@@ -240,7 +240,7 @@ const PlantSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
         {data.plant.health}
       </span>
       {pipe(
-        Option.fromNullable(data.plant.category),
+        Option.fromNullishOr(data.plant.category),
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
@@ -253,7 +253,7 @@ const PlantSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
     </div>
 
     {pipe(
-      Option.fromNullable(data.plant.description),
+      Option.fromNullishOr(data.plant.description),
       Option.match({
         onNone: () => null,
         onSome: (desc) => <p className="text-xs text-gray-600">{desc}</p>,
@@ -272,14 +272,14 @@ const PlantSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
         <p className="font-medium text-gray-700">Schedule</p>
         <p>Watering: Every {data.plant.wateringFrequencyDays} days</p>
         {pipe(
-          Option.fromNullable(data.plant.lastWateredAt),
+          Option.fromNullishOr(data.plant.lastWateredAt),
           Option.match({
             onNone: () => <p>Last watered: Not recorded</p>,
             onSome: (d) => <p>Last watered: {d}</p>,
           })
         )}
         {pipe(
-          Option.fromNullable(data.plant.fertilizationFrequencyDays),
+          Option.fromNullishOr(data.plant.fertilizationFrequencyDays),
           Option.match({
             onNone: () => <p>Fertilization: Not set</p>,
             onSome: (days) => <p>Fertilization: Every {days} days</p>,
@@ -296,7 +296,7 @@ const CareHistorySection = ({
 }: {
   readonly careHistory: ReadonlyArray<PromptPreviewCareEntry>
 }) =>
-  Array.isEmptyReadonlyArray(careHistory) ? (
+  Array.isReadonlyArrayEmpty(careHistory) ? (
     <p className="text-sm text-gray-500">No care events recorded yet</p>
   ) : (
     <div className="space-y-2">
@@ -315,7 +315,7 @@ const CareHistorySection = ({
                 <span className="text-xs text-gray-500">{entry.date}</span>
               </div>
               {pipe(
-                Option.fromNullable(entry.notes),
+                Option.fromNullishOr(entry.notes),
                 Option.match({
                   onNone: () => null,
                   onSome: (notes) => (
@@ -346,7 +346,7 @@ const RagSection = ({
         {ragQuery}
       </p>
     </div>
-    {Array.isEmptyReadonlyArray(ragChunks) ? (
+    {Array.isReadonlyArrayEmpty(ragChunks) ? (
       <p className="text-sm text-gray-500">
         No matching knowledge chunks found
       </p>
@@ -369,7 +369,7 @@ const ConversationSection = ({
 }: {
   readonly history: ReadonlyArray<PromptPreviewConversationEntry>
 }) =>
-  Array.isEmptyReadonlyArray(history) ? (
+  Array.isReadonlyArrayEmpty(history) ? (
     <p className="text-sm text-gray-500">
       First message in conversation — no prior context
     </p>
@@ -412,7 +412,7 @@ export const PromptPreviewPage = () => {
     }
   }
 
-  const data = pipe(Option.fromNullable(preview.data), Option.getOrUndefined)
+  const data = pipe(Option.fromNullishOr(preview.data), Option.getOrUndefined)
 
   return (
     <div>

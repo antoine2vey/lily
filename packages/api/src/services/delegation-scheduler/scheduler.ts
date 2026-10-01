@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
@@ -7,6 +6,7 @@ import type { SimpleNotificationType } from '@lily/api/services/notification-sch
 import type { DelegationStatus, LanguageCode } from '@lily/shared'
 import { nowAsDate } from '@lily/shared'
 import { Array, Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 const getUserLanguage = (
   userRepo: {
@@ -19,7 +19,7 @@ const getUserLanguage = (
   Effect.gen(function* () {
     const user = yield* userRepo.findById(userId)
     return Option.getOrElse(
-      Option.fromNullable(user?.language as LanguageCode | null),
+      Option.fromNullishOr(user?.language as LanguageCode | null),
       () => 'en' as const
     )
   })
@@ -92,7 +92,7 @@ export const pollAndTransition = Effect.gen(function* () {
     undefined
   )
 
-  if (Array.isNonEmptyArray(toActivate)) {
+  if (Array.isArrayNonEmpty(toActivate)) {
     yield* Effect.log(`Activated ${toActivate.length} delegations`)
   }
 
@@ -104,7 +104,7 @@ export const pollAndTransition = Effect.gen(function* () {
     { completedAt: now }
   )
 
-  if (Array.isNonEmptyArray(toComplete)) {
+  if (Array.isArrayNonEmpty(toComplete)) {
     yield* Effect.log(`Completed ${toComplete.length} delegations`)
   }
 }).pipe(Effect.withSpan('DelegationScheduler.pollAndTransition'))

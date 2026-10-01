@@ -34,7 +34,7 @@ interface CareHistoryGroup {
  * Get date key for grouping (YYYY-MM-DD format)
  */
 const getDateKey = (date: Date): string => {
-  const dt = DateTime.unsafeMake(date)
+  const dt = DateTime.makeUnsafe(date)
   const parts = DateTime.toParts(dt)
   const month = pipe(String(parts.month), Str.padStart(2, '0'))
   const day = pipe(String(parts.day), Str.padStart(2, '0'))
@@ -43,7 +43,7 @@ const getDateKey = (date: Date): string => {
 
 // Order for sorting events by createdAt descending
 const eventCreatedAtOrder: Order.Order<CareEvent> = Order.mapInput(
-  Order.reverse(Order.string),
+  Order.flip(Order.String),
   (event) => event.createdAt
 )
 
@@ -89,7 +89,7 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
         date: getApiDateGroupLabel(
           dateKey,
           pipe(
-            Option.fromNullable(
+            Option.fromNullishOr(
               Intl.DateTimeFormat().resolvedOptions().timeZone
             ),
             Option.getOrElse(() => 'UTC')
@@ -105,7 +105,7 @@ function groupByDate(logs: readonly CareLog[]): CareHistoryGroup[] {
   const sorted = Array.sort(
     mapped,
     Order.mapInput(
-      Order.reverse(Order.string),
+      Order.flip(Order.String),
       (item: { date: string; dateKey: string; events: CareEvent[] }) =>
         item.dateKey
     )
@@ -134,7 +134,7 @@ const diedGroup = (plantId: string, diedAt: Date): CareHistoryGroup => {
     date: getApiDateGroupLabel(
       dateKey,
       pipe(
-        Option.fromNullable(Intl.DateTimeFormat().resolvedOptions().timeZone),
+        Option.fromNullishOr(Intl.DateTimeFormat().resolvedOptions().timeZone),
         Option.getOrElse(() => 'UTC')
       )
     ),
@@ -179,11 +179,11 @@ export function useCareHistory({
 
   // Transform data to grouped format
   const groupedData = pipe(
-    Option.fromNullable(query.data),
+    Option.fromNullishOr(query.data),
     Option.map((d) => groupByDate(d.items)),
     Option.map((groups) =>
       pipe(
-        Option.fromNullable(diedAt),
+        Option.fromNullishOr(diedAt),
         Option.match({
           onNone: () => groups,
           onSome: (d) => Array.prepend(groups, diedGroup(plantId, d)),

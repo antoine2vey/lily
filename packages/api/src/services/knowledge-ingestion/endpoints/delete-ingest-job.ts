@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import { IngestJobNotFoundError } from '@lily/shared/errors/knowledge'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deleteIngestJob = (
   id: string

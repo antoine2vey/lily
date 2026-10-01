@@ -1,16 +1,16 @@
 import { QueryClient } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react-native'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { createQueryWrapper } from '@/__tests__/utils/query-helpers'
 
 // Stub the fetcher so an unseeded mount doesn't hit the network.
 jest.mock('@/utils/client', () => {
   const actual = jest.requireActual('@/utils/client')
-  const { Either: ActualEither } = jest.requireActual('effect')
+  const { Result: ActualEither } = jest.requireActual('effect')
   return {
     ...actual,
     runApiEffect: jest.fn(async () =>
-      ActualEither.right({
+      ActualEither.succeed({
         overdue: [],
         today: [],
         upcoming: [],
@@ -41,7 +41,7 @@ const makeClient = () =>
 const seed = (client: QueryClient, overdue: number, today: number) =>
   client.setQueryData(
     CARE_TASKS_QUERY_KEY,
-    Either.right({
+    Result.succeed({
       overdue: Array.from({ length: overdue }, (_, i) => task(`o${i}`)),
       today: Array.from({ length: today }, (_, i) => task(`t${i}`)),
       upcoming: [],
@@ -79,7 +79,7 @@ describe('useCareTabBadge', () => {
 
     it('falls back to count 0 / not visible on a Left (error)', () => {
       const client = makeClient()
-      client.setQueryData(CARE_TASKS_QUERY_KEY, Either.left({ _tag: 'Err' }))
+      client.setQueryData(CARE_TASKS_QUERY_KEY, Result.fail({ _tag: 'Err' }))
 
       const { result } = renderHook(() => useCareTabBadge(true), {
         wrapper: createQueryWrapper(client),

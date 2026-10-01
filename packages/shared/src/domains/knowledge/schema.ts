@@ -1,39 +1,42 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
-export const IngestJobStatus = Schema.Literal(
+export const IngestJobStatus = Schema.Literals([
   'pending',
   'in_progress',
   'completed',
-  'failed'
-)
+  'failed',
+])
 
 export type IngestJobStatus = typeof IngestJobStatus.Type
 
-export const ContentCategory = Schema.Literal(
+export const ContentCategory = Schema.Literals([
   'watering_advice',
   'pest_identification',
   'disease_diagnosis',
   'light_requirements',
   'soil_nutrients',
   'propagation',
-  'general_care'
-)
+  'general_care',
+])
 
 export type ContentCategory = typeof ContentCategory.Type
 
 export const RedditAdapterConfig = Schema.Struct({
   type: Schema.Literal('reddit'),
   subreddits: Schema.Array(Schema.String),
-  sort: Schema.optionalWith(Schema.Literal('hot', 'top', 'new'), {
+  sort: Schema.optionalWith(Schema.Literals(['hot', 'top', 'new']), {
     default: () => 'top' as const,
   }),
   timeFilter: Schema.optionalWith(
-    Schema.Literal('day', 'week', 'month', 'year', 'all'),
+    Schema.Literals(['day', 'week', 'month', 'year', 'all']),
     { default: () => 'year' as const }
   ),
   limit: Schema.optionalWith(
-    Schema.Number.pipe(Schema.int(), Schema.between(1, 1000)),
+    Schema.Number.pipe(
+      Schema.check(Schema.isInt()),
+      Schema.check(Schema.isBetween({ minimum: 1, maximum: 1000 }))
+    ),
     { default: () => 25 }
   ),
 })
@@ -54,11 +57,11 @@ export const FileAdapterConfig = Schema.Struct({
 
 export type FileAdapterConfig = typeof FileAdapterConfig.Type
 
-export const AdapterConfig = Schema.Union(
+export const AdapterConfig = Schema.Union([
   RedditAdapterConfig,
   WebAdapterConfig,
-  FileAdapterConfig
-)
+  FileAdapterConfig,
+])
 
 export type AdapterConfig = typeof AdapterConfig.Type
 
@@ -71,8 +74,8 @@ export const IngestJob = Schema.Struct({
   chunksCreated: Schema.Number,
   cursor: Schema.optional(Schema.String),
   error: Schema.optional(Schema.String),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 
 export type IngestJob = typeof IngestJob.Type
@@ -88,7 +91,7 @@ export const RawDocument = Schema.Struct({
   score: Schema.optional(Schema.Number),
   metadata: Schema.optional(Schema.Unknown),
   ingestJobId: Schema.String,
-  fetchedAt: Schema.Date,
+  fetchedAt: Schema.DateFromString,
 })
 
 export type RawDocument = typeof RawDocument.Type
@@ -104,7 +107,7 @@ export const ProcessedChunk = Schema.Struct({
   category: Schema.optional(ContentCategory),
   plantMentions: Schema.optional(Schema.Array(Schema.String)),
   metadata: Schema.optional(Schema.Unknown),
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 
 export type ProcessedChunk = typeof ProcessedChunk.Type

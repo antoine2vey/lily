@@ -1,4 +1,3 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -8,6 +7,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import type { AppEvent } from '@lily/api/events'
 import { uploadPlantPhoto } from '@lily/api/services/plants/endpoints/upload-plant-photo'
 import { Array, Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 describe('uploadPlantPhoto', () => {

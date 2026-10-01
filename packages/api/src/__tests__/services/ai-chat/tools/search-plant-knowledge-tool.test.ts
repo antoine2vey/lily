@@ -36,7 +36,7 @@ const makeDeps = async (
   cleanup: () => Promise<void>
 }> => {
   const managedRuntime = ManagedRuntime.make(layer)
-  const rt = await managedRuntime.runtime()
+  const rt = await managedRuntime.context()
   return {
     deps: {
       runtime: rt,

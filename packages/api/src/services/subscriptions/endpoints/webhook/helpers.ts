@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type {
   RevenueCatEventType,
@@ -7,6 +6,7 @@ import type {
   SubscriptionStatus,
 } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Helper to map RevenueCat store to our store type
 export const mapRevenueCatStore = (
@@ -70,7 +70,7 @@ export const ensureSubscriptionActive = (
         currentPeriodStart: ctx.purchasedAt,
         currentPeriodEnd: ctx.expiresAt,
         externalSubscriptionId: pipe(
-          Option.fromNullable(ctx.eventData.original_transaction_id),
+          Option.fromNullishOr(ctx.eventData.original_transaction_id),
           Option.getOrElse(() => ctx.eventData.id)
         ),
         externalCustomerId: ctx.eventData.original_app_user_id,

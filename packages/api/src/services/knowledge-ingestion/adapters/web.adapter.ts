@@ -75,7 +75,7 @@ const fetchWebPage = (
     }
 
     const rawText = pipe(
-      Option.fromNullable(article.textContent),
+      Option.fromNullishOr(article.textContent),
       Option.getOrElse(() => '')
     )
     const content = sanitizeText(rawText.trim())
@@ -88,7 +88,7 @@ const fetchWebPage = (
     }
 
     const title = pipe(
-      Option.fromNullable(article.title),
+      Option.fromNullishOr(article.title),
       Option.filter((t) => t.trim().length > 0),
       Option.getOrElse(() => url)
     )

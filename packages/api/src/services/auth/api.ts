@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
@@ -14,6 +13,7 @@ import {
   UserProfile,
 } from '@lily/shared/auth'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 // Auth error schemas
 const AuthError = Schema.Struct({ message: Schema.String })

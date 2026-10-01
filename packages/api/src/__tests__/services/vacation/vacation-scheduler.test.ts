@@ -9,7 +9,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { pollAndTransitionVacations } from '@lily/api/services/vacation-scheduler/scheduler'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (days: number): Date =>
@@ -23,7 +23,7 @@ const findUser = (users: User[], id: string) =>
 
 const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
   Effect.runPromise(
-    effect.pipe(Logger.withMinimumLogLevel(LogLevel.None))
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<void>
 
 describe('vacation-scheduler', () => {

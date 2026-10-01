@@ -1,10 +1,3 @@
-import { McpServer } from '@effect/ai'
-import {
-  HttpMiddleware,
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { confirmHandler } from '@lily/mcp/auth/confirm'
 import { consentHandler } from '@lily/mcp/auth/consent'
@@ -24,6 +17,13 @@ import {
 import { WidgetResourcesLayer } from '@lily/mcp/widgets/resources'
 import { toolMetaMiddleware } from '@lily/mcp/widgets/tool-meta-middleware'
 import { Effect, String as EffectString, Layer, pipe } from 'effect'
+import { McpServer } from 'effect/ai'
+import {
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from 'effect/http'
 
 // ── MCP Auth Middleware ────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@ const CustomRoutesLayer = HttpRouter.Default.use((router) =>
  * Without this, ChatGPT caches tool definitions from previous sessions and
  * never sees the `_meta.ui.resourceUri` needed for widget rendering.
  */
-const ToolsListChangedOnConnectLayer = Layer.scopedDiscard(
+const ToolsListChangedOnConnectLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer
     yield* Effect.gen(function* () {
@@ -131,7 +131,7 @@ const ToolsListChangedOnConnectLayer = Layer.scopedDiscard(
   })
 )
 
-const MiddlewareLayer = Layer.unwrapEffect(
+const MiddlewareLayer = Layer.unwrap(
   Effect.gen(function* () {
     const serverUrl = yield* McpServerUrl
     const origins = yield* McpAllowedOrigins
@@ -191,7 +191,7 @@ const ServerLayer = Layer.mergeAll(
   Layer.provide(McpLive),
   // Provide the HTTP server with config-driven port
   Layer.provide(
-    Layer.unwrapEffect(
+    Layer.unwrap(
       Effect.gen(function* () {
         const port = yield* McpPort
         return BunHttpServer.layer({

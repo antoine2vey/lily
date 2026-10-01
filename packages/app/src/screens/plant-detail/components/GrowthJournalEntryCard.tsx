@@ -40,7 +40,7 @@ const VISIBLE_TILES = 3.35
 
 // Most-recent photo first.
 const recentFirst: Order.Order<JournalEntryPhoto> = Order.mapInput(
-  Order.reverse(Order.number),
+  Order.flip(Order.Number),
   (photo) => photo.createdAt.getTime()
 )
 
@@ -78,7 +78,7 @@ export function GrowthJournalEntryCard({
     Array.sort(recentFirst),
     Array.take(PREVIEW_CAP)
   )
-  const hasPhotos = !Array.isEmptyReadonlyArray(previewPhotos)
+  const hasPhotos = !Array.isReadonlyArrayEmpty(previewPhotos)
 
   return (
     <View testID="growth-journal-entry-card">

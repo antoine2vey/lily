@@ -33,10 +33,10 @@ const parseHeaders = (raw: string): Record<string, string> =>
         Record.fromEntries
       )
 
-export const TelemetryLive = Layer.unwrapEffect(
+export const TelemetryLive = Layer.unwrap(
   Effect.gen(function* () {
     const enabled = yield* Config.withDefault(
-      Config.boolean('OTEL_ENABLED'),
+      Config.Boolean('OTEL_ENABLED'),
       false
     )
 
@@ -45,15 +45,15 @@ export const TelemetryLive = Layer.unwrapEffect(
     }
 
     const endpoint = yield* Config.withDefault(
-      Config.string('OTEL_EXPORTER_OTLP_ENDPOINT'),
+      Config.String('OTEL_EXPORTER_OTLP_ENDPOINT'),
       'http://localhost:4318'
     )
     const serviceName = yield* Config.withDefault(
-      Config.string('OTEL_SERVICE_NAME'),
+      Config.String('OTEL_SERVICE_NAME'),
       'lily-api'
     )
     const headersRaw = yield* Config.withDefault(
-      Config.string('OTEL_EXPORTER_OTLP_HEADERS'),
+      Config.String('OTEL_EXPORTER_OTLP_HEADERS'),
       ''
     )
     const headers = parseHeaders(headersRaw)

@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   PlantRepository,
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 type PlantDetailResult = PlantWithRoom & {
   photos: readonly PlantPhoto[]

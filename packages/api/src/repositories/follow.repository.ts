@@ -1,13 +1,13 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants, userFollows, userNudges, users } from '@lily/db/schema'
 import { and, count, desc, eq, ilike, inArray, ne, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UserCardRow {
   id: string
@@ -116,10 +116,10 @@ export interface IFollowRepository {
   ) => Effect.Effect<void, SqlError>
 }
 
-export class FollowRepository extends Context.Tag('FollowRepository')<
+export class FollowRepository extends Context.Service<
   FollowRepository,
   IFollowRepository
->() {}
+>()('FollowRepository') {}
 
 const isFollowingSubquery = (currentUserId: string) =>
   sql<boolean>`EXISTS (
@@ -329,7 +329,7 @@ export const FollowRepositoryLive = Layer.effect(
       getSuggestedUsers: Effect.fn('FollowRepository.getSuggestedUsers')(
         function* (params: { currentUserId: string; limit?: number }) {
           const limit = pipe(
-            Option.fromNullable(params.limit),
+            Option.fromNullishOr(params.limit),
             Option.getOrElse(() => 10)
           )
 
@@ -434,7 +434,7 @@ export const FollowRepositoryLive = Layer.effect(
           .limit(1)
 
         return pipe(
-          Option.fromNullable(row),
+          Option.fromNullishOr(row),
           Option.map((r) => r.createdAt),
           Option.getOrNull
         )

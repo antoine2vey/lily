@@ -10,9 +10,9 @@ import { Resend } from 'resend'
 
 // Environment configuration using Effect Config
 const ResendConfig = Config.all({
-  apiKey: Config.redacted('RESEND_API_KEY'),
-  fromEmail: Config.string('EMAIL_FROM_ADDRESS'),
-  fromName: Config.string('EMAIL_FROM_NAME').pipe(Config.withDefault('Lily')),
+  apiKey: Config.Redacted('RESEND_API_KEY'),
+  fromEmail: Config.String('EMAIL_FROM_ADDRESS'),
+  fromName: Config.String('EMAIL_FROM_NAME').pipe(Config.withDefault('Lily')),
 })
 
 // Live layer for Resend email service

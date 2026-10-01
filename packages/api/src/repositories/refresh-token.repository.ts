@@ -1,9 +1,18 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { refreshTokens } from '@lily/db/schema/auth'
 import { daysAgoAsDate, nowAsDate } from '@lily/shared'
 import { and, eq, isNull, lt } from 'drizzle-orm'
-import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
+import {
+  Array,
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+} from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Refresh token record type
@@ -34,9 +43,10 @@ export interface IRefreshTokenRepository {
 /**
  * Refresh token repository context tag
  */
-export class RefreshTokenRepository extends Context.Tag(
-  'RefreshTokenRepository'
-)<RefreshTokenRepository, IRefreshTokenRepository>() {}
+export class RefreshTokenRepository extends Context.Service<
+  RefreshTokenRepository,
+  IRefreshTokenRepository
+>()('RefreshTokenRepository') {}
 
 /**
  * Live implementation of Refresh Token Repository
@@ -78,7 +88,7 @@ export const RefreshTokenRepositoryLive = Layer.effect(
       findValidByTokenHash: Effect.fn(
         'RefreshTokenRepository.findValidByTokenHash'
       )(function* (tokenHash: string, rotationGraceMs = 0) {
-        const now = DateTime.unsafeMake(nowAsDate())
+        const now = DateTime.makeUnsafe(nowAsDate())
         const results = yield* db
           .select()
           .from(refreshTokens)
@@ -90,21 +100,22 @@ export const RefreshTokenRepositoryLive = Layer.effect(
           return null
         }
 
-        const notExpired = DateTime.greaterThan(
-          DateTime.unsafeMake(record.expiresAt),
+        const notExpired = DateTime.isGreaterThan(
+          DateTime.makeUnsafe(record.expiresAt),
           now
         )
 
         // Active token, or one rotated so recently it's still inside the
         // grace window (covers concurrent refreshes racing on rotation)
         const notRevoked = pipe(
-          Option.fromNullable(record.revokedAt),
+          Option.fromNullishOr(record.revokedAt),
           Option.match({
             onNone: () => true,
             onSome: (revokedAt) =>
               rotationGraceMs > 0 &&
-              DateTime.distance(DateTime.unsafeMake(revokedAt), now) <=
-                rotationGraceMs,
+              Duration.toMillis(
+                DateTime.distance(DateTime.makeUnsafe(revokedAt), now)
+              ) <= rotationGraceMs,
           })
         )
 

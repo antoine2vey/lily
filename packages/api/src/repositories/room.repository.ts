@@ -1,11 +1,11 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plants, rooms } from '@lily/db/schema'
 import { nowAsDate, type Orientation } from '@lily/shared'
 import { and, asc, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface CreateRoomData {
   name: string
@@ -50,10 +50,10 @@ export interface IRoomRepository {
   readonly countByUserId: (userId: string) => Effect.Effect<number, SqlError>
 }
 
-export class RoomRepository extends Context.Tag('RoomRepository')<
+export class RoomRepository extends Context.Service<
   RoomRepository,
   IRoomRepository
->() {}
+>()('RoomRepository') {}
 
 export const RoomRepositoryLive = Layer.effect(
   RoomRepository,
@@ -87,14 +87,14 @@ export const RoomRepositoryLive = Layer.effect(
 
       findById: Effect.fn('RoomRepository.findById')(function* (id: string) {
         const [room] = yield* db.select().from(rooms).where(eq(rooms.id, id))
-        return Option.getOrNull(Option.fromNullable(room))
+        return Option.getOrNull(Option.fromNullishOr(room))
       }),
 
       create: Effect.fn('RoomRepository.create')(function* (
         data: CreateRoomData
       ) {
         const [room] = yield* db.insert(rooms).values(data).returning()
-        return Option.getOrNull(Option.fromNullable(room))
+        return Option.getOrNull(Option.fromNullishOr(room))
       }),
 
       update: Effect.fn('RoomRepository.update')(function* (
@@ -106,7 +106,7 @@ export const RoomRepositoryLive = Layer.effect(
           .set({ ...data, updatedAt: nowAsDate() })
           .where(eq(rooms.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(room))
+        return Option.getOrNull(Option.fromNullishOr(room))
       }),
 
       delete: Effect.fn('RoomRepository.delete')(function* (id: string) {
@@ -114,7 +114,7 @@ export const RoomRepositoryLive = Layer.effect(
           .delete(rooms)
           .where(eq(rooms.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(room))
+        return Option.getOrNull(Option.fromNullishOr(room))
       }),
 
       getMaxOrder: Effect.fn('RoomRepository.getMaxOrder')(function* (

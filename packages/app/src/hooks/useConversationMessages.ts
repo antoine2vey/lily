@@ -13,7 +13,7 @@ const toUIMessage = (msg: {
   createdAt: Date | string
 }): UIMessage => {
   const fileParts: UIMessage['parts'] = pipe(
-    Option.fromNullable(msg.imageUrl),
+    Option.fromNullishOr(msg.imageUrl),
     Option.match({
       onNone: () => [] as UIMessage['parts'],
       onSome: (url) =>
@@ -28,8 +28,8 @@ const toUIMessage = (msg: {
   )
 
   const parts: UIMessage['parts'] = pipe(
-    Option.fromNullable(msg.parts),
-    Option.filter(Array.isNonEmptyReadonlyArray),
+    Option.fromNullishOr(msg.parts),
+    Option.filter(Array.isReadonlyArrayNonEmpty),
     Option.match({
       onNone: () =>
         [
@@ -71,7 +71,7 @@ export function useConversationMessages(conversationId?: string) {
     {
       path: {
         conversationId: pipe(
-          Option.fromNullable(conversationId),
+          Option.fromNullishOr(conversationId),
           Option.getOrElse(() => '')
         ),
       },
@@ -83,7 +83,7 @@ export function useConversationMessages(conversationId?: string) {
   const initialMessages = useMemo<UIMessage[] | undefined>(
     () =>
       pipe(
-        Option.fromNullable(query.data?.items),
+        Option.fromNullishOr(query.data?.items),
         Option.map(Array.map(toUIMessage)),
         Option.getOrUndefined
       ),

@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class CareLogNotFoundError extends Schema.TaggedError<CareLogNotFoundError>()(
@@ -8,5 +7,5 @@ export class CareLogNotFoundError extends Schema.TaggedError<CareLogNotFoundErro
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

@@ -30,10 +30,10 @@ export function ManualAddBasicInfoScreen() {
 
   const [photo, setPhoto] = useState<string | null>(null)
   const [name, setName] = useState(
-    Option.getOrElse(Option.fromNullable(params.prefillName), () => '')
+    Option.getOrElse(Option.fromNullishOr(params.prefillName), () => '')
   )
   const [category, setCategory] = useState(
-    Option.getOrElse(Option.fromNullable(params.prefillCategory), () => '')
+    Option.getOrElse(Option.fromNullishOr(params.prefillCategory), () => '')
   )
   const handleNext = () => {
     const basicInfo = encodeURIComponent(

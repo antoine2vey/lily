@@ -1,5 +1,3 @@
-import { HttpServerResponse } from '@effect/platform'
-import type { SqlError } from '@effect/sql/SqlError'
 import { StreamTransformError } from '@lily/api/errors/defects'
 import type { EventBus } from '@lily/api/events'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
@@ -28,6 +26,8 @@ import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
 import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import { HttpServerResponse } from 'effect/http'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Exponential backoff: 200ms -> 400ms -> 800ms (max 3 retries)
 const postStreamRetryPolicy = Schedule.exponential('200 millis').pipe(
@@ -38,7 +38,7 @@ const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
 const makeImageParts = (url: string | undefined): UIMessage['parts'] =>
   pipe(
-    Option.fromNullable(url),
+    Option.fromNullishOr(url),
     Option.match({
       onNone: (): UIMessage['parts'] => [],
       onSome: (u): UIMessage['parts'] => [
@@ -78,7 +78,7 @@ const uiStreamToSse = (
 
   const afterStream = Stream.fromEffect(
     pipe(
-      Option.getOrElse(Option.fromNullable(onComplete), () => Effect.void),
+      Option.getOrElse(Option.fromNullishOr(onComplete), () => Effect.void),
       Effect.as(encoder.encode('data: [DONE]\n\n'))
     )
   )
@@ -127,7 +127,7 @@ export const streamChatMessage = (
 
     // If imageKey is provided, generate a fresh signed URL for AI processing
     const imageSignedUrl: string | undefined = yield* pipe(
-      Option.fromNullable(request.imageKey),
+      Option.fromNullishOr(request.imageKey),
       Option.match({
         onNone: () => Effect.succeed(request.imageUrl),
         onSome: (key: string) => gcs.getSignedUrl(key),
@@ -199,7 +199,7 @@ export const streamChatMessage = (
     ) as UIMessage[]
 
     const imageOptions = pipe(
-      Option.fromNullable(imageSignedUrl),
+      Option.fromNullishOr(imageSignedUrl),
       Option.map((url) => ({
         imageUrl: url,
         imageKey: request.imageKey,
@@ -222,7 +222,7 @@ export const streamChatMessage = (
 
     const onComplete = Deferred.await(completionDeferred).pipe(
       Effect.timeout('30 seconds'),
-      Effect.catchTag('TimeoutException', () =>
+      Effect.catchTag('TimeoutError', () =>
         Effect.logError('AI stream completion timed out', {
           conversationId: conversation.id,
           userId,

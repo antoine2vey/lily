@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()(
@@ -8,7 +7,7 @@ export class PlantNotFoundError extends Schema.TaggedError<PlantNotFoundError>()
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotAllowedError>()(
@@ -18,7 +17,7 @@ export class FutureDateNotAllowedError extends Schema.TaggedError<FutureDateNotA
       default: () => 'Care date cannot be in the future',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class AlreadyCaredTodayError extends Schema.TaggedError<AlreadyCaredTodayError>()(
@@ -29,7 +28,7 @@ export class AlreadyCaredTodayError extends Schema.TaggedError<AlreadyCaredToday
       default: () => 'This care action was already logged today',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthorizedError>()(
@@ -40,7 +39,7 @@ export class PlantNotAuthorizedError extends Schema.TaggedError<PlantNotAuthoriz
         'You are not authorized to perform this action on this plant',
     }),
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}
 
 export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadError>()(
@@ -50,7 +49,7 @@ export class PlantAlreadyDeadError extends Schema.TaggedError<PlantAlreadyDeadEr
       default: () => 'This plant is already in the cemetery',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 export class PlantNotDeadError extends Schema.TaggedError<PlantNotDeadError>()(
@@ -60,5 +59,5 @@ export class PlantNotDeadError extends Schema.TaggedError<PlantNotDeadError>()(
       default: () => 'This plant is not in the cemetery',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}

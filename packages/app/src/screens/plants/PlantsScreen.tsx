@@ -87,19 +87,19 @@ const getCareStatus = (nextDate: DateInput): CareStatus => {
 }
 
 const plantNameOrder: Order.Order<PlantCardData> = Order.mapInput(
-  Order.string,
+  Order.String,
   (plant) => plant.name
 )
 
 const plantCareOrder: Order.Order<PlantCardData> = Order.mapInput(
-  Order.number,
+  Order.Number,
   (plant) => {
     const waterDays = Option.getOrElse(
-      Option.fromNullable(plant.watering.daysUntil),
+      Option.fromNullishOr(plant.watering.daysUntil),
       () => 999
     )
     const fertilizeDays = Option.getOrElse(
-      Option.fromNullable(plant.fertilization.daysUntil),
+      Option.fromNullishOr(plant.fertilization.daysUntil),
       () => 999
     )
     return Math.min(waterDays, fertilizeDays)
@@ -113,7 +113,7 @@ const healthOrderMap: Record<HealthStatus, number> = {
 }
 
 const plantHealthOrder: Order.Order<PlantCardData> = Order.mapInput(
-  Order.number,
+  Order.Number,
   (plant) => healthOrderMap[plant.health]
 )
 
@@ -248,30 +248,30 @@ export function PlantsScreen() {
 
   const plants: ReadonlyArray<PlantCardData> = useMemo(() => {
     const items = Option.getOrElse(
-      Option.fromNullable(plantsData?.items),
+      Option.fromNullishOr(plantsData?.items),
       () => [] as NonNullable<typeof plantsData>['items']
     )
     return Array.map(items, (plant) => {
       const nextWateringAt = pipe(
         getWateringSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
       )
       const nextFertilizationAt = pipe(
         getFertilizationSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
       )
       const nextMistingAt = pipe(
         getMistingSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
       )
       const nextRepottingAt = pipe(
         getRepottingSchedule(plant.schedules),
-        Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+        Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
       )
       return {
         id: plant.id,
         name: plant.name,
-        imageUrl: Option.getOrUndefined(Option.fromNullable(plant.imageUrl)),
+        imageUrl: Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)),
         health: mapApiHealthToCardHealth(plant.health),
         watering: getCareStatus(
           Option.getOrElse(nextWateringAt, () => null as DateInput)
@@ -286,14 +286,14 @@ export function PlantsScreen() {
           Option.getOrElse(nextRepottingAt, () => null as DateInput)
         ),
         isFavorite: plant.isFavorite,
-        roomId: Option.getOrUndefined(Option.fromNullable(plant.roomId)),
-        roomName: Option.getOrUndefined(Option.fromNullable(plant.room?.name)),
-        roomIcon: Option.getOrUndefined(Option.fromNullable(plant.room?.icon)),
+        roomId: Option.getOrUndefined(Option.fromNullishOr(plant.roomId)),
+        roomName: Option.getOrUndefined(Option.fromNullishOr(plant.room?.name)),
+        roomIcon: Option.getOrUndefined(Option.fromNullishOr(plant.room?.icon)),
         ownership: Option.getOrElse(
-          Option.fromNullable(plant.ownership),
+          Option.fromNullishOr(plant.ownership),
           () => 'owned' as const
         ),
-        ownerName: Option.getOrUndefined(Option.fromNullable(plant.ownerName)),
+        ownerName: Option.getOrUndefined(Option.fromNullishOr(plant.ownerName)),
       }
     })
   }, [plantsData])
@@ -420,7 +420,7 @@ export function PlantsScreen() {
         />
 
         {/* Room Filter */}
-        {roomsData && !Array.isEmptyReadonlyArray(roomsData) && (
+        {roomsData && !Array.isReadonlyArrayEmpty(roomsData) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -480,7 +480,7 @@ export function PlantsScreen() {
               >
                 <PlantsListSkeleton />
               </Animated.View>
-            ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(plants) ? (
+            ) : isInitialLoading ? null : Array.isReadonlyArrayEmpty(plants) ? (
               <Animated.View
                 {...(hadInitialData.current
                   ? {}

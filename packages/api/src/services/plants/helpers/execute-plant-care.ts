@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -28,6 +27,7 @@ import {
 } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type { CareType } from '@lily/shared'
 
@@ -141,23 +141,23 @@ export const executePlantCare = (
     // (consumed inside applyWeatherAdjustment) come from the same row.
     const user = yield* userRepo.findById(plant.userId)
     const timezone = pipe(
-      Option.fromNullable(user),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullishOr(user),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
 
-    const nowDt = DateTime.unsafeNow()
+    const nowDt = DateTime.nowUnsafe()
 
     // Use provided date (past care) or current time
     const careDt = pipe(
-      Option.fromNullable(params.date),
-      Option.map((d) => DateTime.unsafeMake(d)),
+      Option.fromNullishOr(params.date),
+      Option.map((d) => DateTime.makeUnsafe(d)),
       Option.getOrElse(() => nowDt)
     )
 
     // Validate that the provided date is not in the future (1-minute tolerance for clock skew)
     if (
-      DateTime.greaterThan(
+      DateTime.isGreaterThan(
         careDt,
         DateTime.addDuration(nowDt, Duration.minutes(1))
       )
@@ -166,7 +166,7 @@ export const executePlantCare = (
     }
 
     const careDate = DateTime.toDateUtc(careDt)
-    const isPastCare = Option.isSome(Option.fromNullable(params.date))
+    const isPastCare = Option.isSome(Option.fromNullishOr(params.date))
 
     // Idempotency: at most one care log per plant + careType per user-local day.
     // Compare against the day containing careDt (so backdating to a day that
@@ -193,7 +193,7 @@ export const executePlantCare = (
 
     // Care-plan bridging: link the care log to the plan step it satisfies.
     const completedStep = yield* pipe(
-      Option.fromNullable(params.carePlanStepId),
+      Option.fromNullishOr(params.carePlanStepId),
       Option.match({
         onNone: () =>
           carePlanRepo.completeEarliestOpenStep(
@@ -218,7 +218,7 @@ export const executePlantCare = (
       params.careType
     )
     const frequency = pipe(
-      Option.fromNullable(schedule),
+      Option.fromNullishOr(schedule),
       Option.map((s) => s.frequencyDays),
       Option.getOrNull
     )
@@ -231,7 +231,7 @@ export const executePlantCare = (
 
     // Calculate next care date from the care date (if frequency exists)
     const nextCareAt = pipe(
-      Option.fromNullable(frequency),
+      Option.fromNullishOr(frequency),
       Option.map((days) =>
         DateTime.toDateUtc(
           DateTime.addDuration(careDayStart, Duration.days(days))
@@ -249,7 +249,7 @@ export const executePlantCare = (
           {
             id: plant.id,
             wateringFrequencyDays: pipe(
-              Option.fromNullable(schedule),
+              Option.fromNullishOr(schedule),
               Option.map((s) => s.frequencyDays),
               Option.getOrElse(() => 7)
             ),
@@ -278,7 +278,7 @@ export const executePlantCare = (
     // Re-fetch to include room data
     const refetched = yield* repo.findById(params.plantId)
     const updatedPlant = pipe(
-      Option.fromNullable(refetched),
+      Option.fromNullishOr(refetched),
       Option.getOrElse(() => plant)
     )
 

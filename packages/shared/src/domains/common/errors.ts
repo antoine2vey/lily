@@ -13,7 +13,7 @@ export class ExternalServiceError extends Schema.TaggedError<ExternalServiceErro
     service: Schema.String,
     method: Schema.String,
     url: Schema.String,
-    statusCode: Schema.optionalWith(Schema.Number, { exact: true }),
+    statusCode: Schema.optionalKey(Schema.Number),
     message: Schema.String,
   }
 ) {}

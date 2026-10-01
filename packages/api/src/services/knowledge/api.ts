@@ -1,6 +1,6 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 export const KnowledgeQueryRequest = Schema.Struct({
   question: Schema.String,

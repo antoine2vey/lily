@@ -1,6 +1,6 @@
 import type { CareTasksResponse, CareType } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Array, Effect, Either } from 'effect'
+import { Array, Effect, Result } from 'effect'
 import { type ApiResult, apiEffectRunner } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 import { recordPositiveMoment } from '@/utils/rating-prompt'
@@ -52,7 +52,7 @@ export function useCompleteTask() {
         CARE_TASKS_QUERY_KEY,
         (old) => {
           if (!old) return old
-          return Either.map(old, (data) => ({
+          return Result.map(old, (data) => ({
             ...data,
             overdue: removeTask(data.overdue),
             today: removeTask(data.today),

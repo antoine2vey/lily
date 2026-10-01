@@ -46,14 +46,14 @@ export function EditProfileScreen() {
 
   useEffect(() => {
     if (user) {
-      setName(Option.getOrElse(Option.fromNullable(user.name), () => ''))
+      setName(Option.getOrElse(Option.fromNullishOr(user.name), () => ''))
       setFirstName(
-        Option.getOrElse(Option.fromNullable(user.firstName), () => '')
+        Option.getOrElse(Option.fromNullishOr(user.firstName), () => '')
       )
       setLastName(
-        Option.getOrElse(Option.fromNullable(user.lastName), () => '')
+        Option.getOrElse(Option.fromNullishOr(user.lastName), () => '')
       )
-      setBio(Option.getOrElse(Option.fromNullable(user.bio), () => ''))
+      setBio(Option.getOrElse(Option.fromNullishOr(user.bio), () => ''))
       setAvatarUri(user.image)
     }
   }, [user])
@@ -167,8 +167,8 @@ export function EditProfileScreen() {
         {/* Avatar Picker */}
         <AvatarPicker
           avatarUrl={pipe(
-            Option.fromNullable(avatarUri),
-            Option.flatMap(Option.fromNullable)
+            Option.fromNullishOr(avatarUri),
+            Option.flatMap(Option.fromNullishOr)
           )}
           name={name || t('profile:defaultName')}
           onPress={handleChangePhoto}

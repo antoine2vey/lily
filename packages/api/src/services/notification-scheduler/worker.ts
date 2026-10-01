@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
@@ -24,14 +23,15 @@ import {
   DateTime,
   Duration,
   Effect,
-  Either,
   Match,
   Option,
   pipe,
   Record,
+  Result,
   Schedule,
   Struct,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 const MAX_RETRIES = 3
 
@@ -56,21 +56,21 @@ const hasUnresolvedStart = (
   tok: Pick<ActivityPushToken, 'lastStartSentAt' | 'lastConfirmedAt'>,
   now: DateTime.Utc
 ): boolean =>
-  Option.match(Option.fromNullable(tok.lastStartSentAt), {
+  Option.match(Option.fromNullishOr(tok.lastStartSentAt), {
     onNone: () => false,
     onSome: (sentAtDate) => {
-      const sentAt = DateTime.unsafeMake(sentAtDate)
-      const withinCooldown = Duration.lessThan(
+      const sentAt = DateTime.makeUnsafe(sentAtDate)
+      const withinCooldown = Duration.isLessThan(
         DateTime.distance(sentAt, now),
         LA_START_COOLDOWN
       )
       const confirmedSince = Option.match(
-        Option.fromNullable(tok.lastConfirmedAt),
+        Option.fromNullishOr(tok.lastConfirmedAt),
         {
           onNone: () => false,
           onSome: (confirmedAt) =>
-            DateTime.greaterThanOrEqualTo(
-              DateTime.unsafeMake(confirmedAt),
+            DateTime.isGreaterThanOrEqualTo(
+              DateTime.makeUnsafe(confirmedAt),
               sentAt
             ),
         }
@@ -169,14 +169,14 @@ const sendLiveActivityForCare = (
     }
 
     const allStartTokens = yield* activityRepo.findStartTokensByUserId(userId)
-    if (Array.isEmptyReadonlyArray(allStartTokens)) {
+    if (Array.isReadonlyArrayEmpty(allStartTokens)) {
       yield* Effect.logInfo('[worker] LA start skipped — no start tokens', {
         userId,
       })
       return
     }
 
-    const now = DateTime.unsafeNow()
+    const now = DateTime.nowUnsafe()
     const startTokens = Array.filter(
       allStartTokens,
       (tok) => !hasUnresolvedStart(tok, now)
@@ -188,7 +188,7 @@ const sendLiveActivityForCare = (
         { userId, skippedCount: unresolved }
       )
     }
-    if (Array.isEmptyReadonlyArray(startTokens)) return
+    if (Array.isReadonlyArrayEmpty(startTokens)) return
 
     // Stamp BEFORE dispatching: if APNs times out and the message is retried,
     // the retry must not start a second activity. A genuinely failed send
@@ -243,7 +243,7 @@ const sendLiveActivityForCare = (
                   '[worker] LA start-to-push token invalidated',
                   { ...logCtx, reason: e.reason }
                 ).pipe(
-                  Effect.zipRight(retireStartTokenForDevice(tok.deviceTokenId))
+                  Effect.andThen(retireStartTokenForDevice(tok.deviceTokenId))
                 ),
             }),
             Effect.ignore
@@ -275,7 +275,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     // (its text was resolved seconds earlier and cannot be rewritten here).
     if (
       TOPIC_CATEGORY[message.topic] === 'care' &&
-      Array.isNonEmptyReadonlyArray(message.payload.plantIds)
+      Array.isReadonlyArrayNonEmpty(message.payload.plantIds)
     ) {
       const plants = yield* plantRepo.findByIds(message.payload.plantIds)
       const anyLiving = Array.some(plants, (p) => p.diedAt === null)
@@ -428,12 +428,12 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
         retryCount: message.retryCount,
       })
 
-      yield* Effect.either(
+      yield* Effect.result(
         processMessage(message).pipe(Effect.retry(workerRetryPolicy))
       ).pipe(
         Effect.flatMap((processResult) =>
-          Either.match(processResult, {
-            onLeft: (error) =>
+          Result.match(processResult, {
+            onFailure: (error) =>
               Effect.gen(function* () {
                 if (message.retryCount >= MAX_RETRIES - 1) {
                   // Max retries reached, move to dead letter queue
@@ -453,7 +453,7 @@ export const consumeFromTopic = (topic: NotificationTopic) =>
                   })
                 }
               }),
-            onRight: () => Effect.void,
+            onSuccess: () => Effect.void,
           })
         )
       )
@@ -521,7 +521,7 @@ export const startNotificationWorker = Effect.gen(function* () {
 
   // Start a worker for each topic
   yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    Effect.fork(
+    Effect.forkChild(
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({

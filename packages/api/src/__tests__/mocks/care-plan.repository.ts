@@ -25,7 +25,7 @@ export interface MockCarePlanData {
   plants?: MockCarePlanPlant[]
 }
 
-const createdAtDesc: Order.Order<CarePlanRow> = Order.reverse(
+const createdAtDesc: Order.Order<CarePlanRow> = Order.flip(
   Order.mapInput(Order.Date, (p: CarePlanRow) => p.createdAt)
 )
 
@@ -37,17 +37,17 @@ export const createMockCarePlanRepository = (
   data: MockCarePlanData = {}
 ): Layer.Layer<CarePlanRepository> => {
   const plans: CarePlanRow[] = pipe(
-    Option.fromNullable(data.plans),
+    Option.fromNullishOr(data.plans),
     Option.getOrElse(() => [] as CarePlanRow[]),
     Array.map((p) => ({ ...p }))
   )
   const steps: CarePlanStepRow[] = pipe(
-    Option.fromNullable(data.steps),
+    Option.fromNullishOr(data.steps),
     Option.getOrElse(() => [] as CarePlanStepRow[]),
     Array.map((s) => ({ ...s }))
   )
   const plants = pipe(
-    Option.fromNullable(data.plants),
+    Option.fromNullishOr(data.plants),
     Option.getOrElse(() => [] as MockCarePlanPlant[])
   )
 
@@ -89,7 +89,7 @@ export const createMockCarePlanRepository = (
       ...step,
       completedAt: completion.completedAt,
       careLogId: pipe(
-        Option.fromNullable(completion.careLogId),
+        Option.fromNullishOr(completion.careLogId),
         Option.getOrNull
       ),
       updatedAt: new Date(),
@@ -106,16 +106,16 @@ export const createMockCarePlanRepository = (
         plantId: input.plantId,
         userId: input.userId,
         chatMessageId: pipe(
-          Option.fromNullable(input.chatMessageId),
+          Option.fromNullishOr(input.chatMessageId),
           Option.getOrNull
         ),
         diagnosisId: pipe(
-          Option.fromNullable(input.diagnosisId),
+          Option.fromNullishOr(input.diagnosisId),
           Option.getOrNull
         ),
         title: input.title,
         source: pipe(
-          Option.fromNullable(input.source),
+          Option.fromNullishOr(input.source),
           Option.getOrElse(() => 'ai' as const)
         ),
         status: 'proposed',
@@ -132,11 +132,11 @@ export const createMockCarePlanRepository = (
           position: index,
           title: step.title,
           description: pipe(
-            Option.fromNullable(step.description),
+            Option.fromNullishOr(step.description),
             Option.getOrNull
           ),
-          careType: pipe(Option.fromNullable(step.careType), Option.getOrNull),
-          dueDate: pipe(Option.fromNullable(step.dueDate), Option.getOrNull),
+          careType: pipe(Option.fromNullishOr(step.careType), Option.getOrNull),
+          dueDate: pipe(Option.fromNullishOr(step.dueDate), Option.getOrNull),
           completedAt: null,
           careLogId: null,
           createdAt: now,
@@ -159,7 +159,7 @@ export const createMockCarePlanRepository = (
             (p) =>
               p.userId === userId &&
               pipe(
-                Option.fromNullable(status),
+                Option.fromNullishOr(status),
                 Option.match({
                   onNone: () => true,
                   onSome: (s) => p.status === s,
@@ -283,7 +283,7 @@ export const createMockCarePlanRepository = (
             stepsOf(p.id),
             Array.filter((s) => s.careType === careType && isStepOpen(s)),
             Array.sort(
-              Order.mapInput(Order.number, (s: CarePlanStepRow) => s.position)
+              Order.mapInput(Order.Number, (s: CarePlanStepRow) => s.position)
             )
           )
         ),
@@ -305,7 +305,7 @@ export const createMockCarePlanRepository = (
           Option.map((row) => {
             const planSteps = stepsOf(planId)
             const allDone =
-              Array.isNonEmptyReadonlyArray(planSteps) &&
+              Array.isReadonlyArrayNonEmpty(planSteps) &&
               !Array.some(planSteps, isStepOpen)
             if (row.status === 'accepted' && allDone) {
               const updated: CarePlanRow = {

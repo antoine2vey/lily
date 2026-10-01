@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CannotDelegateSelfError,
@@ -18,8 +17,12 @@ import {
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const delegationIdParam = HttpApiSchema.param('delegationId', Schema.UUID)
+const delegationIdParam = HttpApiSchema.param(
+  'delegationId',
+  Schema.String.check(Schema.isGUID())
+)
 
 const DelegationListParams = Schema.Struct({
   ...PaginationParams.fields,

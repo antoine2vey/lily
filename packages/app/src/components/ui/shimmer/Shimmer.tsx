@@ -176,11 +176,11 @@ export const ShimmerEffect: React.FC<IShimmerEffect> &
             overflow: 'hidden',
             backgroundColor: isLoading
               ? pipe(
-                  Option.fromNullable(backgroundColor),
+                  Option.fromNullishOr(backgroundColor),
                   Option.getOrElse(() => style?.backgroundColor)
                 )
               : pipe(
-                  Option.fromNullable(style?.backgroundColor),
+                  Option.fromNullishOr(style?.backgroundColor),
                   Option.getOrElse(() => 'transparent' as string)
                 ),
             opacity,
@@ -282,23 +282,23 @@ export const ShimmerGroup: React.FC<IShimmerGroup> &
             {
               isLoading,
               preset: pipe(
-                Option.fromNullable(
+                Option.fromNullishOr(
                   childProps.preset as ShimmerPreset | undefined
                 ),
                 Option.getOrElse(() => preset)
               ),
               duration: pipe(
-                Option.fromNullable(childProps.duration as number | undefined),
+                Option.fromNullishOr(childProps.duration as number | undefined),
                 Option.getOrElse(() => duration)
               ),
               direction: pipe(
-                Option.fromNullable(
+                Option.fromNullishOr(
                   childProps.direction as ShimmerDirection | undefined
                 ),
                 Option.getOrElse(() => direction)
               ),
               opacity: pipe(
-                Option.fromNullable(childProps.opacity as number | undefined),
+                Option.fromNullishOr(childProps.opacity as number | undefined),
                 Option.getOrElse(() => opacity)
               ),
             }

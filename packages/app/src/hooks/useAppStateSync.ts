@@ -22,7 +22,7 @@ export function useAppStateSync(isAuthenticated: boolean) {
         nextAppState === 'active'
 
       if (isComingToForeground) {
-        const now = DateTime.toEpochMillis(DateTime.unsafeNow())
+        const now = DateTime.toEpochMillis(DateTime.nowUnsafe())
         if (now - lastSyncRef.current >= SYNC_THROTTLE_MS) {
           lastSyncRef.current = now
           // Wake RevenueCat SDK (fetches latest from cache/network)

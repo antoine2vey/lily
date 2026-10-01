@@ -57,8 +57,8 @@ export function PlantHeader({ plant }: PlantHeaderProps) {
     plant.category && plant.species
       ? `${plant.category} • ${plant.species}`
       : Option.getOrUndefined(
-          Option.orElse(Option.fromNullable(plant.species), () =>
-            Option.fromNullable(plant.category)
+          Option.orElse(Option.fromNullishOr(plant.species), () =>
+            Option.fromNullishOr(plant.category)
           )
         )
 

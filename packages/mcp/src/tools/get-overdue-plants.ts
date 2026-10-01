@@ -17,7 +17,7 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
       limit: '100',
     })
 
-    if (Array.isEmptyReadonlyArray(result.items)) {
+    if (Array.isReadonlyArrayEmpty(result.items)) {
       return {
         text: 'No overdue plants! All your plants are on schedule.',
         plants: [] as readonly PlantSummary[],
@@ -29,7 +29,7 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
       { plants: [] as PlantSummary[], lines: [] as string[] },
       (acc, plant) => {
         const room = pipe(
-          Option.fromNullable(plant.room),
+          Option.fromNullishOr(plant.room),
           Option.map((r) => ` (${r.icon} ${r.name})`),
           Option.getOrElse(() => '')
         )
@@ -38,7 +38,7 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
           plant.schedules,
           Array.filterMap((s) =>
             pipe(
-              Option.fromNullable(s.nextCareAt),
+              Option.fromNullishOr(s.nextCareAt),
               Option.map(
                 (d) => `${s.careType} overdue since ${formatIsoDate(d, '')}`
               )

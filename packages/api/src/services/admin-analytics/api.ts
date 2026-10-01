@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import {
   ActiveSubscribersByTierResponse,
@@ -18,6 +17,7 @@ import {
   UsersByStatusResponse,
 } from '@lily/shared/admin/analytics'
 import { ForbiddenError } from '@lily/shared/errors/admin'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 export const AdminAnalyticsApi = HttpApiGroup.make('admin-analytics')
   .add(

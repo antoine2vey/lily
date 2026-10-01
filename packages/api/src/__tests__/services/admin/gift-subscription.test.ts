@@ -82,7 +82,7 @@ describe('giftSubscription', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('CannotModifySelfError')
@@ -97,7 +97,7 @@ describe('giftSubscription', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('UserNotFoundError')
@@ -184,7 +184,7 @@ describe('giftSubscription', () => {
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
-      const error = Cause.failureOption(result.cause)
+      const error = Cause.findErrorOption(result.cause)
       expect(error._tag).toBe('Some')
       if (error._tag === 'Some') {
         expect(error.value._tag).toBe('StorePayerProtectedError')

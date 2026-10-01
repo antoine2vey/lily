@@ -29,11 +29,11 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   const { t } = useTranslation('common')
   const displayConfirmLabel = pipe(
-    Option.fromNullable(confirmLabel),
+    Option.fromNullishOr(confirmLabel),
     Option.getOrElse(() => t('buttons.confirm'))
   )
   const displayCancelLabel = pipe(
-    Option.fromNullable(cancelLabel),
+    Option.fromNullishOr(cancelLabel),
     Option.getOrElse(() => t('buttons.cancel'))
   )
   const iconBgClass = destructive

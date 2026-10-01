@@ -42,7 +42,7 @@ export function useConversationChat({
         headers: async () => {
           const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
           return pipe(
-            Option.fromNullable(token),
+            Option.fromNullishOr(token),
             Option.match({
               onNone: (): Record<string, string> => ({}),
               onSome: (t): Record<string, string> => ({
@@ -70,7 +70,7 @@ export function useConversationChat({
 
           return {
             body: pipe(
-              Option.fromNullable(imageKey),
+              Option.fromNullishOr(imageKey),
               Option.match({
                 onNone: () => ({ message }),
                 onSome: (key) => ({ message, imageKey: key }),

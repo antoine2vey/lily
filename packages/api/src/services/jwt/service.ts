@@ -38,10 +38,10 @@ export interface SignAccessTokenInput {
  * JWT Service configuration
  */
 const JWTConfig = Config.all({
-  secret: Config.redacted('JWT_SECRET'),
-  issuer: Config.withDefault(Config.string('JWT_ISSUER'), 'lily-api'),
+  secret: Config.Redacted('JWT_SECRET'),
+  issuer: Config.withDefault(Config.String('JWT_ISSUER'), 'lily-api'),
   accessTokenExpiry: Config.withDefault(
-    Config.string('JWT_ACCESS_TOKEN_EXPIRY'),
+    Config.String('JWT_ACCESS_TOKEN_EXPIRY'),
     '15m'
   ),
 })
@@ -63,10 +63,9 @@ export interface IJWTService {
 /**
  * JWT Service context tag
  */
-export class JWTService extends Context.Tag('JWTService')<
-  JWTService,
-  IJWTService
->() {}
+export class JWTService extends Context.Service<JWTService, IJWTService>()(
+  'JWTService'
+) {}
 
 /**
  * Live implementation of JWT Service

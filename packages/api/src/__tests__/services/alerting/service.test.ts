@@ -4,7 +4,8 @@ import {
   fingerprintEvent,
   makeAlerter,
 } from '@lily/api/services/alerting/service'
-import { Duration, Effect, Ref, TestClock, TestContext } from 'effect'
+import { Duration, Effect, Ref } from 'effect'
+import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 const settings: AlerterSettings = {
@@ -48,7 +49,7 @@ describe('makeAlerter (dedup)', () => {
       const snapshot = yield* Ref.get(calls)
       expect(snapshot).toHaveLength(1)
       expect(snapshot[0]?.duplicateCount).toBe(0)
-    }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise))
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
   it('suppresses a second occurrence within the dedupe window', () =>
     Effect.gen(function* () {
@@ -59,7 +60,7 @@ describe('makeAlerter (dedup)', () => {
       yield* TestClock.adjust(Duration.millis(10))
       const snapshot = yield* Ref.get(calls)
       expect(snapshot).toHaveLength(1)
-    }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise))
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
   it('resends after the window elapses and includes suppressed count', () =>
     Effect.gen(function* () {
@@ -74,7 +75,7 @@ describe('makeAlerter (dedup)', () => {
       const snapshot = yield* Ref.get(calls)
       expect(snapshot).toHaveLength(2)
       expect(snapshot[1]?.duplicateCount).toBe(2)
-    }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise))
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
   it('uses a separate window for OperationalWarning events', () =>
     Effect.gen(function* () {
@@ -90,7 +91,7 @@ describe('makeAlerter (dedup)', () => {
       yield* TestClock.adjust(Duration.millis(10))
       const snapshot = yield* Ref.get(calls)
       expect(snapshot).toHaveLength(1)
-    }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise))
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 
   it('dedupes by fingerprint — different URLs produce separate alerts', () =>
     Effect.gen(function* () {
@@ -100,7 +101,7 @@ describe('makeAlerter (dedup)', () => {
       yield* TestClock.adjust(Duration.millis(10))
       const snapshot = yield* Ref.get(calls)
       expect(snapshot).toHaveLength(2)
-    }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise))
+    }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise))
 })
 
 describe('fingerprintEvent', () => {

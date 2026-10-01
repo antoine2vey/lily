@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import {
   CareScheduleRepository,
@@ -17,6 +16,7 @@ import { startOfDay } from '@lily/shared'
 import { FutureDateNotAllowedError } from '@lily/shared/errors/plant'
 import type { PlantCorrectCareDatesRequest } from '@lily/shared/plant'
 import { DateTime, Duration, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 const correctSingleCareDate = (
   plantId: string,
@@ -29,12 +29,12 @@ const correctSingleCareDate = (
     const careLogRepo = yield* CareLogRepository
     const scheduleRepo = yield* CareScheduleRepository
 
-    const correctedDt = DateTime.unsafeMake(correctedDate)
-    const nowDt = DateTime.unsafeNow()
+    const correctedDt = DateTime.makeUnsafe(correctedDate)
+    const nowDt = DateTime.nowUnsafe()
 
     // Validate that the corrected date is not in the future (1-minute tolerance)
     if (
-      DateTime.greaterThan(
+      DateTime.isGreaterThan(
         correctedDt,
         DateTime.addDuration(nowDt, Duration.minutes(1))
       )
@@ -66,8 +66,8 @@ const correctSingleCareDate = (
     //      correct to Sun → delta=-1day → next=Mon+8-1=Sun+8
     const nextCareAt = pipe(
       Option.all({
-        original: Option.fromNullable(originalLastCare),
-        next: Option.fromNullable(currentNextCare),
+        original: Option.fromNullishOr(originalLastCare),
+        next: Option.fromNullishOr(currentNextCare),
       }),
       Option.map(({ original, next }) => {
         // Truncate to local-midnight (not UTC) so the delta reflects how many
@@ -75,14 +75,16 @@ const correctSingleCareDate = (
         // correction within the local day but across the UTC boundary produces
         // a delta of 0 (or ±1) that disagrees with the visible date change.
         const originalDayStart = startOfDay(
-          DateTime.unsafeMake(original),
+          DateTime.makeUnsafe(original),
           timezone
         )
         const correctedDayStart = startOfDay(correctedDt, timezone)
         // Signed delta in ms (positive = corrected is later, negative = earlier)
-        const deltaMs = DateTime.distance(originalDayStart, correctedDayStart)
-        const nextMs = DateTime.toEpochMillis(DateTime.unsafeMake(next))
-        return DateTime.toDateUtc(DateTime.unsafeMake(Number(nextMs) + deltaMs))
+        const deltaMs = Duration.toMillis(
+          DateTime.distance(originalDayStart, correctedDayStart)
+        )
+        const nextMs = DateTime.toEpochMillis(DateTime.makeUnsafe(next))
+        return DateTime.toDateUtc(DateTime.makeUnsafe(Number(nextMs) + deltaMs))
       }),
       Option.getOrUndefined
     )
@@ -125,8 +127,8 @@ export const correctCareDates = (
 
     const user = yield* userRepo.findById(plant.userId)
     const timezone = pipe(
-      Option.fromNullable(user),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullishOr(user),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
 
@@ -156,7 +158,7 @@ export const correctCareDates = (
     const updatedPlant = yield* repo.findById(request.id)
 
     return pipe(
-      Option.fromNullable(updatedPlant),
+      Option.fromNullishOr(updatedPlant),
       Option.getOrElse(() => plant)
     )
   }).pipe(

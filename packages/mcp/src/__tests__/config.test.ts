@@ -1,9 +1,9 @@
 import { McpAllowedOrigins, McpPort, McpServerUrl } from '@lily/mcp/config'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { ConfigProvider, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const runWith = (env: Record<string, string>) =>
-  Effect.provide(Layer.setConfigProvider(ConfigProvider.fromJson(env)))
+  Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env)))
 
 describe('MCP config', () => {
   describe('McpPort', () => {

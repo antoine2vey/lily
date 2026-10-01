@@ -22,10 +22,10 @@ export function PhotoPicker({
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const displayPlaceholder = Option.getOrElse(
-    Option.fromNullable(placeholder),
+    Option.fromNullishOr(placeholder),
     () => t('photo.placeholder')
   )
-  const displaySubtitle = Option.getOrElse(Option.fromNullable(subtitle), () =>
+  const displaySubtitle = Option.getOrElse(Option.fromNullishOr(subtitle), () =>
     t('photo.subtitle')
   )
 

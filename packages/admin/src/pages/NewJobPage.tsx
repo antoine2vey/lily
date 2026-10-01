@@ -29,13 +29,13 @@ export const NewJobPage = () => {
 
     const extracted = pipe(
       text.match(/https?:\/\/\S+/g),
-      Option.fromNullable,
+      Option.fromNullishOr,
       Option.getOrElse(() => [] as string[]),
       Array.map((url) => url.replace(/[)>\]'".,;:]+$/, '')),
       Array.filter(String.isNonEmpty)
     )
 
-    if (Array.isEmptyArray(extracted)) return
+    if (Array.isArrayEmpty(extracted)) return
 
     setUrls((prev) => {
       const trimmed = String.trim(prev)

@@ -30,7 +30,7 @@ export const issueSession = (user: UserRow) =>
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
       DateTime.addDuration(
-        DateTime.unsafeNow(),
+        DateTime.nowUnsafe(),
         Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
       )
     )

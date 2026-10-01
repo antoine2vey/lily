@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { PaginationParams } from '@lily/shared'
 import {
@@ -8,9 +7,13 @@ import {
   UnreadCountResponse,
 } from '@lily/shared/notification'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameter for notification ID
-const notificationIdParam = HttpApiSchema.param('notificationId', Schema.UUID)
+const notificationIdParam = HttpApiSchema.param(
+  'notificationId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Query parameters for notifications listing (extends base pagination)
 export const NotificationsQueryParams = Schema.Struct({
@@ -48,7 +51,7 @@ export const NotificationsApi = HttpApiGroup.make('notifications')
   )
   .add(
     // DELETE /notifications/:notificationId - Delete a notification
-    HttpApiEndpoint.del('deleteNotification')`/${notificationIdParam}`
+    HttpApiEndpoint.delete('deleteNotification')`/${notificationIdParam}`
       .addSuccess(Notification)
       .addError(NotificationNotFoundError)
       .addError(Schema.Struct({ error: Schema.String }), { status: 401 })

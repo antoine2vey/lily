@@ -1,6 +1,6 @@
 import { DiscordAlerterLive } from '@lily/api/services/alerting/discord.provider'
 import { Alerter } from '@lily/api/services/alerting/service'
-import { ConfigProvider, Effect, Logger, LogLevel } from 'effect'
+import { ConfigProvider, Effect, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 type FetchArgs = [input: RequestInfo | URL, init?: RequestInit]
@@ -34,8 +34,8 @@ describe('DiscordAlerterLive', () => {
     Effect.runPromise(
       eff.pipe(
         Effect.provide(DiscordAlerterLive),
-        Effect.withConfigProvider(configProvider),
-        Logger.withMinimumLogLevel(LogLevel.None)
+        Effect.provideService(ConfigProvider.ConfigProvider, configProvider),
+        Effect.provideService(References.MinimumLogLevel, 'None')
       )
     )
 

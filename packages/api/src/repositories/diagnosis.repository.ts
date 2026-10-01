@@ -1,14 +1,14 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { diagnoses } from '@lily/db/schema'
 import { paginate } from '@lily/shared'
 import type { Diagnosis, DiagnosisListResponse } from '@lily/shared/diagnosis'
 import { and, count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface FindDiagnosesParams {
   plantId: string
@@ -34,16 +34,16 @@ const mapToDiagnosis = (row: typeof diagnoses.$inferSelect): Diagnosis => ({
   id: row.id,
   plantId: row.plantId,
   userId: row.userId,
-  chatMessageId: Option.getOrUndefined(Option.fromNullable(row.chatMessageId)),
+  chatMessageId: Option.getOrUndefined(Option.fromNullishOr(row.chatMessageId)),
   diseaseName: row.diseaseName,
   severity: row.severity,
   confidence: row.confidence,
   symptoms: row.symptoms,
   treatmentSteps: row.treatmentSteps,
   preventionTips: Option.getOrUndefined(
-    Option.fromNullable(row.preventionTips)
+    Option.fromNullishOr(row.preventionTips)
   ),
-  imageUrl: Option.getOrUndefined(Option.fromNullable(row.imageKey)),
+  imageUrl: Option.getOrUndefined(Option.fromNullishOr(row.imageKey)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
@@ -62,10 +62,10 @@ export interface IDiagnosisRepository {
   ) => Effect.Effect<void, SqlError>
 }
 
-export class DiagnosisRepository extends Context.Tag('DiagnosisRepository')<
+export class DiagnosisRepository extends Context.Service<
   DiagnosisRepository,
   IDiagnosisRepository
->() {}
+>()('DiagnosisRepository') {}
 
 export const DiagnosisRepositoryLive = Layer.effect(
   DiagnosisRepository,
@@ -82,7 +82,7 @@ export const DiagnosisRepositoryLive = Layer.effect(
             plantId: data.plantId,
             userId: data.userId,
             chatMessageId: Option.getOrNull(
-              Option.fromNullable(data.chatMessageId)
+              Option.fromNullishOr(data.chatMessageId)
             ),
             diseaseName: data.diseaseName,
             severity: data.severity,
@@ -90,9 +90,9 @@ export const DiagnosisRepositoryLive = Layer.effect(
             symptoms: data.symptoms,
             treatmentSteps: data.treatmentSteps,
             preventionTips: Option.getOrNull(
-              Option.fromNullable(data.preventionTips)
+              Option.fromNullishOr(data.preventionTips)
             ),
-            imageKey: Option.getOrNull(Option.fromNullable(data.imageKey)),
+            imageKey: Option.getOrNull(Option.fromNullishOr(data.imageKey)),
           })
           .returning()
 

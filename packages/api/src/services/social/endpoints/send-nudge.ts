@@ -39,7 +39,7 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
   const lastNudge = yield* followRepo.getLastNudge(currentUserId, targetUserId)
   if (lastNudge) {
     const oneDayAgo = DateTime.toDateUtc(
-      DateTime.subtract(DateTime.unsafeNow(), { days: 1 })
+      DateTime.subtract(DateTime.nowUnsafe(), { days: 1 })
     )
     if (lastNudge > oneDayAgo) {
       return yield* new NudgeRateLimitError({
@@ -53,7 +53,7 @@ export const sendNudge = Effect.fn('SocialService.sendNudge')(function* (
 
   // Create push notification for target
   const nudgerName = pipe(
-    Option.fromNullable(currentUserName),
+    Option.fromNullishOr(currentUserName),
     Option.getOrElse(() => 'A friend')
   )
 

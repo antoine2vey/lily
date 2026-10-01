@@ -63,7 +63,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
 
     const plantRepo = yield* PlantRepository
     const plantIds = request.plantIds as string[]
-    if (Array.isEmptyArray(plantIds)) {
+    if (Array.isArrayEmpty(plantIds)) {
       return yield* new DelegationDateError({
         message: 'At least one plant must be selected',
       })
@@ -82,7 +82,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
       endDate,
     })
 
-    if (Array.isNonEmptyArray(overlapping)) {
+    if (Array.isArrayNonEmpty(overlapping)) {
       return yield* new DelegationOverlapError({
         plantIds: overlapping,
       })
@@ -101,7 +101,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
     const detail = yield* delegationRepo.findById(delegation.id)
 
     const ownerName = pipe(
-      Option.fromNullable(currentUserName),
+      Option.fromNullishOr(currentUserName),
       Option.getOrElse(() => 'Someone')
     )
 
@@ -114,7 +114,7 @@ export const createDelegation = Effect.fn('DelegationService.createDelegation')(
     )
 
     return yield* pipe(
-      Option.fromNullable(detail),
+      Option.fromNullishOr(detail),
       Option.match({
         onNone: () =>
           Effect.fail(

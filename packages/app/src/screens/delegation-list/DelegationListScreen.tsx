@@ -38,7 +38,7 @@ export function DelegationListScreen() {
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const delegations = pipe(
-    Option.fromNullable(data?.items),
+    Option.fromNullishOr(data?.items),
     Option.getOrElse(
       () => [] as ReadonlyArray<NonNullable<typeof data>['items'][number]>
     )

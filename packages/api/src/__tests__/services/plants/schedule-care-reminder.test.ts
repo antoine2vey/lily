@@ -5,7 +5,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
-import { Effect, Layer, Logger, LogLevel } from 'effect'
+import { Effect, Layer, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Helper to create a future date for scheduling
@@ -43,7 +43,7 @@ const runAndGetPendingNotifications = (
           })
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 }
@@ -428,7 +428,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -481,7 +481,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -534,7 +534,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -584,7 +584,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -723,7 +723,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 
@@ -767,7 +767,7 @@ describe('scheduleCareReminder', () => {
               })
             )
           ),
-          Logger.withMinimumLogLevel(LogLevel.None)
+          Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
 

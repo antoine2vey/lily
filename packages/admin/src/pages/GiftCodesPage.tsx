@@ -10,7 +10,7 @@ import {
 } from '@/hooks/use-gift-codes'
 
 const durationLabel: Record<string, string> = pipe(
-  Option.fromNullable(GIFT_DURATION_LABELS.en),
+  Option.fromNullishOr(GIFT_DURATION_LABELS.en),
   Option.getOrElse(() => ({}) as Record<string, string>)
 )
 
@@ -100,7 +100,7 @@ export const GiftCodesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {Array.isEmptyReadonlyArray(data.items) ? (
+                {Array.isReadonlyArrayEmpty(data.items) ? (
                   <tr>
                     <td
                       colSpan={7}

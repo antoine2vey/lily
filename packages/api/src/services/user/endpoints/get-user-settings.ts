@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings } from '@lily/shared/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Get user settings (profile + notification preferences)
 export const getUserSettings = (): Effect.Effect<

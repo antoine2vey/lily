@@ -1,5 +1,5 @@
-import { FileSystem } from '@effect/platform/FileSystem'
 import { Effect, Layer } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
 
 export const createMockFileSystem = (): Layer.Layer<FileSystem> => {
   const mockFileSystem = {

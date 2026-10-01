@@ -1,12 +1,12 @@
 import { Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
-export const DiagnosisSeverity = Schema.Literal(
+export const DiagnosisSeverity = Schema.Literals([
   'LOW',
   'MODERATE',
   'HIGH',
-  'CRITICAL'
-)
+  'CRITICAL',
+])
 
 export type DiagnosisSeverity = typeof DiagnosisSeverity.Type
 
@@ -22,8 +22,8 @@ export const Diagnosis = Schema.Struct({
   treatmentSteps: Schema.Array(Schema.String),
   preventionTips: Schema.optional(Schema.Array(Schema.String)),
   imageUrl: Schema.optional(Schema.String),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 
 export type Diagnosis = typeof Diagnosis.Type

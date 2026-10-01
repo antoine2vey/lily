@@ -1,9 +1,3 @@
-import {
-  HttpApp,
-  HttpBody,
-  HttpMiddleware,
-  HttpServerResponse,
-} from '@effect/platform'
 import { TOOL_WIDGETS } from '@lily/mcp/widgets/constants'
 import {
   Array,
@@ -14,6 +8,12 @@ import {
   pipe,
   Record,
 } from 'effect'
+import {
+  HttpBody,
+  HttpEffect,
+  HttpMiddleware,
+  HttpServerResponse,
+} from 'effect/http'
 
 /**
  * HTTP middleware that injects `_meta.ui.resourceUri` on tool definitions
@@ -38,8 +38,8 @@ import {
  * Array utilities require typed arrays.
  */
 export const toolMetaMiddleware = HttpMiddleware.make((app) =>
-  Effect.zipRight(
-    HttpApp.appendPreResponseHandler((_request, response) => {
+  Effect.andThen(
+    HttpEffect.appendPreResponseHandler((_request, response) => {
       // Only process Uint8Array bodies (JSON-RPC responses)
       if (response.body._tag !== 'Uint8Array') {
         return Effect.succeed(response)
@@ -60,7 +60,7 @@ export const toolMetaMiddleware = HttpMiddleware.make((app) =>
         const parsed = JSON.parse(bodyStr)
         const modified = patchToolsList(parsed)
         return JSON.stringify(modified)
-      }).pipe(Effect.orElse(() => Effect.succeed(bodyStr)))
+      }).pipe(Effect.catch(() => Effect.succeed(bodyStr)))
 
       return Effect.map(patched, (body) =>
         HttpServerResponse.setBody(
@@ -78,7 +78,7 @@ export const toolMetaMiddleware = HttpMiddleware.make((app) =>
  * that have widget templates.
  */
 const patchToolsList = (parsed: unknown): unknown => {
-  if (!Predicate.isRecord(parsed)) return parsed
+  if (!Predicate.isObject(parsed)) return parsed
 
   // Handle JSON-RPC batch (array of responses)
   if (globalThis.Array.isArray(parsed)) {
@@ -87,7 +87,7 @@ const patchToolsList = (parsed: unknown): unknown => {
 
   // Check if this is a tools/list result
   const result = parsed.result
-  if (!Predicate.isRecord(result)) return parsed
+  if (!Predicate.isObject(result)) return parsed
 
   const tools = result.tools
   if (!globalThis.Array.isArray(tools)) return parsed
@@ -103,7 +103,7 @@ const patchToolsList = (parsed: unknown): unknown => {
         onSome: (uri) => ({
           ...tool,
           _meta: {
-            ...(Predicate.isRecord(tool._meta)
+            ...(Predicate.isObject(tool._meta)
               ? (tool._meta as Record<string, unknown>)
               : {}),
             ui: { resourceUri: uri },

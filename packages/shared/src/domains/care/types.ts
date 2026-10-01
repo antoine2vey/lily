@@ -7,11 +7,11 @@ export const CARE_TYPES = [
   'repotting',
 ] as const
 
-export const CareType = Schema.Literal(
+export const CareType = Schema.Literals([
   'watering',
   'fertilization',
   'misting',
-  'repotting'
-)
+  'repotting',
+])
 
 export type CareType = typeof CareType.Type

@@ -30,7 +30,7 @@ const runCmd = (
   args: ReadonlyArray<string>,
   env: Record<string, string> = {}
 ): Effect.Effect<string, MaestroError | MissingToolError> =>
-  Effect.async<string, MaestroError | MissingToolError>((resume) => {
+  Effect.callback<string, MaestroError | MissingToolError>((resume) => {
     const child = spawn(cmd, [...args], {
       env: { ...process.env, ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -229,16 +229,16 @@ const handled = program.pipe(
   Effect.catchTags({
     MissingToolError: (e) =>
       Console.error(`\n✗ Missing tool: ${e.tool}\n  ${e.hint}`).pipe(
-        Effect.zipRight(exit1)
+        Effect.andThen(exit1)
       ),
     MaestroError: (e) =>
       Console.error(
         `\n✗ Maestro failed (exit=${e.exitCode}). See stderr above.`
-      ).pipe(Effect.zipRight(exit1)),
+      ).pipe(Effect.andThen(exit1)),
     ComposeError: (e) =>
       Console.error(
         `\n✗ Compose failed for ${e.sourcePath}: ${String(e.cause)}`
-      ).pipe(Effect.zipRight(exit1)),
+      ).pipe(Effect.andThen(exit1)),
   })
 )
 

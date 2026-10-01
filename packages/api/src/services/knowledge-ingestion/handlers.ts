@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { ProcessedChunkRepository } from '@lily/api/repositories/processed-chunk.repository'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
@@ -9,6 +8,7 @@ import { getKnowledgeStats } from '@lily/api/services/knowledge-ingestion/endpoi
 import { listIngestJobs } from '@lily/api/services/knowledge-ingestion/endpoints/list-ingest-jobs'
 import { embedText } from '@lily/api/services/rag/embedding.service'
 import { Effect } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const KnowledgeIngestionApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'knowledgeIngestion', (handlers) =>
@@ -24,10 +24,10 @@ export const KnowledgeIngestionApiLive = (api: Api) =>
         .handle('listIngestJobs', () =>
           listIngestJobs.pipe(withInfraErrorsAsDefect)
         )
-        .handle('getIngestJob', ({ path: { id } }) =>
+        .handle('getIngestJob', ({ params: { id } }) =>
           getIngestJob(id).pipe(withInfraErrorsAsDefect)
         )
-        .handle('deleteIngestJob', ({ path: { id } }) =>
+        .handle('deleteIngestJob', ({ params: { id } }) =>
           deleteIngestJob(id).pipe(withInfraErrorsAsDefect)
         )
         .handle('getKnowledgeStats', () =>

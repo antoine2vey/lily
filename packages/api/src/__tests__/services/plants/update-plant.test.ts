@@ -1,4 +1,3 @@
-import { FileSystem } from '@effect/platform/FileSystem'
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
@@ -8,6 +7,7 @@ import type { PlantWithRoom } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
 import { describe, expect, it } from 'vitest'
 
 const toPlantWithRoom = (

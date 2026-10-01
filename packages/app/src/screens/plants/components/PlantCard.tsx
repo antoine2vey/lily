@@ -79,7 +79,7 @@ export const getCareIndicator = (
   t: TFunction
 ): Option.Option<CareIndicator> =>
   pipe(
-    Option.fromNullable(care.daysUntil),
+    Option.fromNullishOr(care.daysUntil),
     Option.filter(
       (daysUntil) => care.isOverdue || daysUntil <= MAX_VISIBLE_DAYS
     ),
@@ -161,12 +161,12 @@ export const PlantCard = memo(function PlantCard({
   } = useMemo(() => {
     const water = getCareIndicator(plant.watering, 'watering', t)
     const misting = pipe(
-      Option.fromNullable(plant.misting),
+      Option.fromNullishOr(plant.misting),
       Option.flatMap((m) => getCareIndicator(m, 'misting', t))
     )
     const fertilize = getCareIndicator(plant.fertilization, 'fertilization', t)
     const repotting = pipe(
-      Option.fromNullable(plant.repotting),
+      Option.fromNullishOr(plant.repotting),
       Option.flatMap((r) => getCareIndicator(r, 'repotting', t))
     )
     const top = Option.isSome(water) || Option.isSome(misting)

@@ -86,11 +86,11 @@ export const selectTopic = Effect.fn('blog-generator.selectTopic')(function* (
   )
 
   const sampledTemplates = yield* sampleN(TOPIC_TEMPLATES, TEMPLATE_SAMPLE_SIZE)
-  const seedPlantSection = Arr.isNonEmptyReadonlyArray(seedPlants)
+  const seedPlantSection = Arr.isReadonlyArrayNonEmpty(seedPlants)
     ? `\n\nSEED PLANT (lean toward this species unless it doesn't fit a fresh angle): ${seedPlants[0]}`
     : ''
 
-  const attemptedSection = Arr.isNonEmptyReadonlyArray(attemptedSlugs)
+  const attemptedSection = Arr.isReadonlyArrayNonEmpty(attemptedSlugs)
     ? `\n\nALREADY ATTEMPTED THIS SESSION (just collided — DO NOT repick or pick a close variant):\n${Arr.join(attemptedSlugs, '\n')}`
     : ''
 

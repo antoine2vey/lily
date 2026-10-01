@@ -5,7 +5,7 @@ import {
   type PlantPhoto,
   type PlantPhotosListResponse,
 } from '@lily/shared'
-import { Array, Either } from 'effect'
+import { Array, Result } from 'effect'
 import type { ApiResult } from '@/utils/client'
 
 // Single source of truth for the Growth Journal photo pagination, shared by the
@@ -68,7 +68,7 @@ export const addPhotoToDetail = (
   photo: PlantPhoto
 ): DetailResult => {
   if (!old) return undefined
-  return Either.map(old, (plant) => ({
+  return Result.map(old, (plant) => ({
     ...plant,
     photos: Array.take(Array.prepend(plant.photos, photo), DETAIL_PHOTO_CAP),
   }))
@@ -80,7 +80,7 @@ export const removePhotoFromDetail = (
   photoId: string
 ): DetailResult => {
   if (!old) return undefined
-  return Either.map(old, (plant) => ({
+  return Result.map(old, (plant) => ({
     ...plant,
     photos: Array.filter(plant.photos, (p) => p.id !== photoId),
   }))
@@ -92,7 +92,7 @@ export const addPhotoToList = (
   photo: PlantPhoto
 ): PhotosResult => {
   if (!old) return undefined
-  return Either.map(old, (response) => ({
+  return Result.map(old, (response) => ({
     ...response,
     items: Array.prepend(response.items, photo),
     total: response.total + 1,
@@ -105,7 +105,7 @@ export const removePhotoFromList = (
   photoId: string
 ): PhotosResult => {
   if (!old) return undefined
-  return Either.map(old, (response) => ({
+  return Result.map(old, (response) => ({
     ...response,
     items: Array.filter(response.items, (p) => p.id !== photoId),
     total: Math.max(0, response.total - 1),
@@ -122,7 +122,7 @@ export const replacePhotoInDetail = (
   real: PlantPhoto
 ): DetailResult => {
   if (!old) return undefined
-  return Either.map(old, (plant) => ({
+  return Result.map(old, (plant) => ({
     ...plant,
     photos: Array.map(plant.photos, (p) => (p.id === tempId ? real : p)),
   }))
@@ -134,7 +134,7 @@ export const replacePhotoInList = (
   real: PlantPhoto
 ): PhotosResult => {
   if (!old) return undefined
-  return Either.map(old, (response) => ({
+  return Result.map(old, (response) => ({
     ...response,
     items: Array.map(response.items, (p) => (p.id === tempId ? real : p)),
   }))

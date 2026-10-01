@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -13,6 +12,7 @@ import {
   type UsageField,
 } from '@lily/shared'
 import { Context, Effect, Layer, Match, Option, pipe, Random } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // 80% threshold for approaching-limit notification
 const APPROACHING_LIMIT_THRESHOLD = 0.8
@@ -56,10 +56,10 @@ export interface IUsageTracker {
   ) => Effect.Effect<SubscriptionUsage | null, SqlError>
 }
 
-export class UsageTracker extends Context.Tag('UsageTracker')<
+export class UsageTracker extends Context.Service<
   UsageTracker,
   IUsageTracker
->() {}
+>()('UsageTracker') {}
 
 export const UsageTrackerLive = Layer.effect(
   UsageTracker,
@@ -81,7 +81,7 @@ export const UsageTrackerLive = Layer.effect(
         // Only for free tier users
         const subscription = yield* subRepo.findByUserId(userId)
         const isPremium = pipe(
-          Option.fromNullable(subscription),
+          Option.fromNullishOr(subscription),
           Option.filter(hasPremiumAccess),
           Option.isSome
         )
@@ -111,11 +111,11 @@ export const UsageTrackerLive = Layer.effect(
         if (!user) return
 
         const timezone = Option.getOrElse(
-          Option.fromNullable(user.timezone),
+          Option.fromNullishOr(user.timezone),
           () => DEFAULT_TIMEZONE
         )
         const language = Option.getOrElse(
-          Option.fromNullable(user.language),
+          Option.fromNullishOr(user.language),
           () => 'en' as const
         ) as LanguageCode
         const featureName =
@@ -167,7 +167,7 @@ export const UsageTrackerLive = Layer.effect(
     const trackAndCheck = (userId: string, field: UsageField) =>
       Effect.gen(function* () {
         const usage = yield* subRepo.incrementUsage(userId, field)
-        yield* Effect.forkDaemon(checkApproachingLimit(userId, field, usage))
+        yield* Effect.forkDetach(checkApproachingLimit(userId, field, usage))
         return usage
       })
 

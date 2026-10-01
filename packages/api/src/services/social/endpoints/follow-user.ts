@@ -57,7 +57,7 @@ export const followUser = Effect.fn('SocialService.followUser')(function* (
 
   // Create push notification for the followed user
   const followerName = pipe(
-    Option.fromNullable(currentUserName),
+    Option.fromNullishOr(currentUserName),
     Option.getOrElse(() => 'Someone')
   )
 

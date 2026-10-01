@@ -6,7 +6,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { setVacation } from '@lily/api/services/vacation/endpoints/set-vacation'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Logger, LogLevel, Order, pipe } from 'effect'
+import { Array, Effect, Layer, Order, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (days: number): Date =>
@@ -24,7 +24,9 @@ const createLayer = (
   )
 
 const run = <A, E>(effect: Effect.Effect<A, E, never>): Promise<A> =>
-  Effect.runPromise(effect.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+  Effect.runPromise(
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
+  )
 
 describe('setVacation', () => {
   describe('validation', () => {
@@ -150,7 +152,7 @@ describe('setVacation', () => {
 
       const remainingIds = pipe(
         Array.map(notifications, (n) => n.id),
-        Array.sort(Order.string)
+        Array.sort(Order.String)
       )
       expect(remainingIds).toEqual(['n-other-user', 'n-social'])
     })

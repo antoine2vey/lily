@@ -81,7 +81,7 @@ describe('enrichChunk', () => {
     mockedGenerateText.mockRejectedValue(new Error('API timeout'))
 
     const resultPromise = Effect.runPromise(
-      enrichChunk('some content').pipe(Effect.catchAll(() => Effect.void))
+      enrichChunk('some content').pipe(Effect.catch(() => Effect.void))
     )
     await vi.runAllTimersAsync()
     const result = await resultPromise

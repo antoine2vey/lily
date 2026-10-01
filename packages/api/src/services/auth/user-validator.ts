@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { JWTError } from '@lily/api/services/jwt/errors'
 import { JWTService } from '@lily/api/services/jwt/service'
 import type { users } from '@lily/db/schema'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Option, pipe, Redacted } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ValidatedUserResult {
   user: typeof users.$inferSelect
@@ -55,7 +55,7 @@ export const validateUserFromToken = <E>(
     // Fetch user from database
     const user = yield* pipe(
       userRepo.findById(payload.sub),
-      Effect.map(Option.fromNullable),
+      Effect.map(Option.fromNullishOr),
       Effect.flatMap(
         Option.match({
           onNone: () => Effect.fail(createError('Authentication failed')),
@@ -81,8 +81,8 @@ export const validateUserFromToken = <E>(
       name: user.name,
       firstName: user.firstName,
       lastName: user.lastName,
-      username: Option.getOrUndefined(Option.fromNullable(user.name)),
-      timezone: Option.getOrUndefined(Option.fromNullable(user.timezone)),
+      username: Option.getOrUndefined(Option.fromNullishOr(user.name)),
+      timezone: Option.getOrUndefined(Option.fromNullishOr(user.timezone)),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       role: user.role,

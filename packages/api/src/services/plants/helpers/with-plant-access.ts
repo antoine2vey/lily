@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import {
   PlantRepository,
@@ -12,6 +11,7 @@ import {
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Fetches a plant by ID, checks ownership/delegation, and returns the plant.

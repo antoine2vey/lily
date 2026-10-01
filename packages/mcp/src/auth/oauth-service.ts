@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type AuthorizationCode,
   type OAuthClient,
@@ -16,6 +15,7 @@ import {
   pipe,
   Schema,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // ── Configuration ──────────────────────────────────────────────────────
 
@@ -128,10 +128,10 @@ export class AccessTokenExpired extends Schema.TaggedError<AccessTokenExpired>()
 
 // ── Context Tag ────────────────────────────────────────────────────────
 
-export class OAuthService extends Context.Tag('OAuthService')<
+export class OAuthService extends Context.Service<
   OAuthService,
   IOAuthService
->() {}
+>()('OAuthService') {}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ export const OAuthServiceLive = Layer.effect(
       }) {
         const code = generateToken()
         const expiresAt = DateTime.toDateUtc(
-          DateTime.addDuration(DateTime.unsafeNow(), AUTH_CODE_LIFETIME)
+          DateTime.addDuration(DateTime.nowUnsafe(), AUTH_CODE_LIFETIME)
         )
 
         yield* repo.saveAuthorizationCode({
@@ -220,9 +220,9 @@ export const OAuthServiceLive = Layer.effect(
         })
 
         // Verify code hasn't expired
-        const nowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+        const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
         const codeExpiresAtMs = DateTime.toEpochMillis(
-          DateTime.unsafeMake(authCode.expiresAt)
+          DateTime.makeUnsafe(authCode.expiresAt)
         )
         if (codeExpiresAtMs < nowMs) {
           return yield* new OAuthError({
@@ -254,7 +254,7 @@ export const OAuthServiceLive = Layer.effect(
         // Issue tokens
         const accessTokenValue = generateToken()
         const refreshTokenValue = generateToken()
-        const now = DateTime.unsafeNow()
+        const now = DateTime.nowUnsafe()
 
         const accessExpiresAt = DateTime.toDateUtc(
           DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
@@ -318,9 +318,9 @@ export const OAuthServiceLive = Layer.effect(
           })
 
           // Verify not expired
-          const refreshNowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+          const refreshNowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const expiresAtMs = DateTime.toEpochMillis(
-            DateTime.unsafeMake(refreshToken.expiresAt)
+            DateTime.makeUnsafe(refreshToken.expiresAt)
           )
           if (expiresAtMs < refreshNowMs) {
             return yield* new OAuthError({
@@ -340,7 +340,7 @@ export const OAuthServiceLive = Layer.effect(
           // Issue new tokens
           const accessTokenValue = generateToken()
           const newRefreshTokenValue = generateToken()
-          const now = DateTime.unsafeNow()
+          const now = DateTime.nowUnsafe()
 
           const accessExpiresAt = DateTime.toDateUtc(
             DateTime.addDuration(now, ACCESS_TOKEN_LIFETIME)
@@ -422,9 +422,9 @@ export const OAuthServiceLive = Layer.effect(
             onSome: Effect.succeed,
           })
 
-          const validateNowMs = DateTime.toEpochMillis(DateTime.unsafeNow())
+          const validateNowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const tokenExpiresAtMs = DateTime.toEpochMillis(
-            DateTime.unsafeMake(accessToken.expiresAt)
+            DateTime.makeUnsafe(accessToken.expiresAt)
           )
           if (tokenExpiresAtMs < validateNowMs) {
             yield* repo.revokeAccessToken(token)

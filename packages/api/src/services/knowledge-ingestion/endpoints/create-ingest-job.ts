@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import type { IngestJob } from '@lily/shared/knowledge'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const createIngestJob = (
   adapter: string,

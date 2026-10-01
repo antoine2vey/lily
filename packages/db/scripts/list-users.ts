@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import { Console, Effect } from 'effect'
 

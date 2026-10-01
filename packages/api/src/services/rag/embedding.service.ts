@@ -30,7 +30,7 @@ export const embedTexts = (
   texts: string[]
 ): Effect.Effect<number[][], EmbeddingError> =>
   Effect.gen(function* () {
-    if (Array.isEmptyArray(texts)) {
+    if (Array.isArrayEmpty(texts)) {
       return []
     }
 

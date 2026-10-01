@@ -89,18 +89,18 @@ export const toIndoorPlantContext = (plant: {
   lightingRating: plant.lightingRating,
   humidityRating: plant.humidityRating,
   isOutdoor: pipe(
-    Option.fromNullable(plant.room),
+    Option.fromNullishOr(plant.room),
     Option.map((r) => r.isOutdoor),
     Option.getOrElse(() => false)
   ),
   roomLuminosity: pipe(
-    Option.fromNullable(plant.room),
-    Option.flatMap((r) => Option.fromNullable(r.luminosity)),
+    Option.fromNullishOr(plant.room),
+    Option.flatMap((r) => Option.fromNullishOr(r.luminosity)),
     Option.getOrNull
   ),
   roomOrientation: pipe(
-    Option.fromNullable(plant.room),
-    Option.flatMap((r) => Option.fromNullable(r.orientation)),
+    Option.fromNullishOr(plant.room),
+    Option.flatMap((r) => Option.fromNullishOr(r.orientation)),
     Option.getOrNull
   ),
 })
@@ -117,7 +117,7 @@ const indoorDemandInput = (
   recentHistory: ReadonlyArray<WeatherData>
 ): Option.Option<IndoorDemandInput> =>
   pipe(
-    Option.fromNullable(latitude),
+    Option.fromNullishOr(latitude),
     Option.filter((lat) => Number.isFinite(lat) && !plant.isOutdoor),
     Option.map((lat) => ({
       latitude: lat,
@@ -125,19 +125,19 @@ const indoorDemandInput = (
       recentHistory,
       category: plant.category,
       roomLuminosity: pipe(
-        Option.fromNullable(plant.roomLuminosity),
+        Option.fromNullishOr(plant.roomLuminosity),
         Option.getOrNull
       ),
       roomOrientation: pipe(
-        Option.fromNullable(plant.roomOrientation),
+        Option.fromNullishOr(plant.roomOrientation),
         Option.getOrNull
       ),
       lightingRating: pipe(
-        Option.fromNullable(plant.lightingRating),
+        Option.fromNullishOr(plant.lightingRating),
         Option.getOrElse(() => DEFAULT_LIGHTING_RATING)
       ),
       humidityRating: pipe(
-        Option.fromNullable(plant.humidityRating),
+        Option.fromNullishOr(plant.humidityRating),
         Option.getOrElse(() => DEFAULT_HUMIDITY_RATING)
       ),
     }))
@@ -190,7 +190,7 @@ function checkPrecipitationSkip(
   if (!isOutdoor) return { skip: false }
 
   const currentPrecip = pipe(
-    Option.fromNullable(currentWeather.precipitation),
+    Option.fromNullishOr(currentWeather.precipitation),
     Option.getOrElse(() => 0)
   )
 
@@ -204,7 +204,7 @@ function checkPrecipitationSkip(
   // Check tomorrow's forecast (index 1 if available)
   const tomorrowPrecip = pipe(
     Array.get(forecast, 1),
-    Option.flatMap((day) => Option.fromNullable(day.precipitation)),
+    Option.flatMap((day) => Option.fromNullishOr(day.precipitation)),
     Option.getOrElse(() => 0)
   )
 
@@ -297,12 +297,12 @@ function checkFertilizationSkip(currentWeather: WeatherData): {
   reason?: string
 } {
   const tempMax = pipe(
-    Option.fromNullable(currentWeather.temperatureMax),
+    Option.fromNullishOr(currentWeather.temperatureMax),
     Option.getOrElse(() => DEFAULT_TEMPERATURE_MAX_C)
   )
 
   const tempMin = pipe(
-    Option.fromNullable(currentWeather.temperatureMin),
+    Option.fromNullishOr(currentWeather.temperatureMin),
     Option.getOrElse(() => DEFAULT_TEMPERATURE_MIN_C)
   )
 
@@ -346,7 +346,7 @@ export function calculatePlantAdjustment(
 
   // Step 2: Calculate actual crop ET (for factors output)
   const et0Value = pipe(
-    Option.fromNullable(currentWeather.et0),
+    Option.fromNullishOr(currentWeather.et0),
     Option.getOrElse(() => DEFAULT_ET0_MM_PER_DAY)
   )
   const _etc = calculateETc(et0Value, kc)
@@ -406,7 +406,7 @@ export function calculatePlantAdjustment(
       humidity: humidityFactor,
       wind: windFactor,
       precipitation: pipe(
-        Option.fromNullable(currentWeather.precipitation),
+        Option.fromNullishOr(currentWeather.precipitation),
         Option.getOrElse(() => 0)
       ),
       et0: et0Value,
@@ -448,7 +448,7 @@ function calculateDayMultiplier(
   // Precipitation dampening for outdoor plants only
   if (plant.isOutdoor) {
     const precip = pipe(
-      Option.fromNullable(day.precipitation),
+      Option.fromNullishOr(day.precipitation),
       Option.getOrElse(() => 0)
     )
     // Heavy rain (>6mm): plant was watered by nature -- only 30% of normal demand
@@ -487,7 +487,7 @@ export function calculateScheduleDelta(
   const { forecast, recentHistory } = weatherCtx
 
   // Empty forecast -> no data to act on -> no change
-  if (Array.isEmptyReadonlyArray(forecast)) {
+  if (Array.isReadonlyArrayEmpty(forecast)) {
     return { wateringDaysDelta: 0, fertilizationDaysDelta: 0 }
   }
 

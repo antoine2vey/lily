@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { WeatherRepository } from '@lily/api/repositories/weather.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -12,6 +11,7 @@ import {
   WeatherNotAvailableError,
 } from '@lily/shared'
 import { Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Fetch weather for a specific location (with cache + persistence)
 export const getWeatherForLocation = (

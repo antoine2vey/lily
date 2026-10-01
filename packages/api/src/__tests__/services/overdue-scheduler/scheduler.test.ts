@@ -27,9 +27,8 @@ import {
   Effect,
   Exit,
   Layer,
-  Logger,
-  LogLevel,
   Option,
+  References,
 } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -65,7 +64,7 @@ const runCheck = (
           createMockMessageQueue()
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 
@@ -115,7 +114,7 @@ const runProcessUser = (
           createMockMessageQueue()
         )
       ),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 }
@@ -413,7 +412,7 @@ describe('checkAndCreateOverdueReminders', () => {
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
-        const error = Cause.failureOption(exit.cause)
+        const error = Cause.findErrorOption(exit.cause)
         expect(Option.isSome(error)).toBe(true)
         expect(Option.getOrThrow(error)._tag).toBe('AlreadySentTodayError')
       }
@@ -465,7 +464,7 @@ describe('checkAndCreateOverdueReminders', () => {
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
-        const error = Cause.failureOption(exit.cause)
+        const error = Cause.findErrorOption(exit.cause)
         expect(Option.isSome(error)).toBe(true)
         expect(Option.getOrThrow(error)._tag).toBe('CareRemindersDisabledError')
       }
@@ -515,7 +514,7 @@ describe('checkAndCreateOverdueReminders', () => {
 
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) {
-        const error = Cause.failureOption(exit.cause)
+        const error = Cause.findErrorOption(exit.cause)
         expect(Option.isSome(error)).toBe(true)
         expect(Option.getOrThrow(error)._tag).toBe('DndWindowBlockedError')
       }

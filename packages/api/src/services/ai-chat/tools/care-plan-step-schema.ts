@@ -49,10 +49,10 @@ export type CarePlanStepInput = z.infer<typeof carePlanStepSchema>
 export const resolveDueDate = (
   dueInDays: number | undefined,
   timezone: string,
-  now: DateTime.Utc = DateTime.unsafeNow()
+  now: DateTime.Utc = DateTime.nowUnsafe()
 ): Date | undefined =>
   pipe(
-    Option.fromNullable(dueInDays),
+    Option.fromNullishOr(dueInDays),
     Option.map((days) =>
       DateTime.toDateUtc(
         DateTime.addDuration(startOfDay(now, timezone), Duration.days(days))

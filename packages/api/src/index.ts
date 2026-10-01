@@ -1,4 +1,3 @@
-import { HttpApiBuilder, HttpApiSwagger, HttpServer } from '@effect/platform'
 import { BunHttpServer, BunRuntime } from '@effect/platform-bun'
 import { Api } from '@lily/api/api'
 import { AppLive } from '@lily/api/layers'
@@ -54,64 +53,66 @@ import { startWeeklyRecapScheduler } from '@lily/api/services/weekly-recap-sched
 import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
+import { HttpRouter, HttpServer } from 'effect/http'
+import { HttpApiBuilder, HttpApiSwagger } from 'effect/http-api'
 
 // Shared database layers
 const SharedLive = Layer.mergeAll(DrizzleLive, PgLive)
 
 // Background schedulers and workers — deps come from AppLive at root
-const AchievementSubscriberLive = Layer.scopedDiscard(
+const AchievementSubscriberLive = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* startAchievementSubscriber
     yield* Effect.log('Achievement subscriber started')
   })
 )
 
-const NotificationSchedulerLive = Layer.scopedDiscard(
+const NotificationSchedulerLive = Layer.effectDiscard(
   startNotificationScheduler
 )
 
-const NotificationWorkerLive = Layer.scopedDiscard(startNotificationWorker)
+const NotificationWorkerLive = Layer.effectDiscard(startNotificationWorker)
 
-const WeatherSchedulerLive = Layer.scopedDiscard(startWeatherScheduler)
+const WeatherSchedulerLive = Layer.effectDiscard(startWeatherScheduler)
 
-const DelegationSchedulerLive = Layer.scopedDiscard(startDelegationScheduler)
+const DelegationSchedulerLive = Layer.effectDiscard(startDelegationScheduler)
 
-const AchievementReconciliationSchedulerLive = Layer.scopedDiscard(
+const AchievementReconciliationSchedulerLive = Layer.effectDiscard(
   startAchievementReconciliationScheduler
 )
 
-const OverdueSchedulerLive = Layer.scopedDiscard(startOverdueScheduler)
+const OverdueSchedulerLive = Layer.effectDiscard(startOverdueScheduler)
 
-const EngagementSchedulerLive = Layer.scopedDiscard(startEngagementScheduler)
+const EngagementSchedulerLive = Layer.effectDiscard(startEngagementScheduler)
 
-const TipsSchedulerLive = Layer.scopedDiscard(startTipsScheduler)
+const TipsSchedulerLive = Layer.effectDiscard(startTipsScheduler)
 
-const WeeklyRecapSchedulerLive = Layer.scopedDiscard(startWeeklyRecapScheduler)
+const WeeklyRecapSchedulerLive = Layer.effectDiscard(startWeeklyRecapScheduler)
 
-const BlogGeneratorSchedulerLive = Layer.scopedDiscard(
+const BlogGeneratorSchedulerLive = Layer.effectDiscard(
   startBlogGeneratorScheduler
 )
 
-const HealthSchedulerLive = Layer.scopedDiscard(startHealthScheduler)
+const HealthSchedulerLive = Layer.effectDiscard(startHealthScheduler)
 
-const AccountCleanupSchedulerLive = Layer.scopedDiscard(
+const AccountCleanupSchedulerLive = Layer.effectDiscard(
   startAccountCleanupScheduler
 )
 
-const AnalyticsSchedulerLive = Layer.scopedDiscard(startAnalyticsScheduler)
+const AnalyticsSchedulerLive = Layer.effectDiscard(startAnalyticsScheduler)
 
-const ActivitySchedulerLive = Layer.scopedDiscard(startActivityScheduler)
+const ActivitySchedulerLive = Layer.effectDiscard(startActivityScheduler)
 
-const VacationSchedulerLive = Layer.scopedDiscard(startVacationScheduler)
+const VacationSchedulerLive = Layer.effectDiscard(startVacationScheduler)
 
-const LiveActivitySubscriberLive = Layer.scopedDiscard(
+const LiveActivitySubscriberLive = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* startLiveActivitySubscriber
     yield* Effect.log('Live activity subscriber started')
   })
 )
 
-const KnowledgeIngestionWorkerLive = Layer.scopedDiscard(
+const KnowledgeIngestionWorkerLive = Layer.effectDiscard(
   startKnowledgeIngestionWorker
 )
 
@@ -179,8 +180,8 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 
 // Set up the server using BunHttpServer on port 3000
 const ServerLive = HttpApiBuilder.serve(ObservabilityMiddleware).pipe(
-  Layer.provide(HttpApiBuilder.middlewareCors({ maxAge: 86400 })),
-  Layer.provide(HttpApiSwagger.layer()),
+  Layer.provide(HttpRouter.cors({ maxAge: 86400 })),
+  Layer.provide(HttpApiSwagger.layer(Api)),
   Layer.provide(HttpApiBuilder.middlewareOpenApi()),
   Layer.provide(ApiLive),
   Layer.provide(AllSchedulersLive),

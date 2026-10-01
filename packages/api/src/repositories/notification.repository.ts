@@ -1,9 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { notifications } from '@lily/db/schema'
 import {
   nowAsDate,
@@ -19,6 +18,7 @@ import type {
 import type { NotificationTopic } from '@lily/shared/server'
 import { and, count, desc, eq, inArray, lte, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
 export interface FindNotificationsParams {
@@ -43,16 +43,16 @@ const mapToNotification = (
 ): Notification => ({
   id: row.id,
   type: row.type,
-  title: Option.getOrUndefined(Option.fromNullable(row.title)),
-  body: Option.getOrUndefined(Option.fromNullable(row.body)),
+  title: Option.getOrUndefined(Option.fromNullishOr(row.title)),
+  body: Option.getOrUndefined(Option.fromNullishOr(row.body)),
   scheduledAt: row.scheduledAt,
-  sentAt: Option.getOrUndefined(Option.fromNullable(row.sentAt)),
+  sentAt: Option.getOrUndefined(Option.fromNullishOr(row.sentAt)),
   isRead: row.isRead,
   status: row.status as NotificationStatus,
   retryCount: row.retryCount,
-  lastError: Option.getOrUndefined(Option.fromNullable(row.lastError)),
+  lastError: Option.getOrUndefined(Option.fromNullishOr(row.lastError)),
   userId: row.userId,
-  plantId: Option.getOrUndefined(Option.fromNullable(row.plantId)),
+  plantId: Option.getOrUndefined(Option.fromNullishOr(row.plantId)),
   createdAt: row.createdAt,
 })
 
@@ -133,9 +133,10 @@ export interface INotificationRepository {
 }
 
 // Tag for dependency injection
-export class NotificationRepository extends Context.Tag(
-  'NotificationRepository'
-)<NotificationRepository, INotificationRepository>() {}
+export class NotificationRepository extends Context.Service<
+  NotificationRepository,
+  INotificationRepository
+>()('NotificationRepository') {}
 
 // Live implementation using PgDrizzle
 export const NotificationRepositoryLive = Layer.effect(
@@ -206,7 +207,7 @@ export const NotificationRepositoryLive = Layer.effect(
             body: data.body,
             scheduledAt: data.scheduledAt,
             userId: data.userId,
-            plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
+            plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
           })
           .returning()
         return row ? mapToNotification(row) : null
@@ -324,8 +325,8 @@ export const NotificationRepositoryLive = Layer.effect(
           )
         return (
           pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.count)),
             Option.getOrElse(() => 0)
           ) > 0
         )
@@ -455,8 +456,8 @@ export const NotificationRepositoryLive = Layer.effect(
           )
         return (
           pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.count)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.count)),
             Option.getOrElse(() => 0)
           ) > 0
         )

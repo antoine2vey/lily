@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { formatApiDateWith } from '@lily/shared'
-import { Array, DateTime, Either, Option, pipe } from 'effect'
+import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { router } from 'expo-router'
 import { useCallback } from 'react'
 import { FlatList, Pressable, Text, View } from 'react-native'
@@ -65,7 +65,7 @@ export function ConversationsListScreen() {
   const createConversation = useCreateConversation()
 
   const conversations: Conversation[] = pipe(
-    Option.fromNullable(data?.items),
+    Option.fromNullishOr(data?.items),
     Option.map((items) =>
       Array.map(items, (c) => ({
         id: c.id,
@@ -85,9 +85,9 @@ export function ConversationsListScreen() {
     const result = await createConversation.mutateAsync({
       payload: { kind: 'general' },
     })
-    Either.match(result, {
-      onLeft: () => undefined,
-      onRight: (created) => router.push(`/chat/${created.id}` as never),
+    Result.match(result, {
+      onFailure: () => undefined,
+      onSuccess: (created) => router.push(`/chat/${created.id}` as never),
     })
   }, [createConversation])
 

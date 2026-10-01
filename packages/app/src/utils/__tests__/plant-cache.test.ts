@@ -3,7 +3,7 @@ import type {
   PlantPhoto,
   PlantPhotosListResponse,
 } from '@lily/shared'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import type { ApiResult } from '@/utils/client'
 import {
   addPhotoToDetail,
@@ -27,17 +27,17 @@ const photo = (id: string, takenAtIso: string): PlantPhoto => ({
 })
 
 const detailResult = (photos: PlantPhoto[]): ApiResult<PlantDetail> =>
-  Either.right({ id: 'plant-1', photos } as unknown as PlantDetail)
+  Result.succeed({ id: 'plant-1', photos } as unknown as PlantDetail)
 
 const listResult = (
   items: PlantPhoto[],
   total: number
 ): ApiResult<PlantPhotosListResponse> =>
-  Either.right({ items, total, page: 1, limit: 100, hasMore: false })
+  Result.succeed({ items, total, page: 1, limit: 100, hasMore: false })
 
 const unwrap = <T>(result: ApiResult<T> | undefined): T => {
   if (!result) throw new Error('expected a defined cache value')
-  return Either.getOrThrow(result)
+  return Result.getOrThrow(result)
 }
 
 describe('plant-cache keys', () => {

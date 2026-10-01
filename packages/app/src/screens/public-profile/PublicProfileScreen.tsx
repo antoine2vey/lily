@@ -47,8 +47,8 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const displayName = pipe(
-    Option.fromNullable(profile),
-    Option.flatMap((p) => Option.fromNullable(p.name)),
+    Option.fromNullishOr(profile),
+    Option.flatMap((p) => Option.fromNullishOr(p.name)),
     Option.getOrElse(() => 'User')
   )
 
@@ -108,7 +108,7 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
             <View className="items-center pt-4 px-4">
               <View className="w-20 h-20 rounded-full p-1 border-2 border-primary bg-surface dark:bg-surface-dark mb-3">
                 {pipe(
-                  Option.fromNullable(profile.image),
+                  Option.fromNullishOr(profile.image),
                   Option.match({
                     onNone: () => (
                       <View className="w-full h-full rounded-full items-center justify-center bg-primary-tint dark:bg-primary/20">
@@ -117,7 +117,7 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
                           style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
                         >
                           {pipe(
-                            Option.fromNullable(profile.name),
+                            Option.fromNullishOr(profile.name),
                             Option.map((n) => n.charAt(0)),
                             Option.getOrElse(() => '?')
                           )}

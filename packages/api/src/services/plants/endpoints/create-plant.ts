@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
@@ -8,6 +7,7 @@ import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { type LimitExceededError, luxToSliderValue } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
@@ -33,43 +33,43 @@ export const createPlant = (
     yield* limitChecker.checkPlantLimit(userId)
 
     // Set next care dates to now (due immediately)
-    const now = DateTime.toDateUtc(DateTime.unsafeNow())
+    const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
     const plantOrNull = yield* repo.create({
       name: request.name,
       description: pipe(
-        Option.fromNullable(request.description),
+        Option.fromNullishOr(request.description),
         Option.getOrNull
       ),
-      category: pipe(Option.fromNullable(request.category), Option.getOrNull),
-      imageUrl: pipe(Option.fromNullable(request.imageUrl), Option.getOrNull),
+      category: pipe(Option.fromNullishOr(request.category), Option.getOrNull),
+      imageUrl: pipe(Option.fromNullishOr(request.imageUrl), Option.getOrNull),
       humidityRating: pipe(
-        Option.fromNullable(request.humidityRating),
+        Option.fromNullishOr(request.humidityRating),
         Option.getOrElse(() => 0)
       ),
       lightingRating: pipe(
-        Option.fromNullable(request.lightingRating),
+        Option.fromNullishOr(request.lightingRating),
         Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
       ),
       petToxicityRating: pipe(
-        Option.fromNullable(request.petToxicityRating),
+        Option.fromNullishOr(request.petToxicityRating),
         Option.getOrElse(() => 0)
       ),
       wateringRating: pipe(
-        Option.fromNullable(request.wateringRating),
+        Option.fromNullishOr(request.wateringRating),
         Option.getOrElse(() => 0)
       ),
       health: 'HEALTHY',
       potWidthCm: pipe(
-        Option.fromNullable(request.potWidthCm),
+        Option.fromNullishOr(request.potWidthCm),
         Option.getOrNull
       ),
       potHeightCm: pipe(
-        Option.fromNullable(request.potHeightCm),
+        Option.fromNullishOr(request.potHeightCm),
         Option.getOrNull
       ),
       userId,
-      roomId: pipe(Option.fromNullable(request.roomId), Option.getOrNull),
+      roomId: pipe(Option.fromNullishOr(request.roomId), Option.getOrNull),
     })
 
     if (!plantOrNull) {

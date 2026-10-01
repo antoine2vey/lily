@@ -1,16 +1,16 @@
-import {
-  type HttpApp,
-  HttpServer,
-  HttpServerRequest,
-  HttpServerResponse,
-} from '@effect/platform'
 import { ObservabilityMiddleware } from '@lily/api/middleware/observability'
 import {
   type AlertEvent,
   Alerter,
   type IAlerter,
 } from '@lily/api/services/alerting/service'
-import { Effect, Layer, Logger, LogLevel } from 'effect'
+import { Effect, Layer, References } from 'effect'
+import {
+  type HttpEffect,
+  HttpServer,
+  HttpServerRequest,
+  HttpServerResponse,
+} from 'effect/http'
 import { describe, expect, it } from 'vitest'
 
 const makeCapturingAlerter = () => {
@@ -34,14 +34,14 @@ const runWithApp = async (
   alerterLayer: Layer.Layer<Alerter>
 ): Promise<void> => {
   const response = HttpServerResponse.empty({ status })
-  const app: HttpApp.Default = Effect.succeed(response)
+  const app: HttpEffect.Default = Effect.succeed(response)
   await Effect.runPromise(
     ObservabilityMiddleware(app).pipe(
       Effect.asVoid,
-      Effect.provide(HttpServer.layerContext),
+      Effect.provide(HttpServer.layerServices),
       Effect.provideService(HttpServerRequest.HttpServerRequest, fakeRequest),
       Effect.provide(alerterLayer),
-      Logger.withMinimumLogLevel(LogLevel.None)
+      Effect.provideService(References.MinimumLogLevel, 'None')
     )
   )
 }

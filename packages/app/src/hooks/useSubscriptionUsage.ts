@@ -25,7 +25,7 @@ export function useSubscriptionUsage() {
     const isPremium = tierConfig.tier === 'paid'
 
     const status: SubscriptionUsage['status'] = pipe(
-      Option.fromNullable(data.subscription),
+      Option.fromNullishOr(data.subscription),
       Option.map((s) => s.status),
       Option.getOrNull
     )
@@ -36,36 +36,36 @@ export function useSubscriptionUsage() {
       {
         type: 'ai_chats',
         current: pipe(
-          Option.fromNullable(usageCounts),
+          Option.fromNullishOr(usageCounts),
           Option.map((u) => u.aiChatsCount),
           Option.getOrElse(() => 0)
         ),
         max: pipe(
-          Option.fromNullable(tierConfig.maxAiChatsMonthly),
+          Option.fromNullishOr(tierConfig.maxAiChatsMonthly),
           Option.getOrElse(() => Infinity)
         ),
       },
       {
         type: 'plant_ids',
         current: pipe(
-          Option.fromNullable(usageCounts),
+          Option.fromNullishOr(usageCounts),
           Option.map((u) => u.plantIdentifiesCount),
           Option.getOrElse(() => 0)
         ),
         max: pipe(
-          Option.fromNullable(tierConfig.maxPlantIdentifiesMonthly),
+          Option.fromNullishOr(tierConfig.maxPlantIdentifiesMonthly),
           Option.getOrElse(() => Infinity)
         ),
       },
       {
         type: 'card_scans',
         current: pipe(
-          Option.fromNullable(usageCounts),
+          Option.fromNullishOr(usageCounts),
           Option.map((u) => u.cardScansCount),
           Option.getOrElse(() => 0)
         ),
         max: pipe(
-          Option.fromNullable(tierConfig.maxCardScansMonthly),
+          Option.fromNullishOr(tierConfig.maxCardScansMonthly),
           Option.getOrElse(() => Infinity)
         ),
       },

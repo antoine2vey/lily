@@ -25,7 +25,7 @@ export const FormInput = forwardRef<TextInput, FormInputProps>(
           className={`rounded-2xl px-4 py-3.5 bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50 text-base text-text-primary dark:text-white font-medium ${
             error ? 'border-error' : ''
           } ${pipe(
-            Option.fromNullable(className),
+            Option.fromNullishOr(className),
             Option.getOrElse(() => '')
           )}`}
           {...props}

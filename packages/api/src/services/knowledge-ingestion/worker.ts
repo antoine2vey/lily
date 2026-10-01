@@ -8,7 +8,7 @@ const pollPendingJobs = Effect.gen(function* () {
 
   const pendingJobs = yield* jobRepo.findPending()
 
-  if (Array.isEmptyArray(pendingJobs)) {
+  if (Array.isArrayEmpty(pendingJobs)) {
     return
   }
 

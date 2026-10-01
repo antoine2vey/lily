@@ -11,7 +11,7 @@
  * Run once against the target (usually production) DB before submission.
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
   chatConversations,

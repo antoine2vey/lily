@@ -8,7 +8,7 @@ import {
   type PhotoCapturedEvent,
 } from '@lily/plant-scanner'
 import { LUMINOSITY_LEVELS, luxToLuminosityLevel } from '@lily/shared'
-import { Effect, Either, Match, Option, pipe } from 'effect'
+import { Effect, Match, Option, pipe, Result } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as ImagePicker from 'expo-image-picker'
@@ -276,33 +276,35 @@ export function UnifiedScannerScreen() {
       {
         payload: {
           name: result.name,
-          category: Option.getOrUndefined(Option.fromNullable(result.category)),
+          category: Option.getOrUndefined(
+            Option.fromNullishOr(result.category)
+          ),
           description: Option.getOrUndefined(
-            Option.fromNullable(result.description)
+            Option.fromNullishOr(result.description)
           ),
           wateringFrequencyDays: Option.getOrElse(
-            Option.fromNullable(result.wateringFrequencyDays),
+            Option.fromNullishOr(result.wateringFrequencyDays),
             () => 7
           ),
           fertilizationFrequencyDays: Option.getOrUndefined(
-            Option.fromNullable(result.fertilizationFrequencyDays)
+            Option.fromNullishOr(result.fertilizationFrequencyDays)
           ),
           mistingFrequencyDays: Option.getOrUndefined(
-            Option.fromNullable(result.mistingFrequencyDays)
+            Option.fromNullishOr(result.mistingFrequencyDays)
           ),
           repottingFrequencyDays: Option.getOrUndefined(
-            Option.fromNullable(result.repottingFrequencyDays)
+            Option.fromNullishOr(result.repottingFrequencyDays)
           ),
           luxNeeded: Option.getOrElse(
-            Option.fromNullable(result.luxNeeded),
+            Option.fromNullishOr(result.luxNeeded),
             () => 2000
           ),
           humidityRating: Option.getOrElse(
-            Option.fromNullable(result.humidityRating),
+            Option.fromNullishOr(result.humidityRating),
             () => 50
           ),
           petToxicityRating: Option.getOrElse(
-            Option.fromNullable(result.petToxicityRating),
+            Option.fromNullishOr(result.petToxicityRating),
             () => 50
           ),
           imageUrl: result.imageUrl,
@@ -315,8 +317,8 @@ export function UnifiedScannerScreen() {
         onSuccess: (apiResult) => {
           pipe(
             apiResult,
-            Either.match({
-              onLeft: (error) =>
+            Result.match({
+              onFailure: (error) =>
                 pipe(
                   Match.value(error),
                   Match.when({ _tag: 'LimitExceededError' }, (e) =>
@@ -326,7 +328,7 @@ export function UnifiedScannerScreen() {
                     Alert.alert(t('scanner.error'), t('errors.createFailed'))
                   )
                 ),
-              onRight: async (plant) => {
+              onSuccess: async (plant) => {
                 router.dismissAll()
                 if (returnTo === 'onboarding') {
                   await Effect.runPromise(

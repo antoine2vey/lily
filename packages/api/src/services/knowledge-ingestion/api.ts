@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import {
   EmbeddingError,
@@ -12,8 +11,12 @@ import {
   KnowledgeStats,
 } from '@lily/shared/knowledge'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const jobIdParam = HttpApiSchema.param('id', Schema.UUID)
+const jobIdParam = HttpApiSchema.param(
+  'id',
+  Schema.String.check(Schema.isGUID())
+)
 
 export const KnowledgeIngestionApi = HttpApiGroup.make('knowledgeIngestion')
   .add(
@@ -32,7 +35,7 @@ export const KnowledgeIngestionApi = HttpApiGroup.make('knowledgeIngestion')
       .addError(IngestJobNotFoundError, { status: 404 })
   )
   .add(
-    HttpApiEndpoint.del('deleteIngestJob')`/jobs/${jobIdParam}`
+    HttpApiEndpoint.delete('deleteIngestJob')`/jobs/${jobIdParam}`
       .addSuccess(Schema.Void)
       .addError(IngestJobNotFoundError, { status: 404 })
   )

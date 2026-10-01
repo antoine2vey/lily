@@ -5,7 +5,7 @@ import {
 } from '@lily/api/repositories/diagnosis.repository'
 import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
 import { tool } from 'ai'
-import { Array, Effect, Option, pipe, Runtime } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
 
 import { carePlanStepSchema, toCreateStepData } from './care-plan-step-schema'
@@ -44,12 +44,12 @@ export const createDiagnosisTool = (deps: PlantToolDeps) =>
         .describe('Tips to prevent recurrence'),
     }),
     execute: async (params) =>
-      Runtime.runPromise(deps.runtime)(
+      Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
           const repo = yield* DiagnosisRepository
           const carePlanRepo = yield* CarePlanRepository
           const timezone = pipe(
-            Option.fromNullable(deps.timezone),
+            Option.fromNullishOr(deps.timezone),
             Option.getOrElse(() => 'UTC')
           )
 
@@ -63,11 +63,11 @@ export const createDiagnosisTool = (deps: PlantToolDeps) =>
             // The string column keeps the human-readable list; the structured
             // steps live on the care plan created below.
             treatmentSteps: Array.map(params.treatmentSteps, (s) => s.title),
-            ...Option.match(Option.fromNullable(params.preventionTips), {
+            ...Option.match(Option.fromNullishOr(params.preventionTips), {
               onNone: () => ({}),
               onSome: (tips) => ({ preventionTips: tips }),
             }),
-            ...Option.match(Option.fromNullable(deps.imageKey), {
+            ...Option.match(Option.fromNullishOr(deps.imageKey), {
               onNone: () => ({}),
               onSome: (key) => ({ imageKey: key }),
             }),

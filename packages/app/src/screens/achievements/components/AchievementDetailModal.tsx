@@ -57,7 +57,7 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
     star: 'star',
   }
   return Option.getOrElse(
-    Option.fromNullable(iconMap[icon]),
+    Option.fromNullishOr(iconMap[icon]),
     () => 'star' as const
   )
 }
@@ -68,7 +68,7 @@ const formatDate = (
   locale?: Intl.LocalesArgument
 ): string =>
   pipe(
-    Option.fromNullable(date),
+    Option.fromNullishOr(date),
     Option.flatMap((d) => parseApiDate(d)),
     Option.map((dt) => formatLongDate(dt, locale)),
     Option.getOrElse(() => t('status.unknown'))
@@ -89,8 +89,8 @@ export function AchievementDetailModal({
   const hasProgress =
     achievement.progress != null && achievement.maxProgress != null
   const progressValue = hasProgress
-    ? Option.getOrElse(Option.fromNullable(achievement.progress), () => 0) /
-      Option.getOrElse(Option.fromNullable(achievement.maxProgress), () => 1)
+    ? Option.getOrElse(Option.fromNullishOr(achievement.progress), () => 0) /
+      Option.getOrElse(Option.fromNullishOr(achievement.maxProgress), () => 1)
     : 0
 
   return (

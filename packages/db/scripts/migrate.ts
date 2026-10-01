@@ -41,7 +41,7 @@ const runMigrations = async () => {
   const files = await readdir(migrationsFolder)
   const sqlFiles = pipe(
     Array.filter(files, (f) => f.endsWith('.sql')),
-    Array.sort(Order.string)
+    Array.sort(Order.String)
   )
 
   console.log(`Found ${sqlFiles.length} migration files`)

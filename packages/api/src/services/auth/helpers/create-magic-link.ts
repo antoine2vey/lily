@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import {
   DateTime,
@@ -7,6 +6,7 @@ import {
   String as EffectString,
   pipe,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // 10 minutes expiry
 export const MAGIC_LINK_EXPIRY_MS = 10 * 60 * 1000
@@ -41,7 +41,7 @@ export const createMagicLinkToken = (
     const token = crypto.randomUUID()
     const expiresAt = DateTime.toDateUtc(
       DateTime.addDuration(
-        DateTime.unsafeNow(),
+        DateTime.nowUnsafe(),
         Duration.millis(MAGIC_LINK_EXPIRY_MS)
       )
     )

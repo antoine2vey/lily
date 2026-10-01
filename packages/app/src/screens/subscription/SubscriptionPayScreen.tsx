@@ -41,12 +41,12 @@ export function SubscriptionPayScreen() {
   ]
 
   const monthlyPackage = pipe(
-    Option.fromNullable(offerings?.current?.monthly),
+    Option.fromNullishOr(offerings?.current?.monthly),
     Option.getOrUndefined
   )
 
   const annualPackage = pipe(
-    Option.fromNullable(offerings?.current?.annual),
+    Option.fromNullishOr(offerings?.current?.annual),
     Option.getOrUndefined
   )
 
@@ -115,17 +115,17 @@ export function SubscriptionPayScreen() {
   }
 
   const monthlyPrice = pipe(
-    Option.fromNullable(monthlyPackage?.product.priceString),
+    Option.fromNullishOr(monthlyPackage?.product.priceString),
     Option.getOrElse(() => '€2.99')
   )
 
   const annualPrice = pipe(
-    Option.fromNullable(annualPackage?.product.priceString),
+    Option.fromNullishOr(annualPackage?.product.priceString),
     Option.getOrElse(() => '€24.99')
   )
 
   const introPrice = pipe(
-    Option.fromNullable(selectedPackage?.product.introPrice),
+    Option.fromNullishOr(selectedPackage?.product.introPrice),
     Option.filter((ip) => ip.price === 0),
     Option.getOrUndefined
   )
@@ -133,7 +133,7 @@ export function SubscriptionPayScreen() {
   const hasFreeTrial = !!introPrice
 
   const trialDays = pipe(
-    Option.fromNullable(introPrice),
+    Option.fromNullishOr(introPrice),
     Option.map((ip) =>
       pipe(
         Match.value(ip.periodUnit),

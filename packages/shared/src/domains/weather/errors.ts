@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class WeatherFetchError extends Schema.TaggedError<WeatherFetchError>()(
@@ -6,7 +5,7 @@ export class WeatherFetchError extends Schema.TaggedError<WeatherFetchError>()(
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 502 })
+  { httpApiStatus: 502 }
 ) {}
 
 export class WeatherNotAvailableError extends Schema.TaggedError<WeatherNotAvailableError>()(
@@ -16,5 +15,5 @@ export class WeatherNotAvailableError extends Schema.TaggedError<WeatherNotAvail
       default: () => 'User has no location configured for weather',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

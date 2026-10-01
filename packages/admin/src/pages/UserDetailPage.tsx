@@ -137,8 +137,8 @@ const AccountCard = ({ user }: { readonly user: AdminUserProfile }) => (
         label="Name"
         value={pipe(
           Array.getSomes([
-            Option.fromNullable(user.firstName),
-            Option.fromNullable(user.lastName),
+            Option.fromNullishOr(user.firstName),
+            Option.fromNullishOr(user.lastName),
           ]),
           Array.join(' '),
           (full) => (full === '' ? '—' : full)
@@ -371,7 +371,7 @@ const RecentActivityCard = ({
   readonly activities: AdminUserOverview['recentActivity']
 }) => (
   <Card title="Recent Activity">
-    {Array.isEmptyReadonlyArray(activities) ? (
+    {Array.isReadonlyArrayEmpty(activities) ? (
       <p className="text-sm text-gray-500">No recent activity.</p>
     ) : (
       <ul className="space-y-2">
@@ -421,7 +421,7 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
               </tr>
             </thead>
             <tbody>
-              {Array.isEmptyReadonlyArray(data.items) ? (
+              {Array.isReadonlyArrayEmpty(data.items) ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-gray-500">
                     No plants.
@@ -566,7 +566,7 @@ const ChatViewer = ({ id }: { readonly id: string }) => {
             <p className="p-3 text-sm text-gray-500">Loading...</p>
           )}
           {conversations.data &&
-            Array.isEmptyReadonlyArray(conversations.data.items) && (
+            Array.isReadonlyArrayEmpty(conversations.data.items) && (
               <p className="p-3 text-sm text-gray-500">No conversations.</p>
             )}
           {conversations.data &&

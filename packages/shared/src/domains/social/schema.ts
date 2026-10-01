@@ -20,7 +20,7 @@ export const PublicUserProfile = Schema.Struct({
   followingCount: Schema.Number,
   isFollowing: Schema.Boolean,
   shareGrowthData: Schema.Boolean,
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
   recentPlants: Schema.Array(PublicPlantPreview),
 })
 export type PublicUserProfile = typeof PublicUserProfile.Type

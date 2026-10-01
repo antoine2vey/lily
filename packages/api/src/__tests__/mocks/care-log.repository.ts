@@ -18,11 +18,11 @@ export const createMockCareLogRepository = (
   const repo: ICareLogRepository = {
     findByPlantId: (params: FindCareLogsParams) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit
@@ -37,7 +37,7 @@ export const createMockCareLogRepository = (
       }
 
       // Sort by date descending
-      const byDateDesc = Order.reverse(
+      const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
       const sorted = Array.sort(filtered, byDateDesc)
@@ -61,12 +61,12 @@ export const createMockCareLogRepository = (
 
     findRecentByUserId: (params: FindRecentParams) => {
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 10)
       )
 
       // Sort by date descending and take limit
-      const byDateDesc = Order.reverse(
+      const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
       const sorted = Array.sort(careLogs, byDateDesc)
@@ -93,7 +93,7 @@ export const createMockCareLogRepository = (
           type: d.type,
           notes: d.notes,
           date: pipe(
-            Option.fromNullable(d.date),
+            Option.fromNullishOr(d.date),
             Option.getOrElse(() => new Date())
           ),
           photoUrl: d.photoUrl,
@@ -109,7 +109,7 @@ export const createMockCareLogRepository = (
         type: data.type,
         notes: data.notes,
         date: pipe(
-          Option.fromNullable(data.date),
+          Option.fromNullishOr(data.date),
           Option.getOrElse(() => new Date())
         ),
         photoUrl: data.photoUrl,
@@ -146,8 +146,8 @@ export const createMockCareLogRepository = (
     countTodayByUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(options?.todayCountByUser),
-          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.fromNullishOr(options?.todayCountByUser),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
         )
       ),
@@ -155,8 +155,8 @@ export const createMockCareLogRepository = (
     countByUser: (userId: string) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(options?.countByUser),
-          Option.flatMap((counts) => Option.fromNullable(counts[userId])),
+          Option.fromNullishOr(options?.countByUser),
+          Option.flatMap((counts) => Option.fromNullishOr(counts[userId])),
           Option.getOrElse(() => 0)
         )
       ),
@@ -179,7 +179,7 @@ export const createMockCareLogRepository = (
       ),
 
     findLatestByPlantAndType: (plantId: string, type: CareType) => {
-      const byDateDesc = Order.reverse(
+      const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)
       )
       const matching = pipe(

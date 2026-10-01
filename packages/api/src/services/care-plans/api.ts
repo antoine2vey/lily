@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CarePlan,
@@ -12,10 +11,20 @@ import {
 } from '@lily/shared/errors/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const planIdParam = HttpApiSchema.param('planId', Schema.UUID)
-const stepIdParam = HttpApiSchema.param('stepId', Schema.UUID)
-const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
+const planIdParam = HttpApiSchema.param(
+  'planId',
+  Schema.String.check(Schema.isGUID())
+)
+const stepIdParam = HttpApiSchema.param(
+  'stepId',
+  Schema.String.check(Schema.isGUID())
+)
+const plantIdParam = HttpApiSchema.param(
+  'plantId',
+  Schema.String.check(Schema.isGUID())
+)
 
 const Unauthorized = Schema.Struct({ error: Schema.String })
 
@@ -50,7 +59,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       .addError(Unauthorized, { status: 401 })
   )
   .add(
-    HttpApiEndpoint.del('deleteCarePlan')`/${planIdParam}`
+    HttpApiEndpoint.delete('deleteCarePlan')`/${planIdParam}`
       .addSuccess(Schema.Struct({ message: Schema.String }))
       .addError(CarePlanNotFoundError, { status: 404 })
       .addError(Unauthorized, { status: 401 })
@@ -75,7 +84,7 @@ export const CarePlansApi = HttpApiGroup.make('carePlans')
       .addError(Unauthorized, { status: 401 })
   )
   .add(
-    HttpApiEndpoint.del(
+    HttpApiEndpoint.delete(
       'deleteCarePlanStep'
     )`/${planIdParam}/steps/${stepIdParam}`
       .addSuccess(CarePlan)

@@ -62,7 +62,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
           lastModified: pipe(
             DateTime.make(post.date),
             Option.map(DateTime.formatIso),
-            Option.getOrElse(() => DateTime.formatIso(DateTime.unsafeNow()))
+            Option.getOrElse(() => DateTime.formatIso(DateTime.nowUnsafe()))
           ),
           alternates: { languages },
         }

@@ -1,10 +1,10 @@
 import { Schema } from 'effect'
 
-export const AnalyticsMetricKey = Schema.Literal(
+export const AnalyticsMetricKey = Schema.Literals([
   'mrr_estimate',
   'dau_wau_mau',
-  'paid_churn_monthly'
-)
+  'paid_churn_monthly',
+])
 export type AnalyticsMetricKey = typeof AnalyticsMetricKey.Type
 
 export const ANALYTICS_METRIC_KEYS = {

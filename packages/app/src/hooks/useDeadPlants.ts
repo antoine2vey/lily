@@ -7,10 +7,10 @@ import { useEffectQuery } from '@/utils/client'
 // Most recent loss first; a missing diedAt (should not happen for this
 // filter) sorts last rather than throwing.
 const byDiedAtDesc: Order.Order<Plant> = Order.mapInput(
-  Order.reverse(Order.Date),
+  Order.flip(Order.Date),
   (plant) =>
     pipe(
-      Option.fromNullable(plant.diedAt),
+      Option.fromNullishOr(plant.diedAt),
       Option.getOrElse(() => new Date(0))
     )
 )
@@ -35,7 +35,7 @@ export function useDeadPlants() {
   const plants = useMemo(
     () =>
       pipe(
-        Option.fromNullable(query.data?.items),
+        Option.fromNullishOr(query.data?.items),
         Option.map((items) => Array.sort(items, byDiedAtDesc)),
         Option.getOrElse((): ReadonlyArray<Plant> => [])
       ),
@@ -43,7 +43,7 @@ export function useDeadPlants() {
   )
 
   const total = pipe(
-    Option.fromNullable(query.data?.total),
+    Option.fromNullishOr(query.data?.total),
     Option.getOrElse(() => 0)
   )
 

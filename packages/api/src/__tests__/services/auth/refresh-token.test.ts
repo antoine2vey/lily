@@ -187,7 +187,7 @@ describe('refreshToken', () => {
 
     expect(result._tag).toBe('Failure')
     const failure = Exit.isFailure(result)
-      ? Option.getOrNull(Cause.failureOption(result.cause))
+      ? Option.getOrNull(Cause.findErrorOption(result.cause))
       : null
     expect(failure).toMatchObject({ _tag: 'RateLimitExceededError' })
   })

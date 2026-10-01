@@ -1,6 +1,6 @@
 import { nowAsEpochMillis } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { plantDetailKey } from '@/utils/plant-cache'
 import { queryKeys } from '@/utils/query-keys'
 import {
@@ -51,7 +51,7 @@ export function useUpdatePlant() {
 
       queryClient.setQueryData(key, (old: unknown) => {
         if (!old) return undefined
-        return Either.map(old as Either.Either<unknown, unknown>, (plant) => ({
+        return Result.map(old as Result.Result<unknown, unknown>, (plant) => ({
           ...(plant as Record<string, unknown>),
           ...payload,
         }))

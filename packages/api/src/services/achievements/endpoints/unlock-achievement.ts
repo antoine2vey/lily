@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EntityMutationDefect } from '@lily/api/errors/defects'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -6,6 +5,7 @@ import type { Achievement, UnlockAchievementRequest } from '@lily/shared'
 import { ACHIEVEMENTS } from '@lily/shared'
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Array, Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Unlock achievement - restricted to admin users only
 export const unlockAchievement = (

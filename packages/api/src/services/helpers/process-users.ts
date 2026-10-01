@@ -1,6 +1,6 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { DndWindowBlockedError } from '@lily/shared'
 import { Data, Effect, Ref } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export class SkipUserError extends Data.TaggedError('SkipUserError')<{
   readonly reason: string

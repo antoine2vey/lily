@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, Either, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, Result } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -120,17 +120,17 @@ export function ManualAddScheduleScreen() {
   const [roomId, setRoomId] = useState<string | null>(null)
   const [wateringDays, setWateringDays] = useState(
     pipe(
-      Option.fromNullable(prefill),
+      Option.fromNullishOr(prefill),
       Option.flatMap((p) =>
-        Option.fromNullable(p.wateringFrequencyDays as number)
+        Option.fromNullishOr(p.wateringFrequencyDays as number)
       ),
       Option.getOrElse(() => 7)
     )
   )
   const prefillFertilization = pipe(
-    Option.fromNullable(prefill),
+    Option.fromNullishOr(prefill),
     Option.flatMap((p) =>
-      Option.fromNullable(p.fertilizationFrequencyDays as number | null)
+      Option.fromNullishOr(p.fertilizationFrequencyDays as number | null)
     )
   )
   const [fertilizingEnabled, setFertilizingEnabled] = useState(
@@ -140,15 +140,15 @@ export function ManualAddScheduleScreen() {
     Option.getOrElse(prefillFertilization, () => 30)
   )
   const prefillMisting = pipe(
-    Option.fromNullable(prefill),
+    Option.fromNullishOr(prefill),
     Option.flatMap((p) =>
-      Option.fromNullable(p.mistingFrequencyDays as number | null)
+      Option.fromNullishOr(p.mistingFrequencyDays as number | null)
     )
   )
   const prefillRepotting = pipe(
-    Option.fromNullable(prefill),
+    Option.fromNullishOr(prefill),
     Option.flatMap((p) =>
-      Option.fromNullable(p.repottingFrequencyDays as number | null)
+      Option.fromNullishOr(p.repottingFrequencyDays as number | null)
     )
   )
   const [mistingEnabled, setMistingEnabled] = useState(
@@ -166,11 +166,11 @@ export function ManualAddScheduleScreen() {
   const [careReminders, setCareReminders] = useState(true)
   const [notes, setNotes] = useState(
     pipe(
-      Option.fromNullable(prefill),
+      Option.fromNullishOr(prefill),
       Option.map((p) =>
         Array.filterMap(
           [p.description as string | null, p.wateringTips as string | null],
-          Option.fromNullable
+          Option.fromNullishOr
         )
       ),
       Option.map((parts) => Array.join(parts, '\n')),
@@ -204,9 +204,9 @@ export function ManualAddScheduleScreen() {
       },
     })
 
-    if (Either.isLeft(apiResult)) {
+    if (Result.isFailure(apiResult)) {
       pipe(
-        Match.value(apiResult.left),
+        Match.value(apiResult.failure),
         Match.when({ _tag: 'LimitExceededError' }, (e) =>
           Alert.alert(t('addPlant:scanner.plantLimitReached'), e.message)
         ),
@@ -220,7 +220,7 @@ export function ManualAddScheduleScreen() {
       return
     }
 
-    const plant = apiResult.right
+    const plant = apiResult.success
 
     if (isLocalFileUri(basicInfo.photo)) {
       // Seed the detail cache so the local file:// photo renders instantly on
@@ -228,7 +228,7 @@ export function ManualAddScheduleScreen() {
       // swap in the GCS URL without the user noticing.
       queryClient.setQueryData(
         plantDetailKey(plant.id),
-        Either.right({ ...plant, imageUrl: basicInfo.photo, photos: [] })
+        Result.succeed({ ...plant, imageUrl: basicInfo.photo, photos: [] })
       )
       updatePlant(
         {

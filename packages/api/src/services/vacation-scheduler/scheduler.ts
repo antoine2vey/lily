@@ -10,7 +10,7 @@ const withUserErrorIsolation = <A, R>(
   userId: string
 ) =>
   effect.pipe(
-    Effect.catchAll((e) =>
+    Effect.catch((e) =>
       Effect.logWarning('[vacation-scheduler] Failed to process user', {
         userId,
         error: String(e),
@@ -39,7 +39,7 @@ export const pollAndTransitionVacations = Effect.gen(function* () {
   yield* Effect.forEach(toActivate, (user) =>
     withUserErrorIsolation(activateVacation(user.id), user.id)
   )
-  if (Array.isNonEmptyArray(toActivate)) {
+  if (Array.isArrayNonEmpty(toActivate)) {
     yield* Effect.log(`Activated ${toActivate.length} vacations`)
   }
 
@@ -49,14 +49,14 @@ export const pollAndTransitionVacations = Effect.gen(function* () {
       endVacation({
         userId: user.id,
         effectiveEnd: pipe(
-          Option.fromNullable(user.vacationEnd),
+          Option.fromNullishOr(user.vacationEnd),
           Option.getOrElse(() => now)
         ),
       }),
       user.id
     )
   )
-  if (Array.isNonEmptyArray(toEnd)) {
+  if (Array.isArrayNonEmpty(toEnd)) {
     yield* Effect.log(`Ended ${toEnd.length} vacations`)
   }
 }).pipe(Effect.withSpan('VacationScheduler.pollAndTransition'))

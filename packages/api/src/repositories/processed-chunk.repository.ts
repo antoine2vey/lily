@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   KnowledgeDrizzle,
   processedChunks,
@@ -7,6 +6,7 @@ import {
 import type { ChunkSearchResult, ContentCategory } from '@lily/shared/knowledge'
 import { count, eq, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 import { unwrapPgRows } from './helpers/pagination'
 
 export interface CreateProcessedChunkData {
@@ -60,15 +60,16 @@ export interface IProcessedChunkRepository {
   readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
 }
 
-export class ProcessedChunkRepository extends Context.Tag(
-  'ProcessedChunkRepository'
-)<ProcessedChunkRepository, IProcessedChunkRepository>() {}
+export class ProcessedChunkRepository extends Context.Service<
+  ProcessedChunkRepository,
+  IProcessedChunkRepository
+>()('ProcessedChunkRepository') {}
 
 const toNull = <T>(value: T | undefined): T | null =>
-  Option.getOrNull(Option.fromNullable(value))
+  Option.getOrNull(Option.fromNullishOr(value))
 
 const toUndefined = <T>(value: T | null): T | undefined =>
-  Option.getOrUndefined(Option.fromNullable(value))
+  Option.getOrUndefined(Option.fromNullishOr(value))
 
 const toInsertValues = (chunk: CreateProcessedChunkData) => ({
   ...chunk,
@@ -96,7 +97,7 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
       createMany: Effect.fn('ProcessedChunkRepository.createMany')(function* (
         chunks: CreateProcessedChunkData[]
       ) {
-        if (Array.isEmptyArray(chunks)) {
+        if (Array.isArrayEmpty(chunks)) {
           return
         }
 
@@ -109,11 +110,11 @@ export const ProcessedChunkRepositoryLive = Layer.effect(
         params: SearchChunksParams
       ) {
         const limit = Option.getOrElse(
-          Option.fromNullable(params.limit),
+          Option.fromNullishOr(params.limit),
           () => 5
         )
         const threshold = Option.getOrElse(
-          Option.fromNullable(params.minSimilarity),
+          Option.fromNullishOr(params.minSimilarity),
           () => 0.5
         )
         const distanceThreshold = 1 - threshold

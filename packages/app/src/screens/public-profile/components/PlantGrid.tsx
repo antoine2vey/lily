@@ -17,7 +17,7 @@ export function PlantGrid({ plants, onPress }: PlantGridProps) {
   const columns = 3
   const cellSize = (width - padding * 2 - gap * (columns - 1)) / columns
 
-  if (Array.isEmptyReadonlyArray(plants)) return null
+  if (Array.isReadonlyArrayEmpty(plants)) return null
 
   return (
     <View className="px-4">
@@ -40,7 +40,7 @@ export function PlantGrid({ plants, onPress }: PlantGridProps) {
               style={{ width: cellSize, height: cellSize }}
             >
               {pipe(
-                Option.fromNullable(plant.imageUrl),
+                Option.fromNullishOr(plant.imageUrl),
                 Option.match({
                   onNone: () => (
                     <View className="flex-1 items-center justify-center bg-primary-tint dark:bg-primary/10">

@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { UsernameAvailability } from '@lily/shared/username'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Check username availability
 export const checkUsername = (

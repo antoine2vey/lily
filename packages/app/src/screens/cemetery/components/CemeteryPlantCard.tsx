@@ -27,7 +27,7 @@ export function CemeteryPlantCard({
   const { t: tDetail } = useTranslation('plantDetail')
   const iconColors = useIconColors()
 
-  const diedAtOpt = Option.fromNullable(plant.diedAt)
+  const diedAtOpt = Option.fromNullishOr(plant.diedAt)
   const livedFor = pipe(
     diedAtOpt,
     Option.map((diedAt) =>

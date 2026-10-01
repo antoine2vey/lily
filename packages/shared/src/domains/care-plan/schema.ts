@@ -4,15 +4,15 @@ import { CareType } from '../care/types'
 /** Upper bound on steps per plan; enforced in the chat tool schema. */
 export const CARE_PLAN_MAX_STEPS = 8
 
-export const CarePlanStatus = Schema.Literal(
+export const CarePlanStatus = Schema.Literals([
   'proposed',
   'accepted',
   'completed',
-  'dismissed'
-)
+  'dismissed',
+])
 export type CarePlanStatus = typeof CarePlanStatus.Type
 
-export const CarePlanSource = Schema.Literal('ai', 'user')
+export const CarePlanSource = Schema.Literals(['ai', 'user'])
 export type CarePlanSource = typeof CarePlanSource.Type
 
 export const CarePlanStep = Schema.Struct({
@@ -25,8 +25,8 @@ export const CarePlanStep = Schema.Struct({
   // the plan moves that schedule's next date; completing the step runs the
   // regular care flow and links the resulting care log below.
   careType: Schema.optional(CareType),
-  dueDate: Schema.optional(Schema.Date),
-  completedAt: Schema.optional(Schema.Date),
+  dueDate: Schema.optional(Schema.DateFromString),
+  completedAt: Schema.optional(Schema.DateFromString),
   careLogId: Schema.optional(Schema.String),
 })
 export type CarePlanStep = typeof CarePlanStep.Type
@@ -43,10 +43,10 @@ export const CarePlan = Schema.Struct({
   source: CarePlanSource,
   status: CarePlanStatus,
   steps: Schema.Array(CarePlanStep),
-  acceptedAt: Schema.optional(Schema.Date),
-  completedAt: Schema.optional(Schema.Date),
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  acceptedAt: Schema.optional(Schema.DateFromString),
+  completedAt: Schema.optional(Schema.DateFromString),
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 export type CarePlan = typeof CarePlan.Type
 

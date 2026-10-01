@@ -62,11 +62,11 @@ export function getAllPosts(locale = 'en'): PostMeta[] {
       })
     }),
     Array.sort(
-      Order.reverse(
+      Order.flip(
         Order.mapInput(DateTime.Order, (post: PostMeta) =>
           pipe(
             DateTime.make(post.date),
-            Option.getOrElse(() => DateTime.unsafeNow())
+            Option.getOrElse(() => DateTime.nowUnsafe())
           )
         )
       )

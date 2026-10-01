@@ -1,4 +1,3 @@
-import { HttpApiBuilder, HttpServerResponse } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { getCurrentUser } from '@lily/api/services/auth/endpoints/get-current-user'
 import { logout } from '@lily/api/services/auth/endpoints/logout'
@@ -10,6 +9,8 @@ import { setUsername } from '@lily/api/services/auth/endpoints/set-username'
 import { verifyMagicLink } from '@lily/api/services/auth/endpoints/verify-magic-link'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { Effect } from 'effect'
+import { HttpServerResponse } from 'effect/http'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const AuthApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'auth', (handlers) =>
@@ -17,7 +18,7 @@ export const AuthApiLive = (api: Api) =>
       .handle('sendMagicLink', ({ payload }) =>
         sendMagicLink(payload).pipe(withInfraErrorsAsDefect)
       )
-      .handle('magicLinkCallback', ({ urlParams }) =>
+      .handle('magicLinkCallback', ({ query: urlParams }) =>
         Effect.gen(function* () {
           const result = yield* magicLinkCallback(urlParams)
           return HttpServerResponse.redirect(result.redirectUrl, {

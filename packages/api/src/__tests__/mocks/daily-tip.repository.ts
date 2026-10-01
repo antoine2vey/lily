@@ -6,8 +6,8 @@ import {
 } from '@lily/api/repositories/daily-tip.repository'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
 
-const byPublishDateDesc = Order.reverse(
-  Order.mapInput(Order.string, (t: DailyTip) => t.publishDate)
+const byPublishDateDesc = Order.flip(
+  Order.mapInput(Order.String, (t: DailyTip) => t.publishDate)
 )
 
 export const createMockDailyTipRepository = (

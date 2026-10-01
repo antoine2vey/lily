@@ -5,12 +5,12 @@ import { PaginatedResponse } from '../common/pagination'
 export { NotificationNotFoundError } from './errors'
 
 // Notification status enum
-export const NotificationStatus = Schema.Literal(
+export const NotificationStatus = Schema.Literals([
   'pending',
   'queued',
   'sent',
-  'failed'
-)
+  'failed',
+])
 export type NotificationStatus = typeof NotificationStatus.Type
 
 // Notification schemas
@@ -19,15 +19,15 @@ export const Notification = Schema.Struct({
   type: Schema.String,
   title: Schema.optional(Schema.String),
   body: Schema.optional(Schema.String),
-  scheduledAt: Schema.Date,
-  sentAt: Schema.optional(Schema.Date),
+  scheduledAt: Schema.DateFromString,
+  sentAt: Schema.optional(Schema.DateFromString),
   isRead: Schema.Boolean,
   status: NotificationStatus,
   retryCount: Schema.Number,
   lastError: Schema.optional(Schema.String),
   userId: Schema.String,
   plantId: Schema.optional(Schema.String),
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 })
 
 // Notifications list response - uses standard pagination format
@@ -35,10 +35,10 @@ export const NotificationsListResponse = PaginatedResponse(Notification)
 export type NotificationsListResponse = typeof NotificationsListResponse.Type
 
 // Filter type extending status with 'all'
-export const NotificationStatusFilter = Schema.Union(
+export const NotificationStatusFilter = Schema.Union([
   NotificationStatus,
-  Schema.Literal('all')
-)
+  Schema.Literal('all'),
+])
 export type NotificationStatusFilter = typeof NotificationStatusFilter.Type
 
 // Unread count response

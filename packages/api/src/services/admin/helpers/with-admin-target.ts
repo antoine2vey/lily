@@ -1,10 +1,10 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import type { users } from '@lily/db/schema'
 import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Shared guard for admin endpoints that target a specific user.

@@ -1,7 +1,6 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
   notifications,
@@ -13,6 +12,7 @@ import {
 import type { LanguageCode, VacationStatus } from '@lily/shared'
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UserWithSettings {
   readonly id: string
@@ -106,10 +106,10 @@ export interface IEngagementRepository {
   ) => Effect.Effect<number, SqlError>
 }
 
-export class EngagementRepository extends Context.Tag('EngagementRepository')<
+export class EngagementRepository extends Context.Service<
   EngagementRepository,
   IEngagementRepository
->() {}
+>()('EngagementRepository') {}
 
 export const EngagementRepositoryLive = Layer.effect(
   EngagementRepository,
@@ -168,8 +168,8 @@ export const EngagementRepositoryLive = Layer.effect(
           .where(and(eq(plants.userId, userId), isLivingPlant()))
 
         return pipe(
-          Option.fromNullable(result),
-          Option.flatMap((r) => Option.fromNullable(r.value)),
+          Option.fromNullishOr(result),
+          Option.flatMap((r) => Option.fromNullishOr(r.value)),
           Option.getOrElse(() => 0)
         )
       }),
@@ -227,7 +227,7 @@ export const EngagementRepositoryLive = Layer.effect(
           .from(sql`(VALUES (1)) AS _`)
 
         return pipe(
-          Option.fromNullable(result),
+          Option.fromNullishOr(result),
           Option.map((r) => r.value),
           Option.getOrElse(() => false)
         )
@@ -255,7 +255,7 @@ export const EngagementRepositoryLive = Layer.effect(
           .from(sql`(VALUES (1)) AS _`)
 
         return pipe(
-          Option.fromNullable(result),
+          Option.fromNullishOr(result),
           Option.map((r) => r.value),
           Option.getOrElse(() => false)
         )
@@ -304,7 +304,7 @@ export const EngagementRepositoryLive = Layer.effect(
 
         return Array.filterMap(rows, (r) =>
           pipe(
-            Option.fromNullable(r.trialEndsAt),
+            Option.fromNullishOr(r.trialEndsAt),
             Option.map((trialEndsAt) => ({
               id: r.id,
               timezone: r.timezone,
@@ -321,7 +321,7 @@ export const EngagementRepositoryLive = Layer.effect(
       getPlantsWithAnniversary: Effect.fn(
         'EngagementRepository.getPlantsWithAnniversary'
       )(function* (monthsAgo: readonly number[]) {
-        if (Array.isEmptyReadonlyArray(monthsAgo)) return []
+        if (Array.isReadonlyArrayEmpty(monthsAgo)) return []
 
         const conditions = Array.map(
           monthsAgo,

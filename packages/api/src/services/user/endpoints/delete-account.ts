@@ -20,7 +20,7 @@ export const deleteAccount = Effect.fn('UserService.deleteAccount')(
     )
 
     yield* pipe(
-      Option.fromNullable(deleted),
+      Option.fromNullishOr(deleted),
       Option.match({
         onNone: () => Effect.fail(new UserNotFoundError()),
         onSome: () => Effect.void,

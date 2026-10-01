@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
@@ -26,11 +25,12 @@ import {
 } from '@lily/api/services/plants/helpers/with-plant-access'
 import { parsePaginationParams } from '@lily/shared'
 import { Effect, Match, Option, pipe } from 'effect'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const PlantsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'plants', (handlers) =>
     handlers
-      .handle('getPlants', ({ urlParams }) =>
+      .handle('getPlants', ({ query: urlParams }) =>
         findPlants({
           ...parsePaginationParams(urlParams),
           filter: pipe(
@@ -42,7 +42,7 @@ export const PlantsApiLive = (api: Api) =>
           ),
           sort: urlParams.sort === 'name' ? 'name' : 'added',
           ...pipe(
-            Option.fromNullable(urlParams.roomId),
+            Option.fromNullishOr(urlParams.roomId),
             Option.match({
               onNone: () => ({}),
               onSome: (roomId) => ({ roomId }),
@@ -69,39 +69,39 @@ export const PlantsApiLive = (api: Api) =>
       .handle('aiReIdentify', ({ payload: { imageUrls, locale } }) =>
         aiReIdentify(imageUrls, locale).pipe(withInfraErrorsAsDefect)
       )
-      .handle('getPlant', ({ path: { id } }) =>
+      .handle('getPlant', ({ params: { id } }) =>
         withPlantAuth(id).pipe(
           Effect.flatMap((plant) => findPlantById(plant)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('updatePlant', ({ path: { id }, payload: { data, image } }) =>
+      .handle('updatePlant', ({ params: { id }, payload: { data, image } }) =>
         withPlantAuth(id).pipe(
           Effect.flatMap((plant) => updatePlant(plant, { ...data, id }, image)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('deletePlant', ({ path: { id } }) =>
+      .handle('deletePlant', ({ params: { id } }) =>
         withPlantOwnerAuth(id).pipe(
-          Effect.zipRight(deletePlant({ id })),
+          Effect.andThen(deletePlant({ id })),
           withInfraErrorsAsDefect
         )
       )
-      .handle('markPlantDead', ({ path: { id }, payload }) =>
+      .handle('markPlantDead', ({ params: { id }, payload }) =>
         withPlantOwnerAuth(id).pipe(
           Effect.flatMap((plant) => markPlantDead(plant, payload)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('revivePlant', ({ path: { id } }) =>
+      .handle('revivePlant', ({ params: { id } }) =>
         withPlantOwnerAuth(id).pipe(
           Effect.flatMap((plant) => revivePlant(plant)),
           withInfraErrorsAsDefect
         )
       )
-      .handle('getPlantPhotos', ({ path: { id }, urlParams }) =>
+      .handle('getPlantPhotos', ({ params: { id }, query: urlParams }) =>
         withPlantAuth(id).pipe(
-          Effect.zipRight(
+          Effect.andThen(
             getPlantPhotos({
               plantId: id,
               ...parsePaginationParams(urlParams),
@@ -110,19 +110,19 @@ export const PlantsApiLive = (api: Api) =>
           withInfraErrorsAsDefect
         )
       )
-      .handle('uploadPlantPhoto', ({ path: { id }, payload: { files } }) =>
+      .handle('uploadPlantPhoto', ({ params: { id }, payload: { files } }) =>
         withPlantAuth(id).pipe(
-          Effect.zipRight(uploadPlantPhoto({ plantId: id, files })),
+          Effect.andThen(uploadPlantPhoto({ plantId: id, files })),
           withInfraErrorsAsDefect
         )
       )
-      .handle('deletePlantPhoto', ({ path: { id, photoId } }) =>
+      .handle('deletePlantPhoto', ({ params: { id, photoId } }) =>
         withPlantAuth(id).pipe(
-          Effect.zipRight(deletePlantPhoto({ plantId: id, photoId })),
+          Effect.andThen(deletePlantPhoto({ plantId: id, photoId })),
           withInfraErrorsAsDefect
         )
       )
-      .handle('carePlant', ({ path: { id }, payload }) =>
+      .handle('carePlant', ({ params: { id }, payload }) =>
         withPlantAuth(id).pipe(
           Effect.flatMap((plant) => carePlant(plant, { ...payload, id })),
           withInfraErrorsAsDefect
@@ -131,7 +131,7 @@ export const PlantsApiLive = (api: Api) =>
       .handle('careMultiplePlants', ({ payload }) =>
         careMultiplePlants(payload).pipe(withInfraErrorsAsDefect)
       )
-      .handle('correctCareDates', ({ path: { id }, payload }) =>
+      .handle('correctCareDates', ({ params: { id }, payload }) =>
         withPlantAuth(id).pipe(
           Effect.flatMap((plant) =>
             correctCareDates(plant, { ...payload, id })
@@ -139,9 +139,9 @@ export const PlantsApiLive = (api: Api) =>
           withInfraErrorsAsDefect
         )
       )
-      .handle('sharePlant', ({ path: { id } }) =>
+      .handle('sharePlant', ({ params: { id } }) =>
         withPlantAuth(id).pipe(
-          Effect.zipRight(sharePlant(id)),
+          Effect.andThen(sharePlant(id)),
           withInfraErrorsAsDefect
         )
       )

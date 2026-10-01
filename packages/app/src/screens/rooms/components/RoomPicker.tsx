@@ -20,22 +20,22 @@ export function RoomPicker({
   const { data: rooms } = useRooms()
 
   const roomsList = Option.getOrElse(
-    Option.fromNullable(rooms),
+    Option.fromNullishOr(rooms),
     () => [] as NonNullable<typeof rooms>
   )
 
-  if (Array.isEmptyReadonlyArray(roomsList)) {
+  if (Array.isReadonlyArrayEmpty(roomsList)) {
     return null
   }
 
   const selectedRoom = pipe(
-    Option.fromNullable(value),
+    Option.fromNullishOr(value),
     Option.flatMap((id) => Array.findFirst(roomsList, (room) => room.id === id))
   )
 
   const getCompatibility = (roomLuminosity: number | null) =>
     pipe(
-      Option.fromNullable(plantLuxNeeded),
+      Option.fromNullishOr(plantLuxNeeded),
       Option.flatMap((lux) => isRoomCompatibleWithPlant(roomLuminosity, lux))
     )
 
@@ -44,7 +44,7 @@ export function RoomPicker({
     isSelected: boolean
   ): string => {
     if (isSelected) return ''
-    if (Option.isNone(Option.fromNullable(plantLuxNeeded)))
+    if (Option.isNone(Option.fromNullishOr(plantLuxNeeded)))
       return 'border border-border dark:border-slate-700'
 
     return pipe(
@@ -65,7 +65,7 @@ export function RoomPicker({
   const getIndicatorIcon = (
     roomLuminosity: number | null
   ): React.ReactNode | null => {
-    if (Option.isNone(Option.fromNullable(plantLuxNeeded))) return null
+    if (Option.isNone(Option.fromNullishOr(plantLuxNeeded))) return null
 
     return pipe(
       getCompatibility(roomLuminosity),
@@ -91,7 +91,7 @@ export function RoomPicker({
       selectedRoom,
       Option.flatMap((room) =>
         pipe(
-          Option.fromNullable(plantLuxNeeded),
+          Option.fromNullishOr(plantLuxNeeded),
           Option.map((lux) => ({ room, lux }))
         )
       ),
@@ -120,7 +120,7 @@ export function RoomPicker({
                   Match.when(false, () => {
                     const roomLevel = luxToLuminosityLevel(
                       Option.getOrElse(
-                        Option.fromNullable(room.luminosity),
+                        Option.fromNullishOr(room.luminosity),
                         () => 0
                       )
                     )

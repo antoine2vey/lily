@@ -15,7 +15,7 @@ export const parsePaginationParams = (params: PaginationParams) => ({
 })
 
 // Generic paginated response - use `items` for all endpoints
-export const PaginatedResponse = <T extends Schema.Schema.Any>(itemSchema: T) =>
+export const PaginatedResponse = <T extends Schema.Top>(itemSchema: T) =>
   Schema.Struct({
     items: Schema.Array(itemSchema),
     total: Schema.Number,

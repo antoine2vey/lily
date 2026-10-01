@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { KnowledgeDrizzle, rawDocuments } from '@lily/knowledge-db'
 import type { RawDocument } from '@lily/shared/knowledge'
 import { count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 type RawDocumentRow = typeof rawDocuments.$inferSelect
 
@@ -21,13 +21,13 @@ export interface CreateRawDocumentData {
 const mapToRawDocument = (row: RawDocumentRow): RawDocument => ({
   id: row.id,
   source: row.source,
-  sourceUrl: Option.getOrUndefined(Option.fromNullable(row.sourceUrl)),
-  sourceId: Option.getOrUndefined(Option.fromNullable(row.sourceId)),
+  sourceUrl: Option.getOrUndefined(Option.fromNullishOr(row.sourceUrl)),
+  sourceId: Option.getOrUndefined(Option.fromNullishOr(row.sourceId)),
   title: row.title,
   content: row.content,
-  author: Option.getOrUndefined(Option.fromNullable(row.author)),
-  score: Option.getOrUndefined(Option.fromNullable(row.score)),
-  metadata: Option.getOrUndefined(Option.fromNullable(row.metadata)),
+  author: Option.getOrUndefined(Option.fromNullishOr(row.author)),
+  score: Option.getOrUndefined(Option.fromNullishOr(row.score)),
+  metadata: Option.getOrUndefined(Option.fromNullishOr(row.metadata)),
   ingestJobId: row.ingestJobId,
   fetchedAt: row.fetchedAt,
 })
@@ -42,10 +42,10 @@ export interface IRawDocumentRepository {
   readonly countByJobId: (jobId: string) => Effect.Effect<number, SqlError>
 }
 
-export class RawDocumentRepository extends Context.Tag('RawDocumentRepository')<
+export class RawDocumentRepository extends Context.Service<
   RawDocumentRepository,
   IRawDocumentRepository
->() {}
+>()('RawDocumentRepository') {}
 
 export const RawDocumentRepositoryLive = Layer.effect(
   RawDocumentRepository,

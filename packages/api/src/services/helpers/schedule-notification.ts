@@ -67,7 +67,7 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
     })
 
     yield* pipe(
-      Option.fromNullable(maybeNotification),
+      Option.fromNullishOr(maybeNotification),
       Option.match({
         onNone: () =>
           Effect.logWarning(

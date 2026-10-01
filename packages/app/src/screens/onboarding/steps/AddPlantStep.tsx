@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CatalogPlant } from '@lily/shared'
 import { keepPreviousData } from '@tanstack/react-query'
-import { Array as Arr, Either, Option, pipe } from 'effect'
+import { Array as Arr, Option, pipe, Result } from 'effect'
 import { BlurView } from 'expo-blur'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,7 +55,7 @@ const CatalogItem = memo(function CatalogItem({
         <Text className="text-xs text-white/50 mt-0.5">
           {pipe(
             [plant.scientificName, plant.category],
-            Arr.map(Option.fromNullable),
+            Arr.map(Option.fromNullishOr),
             Arr.getSomes,
             Arr.join(' · ')
           )}
@@ -118,7 +118,7 @@ export function AddPlantStep({
             remindersEnabled: true,
           },
         })
-        if (Either.isRight(result)) {
+        if (Result.isSuccess(result)) {
           onPlantAdded({
             plantName: plant.name,
             plantDays: plant.wateringFrequencyDays,

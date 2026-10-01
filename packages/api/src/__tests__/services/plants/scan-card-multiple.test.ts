@@ -1,4 +1,3 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
@@ -11,6 +10,7 @@ import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import type { AppEvent } from '@lily/api/events'
 import { scanCardMultiple } from '@lily/api/services/plants/endpoints/scan-card-multiple'
 import { Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 describe('scanCardMultiple', () => {

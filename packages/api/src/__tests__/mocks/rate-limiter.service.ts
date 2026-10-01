@@ -24,7 +24,7 @@ export const createMockRateLimiterService = (
       Effect.gen(function* () {
         if (options.shouldExceedLimit) {
           const retryAfter = pipe(
-            Option.fromNullable(options.retryAfter),
+            Option.fromNullishOr(options.retryAfter),
             Option.getOrElse(() => 60)
           )
           return yield* new RateLimitExceededError({

@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /** `plan` comes from `withCarePlanAuth` in the handler. */
 export const dismissCarePlan = (
@@ -24,7 +24,7 @@ export const dismissCarePlan = (
       status: 'dismissed',
     })
     return pipe(
-      Option.fromNullable(dismissed),
+      Option.fromNullishOr(dismissed),
       Option.getOrElse(() => plan)
     )
   }).pipe(

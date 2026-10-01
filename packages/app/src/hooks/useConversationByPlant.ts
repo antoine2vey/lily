@@ -22,7 +22,7 @@ export function useConversationByPlant(plantId: string | undefined) {
     const refreshed = await query.refetch()
     const items = getApiResultData(refreshed.data)?.items
     return pipe(
-      Option.fromNullable(items),
+      Option.fromNullishOr(items),
       Option.flatMap(Array.findFirst((c) => c.plantId === plantId)),
       Option.map((c) => c.id)
     )

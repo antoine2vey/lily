@@ -14,7 +14,7 @@ const USER_PROFILE_KEY = 'lily_user_profile'
 
 // JSON codec for the cached profile — encodes/decodes through the schema
 // so Date fields round-trip as real Dates, not strings
-const UserProfileJson = Schema.parseJson(UserProfile)
+const UserProfileJson = Schema.fromJsonString(UserProfile)
 
 // Access Token
 export const storeAccessToken = (
@@ -33,7 +33,7 @@ export const getStoredAccessToken = (): Effect.Effect<
   Effect.tryPromise({
     try: async () => {
       const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY)
-      return Option.fromNullable(token)
+      return Option.fromNullishOr(token)
     },
     catch: (cause) =>
       new StorageError({ message: 'Failed to get access token', cause }),
@@ -80,7 +80,7 @@ export const getStoredUserEmail = (): Effect.Effect<
   Effect.tryPromise({
     try: async () => {
       const email = await SecureStore.getItemAsync(USER_EMAIL_KEY)
-      return Option.fromNullable(email)
+      return Option.fromNullishOr(email)
     },
     catch: (cause) =>
       new StorageError({ message: 'Failed to get email', cause }),
@@ -100,7 +100,7 @@ export const storeUserProfile = (
   user: UserProfile
 ): Effect.Effect<void, StorageError> =>
   pipe(
-    Schema.encode(UserProfileJson)(user),
+    Schema.encodeEffect(UserProfileJson)(user),
     Effect.mapError(
       (cause) =>
         new StorageError({ message: 'Failed to encode user profile', cause })
@@ -125,16 +125,16 @@ export const getStoredUserProfile = (): Effect.Effect<
   }).pipe(
     Effect.flatMap((raw) =>
       pipe(
-        Option.fromNullable(raw),
+        Option.fromNullishOr(raw),
         Option.match({
           onNone: () => Effect.succeed(Option.none<UserProfile>()),
           onSome: (json) =>
             pipe(
-              Schema.decode(UserProfileJson)(json),
+              Schema.decodeEffect(UserProfileJson)(json),
               Effect.map(Option.some),
               // A corrupt or schema-outdated cache entry is not fatal —
               // treat it as absent so startup falls back to the login flow
-              Effect.catchAll(() => Effect.succeed(Option.none<UserProfile>()))
+              Effect.catch(() => Effect.succeed(Option.none<UserProfile>()))
             ),
         })
       )

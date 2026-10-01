@@ -22,13 +22,13 @@ export interface RedditChunkerResult {
   readonly children: RedditChunkChild[]
 }
 
-const byScoreDesc = Order.reverse(
-  Order.mapInput(Order.number, (c: RedditCommentData) => c.score)
+const byScoreDesc = Order.flip(
+  Order.mapInput(Order.Number, (c: RedditCommentData) => c.score)
 )
 
 const buildQuestionSection = (title: string, selftext: string): string =>
   pipe(
-    Option.fromNullable(
+    Option.fromNullishOr(
       pipe(selftext, String.trim, String.length) > 0 ? selftext : undefined
     ),
     Option.match({
@@ -51,7 +51,7 @@ export const chunkRedditDocument = (
     Array.take(MAX_COMMENTS_PER_THREAD)
   )
 
-  const hasComments = !Array.isEmptyArray(sortedComments)
+  const hasComments = !Array.isArrayEmpty(sortedComments)
 
   if (!hasComments) {
     return {

@@ -25,23 +25,21 @@ export interface OnboardingData {
 const TOTAL_STEPS = 7
 
 const OnboardingDataSchema = Schema.Struct({
-  experienceLevel: Schema.optionalWith(
-    Schema.Literal('beginner', 'intermediate', 'expert'),
-    { exact: true }
+  experienceLevel: Schema.optionalKey(
+    Schema.Literals(['beginner', 'intermediate', 'expert'])
   ),
-  plantName: Schema.optionalWith(Schema.String, { exact: true }),
-  plantDays: Schema.optionalWith(Schema.Number, { exact: true }),
-  notificationsEnabled: Schema.optionalWith(Schema.Boolean, { exact: true }),
-  weatherEnabled: Schema.optionalWith(Schema.Boolean, { exact: true }),
-  latitude: Schema.optionalWith(Schema.Number, { exact: true }),
-  longitude: Schema.optionalWith(Schema.Number, { exact: true }),
-  preferredTime: Schema.optionalWith(
-    Schema.Literal('morning', 'afternoon', 'evening'),
-    { exact: true }
+  plantName: Schema.optionalKey(Schema.String),
+  plantDays: Schema.optionalKey(Schema.Number),
+  notificationsEnabled: Schema.optionalKey(Schema.Boolean),
+  weatherEnabled: Schema.optionalKey(Schema.Boolean),
+  latitude: Schema.optionalKey(Schema.Number),
+  longitude: Schema.optionalKey(Schema.Number),
+  preferredTime: Schema.optionalKey(
+    Schema.Literals(['morning', 'afternoon', 'evening'])
   ),
-  roomsCreated: Schema.optionalWith(Schema.Number, { exact: true }),
+  roomsCreated: Schema.optionalKey(Schema.Number),
 }) satisfies Schema.Schema<OnboardingData>
-const OnboardingDataJson = Schema.parseJson(OnboardingDataSchema)
+const OnboardingDataJson = Schema.fromJsonString(OnboardingDataSchema)
 const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)
 const encodeOnboardingData = Schema.encodeSync(OnboardingDataJson)
 

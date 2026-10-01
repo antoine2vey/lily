@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Seed script to promote an existing user to admin role
  * Usage: bun run seed:admin --email=user@example.com
@@ -7,8 +8,8 @@
  * Register via the app first, then run this script to promote to admin.
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema'
 import { eq } from 'drizzle-orm'
 import { Array, Console, Data, Effect, Option, pipe, String } from 'effect'

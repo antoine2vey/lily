@@ -19,7 +19,7 @@ import { Config, Effect } from 'effect'
 import { seedReviewer } from './seed-reviewer'
 
 const program = Effect.gen(function* () {
-  const email = yield* Config.nonEmptyString('APPLE_REVIEWER_EMAIL').pipe(
+  const email = yield* Config.NonEmptyString('APPLE_REVIEWER_EMAIL').pipe(
     Config.withDefault('apple-reviewer@example.com')
   )
 

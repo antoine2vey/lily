@@ -1,4 +1,3 @@
-import { SqlError } from '@effect/sql/SqlError'
 import {
   createTestChunkSearchResult,
   mockChunkSearchResults,
@@ -8,6 +7,7 @@ import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/pr
 import { RagService } from '@lily/api/services/rag/service'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Effect, Layer } from 'effect'
+import { SqlError } from 'effect/sql/SqlError'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@lily/api/services/rag/embedding.service', () => ({

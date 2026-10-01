@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Data, Effect, Either, Option } from 'effect'
+import { Data, Effect, Option, Result } from 'effect'
 import * as SecureStore from 'expo-secure-store'
 import { useEffectMutation } from '@/utils/client'
 import {
@@ -33,7 +33,7 @@ const getStoredDeviceTokenId = (): Effect.Effect<
   Effect.tryPromise({
     try: async () => {
       const tokenId = await SecureStore.getItemAsync(DEVICE_TOKEN_ID_KEY)
-      return Option.fromNullable(tokenId)
+      return Option.fromNullishOr(tokenId)
     },
     catch: (error) =>
       new DeviceTokenStorageError({
@@ -62,8 +62,8 @@ export function useRegisterDeviceToken() {
   const mutation = useEffectMutation('deviceTokens', 'registerDeviceToken', {
     onSuccess: async (apiResult) => {
       // Only store if the result is successful
-      if (Either.isRight(apiResult)) {
-        await Effect.runPromise(storeDeviceTokenId(apiResult.right.id))
+      if (Result.isSuccess(apiResult)) {
+        await Effect.runPromise(storeDeviceTokenId(apiResult.success.id))
         queryClient.invalidateQueries({ queryKey: ['deviceTokens'] })
       }
     },

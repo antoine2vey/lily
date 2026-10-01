@@ -15,8 +15,8 @@ const mapTask = (task: CareTask, actionable: boolean) => ({
     plantName: task.plantName,
     careType: task.type,
     dueDate: formatIsoDate(task.dueDate, ''),
-    roomName: Option.getOrNull(Option.fromNullable(task.roomName)),
-    roomIcon: Option.getOrNull(Option.fromNullable(task.roomIcon)),
+    roomName: Option.getOrNull(Option.fromNullishOr(task.roomName)),
+    roomIcon: Option.getOrNull(Option.fromNullishOr(task.roomIcon)),
     actionable,
   } satisfies CareTaskItem,
 })
@@ -40,20 +40,20 @@ export const getCareTasksEffect = Effect.fn('MCP.getCareTasks')(function* () {
 
   const sections = pipe(
     [
-      Array.isNonEmptyArray(overdueMapped)
+      Array.isArrayNonEmpty(overdueMapped)
         ? [
             `### Overdue (${Array.length(overdue)})`,
             ...Array.map(overdueMapped, (m) => m.line),
           ]
         : [],
-      Array.isNonEmptyArray(todayMapped)
+      Array.isArrayNonEmpty(todayMapped)
         ? [
             '',
             `### Today (${Array.length(today)})`,
             ...Array.map(todayMapped, (m) => m.line),
           ]
         : [],
-      Array.isNonEmptyArray(upcomingMapped)
+      Array.isArrayNonEmpty(upcomingMapped)
         ? [
             '',
             `### Upcoming (${Array.length(upcoming)})`,
@@ -70,7 +70,7 @@ export const getCareTasksEffect = Effect.fn('MCP.getCareTasks')(function* () {
     upcoming: Array.map(upcomingMapped, (m) => m.item),
   }
 
-  if (Array.isEmptyArray(sections)) {
+  if (Array.isArrayEmpty(sections)) {
     return {
       text: 'No care tasks pending. All your plants are taken care of!',
       tasks: taskGroups,

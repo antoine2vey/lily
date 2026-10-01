@@ -1,4 +1,3 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -7,6 +6,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 describe('uploadAvatar', () => {

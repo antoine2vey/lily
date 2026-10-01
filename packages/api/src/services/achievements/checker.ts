@@ -34,7 +34,7 @@ const onPlantCreated = (event: { userId: string }) =>
     // Check PLANT_COLLECTOR (5+ plants)
     const plantCount = yield* repo.countPlants(event.userId)
     const plantCollectorThreshold = pipe(
-      Option.fromNullable(ACHIEVEMENTS.PLANT_COLLECTOR.threshold),
+      Option.fromNullishOr(ACHIEVEMENTS.PLANT_COLLECTOR.threshold),
       Option.getOrElse(() => 5)
     )
     if (plantCount >= plantCollectorThreshold) {
@@ -95,7 +95,7 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
     // Check PHOTO_PRO (10+ photos total)
     const photoCount = yield* repo.countPhotos(event.userId)
     const photoProThreshold = pipe(
-      Option.fromNullable(ACHIEVEMENTS.PHOTO_PRO.threshold),
+      Option.fromNullishOr(ACHIEVEMENTS.PHOTO_PRO.threshold),
       Option.getOrElse(() => 10)
     )
     if (photoCount >= photoProThreshold) {
@@ -125,7 +125,7 @@ const onPlantScanned = (event: { userId: string }) =>
     const repo = yield* AchievementRepository
     const scanCount = yield* repo.countScans(event.userId)
     const scanChampThreshold = pipe(
-      Option.fromNullable(ACHIEVEMENTS.SCAN_CHAMP.threshold),
+      Option.fromNullishOr(ACHIEVEMENTS.SCAN_CHAMP.threshold),
       Option.getOrElse(() => 5)
     )
     if (scanCount >= scanChampThreshold) {
@@ -212,7 +212,7 @@ export const startAchievementSubscriber = Effect.gen(function* () {
   const queue = yield* eventBus.subscribe
 
   // Process events in background
-  yield* Effect.fork(
+  yield* Effect.forkChild(
     Effect.forever(
       Effect.gen(function* () {
         const event = yield* Queue.take(queue)

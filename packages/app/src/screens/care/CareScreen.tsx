@@ -63,7 +63,7 @@ export function CareScreen() {
   const { data: vacation } = useVacation()
   const { mutate: completeTask } = useCompleteTask()
   const { skipWaiting, setSkipWaiting } = useSkipWaitingPreference()
-  const today = DateTime.unsafeNow()
+  const today = DateTime.nowUnsafe()
 
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set())
   const pendingTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -160,7 +160,7 @@ export function CareScreen() {
   const overdueTasks = useMemo(
     () =>
       Option.getOrElse(
-        Option.fromNullable(tasks?.overdue),
+        Option.fromNullishOr(tasks?.overdue),
         () => [] as NonNullable<typeof tasks>['overdue']
       ),
     [tasks?.overdue]
@@ -169,7 +169,7 @@ export function CareScreen() {
   const todayTasks = useMemo(
     () =>
       Option.getOrElse(
-        Option.fromNullable(tasks?.today),
+        Option.fromNullishOr(tasks?.today),
         () => [] as NonNullable<typeof tasks>['today']
       ),
     [tasks?.today]
@@ -178,7 +178,7 @@ export function CareScreen() {
   const upcomingTasks = useMemo(
     () =>
       Option.getOrElse(
-        Option.fromNullable(tasks?.upcoming),
+        Option.fromNullishOr(tasks?.upcoming),
         () => [] as NonNullable<typeof tasks>['upcoming']
       ),
     [tasks?.upcoming]
@@ -201,7 +201,7 @@ export function CareScreen() {
   const todayCount = Array.length(todayTasks)
   const upcomingCount = Array.length(upcomingTasks)
   const planCount = pipe(
-    Option.fromNullable(carePlans?.items),
+    Option.fromNullishOr(carePlans?.items),
     Option.map(Array.length),
     Option.getOrElse(() => 0)
   )

@@ -34,11 +34,11 @@ export function CarePlansSection() {
   })
 
   const plans = pipe(
-    Option.fromNullable(data?.items),
+    Option.fromNullishOr(data?.items),
     Option.getOrElse(() => [] as ReadonlyArray<CarePlan>)
   )
 
-  if (!Array.isNonEmptyReadonlyArray(plans)) return null
+  if (!Array.isReadonlyArrayNonEmpty(plans)) return null
 
   const closeModal = () => setPendingDeletion({ _tag: 'None' })
 

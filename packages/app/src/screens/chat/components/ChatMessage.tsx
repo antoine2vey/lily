@@ -50,7 +50,7 @@ export function ChatMessage({
   const userName = pipe(
     Match.value(state),
     Match.when({ _tag: 'Authenticated' }, (s) =>
-      Option.getOrElse(Option.fromNullable(s.user.username), () => 'You')
+      Option.getOrElse(Option.fromNullishOr(s.user.username), () => 'You')
     ),
     Match.orElse(() => 'You')
   )
@@ -119,7 +119,7 @@ export function ChatMessage({
             (p: AnyToolPart): Option.Option<ReactElement> => {
               const toolName = getToolName(p)
               return pipe(
-                Option.fromNullable(toolBubbleRenderers[toolName]),
+                Option.fromNullishOr(toolBubbleRenderers[toolName]),
                 Option.flatMap((renderer) => renderer(p, index, t))
               )
             }
@@ -155,7 +155,7 @@ export function ChatMessage({
             )
         )
       )
-      if (!Array.isNonEmptyReadonlyArray(texts)) return null
+      if (!Array.isReadonlyArrayNonEmpty(texts)) return null
       return (
         <View className="flex-row items-start justify-start mb-2">
           <View className="mr-3 mt-3">
@@ -182,7 +182,7 @@ export function ChatMessage({
       if (!isToolUIPart(part)) return Option.none()
       const toolName = getToolName(part)
       return pipe(
-        Option.fromNullable(toolFullWidthRenderers[toolName]),
+        Option.fromNullishOr(toolFullWidthRenderers[toolName]),
         Option.flatMap((renderer) =>
           renderer(part, index, {
             t,
@@ -195,8 +195,8 @@ export function ChatMessage({
     })
   )
 
-  const hasBubbleParts = Array.isNonEmptyReadonlyArray(bubbleParts)
-  const hasFullWidthParts = Array.isNonEmptyReadonlyArray(fullWidthParts)
+  const hasBubbleParts = Array.isReadonlyArrayNonEmpty(bubbleParts)
+  const hasFullWidthParts = Array.isReadonlyArrayNonEmpty(fullWidthParts)
   const hasDiagnosisContent = diagnosisTextBubble !== null || hasFullWidthParts
 
   return (

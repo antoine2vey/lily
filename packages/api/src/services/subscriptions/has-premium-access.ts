@@ -8,9 +8,9 @@ import { DateTime, Match, pipe } from 'effect'
 export const hasPremiumAccess = (
   subscription: typeof userSubscriptions.$inferSelect
 ): boolean => {
-  const periodEnd = DateTime.unsafeMake(subscription.currentPeriodEnd)
-  const now = DateTime.unsafeNow()
-  const isWithinBillingPeriod = DateTime.greaterThan(periodEnd, now)
+  const periodEnd = DateTime.makeUnsafe(subscription.currentPeriodEnd)
+  const now = DateTime.nowUnsafe()
+  const isWithinBillingPeriod = DateTime.isGreaterThan(periodEnd, now)
 
   return pipe(
     Match.value(subscription.status),

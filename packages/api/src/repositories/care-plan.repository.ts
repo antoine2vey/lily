@@ -1,6 +1,5 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { isLivingPlant } from '@lily/api/repositories/helpers/living-plant'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { carePlanSteps, carePlans, plants } from '@lily/db/schema'
 import { type CareType, nowAsDate } from '@lily/shared'
 import type {
@@ -11,6 +10,7 @@ import type {
 } from '@lily/shared/care-plan'
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, Order, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type CarePlanRow = typeof carePlans.$inferSelect
 export type CarePlanStepRow = typeof carePlanSteps.$inferSelect
@@ -50,7 +50,7 @@ interface PlanPlantInfo {
 }
 
 const stepPositionOrder: Order.Order<CarePlanStep> = Order.mapInput(
-  Order.number,
+  Order.Number,
   (step: CarePlanStep) => step.position
 )
 
@@ -59,11 +59,11 @@ export const mapToCarePlanStep = (row: CarePlanStepRow): CarePlanStep => ({
   planId: row.planId,
   position: row.position,
   title: row.title,
-  description: Option.getOrUndefined(Option.fromNullable(row.description)),
-  careType: Option.getOrUndefined(Option.fromNullable(row.careType)),
-  dueDate: Option.getOrUndefined(Option.fromNullable(row.dueDate)),
-  completedAt: Option.getOrUndefined(Option.fromNullable(row.completedAt)),
-  careLogId: Option.getOrUndefined(Option.fromNullable(row.careLogId)),
+  description: Option.getOrUndefined(Option.fromNullishOr(row.description)),
+  careType: Option.getOrUndefined(Option.fromNullishOr(row.careType)),
+  dueDate: Option.getOrUndefined(Option.fromNullishOr(row.dueDate)),
+  completedAt: Option.getOrUndefined(Option.fromNullishOr(row.completedAt)),
+  careLogId: Option.getOrUndefined(Option.fromNullishOr(row.careLogId)),
 })
 
 export const mapToCarePlan = (
@@ -76,8 +76,8 @@ export const mapToCarePlan = (
   plantName: plant.name,
   plantImageUrl: plant.imageUrl,
   userId: row.userId,
-  chatMessageId: Option.getOrUndefined(Option.fromNullable(row.chatMessageId)),
-  diagnosisId: Option.getOrUndefined(Option.fromNullable(row.diagnosisId)),
+  chatMessageId: Option.getOrUndefined(Option.fromNullishOr(row.chatMessageId)),
+  diagnosisId: Option.getOrUndefined(Option.fromNullishOr(row.diagnosisId)),
   title: row.title,
   source: row.source,
   status: row.status,
@@ -86,15 +86,15 @@ export const mapToCarePlan = (
     Array.map(mapToCarePlanStep),
     Array.sort(stepPositionOrder)
   ),
-  acceptedAt: Option.getOrUndefined(Option.fromNullable(row.acceptedAt)),
-  completedAt: Option.getOrUndefined(Option.fromNullable(row.completedAt)),
+  acceptedAt: Option.getOrUndefined(Option.fromNullishOr(row.acceptedAt)),
+  completedAt: Option.getOrUndefined(Option.fromNullishOr(row.completedAt)),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 })
 
 export const isStepOpen = (step: {
   readonly completedAt: Date | null | undefined
-}): boolean => Option.isNone(Option.fromNullable(step.completedAt))
+}): boolean => Option.isNone(Option.fromNullishOr(step.completedAt))
 
 export interface ICarePlanRepository {
   readonly create: (
@@ -147,10 +147,10 @@ export interface ICarePlanRepository {
   ) => Effect.Effect<CarePlan | null, SqlError>
 }
 
-export class CarePlanRepository extends Context.Tag('CarePlanRepository')<
+export class CarePlanRepository extends Context.Service<
   CarePlanRepository,
   ICarePlanRepository
->() {}
+>()('CarePlanRepository') {}
 
 export const CarePlanRepositoryLive = Layer.effect(
   CarePlanRepository,
@@ -160,7 +160,7 @@ export const CarePlanRepositoryLive = Layer.effect(
     const plantSelect = { name: plants.name, imageUrl: plants.imageUrl }
 
     const stepsForPlans = (planIds: ReadonlyArray<string>) =>
-      Array.isEmptyReadonlyArray(planIds)
+      Array.isReadonlyArrayEmpty(planIds)
         ? Effect.succeed([] as CarePlanStepRow[])
         : db
             .select()
@@ -179,7 +179,7 @@ export const CarePlanRepositoryLive = Layer.effect(
             r.plan,
             r.plant,
             pipe(
-              Option.fromNullable(byPlan[r.plan.id]),
+              Option.fromNullishOr(byPlan[r.plan.id]),
               Option.getOrElse(() => [] as CarePlanStepRow[])
             )
           )
@@ -208,36 +208,36 @@ export const CarePlanRepositoryLive = Layer.effect(
             userId: data.userId,
             title: data.title,
             source: pipe(
-              Option.fromNullable(data.source),
+              Option.fromNullishOr(data.source),
               Option.getOrElse(() => 'ai' as const)
             ),
             chatMessageId: Option.getOrNull(
-              Option.fromNullable(data.chatMessageId)
+              Option.fromNullishOr(data.chatMessageId)
             ),
             diagnosisId: Option.getOrNull(
-              Option.fromNullable(data.diagnosisId)
+              Option.fromNullishOr(data.diagnosisId)
             ),
           })
           .returning()
         const plan = pipe(Array.head(planRows), Option.getOrThrow)
 
-        if (Array.isNonEmptyReadonlyArray(data.steps)) {
+        if (Array.isReadonlyArrayNonEmpty(data.steps)) {
           yield* db.insert(carePlanSteps).values(
             Array.map(data.steps, (step, index) => ({
               planId: plan.id,
               position: index,
               title: step.title,
               description: Option.getOrNull(
-                Option.fromNullable(step.description)
+                Option.fromNullishOr(step.description)
               ),
-              careType: Option.getOrNull(Option.fromNullable(step.careType)),
-              dueDate: Option.getOrNull(Option.fromNullable(step.dueDate)),
+              careType: Option.getOrNull(Option.fromNullishOr(step.careType)),
+              dueDate: Option.getOrNull(Option.fromNullishOr(step.dueDate)),
             }))
           )
         }
 
         const created = yield* findOne(plan.id, data.userId)
-        return pipe(Option.fromNullable(created), Option.getOrThrow)
+        return pipe(Option.fromNullishOr(created), Option.getOrThrow)
       }),
 
       findById: Effect.fn('CarePlanRepository.findById')(function* (
@@ -262,7 +262,7 @@ export const CarePlanRepositoryLive = Layer.effect(
               eq(carePlans.userId, userId),
               isLivingPlant(),
               ...pipe(
-                Option.fromNullable(status),
+                Option.fromNullishOr(status),
                 Option.map((s) => [eq(carePlans.status, s)]),
                 Option.getOrElse(() => [])
               )
@@ -333,7 +333,7 @@ export const CarePlanRepositoryLive = Layer.effect(
           .update(carePlanSteps)
           .set({
             completedAt: data.completedAt,
-            careLogId: Option.getOrNull(Option.fromNullable(data.careLogId)),
+            careLogId: Option.getOrNull(Option.fromNullishOr(data.careLogId)),
           })
           .where(eq(carePlanSteps.id, stepId))
           .returning()
@@ -398,7 +398,7 @@ export const CarePlanRepositoryLive = Layer.effect(
           .update(carePlanSteps)
           .set({
             completedAt: data.completedAt,
-            careLogId: Option.getOrNull(Option.fromNullable(data.careLogId)),
+            careLogId: Option.getOrNull(Option.fromNullishOr(data.careLogId)),
           })
           .where(eq(carePlanSteps.id, target.id))
           .returning()
@@ -421,7 +421,7 @@ export const CarePlanRepositoryLive = Layer.effect(
 
           const steps = yield* stepsForPlans([planId])
           const allDone =
-            Array.isNonEmptyReadonlyArray(steps) &&
+            Array.isReadonlyArrayNonEmpty(steps) &&
             !Array.some(steps, isStepOpen)
 
           if (current.plan.status === 'accepted' && allDone) {

@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { resolveImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -6,6 +5,7 @@ import type { ChatHistoryListResponse } from '@lily/shared/ai-chat'
 import type { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getChatHistory = (params: {
   conversationId: string

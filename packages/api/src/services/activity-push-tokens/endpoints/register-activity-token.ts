@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type {
@@ -6,6 +5,7 @@ import type {
   RegisterActivityTokenRequest,
 } from '@lily/shared'
 import { DateTime, Duration, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // 10h soft ceiling — safely inside Apple's 12h hard cap. The safety
 // scheduler sweeps expired activities on this boundary.
@@ -23,7 +23,7 @@ export const registerActivityToken = (
     const { id: userId } = yield* CurrentUser
 
     const endsAt = DateTime.toDateUtc(
-      DateTime.addDuration(DateTime.unsafeNow(), ACTIVITY_TTL)
+      DateTime.addDuration(DateTime.nowUnsafe(), ACTIVITY_TTL)
     )
 
     const created = yield* repo.createActivity({

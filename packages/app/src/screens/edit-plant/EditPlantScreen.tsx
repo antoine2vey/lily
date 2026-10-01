@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { getFrequencyDays } from '@lily/shared'
-import { Either, Option } from 'effect'
+import { Option, Result } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +37,7 @@ export function EditPlantScreen() {
   const { t } = useTranslation(['plantDetail', 'common', 'addPlant'])
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = Option.getOrElse(
-    Option.fromNullable(params.plantId),
+    Option.fromNullishOr(params.plantId),
     () => ''
   )
   const iconColors = useIconColors()
@@ -131,38 +131,38 @@ export function EditPlantScreen() {
   // Initialize form with plant data
   useEffect(() => {
     if (plant) {
-      setPhoto(Option.getOrUndefined(Option.fromNullable(plant.imageUrl)))
+      setPhoto(Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)))
       setName(plant.name)
       setCategory(
-        Option.getOrElse(Option.fromNullable(plant.category), () => '')
+        Option.getOrElse(Option.fromNullishOr(plant.category), () => '')
       )
       setDescription(
-        Option.getOrElse(Option.fromNullable(plant.description), () => '')
+        Option.getOrElse(Option.fromNullishOr(plant.description), () => '')
       )
       setWatering(
-        Option.getOrElse(Option.fromNullable(plant.wateringRating), () => 50)
+        Option.getOrElse(Option.fromNullishOr(plant.wateringRating), () => 50)
       )
       setLight(
-        Option.getOrElse(Option.fromNullable(plant.lightingRating), () => 50)
+        Option.getOrElse(Option.fromNullishOr(plant.lightingRating), () => 50)
       )
       setHumidity(
-        Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50)
+        Option.getOrElse(Option.fromNullishOr(plant.humidityRating), () => 50)
       )
       setPetSafe(plant.petToxicityRating === 0)
       setWateringFrequencyDays(originalScheduleData.wateringFreq)
       setFertilizationFrequencyDays(originalScheduleData.fertilizationFreq)
       setMistingFrequencyDays(originalScheduleData.mistingFreq)
       setRepottingFrequencyDays(originalScheduleData.repottingFreq)
-      setSelectedRoomId(Option.getOrNull(Option.fromNullable(plant.roomId)))
+      setSelectedRoomId(Option.getOrNull(Option.fromNullishOr(plant.roomId)))
       setPotWidthCm(
         Option.getOrElse(
-          Option.map(Option.fromNullable(plant.potWidthCm), (v) => String(v)),
+          Option.map(Option.fromNullishOr(plant.potWidthCm), (v) => String(v)),
           () => ''
         )
       )
       setPotHeightCm(
         Option.getOrElse(
-          Option.map(Option.fromNullable(plant.potHeightCm), (v) => String(v)),
+          Option.map(Option.fromNullishOr(plant.potHeightCm), (v) => String(v)),
           () => ''
         )
       )
@@ -189,7 +189,7 @@ export function EditPlantScreen() {
     const imageUrl =
       photo !== plant.imageUrl
         ? photo
-        : Option.getOrUndefined(Option.fromNullable(plant.imageUrl))
+        : Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl))
 
     const parsedWidth = potWidthCm ? parseFloat(potWidthCm) : null
     const parsedHeight = potHeightCm ? parseFloat(potHeightCm) : null
@@ -235,7 +235,7 @@ export function EditPlantScreen() {
       { path: { id: plantId }, payload },
       {
         onSuccess: (result) => {
-          if (Either.isRight(result)) {
+          if (Result.isSuccess(result)) {
             setShowGoodbyeSheet(false)
             router.replace('/(app)/(tabs)/plants')
           }
@@ -266,17 +266,17 @@ export function EditPlantScreen() {
   const hasChanges =
     name !== plant.name ||
     category !==
-      Option.getOrElse(Option.fromNullable(plant.category), () => '') ||
+      Option.getOrElse(Option.fromNullishOr(plant.category), () => '') ||
     description !==
-      Option.getOrElse(Option.fromNullable(plant.description), () => '') ||
+      Option.getOrElse(Option.fromNullishOr(plant.description), () => '') ||
     watering !==
-      Option.getOrElse(Option.fromNullable(plant.wateringRating), () => 50) ||
+      Option.getOrElse(Option.fromNullishOr(plant.wateringRating), () => 50) ||
     light !==
-      Option.getOrElse(Option.fromNullable(plant.lightingRating), () => 50) ||
+      Option.getOrElse(Option.fromNullishOr(plant.lightingRating), () => 50) ||
     humidity !==
-      Option.getOrElse(Option.fromNullable(plant.humidityRating), () => 50) ||
+      Option.getOrElse(Option.fromNullishOr(plant.humidityRating), () => 50) ||
     petSafe !== (plant.petToxicityRating === 0) ||
-    photo !== Option.getOrUndefined(Option.fromNullable(plant.imageUrl)) ||
+    photo !== Option.getOrUndefined(Option.fromNullishOr(plant.imageUrl)) ||
     wateringFrequencyDays !== originalScheduleData.wateringFreq ||
     (fertilizationEnabled ? fertilizationFrequencyDays : null) !==
       originalScheduleData.fertilizationFreq ||
@@ -284,15 +284,15 @@ export function EditPlantScreen() {
       originalScheduleData.mistingFreq ||
     (repottingEnabled ? repottingFrequencyDays : null) !==
       originalScheduleData.repottingFreq ||
-    selectedRoomId !== Option.getOrNull(Option.fromNullable(plant.roomId)) ||
+    selectedRoomId !== Option.getOrNull(Option.fromNullishOr(plant.roomId)) ||
     potWidthCm !==
       Option.getOrElse(
-        Option.map(Option.fromNullable(plant.potWidthCm), (v) => String(v)),
+        Option.map(Option.fromNullishOr(plant.potWidthCm), (v) => String(v)),
         () => ''
       ) ||
     potHeightCm !==
       Option.getOrElse(
-        Option.map(Option.fromNullable(plant.potHeightCm), (v) => String(v)),
+        Option.map(Option.fromNullishOr(plant.potHeightCm), (v) => String(v)),
         () => ''
       )
 

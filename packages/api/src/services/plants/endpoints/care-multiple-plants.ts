@@ -1,5 +1,3 @@
-import * as SqlClient from '@effect/sql/SqlClient'
-import type { SqlError } from '@effect/sql/SqlError'
 import type { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -18,6 +16,8 @@ import type {
 } from '@lily/shared/plant'
 import type { EventBus } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const careMultiplePlants = (
   request: CareMultiplePlantsRequest
@@ -47,8 +47,8 @@ export const careMultiplePlants = (
 
     const currentUser = yield* userRepo.findById(currentUserId)
     const timezone = pipe(
-      Option.fromNullable(currentUser),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullishOr(currentUser),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
 
@@ -57,7 +57,7 @@ export const careMultiplePlants = (
         // 1. Batch fetch all plants
         const foundPlants = yield* repo.findByIds(request.plantIds)
 
-        const nowDt = DateTime.unsafeNow()
+        const nowDt = DateTime.nowUnsafe()
         const now = DateTime.toDateUtc(nowDt)
 
         // 2. Update each plant in parallel
@@ -92,7 +92,7 @@ export const careMultiplePlants = (
                 request.careType
               )
               const frequency = pipe(
-                Option.fromNullable(schedule),
+                Option.fromNullishOr(schedule),
                 Option.map((s) => s.frequencyDays),
                 Option.getOrUndefined
               )
@@ -140,7 +140,7 @@ export const careMultiplePlants = (
                 plantId,
                 success: true,
                 plant: pipe(
-                  Option.fromNullable(updatedPlant),
+                  Option.fromNullishOr(updatedPlant),
                   Option.getOrUndefined
                 ),
               }

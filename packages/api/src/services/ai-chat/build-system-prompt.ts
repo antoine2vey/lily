@@ -4,34 +4,33 @@ import { Array, Option, Order, pipe } from 'effect'
 
 const CARE_PLAN_COMPLETED_STEPS_IN_CONTEXT = 5
 
-const mostRecentFirst: Order.Order<{ readonly completedAt: Date }> =
-  Order.reverse(
-    Order.mapInput(
-      Order.Date,
-      (x: { readonly completedAt: Date }) => x.completedAt
-    )
+const mostRecentFirst: Order.Order<{ readonly completedAt: Date }> = Order.flip(
+  Order.mapInput(
+    Order.Date,
+    (x: { readonly completedAt: Date }) => x.completedAt
   )
+)
 
 const formatStepLine = (step: CarePlanStep): string => {
   const meta = pipe(
     [
       pipe(
-        Option.fromNullable(step.careType),
+        Option.fromNullishOr(step.careType),
         Option.map((t) => `care: ${t}`)
       ),
       pipe(
-        Option.fromNullable(step.dueDate),
+        Option.fromNullishOr(step.dueDate),
         Option.map((d) => `due ${formatIsoDate(d)}`)
       ),
       pipe(
-        Option.fromNullable(step.completedAt),
+        Option.fromNullishOr(step.completedAt),
         Option.map((d) => `done ${formatIsoDate(d)}`)
       ),
     ],
     Array.getSomes,
     Array.join(', ')
   )
-  return `  - [${Option.isSome(Option.fromNullable(step.completedAt)) ? 'x' : ' '}] ${step.title}${meta.length > 0 ? ` (${meta})` : ''}`
+  return `  - [${Option.isSome(Option.fromNullishOr(step.completedAt)) ? 'x' : ' '}] ${step.title}${meta.length > 0 ? ` (${meta})` : ''}`
 }
 
 /**
@@ -45,7 +44,7 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
     plans,
     (p) => p.status === 'accepted' || p.status === 'completed'
   )
-  if (!Array.isNonEmptyReadonlyArray(active)) return ''
+  if (!Array.isReadonlyArrayNonEmpty(active)) return ''
 
   const openLines = pipe(
     active,
@@ -53,7 +52,7 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
     Array.flatMap((plan) =>
       pipe(
         plan.steps,
-        Array.filter((s) => Option.isNone(Option.fromNullable(s.completedAt))),
+        Array.filter((s) => Option.isNone(Option.fromNullishOr(s.completedAt))),
         Array.map((s) => `${formatStepLine(s)} [plan: ${plan.title}]`)
       )
     )
@@ -66,7 +65,7 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
         plan.steps,
         Array.filterMap((s) =>
           pipe(
-            Option.fromNullable(s.completedAt),
+            Option.fromNullishOr(s.completedAt),
             Option.map((completedAt) => ({ step: s, plan, completedAt }))
           )
         )
@@ -81,11 +80,11 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
 
   return [
     'Open care-plan steps (things the user agreed to do but has not done yet):',
-    Array.isNonEmptyReadonlyArray(openLines)
+    Array.isReadonlyArrayNonEmpty(openLines)
       ? Array.join(openLines, '\n')
       : '  (none)',
     'Recently completed care-plan steps:',
-    Array.isNonEmptyReadonlyArray(completedLines)
+    Array.isReadonlyArrayNonEmpty(completedLines)
       ? Array.join(completedLines, '\n')
       : '  (none)',
   ].join('\n')
@@ -153,7 +152,7 @@ const formatScheduleBlock = (
   nextLabel: string,
   schedule: ScheduleEntry | undefined
 ): string => {
-  const opt = Option.fromNullable(schedule)
+  const opt = Option.fromNullishOr(schedule)
   return `${label} Schedule:
         Frequency: ${pipe(
           opt,
@@ -165,14 +164,14 @@ const formatScheduleBlock = (
         ${lastLabel}: ${formatIsoDate(
           pipe(
             opt,
-            Option.flatMap((s) => Option.fromNullable(s.lastCareAt)),
+            Option.flatMap((s) => Option.fromNullishOr(s.lastCareAt)),
             Option.getOrNull
           )
         )}
         ${nextLabel}: ${formatDaysUntilHuman(
           pipe(
             opt,
-            Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+            Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
             Option.getOrNull
           )
         )}`
@@ -187,7 +186,7 @@ export const buildPlantSystemPrompt = (
 ): string => {
   const { plant, daysSinceAdded, careHistoryText } = params
   const carePlansText = pipe(
-    Option.fromNullable(params.carePlansText),
+    Option.fromNullishOr(params.carePlansText),
     Option.getOrElse(() => '')
   )
 
@@ -201,11 +200,11 @@ export const buildPlantSystemPrompt = (
       Plant Information:
         Name: ${plant.name}
         Category: ${pipe(
-          Option.fromNullable(plant.category),
+          Option.fromNullishOr(plant.category),
           Option.getOrElse(() => 'Unknown')
         )}
         Description: ${pipe(
-          Option.fromNullable(plant.description),
+          Option.fromNullishOr(plant.description),
           Option.getOrElse(() => 'No description')
         )}
         Current health status: ${plant.health}

@@ -22,20 +22,20 @@ export interface PhotoGroup {
 
 /** Month bucket key ("YYYY-MM") for a photo's capture date. */
 const getMonthKey = (date: Date): string => {
-  const parts = DateTime.toParts(DateTime.unsafeMake(date))
+  const parts = DateTime.toParts(DateTime.makeUnsafe(date))
   const month = pipe(String(parts.month), Str.padStart(2, '0'))
   return `${String(parts.year)}-${month}`
 }
 
 /** Newest photo first within a month. */
 const photoTakenAtDesc: Order.Order<PlantPhoto> = Order.mapInput(
-  Order.reverse(Order.number),
+  Order.flip(Order.Number),
   (photo) => photo.takenAt.getTime()
 )
 
 /** Newest month group first. */
 const monthKeyDesc: Order.Order<PhotoGroup> = Order.mapInput(
-  Order.reverse(Order.string),
+  Order.flip(Order.String),
   (group) => group.key
 )
 
@@ -67,7 +67,7 @@ export const groupPhotosByMonth = (
       const label = pipe(
         Array.head(sortedPhotos),
         Option.map((photo) =>
-          formatMemberSince(DateTime.unsafeMake(photo.takenAt), locale)
+          formatMemberSince(DateTime.makeUnsafe(photo.takenAt), locale)
         ),
         Option.getOrElse(() => key)
       )

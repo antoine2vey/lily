@@ -21,11 +21,11 @@ export const createMockNotificationRepository = (
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
       const page = pipe(
-        Option.fromNullable(params.page),
+        Option.fromNullishOr(params.page),
         Option.getOrElse(() => 1)
       )
       const limit = pipe(
-        Option.fromNullable(params.limit),
+        Option.fromNullishOr(params.limit),
         Option.getOrElse(() => 20)
       )
       const offset = (page - 1) * limit
@@ -93,7 +93,7 @@ export const createMockNotificationRepository = (
       const idx = notificationsState.findIndex((n) => n.id === id)
       if (idx === -1) return Effect.succeed(null)
       const [removed] = notificationsState.splice(idx, 1)
-      return Effect.succeed(Option.getOrNull(Option.fromNullable(removed)))
+      return Effect.succeed(Option.getOrNull(Option.fromNullishOr(removed)))
     },
 
     // Scheduler methods

@@ -20,7 +20,7 @@
  *   Used for notification delivery — messages persist until consumed.
  */
 
-import { BunContext } from '@effect/platform-bun'
+import { BunServices } from '@effect/platform-bun'
 import { RedisEventBusLive } from '@lily/api/events'
 import { AchievementRepositoryLive } from '@lily/api/repositories/achievement.repository'
 import { ActivityPushTokenRepositoryLive } from '@lily/api/repositories/activity-push-token.repository'
@@ -88,7 +88,7 @@ import { Config, Effect, Layer, Option, Redacted } from 'effect'
 // Re-exports for direct access
 // ============================================================================
 
-export { BunContext } from '@effect/platform-bun'
+export { BunServices } from '@effect/platform-bun'
 export { RedisEventBusLive } from '@lily/api/events'
 export { AdminAuthLive } from '@lily/api/services/admin/middleware.impl'
 export { AiService } from '@lily/api/services/ai/service'
@@ -167,17 +167,17 @@ export const AllRepositoriesLive = Layer.mergeAll(
 //
 // In development, external services (push notifications, email) are replaced
 // with console-logging implementations to avoid hitting real APIs.
-const NodeEnvConfig = Config.string('NODE_ENV').pipe(
+const NodeEnvConfig = Config.String('NODE_ENV').pipe(
   Config.withDefault('development')
 )
 
 const DiscordWebhookConfig = Config.option(
-  Config.redacted('DISCORD_WEBHOOK_URL')
+  Config.Redacted('DISCORD_WEBHOOK_URL')
 ).pipe(
   Config.map((opt) => Option.filter(opt, (r) => Redacted.value(r).length > 0))
 )
 
-const AlerterLive = Layer.unwrapEffect(
+const AlerterLive = Layer.unwrap(
   Effect.gen(function* () {
     const nodeEnv = yield* NodeEnvConfig
     const webhook = yield* DiscordWebhookConfig
@@ -195,9 +195,9 @@ const AlerterLive = Layer.unwrapEffect(
 // NODE_ENV=development. Useful for testing Live Activities on a physical
 // device without flipping the whole app into production mode (email stays
 // on console). Leave unset to get the usual dev-safe console logging.
-const PushProviderOverrideConfig = Config.option(Config.string('PUSH_PROVIDER'))
+const PushProviderOverrideConfig = Config.option(Config.String('PUSH_PROVIDER'))
 
-const ExternalServicesLive = Layer.unwrapEffect(
+const ExternalServicesLive = Layer.unwrap(
   Effect.gen(function* () {
     const nodeEnv = yield* NodeEnvConfig
     const pushOverride = yield* PushProviderOverrideConfig
@@ -241,7 +241,7 @@ const SelfContainedInfraLive = Layer.mergeAll(
   OAuthVerifierServiceLive,
   RateLimiterServiceLive,
   MagicLinkConfigLive
-).pipe(Layer.provideMerge(BunContext.layer))
+).pipe(Layer.provideMerge(BunServices.layer))
 
 // Redis-dependent layers: EventBus, MessageQueue, and WeatherCache all need RedisClient.
 // Layer.provideMerge provides RedisClient to the three AND outputs it for downstream use.

@@ -43,9 +43,9 @@ function findNextAchievements(
         a.maxProgress > 0
     ),
     Array.sort(
-      Order.reverse(
+      Order.flip(
         Order.mapInput(
-          Order.number,
+          Order.Number,
           (a: AchievementWithProgress) =>
             (a.progress ?? 0) / (a.maxProgress ?? 1)
         )
@@ -135,7 +135,7 @@ export function AchievementTeaser({ data }: AchievementTeaserProps) {
 
   const nextAchievements = useMemo(() => findNextAchievements(data), [data])
 
-  if (Array.isEmptyReadonlyArray(nextAchievements)) return null
+  if (Array.isReadonlyArrayEmpty(nextAchievements)) return null
 
   return (
     <View className="mb-8">

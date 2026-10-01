@@ -1,6 +1,6 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ActivityPushTokenRepository } from '@lily/api/repositories/activity-push-token.repository'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // APNs returned a terminal token error (BadDeviceToken / Unregistered) for a
 // push-to-start. End the orphan start-token row so the next care send takes

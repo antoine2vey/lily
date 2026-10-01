@@ -1,4 +1,3 @@
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
@@ -7,6 +6,7 @@ import {
   REFRESH_TOKEN_EXPIRY_MS,
 } from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema/users'
 import { nowAsDate } from '@lily/shared'
 import type { AuthResponse } from '@lily/shared/auth'
@@ -45,7 +45,7 @@ export const issueServiceToken = (input: {
     // Find or create user
     const existingUser = yield* userRepo.findByEmail(email)
     const user = yield* pipe(
-      Option.fromNullable(existingUser),
+      Option.fromNullishOr(existingUser),
       Option.match({
         onNone: () =>
           Effect.fail({ message: 'No account found for this email' }),
@@ -88,7 +88,7 @@ export const issueServiceToken = (input: {
     const refreshTokenHash = yield* jwtService.hashRefreshToken(refreshToken)
     const refreshTokenExpiry = DateTime.toDateUtc(
       DateTime.addDuration(
-        DateTime.unsafeNow(),
+        DateTime.nowUnsafe(),
         Duration.millis(REFRESH_TOKEN_EXPIRY_MS)
       )
     )

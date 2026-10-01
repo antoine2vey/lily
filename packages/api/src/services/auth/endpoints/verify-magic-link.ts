@@ -53,7 +53,7 @@ export const verifyMagicLink = ({
     const existingUser = yield* userRepo.findByEmail(magicLink.email)
 
     const user = yield* pipe(
-      Option.fromNullable(existingUser),
+      Option.fromNullishOr(existingUser),
       Option.match({
         onNone: () =>
           userRepo.create({
@@ -75,7 +75,7 @@ export const verifyMagicLink = ({
             })
 
             return pipe(
-              Option.fromNullable(updated),
+              Option.fromNullishOr(updated),
               Option.getOrElse(() => existing)
             )
           }),

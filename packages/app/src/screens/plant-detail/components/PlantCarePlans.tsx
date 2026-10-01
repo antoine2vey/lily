@@ -18,12 +18,12 @@ export function PlantCarePlans({ plantId }: PlantCarePlansProps) {
   const { pendingStepIds, toggleStep, undoStep } = useCarePlanStepActions()
 
   const plans = pipe(
-    Option.fromNullable(data?.items),
+    Option.fromNullishOr(data?.items),
     Option.getOrElse(() => [] as ReadonlyArray<CarePlan>),
     Array.filter((p) => p.status === 'accepted')
   )
 
-  if (!Array.isNonEmptyReadonlyArray(plans)) return null
+  if (!Array.isReadonlyArrayNonEmpty(plans)) return null
 
   return (
     <View>

@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   CareAdjustment,
@@ -7,6 +6,7 @@ import {
   WeatherNotAvailableError,
 } from '@lily/shared'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 export const WeatherApi = HttpApiGroup.make('weather')
   .add(

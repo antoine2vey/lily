@@ -40,7 +40,7 @@ export const createMockGiftCodeRepository = (
     findById: (id) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(codes.find((c) => c.id === id)),
+          Option.fromNullishOr(codes.find((c) => c.id === id)),
           Option.getOrNull
         )
       ),
@@ -48,7 +48,9 @@ export const createMockGiftCodeRepository = (
     findByCode: (code) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(codes.find((c) => c.code === code.toUpperCase())),
+          Option.fromNullishOr(
+            codes.find((c) => c.code === code.toUpperCase())
+          ),
           Option.getOrNull
         )
       ),
@@ -102,7 +104,7 @@ export const createMockGiftCodeRepository = (
     findRedemption: (giftCodeId, userId) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(
+          Option.fromNullishOr(
             redemptions.find(
               (r) => r.giftCodeId === giftCodeId && r.userId === userId
             )

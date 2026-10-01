@@ -99,7 +99,7 @@ export function AchievementsScreen() {
         Array.filter((a) => a.category === category)
       ),
     })),
-    Array.filter((group) => !Array.isEmptyReadonlyArray(group.achievements))
+    Array.filter((group) => !Array.isReadonlyArrayEmpty(group.achievements))
   )
 
   return (

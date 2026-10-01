@@ -180,7 +180,7 @@ const postWebhook = (webhookUrl: string, embed: Embed) =>
 export const DiscordAlerterLive = Layer.effect(
   Alerter,
   Effect.gen(function* () {
-    const webhookUrl = yield* Config.redacted('DISCORD_WEBHOOK_URL')
+    const webhookUrl = yield* Config.Redacted('DISCORD_WEBHOOK_URL')
     const settings = yield* AlerterConfig
     const url = Redacted.value(webhookUrl)
 

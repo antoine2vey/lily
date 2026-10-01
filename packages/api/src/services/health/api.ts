@@ -1,10 +1,10 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
-const HealthStatus = Schema.Literal('ok', 'error')
+const HealthStatus = Schema.Literals(['ok', 'error'])
 
 const HealthResponse = Schema.Struct({
-  status: Schema.Literal('ok', 'degraded'),
+  status: Schema.Literals(['ok', 'degraded']),
   database: HealthStatus,
   redis: HealthStatus,
 })

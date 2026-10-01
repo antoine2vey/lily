@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 // RevenueCat Event Types
-export const RevenueCatEventType = Schema.Literal(
+export const RevenueCatEventType = Schema.Literals([
   'TEST',
   'INITIAL_PURCHASE',
   'RENEWAL',
@@ -10,30 +10,30 @@ export const RevenueCatEventType = Schema.Literal(
   'EXPIRATION',
   'BILLING_ISSUE',
   'PRODUCT_CHANGE',
-  'SUBSCRIBER_ALIAS'
-)
+  'SUBSCRIBER_ALIAS',
+])
 export type RevenueCatEventType = typeof RevenueCatEventType.Type
 
 // Store type
-export const RevenueCatStore = Schema.Literal(
+export const RevenueCatStore = Schema.Literals([
   'APP_STORE',
   'PLAY_STORE',
   'STRIPE',
-  'PROMOTIONAL'
-)
+  'PROMOTIONAL',
+])
 export type RevenueCatStore = typeof RevenueCatStore.Type
 
 // Environment type
-export const RevenueCatEnvironment = Schema.Literal('SANDBOX', 'PRODUCTION')
+export const RevenueCatEnvironment = Schema.Literals(['SANDBOX', 'PRODUCTION'])
 export type RevenueCatEnvironment = typeof RevenueCatEnvironment.Type
 
 // Period type
-export const RevenueCatPeriodType = Schema.Literal(
+export const RevenueCatPeriodType = Schema.Literals([
   'TRIAL',
   'INTRO',
   'NORMAL',
-  'PROMOTIONAL'
-)
+  'PROMOTIONAL',
+])
 export type RevenueCatPeriodType = typeof RevenueCatPeriodType.Type
 
 // Webhook event inner structure
@@ -60,7 +60,7 @@ export const RevenueCatWebhookEventData = Schema.Struct({
   cancel_reason: Schema.optional(Schema.NullOr(Schema.String)),
   // Subscriber attributes
   subscriber_attributes: Schema.optional(
-    Schema.NullOr(Schema.Record({ key: Schema.String, value: Schema.Unknown }))
+    Schema.NullOr(Schema.Record(Schema.String, Schema.Unknown))
   ),
   // Transaction IDs
   transaction_id: Schema.optional(Schema.NullOr(Schema.String)),
@@ -95,13 +95,10 @@ export const RevenueCatSubscriberInfo = Schema.Struct({
   subscriber: Schema.Struct({
     original_app_user_id: Schema.String,
     first_seen: Schema.String,
-    entitlements: Schema.Record({
-      key: Schema.String,
-      value: RevenueCatEntitlement,
-    }),
-    subscriptions: Schema.Record({
-      key: Schema.String,
-      value: Schema.Struct({
+    entitlements: Schema.Record(Schema.String, RevenueCatEntitlement),
+    subscriptions: Schema.Record(
+      Schema.String,
+      Schema.Struct({
         expires_date: Schema.NullOr(Schema.String),
         grace_period_expires_date: Schema.NullOr(Schema.String),
         purchase_date: Schema.String,
@@ -111,12 +108,12 @@ export const RevenueCatSubscriberInfo = Schema.Struct({
         unsubscribe_detected_at: Schema.NullOr(Schema.String),
         billing_issues_detected_at: Schema.NullOr(Schema.String),
         period_type: Schema.optional(RevenueCatPeriodType),
-      }),
-    }),
-    non_subscriptions: Schema.Record({
-      key: Schema.String,
-      value: Schema.Array(Schema.Unknown),
-    }),
+      })
+    ),
+    non_subscriptions: Schema.Record(
+      Schema.String,
+      Schema.Array(Schema.Unknown)
+    ),
   }),
 })
 export type RevenueCatSubscriberInfo = typeof RevenueCatSubscriberInfo.Type

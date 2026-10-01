@@ -10,8 +10,8 @@ export const Room = Schema.Struct({
   isOutdoor: Schema.Boolean,
   order: Schema.Number,
   userId: Schema.String,
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 
 export const RoomRef = Schema.Struct({

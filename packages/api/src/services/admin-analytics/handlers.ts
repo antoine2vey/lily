@@ -1,4 +1,3 @@
-import { HttpApiBuilder } from '@effect/platform'
 import type { Api } from '@lily/api/api'
 import { activeSubscribersByTier } from '@lily/api/services/admin-analytics/endpoints/active-subscribers-by-tier'
 import { aiChatVolume } from '@lily/api/services/admin-analytics/endpoints/ai-chat-volume'
@@ -15,6 +14,7 @@ import { signupToFirstPlant } from '@lily/api/services/admin-analytics/endpoints
 import { trialToPaid } from '@lily/api/services/admin-analytics/endpoints/trial-to-paid'
 import { usersByStatus } from '@lily/api/services/admin-analytics/endpoints/users-by-status'
 import { withInfraErrorsAsDefect } from '@lily/api/services/helpers/error-handling'
+import { HttpApiBuilder } from 'effect/http-api'
 
 export const AdminAnalyticsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'admin-analytics', (handlers) =>
@@ -28,13 +28,13 @@ export const AdminAnalyticsApiLive = (api: Api) =>
       .handle('plantsPerUserDistribution', () =>
         plantsPerUserDistribution().pipe(withInfraErrorsAsDefect)
       )
-      .handle('careLogVolumeByType', ({ urlParams }) =>
+      .handle('careLogVolumeByType', ({ query: urlParams }) =>
         careLogVolumeByType(urlParams).pipe(withInfraErrorsAsDefect)
       )
-      .handle('deadLetterVolume', ({ urlParams }) =>
+      .handle('deadLetterVolume', ({ query: urlParams }) =>
         deadLetterVolume(urlParams).pipe(withInfraErrorsAsDefect)
       )
-      .handle('aiChatVolume', ({ urlParams }) =>
+      .handle('aiChatVolume', ({ query: urlParams }) =>
         aiChatVolume(urlParams).pipe(withInfraErrorsAsDefect)
       )
       .handle('diagnosisResolutionRate', () =>
@@ -47,7 +47,7 @@ export const AdminAnalyticsApiLive = (api: Api) =>
         signupToFirstPlant().pipe(withInfraErrorsAsDefect)
       )
       .handle('trialToPaid', () => trialToPaid().pipe(withInfraErrorsAsDefect))
-      .handle('notificationToCareAction', ({ urlParams }) =>
+      .handle('notificationToCareAction', ({ query: urlParams }) =>
         notificationToCareAction(urlParams).pipe(withInfraErrorsAsDefect)
       )
       .handle('mrrEstimate', () => mrrEstimate().pipe(withInfraErrorsAsDefect))

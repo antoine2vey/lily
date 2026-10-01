@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { AdminAuth } from '@lily/api/services/admin/middleware.types'
 import { PaginatedResponse, PaginationParams } from '@lily/shared'
 import {
@@ -39,18 +38,31 @@ import {
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PlantsListResponse } from '@lily/shared/plant'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameter for user ID
-const userIdParam = HttpApiSchema.param('id', Schema.UUID)
+const userIdParam = HttpApiSchema.param(
+  'id',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Path parameter for message ID (prompt preview)
-const messageIdParam = HttpApiSchema.param('messageId', Schema.UUID)
+const messageIdParam = HttpApiSchema.param(
+  'messageId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Path parameter for gift code ID
-const codeIdParam = HttpApiSchema.param('codeId', Schema.UUID)
+const codeIdParam = HttpApiSchema.param(
+  'codeId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Path parameter for chat conversation ID
-const conversationIdParam = HttpApiSchema.param('conversationId', Schema.UUID)
+const conversationIdParam = HttpApiSchema.param(
+  'conversationId',
+  Schema.String.check(Schema.isGUID())
+)
 
 // Define the Admin API group
 export const AdminApi = HttpApiGroup.make('admin')
@@ -97,7 +109,7 @@ export const AdminApi = HttpApiGroup.make('admin')
   )
   .add(
     // DELETE /admin/users/:id - Delete user
-    HttpApiEndpoint.del('deleteUser')`/users/${userIdParam}`
+    HttpApiEndpoint.delete('deleteUser')`/users/${userIdParam}`
       .addSuccess(AdminUser)
       .addError(UserNotFoundError, { status: 404 })
       .addError(CannotModifySelfError, { status: 400 })
@@ -176,7 +188,7 @@ export const AdminApi = HttpApiGroup.make('admin')
   )
   .add(
     // DELETE /admin/gift-codes/:codeId - Delete a gift code
-    HttpApiEndpoint.del('deleteGiftCode')`/gift-codes/${codeIdParam}`
+    HttpApiEndpoint.delete('deleteGiftCode')`/gift-codes/${codeIdParam}`
       .addSuccess(GiftCode)
       .addError(GiftCodeNotFoundError, { status: 404 })
       .addError(ForbiddenError, { status: 403 })

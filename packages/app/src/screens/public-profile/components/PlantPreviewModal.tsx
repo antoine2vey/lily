@@ -99,7 +99,7 @@ function ZoomableImage({ imageUrl, visible }: ZoomableImageProps) {
     <GestureDetector gesture={composed}>
       <Animated.View className="flex-1" style={animatedStyle}>
         {pipe(
-          Option.fromNullable(imageUrl),
+          Option.fromNullishOr(imageUrl),
           Option.match({
             onNone: () => (
               <View className="flex-1 items-center justify-center">
@@ -127,7 +127,7 @@ export function PlantPreviewModal({
   onClose,
 }: PlantPreviewModalProps) {
   const insets = useSafeAreaInsets()
-  const plantOption = Option.fromNullable(plant)
+  const plantOption = Option.fromNullishOr(plant)
 
   return (
     <Modal

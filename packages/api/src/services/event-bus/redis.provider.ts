@@ -7,7 +7,7 @@ import {
   EventBusPublishError,
   type IEventBus,
 } from '@lily/shared/server'
-import { Effect, Layer, Queue, Runtime, Schema } from 'effect'
+import { Effect, Layer, Queue, Schema } from 'effect'
 
 // Channel name for event bus pub-sub
 const CHANNEL = 'lily:events'
@@ -23,7 +23,7 @@ const CHANNEL = 'lily:events'
 // across all callers. The first subscriber to wake up stole the event from
 // the others. Symptoms: non-deterministic "my subscriber sometimes doesn't
 // fire" bugs (e.g. LA refresh missing when achievement checker raced).
-export const RedisEventBusLive = Layer.scoped(
+export const RedisEventBusLive = Layer.effect(
   EventBus,
   Effect.gen(function* () {
     const publisherRedis = yield* RedisClient
@@ -49,28 +49,29 @@ export const RedisEventBusLive = Layer.scoped(
     })
 
     // Extract runtime so we can fork effects from the Redis callback
-    const runtime = yield* Effect.runtime<never>()
+    const runtime = yield* Effect.context<never>()
 
     // Listen for messages and fan out to every local subscriber queue
     subscriberRedis.on('message', (channel, message) => {
       if (channel === CHANNEL) {
-        Runtime.runFork(runtime)(
+        Effect.runForkWith(runtime)(
           Effect.gen(function* () {
             const parsed = yield* Effect.try(
               () => JSON.parse(message) as unknown
             )
-            const decoded = yield* Schema.decodeUnknown(AppEventSchema)(parsed)
+            const decoded =
+              yield* Schema.decodeUnknownEffect(AppEventSchema)(parsed)
             // Offer to every registered queue. Unbounded queues never block.
             for (const q of subscribers) {
               yield* Queue.offer(q, decoded)
             }
           }).pipe(
             Effect.catchTags({
-              UnknownException: (error) =>
+              UnknownError: (error) =>
                 Effect.logError('Failed to decode event bus message', {
                   error,
                 }),
-              ParseError: (error) =>
+              SchemaError: (error) =>
                 Effect.logError('Failed to decode event bus message', {
                   error,
                 }),

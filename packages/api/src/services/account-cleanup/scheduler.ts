@@ -11,7 +11,7 @@ const cleanupExpiredAccounts = Effect.gen(function* () {
   const cutoff = daysAgoAsDate(GRACE_PERIOD_DAYS)
   const expiredUsers = yield* userRepo.findExpiredDeletions(cutoff)
 
-  if (Array.isEmptyArray(expiredUsers)) return
+  if (Array.isArrayEmpty(expiredUsers)) return
 
   yield* Effect.log('Permanently deleting expired accounts', {
     count: Array.length(expiredUsers),

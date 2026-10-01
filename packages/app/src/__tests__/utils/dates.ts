@@ -9,7 +9,7 @@ import { DateTime } from 'effect'
  * Get current time as native Date for test mocks.
  * Use instead of `new Date()` in test fixtures.
  */
-export const mockNow = (): Date => DateTime.toDateUtc(DateTime.unsafeNow())
+export const mockNow = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe())
 
 /**
  * Create a mock Date from various inputs.
@@ -20,7 +20,7 @@ export const mockNow = (): Date => DateTime.toDateUtc(DateTime.unsafeNow())
 export const mockDate = (input?: string | number): Date =>
   input === undefined
     ? mockNow()
-    : DateTime.toDateUtc(DateTime.unsafeMake(input))
+    : DateTime.toDateUtc(DateTime.makeUnsafe(input))
 
 /**
  * Create a mock Date in the past.
@@ -34,7 +34,7 @@ export const mockDateAgo = (
   unit: 'hours' | 'days' | 'minutes' = 'days'
 ): Date =>
   DateTime.toDateUtc(
-    DateTime.subtract(DateTime.unsafeNow(), { [unit]: amount })
+    DateTime.subtract(DateTime.nowUnsafe(), { [unit]: amount })
   )
 
 /**
@@ -48,14 +48,14 @@ export const mockDateFuture = (
   amount: number,
   unit: 'hours' | 'days' | 'minutes' = 'days'
 ): Date =>
-  DateTime.toDateUtc(DateTime.add(DateTime.unsafeNow(), { [unit]: amount }))
+  DateTime.toDateUtc(DateTime.add(DateTime.nowUnsafe(), { [unit]: amount }))
 
 /**
  * Get current time as ISO string for test mocks.
  * Use instead of `new Date().toISOString()` in test fixtures.
  */
 export const mockIsoString = (): string =>
-  DateTime.formatIso(DateTime.unsafeNow())
+  DateTime.formatIso(DateTime.nowUnsafe())
 
 /**
  * Create an ISO string for a date in the past.
@@ -69,7 +69,7 @@ export const mockIsoStringAgo = (
   unit: 'hours' | 'days' | 'minutes' = 'days'
 ): string =>
   DateTime.formatIso(
-    DateTime.subtract(DateTime.unsafeNow(), { [unit]: amount })
+    DateTime.subtract(DateTime.nowUnsafe(), { [unit]: amount })
   )
 
 /**
@@ -83,14 +83,14 @@ export const mockIsoStringFuture = (
   amount: number,
   unit: 'hours' | 'days' | 'minutes' = 'days'
 ): string =>
-  DateTime.formatIso(DateTime.add(DateTime.unsafeNow(), { [unit]: amount }))
+  DateTime.formatIso(DateTime.add(DateTime.nowUnsafe(), { [unit]: amount }))
 
 /**
  * Get current time as epoch milliseconds for test mocks.
  * Use instead of `Date.now()` in test fixtures.
  */
 export const mockEpochMillis = (): number =>
-  DateTime.toEpochMillis(DateTime.unsafeNow())
+  DateTime.toEpochMillis(DateTime.nowUnsafe())
 
 /**
  * Create a specific date for deterministic tests.
@@ -110,7 +110,7 @@ export const mockFixedDate = (
   minutes = 0
 ): Date =>
   DateTime.toDateUtc(
-    DateTime.unsafeMake({
+    DateTime.makeUnsafe({
       year,
       month,
       day,
@@ -138,7 +138,7 @@ export const mockFixedIsoString = (
   minutes = 0
 ): string =>
   DateTime.formatIso(
-    DateTime.unsafeMake({
+    DateTime.makeUnsafe({
       year,
       month,
       day,

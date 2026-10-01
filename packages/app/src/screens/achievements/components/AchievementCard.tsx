@@ -47,7 +47,7 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
     star: 'star',
   }
   return Option.getOrElse(
-    Option.fromNullable(iconMap[icon]),
+    Option.fromNullishOr(iconMap[icon]),
     () => 'star' as const
   )
 }
@@ -62,8 +62,8 @@ export function AchievementCard({
   const hasProgress =
     achievement.progress != null && achievement.maxProgress != null
   const progressValue = hasProgress
-    ? Option.getOrElse(Option.fromNullable(achievement.progress), () => 0) /
-      Option.getOrElse(Option.fromNullable(achievement.maxProgress), () => 1)
+    ? Option.getOrElse(Option.fromNullishOr(achievement.progress), () => 0) /
+      Option.getOrElse(Option.fromNullishOr(achievement.maxProgress), () => 1)
     : 0
 
   return (

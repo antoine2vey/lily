@@ -8,11 +8,11 @@ export function useSocialStats() {
 
   return {
     followerCount: Option.getOrElse(
-      Option.fromNullable(followers?.total),
+      Option.fromNullishOr(followers?.total),
       () => 0
     ),
     followingCount: Option.getOrElse(
-      Option.fromNullable(following?.total),
+      Option.fromNullishOr(following?.total),
       () => 0
     ),
   }

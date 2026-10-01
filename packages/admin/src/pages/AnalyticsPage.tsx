@@ -375,7 +375,7 @@ export const AnalyticsPage = () => {
               hint={
                 diagnosisRate.data
                   ? `${diagnosisRate.data.resolved.toLocaleString()} / ${diagnosisRate.data.total.toLocaleString()} — median ${pipe(
-                      Option.fromNullable(
+                      Option.fromNullishOr(
                         diagnosisRate.data.medianHoursToResolve
                       ),
                       Option.map((h) => `${Math.round(h)}h`),
@@ -414,7 +414,7 @@ export const AnalyticsPage = () => {
                 <div className="mt-3 text-xs text-gray-500">
                   Median time to first plant:{' '}
                   {pipe(
-                    Option.fromNullable(
+                    Option.fromNullishOr(
                       signupFunnel.data.medianHoursToFirstPlant
                     ),
                     Option.map((h) =>
@@ -453,7 +453,7 @@ export const AnalyticsPage = () => {
                   {Math.round(trialFunnel.data.conversionRate * 100)}%
                   conversion · median{' '}
                   {pipe(
-                    Option.fromNullable(trialFunnel.data.medianDaysToConvert),
+                    Option.fromNullishOr(trialFunnel.data.medianDaysToConvert),
                     Option.map((d) => `${Math.round(d)}d`),
                     Option.getOrElse(() => '—')
                   )}

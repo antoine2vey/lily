@@ -37,7 +37,7 @@ export function OrientationPicker({ value, onChange }: OrientationPickerProps) {
   }, [value, startIfPermitted, stop, rotation])
 
   const handleUseDetected = () => {
-    Option.match(Option.fromNullable(capture.orientation), {
+    Option.match(Option.fromNullishOr(capture.orientation), {
       onNone: () => {},
       onSome: (o) => {
         // Freeze on the real heading (already in `rotation`), not the bucket.
@@ -55,7 +55,7 @@ export function OrientationPicker({ value, onChange }: OrientationPickerProps) {
     Match.when('active', () => (
       <View className="gap-1.5">
         <Text className="text-xs text-text-muted dark:text-slate-400">
-          {Option.match(Option.fromNullable(capture.orientation), {
+          {Option.match(Option.fromNullishOr(capture.orientation), {
             onNone: () => t('orientationCalibrate'),
             onSome: (o) =>
               `${ORIENTATION_INFO[o].icon}  ${t(`orientationLevels.${o}`)}`,

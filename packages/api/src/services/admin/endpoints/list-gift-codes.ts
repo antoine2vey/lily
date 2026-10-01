@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type GiftCodeRecord,
   GiftCodeRepository,
@@ -10,6 +9,7 @@ import {
   parsePaginationParams,
 } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const listGiftCodes = (
   params: PaginationParams

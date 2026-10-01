@@ -10,10 +10,9 @@ import { Config, Context, Effect, Layer } from 'effect'
 import Redis from 'ioredis'
 
 // Redis client service tag
-export class RedisClient extends Context.Tag('RedisClient')<
-  RedisClient,
-  Redis
->() {}
+export class RedisClient extends Context.Service<RedisClient, Redis>()(
+  'RedisClient'
+) {}
 
 // Key prefix for notification queues
 const QUEUE_PREFIX = 'lily:notifications:'
@@ -111,10 +110,10 @@ export const RedisMessageQueueLive = Layer.effect(
 )
 
 // Redis client layer
-export const RedisClientLive = Layer.scoped(
+export const RedisClientLive = Layer.effect(
   RedisClient,
   Effect.gen(function* () {
-    const redisUrl = yield* Config.string('REDIS_URL').pipe(
+    const redisUrl = yield* Config.String('REDIS_URL').pipe(
       Config.withDefault('redis://localhost:6379')
     )
 

@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const deleteConversation = (
   conversationId: string

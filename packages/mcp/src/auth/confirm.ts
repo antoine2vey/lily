@@ -1,7 +1,7 @@
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform'
 import { ApiClient } from '@lily/mcp/api-client'
 import { McpServerUrl } from '@lily/mcp/config'
 import { Console, Effect } from 'effect'
+import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 /**
  * Handles POST /confirm — email submission for magic link auth.

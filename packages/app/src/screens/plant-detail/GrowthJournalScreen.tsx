@@ -35,7 +35,7 @@ export function GrowthJournalScreen() {
 
   const params = useLocalSearchParams<{ plantId?: string }>()
   const plantId = Option.getOrElse(
-    Option.fromNullable(params.plantId),
+    Option.fromNullishOr(params.plantId),
     () => ''
   )
 
@@ -59,7 +59,7 @@ export function GrowthJournalScreen() {
   const groups = useMemo(
     () =>
       pipe(
-        Option.fromNullable(data),
+        Option.fromNullishOr(data),
         Option.map((response) =>
           groupPhotosByMonth(response.items, i18n.language)
         ),
@@ -69,19 +69,19 @@ export function GrowthJournalScreen() {
   )
 
   const photoCount = pipe(
-    Option.fromNullable(data),
+    Option.fromNullishOr(data),
     Option.map((response) => response.total),
     Option.getOrElse(() => 0)
   )
 
   const photoBadge = t('gallery.photoCountBadge', { count: photoCount })
   const pillText = pipe(
-    Option.fromNullable(plant),
+    Option.fromNullishOr(plant),
     Option.match({
       onNone: () => `📸 ${photoBadge}`,
       onSome: (p) =>
         pipe(
-          Option.fromNullable(p.diedAt),
+          Option.fromNullishOr(p.diedAt),
           Option.match({
             onNone: () =>
               `🌱 ${buildGrowingForLabel(p.dateAdded, t)} · ${photoBadge}`,
@@ -109,7 +109,7 @@ export function GrowthJournalScreen() {
 
   const isInitialLoading = isLoading && !data
   const showSkeleton = useDelayedLoading(isInitialLoading)
-  const isEmpty = Array.isEmptyReadonlyArray(groups)
+  const isEmpty = Array.isReadonlyArrayEmpty(groups)
 
   return (
     <View
@@ -175,7 +175,7 @@ export function GrowthJournalScreen() {
 
             {/* Terminal entry for a plant in the cemetery */}
             {pipe(
-              Option.fromNullable(plant?.diedAt),
+              Option.fromNullishOr(plant?.diedAt),
               Option.flatMap((d) => DateTime.make(d)),
               Option.match({
                 onNone: () => null,

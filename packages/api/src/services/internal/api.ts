@@ -1,8 +1,8 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
 import { ServiceAuthentication } from '@lily/api/services/internal/middleware'
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import { AuthResponse } from '@lily/shared/auth'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 const AuthError = Schema.Struct({ message: Schema.String })
 
@@ -33,7 +33,7 @@ export const InternalMagicLinkRequest = Schema.Struct({
       { message: () => 'callbackUrl must be a valid HTTP(S) URL' }
     )
   ),
-  language: Schema.optional(Schema.Literal('en', 'fr')),
+  language: Schema.optional(Schema.Literals(['en', 'fr'])),
 })
 
 export type InternalMagicLinkRequest = typeof InternalMagicLinkRequest.Type

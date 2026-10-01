@@ -1,6 +1,6 @@
-import { FileSystem } from '@effect/platform/FileSystem'
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { Array as Arr, Effect, Schema } from 'effect'
+import { FileSystem } from 'effect/FileSystem'
+import type { PersistedFile } from 'effect/http/Multipart'
 
 export class MultipleFilesError extends Schema.Class<MultipleFilesError>(
   'MultipleFilesError'
@@ -86,7 +86,7 @@ export class FileService extends Effect.Service<FileService>()('FileService', {
           }
 
           // At this point we know files.length === 1, so files[0] is guaranteed to exist
-          const file = Arr.unsafeGet(files, 0)
+          const file = Arr.getUnsafe(files, 0)
           const buffer = yield* fileSystem.readFile(file.path)
 
           return {

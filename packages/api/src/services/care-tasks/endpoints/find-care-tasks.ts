@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { PlantRepository } from '@lily/api/repositories/plant.repository'
@@ -16,13 +15,14 @@ import {
   localDayOffset,
 } from '@lily/shared'
 import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Order for sorting tasks by due date (earliest first)
  */
 const taskDueDateOrder: Order.Order<CareTask> = Order.mapInput(
-  Order.number,
-  (task: CareTask) => DateTime.toEpochMillis(DateTime.unsafeMake(task.dueDate))
+  Order.Number,
+  (task: CareTask) => DateTime.toEpochMillis(DateTime.makeUnsafe(task.dueDate))
 )
 
 /**
@@ -45,12 +45,12 @@ export const findCareTasks = (): Effect.Effect<
 
     const user = yield* userRepo.findById(userId)
     const timezone = pipe(
-      Option.fromNullable(user),
-      Option.flatMap((u) => Option.fromNullable(u.timezone)),
+      Option.fromNullishOr(user),
+      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
       Option.getOrElse(() => 'UTC')
     )
 
-    const now = DateTime.unsafeNow()
+    const now = DateTime.nowUnsafe()
     const cutoffDt = endOfDay(
       DateTime.add(now, { days: CARE_TASK_WINDOW_DAYS }),
       timezone
@@ -63,24 +63,24 @@ export const findCareTasks = (): Effect.Effect<
     // Generate tasks from schedules
     const tasks = Array.filterMap(schedules, (s) =>
       pipe(
-        Option.fromNullable(s.schedule.nextCareAt),
+        Option.fromNullishOr(s.schedule.nextCareAt),
         Option.filter((date) =>
-          DateTime.lessThanOrEqualTo(DateTime.unsafeMake(date), cutoffDt)
+          DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(date), cutoffDt)
         ),
         Option.map((date) => {
-          const dueDt = DateTime.unsafeMake(date)
+          const dueDt = DateTime.makeUnsafe(date)
           return {
             id: `${s.plant.id}-${s.schedule.careType}`,
             plantId: s.plant.id,
             plantName: s.plant.name,
             plantImageUrl: s.plant.imageUrl,
             roomName: pipe(
-              Option.fromNullable(s.plant.room),
+              Option.fromNullishOr(s.plant.room),
               Option.map((r) => r.name),
               Option.getOrNull
             ),
             roomIcon: pipe(
-              Option.fromNullable(s.plant.room),
+              Option.fromNullishOr(s.plant.room),
               Option.map((r) => r.icon),
               Option.getOrNull
             ),
@@ -96,14 +96,14 @@ export const findCareTasks = (): Effect.Effect<
 
     // Group tasks by date category using user's timezone
     const overdue = Array.filter(tasks, (task) =>
-      isOverdueByDay(DateTime.unsafeMake(task.dueDate), now, timezone)
+      isOverdueByDay(DateTime.makeUnsafe(task.dueDate), now, timezone)
     )
     const today = Array.filter(tasks, (task) =>
-      isToday(DateTime.unsafeMake(task.dueDate), now, timezone)
+      isToday(DateTime.makeUnsafe(task.dueDate), now, timezone)
     )
     const upcoming = Array.filter(tasks, (task) =>
       isUpcoming(
-        DateTime.unsafeMake(task.dueDate),
+        DateTime.makeUnsafe(task.dueDate),
         now,
         timezone,
         CARE_TASK_WINDOW_DAYS

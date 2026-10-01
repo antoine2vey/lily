@@ -30,7 +30,7 @@ export const earliestOverdueDate = (
   pipe(
     Array.filterMap(dates, (d) =>
       pipe(
-        Option.fromNullable(d),
+        Option.fromNullishOr(d),
         Option.filter((date) => date.getTime() <= now.getTime())
       )
     ),
@@ -60,12 +60,12 @@ export const pickNotificationTime = (
 ): Effect.Effect<Date, DndWindowBlockedError> => {
   const dndStartMinutes = dndEnabled
     ? timeToMinutes(
-        Option.getOrElse(Option.fromNullable(dndStart), () => '22:00')
+        Option.getOrElse(Option.fromNullishOr(dndStart), () => '22:00')
       )
     : -1
   const dndEndMinutes = dndEnabled
     ? timeToMinutes(
-        Option.getOrElse(Option.fromNullable(dndEnd), () => '07:00')
+        Option.getOrElse(Option.fromNullishOr(dndEnd), () => '07:00')
       )
     : -1
 
@@ -122,24 +122,24 @@ export const pickNotificationTime = (
       )
       const zone = pipe(
         zoneOption,
-        Option.getOrElse(() => DateTime.zoneUnsafeMakeNamed(DEFAULT_TIMEZONE))
+        Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
       )
 
-      const nowZoned = DateTime.setZone(DateTime.unsafeNow(), zone)
+      const nowZoned = DateTime.setZone(DateTime.nowUnsafe(), zone)
       const parts = DateTime.toParts(nowZoned)
 
       const hours = Math.floor(chosen / 60)
       const minutes = chosen % 60
 
-      const scheduledZoned = DateTime.unsafeMakeZoned(
+      const scheduledZoned = DateTime.makeZonedUnsafe(
         {
           year: parts.year,
           month: parts.month,
           day: parts.day,
-          hours,
-          minutes,
-          seconds: 0,
-          millis: 0,
+          hour: hours,
+          minute: minutes,
+          second: 0,
+          millisecond: 0,
         },
         { timeZone: validTimezone, adjustForTimeZone: true }
       )

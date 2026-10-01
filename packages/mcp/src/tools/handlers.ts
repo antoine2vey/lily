@@ -1,4 +1,3 @@
-import { Tool as AiTool, McpSchema, McpServer } from '@effect/ai'
 import { type ApiClient, CurrentUserId } from '@lily/mcp/api-client'
 import type { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import type { OAuthService } from '@lily/mcp/auth/oauth-service'
@@ -29,6 +28,7 @@ import {
   Record,
   Schema,
 } from 'effect'
+import { Tool as AiTool, McpSchema, McpServer } from 'effect/ai'
 import * as AST from 'effect/SchemaAST'
 
 /**
@@ -218,7 +218,7 @@ export const WidgetToolsLayer = Effect.gen(function* () {
       unknown
     >
   ) => {
-    const decode = Schema.decodeUnknown(tool.parametersSchema)
+    const decode = Schema.decodeUnknownEffect(tool.parametersSchema)
     return registry.addTool({
       tool: toMcpTool(tool),
       handle: (payload: unknown) => {

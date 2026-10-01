@@ -3,14 +3,14 @@ import { Match, Option, Schema } from 'effect'
 
 // ── OpenAI error codes ─────────────────────────────────────────────
 
-const OpenAIErrorCodeSchema = Schema.Literal(
+const OpenAIErrorCodeSchema = Schema.Literals([
   'rate_limited',
   'authentication_failed',
   'bad_request',
   'not_found',
   'server_error',
-  'unknown'
-)
+  'unknown',
+])
 
 export type OpenAIErrorCode = Schema.Schema.Type<typeof OpenAIErrorCodeSchema>
 
@@ -53,7 +53,7 @@ const resolveCode = (
     Match.when(404, () => 'not_found' as const),
     Match.when(429, () => 'rate_limited' as const),
     Match.orElse(() =>
-      Option.match(Option.fromNullable(status), {
+      Option.match(Option.fromNullishOr(status), {
         onNone: () => 'unknown' as const,
         onSome: (s) =>
           s >= 500 ? ('server_error' as const) : ('unknown' as const),

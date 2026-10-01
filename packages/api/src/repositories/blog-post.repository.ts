@@ -1,5 +1,4 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   type BlogPostSource,
   blogPosts,
@@ -9,6 +8,7 @@ import type { blogPostStatusEnum } from '@lily/db/schema/enums'
 import { nowAsDate } from '@lily/shared'
 import { and, count, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type BlogPostStatus = (typeof blogPostStatusEnum.enumValues)[number]
 
@@ -79,10 +79,10 @@ export interface IBlogPostRepository {
   ) => Effect.Effect<BlogPost | null, SqlError>
 }
 
-export class BlogPostRepository extends Context.Tag('BlogPostRepository')<
+export class BlogPostRepository extends Context.Service<
   BlogPostRepository,
   IBlogPostRepository
->() {}
+>()('BlogPostRepository') {}
 
 export const BlogPostRepositoryLive = Layer.effect(
   BlogPostRepository,
@@ -102,7 +102,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .values(data)
           .onConflictDoNothing({ target: blogPosts.slug })
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       findBySlug: Effect.fn('BlogPostRepository.findBySlug')(function* (
@@ -112,7 +112,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .select()
           .from(blogPosts)
           .where(eq(blogPosts.slug, slug))
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       findById: Effect.fn('BlogPostRepository.findById')(function* (
@@ -122,7 +122,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .select()
           .from(blogPosts)
           .where(eq(blogPosts.id, id))
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       findAllSlugs: Effect.fn('BlogPostRepository.findAllSlugs')(function* () {
@@ -160,8 +160,8 @@ export const BlogPostRepositoryLive = Layer.effect(
             .from(blogPosts)
             .where(inArray(blogPosts.status, [...IN_PROGRESS_STATUSES]))
           return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.value)),
             Option.getOrElse(() => 0),
             (n) => n > 0
           )
@@ -180,8 +180,8 @@ export const BlogPostRepositoryLive = Layer.effect(
               )
             )
           return pipe(
-            Option.fromNullable(result),
-            Option.flatMap((r) => Option.fromNullable(r.value)),
+            Option.fromNullishOr(result),
+            Option.flatMap((r) => Option.fromNullishOr(r.value)),
             Option.getOrElse(() => 0)
           )
         }
@@ -212,7 +212,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .set({ status })
           .where(eq(blogPosts.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       updateSources: Effect.fn('BlogPostRepository.updateSources')(function* (
@@ -224,7 +224,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .set({ sources })
           .where(eq(blogPosts.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       updateContent: Effect.fn('BlogPostRepository.updateContent')(function* (
@@ -236,7 +236,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .set({ content })
           .where(eq(blogPosts.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       updateRetryCount: Effect.fn('BlogPostRepository.updateRetryCount')(
@@ -246,7 +246,7 @@ export const BlogPostRepositoryLive = Layer.effect(
             .set({ retryCount })
             .where(eq(blogPosts.id, id))
             .returning()
-          return Option.getOrNull(Option.fromNullable(row))
+          return Option.getOrNull(Option.fromNullishOr(row))
         }
       ),
 
@@ -262,7 +262,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           .set(data)
           .where(eq(blogPosts.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       markPublished: Effect.fn('BlogPostRepository.markPublished')(function* (
@@ -278,7 +278,7 @@ export const BlogPostRepositoryLive = Layer.effect(
           })
           .where(eq(blogPosts.id, id))
           .returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
     }
   })

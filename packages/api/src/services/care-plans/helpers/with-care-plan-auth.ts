@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
@@ -7,6 +6,7 @@ import {
   CarePlanStepNotFoundError,
 } from '@lily/shared/errors/care-plan'
 import { Array, Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Loads a plan owned by the current user or fails with a 404-style error.
@@ -24,7 +24,7 @@ export const withCarePlanAuth = (
     const repo = yield* CarePlanRepository
     const { id: userId } = yield* CurrentUser
     const plan = yield* repo.findById(planId, userId)
-    return yield* Option.match(Option.fromNullable(plan), {
+    return yield* Option.match(Option.fromNullishOr(plan), {
       onNone: () => new CarePlanNotFoundError({ planId }),
       onSome: (p) => Effect.succeed(p),
     })

@@ -112,7 +112,7 @@ export function HydrationCard({
     }
   }, [plantCount])
 
-  if (Array.isEmptyReadonlyArray(plants)) {
+  if (Array.isReadonlyArrayEmpty(plants)) {
     return null
   }
 

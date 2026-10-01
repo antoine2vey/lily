@@ -46,7 +46,7 @@ export function CategoryPicker({
   const { t } = useTranslation('addPlant')
   const iconColors = useIconColors()
   const [isOpen, setIsOpen] = useState(false)
-  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+  const displayLabel = Option.getOrElse(Option.fromNullishOr(label), () =>
     t('basicInfo.categoryLabel')
   )
 

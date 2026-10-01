@@ -1,11 +1,11 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { extractCount } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deviceTokens } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import { and, count, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
 export interface CreateDeviceTokenData {
@@ -57,10 +57,10 @@ export interface IDeviceTokenRepository {
 }
 
 // Tag for dependency injection
-export class DeviceTokenRepository extends Context.Tag('DeviceTokenRepository')<
+export class DeviceTokenRepository extends Context.Service<
   DeviceTokenRepository,
   IDeviceTokenRepository
->() {}
+>()('DeviceTokenRepository') {}
 
 // Live implementation using PgDrizzle
 export const DeviceTokenRepositoryLive = Layer.effect(

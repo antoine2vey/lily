@@ -26,7 +26,7 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
         Effect.gen(function* () {
           const embedding = yield* embedText(params.query).pipe(alertOpenAI)
           const limit = Option.getOrElse(
-            Option.fromNullable(params.limit),
+            Option.fromNullishOr(params.limit),
             () => 5
           )
 
@@ -58,7 +58,7 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
        * Format retrieved chunks as markdown context for the system prompt.
        */
       formatContext: (chunks: ChunkSearchResult[]) => {
-        if (Array.isEmptyArray(chunks)) {
+        if (Array.isArrayEmpty(chunks)) {
           return ''
         }
 
@@ -78,12 +78,12 @@ export class RagService extends Effect.Service<RagService>()('RagService', {
           Array.map((chunk) => {
             const similarity = Math.round(chunk.similarity * 100)
             const meta = Option.getOrElse(
-              Option.fromNullable(chunk.metadata),
+              Option.fromNullishOr(chunk.metadata),
               () => ({})
             ) as { chunkType?: string; subreddit?: string }
             const content = cleanContent(chunk.content)
             const subreddit = Option.getOrElse(
-              Option.fromNullable(meta.subreddit),
+              Option.fromNullishOr(meta.subreddit),
               () => 'plantclinic'
             )
 

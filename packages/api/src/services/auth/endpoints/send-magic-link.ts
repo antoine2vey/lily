@@ -25,13 +25,13 @@ import {
 } from 'effect'
 import qrcode from 'qrcode-terminal'
 
-export class MagicLinkConfig extends Context.Tag('MagicLinkConfig')<
+export class MagicLinkConfig extends Context.Service<
   MagicLinkConfig,
   {
     readonly disableVerification: boolean
     readonly reviewerEmails: ReadonlyArray<string>
   }
->() {}
+>()('MagicLinkConfig') {}
 
 const parseReviewerEmails = (raw: string): ReadonlyArray<string> =>
   pipe(
@@ -45,10 +45,10 @@ const parseReviewerEmails = (raw: string): ReadonlyArray<string> =>
 export const MagicLinkConfigLive = Layer.effect(
   MagicLinkConfig,
   Effect.gen(function* () {
-    const disableVerification = yield* Config.boolean(
+    const disableVerification = yield* Config.Boolean(
       'DISABLE_MAGIC_LINK_VERIFICATION'
     )
-    const reviewerEmailsRaw = yield* Config.string('REVIEWER_EMAILS').pipe(
+    const reviewerEmailsRaw = yield* Config.String('REVIEWER_EMAILS').pipe(
       Config.withDefault('')
     )
     return {

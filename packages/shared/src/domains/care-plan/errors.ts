@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundError>()(
@@ -6,7 +5,7 @@ export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundEr
   {
     planId: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class CarePlanStepNotFoundError extends Schema.TaggedError<CarePlanStepNotFoundError>()(
@@ -14,7 +13,7 @@ export class CarePlanStepNotFoundError extends Schema.TaggedError<CarePlanStepNo
   {
     stepId: Schema.optionalWith(Schema.String, { default: () => '' }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Raised when accepting or dismissing a plan that is no longer `proposed`. */
@@ -24,5 +23,5 @@ export class CarePlanNotProposedError extends Schema.TaggedError<CarePlanNotProp
     planId: Schema.String,
     status: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}

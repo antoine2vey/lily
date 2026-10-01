@@ -24,7 +24,7 @@ const testLayer = Layer.mergeAll(
 describe('proposeCarePlanTool', () => {
   it('creates a proposed plan with ordered steps and resolved due dates', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
-    const rt = await managedRuntime.runtime()
+    const rt = await managedRuntime.context()
     const planTool = proposeCarePlanTool({
       runtime: rt,
       userId: 'user-1',
@@ -70,7 +70,7 @@ describe('proposeCarePlanTool', () => {
   it('rejects more than the maximum number of steps at the schema level', async () => {
     const managedRuntime = ManagedRuntime.make(testLayer)
     const planTool = proposeCarePlanTool({
-      runtime: await managedRuntime.runtime(),
+      runtime: await managedRuntime.context(),
       userId: 'user-1',
       plantId: 'plant-1',
       plantName: 'Monstera',
@@ -96,7 +96,7 @@ describe('proposeCarePlanTool', () => {
 
 describe('resolveDueDate', () => {
   it('lands on the local midnight of the target day', () => {
-    const now = DateTime.unsafeMake('2024-06-10T15:30:00Z')
+    const now = DateTime.makeUnsafe('2024-06-10T15:30:00Z')
     const due = resolveDueDate(2, 'Europe/Paris', now)
     // Paris is UTC+2 in June: local midnight on June 12 is 22:00 UTC on June 11.
     expect(due?.toISOString()).toBe('2024-06-11T22:00:00.000Z')

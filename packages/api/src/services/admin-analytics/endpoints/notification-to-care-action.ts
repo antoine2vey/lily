@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   AnalyticsRepository,
   resolveRange,
@@ -8,6 +7,7 @@ import type {
   NotificationToCareActionResponse,
 } from '@lily/shared/admin/analytics'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const notificationToCareAction = (
   filters: AnalyticsFilters

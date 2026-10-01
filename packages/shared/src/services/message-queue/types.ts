@@ -30,9 +30,9 @@ export const NOTIFICATION_TOPICS = [
   'plant_anniversary',
 ] as const
 
-export const NotificationTopic = Schema.Union(
-  ...Array.map(NOTIFICATION_TOPICS, (t) => Schema.Literal(t))
-)
+export const NotificationTopic = Schema.Union([
+  Array.map(NOTIFICATION_TOPICS, (t) => Schema.Literal(t)),
+])
 export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 
 // Topic categories — every NotificationTopic must be classified here.
@@ -98,10 +98,8 @@ export const QueueMessagePayload = Schema.Struct({
   plantIds: Schema.Array(Schema.String),
   // Optional so queue messages enqueued before this field existed don't fail
   // Schema validation on dequeue. Worker defaults to 'en' when absent.
-  language: Schema.optional(Schema.Literal('en', 'fr')),
-  metadata: Schema.optional(
-    Schema.Record({ key: Schema.String, value: Schema.String })
-  ),
+  language: Schema.optional(Schema.Literals(['en', 'fr'])),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 })
 export type QueueMessagePayload = typeof QueueMessagePayload.Type
 
@@ -111,8 +109,8 @@ export const QueueMessage = Schema.Struct({
   topic: NotificationTopic,
   payload: QueueMessagePayload,
   retryCount: Schema.Number,
-  createdAt: Schema.Date,
-  scheduledAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  scheduledAt: Schema.DateFromString,
 })
 export type QueueMessage = typeof QueueMessage.Type
 

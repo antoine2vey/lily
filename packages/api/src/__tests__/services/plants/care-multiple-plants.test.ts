@@ -1,4 +1,3 @@
-import * as SqlClient from '@effect/sql/SqlClient'
 import type {
   CareScheduleRow,
   CareType,
@@ -7,6 +6,7 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import type { Notification } from '@lily/shared/notification'
 import type { AppEvent } from '@lily/shared/server'
 import { Effect, Layer } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import { describe, expect, it } from 'vitest'
 import { mockPlants, type TestPlant } from '../../fixtures/plants'
 import { mockUser1 } from '../../fixtures/users'

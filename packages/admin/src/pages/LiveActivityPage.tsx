@@ -96,7 +96,7 @@ export const LiveActivityPage = () => {
   }
 
   const results = pipe(
-    Option.fromNullable(users.data),
+    Option.fromNullishOr(users.data),
     Option.map((d) => d.items),
     Option.getOrElse((): ReadonlyArray<SelectedUser> => [])
   )
@@ -154,7 +154,7 @@ export const LiveActivityPage = () => {
                       Searching...
                     </p>
                   )}
-                  {Array.isEmptyReadonlyArray(results) && !users.isLoading && (
+                  {Array.isReadonlyArrayEmpty(results) && !users.isLoading && (
                     <p className="px-3 py-2 text-sm text-gray-500">
                       No users found
                     </p>
@@ -221,7 +221,7 @@ export const LiveActivityPage = () => {
               </div>
             </div>
 
-            {Array.isEmptyReadonlyArray(trigger.data.outcomes) ? (
+            {Array.isReadonlyArrayEmpty(trigger.data.outcomes) ? (
               <div className="rounded-md bg-amber-50 p-3 text-sm text-amber-700">
                 No push attempts were made.{' '}
                 {trigger.data.contentStateBuilt

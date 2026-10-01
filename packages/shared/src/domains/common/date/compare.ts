@@ -10,9 +10,9 @@ import { endOfDay, endOfWeek, startOfDay, withTimeZone } from './timezone'
  * @returns Number of days (positive if future, negative if past)
  */
 export const daysUntil = (target: DateTime.DateTime): number => {
-  const currentDay = DateTime.startOf(DateTime.unsafeNow(), 'day')
+  const currentDay = DateTime.startOf(DateTime.nowUnsafe(), 'day')
   const targetDay = DateTime.startOf(target, 'day')
-  const distanceMs = DateTime.distance(currentDay, targetDay)
+  const distanceMs = Duration.toMillis(DateTime.distance(currentDay, targetDay))
   const sign = distanceMs >= 0 ? 1 : -1
   const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
   return sign * Math.round(days)
@@ -42,7 +42,9 @@ export const localDayOffset = (
 ): number => {
   const targetStart = startOfDay(dateTime, timezone)
   const currentStart = startOfDay(referenceDate, timezone)
-  const distanceMs = DateTime.distance(currentStart, targetStart)
+  const distanceMs = Duration.toMillis(
+    DateTime.distance(currentStart, targetStart)
+  )
   const sign = distanceMs >= 0 ? 1 : -1
   const days = Duration.toDays(Duration.millis(Math.abs(distanceMs)))
   return sign * Math.round(days)
@@ -59,7 +61,7 @@ export const daysBetween = (
   from: DateTime.DateTime,
   to: DateTime.DateTime
 ): number => {
-  const distanceMs = DateTime.distance(from, to)
+  const distanceMs = Duration.toMillis(DateTime.distance(from, to))
   return Math.ceil(Duration.toDays(Duration.millis(Math.abs(distanceMs))))
 }
 
@@ -94,8 +96,8 @@ export const isToday = (
  * @returns true if the DateTime is in the past
  */
 export const isOverdue = (dateTime: DateTime.DateTime): boolean => {
-  const current = DateTime.unsafeNow()
-  return DateTime.lessThan(dateTime, current)
+  const current = DateTime.nowUnsafe()
+  return DateTime.isLessThan(dateTime, current)
 }
 
 /**
@@ -105,8 +107,8 @@ export const isOverdue = (dateTime: DateTime.DateTime): boolean => {
  * @returns true if the DateTime is in the future
  */
 export const isFuture = (dateTime: DateTime.DateTime): boolean => {
-  const current = DateTime.unsafeNow()
-  return DateTime.greaterThan(dateTime, current)
+  const current = DateTime.nowUnsafe()
+  return DateTime.isGreaterThan(dateTime, current)
 }
 
 /**
@@ -123,7 +125,7 @@ export const isOverdueByDay = (
   referenceDate: DateTime.DateTime,
   timezone: string
 ): boolean => {
-  return DateTime.lessThan(dateTime, startOfDay(referenceDate, timezone))
+  return DateTime.isLessThan(dateTime, startOfDay(referenceDate, timezone))
 }
 
 /**
@@ -140,11 +142,11 @@ export const isThisWeek = (
   timezone: string
 ): boolean => {
   const weekEnd = endOfWeek(referenceDate, timezone)
-  const afterToday = DateTime.greaterThan(
+  const afterToday = DateTime.isGreaterThan(
     dateTime,
     endOfDay(referenceDate, timezone)
   )
-  const beforeEndOfWeek = DateTime.lessThanOrEqualTo(dateTime, weekEnd)
+  const beforeEndOfWeek = DateTime.isLessThanOrEqualTo(dateTime, weekEnd)
   return afterToday && beforeEndOfWeek
 }
 
@@ -163,12 +165,12 @@ export const isUpcoming = (
   timezone: string,
   days = 7
 ): boolean => {
-  const afterToday = DateTime.greaterThan(
+  const afterToday = DateTime.isGreaterThan(
     dateTime,
     endOfDay(referenceDate, timezone)
   )
   const cutoff = endOfDay(DateTime.add(referenceDate, { days }), timezone)
-  const beforeCutoff = DateTime.lessThanOrEqualTo(dateTime, cutoff)
+  const beforeCutoff = DateTime.isLessThanOrEqualTo(dateTime, cutoff)
   return afterToday && beforeCutoff
 }
 
@@ -188,7 +190,7 @@ export const isYesterday = (
   // Hermes for some timezones (intermediate native Date round-trip).
   // Match the safe pattern used by daysUntil/isOverdue above.
   const yesterday = withTimeZone(
-    DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+    DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
     timezone
   )
   const target = withTimeZone(dateTime, timezone)
@@ -227,7 +229,7 @@ export const daysSince = (dateInput: DateInput, defaultValue = 0): number =>
   pipe(
     parseApiDate(dateInput),
     Option.map((pastDate) => {
-      const distanceMs = DateTime.distance(pastDate, now())
+      const distanceMs = Duration.toMillis(DateTime.distance(pastDate, now()))
       return Math.floor(Duration.toDays(Duration.millis(Math.abs(distanceMs))))
     }),
     Option.getOrElse(() => defaultValue)

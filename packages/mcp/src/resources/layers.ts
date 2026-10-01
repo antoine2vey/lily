@@ -1,4 +1,3 @@
-import { McpSchema, McpServer } from '@effect/ai'
 import { ApiClient } from '@lily/mcp/api-client'
 import { provideAuth } from '@lily/mcp/auth/resolve-user'
 import {
@@ -6,6 +5,7 @@ import {
   readPlantResource,
 } from '@lily/mcp/resources'
 import { Effect, Schema } from 'effect'
+import { McpSchema, McpServer } from 'effect/ai'
 
 // ── Plant Resource (templated) ─────────────────────────────────────────
 

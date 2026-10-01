@@ -63,7 +63,7 @@ export interface IAlerter {
   ) => Effect.Effect<void>
 }
 
-export class Alerter extends Context.Tag('Alerter')<Alerter, IAlerter>() {}
+export class Alerter extends Context.Service<Alerter, IAlerter>()('Alerter') {}
 
 export type AlerterSettings = {
   readonly environment: string
@@ -72,14 +72,14 @@ export type AlerterSettings = {
 }
 
 export const AlerterConfig = Config.all({
-  environment: Config.string('ALERT_ENVIRONMENT_NAME').pipe(
-    Config.orElse(() => Config.string('NODE_ENV')),
+  environment: Config.String('ALERT_ENVIRONMENT_NAME').pipe(
+    Config.orElse(() => Config.String('NODE_ENV')),
     Config.withDefault('unknown')
   ),
-  dedupeWindow: Config.duration('ALERT_DEDUPE_WINDOW').pipe(
+  dedupeWindow: Config.Duration('ALERT_DEDUPE_WINDOW').pipe(
     Config.withDefault(Duration.minutes(5))
   ),
-  warningDedupeWindow: Config.duration('ALERT_WARNING_DEDUPE_WINDOW').pipe(
+  warningDedupeWindow: Config.Duration('ALERT_WARNING_DEDUPE_WINDOW').pipe(
     Config.withDefault(Duration.minutes(15))
   ),
 })
@@ -194,7 +194,10 @@ export const makeAlerter = (
   Effect.gen(function* () {
     const state = yield* Ref.make(HashMap.empty<string, DedupEntry>())
     const maxWindowMs = Duration.toMillis(
-      Duration.greaterThan(settings.dedupeWindow, settings.warningDedupeWindow)
+      Duration.isGreaterThan(
+        settings.dedupeWindow,
+        settings.warningDedupeWindow
+      )
         ? settings.dedupeWindow
         : settings.warningDedupeWindow
     )
@@ -210,12 +213,12 @@ export const makeAlerter = (
           return [dec, HashMap.set(pruned, fp, entry)] as const
         })
         if (decision._tag === 'Send') {
-          yield* Effect.forkDaemon(
+          yield* Effect.forkDetach(
             transport(event, {
               environment: settings.environment,
               duplicateCount: decision.duplicateCount,
             }).pipe(
-              Effect.catchAllCause((cause) =>
+              Effect.catchCause((cause) =>
                 Effect.logError('[alerter] transport failed', {
                   fingerprint: fp,
                   cause: Cause.pretty(cause),

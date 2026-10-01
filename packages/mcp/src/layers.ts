@@ -1,9 +1,9 @@
-import { FetchHttpClient } from '@effect/platform'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { ApiClientLive } from '@lily/mcp/api-client'
 import { OAuthRepositoryLive } from '@lily/mcp/auth/oauth-repository'
 import { OAuthServiceLive } from '@lily/mcp/auth/oauth-service'
 import { Layer } from 'effect'
+import { FetchHttpClient } from 'effect/http'
 
 /**
  * Layer composition for the MCP server.

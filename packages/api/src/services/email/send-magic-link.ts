@@ -5,8 +5,7 @@ import type {
   EmailConfigError,
   EmailSendError,
 } from '@lily/shared/services/email/types'
-import { Effect, Match, pipe } from 'effect'
-import type { ConfigError } from 'effect/ConfigError'
+import { type Config, Effect, Match, pipe } from 'effect'
 
 interface SendMagicLinkEmailRequest {
   email: string
@@ -66,7 +65,7 @@ export const sendMagicLinkEmail = ({
   language = 'en',
 }: SendMagicLinkEmailRequest): Effect.Effect<
   void,
-  EmailSendError | EmailConfigError | ConfigError,
+  EmailSendError | EmailConfigError | Config.ConfigError,
   EmailService
 > => {
   // Create deep link URL for the mobile app (fallback shown in email)

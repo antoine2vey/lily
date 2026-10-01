@@ -26,7 +26,7 @@ export const createMockEmailService = (
         if (options.shouldFail) {
           return yield* new EmailSendError({
             message: pipe(
-              Option.fromNullable(options.failureMessage),
+              Option.fromNullishOr(options.failureMessage),
               Option.getOrElse(() => 'Failed to send email')
             ),
           })

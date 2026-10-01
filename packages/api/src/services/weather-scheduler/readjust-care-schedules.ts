@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -12,6 +11,7 @@ import {
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
 import { type Orientation, roundCoord } from '@lily/shared'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 interface WeatherEnabledUser {
   readonly id: string
@@ -47,7 +47,7 @@ export const readjustCareSchedules = (
   | DelegationRepository
 > =>
   Effect.gen(function* () {
-    if (Array.isEmptyReadonlyArray(weatherUsers)) {
+    if (Array.isReadonlyArrayEmpty(weatherUsers)) {
       return
     }
 
@@ -85,8 +85,8 @@ const readjustUserPlants = (
   | DelegationRepository
 > =>
   Effect.gen(function* () {
-    const latOption = Option.fromNullable(user.latitude)
-    const lngOption = Option.fromNullable(user.longitude)
+    const latOption = Option.fromNullishOr(user.latitude)
+    const lngOption = Option.fromNullishOr(user.longitude)
 
     if (Option.isNone(latOption) || Option.isNone(lngOption)) {
       yield* Effect.log(`[Readjust] Skipping user ${user.id} — missing lat/lng`)
@@ -105,13 +105,13 @@ const readjustUserPlants = (
 
     yield* Effect.log(
       `[Readjust] Processing user ${user.id} at ${locationKey} (tz=${pipe(
-        Option.fromNullable(user.timezone),
+        Option.fromNullishOr(user.timezone),
         Option.getOrElse(() => 'UTC')
       )})`
     )
 
     const timezone = pipe(
-      Option.fromNullable(user.timezone),
+      Option.fromNullishOr(user.timezone),
       Option.getOrElse(() => 'UTC')
     )
 
@@ -210,7 +210,7 @@ const readjustPlantSchedule = (
       `[Readjust] Evaluating plant "${plant.name}" (${plant.id}): freq=${wateringSchedule.frequencyDays}d, lastWatered=${wateringSchedule.lastCareAt.toISOString()}, nextWatering=${wateringSchedule.nextCareAt.toISOString()}`
     )
 
-    const nowDt = DateTime.unsafeNow()
+    const nowDt = DateTime.nowUnsafe()
     const nowMs = Number(DateTime.toEpochMillis(nowDt))
 
     // Compute the schedule delta using forecast-averaged gate model
@@ -223,12 +223,12 @@ const readjustPlantSchedule = (
         lastWateredAt: wateringSchedule.lastCareAt,
         nextWateringAt: wateringSchedule.nextCareAt,
         nextFertilizationAt: pipe(
-          Option.fromNullable(fertSchedule),
-          Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+          Option.fromNullishOr(fertSchedule),
+          Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
           Option.getOrNull
         ),
         fertilizationFrequencyDays: pipe(
-          Option.fromNullable(fertSchedule),
+          Option.fromNullishOr(fertSchedule),
           Option.map((s) => s.frequencyDays),
           Option.getOrNull
         ),
@@ -246,7 +246,7 @@ const readjustPlantSchedule = (
 
     // Compute schedule changes as immutable result
     const newNextWateringAt = pipe(
-      Option.fromNullable(wateringSchedule.nextCareAt),
+      Option.fromNullishOr(wateringSchedule.nextCareAt),
       Option.filter(() => delta.wateringDaysDelta !== 0),
       Option.map(
         (wateringDate) =>
@@ -255,8 +255,8 @@ const readjustPlantSchedule = (
     )
 
     const newNextFertilizationAt = pipe(
-      Option.fromNullable(fertSchedule),
-      Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+      Option.fromNullishOr(fertSchedule),
+      Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
       Option.filter(() => delta.fertilizationDaysDelta !== 0),
       Option.map(
         (fertDate) =>
@@ -285,8 +285,8 @@ const readjustPlantSchedule = (
         `[Readjust] UPDATED plant "${plant.name}" (${plant.id}): watering=${String(wateringChanged)}${wateringChanged ? ` (${wateringSchedule.nextCareAt.toISOString()} → ${newNextWateringAt.value.toISOString()})` : ''}, fertilization=${String(fertilizationChanged)}${
           fertilizationChanged
             ? ` (${pipe(
-                Option.fromNullable(fertSchedule),
-                Option.flatMap((s) => Option.fromNullable(s.nextCareAt)),
+                Option.fromNullishOr(fertSchedule),
+                Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt)),
                 Option.map((d) => d.toISOString()),
                 Option.getOrElse(() => 'none')
               )} → ${newNextFertilizationAt.value.toISOString()})`

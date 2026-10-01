@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { assertNotStorePayer } from '@lily/api/services/admin/helpers/assert-not-store-payer'
@@ -12,6 +11,7 @@ import type {
 } from '@lily/shared/errors/admin'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const revokeGiftSubscription = (
   userId: string

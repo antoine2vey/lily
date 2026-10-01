@@ -28,7 +28,7 @@ export function UserCardItem({
   const unfollowMutation = useUnfollowUser()
 
   const displayName = pipe(
-    Option.fromNullable(name),
+    Option.fromNullishOr(name),
     Option.getOrElse(() => 'User')
   )
 

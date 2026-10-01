@@ -28,7 +28,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       { concurrency: 'unbounded' }
     )
 
-    const diedAtOpt = Option.fromNullable(plant.diedAt)
+    const diedAtOpt = Option.fromNullishOr(plant.diedAt)
     const isDead = Option.isSome(diedAtOpt)
     const health = isDead ? MEMORIAL_LABEL : healthLabel(plant.health)
     const color = isDead ? MEMORIAL_COLOR : healthColor(plant.health)
@@ -39,12 +39,12 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
         onSome: (diedAt) => [
           `- **Died**: ${formatIsoDate(diedAt)} (${deathCauseLabel(
             pipe(
-              Option.fromNullable(plant.deathCause),
+              Option.fromNullishOr(plant.deathCause),
               Option.getOrElse(() => 'unknown')
             )
           )})`,
           ...pipe(
-            Option.fromNullable(plant.deathNote),
+            Option.fromNullishOr(plant.deathNote),
             Option.match({
               onNone: () => [] as string[],
               onSome: (note) => [`- **Note**: ${note}`],
@@ -53,7 +53,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
         ],
       })
     )
-    const roomOpt = Option.fromNullable(plant.room)
+    const roomOpt = Option.fromNullishOr(plant.room)
 
     const room = pipe(
       roomOpt,
@@ -62,7 +62,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
     )
 
     const category = pipe(
-      Option.fromNullable(plant.category),
+      Option.fromNullishOr(plant.category),
       Option.getOrElse(() => 'Unknown')
     )
 
@@ -75,7 +75,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
           careType: s.careType,
           frequencyDays: s.frequencyDays,
           nextCareAt: Option.getOrNull(
-            Option.map(Option.fromNullable(s.nextCareAt), (d) =>
+            Option.map(Option.fromNullishOr(s.nextCareAt), (d) =>
               formatIsoDate(d)
             )
           ),
@@ -87,7 +87,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
     const logMapped = Array.map(recentLogs.items, (log) => {
       const date = formatIsoDate(log.date)
       const notes = pipe(
-        Option.fromNullable(log.notes),
+        Option.fromNullishOr(log.notes),
         Option.map((n) => ` — ${n}`),
         Option.getOrElse(() => '')
       )
@@ -96,7 +96,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
         structured: {
           date,
           type: log.type,
-          notes: Option.getOrNull(Option.fromNullable(log.notes)),
+          notes: Option.getOrNull(Option.fromNullishOr(log.notes)),
         },
       }
     })
@@ -118,24 +118,24 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
     ]
 
     const scheduleLines = Array.map(scheduleMapped, (m) => m.line)
-    if (Array.isNonEmptyArray(scheduleLines)) {
+    if (Array.isArrayNonEmpty(scheduleLines)) {
       sections.push('', '### Care Schedule', ...scheduleLines)
     }
 
     const logLines = Array.map(logMapped, (m) => m.line)
-    if (Array.isNonEmptyArray(logLines)) {
+    if (Array.isArrayNonEmpty(logLines)) {
       sections.push('', '### Recent Care History', ...logLines)
     }
 
     // Check if a care type is due (today or overdue)
-    const nowDt = DateTime.unsafeNow()
+    const nowDt = DateTime.nowUnsafe()
     const isCareTypeDue = (careType: string) =>
       Array.some(
         plant.schedules,
         (s) =>
           s.careType === careType &&
           pipe(
-            Option.fromNullable(s.nextCareAt),
+            Option.fromNullishOr(s.nextCareAt),
             Option.flatMap((d) => DateTime.make(d)),
             Option.match({
               onNone: () => false,
@@ -151,7 +151,7 @@ export const getPlantDetailsEffect = Effect.fn('MCP.getPlantDetails')(
       healthColor: color,
       isDead,
       diedAt: Option.getOrNull(Option.map(diedAtOpt, (d) => formatIsoDate(d))),
-      category: Option.getOrNull(Option.fromNullable(plant.category)),
+      category: Option.getOrNull(Option.fromNullishOr(plant.category)),
       roomName: Option.getOrNull(Option.map(roomOpt, (r) => r.name)),
       roomIcon: Option.getOrNull(Option.map(roomOpt, (r) => r.icon)),
       dateAdded: formatIsoDate(plant.dateAdded),

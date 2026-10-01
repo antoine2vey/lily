@@ -166,20 +166,20 @@ export const getRelativeTime = (
   dateTime: DateTime.DateTime,
   locale?: Intl.LocalesArgument
 ): RelativeTimeResult => {
-  const current = DateTime.unsafeNow()
-  const distanceMs = DateTime.distance(dateTime, current)
+  const current = DateTime.nowUnsafe()
+  const distanceMs = Duration.toMillis(DateTime.distance(dateTime, current))
   const duration = Duration.millis(distanceMs)
 
   const minutes = Math.floor(Duration.toMinutes(duration))
   const hours = Math.floor(Duration.toHours(duration))
   const days = Math.floor(Duration.toDays(duration))
 
-  if (Duration.lessThan(duration, Duration.minutes(1))) return { _tag: 'now' }
-  if (Duration.lessThan(duration, Duration.hours(1)))
+  if (Duration.isLessThan(duration, Duration.minutes(1))) return { _tag: 'now' }
+  if (Duration.isLessThan(duration, Duration.hours(1)))
     return { _tag: 'minutes', value: minutes }
-  if (Duration.lessThan(duration, Duration.days(1)))
+  if (Duration.isLessThan(duration, Duration.days(1)))
     return { _tag: 'hours', value: hours }
-  if (Duration.lessThan(duration, Duration.weeks(1)))
+  if (Duration.isLessThan(duration, Duration.weeks(1)))
     return { _tag: 'days', value: days }
 
   return {
@@ -425,8 +425,8 @@ export const formatApiDateAsNextDate = (
  * @returns Current hour (0-23)
  */
 export const getCurrentHour = (): number => {
-  const current = DateTime.unsafeNow()
-  return DateTime.toParts(current).hours
+  const current = DateTime.nowUnsafe()
+  return DateTime.toParts(current).hour
 }
 
 /**
@@ -463,7 +463,7 @@ export const getDateGroupLabel = (
   timezone: string,
   locale?: Intl.LocalesArgument
 ): string => {
-  if (isToday(dateTime, DateTime.unsafeNow(), timezone)) return 'Today'
+  if (isToday(dateTime, DateTime.nowUnsafe(), timezone)) return 'Today'
   if (isYesterday(dateTime, timezone)) return 'Yesterday'
   return formatDateWithWeekday(dateTime, locale)
 }

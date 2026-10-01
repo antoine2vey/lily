@@ -24,7 +24,7 @@ export const FormTextArea = forwardRef<TextInput, FormTextAreaProps>(
   ) => {
     const iconColors = useIconColors()
     const characterCount = pipe(
-      Option.fromNullable(value),
+      Option.fromNullishOr(value),
       Option.map((v) => v.length),
       Option.getOrElse(() => 0)
     )
@@ -57,7 +57,7 @@ export const FormTextArea = forwardRef<TextInput, FormTextAreaProps>(
           className={`rounded-2xl px-4 py-3.5 min-h-[120px] bg-surface dark:bg-surface-dark border-2 border-border/50 dark:border-slate-700/50 text-base text-text-primary dark:text-white font-medium leading-relaxed ${
             error ? 'border-error' : ''
           } ${pipe(
-            Option.fromNullable(className),
+            Option.fromNullishOr(className),
             Option.getOrElse(() => '')
           )}`}
           style={{ textAlignVertical: 'top' }}

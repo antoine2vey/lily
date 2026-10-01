@@ -69,7 +69,7 @@ const runPipeline = (postId: string, topic: TopicSuggestion) =>
 export const checkAndGenerateBlogPost = Effect.gen(function* () {
   // Feature flag check
   const enabled = yield* Config.withDefault(
-    Config.boolean('BLOG_GENERATION_ENABLED'),
+    Config.Boolean('BLOG_GENERATION_ENABLED'),
     false
   )
 

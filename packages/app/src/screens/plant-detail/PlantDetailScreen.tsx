@@ -7,7 +7,7 @@ import {
   getLastCareAt,
   getNextCareAt,
 } from '@lily/shared'
-import { Array, Either, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, Result } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
 import { useCallback, useMemo, useRef, useState } from 'react'
@@ -233,11 +233,11 @@ export function PlantDetailScreen() {
     isLoading,
     error,
     refetch,
-  } = usePlant(Option.getOrElse(Option.fromNullable(plantId), () => ''))
+  } = usePlant(Option.getOrElse(Option.fromNullishOr(plantId), () => ''))
 
   const { data: careLogs } = useEffectQuery('careLogs', 'getCareLogs', {
     path: {
-      plantId: Option.getOrElse(Option.fromNullable(plantId), () => ''),
+      plantId: Option.getOrElse(Option.fromNullishOr(plantId), () => ''),
     },
     urlParams: { page: '1', limit: '3', type: 'all' },
   })
@@ -273,9 +273,9 @@ export function PlantDetailScreen() {
     const result = await createConversation.mutateAsync({
       payload: { kind: 'plant', plantId },
     })
-    Either.match(result, {
-      onLeft: () => undefined,
-      onRight: (created) => router.push(`/chat/${created.id}` as never),
+    Result.match(result, {
+      onFailure: () => undefined,
+      onSuccess: (created) => router.push(`/chat/${created.id}` as never),
     })
   }, [plantId, router, createConversation, findExistingPlantChat])
 
@@ -452,9 +452,9 @@ export function PlantDetailScreen() {
       })
       pipe(
         result,
-        Either.match({
-          onLeft: () => toast.error(tCemetery('toast.goodbyeFailed')),
-          onRight: () => {
+        Result.match({
+          onFailure: () => toast.error(tCemetery('toast.goodbyeFailed')),
+          onSuccess: () => {
             setShowGoodbyeSheet(false)
             toast.success(tCemetery('toast.goodbye', { name: plant.name }))
             router.back()
@@ -472,8 +472,8 @@ export function PlantDetailScreen() {
     const result = await revivePlant.mutateAsync({ path: { id: plantId } })
     pipe(
       result,
-      Either.match({
-        onLeft: (error) =>
+      Result.match({
+        onFailure: (error) =>
           pipe(
             Match.value(error),
             Match.when({ _tag: 'LimitExceededError' }, (e) =>
@@ -481,7 +481,7 @@ export function PlantDetailScreen() {
             ),
             Match.orElse(() => toast.error(tCemetery('toast.bringBackFailed')))
           ),
-        onRight: () =>
+        onSuccess: () =>
           toast.success(tCemetery('toast.broughtBack', { name: plant.name })),
       })
     )
@@ -574,12 +574,12 @@ export function PlantDetailScreen() {
   }
 
   const healthStatus = mapApiHealthToCardHealth(plant.health)
-  const diedAtOpt = Option.fromNullable(plant.diedAt)
+  const diedAtOpt = Option.fromNullishOr(plant.diedAt)
   const isDead = Option.isSome(diedAtOpt)
 
   // Map photos from plant data
   const photos = Array.map(
-    Option.getOrElse(Option.fromNullable(plant.photos), () => []),
+    Option.getOrElse(Option.fromNullishOr(plant.photos), () => []),
     (photo) => ({
       id: photo.id,
       url: photo.url,
@@ -588,7 +588,7 @@ export function PlantDetailScreen() {
   )
 
   const historyEvents = pipe(
-    Option.fromNullable(careLogs?.items),
+    Option.fromNullishOr(careLogs?.items),
     Option.map(
       Array.map((log) => ({
         id: log.id,
@@ -651,7 +651,7 @@ export function PlantDetailScreen() {
             plant={{
               name: plant.name,
               category: Option.getOrUndefined(
-                Option.fromNullable(plant.category)
+                Option.fromNullishOr(plant.category)
               ),
               health: healthStatus,
               potWidthCm: plant.potWidthCm,
@@ -832,7 +832,7 @@ export function PlantDetailScreen() {
       <CorrectCareDatesSheet
         visible={showCorrectDatesSheet}
         onClose={() => setShowCorrectDatesSheet(false)}
-        plantId={Option.getOrElse(Option.fromNullable(plantId), () => '')}
+        plantId={Option.getOrElse(Option.fromNullishOr(plantId), () => '')}
         lastWateredAt={scheduleData.lastWaterAt}
         lastFertilizedAt={scheduleData.lastFertAt}
         hasFertilization={scheduleData.hasFertSchedule}
@@ -848,7 +848,7 @@ export function PlantDetailScreen() {
           health: plant.health,
           dateAdded: plant.dateAdded,
           photoCount: Option.getOrElse(
-            Option.map(Option.fromNullable(plant.photos), (p) => p.length),
+            Option.map(Option.fromNullishOr(plant.photos), (p) => p.length),
             () => 0
           ),
         }}

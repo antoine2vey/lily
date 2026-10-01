@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRepository } from '@lily/api/repositories/delegation.repository'
@@ -11,6 +10,7 @@ import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
 import { Array, Effect, Option, Order, pipe, Record } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
   readonly careType: CareType
@@ -33,8 +33,8 @@ export const scheduleTargetsFromSteps = (
     steps,
     Array.filterMap((step) =>
       Option.all({
-        careType: Option.fromNullable(step.careType),
-        dueDate: Option.fromNullable(step.dueDate),
+        careType: Option.fromNullishOr(step.careType),
+        dueDate: Option.fromNullishOr(step.dueDate),
       })
     ),
     Array.groupBy((s) => s.careType),
@@ -72,7 +72,7 @@ export const acceptCarePlan = (
 
     const plant = yield* plantRepo.findById(plan.plantId)
     const remindersEnabled = pipe(
-      Option.fromNullable(plant),
+      Option.fromNullishOr(plant),
       Option.map((p) => p.remindersEnabled),
       Option.getOrElse(() => false)
     )
@@ -108,7 +108,7 @@ export const acceptCarePlan = (
       acceptedAt: nowAsDate(),
     })
     return pipe(
-      Option.fromNullable(accepted),
+      Option.fromNullishOr(accepted),
       Option.getOrElse(() => plan)
     )
   }).pipe(

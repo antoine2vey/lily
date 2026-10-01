@@ -1,7 +1,15 @@
 import type { IWeatherProvider } from '@lily/api/services/weather/provider'
 import type { WeatherData, WeatherForecast } from '@lily/shared'
 import { roundCoord, toIsoString, WeatherFetchError } from '@lily/shared'
-import { Array, DateTime, Effect, Option, pipe, String as Str } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Effect,
+  Option,
+  pipe,
+  String as Str,
+} from 'effect'
 
 // OpenWeatherMap One Call 3.0 response shape (subset we use)
 interface OWMDailyEntry {
@@ -75,12 +83,12 @@ const getDayOfYear = (timestamp: number): number =>
     onNone: () => 1,
     onSome: (dt) => {
       const parts = DateTime.toParts(dt)
-      const startOfYear = DateTime.unsafeMake({
+      const startOfYear = DateTime.makeUnsafe({
         year: parts.year,
         month: 1,
         day: 1,
       })
-      const distanceMs = DateTime.distance(startOfYear, dt)
+      const distanceMs = Duration.toMillis(DateTime.distance(startOfYear, dt))
       return Math.floor(distanceMs / (1000 * 60 * 60 * 24)) + 1
     },
   })

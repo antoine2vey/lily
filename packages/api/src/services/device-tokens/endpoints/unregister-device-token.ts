@@ -1,8 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { DeviceTokenNotFoundError } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Unregister device token
 export const unregisterDeviceToken = (

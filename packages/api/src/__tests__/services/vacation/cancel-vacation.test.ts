@@ -9,7 +9,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
 import type { User } from '@lily/shared'
-import { Array, Effect, Layer, Logger, LogLevel, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (days: number): Date =>
@@ -29,7 +29,9 @@ const createLayer = (
   )
 
 const run = <A, E>(effect: Effect.Effect<A, E, never>): Promise<A> =>
-  Effect.runPromise(effect.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+  Effect.runPromise(
+    effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
+  )
 
 describe('cancelVacation', () => {
   it('should fail with VacationNotFoundError when no vacation exists', async () => {

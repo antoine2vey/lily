@@ -7,13 +7,13 @@ export const createMockSession = (
   options: Partial<SessionContext> = {}
 ): Layer.Layer<Session> => {
   const userId = pipe(
-    Option.fromNullable(options.userId),
+    Option.fromNullishOr(options.userId),
     Option.getOrElse(() => 'test-user-id')
   )
   const mockSession: SessionContext = {
     userId,
     user: pipe(
-      Option.fromNullable(options.user),
+      Option.fromNullishOr(options.user),
       Option.getOrElse(() => ({
         id: userId,
         email: 'test@example.com',
@@ -35,42 +35,42 @@ export const createMockCurrentUser = (
   options: Partial<UserProfile> = {}
 ): Layer.Layer<CurrentUser> => {
   const userId = pipe(
-    Option.fromNullable(options.id),
+    Option.fromNullishOr(options.id),
     Option.getOrElse(() => 'test-user-id')
   )
   const mockUser: UserProfile = {
     id: userId,
     email: pipe(
-      Option.fromNullable(options.email),
+      Option.fromNullishOr(options.email),
       Option.getOrElse(() => 'test@example.com')
     ),
     name: pipe(
-      Option.fromNullable(options.name),
+      Option.fromNullishOr(options.name),
       Option.getOrElse(() => 'Test User')
     ),
     firstName: pipe(
-      Option.fromNullable(options.firstName),
+      Option.fromNullishOr(options.firstName),
       Option.getOrElse<string | null>(() => null)
     ),
     lastName: pipe(
-      Option.fromNullable(options.lastName),
+      Option.fromNullishOr(options.lastName),
       Option.getOrElse<string | null>(() => null)
     ),
     username: options.username,
     createdAt: pipe(
-      Option.fromNullable(options.createdAt),
+      Option.fromNullishOr(options.createdAt),
       Option.getOrElse(() => new Date())
     ),
     updatedAt: pipe(
-      Option.fromNullable(options.updatedAt),
+      Option.fromNullishOr(options.updatedAt),
       Option.getOrElse(() => new Date())
     ),
     role: pipe(
-      Option.fromNullable(options.role),
+      Option.fromNullishOr(options.role),
       Option.getOrElse(() => 'user' as const)
     ),
     status: pipe(
-      Option.fromNullable(options.status),
+      Option.fromNullishOr(options.status),
       Option.getOrElse(() => 'active' as const)
     ),
   }

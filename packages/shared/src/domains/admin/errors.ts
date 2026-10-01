@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
@@ -8,7 +7,7 @@ export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
       default: () => 'Access forbidden - admin role required',
     }),
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}
 
 export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfError>()(
@@ -18,7 +17,7 @@ export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfEr
       default: () => 'Cannot modify your own role or status',
     }),
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}
 
 export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotFoundError>()(
@@ -28,7 +27,7 @@ export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotF
       default: () => 'Chat message not found',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 // Raised when an admin gift/revoke would overwrite a real store-billed
@@ -42,5 +41,5 @@ export class StorePayerProtectedError extends Schema.TaggedError<StorePayerProte
         'User has an active store-billed subscription; gifting or revoking would overwrite it',
     }),
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}

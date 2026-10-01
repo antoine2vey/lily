@@ -15,10 +15,10 @@ export interface IAchievementNotifier {
   >
 }
 
-export class AchievementNotifier extends Context.Tag('AchievementNotifier')<
+export class AchievementNotifier extends Context.Service<
   AchievementNotifier,
   IAchievementNotifier
->() {}
+>()('AchievementNotifier') {}
 
 export const AchievementNotifierLive = Layer.effect(
   AchievementNotifier,

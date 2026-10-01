@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import type { AdminUserUpdateRequest } from '@lily/shared/admin'
@@ -6,6 +5,7 @@ import { CannotModifySelfError } from '@lily/shared/errors/admin'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { User } from '@lily/shared/user'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const updateUser = (
   id: string,

@@ -6,7 +6,7 @@ import {
   type Plant,
 } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Array, Either, Option, pipe, String } from 'effect'
+import { Array, Option, pipe, Result, String } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -97,7 +97,7 @@ export function RoomsScreen() {
   const initialPlantIdsRef = useRef<Set<string>>(new Set())
 
   const allPlants = pipe(
-    Option.fromNullable(plantsData),
+    Option.fromNullishOr(plantsData),
     Option.map((d) => d.items),
     Option.getOrElse(() => [] as readonly Plant[])
   )
@@ -160,7 +160,7 @@ export function RoomsScreen() {
         ),
       ]
 
-      if (!Array.isEmptyReadonlyArray(updates)) {
+      if (!Array.isReadonlyArrayEmpty(updates)) {
         await Promise.all(updates)
         queryClient.invalidateQueries({ queryKey: queryKeys.plants.lists() })
         queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all })
@@ -225,9 +225,9 @@ export function RoomsScreen() {
           setShowCreateSheet(false)
           setForm(DEFAULT_FORM)
           toast.success(t('toast.created', { name: form.name }))
-          Either.match(result, {
-            onLeft: () => {},
-            onRight: (room) => {
+          Result.match(result, {
+            onFailure: () => {},
+            onSuccess: (room) => {
               updatePlantRoomAssignments(room.id, new Set())
             },
           })
@@ -288,7 +288,7 @@ export function RoomsScreen() {
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
   const roomsList = Option.getOrElse(
-    Option.fromNullable(rooms),
+    Option.fromNullishOr(rooms),
     () => [] as NonNullable<typeof rooms>
   )
 
@@ -316,7 +316,7 @@ export function RoomsScreen() {
         <Animated.View entering={FadeIn.duration(300)}>
           <RoomsContentSkeleton />
         </Animated.View>
-      ) : isInitialLoading ? null : Array.isEmptyReadonlyArray(roomsList) ? (
+      ) : isInitialLoading ? null : Array.isReadonlyArrayEmpty(roomsList) ? (
         <Animated.View entering={FadeIn.duration(300)}>
           <EmptyState
             title={t('empty.title')}

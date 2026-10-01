@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
@@ -19,6 +18,7 @@ import type {
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import type { MessageQueue } from '@lily/shared/server'
 import { DateTime, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const giftSubscription = (
   userId: string,
@@ -41,7 +41,7 @@ export const giftSubscription = (
     yield* assertNotStorePayer(userId)
     const subRepo = yield* SubscriptionRepository
 
-    const periodStart = DateTime.toDate(DateTime.unsafeNow())
+    const periodStart = DateTime.toDate(DateTime.nowUnsafe())
     const periodEnd = computePeriodEnd(duration)
 
     yield* Effect.all(
@@ -62,8 +62,10 @@ export const giftSubscription = (
           userId,
           {
             giftDuration: pipe(
-              Option.fromNullable(GIFT_DURATION_LABELS[user.language]),
-              Option.flatMap((labels) => Option.fromNullable(labels[duration])),
+              Option.fromNullishOr(GIFT_DURATION_LABELS[user.language]),
+              Option.flatMap((labels) =>
+                Option.fromNullishOr(labels[duration])
+              ),
               Option.getOrElse(() => duration)
             ),
           },

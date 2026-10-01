@@ -55,7 +55,7 @@ export function useCarePlanStepActions() {
 
   const toggleStep = useCallback(
     (plan: CarePlan, step: CarePlanStep) => {
-      if (Option.isSome(Option.fromNullable(step.completedAt))) {
+      if (Option.isSome(Option.fromNullishOr(step.completedAt))) {
         uncompleteStep.mutate(
           { path: { planId: plan.id, stepId: step.id } },
           { onSuccess: () => toast.success(t('plans.stepReopened')) }
@@ -63,7 +63,7 @@ export function useCarePlanStepActions() {
         return
       }
 
-      const isCareAction = Option.isSome(Option.fromNullable(step.careType))
+      const isCareAction = Option.isSome(Option.fromNullishOr(step.careType))
       if (!isCareAction || skipWaiting) {
         fireComplete(plan.id, step.id)
         return

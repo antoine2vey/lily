@@ -29,7 +29,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
   const iconColors = useIconColors()
   const barColor = pipe(
-    Option.fromNullable(color),
+    Option.fromNullishOr(color),
     Option.getOrElse(() => iconColors.primary)
   )
 

@@ -21,10 +21,10 @@ export interface IRevenueCatProvider {
   ) => Effect.Effect<RevenueCatSubscriberInfo, PaymentProviderError>
 }
 
-export class RevenueCatProvider extends Context.Tag('RevenueCatProvider')<
+export class RevenueCatProvider extends Context.Service<
   RevenueCatProvider,
   IRevenueCatProvider
->() {}
+>()('RevenueCatProvider') {}
 
 // Extend the shared schema with a lenient Record so unknown properties from
 // RevenueCat don't cause decode failures. We also override `type` to
@@ -32,7 +32,7 @@ export class RevenueCatProvider extends Context.Tag('RevenueCatProvider')<
 // (the downstream Match.orElse in helpers.ts handles them gracefully).
 const LenientEventDataSchema = Schema.extend(
   Schema.Struct({ ...RevenueCatWebhookEventData.fields, type: Schema.String }),
-  Schema.Record({ key: Schema.String, value: Schema.Unknown })
+  Schema.Record(Schema.String, Schema.Unknown)
 )
 
 const RevenueCatWebhookEventSchema = Schema.Struct({
@@ -43,16 +43,15 @@ const RevenueCatWebhookEventSchema = Schema.Struct({
 export const RevenueCatProviderLive = Layer.effect(
   RevenueCatProvider,
   Effect.gen(function* () {
-    const webhookAuthKey = yield* Config.string('REVENUECAT_WEBHOOK_AUTH_KEY')
+    const webhookAuthKey = yield* Config.String('REVENUECAT_WEBHOOK_AUTH_KEY')
     const apiKey = yield* pipe(
-      Config.string('REVENUECAT_API_KEY'),
+      Config.String('REVENUECAT_API_KEY'),
       Config.withDefault('')
     )
 
-    const decodeWebhookPayload = Schema.decodeUnknown(
-      Schema.compose(
-        Schema.parseJson(Schema.Unknown),
-        RevenueCatWebhookEventSchema
+    const decodeWebhookPayload = Schema.decodeUnknownEffect(
+      Schema.fromJsonString(Schema.Unknown).pipe(
+        Schema.decodeTo(RevenueCatWebhookEventSchema)
       )
     )
 

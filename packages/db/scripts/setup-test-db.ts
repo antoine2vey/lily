@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Setup script to initialize the test database schema
  * Usage: DATABASE_URL_TEST=... bun run db:setup-test
@@ -8,14 +9,14 @@
  * 2. Seeds the subscription tiers
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { PgClient } from '@effect/sql-pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { subscriptionTiers } from '@lily/db/schema'
 import { Config, Console, Effect, Layer } from 'effect'
 
 // Test database configuration
 const TestPgLive = PgClient.layerConfig({
-  url: Config.redacted('DATABASE_URL_TEST'),
+  url: Config.Redacted('DATABASE_URL_TEST'),
 })
 
 const TestDrizzleLive = PgDrizzle.layer.pipe(Layer.provide(TestPgLive))

@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 // Achievement key enum - synced with DB achievementKeyEnum
-export const AchievementKey = Schema.Literal(
+export const AchievementKey = Schema.Literals([
   'FIRST_PLANT_ADDED',
   'WATERING_NOVICE',
   'PLANT_COLLECTOR',
@@ -16,22 +16,22 @@ export const AchievementKey = Schema.Literal(
   'DISEASE_DETECTIVE',
   'GROWTH_TRACKER',
   'REMINDER_RESCUER',
-  'SHARE_SPROUT'
-)
+  'SHARE_SPROUT',
+])
 
-export const AchievementCategory = Schema.Literal(
+export const AchievementCategory = Schema.Literals([
   'plants',
   'care',
   'streaks',
-  'special'
-)
+  'special',
+])
 
-export const AchievementRarity = Schema.Literal(
+export const AchievementRarity = Schema.Literals([
   'common',
   'rare',
   'epic',
-  'legendary'
-)
+  'legendary',
+])
 
 export const Achievement = Schema.Struct({
   id: Schema.String,
@@ -39,7 +39,7 @@ export const Achievement = Schema.Struct({
   name: Schema.String,
   description: Schema.String,
   iconUrl: Schema.String,
-  unlockedAt: Schema.Date,
+  unlockedAt: Schema.DateFromString,
   userId: Schema.String,
 })
 
@@ -51,7 +51,7 @@ export const AchievementWithProgress = Schema.Struct({
   category: AchievementCategory,
   rarity: AchievementRarity,
   unlocked: Schema.Boolean,
-  unlockedAt: Schema.NullOr(Schema.Date),
+  unlockedAt: Schema.NullOr(Schema.DateFromString),
   progress: Schema.NullOr(Schema.Number),
   maxProgress: Schema.NullOr(Schema.Number),
 })

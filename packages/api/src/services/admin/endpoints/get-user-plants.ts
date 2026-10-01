@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import {
   type FindPlantsResult,
   PlantRepository,
@@ -8,6 +7,7 @@ import { getUser } from '@lily/api/services/admin/endpoints/get-user'
 import { type PaginationParams, parsePaginationParams } from '@lily/shared'
 import type { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // List a target user's (owned) plants for the admin detail page. Delegates to
 // PlantRepository.findAll, which already accepts an arbitrary userId and
@@ -27,7 +27,7 @@ export const getUserPlants = (
     // for overdue-schedule evaluation (target user's local time, not admin's).
     const user = yield* getUser(userId)
     const timezone = Option.getOrElse(
-      Option.fromNullable(user.timezone),
+      Option.fromNullishOr(user.timezone),
       () => 'UTC'
     )
     const { page, limit } = parsePaginationParams(params)

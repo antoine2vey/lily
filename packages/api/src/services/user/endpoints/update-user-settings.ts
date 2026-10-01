@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CareLogRepository } from '@lily/api/repositories/care-log.repository'
 import { CareScheduleRepository } from '@lily/api/repositories/care-schedule.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
@@ -9,6 +8,7 @@ import { type CareType, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Match, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Update user settings (profile + notification preferences)
 export const updateUserSettings = (
@@ -38,7 +38,7 @@ export const updateUserSettings = (
     // firstName: empty/whitespace is silently dropped (no-op). UI enforces
     // required-on-edit, so this is defense-in-depth.
     const trimmedFirst = pipe(
-      Option.fromNullable(trimAndNullify(data.firstName)),
+      Option.fromNullishOr(trimAndNullify(data.firstName)),
       Option.getOrUndefined
     )
     // lastName: undefined = leave unchanged, anything else passes through
@@ -127,7 +127,7 @@ export const updateUserSettings = (
               Option.flatMap((ct) =>
                 pipe(
                   Array.findFirst(schedules, (s) => s.careType === ct),
-                  Option.flatMap((s) => Option.fromNullable(s.nextCareAt))
+                  Option.flatMap((s) => Option.fromNullishOr(s.nextCareAt))
                 )
               )
             )
@@ -154,8 +154,8 @@ export const updateUserSettings = (
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      image: pipe(Option.fromNullable(user.image), Option.getOrUndefined),
-      bio: pipe(Option.fromNullable(user.bio), Option.getOrUndefined),
+      image: pipe(Option.fromNullishOr(user.image), Option.getOrUndefined),
+      bio: pipe(Option.fromNullishOr(user.bio), Option.getOrUndefined),
       notifications: {
         careReminders: user.careReminders,
         weeklyDigest: user.weeklyDigest,
@@ -165,11 +165,11 @@ export const updateUserSettings = (
         ads: user.ads,
         doNotDisturb: user.doNotDisturb,
         doNotDisturbStart: pipe(
-          Option.fromNullable(user.doNotDisturbStart),
+          Option.fromNullishOr(user.doNotDisturbStart),
           Option.getOrElse(() => '22:00')
         ),
         doNotDisturbEnd: pipe(
-          Option.fromNullable(user.doNotDisturbEnd),
+          Option.fromNullishOr(user.doNotDisturbEnd),
           Option.getOrElse(() => '07:00')
         ),
       },
@@ -184,8 +184,8 @@ export const updateUserSettings = (
       temperatureUnit: user.temperatureUnit,
       weather: {
         enabled: user.weatherEnabled,
-        latitude: pipe(Option.fromNullable(user.latitude), Option.getOrNull),
-        longitude: pipe(Option.fromNullable(user.longitude), Option.getOrNull),
+        latitude: pipe(Option.fromNullishOr(user.latitude), Option.getOrNull),
+        longitude: pipe(Option.fromNullishOr(user.longitude), Option.getOrNull),
       },
       careLogsCount,
     }

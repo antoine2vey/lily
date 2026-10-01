@@ -23,7 +23,7 @@ const PRODUCTION = 'https://api.push.apple.com'
 const JWT_TTL_SECONDS = 50 * 60
 
 const nonEmpty = (s: string | undefined) =>
-  pipe(Option.fromNullable(s), Option.filter(Str.isNonEmpty))
+  pipe(Option.fromNullishOr(s), Option.filter(Str.isNonEmpty))
 
 export interface ApnsConfig {
   readonly teamId: string
@@ -92,11 +92,11 @@ const makeJwtState = (cfg: ApnsConfig): JwtState => {
 }
 
 // Config bindings — present only when APNs is fully configured.
-const ApnsTeamIdConfig = Config.option(Config.string('APNS_TEAM_ID'))
-const ApnsKeyIdConfig = Config.option(Config.string('APNS_KEY_ID'))
-const ApnsPrivateKeyConfig = Config.option(Config.redacted('APNS_PRIVATE_KEY'))
-const ApnsBundleIdConfig = Config.option(Config.string('APNS_BUNDLE_ID'))
-const ApnsEnvironmentConfig = Config.string('APNS_ENVIRONMENT').pipe(
+const ApnsTeamIdConfig = Config.option(Config.String('APNS_TEAM_ID'))
+const ApnsKeyIdConfig = Config.option(Config.String('APNS_KEY_ID'))
+const ApnsPrivateKeyConfig = Config.option(Config.Redacted('APNS_PRIVATE_KEY'))
+const ApnsBundleIdConfig = Config.option(Config.String('APNS_BUNDLE_ID'))
+const ApnsEnvironmentConfig = Config.String('APNS_ENVIRONMENT').pipe(
   Config.withDefault('sandbox')
 )
 
@@ -283,7 +283,7 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
           try {
             const parsed = JSON.parse(respBody) as { reason?: unknown }
             reason = pipe(
-              Option.fromNullable(parsed.reason),
+              Option.fromNullishOr(parsed.reason),
               Option.filter((r): r is string => typeof r === 'string'),
               Option.getOrElse(() => respBody)
             )
@@ -308,7 +308,7 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
             Option.orElse(() => nonEmpty(maybe.code)),
             Option.orElse(() =>
               pipe(
-                Option.fromNullable(maybe.status),
+                Option.fromNullishOr(maybe.status),
                 Option.map((s) => `HTTP ${s}`)
               )
             ),

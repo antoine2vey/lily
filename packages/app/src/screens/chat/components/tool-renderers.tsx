@@ -44,10 +44,10 @@ export const toolResultId = (part: AnyToolPart): Option.Option<string> => {
     carePlanId?: string
   } | null
   return pipe(
-    Option.fromNullable(output),
+    Option.fromNullishOr(output),
     Option.flatMap((o) =>
-      Option.orElse(Option.fromNullable(o.diagnosisId), () =>
-        Option.fromNullable(o.carePlanId)
+      Option.orElse(Option.fromNullishOr(o.diagnosisId), () =>
+        Option.fromNullishOr(o.carePlanId)
       )
     )
   )
@@ -155,7 +155,7 @@ const createDiagnosisFullWidth: ToolFullWidthRenderer = (
   // A diagnosis-born plan replaces the static treatment list so the steps
   // appear once, with the "Add to tasks" action, inside the same card.
   const treatmentSlot = pipe(
-    Option.fromNullable(output.carePlanId),
+    Option.fromNullishOr(output.carePlanId),
     Option.map((carePlanId) => (
       <CarePlanCard
         key={`diagnosis-plan-${index}`}

@@ -2,8 +2,7 @@ import type { CarePlanRepository } from '@lily/api/repositories/care-plan.reposi
 import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { RagService } from '@lily/api/services/rag/service'
 import type { ToolSet } from 'ai'
-import type { Runtime } from 'effect'
-
+import type { Context } from 'effect'
 import { createDiagnosisTool } from './create-diagnosis'
 import { proposeCarePlanTool } from './propose-care-plan'
 import { searchPlantKnowledgeTool } from './search-plant-knowledge'
@@ -11,7 +10,7 @@ import { searchPlantKnowledgeTool } from './search-plant-knowledge'
 export type ToolContext = DiagnosisRepository | RagService | CarePlanRepository
 
 export interface ToolDeps {
-  readonly runtime: Runtime.Runtime<ToolContext>
+  readonly runtime: Context.Context<ToolContext>
   readonly userId: string
   readonly imageKey?: string | undefined
   // Present only when the conversation is anchored to a specific plant.

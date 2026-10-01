@@ -1,18 +1,18 @@
 import { DateTime, Match, Option, pipe, Schema } from 'effect'
 
-export const VacationStatus = Schema.Literal('none', 'scheduled', 'active')
+export const VacationStatus = Schema.Literals(['none', 'scheduled', 'active'])
 export type VacationStatus = typeof VacationStatus.Type
 
 export const VacationState = Schema.Struct({
   status: VacationStatus,
-  startDate: Schema.NullOr(Schema.Date),
-  endDate: Schema.NullOr(Schema.Date),
+  startDate: Schema.NullOr(Schema.DateFromString),
+  endDate: Schema.NullOr(Schema.DateFromString),
 })
 export type VacationState = typeof VacationState.Type
 
 export const SetVacationRequest = Schema.Struct({
-  startDate: Schema.Date,
-  endDate: Schema.Date,
+  startDate: Schema.DateFromString,
+  endDate: Schema.DateFromString,
 })
 export type SetVacationRequest = typeof SetVacationRequest.Type
 
@@ -40,16 +40,16 @@ export const isOnVacation = (user: VacationFields, nowDate: Date): boolean =>
     Match.when('scheduled', () =>
       pipe(
         Option.all({
-          start: Option.fromNullable(user.vacationStart),
-          end: Option.fromNullable(user.vacationEnd),
+          start: Option.fromNullishOr(user.vacationStart),
+          end: Option.fromNullishOr(user.vacationEnd),
         }),
         Option.match({
           onNone: () => false,
           onSome: ({ start, end }) => {
-            const nowDt = DateTime.unsafeMake(nowDate)
+            const nowDt = DateTime.makeUnsafe(nowDate)
             return (
-              DateTime.lessThanOrEqualTo(DateTime.unsafeMake(start), nowDt) &&
-              DateTime.greaterThan(DateTime.unsafeMake(end), nowDt)
+              DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(start), nowDt) &&
+              DateTime.isGreaterThan(DateTime.makeUnsafe(end), nowDt)
             )
           },
         })

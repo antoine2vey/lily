@@ -21,7 +21,7 @@ export function OnboardingSlide({
 }: OnboardingSlideProps) {
   const iconColors = useIconColors()
   const resolvedIconColor = Option.getOrElse(
-    Option.fromNullable(iconColor),
+    Option.fromNullishOr(iconColor),
     () => iconColors.primary
   )
   return (

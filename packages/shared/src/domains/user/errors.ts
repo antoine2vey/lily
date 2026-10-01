@@ -1,4 +1,3 @@
-import { HttpApiSchema } from '@effect/platform'
 import { Schema } from 'effect'
 
 export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
@@ -8,7 +7,7 @@ export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundError>()(
@@ -18,7 +17,7 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
       default: () => '',
     }),
   },
-  HttpApiSchema.annotations({ status: 401 })
+  { httpApiStatus: 401 }
 ) {}
 
 export class UnauthorizedError extends Schema.TaggedError<UnauthorizedError>()(
@@ -28,5 +27,5 @@ export class UnauthorizedError extends Schema.TaggedError<UnauthorizedError>()(
       default: () => 'Unauthorized',
     }),
   },
-  HttpApiSchema.annotations({ status: 401 })
+  { httpApiStatus: 401 }
 ) {}

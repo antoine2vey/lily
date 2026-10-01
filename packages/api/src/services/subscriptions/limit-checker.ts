@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { AchievementRepository } from '@lily/api/repositories/achievement.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import { LimitExceededError } from '@lily/shared'
 import { Config, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ILimitChecker {
   readonly checkPlantLimit: (
@@ -27,10 +27,10 @@ export interface ILimitChecker {
   ) => Effect.Effect<void, LimitExceededError | SqlError>
 }
 
-export class LimitChecker extends Context.Tag('LimitChecker')<
+export class LimitChecker extends Context.Service<
   LimitChecker,
   ILimitChecker
->() {}
+>()('LimitChecker') {}
 
 const noopLimitChecker: ILimitChecker = {
   checkPlantLimit: () => Effect.void,
@@ -40,11 +40,11 @@ const noopLimitChecker: ILimitChecker = {
   checkDelegationAccess: () => Effect.void,
 }
 
-const DisableLimitsConfig = Config.boolean('DISABLE_LIMITS').pipe(
+const DisableLimitsConfig = Config.Boolean('DISABLE_LIMITS').pipe(
   Config.withDefault(false)
 )
 
-const NodeEnvConfig = Config.string('NODE_ENV').pipe(
+const NodeEnvConfig = Config.String('NODE_ENV').pipe(
   Config.withDefault('development')
 )
 
@@ -78,7 +78,7 @@ export const LimitCheckerLive = Layer.effect(
 
         // Determine effective tier based on subscription status and billing period
         const effectiveTier = pipe(
-          Option.fromNullable(subscription),
+          Option.fromNullishOr(subscription),
           Option.filter(hasPremiumAccess),
           Option.map((sub) => sub.tier),
           Option.getOrElse(() => 'free' as const)
@@ -138,8 +138,8 @@ export const LimitCheckerLive = Layer.effect(
 
           const usage = yield* subRepo.getCurrentUsage(userId)
           const currentCount = pipe(
-            Option.fromNullable(usage),
-            Option.flatMap((u) => Option.fromNullable(u.aiChatsCount)),
+            Option.fromNullishOr(usage),
+            Option.flatMap((u) => Option.fromNullishOr(u.aiChatsCount)),
             Option.getOrElse(() => 0)
           )
 
@@ -164,8 +164,8 @@ export const LimitCheckerLive = Layer.effect(
 
           const usage = yield* subRepo.getCurrentUsage(userId)
           const currentCount = pipe(
-            Option.fromNullable(usage),
-            Option.flatMap((u) => Option.fromNullable(u.cardScansCount)),
+            Option.fromNullishOr(usage),
+            Option.flatMap((u) => Option.fromNullishOr(u.cardScansCount)),
             Option.getOrElse(() => 0)
           )
 
@@ -190,8 +190,8 @@ export const LimitCheckerLive = Layer.effect(
 
           const usage = yield* subRepo.getCurrentUsage(userId)
           const currentCount = pipe(
-            Option.fromNullable(usage),
-            Option.flatMap((u) => Option.fromNullable(u.plantIdentifiesCount)),
+            Option.fromNullishOr(usage),
+            Option.flatMap((u) => Option.fromNullishOr(u.plantIdentifiesCount)),
             Option.getOrElse(() => 0)
           )
 

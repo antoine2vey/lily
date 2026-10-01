@@ -14,7 +14,7 @@ export const trimAndNullify = (
   value: string | null | undefined
 ): string | null =>
   pipe(
-    Option.fromNullable(value),
+    Option.fromNullishOr(value),
     Option.map(EffectString.trim),
     Option.filter((s) => s.length > 0),
     Option.getOrElse<string | null>(() => null)

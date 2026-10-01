@@ -29,7 +29,7 @@ export const createMockPushService = (
         if (options.shouldFail) {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(options.failureMessage),
+              Option.fromNullishOr(options.failureMessage),
               Option.getOrElse(() => 'Mock push failure')
             ),
           })
@@ -50,7 +50,7 @@ export const createMockPushService = (
         if (options.shouldFail) {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(options.failureMessage),
+              Option.fromNullishOr(options.failureMessage),
               Option.getOrElse(() => 'Mock push batch failure')
             ),
           })
@@ -71,7 +71,7 @@ export const createMockPushService = (
         if (options.shouldFail) {
           return yield* new PushSendError({
             message: pipe(
-              Option.fromNullable(options.failureMessage),
+              Option.fromNullishOr(options.failureMessage),
               Option.getOrElse(() => 'Mock live activity failure')
             ),
           })

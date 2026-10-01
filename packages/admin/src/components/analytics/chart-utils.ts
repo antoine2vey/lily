@@ -26,7 +26,7 @@ export const toChartData = (
   return pipe(
     Array.fromIterable(byDate.values()),
     Array.sort(
-      Order.mapInput(Order.string, (r: Record<string, string | number>) =>
+      Order.mapInput(Order.String, (r: Record<string, string | number>) =>
         String(r.date)
       )
     )

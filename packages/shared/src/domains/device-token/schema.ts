@@ -7,16 +7,16 @@ export { DeviceTokenNotFoundError } from './errors'
 export const DeviceToken = Schema.Struct({
   id: Schema.String,
   token: Schema.String,
-  platform: Schema.Literal('ios', 'android', 'web'),
+  platform: Schema.Literals(['ios', 'android', 'web']),
   isActive: Schema.Boolean,
   userId: Schema.String,
-  createdAt: Schema.Date,
-  updatedAt: Schema.Date,
+  createdAt: Schema.DateFromString,
+  updatedAt: Schema.DateFromString,
 })
 
 export const DeviceTokenCreateRequest = Schema.Struct({
   token: Schema.String,
-  platform: Schema.Literal('ios', 'android', 'web'),
+  platform: Schema.Literals(['ios', 'android', 'web']),
 })
 
 // Type exports

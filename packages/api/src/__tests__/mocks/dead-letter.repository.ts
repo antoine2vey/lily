@@ -27,8 +27,8 @@ export const createMockDeadLetterRepository = (
           retryCount: data.retryCount,
           createdAt: new Date(),
           failedAt: new Date(),
-          userId: Option.getOrNull(Option.fromNullable(data.userId)),
-          plantId: Option.getOrNull(Option.fromNullable(data.plantId)),
+          userId: Option.getOrNull(Option.fromNullishOr(data.userId)),
+          plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
         }
         messages.push(message)
         if (options.onCreate) {
@@ -46,7 +46,7 @@ export const createMockDeadLetterRepository = (
       const idx = messages.findIndex((m) => m.id === id)
       if (idx === -1) return Effect.succeed(null)
       const [removed] = messages.splice(idx, 1)
-      return Effect.succeed(Option.getOrNull(Option.fromNullable(removed)))
+      return Effect.succeed(Option.getOrNull(Option.fromNullishOr(removed)))
     },
   }
 

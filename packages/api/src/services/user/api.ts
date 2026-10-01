@@ -1,9 +1,3 @@
-import {
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpApiSchema,
-  Multipart,
-} from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { UnauthorizedError, UserNotFoundError } from '@lily/shared'
 import {
@@ -16,6 +10,8 @@ import {
 } from '@lily/shared/services/file/gcs-errors'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
+import { Multipart } from 'effect/http'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Define the Users API group
 export const UsersApi = HttpApiGroup.make('users')
@@ -38,11 +34,9 @@ export const UsersApi = HttpApiGroup.make('users')
     // POST /users/avatar - Upload user avatar (uses CurrentUser)
     HttpApiEndpoint.post('uploadAvatar')`/avatar`
       .setPayload(
-        HttpApiSchema.Multipart(
-          Schema.Struct({
-            files: Multipart.FilesSchema,
-          })
-        )
+        Schema.Struct({
+          files: Multipart.FilesSchema,
+        }).pipe(HttpApiSchema.asMultipart())
       )
       .addSuccess(Schema.Struct({ url: Schema.String }))
       .addError(UserNotFoundError, { status: 404 })
@@ -54,7 +48,7 @@ export const UsersApi = HttpApiGroup.make('users')
   )
   .add(
     // DELETE /users/account - Soft-delete account (30-day grace period)
-    HttpApiEndpoint.del('deleteAccount')`/account`
+    HttpApiEndpoint.delete('deleteAccount')`/account`
       .addSuccess(Schema.Struct({ message: Schema.String }))
       .addError(UserNotFoundError, { status: 404 })
       .addError(UnauthorizedError, { status: 401 })

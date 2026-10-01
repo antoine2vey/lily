@@ -39,7 +39,7 @@ const getTokenExpiry = (token: string): number | null => {
 const isTokenExpired = (token: string): boolean => {
   const exp = getTokenExpiry(token)
   if (exp === null) return false
-  return exp < DateTime.toEpochMillis(DateTime.unsafeNow()) + 30_000
+  return exp < DateTime.toEpochMillis(DateTime.nowUnsafe()) + 30_000
 }
 
 let refreshPromise: Promise<boolean> | null = null

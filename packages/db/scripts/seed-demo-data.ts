@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Seed script to create demo data for visual testing
  * Usage: bun run seed:demo
@@ -10,8 +11,8 @@
  * - Recent care log activities
  */
 
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import { DrizzleLive } from '@lily/db'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
   careLogs,
   chatConversations,
@@ -549,7 +550,7 @@ const seedDemoData = Effect.gen(function* () {
       .from(plants)
       .where(eq(plants.userId, userId))
     const existingPlantIds = A.map(existingPlants, (p) => p.id)
-    if (A.isNonEmptyArray(existingPlantIds)) {
+    if (A.isArrayNonEmpty(existingPlantIds)) {
       yield* db
         .delete(careLogs)
         .where(inArray(careLogs.plantId, existingPlantIds))
@@ -617,7 +618,7 @@ const seedDemoData = Effect.gen(function* () {
         ...plantFields,
         userId: user.id,
         dateAdded: Option.getOrElse(
-          Option.fromNullable(plantData.dateAdded),
+          Option.fromNullishOr(plantData.dateAdded),
           () => new Date()
         ),
       })

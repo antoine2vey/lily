@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import {
   AlreadyFollowingError,
@@ -18,8 +17,12 @@ import {
   UserSearchParams,
 } from '@lily/shared'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const userIdParam = HttpApiSchema.param('userId', Schema.UUID)
+const userIdParam = HttpApiSchema.param(
+  'userId',
+  Schema.String.check(Schema.isGUID())
+)
 
 export const SocialApi = HttpApiGroup.make('social')
   .add(
@@ -31,7 +34,7 @@ export const SocialApi = HttpApiGroup.make('social')
       .addError(UserNotPublicError)
   )
   .add(
-    HttpApiEndpoint.del('unfollowUser')`/follow/${userIdParam}`
+    HttpApiEndpoint.delete('unfollowUser')`/follow/${userIdParam}`
       .addSuccess(FollowActionResponse)
       .addError(NotFollowingError)
       .addError(CannotFollowSelfError)

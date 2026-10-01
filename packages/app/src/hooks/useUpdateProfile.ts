@@ -20,7 +20,7 @@ export function useUpdateProfile() {
     mutationFn: async (data: UpdateProfileData) => {
       // Upload avatar if a local URI was provided
       if (data.avatarUri) {
-        const timestamp = DateTime.toEpochMillis(DateTime.unsafeNow())
+        const timestamp = DateTime.toEpochMillis(DateTime.nowUnsafe())
         const file = createFileFromUri(data.avatarUri, {
           name: `avatar-${timestamp}.jpg`,
           type: 'image/jpeg',

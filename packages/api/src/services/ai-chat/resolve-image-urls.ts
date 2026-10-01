@@ -26,7 +26,7 @@ export const resolveMessageImageUrls = (
       )
     )
 
-    if (Array.isEmptyArray(keys)) return messages
+    if (Array.isArrayEmpty(keys)) return messages
 
     const gcs = yield* GCSService
     const urlMap = yield* gcs.getSignedUrls(keys)
@@ -38,7 +38,7 @@ export const resolveMessageImageUrls = (
           ? {
               ...part,
               url: Option.getOrElse(
-                Option.fromNullable(urlMap.get(part.url)),
+                Option.fromNullishOr(urlMap.get(part.url)),
                 () => part.url
               ),
             }
@@ -56,23 +56,23 @@ export const resolveImageUrls = <T extends { imageUrl?: string | undefined }>(
 ): Effect.Effect<T[], GCSUploadError, GCSService> =>
   Effect.gen(function* () {
     const keys = Array.filterMap(items, (item) =>
-      Option.fromNullable(item.imageUrl)
+      Option.fromNullishOr(item.imageUrl)
     )
 
-    if (Array.isEmptyArray(keys)) return [...items]
+    if (Array.isArrayEmpty(keys)) return [...items]
 
     const gcs = yield* GCSService
     const urlMap = yield* gcs.getSignedUrls(keys)
 
     return Array.map(items, (item) =>
       pipe(
-        Option.fromNullable(item.imageUrl),
+        Option.fromNullishOr(item.imageUrl),
         Option.match({
           onNone: () => item,
           onSome: (key) => ({
             ...item,
             imageUrl: Option.getOrElse(
-              Option.fromNullable(urlMap.get(key)),
+              Option.fromNullishOr(urlMap.get(key)),
               () => key
             ),
           }),
@@ -88,7 +88,7 @@ export const resolveImageUrl = (
   imageUrl: string | undefined
 ): Effect.Effect<string | undefined, GCSUploadError, GCSService> =>
   pipe(
-    Option.fromNullable(imageUrl),
+    Option.fromNullishOr(imageUrl),
     Option.match({
       onNone: () => Effect.void as Effect.Effect<string | undefined>,
       onSome: (key) =>

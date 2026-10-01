@@ -1,9 +1,9 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import type { LocalizedText } from '@lily/db/schema'
 import { dailyTips } from '@lily/db/schema'
 import { desc, eq } from 'drizzle-orm'
 import { Context, Effect, Layer, Option } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export type DailyTip = typeof dailyTips.$inferSelect
 
@@ -25,10 +25,10 @@ export interface IDailyTipRepository {
   readonly findRecent: (limit: number) => Effect.Effect<DailyTip[], SqlError>
 }
 
-export class DailyTipRepository extends Context.Tag('DailyTipRepository')<
+export class DailyTipRepository extends Context.Service<
   DailyTipRepository,
   IDailyTipRepository
->() {}
+>()('DailyTipRepository') {}
 
 export const DailyTipRepositoryLive = Layer.effect(
   DailyTipRepository,
@@ -40,7 +40,7 @@ export const DailyTipRepositoryLive = Layer.effect(
         data: CreateDailyTipData
       ) {
         const [row] = yield* db.insert(dailyTips).values(data).returning()
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       findByDate: Effect.fn('DailyTipRepository.findByDate')(function* (
@@ -50,7 +50,7 @@ export const DailyTipRepositoryLive = Layer.effect(
           .select()
           .from(dailyTips)
           .where(eq(dailyTips.publishDate, date))
-        return Option.getOrNull(Option.fromNullable(row))
+        return Option.getOrNull(Option.fromNullishOr(row))
       }),
 
       findRecent: Effect.fn('DailyTipRepository.findRecent')(function* (

@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { type PaginationParams, parsePaginationParams } from '@lily/shared'
 import {
@@ -6,6 +5,7 @@ import {
   ConversationNotFoundError,
 } from '@lily/shared/ai-chat'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // List the messages (user prompts + AI responses) of a single conversation for
 // the admin detail page. The conversation must belong to the user in the path

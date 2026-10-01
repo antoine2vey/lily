@@ -22,7 +22,7 @@ export const toNativeDate = (dateTime: DateTime.DateTime): Date =>
  * @returns Current time as epoch milliseconds
  */
 export const nowAsEpochMillis = (): number =>
-  DateTime.toEpochMillis(DateTime.unsafeNow())
+  DateTime.toEpochMillis(DateTime.nowUnsafe())
 
 /**
  * Get current time as ISO string.
@@ -31,7 +31,7 @@ export const nowAsEpochMillis = (): number =>
  * @returns Current time as ISO 8601 string
  */
 export const nowAsIsoString = (): string =>
-  DateTime.formatIso(DateTime.unsafeNow())
+  DateTime.formatIso(DateTime.nowUnsafe())
 
 /**
  * Convert DateTime to ISO string.
@@ -55,7 +55,7 @@ export const makeTimePickerDate = (hours: number, minutes: number): Date => {
   // DateTimePicker displays dates in device local time,
   // so we create a Date where getHours()/getMinutes() return the desired values.
   // Using native Date constructor for DateTimePicker interop.
-  const date = DateTime.toDateUtc(DateTime.unsafeNow())
+  const date = DateTime.toDateUtc(DateTime.nowUnsafe())
   date.setHours(hours, minutes, 0, 0)
   return date
 }
@@ -87,7 +87,7 @@ export const parseApiDate = (
   dateInput: DateInput
 ): Option.Option<DateTime.DateTime> =>
   pipe(
-    Option.fromNullable(dateInput),
+    Option.fromNullishOr(dateInput),
     Option.flatMap((input) =>
       input instanceof Date
         ? DateTime.make(input.getTime())
@@ -113,7 +113,7 @@ export const formatApiDateWith =
  *
  * @returns Current time as DateTime.Utc
  */
-export const now = (): DateTime.Utc => DateTime.unsafeNow()
+export const now = (): DateTime.Utc => DateTime.nowUnsafe()
 
 /**
  * Get current time as native JavaScript Date for database operations.
@@ -121,7 +121,7 @@ export const now = (): DateTime.Utc => DateTime.unsafeNow()
  *
  * @returns Current time as native Date
  */
-export const nowAsDate = (): Date => DateTime.toDateUtc(DateTime.unsafeNow())
+export const nowAsDate = (): Date => DateTime.toDateUtc(DateTime.nowUnsafe())
 
 /**
  * Get start of current month as Date.
@@ -130,10 +130,10 @@ export const nowAsDate = (): Date => DateTime.toDateUtc(DateTime.unsafeNow())
  * @returns First day of current month at 00:00:00.000
  */
 export const startOfMonthAsDate = (): Date => {
-  const current = DateTime.unsafeNow()
+  const current = DateTime.nowUnsafe()
   const parts = DateTime.toParts(current)
   return DateTime.toDateUtc(
-    DateTime.unsafeMake({
+    DateTime.makeUnsafe({
       year: parts.year,
       month: parts.month,
       day: 1,
@@ -152,9 +152,9 @@ export const startOfMonthAsDate = (): Date => {
  * @returns Last day of current month at 23:59:59.999
  */
 export const endOfMonthAsDate = (): Date => {
-  const current = DateTime.unsafeNow()
+  const current = DateTime.nowUnsafe()
   const parts = DateTime.toParts(current)
-  const nextMonth = DateTime.unsafeMake({
+  const nextMonth = DateTime.makeUnsafe({
     year: parts.month === 12 ? parts.year + 1 : parts.year,
     month: parts.month === 12 ? 1 : parts.month + 1,
     day: 1,
@@ -163,7 +163,7 @@ export const endOfMonthAsDate = (): Date => {
     seconds: 0,
     millis: 0,
   })
-  const lastMoment = DateTime.subtract(nextMonth, { millis: 1 })
+  const lastMoment = DateTime.subtract(nextMonth, { milliseconds: 1 })
   return DateTime.toDateUtc(lastMoment)
 }
 
@@ -175,7 +175,7 @@ export const endOfMonthAsDate = (): Date => {
  * @returns Date that many days in the past
  */
 export const daysAgoAsDate = (days: number): Date =>
-  DateTime.toDateUtc(DateTime.subtract(DateTime.unsafeNow(), { days }))
+  DateTime.toDateUtc(DateTime.subtract(DateTime.nowUnsafe(), { days }))
 
 /**
  * Get date in the past by subtracting hours.
@@ -184,4 +184,4 @@ export const daysAgoAsDate = (days: number): Date =>
  * @returns Date that many hours in the past
  */
 export const hoursAgoAsDate = (hours: number): Date =>
-  DateTime.toDateUtc(DateTime.subtract(DateTime.unsafeNow(), { hours }))
+  DateTime.toDateUtc(DateTime.subtract(DateTime.nowUnsafe(), { hours }))

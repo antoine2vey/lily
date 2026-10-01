@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { hasPremiumAccess } from '@lily/api/services/subscriptions/has-premium-access'
 import type {
@@ -7,6 +6,7 @@ import type {
   SubscriptionTier,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const getCurrentSubscription = (
   userId: string
@@ -19,7 +19,7 @@ export const getCurrentSubscription = (
 
     // Get tier config based on effective tier (aligned with hasPremiumAccess logic)
     const effectiveTier: SubscriptionTier = pipe(
-      Option.fromNullable(subscription),
+      Option.fromNullishOr(subscription),
       Option.filter(hasPremiumAccess),
       Option.map((sub) => sub.tier as SubscriptionTier),
       Option.getOrElse(() => 'free' as SubscriptionTier)
@@ -35,15 +35,15 @@ export const getCurrentSubscription = (
             tier: subscription.tier as SubscriptionTier,
             status: subscription.status as SubscriptionStatus,
             trialStartsAt: Option.getOrNull(
-              Option.fromNullable(subscription.trialStartsAt)
+              Option.fromNullishOr(subscription.trialStartsAt)
             ),
             trialEndsAt: Option.getOrNull(
-              Option.fromNullable(subscription.trialEndsAt)
+              Option.fromNullishOr(subscription.trialEndsAt)
             ),
             currentPeriodStart: subscription.currentPeriodStart,
             currentPeriodEnd: subscription.currentPeriodEnd,
             canceledAt: Option.getOrNull(
-              Option.fromNullable(subscription.canceledAt)
+              Option.fromNullishOr(subscription.canceledAt)
             ),
             createdAt: subscription.createdAt,
             updatedAt: subscription.updatedAt,

@@ -1,6 +1,6 @@
 import type { UserSettings } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
@@ -35,7 +35,7 @@ export function useUpdatePrivacySettings() {
         USER_SETTINGS_QUERY_KEY,
         (old) => {
           if (!old) return undefined
-          return Either.map(old, (settings) => ({
+          return Result.map(old, (settings) => ({
             ...settings,
             privacy: {
               ...settings.privacy,

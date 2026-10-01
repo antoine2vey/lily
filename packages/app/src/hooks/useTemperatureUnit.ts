@@ -5,7 +5,7 @@ export function useTemperatureUnit() {
   const { data } = useUser()
 
   const unit = pipe(
-    Option.fromNullable(data?.temperatureUnit),
+    Option.fromNullishOr(data?.temperatureUnit),
     Option.getOrElse(() => 'celsius' as const)
   )
 

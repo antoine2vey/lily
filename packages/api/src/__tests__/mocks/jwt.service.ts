@@ -37,7 +37,7 @@ export const createMockJWTService = (
         }
 
         return pipe(
-          Option.fromNullable(options.signedToken),
+          Option.fromNullishOr(options.signedToken),
           Option.getOrElse(() => `mock-jwt-${input.userId}`)
         )
       }),
@@ -46,7 +46,7 @@ export const createMockJWTService = (
       Effect.gen(function* () {
         if (options.shouldFailVerify) {
           const code = pipe(
-            Option.fromNullable(options.verifyErrorCode),
+            Option.fromNullishOr(options.verifyErrorCode),
             Option.getOrElse(() => 'INVALID_TOKEN' as const)
           )
           return yield* new JWTError({
@@ -65,7 +65,7 @@ export const createMockJWTService = (
         }
 
         return pipe(
-          Option.fromNullable(options.verifyResult),
+          Option.fromNullishOr(options.verifyResult),
           Option.getOrElse(() => defaultPayload)
         )
       }),
@@ -73,7 +73,7 @@ export const createMockJWTService = (
     generateRefreshToken: () =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(options.refreshToken),
+          Option.fromNullishOr(options.refreshToken),
           Option.getOrElse(() => `${crypto.randomUUID()}${crypto.randomUUID()}`)
         )
       ),
@@ -81,7 +81,7 @@ export const createMockJWTService = (
     hashRefreshToken: (_token) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(options.refreshTokenHash),
+          Option.fromNullishOr(options.refreshTokenHash),
           Option.getOrElse(
             () =>
               'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'

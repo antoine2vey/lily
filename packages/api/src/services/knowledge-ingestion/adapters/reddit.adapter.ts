@@ -108,7 +108,7 @@ const fetchRedditJson = <T>(url: string) =>
     if (response.status === 429) {
       const retryAfter = parseInt(
         Option.getOrElse(
-          Option.fromNullable(response.headers.get('retry-after')),
+          Option.fromNullishOr(response.headers.get('retry-after')),
           () => '10'
         ),
         10
@@ -143,7 +143,7 @@ const fetchRedditJson = <T>(url: string) =>
     // Sleep for the server-specified retry-after duration before each retry
     Effect.catchTag('RateLimitedError', (rle) =>
       Effect.sleep(Duration.seconds(rle.retryAfter)).pipe(
-        Effect.zipRight(Effect.fail(rle))
+        Effect.andThen(Effect.fail(rle))
       )
     ),
     Effect.retry(
@@ -178,15 +178,15 @@ const REDDIT_PAGE_SIZE = 100
 const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
   Effect.gen(function* () {
     const sort = Option.getOrElse(
-      Option.fromNullable(config.sort),
+      Option.fromNullishOr(config.sort),
       () => 'top' as const
     )
     const timeFilter = Option.getOrElse(
-      Option.fromNullable(config.timeFilter),
+      Option.fromNullishOr(config.timeFilter),
       () => 'year' as const
     )
     const totalLimit = Option.getOrElse(
-      Option.fromNullable(config.limit),
+      Option.fromNullishOr(config.limit),
       () => 25
     )
     const pageSize = Math.min(totalLimit, REDDIT_PAGE_SIZE)
@@ -201,7 +201,7 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
 
     while (fetched < totalLimit) {
       const afterParam: string = pipe(
-        Option.fromNullable(after),
+        Option.fromNullishOr(after),
         Option.match({
           onNone: () => '',
           onSome: (a) => `&after=${a}`,
@@ -213,7 +213,7 @@ const fetchSubredditPosts = (subreddit: string, config: RedditAdapterConfig) =>
       const response: RedditListing = yield* fetchRedditJson<RedditListing>(url)
       const posts = response.data.children
 
-      if (Array.isEmptyArray(posts)) {
+      if (Array.isArrayEmpty(posts)) {
         break
       }
 

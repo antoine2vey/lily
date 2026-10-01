@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const markAllRead = (): Effect.Effect<
   void,

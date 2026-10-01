@@ -1,9 +1,8 @@
-import type { SqlError } from '@effect/sql/SqlError'
-import * as PgDrizzle from '@effect/sql-drizzle/Pg'
 import {
   extractCount,
   getPaginationParams,
 } from '@lily/api/repositories/helpers/pagination'
+import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { careLogs, plants } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
 import { nowAsDate, paginate } from '@lily/shared'
@@ -15,6 +14,7 @@ import type {
 } from '@lily/shared/care-log'
 import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Types for repository methods
 export interface CreateCareLogData {
@@ -42,9 +42,9 @@ export interface FindCareLogsParams {
 const mapToCareLog = (row: typeof careLogs.$inferSelect): CareLog => ({
   id: row.id,
   type: row.type,
-  notes: Option.getOrUndefined(Option.fromNullable(row.notes)),
+  notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
   date: row.date,
-  photoUrl: Option.getOrUndefined(Option.fromNullable(row.photoUrl)),
+  photoUrl: Option.getOrUndefined(Option.fromNullishOr(row.photoUrl)),
   plantId: row.plantId,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -96,10 +96,10 @@ export interface ICareLogRepository {
 }
 
 // Tag for dependency injection
-export class CareLogRepository extends Context.Tag('CareLogRepository')<
+export class CareLogRepository extends Context.Service<
   CareLogRepository,
   ICareLogRepository
->() {}
+>()('CareLogRepository') {}
 
 // Live implementation using PgDrizzle
 export const CareLogRepositoryLive = Layer.effect(
@@ -152,7 +152,7 @@ export const CareLogRepositoryLive = Layer.effect(
       findRecentByUserId: Effect.fn('CareLogRepository.findRecentByUserId')(
         function* (params: FindRecentParams) {
           const limit = pipe(
-            Option.fromNullable(params.limit),
+            Option.fromNullishOr(params.limit),
             Option.getOrElse(() => 10)
           )
 
@@ -178,10 +178,10 @@ export const CareLogRepositoryLive = Layer.effect(
             plantId: row.plantId,
             plantName: row.plantName,
             plantImageUrl: Option.getOrUndefined(
-              Option.fromNullable(row.plantImageUrl)
+              Option.fromNullishOr(row.plantImageUrl)
             ),
             date: row.date,
-            notes: Option.getOrUndefined(Option.fromNullable(row.notes)),
+            notes: Option.getOrUndefined(Option.fromNullishOr(row.notes)),
           }))
 
           return { items }
@@ -194,12 +194,12 @@ export const CareLogRepositoryLive = Layer.effect(
         if (data.length === 0) return []
         const values = Array.map(data, (d) => ({
           type: d.type,
-          notes: Option.getOrNull(Option.fromNullable(d.notes)),
+          notes: Option.getOrNull(Option.fromNullishOr(d.notes)),
           date: pipe(
-            Option.fromNullable(d.date),
+            Option.fromNullishOr(d.date),
             Option.getOrElse(() => nowAsDate())
           ),
-          photoUrl: Option.getOrNull(Option.fromNullable(d.photoUrl)),
+          photoUrl: Option.getOrNull(Option.fromNullishOr(d.photoUrl)),
           plantId: d.plantId,
         }))
         const rows = yield* db.insert(careLogs).values(values).returning()
@@ -213,12 +213,12 @@ export const CareLogRepositoryLive = Layer.effect(
           .insert(careLogs)
           .values({
             type: data.type,
-            notes: Option.getOrNull(Option.fromNullable(data.notes)),
+            notes: Option.getOrNull(Option.fromNullishOr(data.notes)),
             date: pipe(
-              Option.fromNullable(data.date),
+              Option.fromNullishOr(data.date),
               Option.getOrElse(() => nowAsDate())
             ),
-            photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
+            photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
             plantId: data.plantId,
           })
           .returning()
@@ -232,9 +232,9 @@ export const CareLogRepositoryLive = Layer.effect(
         const [row] = yield* db
           .update(careLogs)
           .set({
-            notes: Option.getOrNull(Option.fromNullable(data.notes)),
+            notes: Option.getOrNull(Option.fromNullishOr(data.notes)),
             date: data.date,
-            photoUrl: Option.getOrNull(Option.fromNullable(data.photoUrl)),
+            photoUrl: Option.getOrNull(Option.fromNullishOr(data.photoUrl)),
             updatedAt: nowAsDate(),
           })
           .where(eq(careLogs.id, id))

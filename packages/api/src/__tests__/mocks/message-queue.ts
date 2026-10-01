@@ -44,7 +44,7 @@ export const createMockMessageQueue = (
           return options.onDequeue(topic)
         }
         const queue = getQueue(topic)
-        const msg = pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        const msg = pipe(Option.fromNullishOr(queue.shift()), Option.getOrNull)
         if (!msg) return null
         return { message: msg, rawData: JSON.stringify(msg) }
       }),
@@ -86,7 +86,7 @@ export const createMockMessageQueueWithMessages = (
       Effect.sync(() => {
         const queue = queues.get(topic)
         if (!queue || queue.length === 0) return null
-        const msg = pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+        const msg = pipe(Option.fromNullishOr(queue.shift()), Option.getOrNull)
         if (!msg) return null
         return { message: msg, rawData: JSON.stringify(msg) }
       }),

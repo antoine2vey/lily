@@ -55,9 +55,9 @@ export function SettingsScreen() {
   const [showTempUnitModal, setShowTempUnitModal] = useState(false)
 
   const vacationValue = pipe(
-    Option.fromNullable(vacation),
+    Option.fromNullishOr(vacation),
     Option.filter((v) => v.status === 'active'),
-    Option.flatMap((v) => Option.fromNullable(v.endDate)),
+    Option.flatMap((v) => Option.fromNullishOr(v.endDate)),
     Option.flatMap((d) => parseApiDate(d)),
     Option.map((dt) =>
       t('settings:notifications.vacationActiveUntil', {

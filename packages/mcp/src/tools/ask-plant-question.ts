@@ -14,7 +14,7 @@ export const askPlantQuestionEffect = Effect.fn('MCP.askPlantQuestion')(
       params.plantName
     )
 
-    if (Array.isEmptyArray(result.sources as unknown[])) {
+    if (Array.isArrayEmpty(result.sources as unknown[])) {
       return 'No relevant information found in the knowledge base for this question. Try rephrasing your question or asking about common houseplant topics.'
     }
 

@@ -1,4 +1,3 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform'
 import { Authentication } from '@lily/api/services/auth/middleware.types'
 import { DiagnosisListResponse, PaginationParams } from '@lily/shared'
 import {
@@ -7,8 +6,12 @@ import {
 } from '@lily/shared/errors/plant'
 import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const plantIdParam = HttpApiSchema.param('plantId', Schema.UUID)
+const plantIdParam = HttpApiSchema.param(
+  'plantId',
+  Schema.String.check(Schema.isGUID())
+)
 
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(

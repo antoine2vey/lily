@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { EventBus, publishWithRetry } from '@lily/api/events'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
@@ -8,6 +7,7 @@ import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 import { generateMessageId } from './generate-message-id'
 import type { StepData } from './plant-chat'
@@ -140,7 +140,7 @@ export const persistChatCompletion = (
     // Title generation is best-effort and runs detached — don't block the
     // response on it. The frontend invalidates the conversations list when
     // the stream completes, so the title shows up on next refetch.
-    yield* Effect.forkDaemon(
+    yield* Effect.forkDetach(
       maybeGenerateTitle(conversation, userMessage, fullText)
     )
 
@@ -173,7 +173,7 @@ export const persistChatCompletion = (
             Array.filter((tr) => tr.toolName === 'createDiagnosis'),
             Array.filterMap((tr) =>
               pipe(
-                Option.fromNullable(
+                Option.fromNullishOr(
                   tr.output as { diagnosisId: string } | null
                 ),
                 Option.map((output) => ({
@@ -214,11 +214,11 @@ export const persistChatCompletion = (
             ),
             Array.filterMap((tr) =>
               pipe(
-                Option.fromNullable(
+                Option.fromNullishOr(
                   tr.output as { carePlanId?: string } | null
                 ),
                 Option.flatMap((output) =>
-                  Option.fromNullable(output.carePlanId)
+                  Option.fromNullishOr(output.carePlanId)
                 )
               )
             )

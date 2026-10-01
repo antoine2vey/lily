@@ -55,7 +55,7 @@ const getIconName = (icon: string): keyof typeof MaterialIcons.glyphMap => {
     star: 'star',
   }
   return Option.getOrElse(
-    Option.fromNullable(iconMap[icon]),
+    Option.fromNullishOr(iconMap[icon]),
     () => 'star' as const
   )
 }

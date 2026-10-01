@@ -1,4 +1,3 @@
-import type { PersistedFile } from '@effect/platform/Multipart'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockFileService } from '@lily/api/__tests__/mocks/file.service'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
@@ -8,6 +7,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { MockUsageTrackerLive } from '@lily/api/__tests__/mocks/usage-tracker'
 import { aiIdentify } from '@lily/api/services/plants/endpoints/ai-identify'
 import { Effect, Layer } from 'effect'
+import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
 
 describe('aiIdentify', () => {

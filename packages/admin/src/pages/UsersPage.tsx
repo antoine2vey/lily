@@ -32,7 +32,7 @@ export const UsersPage = () => {
   })
 
   const items = pipe(
-    Option.fromNullable(data),
+    Option.fromNullishOr(data),
     Option.map((d) => d.items),
     Option.getOrElse((): ReadonlyArray<AdminUserListItem> => [])
   )
@@ -41,7 +41,7 @@ export const UsersPage = () => {
     Match.value({
       loading: isLoading,
       error: isError,
-      empty: Array.isEmptyReadonlyArray(items),
+      empty: Array.isReadonlyArrayEmpty(items),
     }),
     Match.when({ loading: true }, () => 'loading' as const),
     Match.when({ error: true }, () => 'error' as const),

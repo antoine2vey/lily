@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Either } from 'effect'
+import { Result } from 'effect'
 import { useEffectMutation } from '@/utils/client'
 import {
   optimisticFollowUpdate,
@@ -45,7 +45,7 @@ export function useFollowMutation(
       return { previous } satisfies FollowMutationContext
     },
     onSuccess: (data, _variables, context) => {
-      if (Either.isLeft(data) && isFollowMutationContext(context)) {
+      if (Result.isFailure(data) && isFollowMutationContext(context)) {
         restoreSocialSnapshot(queryClient, context.previous)
       }
     },

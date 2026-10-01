@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { Plant } from '@lily/shared'
-import { Array, Either, Match, Option, pipe } from 'effect'
+import { Array, Match, Option, pipe, Result } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -39,8 +39,8 @@ export function CemeteryScreen() {
       const result = await revivePlant.mutateAsync({ path: { id: plant.id } })
       pipe(
         result,
-        Either.match({
-          onLeft: (error) =>
+        Result.match({
+          onFailure: (error) =>
             pipe(
               Match.value(error),
               Match.when({ _tag: 'LimitExceededError' }, (e) =>
@@ -48,7 +48,7 @@ export function CemeteryScreen() {
               ),
               Match.orElse(() => toast.error(t('toast.bringBackFailed')))
             ),
-          onRight: () =>
+          onSuccess: () =>
             toast.success(t('toast.broughtBack', { name: plant.name })),
         })
       )
@@ -89,7 +89,7 @@ export function CemeteryScreen() {
       </View>
 
       {isLoading &&
-      Array.isEmptyReadonlyArray(plants) ? null : Array.isEmptyReadonlyArray(
+      Array.isReadonlyArrayEmpty(plants) ? null : Array.isReadonlyArrayEmpty(
           plants
         ) ? (
         <Animated.View entering={FadeIn.duration(300)}>
@@ -125,7 +125,7 @@ export function CemeteryScreen() {
         visible={deleting !== null}
         title={tPlants('detail.delete.title', {
           name: Option.getOrElse(
-            Option.map(Option.fromNullable(deleting), (p) => p.name),
+            Option.map(Option.fromNullishOr(deleting), (p) => p.name),
             () => ''
           ),
         })}

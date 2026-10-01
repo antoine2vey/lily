@@ -1,4 +1,3 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import type { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { handleBillingIssue } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-billing-issue'
 import { handleCancellation } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-cancellation'
@@ -15,6 +14,7 @@ import {
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 import type { PaymentProviderError } from '@lily/shared'
 import { DateTime, Duration, Effect, Match, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 export const handleRevenueCatWebhook = (
   payload: string,
@@ -50,12 +50,12 @@ export const handleRevenueCatWebhook = (
 
     // Calculate dates from milliseconds using Effect DateTime
     const purchasedAt = DateTime.toDateUtc(
-      DateTime.unsafeMake(eventData.purchased_at_ms)
+      DateTime.makeUnsafe(eventData.purchased_at_ms)
     )
     const expiresAt = eventData.expiration_at_ms
-      ? DateTime.toDateUtc(DateTime.unsafeMake(eventData.expiration_at_ms))
+      ? DateTime.toDateUtc(DateTime.makeUnsafe(eventData.expiration_at_ms))
       : DateTime.toDateUtc(
-          DateTime.addDuration(DateTime.unsafeNow(), Duration.days(30))
+          DateTime.addDuration(DateTime.nowUnsafe(), Duration.days(30))
         )
 
     // Build shared context for handlers

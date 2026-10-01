@@ -31,7 +31,7 @@ export function CareTypeChips({
 }: CareTypeToggleProps) {
   const { t } = useTranslation('logCare')
   const iconColors = useIconColors()
-  const displayLabel = Option.getOrElse(Option.fromNullable(label), () =>
+  const displayLabel = Option.getOrElse(Option.fromNullishOr(label), () =>
     t('careType')
   )
 

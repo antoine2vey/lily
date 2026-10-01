@@ -1,7 +1,7 @@
-import type { SqlError } from '@effect/sql/SqlError'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 // Deleting an accepted plan leaves any schedule adjustments made on accept in
 // place: the calendar already reflects the advice the user agreed to.

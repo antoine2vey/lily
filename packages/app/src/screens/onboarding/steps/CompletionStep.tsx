@@ -28,7 +28,7 @@ function SummaryRow({ emoji, text }: { emoji: string; text: string }) {
 export function CompletionStep({ data, onComplete }: CompletionStepProps) {
   const { t } = useTranslation('onboarding')
 
-  const hasPlant = Option.isSome(Option.fromNullable(data.plantName))
+  const hasPlant = Option.isSome(Option.fromNullishOr(data.plantName))
 
   return (
     <View className="flex-1">
