@@ -5,12 +5,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 type FetchArgs = [input: RequestInfo | URL, init?: RequestInit]
 
-const configProvider = ConfigProvider.fromMap(
-  new Map([
-    ['DISCORD_WEBHOOK_URL', 'https://discord.example/webhook/abc'],
-    ['ALERT_ENVIRONMENT_NAME', 'test'],
-  ])
-)
+const configProvider = ConfigProvider.fromUnknown({
+  DISCORD_WEBHOOK_URL: 'https://discord.example/webhook/abc',
+  ALERT_ENVIRONMENT_NAME: 'test',
+})
 
 describe('DiscordAlerterLive', () => {
   const fetchCalls: FetchArgs[] = []

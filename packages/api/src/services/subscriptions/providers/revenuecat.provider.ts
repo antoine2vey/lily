@@ -30,9 +30,9 @@ export class RevenueCatProvider extends Context.Service<
 // RevenueCat don't cause decode failures. We also override `type` to
 // Schema.String so that new/unknown event types are accepted at decode time
 // (the downstream Match.orElse in helpers.ts handles them gracefully).
-const LenientEventDataSchema = Schema.extend(
+const LenientEventDataSchema = Schema.StructWithRest(
   Schema.Struct({ ...RevenueCatWebhookEventData.fields, type: Schema.String }),
-  Schema.Record(Schema.String, Schema.Unknown)
+  [Schema.Record(Schema.String, Schema.Unknown)]
 )
 
 const RevenueCatWebhookEventSchema = Schema.Struct({

@@ -23,7 +23,7 @@ import type { SqlError } from 'effect/sql/SqlError'
  * - `number` → enable/update (upsert with frequency, seed nextCareAt if missing)
  */
 const syncOptionalSchedule = (
-  scheduleRepo: Effect.Effect.Success<typeof CareScheduleRepository>,
+  scheduleRepo: CareScheduleRepository['Service'],
   existingSchedules: readonly { careType: string; nextCareAt: Date | null }[],
   plantId: string,
   careType: CareType,
@@ -87,7 +87,9 @@ export const updatePlant = (
 
     // Build update data from request, excluding care-related fields
     const data = pipe(
-      Record.fromEntries(Record.toEntries({ ...request, imageUrl })),
+      Record.fromEntries(
+        Record.toEntries<string, unknown>({ ...request, imageUrl })
+      ),
       Record.remove('id'),
       Record.remove('wateringFrequencyDays'),
       Record.remove('fertilizationFrequencyDays'),

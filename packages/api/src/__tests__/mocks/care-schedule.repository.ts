@@ -83,19 +83,21 @@ export const createMockCareScheduleRepository = (
       )
 
       return Effect.succeed(
-        Array.filterMap(pending, (s) =>
-          pipe(
-            Array.findFirst(plantsData, (p) => p.id === s.plantId),
-            Option.map(
-              (plant): ScheduleWithPlant => ({
-                schedule: s,
-                plant: {
-                  id: plant.id,
-                  name: plant.name,
-                  imageUrl: plant.imageUrl,
-                  room: resolveRoom(plant.roomId),
-                },
-              })
+        Array.getSomes(
+          Array.map(pending, (s) =>
+            pipe(
+              Array.findFirst(plantsData, (p) => p.id === s.plantId),
+              Option.map(
+                (plant): ScheduleWithPlant => ({
+                  schedule: s,
+                  plant: {
+                    id: plant.id,
+                    name: plant.name,
+                    imageUrl: plant.imageUrl,
+                    room: resolveRoom(plant.roomId),
+                  },
+                })
+              )
             )
           )
         )
@@ -121,7 +123,7 @@ export const createMockCareScheduleRepository = (
 
       const mapped = pipe(
         Array.fromRecord(byPlant),
-        Array.filterMap(([, schedules]) => {
+        Array.map(([, schedules]) => {
           const first = Array.head(schedules)
           return pipe(
             first,
@@ -141,7 +143,8 @@ export const createMockCareScheduleRepository = (
               )
             )
           )
-        })
+        }),
+        Array.getSomes
       )
 
       return Effect.succeed(Array.groupBy(mapped, (p) => p.userId))

@@ -39,7 +39,7 @@ const createChainablePgDrizzle = (): Layer.Layer<PgDrizzle.PgDrizzle> => {
 
   return Layer.succeed(PgDrizzle.PgDrizzle, {
     update,
-  } as unknown as PgDrizzle.PgDrizzle['Type'])
+  } as unknown as PgDrizzle.PgDrizzle['Service'])
 }
 
 describe('issueServiceToken', () => {

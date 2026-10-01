@@ -264,7 +264,9 @@ it('should create a new plant', async () => {
 
 ### Testing Error Cases
 
-Use `Effect.runPromiseExit` to test failures:
+Use `Effect.runPromiseExit` to test failures, and `failureOf` from
+`@lily/api/__tests__/fixtures/exit` to read the typed error. It throws when the
+effect succeeded or died, so the assertion cannot pass by skipping:
 
 ```typescript
 it('should fail with PlantNotFoundError when plant not found', async () => {
@@ -277,12 +279,9 @@ it('should fail with PlantNotFoundError when plant not found', async () => {
     findPlantById('non-existent').pipe(Effect.provide(testLayer))
   )
 
-  expect(Exit.isFailure(result)).toBe(true)
-
-  if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-    expect(result.cause.error).toBeInstanceOf(PlantNotFoundError)
-    expect(result.cause.error.id).toBe('non-existent')
-  }
+  const error = failureOf(result)
+  expect(error).toBeInstanceOf(PlantNotFoundError)
+  expect(error.id).toBe('non-existent')
 })
 ```
 

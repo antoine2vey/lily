@@ -88,9 +88,8 @@ export const createMockDelegationRepository = (
               dpLinks,
               (l) => l.delegationId === d.id
             )
-            const plantRows: DelegationPlantRow[] = Array.filterMap(
-              plantLinks,
-              (l) =>
+            const plantRows: DelegationPlantRow[] = Array.getSomes(
+              Array.map(plantLinks, (l) =>
                 pipe(
                   Option.fromNullishOr(findPlant(l.plantId)),
                   Option.map((p) => ({
@@ -101,6 +100,7 @@ export const createMockDelegationRepository = (
                     health: p.health,
                   }))
                 )
+              )
             )
             return {
               ...d,
@@ -196,19 +196,21 @@ export const createMockDelegationRepository = (
               (l) => l.delegationId === d.id
             )
             const owner = findUser(d.ownerId)
-            return Array.filterMap(plantLinks, (l) =>
-              pipe(
-                Option.fromNullishOr(findPlant(l.plantId)),
-                Option.map(
-                  (p): DelegatedTaskRow => ({
-                    delegationId: d.id,
-                    plantId: p.id,
-                    plantName: p.name,
-                    plantImage: p.imageUrl,
-                    ownerName: owner?.name ?? null,
-                    schedules: p.schedules,
-                    health: p.health,
-                  })
+            return Array.getSomes(
+              Array.map(plantLinks, (l) =>
+                pipe(
+                  Option.fromNullishOr(findPlant(l.plantId)),
+                  Option.map(
+                    (p): DelegatedTaskRow => ({
+                      delegationId: d.id,
+                      plantId: p.id,
+                      plantName: p.name,
+                      plantImage: p.imageUrl,
+                      ownerName: owner?.name ?? null,
+                      schedules: p.schedules,
+                      health: p.health,
+                    })
+                  )
                 )
               )
             )
@@ -221,7 +223,7 @@ export const createMockDelegationRepository = (
         pipe(
           dpLinks,
           Array.filter((l) => Array.contains(params.plantIds, l.plantId)),
-          Array.filterMap((l) =>
+          Array.map((l) =>
             pipe(
               Array.findFirst(
                 delegations,
@@ -237,6 +239,7 @@ export const createMockDelegationRepository = (
               Option.map(() => l.plantId)
             )
           ),
+          Array.getSomes,
           Array.dedupe
         )
       ),
@@ -266,19 +269,21 @@ export const createMockDelegationRepository = (
 
     getPlantsByDelegation: (delegationId) =>
       Effect.succeed(
-        Array.filterMap(
-          Array.filter(dpLinks, (l) => l.delegationId === delegationId),
-          (l) =>
-            pipe(
-              Option.fromNullishOr(findPlant(l.plantId)),
-              Option.map((p) => ({
-                id: p.id,
-                name: p.name,
-                imageUrl: p.imageUrl,
-                schedules: p.schedules,
-                health: p.health,
-              }))
-            )
+        Array.getSomes(
+          Array.map(
+            Array.filter(dpLinks, (l) => l.delegationId === delegationId),
+            (l) =>
+              pipe(
+                Option.fromNullishOr(findPlant(l.plantId)),
+                Option.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  imageUrl: p.imageUrl,
+                  schedules: p.schedules,
+                  health: p.health,
+                }))
+              )
+          )
         )
       ),
 

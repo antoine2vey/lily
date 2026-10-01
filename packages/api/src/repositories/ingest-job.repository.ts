@@ -2,7 +2,7 @@ import { ingestJobs, KnowledgeDrizzle } from '@lily/knowledge-db'
 import type { IngestJob, IngestJobStatus } from '@lily/shared/knowledge'
 import { count, desc, eq } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
-import { SqlError } from 'effect/sql/SqlError'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
 type IngestJobRow = typeof ingestJobs.$inferSelect
 
@@ -66,8 +66,12 @@ export const IngestJobRepositoryLive = Layer.effect(
             onNone: () =>
               Effect.fail(
                 new SqlError({
-                  cause: new Error('INSERT into ingest_jobs returned no rows'),
-                  message: 'INSERT into ingest_jobs returned no rows',
+                  reason: new UnknownError({
+                    cause: new Error(
+                      'INSERT into ingest_jobs returned no rows'
+                    ),
+                    message: 'INSERT into ingest_jobs returned no rows',
+                  }),
                 })
               ),
             onSome: (row) => Effect.succeed(mapToIngestJob(row)),

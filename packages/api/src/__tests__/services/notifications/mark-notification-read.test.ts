@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockNotifications } from '@lily/api/__tests__/fixtures/notifications'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
@@ -45,7 +46,7 @@ describe('markNotificationRead', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : null
+      const error = failureOf(exit)
       expect(error).toBeInstanceOf(NotificationNotFoundError)
     }
   })
@@ -59,7 +60,7 @@ describe('markNotificationRead', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : null
+      const error = failureOf(exit)
       expect(error).toBeInstanceOf(NotificationNotFoundError)
     }
   })

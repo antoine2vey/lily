@@ -180,7 +180,7 @@ describe('correctCareDates', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      expect(exit.cause._tag).toBe('Fail')
+      expect(Exit.hasFails(exit)).toBe(true)
     }
   })
 
@@ -196,7 +196,7 @@ describe('correctCareDates', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      expect(exit.cause._tag).toBe('Fail')
+      expect(Exit.hasFails(exit)).toBe(true)
     }
   })
 

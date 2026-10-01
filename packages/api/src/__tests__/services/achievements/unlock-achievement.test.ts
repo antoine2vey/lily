@@ -1,4 +1,5 @@
 import { createTestUserAchievement } from '@lily/api/__tests__/fixtures/achievements'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { unlockAchievement } from '@lily/api/services/achievements/endpoints/unlock-achievement'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -143,9 +144,7 @@ describe('unlockAchievement', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(ForbiddenError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(ForbiddenError)
   })
 
   it('should preserve original unlock time when returning existing', async () => {

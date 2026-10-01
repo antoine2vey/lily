@@ -2,6 +2,7 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
@@ -126,9 +127,7 @@ describe('cancelDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
   it('should fail when delegation is already canceled', async () => {
@@ -141,9 +140,7 @@ describe('cancelDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
   it('should fail when delegation is rejected', async () => {
@@ -156,9 +153,7 @@ describe('cancelDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationInvalidStatusError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationInvalidStatusError)
   })
 
   it('should fail when not the owner', async () => {
@@ -171,9 +166,7 @@ describe('cancelDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationNotAuthorizedError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 
   it('should fail when delegation not found', async () => {
@@ -184,9 +177,7 @@ describe('cancelDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationNotFoundError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 
   it('should create delegation_canceled notification for caretaker on cancel', async () => {

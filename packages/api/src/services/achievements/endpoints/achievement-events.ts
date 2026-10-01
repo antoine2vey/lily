@@ -12,8 +12,8 @@ export const achievementEvents = () =>
 
     const eventStream = Stream.unwrap(
       Effect.gen(function* () {
-        const dequeue = yield* notifier.subscribe
-        return Stream.fromQueue(dequeue).pipe(
+        const subscription = yield* notifier.subscribe
+        return Stream.fromSubscription(subscription).pipe(
           Stream.filter((event) => event.userId === userId),
           Stream.map((event) =>
             encoder.encode(`data: ${JSON.stringify({ key: event.key })}\n\n`)

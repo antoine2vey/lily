@@ -6,6 +6,6 @@ export const createMockPgDrizzle = (): Layer.Layer<PgDrizzle.PgDrizzle> => {
   // This is only needed to satisfy type requirements when AiService is mocked
   return Layer.succeed(
     PgDrizzle.PgDrizzle,
-    {} as unknown as PgDrizzle.PgDrizzle['Type']
+    {} as unknown as PgDrizzle.PgDrizzle['Service']
   )
 }

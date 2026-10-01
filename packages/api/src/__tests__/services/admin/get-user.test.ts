@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUser } from '@lily/api/services/admin/endpoints/get-user'
@@ -24,9 +25,6 @@ describe('getUser', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result)) {
-      const error = result.cause
-      expect(error._tag).toBe('Fail')
-    }
+    expect(failureOf(result)._tag).toBe('UserNotFoundError')
   })
 })

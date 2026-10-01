@@ -2,6 +2,7 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
@@ -126,12 +127,10 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(LimitExceededError)
-      expect((result.cause.error as LimitExceededError).feature).toBe(
-        'care_delegation'
-      )
-    }
+    expect(failureOf(result)).toBeInstanceOf(LimitExceededError)
+    expect((failureOf(result) as LimitExceededError).feature).toBe(
+      'care_delegation'
+    )
   })
 
   it('should fail with CannotDelegateSelfError when delegating to self', async () => {
@@ -145,9 +144,7 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(CannotDelegateSelfError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(CannotDelegateSelfError)
   })
 
   it('should fail with UserNotFoundError when caretaker does not exist', async () => {
@@ -161,9 +158,7 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(UserNotFoundError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(UserNotFoundError)
   })
 
   it('should fail with DelegationDateError when start date is in the past', async () => {
@@ -178,12 +173,10 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationDateError)
-      expect((result.cause.error as DelegationDateError).message).toContain(
-        'future'
-      )
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
+    expect((failureOf(result) as DelegationDateError).message).toContain(
+      'future'
+    )
   })
 
   it('should fail with DelegationDateError when end date is before start date', async () => {
@@ -198,12 +191,10 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationDateError)
-      expect((result.cause.error as DelegationDateError).message).toContain(
-        'after start date'
-      )
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
+    expect((failureOf(result) as DelegationDateError).message).toContain(
+      'after start date'
+    )
   })
 
   it('should fail with DelegationOverlapError when plants have existing delegation', async () => {
@@ -226,9 +217,7 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationOverlapError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationOverlapError)
   })
 
   it('should create delegation_request notification for caretaker on creation', async () => {
@@ -259,9 +248,7 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(PlantNotAuthorizedError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(PlantNotAuthorizedError)
   })
 
   it('should fail with PlantNotAuthorizedError when plant belongs to another user', async () => {
@@ -276,9 +263,7 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(PlantNotAuthorizedError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(PlantNotAuthorizedError)
   })
 
   it('should fail with DelegationDateError when plantIds is empty', async () => {
@@ -292,8 +277,6 @@ describe('createDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationDateError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationDateError)
   })
 })

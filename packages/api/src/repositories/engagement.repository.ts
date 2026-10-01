@@ -302,18 +302,20 @@ export const EngagementRepositoryLive = Layer.effect(
             )
           )
 
-        return Array.filterMap(rows, (r) =>
-          pipe(
-            Option.fromNullishOr(r.trialEndsAt),
-            Option.map((trialEndsAt) => ({
-              id: r.id,
-              timezone: r.timezone,
-              doNotDisturb: r.doNotDisturb,
-              doNotDisturbStart: r.doNotDisturbStart,
-              doNotDisturbEnd: r.doNotDisturbEnd,
-              language: r.language as LanguageCode,
-              trialEndsAt,
-            }))
+        return Array.getSomes(
+          Array.map(rows, (r) =>
+            pipe(
+              Option.fromNullishOr(r.trialEndsAt),
+              Option.map((trialEndsAt) => ({
+                id: r.id,
+                timezone: r.timezone,
+                doNotDisturb: r.doNotDisturb,
+                doNotDisturbStart: r.doNotDisturbStart,
+                doNotDisturbEnd: r.doNotDisturbEnd,
+                language: r.language as LanguageCode,
+                trialEndsAt,
+              }))
+            )
           )
         )
       }),

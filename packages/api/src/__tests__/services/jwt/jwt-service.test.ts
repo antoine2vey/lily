@@ -5,13 +5,11 @@ import { ConfigProvider, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 // Test config provider for JWT service
-const testConfigProvider = ConfigProvider.fromMap(
-  new Map([
-    ['JWT_SECRET', 'test-secret-key-for-testing-purposes-only'],
-    ['JWT_ISSUER', 'lily-test'],
-    ['JWT_ACCESS_TOKEN_EXPIRY', '15m'],
-  ])
-)
+const testConfigProvider = ConfigProvider.fromUnknown({
+  JWT_SECRET: 'test-secret-key-for-testing-purposes-only',
+  JWT_ISSUER: 'lily-test',
+  JWT_ACCESS_TOKEN_EXPIRY: '15m',
+})
 
 const JWTServiceTestLive = JWTServiceLive.pipe(
   Layer.provide(ConfigProvider.layer(testConfigProvider))

@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockAchievementRepository } from '@lily/api/__tests__/mocks/achievement.repository'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import {
@@ -78,16 +79,11 @@ describe('LimitChecker', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result)) {
-        const error = result.cause
-        expect(error._tag).toBe('Fail')
-        if (error._tag === 'Fail') {
-          expect(error.error).toBeInstanceOf(LimitExceededError)
-          expect((error.error as LimitExceededError).feature).toBe('plants')
-          expect((error.error as LimitExceededError).limit).toBe(5)
-          expect((error.error as LimitExceededError).current).toBe(5)
-        }
-      }
+      const error = failureOf(result)
+      expect(error).toBeInstanceOf(LimitExceededError)
+      expect((error as LimitExceededError).feature).toBe('plants')
+      expect((error as LimitExceededError).limit).toBe(5)
+      expect((error as LimitExceededError).current).toBe(5)
     })
 
     it('should not count dead plants against the free limit', async () => {
@@ -415,12 +411,10 @@ describe('LimitChecker', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        const error = result.cause.error as LimitExceededError
-        expect(error.feature).toBe('ai_chats')
-        expect(error.limit).toBe(10)
-        expect(error.current).toBe(10)
-      }
+      const error = failureOf(result) as LimitExceededError
+      expect(error.feature).toBe('ai_chats')
+      expect(error.limit).toBe(10)
+      expect(error.current).toBe(10)
     })
 
     it('should allow paid user unlimited chats', async () => {
@@ -527,12 +521,10 @@ describe('LimitChecker', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        const error = result.cause.error as LimitExceededError
-        expect(error.feature).toBe('card_scans')
-        expect(error.limit).toBe(5)
-        expect(error.current).toBe(5)
-      }
+      const error = failureOf(result) as LimitExceededError
+      expect(error.feature).toBe('card_scans')
+      expect(error.limit).toBe(5)
+      expect(error.current).toBe(5)
     })
   })
 
@@ -591,12 +583,10 @@ describe('LimitChecker', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        const error = result.cause.error as LimitExceededError
-        expect(error.feature).toBe('plant_identifies')
-        expect(error.limit).toBe(3)
-        expect(error.current).toBe(3)
-      }
+      const error = failureOf(result) as LimitExceededError
+      expect(error.feature).toBe('plant_identifies')
+      expect(error.limit).toBe(3)
+      expect(error.current).toBe(3)
     })
   })
 
@@ -832,11 +822,9 @@ describe('LimitChecker', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        const error = result.cause.error as LimitExceededError
-        expect(error.feature).toBe('care_delegation')
-        expect(error.message).toContain('premium feature')
-      }
+      const error = failureOf(result) as LimitExceededError
+      expect(error.feature).toBe('care_delegation')
+      expect(error.message).toContain('premium feature')
     })
   })
 
@@ -854,10 +842,8 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
 
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        const error = result.cause.error as LimitExceededError
-        expect(error.message).toContain('Upgrade to Premium')
-      }
+      const error = failureOf(result) as LimitExceededError
+      expect(error.message).toContain('Upgrade to Premium')
     })
   })
 })

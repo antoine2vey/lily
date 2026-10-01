@@ -2,6 +2,7 @@ import {
   mockDelegation1,
   mockDelegationPlants,
 } from '@lily/api/__tests__/fixtures/delegations'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
@@ -106,9 +107,7 @@ describe('getDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationNotFoundError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationNotFoundError)
   })
 
   it('should fail with DelegationNotAuthorizedError for non-participant', async () => {
@@ -119,8 +118,6 @@ describe('getDelegation', () => {
     )
 
     expect(Exit.isFailure(result)).toBe(true)
-    if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-      expect(result.cause.error).toBeInstanceOf(DelegationNotAuthorizedError)
-    }
+    expect(failureOf(result)).toBeInstanceOf(DelegationNotAuthorizedError)
   })
 })

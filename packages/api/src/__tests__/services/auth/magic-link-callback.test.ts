@@ -8,7 +8,7 @@ import {
   createMockMagicLinkRepository,
 } from '@lily/api/__tests__/mocks/magic-link.repository'
 import { magicLinkCallback } from '@lily/api/services/auth/endpoints/magic-link-callback'
-import { Effect } from 'effect'
+import { Effect, Exit } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
 describe('magicLinkCallback', () => {
@@ -38,10 +38,7 @@ describe('magicLinkCallback', () => {
     )
 
     expect(result._tag).toBe('Failure')
-    if (result._tag === 'Failure') {
-      const error = result.cause
-      expect(error._tag).toBe('Fail')
-    }
+    expect(Exit.hasFails(result)).toBe(true)
   })
 
   it('should fail with expired magic link', async () => {

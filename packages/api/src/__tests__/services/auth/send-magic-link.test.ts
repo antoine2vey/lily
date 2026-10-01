@@ -1,5 +1,4 @@
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
-import { createMockCommandExecutor } from '@lily/api/__tests__/mocks/command-executor'
 import { createMockEmailService } from '@lily/api/__tests__/mocks/email.service'
 import {
   clearMagicLinkStore,
@@ -33,7 +32,6 @@ describe('sendMagicLink', () => {
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
       ),
-      createMockCommandExecutor(),
       createMockEmailService(),
       MockAlerterLive,
       Layer.succeed(MagicLinkConfig, {
@@ -121,7 +119,6 @@ describe('sendMagicLink', () => {
               magicLinks: getMagicLinkStore(),
             }),
             createMockRateLimiterService(),
-            createMockCommandExecutor(),
             createMockEmailService(),
             MockAlerterLive,
             Layer.succeed(MagicLinkConfig, {

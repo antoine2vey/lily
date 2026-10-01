@@ -27,7 +27,10 @@ const onPlantCreated = (event: { userId: string }) =>
     // Always unlock FIRST_PLANT_ADDED (DB handles duplicates)
     yield* unlock(event.userId, 'FIRST_PLANT_ADDED').pipe(
       Effect.tap((result) =>
-        Effect.when(notify(event.userId, 'FIRST_PLANT_ADDED'), () => !!result)
+        Effect.when(
+          notify(event.userId, 'FIRST_PLANT_ADDED'),
+          Effect.succeed(!!result)
+        )
       )
     )
 
@@ -40,7 +43,10 @@ const onPlantCreated = (event: { userId: string }) =>
     if (plantCount >= plantCollectorThreshold) {
       yield* unlock(event.userId, 'PLANT_COLLECTOR').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'PLANT_COLLECTOR'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'PLANT_COLLECTOR'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -55,14 +61,20 @@ const onCareLogCreated = (event: { userId: string; type: CareType }) =>
     if (event.type === 'watering' && careCount >= 10) {
       yield* unlock(event.userId, 'WATERING_NOVICE').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'WATERING_NOVICE'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'WATERING_NOVICE'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
     if (event.type === 'fertilization' && careCount >= 10) {
       yield* unlock(event.userId, 'FERTILIZER_GURU').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'FERTILIZER_GURU'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'FERTILIZER_GURU'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -74,7 +86,7 @@ const onCareLogCreated = (event: { userId: string; type: CareType }) =>
         Effect.tap((result) =>
           Effect.when(
             notify(event.userId, 'DEDICATED_CARETAKER'),
-            () => !!result
+            Effect.succeed(!!result)
           )
         )
       )
@@ -84,7 +96,10 @@ const onCareLogCreated = (event: { userId: string; type: CareType }) =>
 const onChatMessageSent = (event: { userId: string }) =>
   unlock(event.userId, 'AI_CONVERSATIONALIST').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'AI_CONVERSATIONALIST'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'AI_CONVERSATIONALIST'),
+        Effect.succeed(!!result)
+      )
     )
   )
 
@@ -101,7 +116,10 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
     if (photoCount >= photoProThreshold) {
       yield* unlock(event.userId, 'PHOTO_PRO').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'PHOTO_PRO'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'PHOTO_PRO'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -114,7 +132,10 @@ const onPhotoUploaded = (event: { userId: string; plantId: string }) =>
     if (plantPhotoCount >= 5) {
       yield* unlock(event.userId, 'GROWTH_TRACKER').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'GROWTH_TRACKER'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'GROWTH_TRACKER'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -131,7 +152,10 @@ const onPlantScanned = (event: { userId: string }) =>
     if (scanCount >= scanChampThreshold) {
       yield* unlock(event.userId, 'SCAN_CHAMP').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'SCAN_CHAMP'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'SCAN_CHAMP'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -140,7 +164,10 @@ const onPlantScanned = (event: { userId: string }) =>
 const onAttentionResponded = (event: { userId: string }) =>
   unlock(event.userId, 'ATTENTION_ALERT').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'ATTENTION_ALERT'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'ATTENTION_ALERT'),
+        Effect.succeed(!!result)
+      )
     )
   )
 
@@ -153,7 +180,10 @@ const onCareHistoryViewed = (event: { userId: string }) =>
     if (viewCount >= 5) {
       yield* unlock(event.userId, 'HISTORY_HERO').pipe(
         Effect.tap((result) =>
-          Effect.when(notify(event.userId, 'HISTORY_HERO'), () => !!result)
+          Effect.when(
+            notify(event.userId, 'HISTORY_HERO'),
+            Effect.succeed(!!result)
+          )
         )
       )
     }
@@ -162,28 +192,40 @@ const onCareHistoryViewed = (event: { userId: string }) =>
 const onDiseaseIdentified = (event: { userId: string }) =>
   unlock(event.userId, 'DISEASE_DETECTIVE').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'DISEASE_DETECTIVE'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'DISEASE_DETECTIVE'),
+        Effect.succeed(!!result)
+      )
     )
   )
 
 const onRarePlantIdentified = (event: { userId: string }) =>
   unlock(event.userId, 'RARE_COLLECTOR').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'RARE_COLLECTOR'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'RARE_COLLECTOR'),
+        Effect.succeed(!!result)
+      )
     )
   )
 
 const onReminderResponded = (event: { userId: string }) =>
   unlock(event.userId, 'REMINDER_RESCUER').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'REMINDER_RESCUER'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'REMINDER_RESCUER'),
+        Effect.succeed(!!result)
+      )
     )
   )
 
 const onPlantShared = (event: { userId: string }) =>
   unlock(event.userId, 'SHARE_SPROUT').pipe(
     Effect.tap((result) =>
-      Effect.when(notify(event.userId, 'SHARE_SPROUT'), () => !!result)
+      Effect.when(
+        notify(event.userId, 'SHARE_SPROUT'),
+        Effect.succeed(!!result)
+      )
     )
   )
 

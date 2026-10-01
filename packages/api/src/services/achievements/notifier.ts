@@ -1,5 +1,5 @@
 import type { AchievementKey } from '@lily/shared'
-import { Context, Effect, Layer, PubSub, type Queue, type Scope } from 'effect'
+import { Context, Effect, Layer, PubSub, type Scope } from 'effect'
 
 export interface AchievementEvent {
   readonly userId: string
@@ -9,7 +9,7 @@ export interface AchievementEvent {
 export interface IAchievementNotifier {
   readonly notify: (userId: string, key: AchievementKey) => Effect.Effect<void>
   readonly subscribe: Effect.Effect<
-    Queue.Dequeue<AchievementEvent>,
+    PubSub.Subscription<AchievementEvent>,
     never,
     Scope.Scope
   >

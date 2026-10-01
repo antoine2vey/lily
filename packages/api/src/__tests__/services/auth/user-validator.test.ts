@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
@@ -210,9 +211,7 @@ describe('validateUserFromToken', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Account is not active')
-      }
+      expect(failureOf(result).message).toContain('Account is not active')
     })
 
     it('should fail when user in DB has suspended status', async () => {
@@ -236,9 +235,7 @@ describe('validateUserFromToken', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Account is not active')
-      }
+      expect(failureOf(result).message).toContain('Account is not active')
     })
   })
 
@@ -264,9 +261,7 @@ describe('validateUserFromToken', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Authentication failed')
-      }
+      expect(failureOf(result).message).toContain('Authentication failed')
     })
   })
 
@@ -293,9 +288,7 @@ describe('validateUserFromToken', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Insufficient permissions')
-      }
+      expect(failureOf(result).message).toContain('Insufficient permissions')
     })
 
     it('should fail when requireAdmin but DB role is not admin', async () => {
@@ -320,9 +313,7 @@ describe('validateUserFromToken', () => {
       )
 
       expect(Exit.isFailure(result)).toBe(true)
-      if (Exit.isFailure(result) && result.cause._tag === 'Fail') {
-        expect(result.cause.error.message).toContain('Insufficient permissions')
-      }
+      expect(failureOf(result).message).toContain('Insufficient permissions')
     })
   })
 })

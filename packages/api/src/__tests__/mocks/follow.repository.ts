@@ -87,7 +87,7 @@ export const createMockFollowRepository = (
           (allFollows) => {
             const items = pipe(
               allFollows,
-              Array.filterMap((f) =>
+              Array.map((f) =>
                 pipe(
                   Array.findFirst(
                     mockUsers,
@@ -95,7 +95,8 @@ export const createMockFollowRepository = (
                   ),
                   Option.map((u) => toUserCard(u, params.currentUserId))
                 )
-              )
+              ),
+              Array.getSomes
             )
             return {
               items,
@@ -110,12 +111,13 @@ export const createMockFollowRepository = (
         pipe(
           follows,
           Array.filter((f) => f.followerId === params.userId),
-          Array.filterMap((f) =>
+          Array.map((f) =>
             pipe(
               Array.findFirst(mockUsers, (u) => u.id === f.followingId),
               Option.map((u) => toUserCard(u, params.currentUserId))
             )
           ),
+          Array.getSomes,
           (items) => ({
             items,
             total: items.length,
@@ -175,7 +177,7 @@ export const createMockFollowRepository = (
           Array.flatMap((f) =>
             Array.filter(follows, (f2) => f2.followerId === f.followingId)
           ),
-          Array.filterMap((f) =>
+          Array.map((f) =>
             pipe(
               Array.findFirst(
                 mockUsers,
@@ -188,6 +190,7 @@ export const createMockFollowRepository = (
               Option.map((u) => toUserCard(u, params.currentUserId))
             )
           ),
+          Array.getSomes,
           Array.dedupe
         )
       ),

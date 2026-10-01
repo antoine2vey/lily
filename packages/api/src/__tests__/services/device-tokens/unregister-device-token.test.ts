@@ -1,4 +1,5 @@
 import { mockDeviceTokens } from '@lily/api/__tests__/fixtures/device-tokens'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { unregisterDeviceToken } from '@lily/api/services/device-tokens/endpoints/unregister-device-token'
@@ -30,7 +31,7 @@ describe('unregisterDeviceToken', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : null
+      const error = failureOf(exit)
       expect(error).toBeInstanceOf(DeviceTokenNotFoundError)
     }
   })
@@ -42,7 +43,7 @@ describe('unregisterDeviceToken', () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : null
+      const error = failureOf(exit)
       expect(error).toBeInstanceOf(DeviceTokenNotFoundError)
     }
   })

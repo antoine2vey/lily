@@ -51,7 +51,7 @@ import {
 } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-type Db = Context.Tag.Service<typeof PgDrizzle.PgDrizzle>
+type Db = PgDrizzle.PgDrizzle['Service']
 
 // Types for repository methods
 export interface FindPlantsParams {
@@ -255,10 +255,7 @@ function buildPlantFilters(
     Option.map((roomId) => eq(plants.roomId, roomId))
   )
 
-  return pipe(
-    [filterCondition, livingCondition, roomCondition],
-    Array.filterMap((opt) => opt)
-  )
+  return pipe([filterCondition, livingCondition, roomCondition], Array.getSomes)
 }
 
 // Build the drizzle orderBy clause from sort param
