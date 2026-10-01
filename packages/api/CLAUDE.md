@@ -22,7 +22,7 @@ Import endpoints directly. **No `Layer.provide` chains** — all deps come from 
 export const PlantsApiLive = (api: Api) =>
   HttpApiBuilder.group(api, 'plants', (handlers) =>
     handlers
-      .handle('getPlant', ({ path: { id } }) =>
+      .handle('getPlant', ({ params: { id } }) =>
         withPlantAuth(id).pipe(
           Effect.flatMap((plant) => findPlantById(plant)),
           withInfraErrorsAsDefect,

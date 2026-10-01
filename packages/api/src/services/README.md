@@ -112,27 +112,37 @@ plants/
 ### `api.ts` - Endpoint Definitions
 
 ```typescript
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
-import { Authentication } from '../auth/middleware'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
+import { Authentication } from '../auth/middleware.types'
+
+const plantIdParam = Schema.String.check(Schema.isGUID())
 
 export const PlantsApi = HttpApiGroup.make('plants')
   .add(
-    HttpApiEndpoint.get('findPlants', '/plants')
-      .setUrlParams(PaginationParams)
-      .addSuccess(PlantsListResponse)
-      .addError(DatabaseError, { status: 500 })
-      .middleware(Authentication)
+    HttpApiEndpoint.get('findPlants', '/', {
+      query: PaginationParams,
+      success: PlantsListResponse,
+    })
   )
   .add(
-    HttpApiEndpoint.post('createPlant', '/plants')
-      .setPayload(PlantCreateRequest)
-      .addSuccess(Plant, { status: 201 })
-      .addError(DatabaseError, { status: 500 })
-      .addError(LimitExceededError, { status: 403 })
-      .middleware(Authentication)
+    HttpApiEndpoint.post('createPlant', '/', {
+      payload: PlantCreateRequest,
+      success: Plant.pipe(HttpApiSchema.status(201)),
+      // Statuses come from the error class annotation ({ httpApiStatus: 403 })
+      // or an explicit HttpApiSchema.status(...) pipe. A missing status is a 500.
+      error: [LimitExceededError],
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('getPlant', '/:id', {
+      params: { id: plantIdParam },
+      success: PlantDetail,
+      error: [PlantNotFoundError, PlantNotAuthorizedError],
+    })
   )
   // ... 10 more endpoints
-  .annotate(HttpApiGroup.ApiTitle, 'Plants API')
+  .prefix('/plants')
+  .middleware(Authentication)
 ```
 
 ### `handlers.ts` - Handler Wiring
@@ -318,17 +328,18 @@ touch src/services/my-service/handlers.ts
 ### Step 2: Define API (`api.ts`)
 
 ```typescript
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform'
-import { Authentication } from '../auth/middleware'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
+import { Authentication } from '../auth/middleware.types'
 
 export const MyServiceApi = HttpApiGroup.make('myService')
   .add(
-    HttpApiEndpoint.get('myEndpoint', '/my-service')
-      .addSuccess(MyResponse)
-      .addError(MyError, { status: 400 })
-      .middleware(Authentication)
+    HttpApiEndpoint.get('myEndpoint', '/', {
+      success: MyResponse,
+      error: MyError.pipe(HttpApiSchema.status(400)),
+    })
   )
-  .annotate(HttpApiGroup.ApiTitle, 'My Service API')
+  .prefix('/my-service')
+  .middleware(Authentication)
 ```
 
 ### Step 3: Create Endpoint Implementation
@@ -391,10 +402,10 @@ export const Api = HttpApi.make('api')
 ```typescript
 import { MyServiceApiLive } from './services/my-service/handlers'
 
-const HttpLive = HttpApiBuilder.api(api).pipe(
-  Layer.provide(PlantsApiLive(api)),
-  Layer.provide(AuthApiLive(api)),
-  Layer.provide(MyServiceApiLive(api)),  // Add your handler
+const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: '/openapi.json' }).pipe(
+  Layer.provide(PlantsApiLive(Api)),
+  Layer.provide(AuthApiLive(Api)),
+  Layer.provide(MyServiceApiLive(Api)),  // Add your handler
   // ...
 )
 ```
@@ -581,11 +592,13 @@ Effect.gen(function* () {
 - `LimitChecker`, `UsageTracker` - Subscription system
 - `DrizzleClient` - Database client
 
-### HttpApiEndpoint Methods
-- `.get()`, `.post()`, `.patch()`, `.delete()` - HTTP methods
-- `.setPayload()` - Request body schema
-- `.setUrlParams()` - URL query parameters
-- `.setPath()` - Path parameters
-- `.addSuccess()` - Success response schema
-- `.addError()` - Error type with HTTP status
-- `.middleware()` - Apply middleware
+### HttpApiEndpoint
+- `HttpApiEndpoint.get/post/put/patch/delete(id, path, options)` - one call per endpoint
+- `params` - path parameters (`'/:id'` plus `{ id: schema }`)
+- `query` - URL query parameters
+- `payload` - request body schema (query string on GET)
+- `headers` - request headers schema
+- `success` - success response schema, `.pipe(HttpApiSchema.status(201))` to change the status
+- `error` - error schema or array; status from `{ httpApiStatus }` on the class or `HttpApiSchema.status(n)`
+- `.middleware()` - apply middleware to an endpoint or group
+- handlers receive `{ params, query, payload, headers, request }`
