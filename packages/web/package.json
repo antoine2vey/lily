@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@next/third-parties": "^16.1.7",
-    "effect": "^3.19.19",
+    "effect": "^4.0.0",
     "fuse.js": "^7.0.0",
     "gray-matter": "^4.0.3",
     "next": "^16.0.0",
