@@ -254,7 +254,7 @@ export const startAchievementSubscriber = Effect.gen(function* () {
   const queue = yield* eventBus.subscribe
 
   // Process events in background
-  yield* Effect.forkChild(
+  yield* Effect.forkScoped(
     Effect.forever(
       Effect.gen(function* () {
         const event = yield* Queue.take(queue)

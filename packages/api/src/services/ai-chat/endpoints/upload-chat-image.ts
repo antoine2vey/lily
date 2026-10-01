@@ -25,7 +25,7 @@ export const uploadChatImage = ({
     const fileSystem = yield* FileSystem
     const gcs = yield* GCSService
 
-    const file = yield* Array.head(files)
+    const file = yield* Effect.fromOption(Array.head(files)).pipe(Effect.orDie)
     const buffer = yield* fileSystem.readFile(file.path)
 
     const timestamp = nowAsEpochMillis()
@@ -35,7 +35,7 @@ export const uploadChatImage = ({
       String.split('/'),
       Array.last
     )
-    const safeName = yield* name
+    const safeName = yield* Effect.fromOption(name).pipe(Effect.orDie)
     const fileName = `chat/${conversationId}/${timestamp}-${safeName}`
 
     const { key } = yield* gcs.uploadPrivateFile({

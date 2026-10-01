@@ -12,7 +12,7 @@ import { nowAsIsoString } from '@lily/shared'
 import { AdapterError } from '@lily/shared/errors/knowledge'
 import type { AdapterConfig } from '@lily/shared/knowledge'
 import { Readability } from '@mozilla/readability'
-import { Effect, Option, pipe, Stream } from 'effect'
+import { Effect, Filter, Option, pipe, Stream } from 'effect'
 import { parseHTML } from 'linkedom'
 
 const REQUEST_DELAY = '2 seconds'
@@ -127,7 +127,7 @@ export const webAdapter: ISourceAdapter = {
           return yield* fetchWebPage(url)
         }).pipe(Effect.option)
       ),
-      Stream.filterMap((opt) => opt)
+      Stream.filterMap(Filter.fromPredicateOption((opt) => opt))
     )
   },
 }

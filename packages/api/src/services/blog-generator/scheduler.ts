@@ -4,6 +4,7 @@ import {
 } from '@lily/api/repositories/blog-post.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
+import { iterate } from '@lily/api/services/helpers/iterate'
 import type { BlogPostSource } from '@lily/db/schema'
 import { daysAgoAsDate, hoursAgoAsDate } from '@lily/shared'
 import { Array, Config, Effect } from 'effect'
@@ -114,7 +115,7 @@ export const checkAndGenerateBlogPost = Effect.gen(function* () {
   // ignores the "avoid these" hint), create() returns null — pick a new topic
   // and try again. If every attempt collides, give up for this cycle and
   // alert so we can investigate the prompt/topic exhaustion.
-  const selection = yield* Effect.iterate(
+  const selection = yield* iterate(
     {
       attempt: 1,
       attemptedSlugs: [] as ReadonlyArray<string>,

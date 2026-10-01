@@ -19,7 +19,16 @@ import {
   pickNotificationTime,
   startOfTodayAsDate,
 } from '@lily/shared'
-import { Array, Effect, Option, Order, pipe, Random, Record } from 'effect'
+import {
+  Array,
+  Effect,
+  Filter,
+  Option,
+  Order,
+  pipe,
+  Random,
+  Record,
+} from 'effect'
 
 // Process a single user's overdue plants — fails with skip errors when the
 // user should not receive a notification.
@@ -99,7 +108,11 @@ export const processUserOverdueReminders = (
     // One settings fetch per distinct caretaker to check their vacation
     const caretakerIds = pipe(
       routed,
-      Array.filterMap(({ caretakerId }) => Option.fromNullishOr(caretakerId)),
+      Array.filterMap(
+        Filter.fromPredicateOption(({ caretakerId }) =>
+          Option.fromNullishOr(caretakerId)
+        )
+      ),
       Array.dedupe
     )
     const caretakerOnVacation = Record.fromEntries(
@@ -196,7 +209,7 @@ export const checkAndCreateOverdueReminders = Effect.gen(function* () {
   )
   const tierByName = pipe(
     allTiers,
-    Array.groupBy((t) => t.tier),
+    Array.groupBy((t): string => t.tier),
     Record.map((tiers) => pipe(Array.head(tiers), Option.getOrUndefined))
   )
   const freeTierMaxPlants = tierByName.free?.maxPlants ?? 5

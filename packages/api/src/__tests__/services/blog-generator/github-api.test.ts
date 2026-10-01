@@ -35,13 +35,11 @@ vi.mock('octokit', () => ({
 }))
 
 describe('GitHub API — publishBlogPost', () => {
-  const mockConfig = ConfigProvider.fromMap(
-    new Map([
-      ['GITHUB_TOKEN', 'test-token'],
-      ['GITHUB_REPO', 'owner/repo'],
-      ['GITHUB_BRANCH', 'main'],
-    ])
-  )
+  const mockConfig = ConfigProvider.fromUnknown({
+    GITHUB_TOKEN: 'test-token',
+    GITHUB_REPO: 'owner/repo',
+    GITHUB_BRANCH: 'main',
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()

@@ -9,7 +9,7 @@ import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule
 import { type CareType, nowAsDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { CarePlanNotProposedError } from '@lily/shared/errors/care-plan'
-import { Array, Effect, Option, Order, pipe, Record } from 'effect'
+import { Array, Effect, Filter, Option, Order, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 interface DatedCareStep {
@@ -31,16 +31,20 @@ export const scheduleTargetsFromSteps = (
 ): ReadonlyArray<DatedCareStep> =>
   pipe(
     steps,
-    Array.filterMap((step) =>
-      Option.all({
-        careType: Option.fromNullishOr(step.careType),
-        dueDate: Option.fromNullishOr(step.dueDate),
-      })
+    Array.filterMap(
+      Filter.fromPredicateOption((step) =>
+        Option.all({
+          careType: Option.fromNullishOr(step.careType),
+          dueDate: Option.fromNullishOr(step.dueDate),
+        })
+      )
     ),
-    Array.groupBy((s) => s.careType),
+    Array.groupBy((s): string => s.careType),
     Record.values,
-    Array.filterMap((group) =>
-      pipe(group, Array.sort(dueDateOrder), Array.head)
+    Array.filterMap(
+      Filter.fromPredicateOption((group) =>
+        pipe(group, Array.sort(dueDateOrder), Array.head)
+      )
     )
   )
 

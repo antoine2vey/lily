@@ -9,14 +9,14 @@ import { ConfigProvider, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const disabledConfig = ConfigProvider.layer(
-  ConfigProvider.fromMap(new Map([['TIPS_GENERATION_ENABLED', 'false']]))
+  ConfigProvider.fromUnknown({ TIPS_GENERATION_ENABLED: 'false' })
 )
 
 const enabledConfig = ConfigProvider.layer(
-  ConfigProvider.fromMap(new Map([['TIPS_GENERATION_ENABLED', 'true']]))
+  ConfigProvider.fromUnknown({ TIPS_GENERATION_ENABLED: 'true' })
 )
 
-const emptyConfig = ConfigProvider.layer(ConfigProvider.fromMap(new Map()))
+const emptyConfig = ConfigProvider.layer(ConfigProvider.fromUnknown({}))
 
 const todayTip: DailyTip = {
   id: 'tip-today',

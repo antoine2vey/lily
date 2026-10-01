@@ -1,4 +1,5 @@
 import { lookup } from 'node:dns/promises'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { webAdapter } from '@lily/api/services/knowledge-ingestion/adapters/web.adapter'
 import type { WebAdapterConfig } from '@lily/shared/knowledge'
 import { Array, Effect, Stream } from 'effect'
@@ -159,11 +160,11 @@ describe('webAdapter', () => {
   it('fails with AdapterError for wrong config type', async () => {
     const invalidConfig = { type: 'reddit', subreddits: ['test'] } as never
 
-    const result = await Effect.runPromise(
-      Stream.runCollect(webAdapter.fetch(invalidConfig)).pipe(Effect.result)
+    const exit = await Effect.runPromiseExit(
+      Stream.runCollect(webAdapter.fetch(invalidConfig))
     )
 
-    expect(result._tag).toBe('Left')
+    expect(failureOf(exit)._tag).toBe('AdapterError')
   })
 
   it('sanitizes content text from UTF-8 issues', async () => {

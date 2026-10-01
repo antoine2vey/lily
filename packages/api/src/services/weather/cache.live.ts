@@ -12,6 +12,7 @@ import {
   Array,
   Effect,
   String as EffectString,
+  Filter,
   Layer,
   Option,
   pipe,
@@ -119,13 +120,15 @@ export const WeatherCacheLive = Layer.effect(
           const members = await redis.zrange(WEATHER_GEO_KEY, 0, -1)
           return pipe(
             members,
-            Array.filterMap((memberId) =>
-              pipe(
-                idToCoord(memberId),
-                Option.map((coord) => ({
-                  ...coord,
-                  id: memberId,
-                }))
+            Array.filterMap(
+              Filter.fromPredicateOption((memberId) =>
+                pipe(
+                  idToCoord(memberId),
+                  Option.map((coord) => ({
+                    ...coord,
+                    id: memberId,
+                  }))
+                )
               )
             )
           )

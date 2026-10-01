@@ -7,7 +7,7 @@ import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/pr
 import { RagService } from '@lily/api/services/rag/service'
 import type { ChunkSearchResult } from '@lily/shared/knowledge'
 import { Effect, Layer } from 'effect'
-import { SqlError } from 'effect/sql/SqlError'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@lily/api/services/rag/embedding.service', () => ({
@@ -31,7 +31,7 @@ const makeTestLayer = (searchResults: ChunkSearchResult[] = []) => {
   }
   return Layer.merge(
     createMockProcessedChunkRepository(chunkData),
-    RagService.Default.pipe(
+    RagService.layer.pipe(
       Layer.provide(
         Layer.merge(
           createMockProcessedChunkRepository(chunkData),
@@ -123,14 +123,21 @@ describe('RagService', () => {
           create: () => Effect.void,
           createMany: () => Effect.void,
           search: () =>
-            Effect.fail(new SqlError({ message: 'DB connection lost' })),
+            Effect.fail(
+              new SqlError({
+                reason: new UnknownError({
+                  cause: new Error('DB connection lost'),
+                  message: 'DB connection lost',
+                }),
+              })
+            ),
           count: () => Effect.succeed(0),
           countBySource: () => Effect.succeed([]),
           countByJobId: () => Effect.succeed(0),
         }
       )
 
-      const layer = RagService.Default.pipe(
+      const layer = RagService.layer.pipe(
         Layer.provide(Layer.merge(failingChunkRepo, MockAlerterLive))
       )
 

@@ -1,6 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
+import { iterate } from '@lily/api/services/helpers/iterate'
 import type { LocalizedText } from '@lily/db/schema'
 import type { LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
@@ -208,7 +209,7 @@ export const generateAndReviewBlogPost = (
       Array.map((p) => p.slug)
     )
 
-    const result = yield* Effect.iterate(
+    const result = yield* iterate(
       {
         retryCount: 0,
         feedback: undefined as string | undefined,

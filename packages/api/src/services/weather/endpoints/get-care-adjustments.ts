@@ -17,7 +17,7 @@ import {
   type WeatherFetchError,
   WeatherNotAvailableError,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe, String } from 'effect'
+import { Array, Effect, Filter, Option, pipe, String } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const getCareAdjustments = (): Effect.Effect<
@@ -121,7 +121,7 @@ export const getCareAdjustments = (): Effect.Effect<
     // Calculate adjustments for each plant
     return Array.filterMap(
       Array.zip(plantsResult.items, allSchedules),
-      ([plant, schedules]) => {
+      Filter.fromPredicateOption(([plant, schedules]) => {
         const wateringSchedule = pipe(
           Array.findFirst(schedules, (s) => s.careType === 'watering'),
           Option.getOrNull
@@ -146,6 +146,6 @@ export const getCareAdjustments = (): Effect.Effect<
             user.latitude
           )
         )
-      }
+      })
     )
   })

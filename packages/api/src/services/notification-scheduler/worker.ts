@@ -254,9 +254,10 @@ const sendLiveActivityForCare = (
   })
 
 // Exponential backoff: 1s -> 2s -> 4s
-const workerRetryPolicy = Schedule.exponential('1 second').pipe(
-  Schedule.compose(Schedule.recurs(MAX_RETRIES))
-)
+export const workerRetryPolicy = Schedule.max([
+  Schedule.exponential('1 second'),
+  Schedule.recurs(MAX_RETRIES),
+])
 
 // Process a single message - send push notification
 export const processMessage = Effect.fn('notification-worker.process')(
@@ -521,7 +522,7 @@ export const startNotificationWorker = Effect.gen(function* () {
 
   // Start a worker for each topic
   yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    Effect.forkChild(
+    Effect.forkScoped(
       Effect.forever(
         consumeFromTopic(topic).pipe(
           Effect.catchTags({

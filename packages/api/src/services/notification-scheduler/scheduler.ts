@@ -17,7 +17,7 @@ import {
   type NotificationTopic,
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
-import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
+import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
 
 const BATCH_SIZE = 100
 
@@ -75,15 +75,19 @@ export const pollAndEnqueue = Effect.gen(function* () {
   // reminders for plants that died since the row was scheduled, and Phase 3
   // reuses it for names.
   const allPlantIds = pipe(
-    Array.filterMap(pendingNotifications, (n) =>
-      Option.fromNullishOr(n.plantId)
+    Array.filterMap(
+      pendingNotifications,
+      Filter.fromPredicateOption((n) => Option.fromNullishOr(n.plantId))
     ),
     Array.dedupe
   )
   const plants = yield* plantRepo.findByIds(allPlantIds)
   const livingPlantIds = new Set(
-    Array.filterMap(plants, (p) =>
-      p.diedAt === null ? Option.some(p.id) : Option.none()
+    Array.filterMap(
+      plants,
+      Filter.fromPredicateOption((p) =>
+        p.diedAt === null ? Option.some(p.id) : Option.none()
+      )
     )
   )
 
@@ -214,8 +218,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
         // Deduped: a plant due for two care types contributes one id, so the
         // app's single-plant deep link still resolves.
         const plantIds = pipe(
-          Array.filterMap(group, (n) =>
-            Option.fromNullishOr(n.notification.plantId)
+          Array.filterMap(
+            group,
+            Filter.fromPredicateOption((n) =>
+              Option.fromNullishOr(n.notification.plantId)
+            )
           ),
           Array.dedupe
         )
@@ -224,8 +231,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
         // most urgent one (overdue > watering > ...). All care topics share
         // the same app deep link and interruption level, so the choice only
         // affects which queue partition carries it.
-        const careTopics = Array.filterMap(group, (n) =>
-          isCareReminderType(n.topic) ? Option.some(n.topic) : Option.none()
+        const careTopics = Array.filterMap(
+          group,
+          Filter.fromPredicateOption((n) =>
+            isCareReminderType(n.topic) ? Option.some(n.topic) : Option.none()
+          )
         )
         const topic: NotificationTopic = Array.match(careTopics, {
           onEmpty: () => first.value.topic,
@@ -239,8 +249,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
         )
 
         // Resolve per-group plant names once for content builders that need them.
-        const groupPlantNames = Array.filterMap(plantIds, (id) =>
-          Option.fromNullishOr(plantNameMap.get(id))
+        const groupPlantNames = Array.filterMap(
+          plantIds,
+          Filter.fromPredicateOption((id) =>
+            Option.fromNullishOr(plantNameMap.get(id))
+          )
         )
 
         // Fall back to the title/body persisted on the first notification row.
@@ -267,19 +280,26 @@ export const pollAndEnqueue = Effect.gen(function* () {
         // due for it. Rows whose plant has no resolvable name are dropped from
         // the body (same as the old groupPlantNames behaviour).
         const careItems: CareDigestItem[] = pipe(
-          Array.filterMap(group, ({ notification, topic: rowTopic }) => {
-            if (!isCareReminderType(rowTopic)) return Option.none()
-            const careType: DeferredCareType = rowTopic
-            return pipe(
-              Option.fromNullishOr(notification.plantId),
-              Option.flatMap((plantId) =>
-                pipe(
-                  Option.fromNullishOr(plantNameMap.get(plantId)),
-                  Option.map((plantName) => ({ plantId, plantName, careType }))
+          Array.filterMap(
+            group,
+            Filter.fromPredicateOption(({ notification, topic: rowTopic }) => {
+              if (!isCareReminderType(rowTopic)) return Option.none()
+              const careType: DeferredCareType = rowTopic
+              return pipe(
+                Option.fromNullishOr(notification.plantId),
+                Option.flatMap((plantId) =>
+                  pipe(
+                    Option.fromNullishOr(plantNameMap.get(plantId)),
+                    Option.map((plantName) => ({
+                      plantId,
+                      plantName,
+                      careType,
+                    }))
+                  )
                 )
               )
-            )
-          }),
+            })
+          ),
           Array.groupBy((r) => r.plantId),
           Record.values,
           Array.map((rows) => ({
@@ -309,15 +329,13 @@ export const pollAndEnqueue = Effect.gen(function* () {
           scheduledAt: first.value.notification.scheduledAt,
         })
 
-        yield* Effect.if(isCareReminderType(topic), {
-          onTrue: () =>
-            notificationRepo.markManyAsQueuedWithContent(
+        yield* isCareReminderType(topic)
+          ? notificationRepo.markManyAsQueuedWithContent(
               notificationIds,
               title,
               body
-            ),
-          onFalse: () => notificationRepo.markManyAsQueued(notificationIds),
-        })
+            )
+          : notificationRepo.markManyAsQueued(notificationIds)
 
         yield* Effect.log('[notification-scheduler] Enqueued group', {
           notificationIds,

@@ -6,7 +6,7 @@ import { AiService } from '@lily/api/services/ai/service'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Filter, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 import { generateMessageId } from './generate-message-id'
@@ -22,10 +22,12 @@ export interface PersistChatCompletionParams {
 const extractUserText = (message: UIMessage): string =>
   pipe(
     message.parts,
-    Array.filterMap((part) =>
-      part.type === 'text'
-        ? Option.some((part as { text: string }).text)
-        : Option.none()
+    Array.filterMap(
+      Filter.fromPredicateOption((part) =>
+        part.type === 'text'
+          ? Option.some((part as { text: string }).text)
+          : Option.none()
+      )
     ),
     Array.join(' ')
   )
@@ -171,14 +173,16 @@ export const persistChatCompletion = (
           pipe(
             step.toolResults,
             Array.filter((tr) => tr.toolName === 'createDiagnosis'),
-            Array.filterMap((tr) =>
-              pipe(
-                Option.fromNullishOr(
-                  tr.output as { diagnosisId: string } | null
-                ),
-                Option.map((output) => ({
-                  diagnosisId: output.diagnosisId,
-                }))
+            Array.filterMap(
+              Filter.fromPredicateOption((tr) =>
+                pipe(
+                  Option.fromNullishOr(
+                    tr.output as { diagnosisId: string } | null
+                  ),
+                  Option.map((output) => ({
+                    diagnosisId: output.diagnosisId,
+                  }))
+                )
               )
             )
           )
@@ -212,13 +216,15 @@ export const persistChatCompletion = (
                 tr.toolName === 'proposeCarePlan' ||
                 tr.toolName === 'createDiagnosis'
             ),
-            Array.filterMap((tr) =>
-              pipe(
-                Option.fromNullishOr(
-                  tr.output as { carePlanId?: string } | null
-                ),
-                Option.flatMap((output) =>
-                  Option.fromNullishOr(output.carePlanId)
+            Array.filterMap(
+              Filter.fromPredicateOption((tr) =>
+                pipe(
+                  Option.fromNullishOr(
+                    tr.output as { carePlanId?: string } | null
+                  ),
+                  Option.flatMap((output) =>
+                    Option.fromNullishOr(output.carePlanId)
+                  )
                 )
               )
             )

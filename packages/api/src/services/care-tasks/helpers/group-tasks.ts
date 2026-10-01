@@ -75,7 +75,10 @@ export const buildLiveActivityContentState = (
       return null
     }
 
-    const byType = Array.groupBy(dueSchedules, (s) => s.schedule.careType)
+    const byType = Array.groupBy(
+      dueSchedules,
+      (s): string => s.schedule.careType
+    )
 
     const groups: CareGroupContent[] = pipe(
       Record.toEntries(byType),

@@ -30,10 +30,10 @@ const SYSTEM_PROMPT = `You are a plant care knowledge indexer. Given a plant car
 
 Keywords should include: plant names, care topics (watering, light, soil, etc.), specific symptoms or problems, and actionable advice terms.`
 
-const retryPolicy = Schedule.intersect(
+export const enrichmentRetryPolicy = Schedule.max([
   Schedule.recurs(3),
-  Schedule.exponential('1 second')
-)
+  Schedule.exponential('1 second'),
+])
 
 export const enrichChunk = (
   content: string
@@ -50,12 +50,14 @@ export const enrichChunk = (
         }),
       catch: mapOpenAIError('Chunk enrichment'),
     }).pipe(
-      Effect.timeoutFail({
+      Effect.timeoutOrElse({
         duration: '10 seconds',
-        onTimeout: () =>
-          new EnrichmentError({ message: 'Enrichment timed out after 10s' }),
+        orElse: () =>
+          Effect.fail(
+            new EnrichmentError({ message: 'Enrichment timed out after 10s' })
+          ),
       }),
-      Effect.retry(retryPolicy)
+      Effect.retry(enrichmentRetryPolicy)
     )
 
     return yield* pipe(

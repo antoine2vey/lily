@@ -412,8 +412,8 @@ export const processStreakMilestones = Effect.fn(
 
 const processTrialEndingForThreshold = (
   daysLeft: number,
-  engagementRepo: EngagementRepository['Type'],
-  notificationRepo: NotificationRepository['Type']
+  engagementRepo: EngagementRepository['Service'],
+  notificationRepo: NotificationRepository['Service']
 ) =>
   Effect.gen(function* () {
     const trialingUsers =

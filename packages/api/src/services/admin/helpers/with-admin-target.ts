@@ -16,7 +16,7 @@ export const withAdminTarget = (
 ): Effect.Effect<
   {
     user: typeof users.$inferSelect
-    currentAdmin: Effect.Effect.Success<typeof AdminUser>
+    currentAdmin: typeof AdminUser.Service
   },
   SqlError | CannotModifySelfError | UserNotFoundError,
   UserRepository | AdminUser

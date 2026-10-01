@@ -130,7 +130,7 @@ const refreshWeatherData = Effect.gen(function* () {
   )
 
   const weatherContextMap: ReadonlyMap<string, WeatherContext> = new Map(
-    Array.filterMap(weatherContextResults, (opt) => opt)
+    Array.getSomes(weatherContextResults)
   )
 
   // Readjust care schedules, passing the already-fetched users and pre-built contexts

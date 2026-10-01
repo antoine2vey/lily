@@ -50,10 +50,17 @@ interface RedditListing {
   }
 }
 
-class RateLimitedError {
+export class RateLimitedError {
   readonly _tag = 'RateLimitedError'
   constructor(readonly retryAfter: number) {}
 }
+
+// Up to 5 immediate retries, only for 429s (the Retry-After sleep happens
+// before the failure reaches the schedule); any other error stops at once.
+export const redditRetryPolicy = Schedule.recurs(5).pipe(
+  Schedule.setInputType<AdapterError | RateLimitedError>(),
+  Schedule.while(({ input }) => input._tag === 'RateLimitedError')
+)
 
 export const USER_AGENT = 'lily-plant-care:v1.0.0 (plant care knowledge base)'
 
@@ -146,17 +153,7 @@ const fetchRedditJson = <T>(url: string) =>
         Effect.andThen(Effect.fail(rle))
       )
     ),
-    Effect.retry(
-      Schedule.recurs(5).pipe(
-        Schedule.whileInput((e: AdapterError | RateLimitedError) =>
-          pipe(
-            Match.value(e),
-            Match.when({ _tag: 'RateLimitedError' }, () => true),
-            Match.orElse(() => false)
-          )
-        )
-      )
-    ),
+    Effect.retry(redditRetryPolicy),
     Effect.mapError((e) =>
       pipe(
         Match.value(e),

@@ -14,7 +14,7 @@ import {
   localDayKey,
   localDayOffset,
 } from '@lily/shared'
-import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
+import { Array, DateTime, Effect, Filter, Option, Order, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -61,36 +61,39 @@ export const findCareTasks = (): Effect.Effect<
     const schedules = yield* scheduleRepo.findPendingByUser(userId, cutoffDate)
 
     // Generate tasks from schedules
-    const tasks = Array.filterMap(schedules, (s) =>
-      pipe(
-        Option.fromNullishOr(s.schedule.nextCareAt),
-        Option.filter((date) =>
-          DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(date), cutoffDt)
-        ),
-        Option.map((date) => {
-          const dueDt = DateTime.makeUnsafe(date)
-          return {
-            id: `${s.plant.id}-${s.schedule.careType}`,
-            plantId: s.plant.id,
-            plantName: s.plant.name,
-            plantImageUrl: s.plant.imageUrl,
-            roomName: pipe(
-              Option.fromNullishOr(s.plant.room),
-              Option.map((r) => r.name),
-              Option.getOrNull
-            ),
-            roomIcon: pipe(
-              Option.fromNullishOr(s.plant.room),
-              Option.map((r) => r.icon),
-              Option.getOrNull
-            ),
-            type: s.schedule.careType,
-            dueDate: date,
-            dueDayOffset: localDayOffset(dueDt, now, timezone),
-            localDueDate: localDayKey(dueDt, timezone),
-            completed: false,
-          } satisfies CareTask
-        })
+    const tasks = Array.filterMap(
+      schedules,
+      Filter.fromPredicateOption((s) =>
+        pipe(
+          Option.fromNullishOr(s.schedule.nextCareAt),
+          Option.filter((date) =>
+            DateTime.isLessThanOrEqualTo(DateTime.makeUnsafe(date), cutoffDt)
+          ),
+          Option.map((date) => {
+            const dueDt = DateTime.makeUnsafe(date)
+            return {
+              id: `${s.plant.id}-${s.schedule.careType}`,
+              plantId: s.plant.id,
+              plantName: s.plant.name,
+              plantImageUrl: s.plant.imageUrl,
+              roomName: pipe(
+                Option.fromNullishOr(s.plant.room),
+                Option.map((r) => r.name),
+                Option.getOrNull
+              ),
+              roomIcon: pipe(
+                Option.fromNullishOr(s.plant.room),
+                Option.map((r) => r.icon),
+                Option.getOrNull
+              ),
+              type: s.schedule.careType,
+              dueDate: date,
+              dueDayOffset: localDayOffset(dueDt, now, timezone),
+              localDueDate: localDayKey(dueDt, timezone),
+              completed: false,
+            } satisfies CareTask
+          })
+        )
       )
     )
 

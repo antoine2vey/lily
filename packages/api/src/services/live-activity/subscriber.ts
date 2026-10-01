@@ -118,7 +118,7 @@ export const startLiveActivitySubscriber = Effect.gen(function* () {
   const eventBus = yield* EventBus
   const queue = yield* eventBus.subscribe
 
-  yield* Effect.forkChild(
+  yield* Effect.forkScoped(
     Effect.forever(
       Effect.gen(function* () {
         const event = yield* Queue.take(queue)

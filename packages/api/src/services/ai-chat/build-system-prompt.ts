@@ -1,6 +1,6 @@
 import { formatDaysUntilHuman, formatIsoDate } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
-import { Array, Option, Order, pipe } from 'effect'
+import { Array, Filter, Option, Order, pipe } from 'effect'
 
 const CARE_PLAN_COMPLETED_STEPS_IN_CONTEXT = 5
 
@@ -63,10 +63,12 @@ export const formatCarePlansText = (plans: ReadonlyArray<CarePlan>): string => {
     Array.flatMap((plan) =>
       pipe(
         plan.steps,
-        Array.filterMap((s) =>
-          pipe(
-            Option.fromNullishOr(s.completedAt),
-            Option.map((completedAt) => ({ step: s, plan, completedAt }))
+        Array.filterMap(
+          Filter.fromPredicateOption((s: CarePlanStep) =>
+            pipe(
+              Option.fromNullishOr(s.completedAt),
+              Option.map((completedAt) => ({ step: s, plan, completedAt }))
+            )
           )
         )
       )

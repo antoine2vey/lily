@@ -1,15 +1,17 @@
-import { Cause, Effect } from 'effect'
-import type { DurationInput } from 'effect/Duration'
+import { Cause, type Duration, Effect, type Scope } from 'effect'
 
 /**
  * Creates a standard polling scheduler that runs a task at a fixed interval.
  *
  * Features:
- * - Error isolation: wraps the task in `catchAllCause` so unhandled errors
+ * - Error isolation: wraps the task in `catchCause` so unhandled errors
  *   and defects are logged but never propagate (a scheduler can never crash
  *   the server).
  * - Optional startup run: if `runOnStartup` is true, the task runs once
  *   immediately (forked to not block Layer initialization).
+ * - Fibers are forked into the caller's Scope (the scheduler Layer's), so they
+ *   live as long as the server. A `forkChild` here would be interrupted as
+ *   soon as the Layer finished building, and no scheduler would ever tick.
  * - Span instrumentation: each poll cycle gets a named span.
  * - Consistent logging: logs scheduler start with interval info.
  *
@@ -29,10 +31,10 @@ import type { DurationInput } from 'effect/Duration'
  */
 export const createScheduler = <E, R>(config: {
   name: string
-  interval: DurationInput
+  interval: Duration.Input
   runOnStartup: boolean
   task: Effect.Effect<void, E, R>
-}): Effect.Effect<void, never, R> => {
+}): Effect.Effect<void, never, R | Scope.Scope> => {
   const safeTask = config.task.pipe(
     Effect.catchCause((cause) =>
       Effect.logError(`[${config.name}] Unhandled error in poll cycle`, {
@@ -44,10 +46,10 @@ export const createScheduler = <E, R>(config: {
 
   return Effect.gen(function* () {
     if (config.runOnStartup) {
-      yield* Effect.forkChild(safeTask)
+      yield* Effect.forkScoped(safeTask)
     }
 
-    yield* Effect.forkChild(
+    yield* Effect.forkScoped(
       Effect.forever(
         Effect.sleep(config.interval).pipe(Effect.andThen(safeTask))
       )
@@ -68,10 +70,10 @@ export const createScheduler = <E, R>(config: {
  */
 export const createDrainableScheduler = <E, R>(config: {
   name: string
-  interval: DurationInput
+  interval: Duration.Input
   runOnStartup: boolean
   task: Effect.Effect<boolean, E, R>
-}): Effect.Effect<void, never, R> => {
+}): Effect.Effect<void, never, R | Scope.Scope> => {
   const safeTask = config.task.pipe(
     Effect.catchCause((cause) => {
       const pretty = Cause.pretty(cause)
@@ -94,10 +96,10 @@ export const createDrainableScheduler = <E, R>(config: {
 
   return Effect.gen(function* () {
     if (config.runOnStartup) {
-      yield* Effect.forkChild(safeTask)
+      yield* Effect.forkScoped(safeTask)
     }
 
-    yield* Effect.forkChild(loop)
+    yield* Effect.forkScoped(loop)
 
     yield* Effect.log(`[${config.name}] Drainable scheduler started`, {
       interval: String(config.interval),

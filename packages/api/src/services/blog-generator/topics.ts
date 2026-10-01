@@ -4,7 +4,7 @@ import { PlantCatalogRepository } from '@lily/api/repositories/plant-catalog.rep
 import { FAST_MODEL } from '@lily/api/services/ai/models'
 import { nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
-import { Array as Arr, Chunk, Effect, Random, String as Str } from 'effect'
+import { Array as Arr, Effect, Random, String as Str } from 'effect'
 import { mapOpenAIError } from './errors'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { TopicSchema } from './schemas'
@@ -66,9 +66,7 @@ const TOPIC_TEMPLATES = [
 const TEMPLATE_SAMPLE_SIZE = 12
 
 const sampleN = <A>(items: ReadonlyArray<A>, n: number) =>
-  Random.shuffle(items).pipe(
-    Effect.map((shuffled) => Arr.take(Chunk.toReadonlyArray(shuffled), n))
-  )
+  Random.shuffle(items).pipe(Effect.map((shuffled) => Arr.take(shuffled, n)))
 
 export const selectTopic = Effect.fn('blog-generator.selectTopic')(function* (
   attemptedSlugs: ReadonlyArray<string> = []

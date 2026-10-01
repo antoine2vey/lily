@@ -83,7 +83,15 @@ import {
   luxToLuminosityLevel,
   parseApiDate,
 } from '@lily/shared'
-import { Array, DateTime, Duration, Option, pipe, String } from 'effect'
+import {
+  Array,
+  DateTime,
+  Duration,
+  Option,
+  Predicate,
+  pipe,
+  String,
+} from 'effect'
 
 const DEG_TO_RAD = Math.PI / 180
 const RAD_TO_DEG = 180 / Math.PI
@@ -100,7 +108,7 @@ const sum = (values: ReadonlyArray<number>): number =>
 const meanOfNonNull = (
   values: ReadonlyArray<number | null>
 ): Option.Option<number> =>
-  pipe(Array.filterMap(values, Option.fromNullishOr), (present) =>
+  pipe(Array.filter(values, Predicate.isNotNull), (present) =>
     Array.isReadonlyArrayNonEmpty(present)
       ? Option.some(sum(present) / present.length)
       : Option.none()

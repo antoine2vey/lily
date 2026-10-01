@@ -1,7 +1,7 @@
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Filter, Option, pipe } from 'effect'
 
 type MessagePart = UIMessage['parts'][number]
 
@@ -21,8 +21,10 @@ export const resolveMessageImageUrls = (
     const keys = pipe(
       messages,
       Array.flatMap((msg) => msg.parts),
-      Array.filterMap((part) =>
-        isFilePartWithUrl(part) ? Option.some(part.url) : Option.none()
+      Array.filterMap(
+        Filter.fromPredicateOption((part) =>
+          isFilePartWithUrl(part) ? Option.some(part.url) : Option.none()
+        )
       )
     )
 
@@ -55,8 +57,9 @@ export const resolveImageUrls = <T extends { imageUrl?: string | undefined }>(
   items: readonly T[]
 ): Effect.Effect<T[], GCSUploadError, GCSService> =>
   Effect.gen(function* () {
-    const keys = Array.filterMap(items, (item) =>
-      Option.fromNullishOr(item.imageUrl)
+    const keys = Array.filterMap(
+      items,
+      Filter.fromPredicateOption((item) => Option.fromNullishOr(item.imageUrl))
     )
 
     if (Array.isArrayEmpty(keys)) return [...items]

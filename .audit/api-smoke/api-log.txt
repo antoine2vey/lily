@@ -1,0 +1,42 @@
+{"message":"[alerter] Using console provider (non-production or DISCORD_WEBHOOK_URL not set)","level":"info","timestamp":"2026-10-01T19:53:27.026Z","annotations":{},"spans":{},"fiberId":"#2"}
+{"message":["Console alerter initialized",{"environment":"smoke"}],"level":"info","timestamp":"2026-10-01T19:53:27.026Z","annotations":{},"spans":{},"fiberId":"#2"}
+{"message":"[push] APNs creds not fully set (APNS_TEAM_ID / APNS_KEY_ID / APNS_PRIVATE_KEY / APNS_BUNDLE_ID) — Live Activity sends will error out","level":"warn","timestamp":"2026-10-01T19:53:27.031Z","annotations":{},"spans":{},"fiberId":"#63"}
+{"message":["Connected to Redis",{"url":"redis://127.0.0.1:56380"}],"level":"info","timestamp":"2026-10-01T19:53:27.044Z","annotations":{},"spans":{},"fiberId":"#69"}
+{"message":["Subscribed to Redis event bus channel",{"channel":"lily:events"}],"level":"info","timestamp":"2026-10-01T19:53:27.054Z","annotations":{},"spans":{},"fiberId":"#74"}
+{"message":["[achievement-reconciliation] Scheduler started",{"interval":"12 hours","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.054Z","annotations":{},"spans":{},"fiberId":"#77"}
+{"message":"Achievement subscriber started","level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#80"}
+{"message":["[delegation-scheduler] Scheduler started",{"interval":"5 minutes","runOnStartup":false}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#82"}
+{"message":["[health-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#84"}
+{"message":["[overdue-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#87"}
+{"message":["[weather-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#90"}
+{"message":["[notification-scheduler] Drainable scheduler started",{"interval":"1 minute","drainCooldown":"1 second","runOnStartup":false}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#93"}
+{"message":["Notification workers started",{"topics":["watering_reminder","fertilization_reminder","misting_reminder","repotting_reminder","overdue_reminder","new_follower","nudge_to_water","delegation_request","delegation_accepted","delegation_rejected","delegation_canceled","delegation_activated","delegation_completed","daily_tip","inactivity_nudge","photo_reminder","plant_parent_milestone","gift_subscription","resubscribe_nudge","streak_at_risk","streak_milestone","weekly_recap","trial_ending","approaching_limit","plant_anniversary"]}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#95"}
+{"message":["[engagement-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.055Z","annotations":{},"spans":{},"fiberId":"#121"}
+{"message":["[tips-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#124"}
+{"message":["[blog-generator] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#127"}
+{"message":["[knowledge-ingestion-worker] Scheduler started",{"interval":"30 seconds","runOnStartup":false}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#130"}
+{"message":["[account-cleanup] Scheduler started",{"interval":"1 day","runOnStartup":false}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#132"}
+{"message":["[weekly-recap-scheduler] Scheduler started",{"interval":"1 hour","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#134"}
+{"message":["[analytics-scheduler] Scheduler started",{"interval":"6 hours","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#137"}
+{"message":["[activity-scheduler] Scheduler started",{"interval":"5 minutes","runOnStartup":false}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#140"}
+{"message":"Live activity subscriber started","level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#142"}
+{"message":["[vacation-scheduler] Scheduler started",{"interval":"5 minutes","runOnStartup":true}],"level":"info","timestamp":"2026-10-01T19:53:27.056Z","annotations":{},"spans":{},"fiberId":"#144"}
+{"message":"Listening on http://0.0.0.0:3000","level":"info","timestamp":"2026-10-01T19:53:27.071Z","annotations":{},"spans":{},"fiberId":"#2"}
+{"message":"Running achievement reconciliation...","level":"info","timestamp":"2026-10-01T19:53:27.071Z","annotations":{},"spans":{},"fiberId":"#78"}
+{"message":"Running health check...","level":"info","timestamp":"2026-10-01T19:53:27.075Z","annotations":{},"spans":{},"fiberId":"#85"}
+{"message":"Running overdue reminder check...","level":"info","timestamp":"2026-10-01T19:53:27.076Z","annotations":{},"spans":{},"fiberId":"#88"}
+{"message":"Running weather data refresh...","level":"info","timestamp":"2026-10-01T19:53:27.077Z","annotations":{},"spans":{},"fiberId":"#91"}
+{"message":"Running engagement notification check...","level":"info","timestamp":"2026-10-01T19:53:27.081Z","annotations":{},"spans":{},"fiberId":"#122"}
+{"message":"Tips generation skipped — disabled by config","level":"warn","timestamp":"2026-10-01T19:53:27.082Z","annotations":{},"spans":{},"fiberId":"#125"}
+{"message":"Blog generation skipped — disabled by config","level":"warn","timestamp":"2026-10-01T19:53:27.082Z","annotations":{},"spans":{},"fiberId":"#128"}
+{"message":"Running weekly recap check...","level":"info","timestamp":"2026-10-01T19:53:27.082Z","annotations":{},"spans":{},"fiberId":"#135"}
+{"message":["Writing analytics snapshots",{"date":"2026-10-01"}],"level":"info","timestamp":"2026-10-01T19:53:27.083Z","annotations":{},"spans":{},"fiberId":"#138"}
+{"message":"No users with weather enabled, skipping","level":"info","timestamp":"2026-10-01T19:53:27.131Z","annotations":{},"spans":{},"fiberId":"#91"}
+{"message":["No missed achievements found",{"users":0}],"level":"info","timestamp":"2026-10-01T19:53:27.132Z","annotations":{},"spans":{},"fiberId":"#78"}
+{"message":["Analytics snapshots written",{"date":"2026-10-01","mrrCents":0,"dau":0,"wau":0,"mau":0,"churnRate":0}],"level":"info","timestamp":"2026-10-01T19:53:27.142Z","annotations":{},"spans":{},"fiberId":"#138"}
+{"message":"GET /health 200 (6ms)","level":"info","timestamp":"2026-10-01T19:53:27.497Z","annotations":{},"spans":{},"fiberId":"#244"}
+{"message":"GET /health 200 (2ms)","level":"info","timestamp":"2026-10-01T19:53:27.554Z","annotations":{},"spans":{},"fiberId":"#246"}
+{"message":"GET /openapi.json 200 (34ms)","level":"info","timestamp":"2026-10-01T19:53:27.602Z","annotations":{},"spans":{},"fiberId":"#248"}
+{"message":"GET /api/auth/me 401 (2ms)","level":"info","timestamp":"2026-10-01T19:53:27.633Z","annotations":{},"spans":{},"fiberId":"#249"}
+{"message":"GET /api/plants 401 (1ms)","level":"info","timestamp":"2026-10-01T19:53:27.647Z","annotations":{},"spans":{},"fiberId":"#250"}
+{"message":["[achievement-checker] Event processing failed",{"error":"effect/sql/SqlError: PgConnection: Query failed"}],"level":"warn","timestamp":"2026-10-01T19:53:27.746Z","annotations":{},"spans":{},"fiberId":"#81"}
