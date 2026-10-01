@@ -1,6 +1,8 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
 import { APP_VERIFY_DEEP_LINK_PREFIX } from '@lily/api/services/auth/constants'
+import { AuthError } from '@lily/shared'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Browser callback endpoint - validates token exists and redirects to app
@@ -13,7 +15,7 @@ export const magicLinkCallback = ({
   token: string
 }): Effect.Effect<
   { redirectUrl: string },
-  { message: string },
+  AuthError | SqlError,
   MagicLinkRepository
 > =>
   Effect.gen(function* () {
@@ -23,14 +25,18 @@ export const magicLinkCallback = ({
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(token)) {
-      return yield* Effect.fail({ message: 'Invalid token format' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid token format' })
+      )
     }
 
     // Check if token exists and is valid (not used, not expired)
     const magicLink = yield* magicLinkRepo.findValidByToken(token)
 
     if (!magicLink) {
-      return yield* Effect.fail({ message: 'Invalid or expired magic link' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid or expired magic link' })
+      )
     }
 
     // Don't mark as used here - the verify endpoint will do that

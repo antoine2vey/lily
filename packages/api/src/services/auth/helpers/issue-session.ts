@@ -5,6 +5,7 @@ import {
 } from '@lily/api/services/auth/constants'
 import { JWTService } from '@lily/api/services/jwt/service'
 import type { users } from '@lily/db/schema'
+import { AuthError } from '@lily/shared'
 import { DateTime, Duration, Effect } from 'effect'
 
 type UserRow = typeof users.$inferSelect
@@ -58,4 +59,8 @@ export const issueSession = (user: UserRow) =>
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     }
-  })
+  }).pipe(
+    Effect.catchTag('JWTError', (error) =>
+      Effect.fail(new AuthError({ message: error.message }))
+    )
+  )

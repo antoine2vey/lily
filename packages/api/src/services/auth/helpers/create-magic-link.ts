@@ -1,4 +1,5 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { AuthError } from '@lily/shared'
 import {
   DateTime,
   Duration,
@@ -17,12 +18,10 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const normalizeEmail = (email: string) =>
   pipe(email, EffectString.toLowerCase, EffectString.trim)
 
-export const validateEmail = (
-  email: string
-): Effect.Effect<void, { message: string }> =>
+export const validateEmail = (email: string): Effect.Effect<void, AuthError> =>
   EMAIL_REGEX.test(email) && email.length <= 254
     ? Effect.void
-    : Effect.fail({ message: 'Invalid email format' })
+    : Effect.fail(new AuthError({ message: 'Invalid email format' }))
 
 export const createMagicLinkToken = (
   normalizedEmail: string

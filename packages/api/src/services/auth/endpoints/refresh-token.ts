@@ -11,11 +11,13 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
+import { AuthError } from '@lily/shared'
 import type {
   RefreshTokenRequest,
   RefreshTokenResponse,
 } from '@lily/shared/auth'
 import { DateTime, Duration, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Refresh access token using refresh token.
@@ -27,7 +29,7 @@ export const refreshToken = ({
   refreshToken,
 }: RefreshTokenRequest): Effect.Effect<
   RefreshTokenResponse,
-  { message: string } | RateLimitExceededError,
+  AuthError | RateLimitExceededError | SqlError,
   RefreshTokenRepository | UserRepository | JWTService | RateLimiterService
 > =>
   Effect.gen(function* () {
@@ -46,7 +48,9 @@ export const refreshToken = ({
     )
 
     if (!storedToken) {
-      return yield* Effect.fail({ message: 'Invalid or expired refresh token' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid or expired refresh token' })
+      )
     }
 
     // Rate limit per user to prevent abuse. Propagated as 429 so clients
@@ -62,17 +66,16 @@ export const refreshToken = ({
     if (!user) {
       // Revoke the token since user doesn't exist
       yield* refreshTokenRepo.revoke(storedToken.id)
-      return yield* Effect.fail({ message: 'User not found' })
+      return yield* Effect.fail(new AuthError({ message: 'User not found' }))
     }
 
     // Check user status
     if (user.status !== 'active') {
       // Revoke all tokens for suspended/banned user
       yield* refreshTokenRepo.revokeAllForUser(user.id)
-      return yield* Effect.fail({
-        message: 'Account is not active',
-        status: user.status,
-      })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Account is not active' })
+      )
     }
 
     // Revoke the old refresh token (rotation). A token reused within the
@@ -113,4 +116,9 @@ export const refreshToken = ({
       refreshToken: newRefreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     }
-  }).pipe(Effect.withSpan('AuthService.refreshToken'))
+  }).pipe(
+    Effect.catchTag('JWTError', (error) =>
+      Effect.fail(new AuthError({ message: error.message }))
+    ),
+    Effect.withSpan('AuthService.refreshToken')
+  )

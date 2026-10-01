@@ -8,7 +8,7 @@ import { Effect } from 'effect'
  */
 export const getCurrentUser = (): Effect.Effect<
   UserProfile,
-  { message: string },
+  never,
   CurrentUser
 > =>
   Effect.gen(function* () {

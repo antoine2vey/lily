@@ -6,13 +6,15 @@ import {
   validateEmail,
 } from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import type { LanguageCode } from '@lily/shared'
+import type { AuthError, LanguageCode } from '@lily/shared'
 import type { EmailService } from '@lily/shared/server'
 import { Console, Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Sends a magic link email with a custom callback URL.
@@ -30,7 +32,7 @@ export const sendInternalMagicLink = (input: {
   language?: LanguageCode | undefined
 }): Effect.Effect<
   { message: string },
-  { message: string },
+  AuthError | SqlError | RateLimitExceededError,
   MagicLinkRepository | RateLimiterService | UserRepository | EmailService
 > =>
   Effect.gen(function* () {

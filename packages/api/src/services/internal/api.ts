@@ -1,10 +1,9 @@
 import { ServiceAuthentication } from '@lily/api/services/internal/middleware'
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import { AuthError } from '@lily/shared'
 import { AuthResponse } from '@lily/shared/auth'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
-
-const AuthError = Schema.Struct({ message: Schema.String })
 
 /**
  * Service token request — validates a magic link code and issues a JWT.

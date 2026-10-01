@@ -8,10 +8,11 @@ import {
 import { JWTService } from '@lily/api/services/jwt/service'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { users } from '@lily/db/schema/users'
-import { nowAsDate } from '@lily/shared'
+import { AuthError, nowAsDate } from '@lily/shared'
 import type { AuthResponse } from '@lily/shared/auth'
 import { eq } from 'drizzle-orm'
 import { Array, DateTime, Duration, Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Issues a service token (JWT) for an existing user identified via magic link code.
@@ -26,7 +27,7 @@ export const issueServiceToken = (input: {
   magicLinkCode: string
 }): Effect.Effect<
   AuthResponse,
-  { message: string },
+  AuthError | SqlError,
   | MagicLinkRepository
   | RefreshTokenRepository
   | UserRepository
@@ -48,7 +49,9 @@ export const issueServiceToken = (input: {
       Option.fromNullishOr(existingUser),
       Option.match({
         onNone: () =>
-          Effect.fail({ message: 'No account found for this email' }),
+          Effect.fail(
+            new AuthError({ message: 'No account found for this email' })
+          ),
         onSome: (existing) =>
           Effect.gen(function* () {
             if (existing.emailVerified) return existing
@@ -72,7 +75,9 @@ export const issueServiceToken = (input: {
     )
 
     if (user.status !== 'active') {
-      return yield* Effect.fail({ message: `Account is ${user.status}` })
+      return yield* Effect.fail(
+        new AuthError({ message: `Account is ${user.status}` })
+      )
     }
 
     // Generate JWT access token
@@ -116,14 +121,19 @@ export const issueServiceToken = (input: {
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     }
-  }).pipe(Effect.withSpan('InternalService.issueServiceToken'))
+  }).pipe(
+    Effect.catchTag('JWTError', (error) =>
+      Effect.fail(new AuthError({ message: error.message }))
+    ),
+    Effect.withSpan('InternalService.issueServiceToken')
+  )
 
 /**
  * Resolves the email from input: either directly or by consuming a magic link code.
  */
 const resolveEmail = (input: {
   magicLinkCode: string
-}): Effect.Effect<string, { message: string }, MagicLinkRepository> =>
+}): Effect.Effect<string, AuthError | SqlError, MagicLinkRepository> =>
   Effect.gen(function* () {
     const magicLinkRepo = yield* MagicLinkRepository
     const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(
@@ -131,7 +141,9 @@ const resolveEmail = (input: {
     )
 
     if (!magicLink) {
-      return yield* Effect.fail({ message: 'Invalid or expired magic link' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid or expired magic link' })
+      )
     }
 
     return magicLink.email

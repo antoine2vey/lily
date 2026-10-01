@@ -2,6 +2,7 @@ import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.rep
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { LogoutResponse } from '@lily/shared/auth'
 import { Effect } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Logout - revoke all refresh tokens for the current user
@@ -9,7 +10,7 @@ import { Effect } from 'effect'
  */
 export const logout = (): Effect.Effect<
   LogoutResponse,
-  { message: string },
+  SqlError,
   CurrentUser | RefreshTokenRepository
 > =>
   Effect.gen(function* () {

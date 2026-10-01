@@ -3,12 +3,15 @@ import type { RefreshTokenRepository } from '@lily/api/repositories/refresh-toke
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { issueSession } from '@lily/api/services/auth/helpers/issue-session'
 import type { JWTService } from '@lily/api/services/jwt/service'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
+import { AuthError } from '@lily/shared'
 import type { AuthResponse, MagicLinkVerifyRequest } from '@lily/shared/auth'
 import { Effect, Option, pipe } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 /**
  * Verify magic link token and exchange for JWT tokens
@@ -20,7 +23,7 @@ export const verifyMagicLink = ({
   language,
 }: MagicLinkVerifyRequest): Effect.Effect<
   AuthResponse,
-  { message: string },
+  AuthError | SqlError | RateLimitExceededError,
   | MagicLinkRepository
   | RefreshTokenRepository
   | UserRepository
@@ -36,7 +39,9 @@ export const verifyMagicLink = ({
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(code)) {
-      return yield* Effect.fail({ message: 'Invalid code format' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid code format' })
+      )
     }
 
     // Check rate limit
@@ -46,7 +51,9 @@ export const verifyMagicLink = ({
     const magicLink = yield* magicLinkRepo.findValidAndMarkUsed(code)
 
     if (!magicLink) {
-      return yield* Effect.fail({ message: 'Invalid or expired code' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Invalid or expired code' })
+      )
     }
 
     // Find or create user, syncing device fields on login
@@ -83,15 +90,16 @@ export const verifyMagicLink = ({
     )
 
     if (!user) {
-      return yield* Effect.fail({ message: 'Failed to create user' })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Failed to create user' })
+      )
     }
 
     // Check user status
     if (user.status !== 'active') {
-      return yield* Effect.fail({
-        message: 'Account is not active',
-        status: user.status,
-      })
+      return yield* Effect.fail(
+        new AuthError({ message: 'Account is not active' })
+      )
     }
 
     return yield* issueSession(user)

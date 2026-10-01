@@ -5,7 +5,7 @@ import {
   OAuthVerifierService,
   type OAuthIdentity as VerifiedIdentity,
 } from '@lily/api/services/oauth-verifier/service'
-import { trimAndNullify } from '@lily/shared'
+import { AuthError, trimAndNullify } from '@lily/shared'
 import type { OAuthSignInRequest } from '@lily/shared/auth'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 
@@ -61,7 +61,7 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
     Match.when('google', () => verifier.verifyGoogle(payload.idToken)),
     Match.exhaustive,
     Effect.catchTag('OAuthVerificationError', (err) =>
-      Effect.fail({ message: err.message })
+      Effect.fail(new AuthError({ message: err.message }))
     )
   )
 
@@ -130,10 +130,12 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
                   const eitherVerified =
                     existing.emailVerified || verified.emailVerified
                   if (!eitherVerified) {
-                    return yield* Effect.fail({
-                      message:
-                        'An account with this email exists but cannot be verified for merging. Sign in with magic link first.',
-                    })
+                    return yield* Effect.fail(
+                      new AuthError({
+                        message:
+                          'An account with this email exists but cannot be verified for merging. Sign in with magic link first.',
+                      })
+                    )
                   }
                   if (!existing.emailVerified && verified.emailVerified) {
                     const updated = yield* userRepo.update(existing.id, {
@@ -150,7 +152,9 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
           )
 
           if (!targetUser) {
-            return yield* Effect.fail({ message: 'Failed to create user' })
+            return yield* Effect.fail(
+              new AuthError({ message: 'Failed to create user' })
+            )
           }
 
           yield* identityRepo.link({
@@ -168,10 +172,9 @@ export const oauthSignIn = Effect.fn('AuthService.oauthSignIn')(function* (
   )
 
   if (user.status !== 'active') {
-    return yield* Effect.fail({
-      message: 'Account is not active',
-      status: user.status,
-    })
+    return yield* Effect.fail(
+      new AuthError({ message: 'Account is not active' })
+    )
   }
 
   return yield* issueSession(user)

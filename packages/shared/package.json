@@ -95,6 +95,10 @@
       "types": "./src/domains/plant/errors.ts",
       "default": "./src/domains/plant/errors.ts"
     },
+    "./errors/auth": {
+      "types": "./src/domains/auth/errors.ts",
+      "default": "./src/domains/auth/errors.ts"
+    },
     "./errors/user": {
       "types": "./src/domains/user/errors.ts",
       "default": "./src/domains/user/errors.ts"

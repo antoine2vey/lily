@@ -7,10 +7,12 @@ import {
   validateEmail,
 } from '@lily/api/services/auth/helpers/create-magic-link'
 import { sendMagicLinkEmail } from '@lily/api/services/email/send-magic-link'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
+import type { AuthError } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import type { EmailService } from '@lily/shared/server'
 import {
@@ -23,6 +25,7 @@ import {
   pipe,
   String as Str,
 } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 import qrcode from 'qrcode-terminal'
 
 export class MagicLinkConfig extends Context.Service<
@@ -63,7 +66,7 @@ export const sendMagicLink = ({
   language,
 }: MagicLinkRequest): Effect.Effect<
   MagicLinkSentResponse,
-  { message: string },
+  AuthError | SqlError | RateLimitExceededError,
   | MagicLinkRepository
   | RateLimiterService
   | MagicLinkConfig

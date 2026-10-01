@@ -45,9 +45,21 @@ const tagOf = (ast: unknown): string | undefined => {
 const inlineTag = (schema: { ast: { _tag: string } }): string =>
   `inline:${schema.ast._tag}`
 
+/**
+ * v3 inline `{ message }` structs that v4 declares as a `Schema.TaggedError`
+ * of the same name and status. The wire body gains a `_tag`; the status is
+ * unchanged, which this check still verifies.
+ */
+const taggedSinceV3: Record<string, string> = {
+  'inline:AuthError': 'AuthError',
+}
+
+const normalizeTag = (tag: string): string =>
+  taggedSinceV3[tag] ?? (tag.startsWith('inline:') ? 'inline' : tag)
+
 const normalizeErrors = (errors: ReadonlyArray<ErrorEntry>): string =>
   [...errors]
-    .map((e) => `${e.tag.startsWith('inline:') ? 'inline' : e.tag}@${e.status}`)
+    .map((e) => `${normalizeTag(e.tag)}@${e.status}`)
     .sort()
     .join(',')
 
