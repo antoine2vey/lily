@@ -11,7 +11,7 @@ check() { printf '%-44s %s\n' "$1" "$2"; [ "$2" = ok ] || fail=1; }
 stale=$(grep -oE '"(effect@3\.[^"]*|@effect/(platform|sql|sql-drizzle|rpc|ai|cluster|workflow|experimental)@[^"]*)"' bun.lock | sort -u)
 check 'bun.lock has no v3-only effect packages' "$([ -z "$stale" ] && echo ok || echo "FAIL: $(echo $stale | tr '\n' ' ')")"
 
-v3_imports=$(git grep -lE "from '@effect/(platform|sql|sql-drizzle|rpc|ai|cluster|workflow|experimental)(/[A-Za-z]+)?'" -- 'packages/*/src' 'packages/*/scripts' '*.ts' '*.tsx' | wc -l | tr -d ' ')
+v3_imports=$(git grep -lE "from '@effect/(platform|sql|sql-drizzle|rpc|ai|cluster|workflow|experimental)(/[A-Za-z]+)?'" -- 'packages/**/*.ts' 'packages/**/*.tsx' | wc -l | tr -d ' ')
 check 'no imports of v3-only @effect packages' "$([ "$v3_imports" = 0 ] && echo ok || echo "FAIL: $v3_imports files")"
 
 bun run tsc --force --continue >"$LOG_DIR/tsc.log" 2>&1
