@@ -6,7 +6,7 @@ import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
 import { UnauthorizedError } from '@lily/shared'
 import { Effect, Layer } from 'effect'
-import { Authentication } from './middleware.types'
+import { Authentication, CurrentUser } from './middleware.types'
 
 // Re-export types for convenience
 export { Authentication, CurrentUser } from './middleware.types'
@@ -21,9 +21,12 @@ const AuthenticationBase = Layer.effect(
     const userRepo = yield* UserRepository
 
     return Authentication.of({
-      bearer: Effect.fn('auth.validateToken')(function* (token) {
+      bearer: Effect.fn('auth.validateToken')(function* (
+        httpEffect,
+        { credential }
+      ) {
         const { profile } = yield* validateUserFromToken({
-          token,
+          token: credential,
           createError: (message) => new UnauthorizedError({ message }),
         }).pipe(
           Effect.provideService(JWTService, jwtService),
@@ -40,7 +43,7 @@ const AuthenticationBase = Layer.effect(
           })
         )
 
-        return profile
+        return yield* Effect.provideService(httpEffect, CurrentUser, profile)
       }),
     })
   })

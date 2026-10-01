@@ -5,12 +5,7 @@ import {
   type IAlerter,
 } from '@lily/api/services/alerting/service'
 import { Effect, Layer, References } from 'effect'
-import {
-  type HttpEffect,
-  HttpServer,
-  HttpServerRequest,
-  HttpServerResponse,
-} from 'effect/http'
+import { HttpServer, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { describe, expect, it } from 'vitest'
 
 const makeCapturingAlerter = () => {
@@ -34,7 +29,8 @@ const runWithApp = async (
   alerterLayer: Layer.Layer<Alerter>
 ): Promise<void> => {
   const response = HttpServerResponse.empty({ status })
-  const app: HttpEffect.Default = Effect.succeed(response)
+  const app: Effect.Effect<HttpServerResponse.HttpServerResponse> =
+    Effect.succeed(response)
   await Effect.runPromise(
     ObservabilityMiddleware(app).pipe(
       Effect.asVoid,

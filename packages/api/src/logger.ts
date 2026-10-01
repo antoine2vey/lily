@@ -5,22 +5,21 @@ import { Logger, String as Str } from 'effect'
  *
  * Railway parses structured JSON logs and reads the `level` field
  * (lowercase: debug, info, warn, error) to classify severity.
- * Effect's `Logger.jsonLogger` outputs `logLevel` with uppercase labels,
- * so we replace `"logLevel":"INFO"` → `"level":"info"` etc.
+ * Effect's structured formatter emits `level` in uppercase, so it is
+ * lowercased before serialization.
  *
  * Everything goes to stdout — Railway determines severity from the
  * `level` field in the JSON, not from stdout vs stderr.
  */
-const railwayLogger = Logger.make((options: Logger.Logger.Options<unknown>) => {
-  const json = Logger.jsonLogger.log(options)
-  const output = json.replace(
-    `"logLevel":"${options.logLevel.label}"`,
-    `"level":"${Str.toLowerCase(options.logLevel.label)}"`
+const railwayLogger = Logger.map(Logger.formatStructured, (entry) => {
+  globalThis.console.log(
+    JSON.stringify({ ...entry, level: Str.toLowerCase(entry.level) })
   )
-  globalThis.console.log(output)
 })
 
+// `Logger.layer` replaces the whole logger set, so `tracerLogger` is listed
+// explicitly to keep log lines attached to the current span as events.
 export const LoggerLayer =
   process.env.NODE_ENV === 'production'
-    ? Logger.replace(Logger.defaultLogger, railwayLogger)
-    : Logger.pretty
+    ? Logger.layer([railwayLogger, Logger.tracerLogger])
+    : Logger.layer([Logger.consolePretty(), Logger.tracerLogger])

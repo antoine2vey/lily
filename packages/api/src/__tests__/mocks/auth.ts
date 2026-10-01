@@ -58,11 +58,11 @@ export const createMockAuthentication = (
   return Layer.succeed(
     Authentication,
     Authentication.of({
-      bearer: () => {
+      bearer: (httpEffect) => {
         if (shouldFail || !user) {
           return Effect.fail(new UnauthorizedError({ message: failMessage }))
         }
-        return Effect.succeed(user)
+        return Effect.provideService(httpEffect, CurrentUser, user)
       },
     })
   )

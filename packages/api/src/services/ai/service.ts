@@ -11,12 +11,12 @@ import {
 import { plantDetect } from '@lily/shared/services/ai/plant-detect'
 import { plantRecognition } from '@lily/shared/services/ai/plant-recognition'
 import type { UIMessage } from 'ai'
-import { Effect } from 'effect'
+import { Context, Effect, Layer } from 'effect'
 
 import { chatStream, type PlantChatImageOptions } from '../ai-chat/plant-chat'
 
-export class AiService extends Effect.Service<AiService>()('AiService', {
-  effect: Effect.gen(function* () {
+export class AiService extends Context.Service<AiService>()('AiService', {
+  make: Effect.gen(function* () {
     const alerter = yield* Alerter
     const alertOpenAI = withProviderAlert(alerter, { provider: 'openai' })
 
@@ -67,4 +67,6 @@ export class AiService extends Effect.Service<AiService>()('AiService', {
         ),
     }
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}

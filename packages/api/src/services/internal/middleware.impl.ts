@@ -1,5 +1,8 @@
 import { timingSafeEqual as cryptoTimingSafeEqual } from 'node:crypto'
-import { ServiceAuthentication } from '@lily/api/services/internal/middleware'
+import {
+  ServiceAuth,
+  ServiceAuthentication,
+} from '@lily/api/services/internal/middleware'
 import { UnauthorizedError } from '@lily/shared'
 import { Config, Effect, Layer, Redacted } from 'effect'
 
@@ -19,9 +22,9 @@ export const ServiceAuthenticationLive = Layer.unwrap(
     return Layer.succeed(
       ServiceAuthentication,
       ServiceAuthentication.of({
-        apiKey: (redactedKey) =>
+        apiKey: (httpEffect, { credential }) =>
           Effect.gen(function* () {
-            const key = Redacted.value(redactedKey)
+            const key = Redacted.value(credential)
             if (
               key.length !== secretValue.length ||
               !timingSafeEqual(key, secretValue)
@@ -30,7 +33,9 @@ export const ServiceAuthenticationLive = Layer.unwrap(
                 message: 'Invalid service secret',
               })
             }
-            return { verified: true as const }
+            return yield* Effect.provideService(httpEffect, ServiceAuth, {
+              verified: true as const,
+            })
           }),
       })
     )

@@ -162,8 +162,8 @@ export const AllRepositoriesLive = Layer.mergeAll(
 // ============================================================================
 
 // Self-contained layers (only depend on Config, not on app repos/infra)
-// FileService.Default depends on FileSystem from BunContext.layer, so we
-// provide BunContext first via Layer.provideMerge to satisfy that dependency.
+// FileService.layer depends on FileSystem from BunServices.layer, so we
+// provide BunServices first via Layer.provideMerge to satisfy that dependency.
 //
 // In development, external services (push notifications, email) are replaced
 // with console-logging implementations to avoid hitting real APIs.
@@ -231,9 +231,9 @@ const SelfContainedInfraLive = Layer.mergeAll(
   AdminAuthLive,
   ServiceAuthenticationLive,
   AchievementNotifierLive,
-  AiService.Default,
-  GCSService.Default,
-  FileService.Default,
+  AiService.layer,
+  GCSService.layer,
+  FileService.layer,
   RevenueCatProviderLive,
   WeatherProviderLive,
   ExternalServicesLive,
@@ -254,11 +254,11 @@ const RedisFullLive = Layer.mergeAll(
 // Repo-dependent infra: these need specific repositories to be available.
 // LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
 // UsageTrackerLive needs SubscriptionRepository.
-// RagService.Default needs ProcessedChunkRepository.
+// RagService.layer needs ProcessedChunkRepository.
 const RepoDependentInfraLive = Layer.mergeAll(
   LimitCheckerLive,
   UsageTrackerLive,
-  RagService.Default
+  RagService.layer
 )
 
 const AllInfrastructureLive = Layer.mergeAll(

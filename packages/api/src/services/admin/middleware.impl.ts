@@ -6,7 +6,7 @@ import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
 import { ForbiddenError } from '@lily/shared/errors/admin'
 import { Effect, Layer } from 'effect'
-import { AdminAuth } from './middleware.types'
+import { AdminAuth, AdminUser } from './middleware.types'
 
 // Re-export types for convenience
 export { AdminAuth, AdminUser } from './middleware.types'
@@ -22,10 +22,10 @@ const AdminAuthBase = Layer.effect(
     const userRepo = yield* UserRepository
 
     return AdminAuth.of({
-      bearer: (token) =>
+      bearer: (httpEffect, { credential }) =>
         Effect.gen(function* () {
           const { profile } = yield* validateUserFromToken({
-            token,
+            token: credential,
             createError: (message) => new ForbiddenError({ message }),
             requireAdmin: true,
           }).pipe(
@@ -39,7 +39,7 @@ const AdminAuthBase = Layer.effect(
             })
           )
 
-          return profile
+          return yield* Effect.provideService(httpEffect, AdminUser, profile)
         }),
     })
   })

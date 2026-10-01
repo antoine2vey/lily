@@ -53,7 +53,7 @@ import { startWeeklyRecapScheduler } from '@lily/api/services/weekly-recap-sched
 import { TelemetryLive } from '@lily/api/telemetry/otel'
 import { DrizzleLive, PgLive } from '@lily/db'
 import { Effect, Layer } from 'effect'
-import { HttpRouter, HttpServer } from 'effect/http'
+import { HttpRouter } from 'effect/http'
 import { HttpApiBuilder, HttpApiSwagger } from 'effect/http-api'
 
 // Shared database layers
@@ -172,22 +172,27 @@ const ExtensionApiHandlers = Layer.mergeAll(
   VacationApiLive(Api)
 )
 
-// Provide the implementation for all APIs
-const ApiLive = HttpApiBuilder.api(Api).pipe(
-  Layer.provide(CoreApiHandlers),
-  Layer.provide(ExtensionApiHandlers)
+// Register every API group with the router, plus /openapi.json and /docs
+const ApiRoutes = HttpApiBuilder.layer(Api, {
+  openapiPath: '/openapi.json',
+}).pipe(Layer.provide(CoreApiHandlers), Layer.provide(ExtensionApiHandlers))
+
+const AllRoutes = Layer.mergeAll(
+  ApiRoutes,
+  HttpApiSwagger.layer(Api),
+  HttpRouter.cors({ maxAge: 86400 })
 )
 
-// Set up the server using BunHttpServer on port 3000
-const ServerLive = HttpApiBuilder.serve(ObservabilityMiddleware).pipe(
-  Layer.provide(HttpRouter.cors({ maxAge: 86400 })),
-  Layer.provide(HttpApiSwagger.layer(Api)),
-  Layer.provide(HttpApiBuilder.middlewareOpenApi()),
-  Layer.provide(ApiLive),
+// Set up the server using BunHttpServer on port 3000.
+// ObservabilityMiddleware already logs every request, so the router's
+// built-in request logger is disabled to avoid a duplicate line.
+const ServerLive = HttpRouter.serve(AllRoutes, {
+  middleware: ObservabilityMiddleware,
+  disableLogger: true,
+}).pipe(
   Layer.provide(AllSchedulersLive),
   Layer.provide(AppLive),
   Layer.provide(SharedLive),
-  HttpServer.withLogAddress,
   Layer.provide(
     BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0', idleTimeout: 120 })
   )
@@ -197,6 +202,5 @@ const ServerLive = HttpApiBuilder.serve(ObservabilityMiddleware).pipe(
 BunRuntime.runMain(
   Layer.launch(ServerLive).pipe(
     Effect.provide(Layer.merge(TelemetryLive, LoggerLayer))
-  ),
-  { disablePrettyLogger: true }
+  )
 )

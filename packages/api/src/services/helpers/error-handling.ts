@@ -4,30 +4,29 @@
  * Infrastructure errors are converted to defects (Effect.die) at the handler level.
  * Effect Platform automatically handles defects as 500 responses.
  *
- * Scope: SqlError, RequestError, ResponseError, SystemError, BadArgument, UnknownException.
+ * Scope: SqlError, PlatformError, HttpClientError, HttpServerError, UnknownError.
  * GCS, file-validation, and AI errors are declared on the API endpoints directly.
  */
 
+import type { Cause } from 'effect'
 import { Effect } from 'effect'
+import type { HttpClientError, HttpServerError } from 'effect/http'
+import type { PlatformError } from 'effect/PlatformError'
 import type { SqlError } from 'effect/sql/SqlError'
 
-// Use structural types for platform errors to handle module-boundary aliasing
-// (e.g. HttpClientError.RequestError vs HttpServerError.RequestError share the same _tag).
 type InfrastructureError =
   | SqlError
-  | { readonly _tag: 'RequestError' }
-  | { readonly _tag: 'ResponseError' }
-  | { readonly _tag: 'SystemError' }
-  | { readonly _tag: 'BadArgument' }
-  | { readonly _tag: 'UnknownException' }
+  | PlatformError
+  | HttpClientError.HttpClientError
+  | HttpServerError.HttpServerError
+  | Cause.UnknownError
 
 const infraErrorHandlers = {
   SqlError: Effect.die,
-  RequestError: Effect.die,
-  ResponseError: Effect.die,
-  SystemError: Effect.die,
-  BadArgument: Effect.die,
-  UnknownException: Effect.die,
+  PlatformError: Effect.die,
+  HttpClientError: Effect.die,
+  HttpServerError: Effect.die,
+  UnknownError: Effect.die,
 } as const
 
 /**

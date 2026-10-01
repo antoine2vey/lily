@@ -1,6 +1,3 @@
-import * as NodeSdk from '@effect/opentelemetry/NodeSdk'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   Array,
   Config,
@@ -11,6 +8,8 @@ import {
   Record,
   String,
 } from 'effect'
+import { FetchHttpClient } from 'effect/http'
+import { OtlpSerialization, OtlpTracer } from 'effect/observability'
 
 const parsePair = (pair: string): Option.Option<readonly [string, string]> =>
   pipe(
@@ -29,10 +28,19 @@ const parseHeaders = (raw: string): Record<string, string> =>
     ? {}
     : pipe(
         String.split(',')(raw),
-        Array.filterMap(parsePair),
+        Array.map(parsePair),
+        Array.getSomes,
         Record.fromEntries
       )
 
+/**
+ * OTLP trace export through Effect's built-in exporter (no OpenTelemetry SDK).
+ *
+ * Traces only: `OtlpTracer` posts to `<endpoint>/v1/traces`. Logs and metrics
+ * are deliberately not exported (the full `Otlp.layer` would start shipping
+ * both to Honeycomb). Honeycomb routes by `service.name`, so the resource
+ * name must stay `lily-api`.
+ */
 export const TelemetryLive = Layer.unwrap(
   Effect.gen(function* () {
     const enabled = yield* Config.withDefault(
@@ -62,14 +70,13 @@ export const TelemetryLive = Layer.unwrap(
       `OpenTelemetry tracing enabled → ${endpoint} (${serviceName})`
     )
 
-    return NodeSdk.layer(() => ({
+    return OtlpTracer.layer({
+      url: `${endpoint}/v1/traces`,
       resource: { serviceName },
-      spanProcessor: new BatchSpanProcessor(
-        new OTLPTraceExporter({
-          url: `${endpoint}/v1/traces`,
-          ...(Record.isEmptyRecord(headers) ? {} : { headers }),
-        })
-      ),
-    }))
+      headers,
+    }).pipe(
+      Layer.provide(OtlpSerialization.layerJson),
+      Layer.provide(FetchHttpClient.layer)
+    )
   })
 )
