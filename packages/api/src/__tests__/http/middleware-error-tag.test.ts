@@ -18,6 +18,7 @@ import {
 } from 'effect'
 import { Etag, HttpPlatform, HttpRouter } from 'effect/http'
 import {
+  HttpApi,
   HttpApiBuilder,
   type HttpApiEndpoint,
   type HttpApiGroup,
@@ -45,14 +46,29 @@ type ErrorSchema = HttpApiMiddleware.AnyService['error'] extends ReadonlySet<
   ? S
   : never
 
-const groups = Record.values(
-  Api.groups as unknown as Record<string, HttpApiGroup.Top>
-)
+type ReflectedEndpoint = {
+  readonly group: HttpApiGroup.Top
+  readonly endpoint: HttpApiEndpoint.Top
+  readonly middleware: ReadonlySet<HttpApiMiddleware.AnyService>
+}
 
-const endpointsOf = (group: HttpApiGroup.Top) =>
-  Record.values(
-    group.endpoints as unknown as Record<string, HttpApiEndpoint.Top>
-  )
+const reflectEndpoints = (): ReadonlyArray<ReflectedEndpoint> => {
+  let collected: ReadonlyArray<ReflectedEndpoint> = []
+  HttpApi.reflect(Api, {
+    onGroup: () => {},
+    onEndpoint: ({ group, endpoint, middleware }) => {
+      collected = Array.append(collected, { group, endpoint, middleware })
+    },
+  })
+  return collected
+}
+
+const endpoints = reflectEndpoints()
+
+const endpointsByGroup = Array.groupBy(
+  endpoints,
+  ({ group }) => group.identifier
+)
 
 const tagOf = (schema: ErrorSchema): string =>
   pipe(
@@ -69,29 +85,23 @@ const statusOf = (schema: ErrorSchema): number =>
   )
 
 const securedEndpoints: ReadonlyArray<SecuredEndpoint> = pipe(
-  groups,
-  Array.flatMap((group) =>
+  endpoints,
+  Array.flatMap(({ group, endpoint, middleware }) =>
     pipe(
-      endpointsOf(group),
-      Array.flatMap((endpoint) =>
+      Array.fromIterable(middleware),
+      Array.filter(HttpApiMiddleware.isSecurity),
+      Array.flatMap((security) =>
         pipe(
-          Array.fromIterable(endpoint.middlewares),
-          Array.map((key) => key as unknown as HttpApiMiddleware.AnyService),
-          Array.filter(HttpApiMiddleware.isSecurity),
-          Array.flatMap((middleware) =>
-            pipe(
-              Array.fromIterable(middleware.error),
-              Array.map(
-                (schema): SecuredEndpoint => ({
-                  name: `${group.identifier}.${endpoint.identifier}`,
-                  method: endpoint.method,
-                  path: endpoint.path,
-                  middleware: middleware.key,
-                  tag: tagOf(schema),
-                  status: statusOf(schema),
-                })
-              )
-            )
+          Array.fromIterable(security.error),
+          Array.map(
+            (schema): SecuredEndpoint => ({
+              name: `${group.identifier}.${endpoint.identifier}`,
+              method: endpoint.method,
+              path: endpoint.path,
+              middleware: security.key,
+              tag: tagOf(schema),
+              status: statusOf(schema),
+            })
           )
         )
       )
@@ -135,9 +145,12 @@ const groupUntyped = HttpApiBuilder.group as unknown as (
  * Every handler dies if reached, so any status other than the middleware's
  * own means the middleware let a bad credential through.
  */
-const placeholderGroup = (group: HttpApiGroup.Top) =>
-  groupUntyped(Api, group.identifier, (handlers) =>
-    Array.reduce(endpointsOf(group), handlers, (built, endpoint) =>
+const placeholderGroup = (
+  identifier: string,
+  groupEndpoints: ReadonlyArray<ReflectedEndpoint>
+) =>
+  groupUntyped(Api, identifier, (handlers) =>
+    Array.reduce(groupEndpoints, handlers, (built, { endpoint }) =>
       built.handle(endpoint.identifier, () =>
         Effect.die(new Error(`Unhandled endpoint: ${endpoint.identifier}`))
       )
@@ -151,8 +164,11 @@ const makeHandler = () => {
   // is actually missing.
   const apiLayer = HttpApiBuilder.layer(Api).pipe(
     Layer.provide(
-      Array.reduce(groups, Layer.empty, (merged, group) =>
-        Layer.merge(merged, placeholderGroup(group))
+      Array.reduce(
+        Record.toEntries(endpointsByGroup),
+        Layer.empty,
+        (merged, [identifier, groupEndpoints]) =>
+          Layer.merge(merged, placeholderGroup(identifier, groupEndpoints))
       )
     ),
     Layer.provide(MiddlewareLive),
