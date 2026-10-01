@@ -1,7 +1,7 @@
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Effect, Layer, Option, Schema } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 const SCOPES_SUPPORTED = ['plants:read', 'plants:write', 'knowledge:read']
@@ -35,9 +35,10 @@ const parseFormBody = (request: HttpServerRequest.HttpServerRequest) =>
 
 // ── Combined Router ────────────────────────────────────────────────────
 
-export const OAuthRoutes = HttpRouter.empty.pipe(
+export const OAuthRoutes = Layer.mergeAll(
   // ── Server Metadata ────────────────────────────────────────────────
-  HttpRouter.get(
+  HttpRouter.add(
+    'GET',
     '/.well-known/oauth-authorization-server',
     Effect.gen(function* () {
       const serverUrl = yield* McpServerUrl
@@ -57,7 +58,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── MCP Discovery Metadata ───────────────────────────────────────
-  HttpRouter.get(
+  HttpRouter.add(
+    'GET',
     '/.well-known/mcp.json',
     Effect.gen(function* () {
       const serverUrl = yield* McpServerUrl
@@ -77,7 +79,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── Protected Resource Metadata ────────────────────────────────────
-  HttpRouter.get(
+  HttpRouter.add(
+    'GET',
     '/.well-known/oauth-protected-resource',
     Effect.gen(function* () {
       const serverUrl = yield* McpServerUrl
@@ -92,7 +95,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── Client Registration ────────────────────────────────────────────
-  HttpRouter.post(
+  HttpRouter.add(
+    'POST',
     '/oauth/register',
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest
@@ -116,7 +120,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── Authorize (redirect to consent) ────────────────────────────────
-  HttpRouter.get(
+  HttpRouter.add(
+    'GET',
     '/oauth/authorize',
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest
@@ -178,7 +183,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── Token Exchange ─────────────────────────────────────────────────
-  HttpRouter.post(
+  HttpRouter.add(
+    'POST',
     '/oauth/token',
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest
@@ -254,7 +260,8 @@ export const OAuthRoutes = HttpRouter.empty.pipe(
   ),
 
   // ── Token Revocation ───────────────────────────────────────────────
-  HttpRouter.post(
+  HttpRouter.add(
+    'POST',
     '/oauth/revoke',
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest

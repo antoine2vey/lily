@@ -124,11 +124,17 @@ interface AuthResult {
 const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
   forceRefresh: boolean
 ) {
-  const request = yield* HttpServerRequest.HttpServerRequest
+  // MCP tool handlers are typed without HttpServerRequest; the HTTP transport
+  // provides it at runtime, and its absence means no bearer token.
+  const request = yield* Effect.serviceOption(
+    HttpServerRequest.HttpServerRequest
+  )
   const oauthService = yield* OAuthService
   const repo = yield* OAuthRepository
 
-  const authHeader = request.headers.authorization
+  const authHeader = Option.getOrUndefined(
+    Option.flatMapNullishOr(request, (r) => r.headers.authorization)
+  )
   if (!authHeader || !pipe(authHeader, EffectString.startsWith('Bearer '))) {
     return yield* new OAuthError({
       error: 'invalid_token',
@@ -195,7 +201,7 @@ export const provideAuth = <A, E, R>(
 ): Effect.Effect<
   A,
   E | OAuthError,
-  | Exclude<R, CurrentJwt | CurrentUserId>
+  | Exclude<Exclude<R, CurrentJwt>, CurrentUserId>
   | OAuthService
   | OAuthRepository
   | ApiClient
@@ -209,11 +215,4 @@ export const provideAuth = <A, E, R>(
         Effect.provideService(CurrentUserId, auth.userId)
       )
     )
-  ) as Effect.Effect<
-    A,
-    E | OAuthError,
-    | Exclude<R, CurrentJwt | CurrentUserId>
-    | OAuthService
-    | OAuthRepository
-    | ApiClient
-  >
+  )

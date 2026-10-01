@@ -1,4 +1,8 @@
-import { type ApiClient, CurrentUserId } from '@lily/mcp/api-client'
+import {
+  type ApiClient,
+  type CurrentJwt,
+  CurrentUserId,
+} from '@lily/mcp/api-client'
 import type { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import type { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { provideAuth } from '@lily/mcp/auth/resolve-user'
@@ -11,257 +15,163 @@ import {
   listPlantsEffect,
 } from '@lily/mcp/tools'
 import {
+  AskPlantQuestion,
   CarePlant,
   GetCareTasks,
   GetOverduePlants,
   GetPlantDetails,
   ListPlants,
-  TextToolkit,
 } from '@lily/mcp/tools/definitions'
-import { TOOL_WIDGETS } from '@lily/mcp/widgets/constants'
 import {
   Cause,
   Context,
   Effect,
-  JSONSchema,
+  String as EffectString,
+  Layer,
   Option,
+  Predicate,
+  pipe,
   Record,
   Schema,
 } from 'effect'
-import { Tool as AiTool, McpSchema, McpServer } from 'effect/ai'
-import * as AST from 'effect/SchemaAST'
+import { McpSchema, McpServer, Tool } from 'effect/ai'
 
-/**
- * Global services that tool effects need, provided at layer construction time.
- * - ApiClient: HTTP calls to API server (via CurrentJwt)
- * - OAuthService: bearer token validation
- * - OAuthRepository: user API credentials lookup
- */
+/** Services the tool effects need, captured when the layer is built. */
 type ToolDeps = ApiClient | OAuthService | OAuthRepository
 
 /**
- * Generates a JSON Schema from a schema AST, matching the approach used
- * internally by @effect/ai's toolkit registration.
- *
- * Unlike `JSONSchema.make()`, this omits the top-level `$schema` field
- * to produce schemas identical to those the toolkit generates.
+ * What a tool effect returns: markdown for the model in `text`, and for
+ * widget tools the remaining fields as the widget's `structuredContent`.
  */
-const makeJsonSchema = (ast: AST.AST): object => {
-  const props = AST.getPropertySignatures(ast)
-  if (props.length === 0) {
-    return {
-      type: 'object' as const,
-      properties: {},
-      required: [] as string[],
-      additionalProperties: false,
-    }
-  }
-  const $defs: globalThis.Record<string, JSONSchema.JsonSchema7> = {}
-  const schema = JSONSchema.fromAST(ast, {
-    definitions: $defs,
-    topLevelReferenceStrategy: 'skip',
+type ToolOutput = { readonly text: string; readonly [key: string]: unknown }
+
+const widgetMetaOf = (tool: Tool.Any) =>
+  Context.getOption(tool.annotations, Tool.Meta)
+
+/**
+ * Closed objects (`additionalProperties: false`) keep models from inventing
+ * arguments; `Tool.getJsonSchema` would emit `true`. Arguments are still
+ * decoded leniently.
+ */
+const inputJsonSchema = (tool: Tool.Any) => {
+  const document = Schema.toJsonSchemaDocument(tool.parametersSchema, {
+    onExcessProperty: 'error',
   })
-  const out = schema as unknown as globalThis.Record<string, unknown>
-  if (Record.keys($defs).length > 0) {
-    out.$defs = $defs
-  }
-  return out
+  return Record.isEmptyRecord(document.definitions)
+    ? document.schema
+    : { ...document.schema, $defs: document.definitions }
 }
 
-/**
- * Builds a McpSchema.Tool from an AiTool definition, replicating what
- * registerToolkit does internally but giving us control over the handler.
- *
- * Uses makeJsonSchema (AST-based) instead of JSONSchema.make to match
- * the exact schema format the toolkit produces (no $schema field).
- */
-const toMcpTool = (tool: AiTool.Any) =>
-  new McpSchema.Tool({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: makeJsonSchema(tool.parametersSchema.ast),
-    annotations: new McpSchema.ToolAnnotations({
-      readOnlyHint: Context.get(tool.annotations, AiTool.Readonly),
-      destructiveHint: Context.get(tool.annotations, AiTool.Destructive),
-      idempotentHint: Context.get(tool.annotations, AiTool.Idempotent),
-      openWorldHint: Context.get(tool.annotations, AiTool.OpenWorld),
-    }),
-  })
+const toMcpTool = (tool: Tool.Any) =>
+  Schema.decodeUnknownEffect(McpSchema.ToolJson)(inputJsonSchema(tool)).pipe(
+    Effect.map(
+      (inputSchema) =>
+        new McpSchema.Tool({
+          name: tool.name,
+          description: Tool.getDescription(tool),
+          inputSchema,
+          annotations: {
+            readOnlyHint: Context.get(tool.annotations, Tool.Readonly),
+            destructiveHint: Context.get(tool.annotations, Tool.Destructive),
+            idempotentHint: Context.get(tool.annotations, Tool.Idempotent),
+            openWorldHint: Context.get(tool.annotations, Tool.OpenWorld),
+          },
+          _meta: Option.getOrUndefined(widgetMetaOf(tool)),
+        })
+    ),
+    Effect.orDie
+  )
 
 /**
- * Creates a CallToolResult with both markdown content and structured
- * data for widget rendering.
- *
- * - content[0].text: readable markdown for non-widget clients
- * - structuredContent: JSON data for widget iframe rendering
- * - _meta.ui.resourceUri: links this result to the HTML widget template
- *   (ChatGPT needs this on BOTH the tool descriptor AND the result
- *   to associate the structured output with the correct widget iframe)
+ * ChatGPT needs the widget `_meta` on the result as well as on the tool
+ * descriptor to bind `structuredContent` to the widget iframe.
  */
-const widgetResult = (
-  toolName: string,
-  data: { text: string; [key: string]: unknown }
-) => {
-  const { text, ...structured } = data
-  const widgetUri = Record.get(TOOL_WIDGETS, toolName)
-
-  return new McpSchema.CallToolResult({
-    content: [{ type: 'text' as const, text }],
-    structuredContent: structured,
-    _meta: Option.match(widgetUri, {
-      onNone: () => undefined,
-      onSome: (uri) => ({
-        ui: { resourceUri: uri },
-        'openai/outputTemplate': uri,
+const successResult = (tool: Tool.Any, { text, ...structured }: ToolOutput) =>
+  Option.match(widgetMetaOf(tool), {
+    onNone: () =>
+      new McpSchema.CallToolResult({ content: [{ type: 'text', text }] }),
+    onSome: (meta) =>
+      new McpSchema.CallToolResult({
+        content: [{ type: 'text', text }],
+        structuredContent: structured,
+        _meta: meta,
       }),
-    }),
   })
-}
 
 /**
- * Creates an error CallToolResult with isError: true.
- * Matches the pattern used internally by @effect/ai's toolkit registration
- * so that failures are reported as tool-level errors (visible to the LLM)
- * instead of RPC-level errors (which clients treat as "tool not accessible").
+ * Failures are reported as a tool result with `isError: true` so the model
+ * sees them; a JSON-RPC error makes clients mark the tool as unavailable.
  */
 const errorResult = (error: unknown) =>
   new McpSchema.CallToolResult({
     isError: true,
     content: [
       {
-        type: 'text' as const,
+        type: 'text',
+        // v4 tagged errors without a message field have message ''.
         text:
-          typeof error === 'object' && error !== null && 'message' in error
-            ? String((error as { message: unknown }).message)
+          Predicate.hasProperty(error, 'message') &&
+          Predicate.isString(error.message) &&
+          EffectString.isNonEmpty(error.message)
+            ? error.message
             : JSON.stringify(error),
       },
     ],
   })
 
-/** Pipeable operator that logs tool usage with the current user ID and args. */
-const logToolUsage =
-  (toolName: string, args?: unknown) =>
-  <A, E, R>(self: Effect.Effect<A, E, R>) =>
-    Effect.tap(self, () =>
-      Effect.flatMap(CurrentUserId, (userId) =>
-        Effect.log(
-          `tool=${toolName} userId=${userId} args=${JSON.stringify(args ?? {})}`
-        )
-      )
-    ) as Effect.Effect<A, E, R>
-
 /**
- * Wires the text-only TextToolkit (ask_plant_question) to its handler.
- * Uses provideAuth to provide CurrentJwt into the effect context.
+ * Registers every tool on the MCP server. Each call decodes the arguments,
+ * resolves the caller from the bearer token, runs the tool effect, and maps
+ * the outcome to a `CallToolResult`.
  */
-export const TextToolkitHandlersLive = TextToolkit.toLayer(
+export const ToolsLayer = Layer.effectDiscard(
   Effect.gen(function* () {
-    const ctx = yield* Effect.context<ToolDeps>()
+    const server = yield* McpServer.McpServer
+    const deps = yield* Effect.context<ToolDeps>()
 
-    return {
-      ask_plant_question: (params) =>
-        askPlantQuestionEffect(params).pipe(
-          logToolUsage('ask_plant_question', params),
-          provideAuth,
-          Effect.provide(ctx),
-          Effect.orDie
-        ),
+    const register = <P, E>(
+      tool: Tool.Any & { readonly parametersSchema: Schema.Decoder<P> },
+      run: (params: P) => Effect.Effect<ToolOutput, E, ApiClient | CurrentJwt>
+    ) => {
+      const decode = Schema.decodeUnknownEffect(tool.parametersSchema)
+      return Effect.flatMap(toMcpTool(tool), (mcpTool) =>
+        server.addTool({
+          tool: mcpTool,
+          annotations: tool.annotations,
+          handle: (payload: unknown) =>
+            pipe(
+              Option.fromNullishOr(payload),
+              Option.getOrElse(() => ({})),
+              decode,
+              Effect.flatMap((params) =>
+                run(params).pipe(
+                  Effect.tap(() =>
+                    Effect.flatMap(CurrentUserId, (userId) =>
+                      Effect.log(
+                        `tool=${tool.name} userId=${userId} args=${JSON.stringify(params)}`
+                      )
+                    )
+                  ),
+                  provideAuth
+                )
+              ),
+              Effect.provide(deps),
+              Effect.matchCause({
+                onFailure: (cause) => errorResult(Cause.squash(cause)),
+                onSuccess: (output) => successResult(tool, output),
+              })
+            ),
+        })
+      )
     }
+
+    yield* register(ListPlants, listPlantsEffect)
+    yield* register(GetPlantDetails, getPlantDetailsEffect)
+    yield* register(GetCareTasks, () => getCareTasksEffect())
+    yield* register(GetOverduePlants, () => getOverduePlantsEffect())
+    yield* register(CarePlant, carePlantEffect)
+    yield* register(AskPlantQuestion, (params) =>
+      Effect.map(askPlantQuestionEffect(params), (text) => ({ text }))
+    )
   })
 )
-
-/**
- * Registers widget-enabled tools via McpServer.addTool() to control
- * the CallToolResult shape (structuredContent + _meta for ChatGPT).
- *
- * Each tool handler:
- * 1. Decodes raw JSON-RPC arguments via Schema.decodeUnknown
- * 2. Resolves auth from the bearer token (extracts API JWT)
- * 3. Calls the underlying tool effect with the JWT
- * 4. Returns CallToolResult with markdown + structured data + widget URI
- *
- * Errors are caught via Effect.matchCauseEffect and returned as
- * CallToolResult with isError: true, matching the toolkit's pattern.
- */
-export const WidgetToolsLayer = Effect.gen(function* () {
-  const registry = yield* McpServer.McpServer
-  const ctx = yield* Effect.context<ToolDeps>()
-
-  /**
-   * Wraps a tool handler effect with error recovery.
-   * Catches both typed errors and defects, returning a CallToolResult
-   * with isError: true instead of propagating failures up to the
-   * RPC framework (which would produce an opaque JSON-RPC error).
-   */
-  const handleTool = (
-    toolName: string,
-    effect: Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
-  ) =>
-    effect.pipe(
-      Effect.matchCauseEffect({
-        onFailure: (cause) => Effect.succeed(errorResult(Cause.squash(cause))),
-        onSuccess: (result) => Effect.succeed(widgetResult(toolName, result)),
-      })
-    )
-
-  /**
-   * Registers a widget-enabled tool with decode → auth → handle pipeline.
-   * Auth is resolved via provideAuth which provides CurrentJwt into context.
-   */
-  const register = <P>(
-    tool: AiTool.Any,
-    effect: (
-      params: P
-    ) => Effect.Effect<
-      { text: string; [key: string]: unknown },
-      unknown,
-      unknown
-    >
-  ) => {
-    const decode = Schema.decodeUnknownEffect(tool.parametersSchema)
-    return registry.addTool({
-      tool: toMcpTool(tool),
-      handle: (payload: unknown) => {
-        const pipeline = decode(payload).pipe(
-          Effect.flatMap((params) =>
-            effect(params as P).pipe(
-              logToolUsage(tool.name, params),
-              provideAuth,
-              Effect.provide(ctx)
-            )
-          )
-        ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
-        return handleTool(tool.name, pipeline)
-      },
-    })
-  }
-
-  /**
-   * Registers a parameterless tool. Auth is resolved via provideAuth.
-   */
-  const registerNoParams = (
-    tool: AiTool.Any,
-    effect: () => Effect.Effect<
-      { text: string; [key: string]: unknown },
-      unknown,
-      unknown
-    >
-  ) =>
-    registry.addTool({
-      tool: toMcpTool(tool),
-      handle: () => {
-        const pipeline = effect().pipe(
-          logToolUsage(tool.name),
-          provideAuth,
-          Effect.provide(ctx)
-        ) as Effect.Effect<{ text: string; [key: string]: unknown }, unknown>
-        return handleTool(tool.name, pipeline)
-      },
-    })
-
-  yield* register(ListPlants, listPlantsEffect)
-  yield* register(GetPlantDetails, getPlantDetailsEffect)
-  yield* registerNoParams(GetCareTasks, getCareTasksEffect)
-  yield* registerNoParams(GetOverduePlants, getOverduePlantsEffect)
-  yield* register(CarePlant, carePlantEffect)
-}) as Effect.Effect<void, never, McpServer.McpServer | ToolDeps>

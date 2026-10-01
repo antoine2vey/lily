@@ -155,9 +155,10 @@ export const ApiClientLive = Layer.unwrap(
             service: 'lily-api',
             method: err.request.method,
             url: err.request.url,
-            ...(err._tag === 'ResponseError'
-              ? { statusCode: err.response.status }
-              : {}),
+            ...Option.match(Option.fromNullishOr(err.response), {
+              onNone: () => ({}),
+              onSome: (response) => ({ statusCode: response.status }),
+            }),
             message: err.message,
           })
 

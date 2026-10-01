@@ -1,14 +1,19 @@
+/** HTML widget template resource URIs, registered in `widgets/resources.ts`. */
+export const WidgetUri = {
+  plantList: 'ui://widget/plant-list',
+  plantDetails: 'ui://widget/plant-details',
+  careTasks: 'ui://widget/care-tasks',
+  careFeedback: 'ui://widget/care-feedback',
+} as const
+
+export type WidgetUri = (typeof WidgetUri)[keyof typeof WidgetUri]
+
 /**
- * Maps widget-enabled tool names to their HTML template resource URIs.
- *
- * Used by both:
- * - addTool handlers (to set `_meta.ui.resourceUri` on CallToolResult)
- * - tool-meta middleware (to inject `_meta` into tools/list responses)
+ * MCP `_meta` linking a tool (in `tools/list`) or a tool result (in
+ * `tools/call`) to its widget template. ChatGPT reads `openai/outputTemplate`;
+ * MCP Apps clients read `ui.resourceUri`. Other clients ignore `_meta`.
  */
-export const TOOL_WIDGETS: Record<string, string> = {
-  list_plants: 'ui://widget/plant-list',
-  get_plant_details: 'ui://widget/plant-details',
-  get_care_tasks: 'ui://widget/care-tasks',
-  get_overdue_plants: 'ui://widget/care-tasks',
-  care_plant: 'ui://widget/care-feedback',
-}
+export const widgetMeta = (uri: WidgetUri) => ({
+  ui: { resourceUri: uri },
+  'openai/outputTemplate': uri,
+})

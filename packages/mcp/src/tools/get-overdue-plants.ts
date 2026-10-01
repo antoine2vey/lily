@@ -2,7 +2,7 @@ import { ApiClient } from '@lily/mcp/api-client'
 import { toPlantSummary } from '@lily/mcp/widgets/mappers'
 import type { PlantSummary } from '@lily/mcp/widgets/schemas'
 import { formatIsoDate } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Array, Effect, Filter, Option, pipe } from 'effect'
 
 /**
  * Returns plants that are overdue for care via the API.
@@ -36,11 +36,13 @@ export const getOverduePlantsEffect = Effect.fn('MCP.getOverduePlants')(
 
         const scheduleInfo = pipe(
           plant.schedules,
-          Array.filterMap((s) =>
-            pipe(
-              Option.fromNullishOr(s.nextCareAt),
-              Option.map(
-                (d) => `${s.careType} overdue since ${formatIsoDate(d, '')}`
+          Array.filterMap(
+            Filter.fromPredicateOption((s: (typeof plant.schedules)[number]) =>
+              pipe(
+                Option.fromNullishOr(s.nextCareAt),
+                Option.map(
+                  (d) => `${s.careType} overdue since ${formatIsoDate(d, '')}`
+                )
               )
             )
           ),

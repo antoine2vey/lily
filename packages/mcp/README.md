@@ -12,7 +12,7 @@
 ChatGPT / MCP client
         │  Bearer (OAuth 2.1)
         ▼
-  CORS → tool-meta → auth middleware
+  CORS → MCP endpoint guard (bearer check, GET /mcp probe)
         │
    McpServer (/mcp)
    ├── tools/      ─▶ api-client.ts ─▶ @lily/api (HTTP)
@@ -22,7 +22,9 @@ ChatGPT / MCP client
 OAuth state (codes/tokens) ─▶ @lily/db (own tables)
 ```
 
-The middleware stack wraps the router as **CORS → tool-meta injection → auth check**, so CORS headers appear even on 401 responses and `tools/list` responses carry the `_meta.ui.resourceUri` needed for widget rendering.
+One global router middleware runs **CORS → endpoint guard** before routing, so preflights skip auth and 401 responses carry CORS headers. The guard also answers `GET /mcp` with 200, because ChatGPT probes it before `tools/call` and stops on the 405 that `McpServer.layerHttp` registers. Widget tools carry a `Tool.Meta` annotation, which the server emits as `_meta` (`ui.resourceUri`, `openai/outputTemplate`) on the tool in `tools/list` and on each `tools/call` result.
+
+`McpServer.layerHttp` is stateful: `initialize` returns an `Mcp-Session-Id` that later requests must send, and sessions live in process memory, so clients re-initialize after a restart (unknown session ids get 404). It also rejects JSON-RPC batches (400), requests whose `Accept` lacks `application/json` or `text/event-stream` (406), and requests whose `Origin` is not in `MCP_ALLOWED_ORIGINS` (403).
 
 ## Project Structure
 
@@ -35,7 +37,7 @@ src/
 ├── auth/                    # OAuth 2.1 routes, repository, bearer→JWT resolution
 ├── tools/                   # Tool schemas + handlers (one file per tool)
 ├── resources/               # Plant + care-schedule MCP resources
-└── widgets/                 # HTML widget templates + tool-meta middleware
+└── widgets/                 # HTML widget templates and their resource URIs
 ```
 
 ## Tools
@@ -93,4 +95,4 @@ MCP_ALLOWED_ORIGINS=                 # Comma-separated allowlist; empty = deny a
 
 - [Root README](../../README.md) — monorepo overview
 - [`@lily/api`](../api/README.md) — the backend this server calls
-- [Model Context Protocol](https://modelcontextprotocol.io) · [`@effect/ai`](https://github.com/Effect-TS/effect/tree/main/packages/ai)
+- [Model Context Protocol](https://modelcontextprotocol.io) · `effect/ai` (`McpServer`, `Tool`)

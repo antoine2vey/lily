@@ -1,0 +1,15 @@
+### request: OPTIONS http://localhost:3101/mcp
+Origin: https://chatgpt.com
+Access-Control-Request-Method: POST
+
+### response
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type,Authorization,Mcp-Session-Id
+Access-Control-Max-Age: 86400
+Date: Thu, 01 Oct 2026 19:00:20 GMT
+Content-Length: 0
+
+

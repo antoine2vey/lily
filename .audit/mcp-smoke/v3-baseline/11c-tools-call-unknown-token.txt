@@ -1,0 +1,17 @@
+### request: POST http://localhost:3101/mcp
+Authorization: Bearer not-a-real-token
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2025-06-18
+
+{"jsonrpc":"2.0","id":"call_4","method":"tools/call","params":{"name":"list_plants","arguments":{}}}
+
+### response
+HTTP/1.1 200 OK
+Content-Type: application/json
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+Date: Thu, 01 Oct 2026 19:00:20 GMT
+Content-Length: 178
+
+{"jsonrpc":"2.0","id":"call_4","result":{"content":[{"type":"text","text":"{ \"error\": \"invalid_token\", \"error_description\": \"Access token not found\" }"}],"isError":true}}
