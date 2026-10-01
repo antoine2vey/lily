@@ -36,7 +36,7 @@ export function CemeteryScreen() {
 
   const handleBringBack = useCallback(
     async (plant: Plant) => {
-      const result = await revivePlant.mutateAsync({ path: { id: plant.id } })
+      const result = await revivePlant.mutateAsync({ params: { id: plant.id } })
       pipe(
         result,
         Result.match({
@@ -60,7 +60,7 @@ export function CemeteryScreen() {
     if (!deleting) return
     const name = deleting.name
     deletePlant.mutate(
-      { path: { id: deleting.id } },
+      { params: { id: deleting.id } },
       {
         onSuccess: () => {
           setDeleting(null)

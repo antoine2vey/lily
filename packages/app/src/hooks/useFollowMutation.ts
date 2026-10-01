@@ -41,7 +41,7 @@ export function useFollowMutation(
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.social.all })
       const previous = saveSocialSnapshot(queryClient)
-      optimisticFollowUpdate(queryClient, variables.path.userId, isFollowing)
+      optimisticFollowUpdate(queryClient, variables.params.userId, isFollowing)
       return { previous } satisfies FollowMutationContext
     },
     onSuccess: (data, _variables, context) => {

@@ -15,7 +15,7 @@ export function usePlants(params?: PlantsParams) {
     'plants',
     'getPlants',
     {
-      urlParams: {
+      query: {
         page: pipe(
           Option.fromNullishOr(params?.page),
           Option.getOrElse(() => '1')

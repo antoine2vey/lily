@@ -223,7 +223,9 @@ const program = Effect.gen(function* () {
   yield* Console.log('\n✅ Done.')
 })
 
-const exit1 = Effect.sync(() => process.exit(1))
+const exit1 = Effect.sync((): void => {
+  process.exit(1)
+})
 
 const handled = program.pipe(
   Effect.catchTags({

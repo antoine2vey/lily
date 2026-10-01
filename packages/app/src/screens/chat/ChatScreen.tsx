@@ -51,9 +51,10 @@ const collectToolResultIds = (
     Array.flatMap((msg) =>
       pipe(
         msg.parts,
-        Array.filterMap((part) =>
+        Array.map((part) =>
           isToolUIPart(part) ? toolResultId(part) : Option.none()
-        )
+        ),
+        Array.getSomes
       )
     )
   )

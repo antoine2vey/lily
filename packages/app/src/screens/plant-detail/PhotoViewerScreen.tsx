@@ -46,8 +46,8 @@ export function PhotoViewerScreen() {
   // Page through ALL of the plant's photos (the journal's source of truth),
   // not the detail's capped subset, so the carousel spans every picture.
   const { data, isLoading } = useEffectQuery('plants', 'getPlantPhotos', {
-    path: { id: Option.getOrElse(Option.fromNullishOr(plantId), () => '') },
-    urlParams: { page: PHOTOS_PAGE, limit: PHOTOS_LIMIT },
+    params: { id: Option.getOrElse(Option.fromNullishOr(plantId), () => '') },
+    query: { page: PHOTOS_PAGE, limit: PHOTOS_LIMIT },
   })
 
   const deletePhoto = useDeletePhoto()
@@ -134,7 +134,7 @@ export function PhotoViewerScreen() {
 
     const wasLast = photos.length <= 1
     // Optimistic: the photo vanishes from the caches immediately (onMutate).
-    deletePhoto.mutate({ path: { id: plantId, photoId: current.id } })
+    deletePhoto.mutate({ params: { id: plantId, photoId: current.id } })
     setShowDeleteConfirm(false)
     if (wasLast) router.back()
   }, [

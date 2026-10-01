@@ -174,7 +174,7 @@ describe('PhotoViewerScreen', () => {
 
     // Deletes the currently-visible photo (the deep-linked one) optimistically.
     expect(mockDeletePhotoMutate).toHaveBeenCalledWith({
-      path: { id: 'plant-1', photoId: 'photo-1' },
+      params: { id: 'plant-1', photoId: 'photo-1' },
     })
   })
 

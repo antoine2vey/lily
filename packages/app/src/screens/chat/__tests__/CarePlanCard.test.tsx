@@ -44,7 +44,7 @@ describe('CarePlanCard', () => {
     expect(screen.getByText('Move away from the window')).toBeTruthy()
 
     fireEvent.press(screen.getByTestId('care-plan-card-plan-1-accept'))
-    expect(mockAccept).toHaveBeenCalledWith({ path: { planId: 'plan-1' } })
+    expect(mockAccept).toHaveBeenCalledWith({ params: { planId: 'plan-1' } })
   })
 
   it('offers a dismiss action while proposed', () => {
@@ -58,7 +58,7 @@ describe('CarePlanCard', () => {
     )
 
     fireEvent.press(screen.getByTestId('care-plan-card-plan-1-dismiss'))
-    expect(mockDismiss).toHaveBeenCalledWith({ path: { planId: 'plan-1' } })
+    expect(mockDismiss).toHaveBeenCalledWith({ params: { planId: 'plan-1' } })
   })
 
   it('shows the added state once the server reports the plan as accepted', () => {

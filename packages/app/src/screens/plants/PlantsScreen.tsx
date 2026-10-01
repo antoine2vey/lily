@@ -233,7 +233,7 @@ export function PlantsScreen() {
     refetch,
     isRefetching,
   } = useEffectQuery('plants', 'getPlants', {
-    urlParams: {
+    query: {
       page: '1',
       limit: '50',
       filter: 'all',

@@ -236,10 +236,10 @@ export function PlantDetailScreen() {
   } = usePlant(Option.getOrElse(Option.fromNullishOr(plantId), () => ''))
 
   const { data: careLogs } = useEffectQuery('careLogs', 'getCareLogs', {
-    path: {
+    params: {
       plantId: Option.getOrElse(Option.fromNullishOr(plantId), () => ''),
     },
-    urlParams: { page: '1', limit: '3', type: 'all' },
+    query: { page: '1', limit: '3', type: 'all' },
   })
 
   const shareCardRef = useRef<View>(null)
@@ -285,7 +285,7 @@ export function PlantDetailScreen() {
       if (carePlant.isPending) return
       const keys = CARE_TOAST_KEYS[careType]
       carePlant.mutate(
-        { path: { id: plantId }, payload: { careType } },
+        { params: { id: plantId }, payload: { careType } },
         {
           onSuccess: () =>
             toast.success(t(keys.success, { name: plant?.name })),
@@ -340,7 +340,7 @@ export function PlantDetailScreen() {
       const keys = CARE_TOAST_KEYS[activePastCareType]
       carePlant.mutate(
         {
-          path: { id: plantId },
+          params: { id: plantId },
           payload: { careType: activePastCareType, date },
         },
         {
@@ -427,7 +427,7 @@ export function PlantDetailScreen() {
       })
       await Sharing.shareAsync(uri, { mimeType: 'image/png' })
       // Fire-and-forget: notify backend for SHARE_SPROUT achievement
-      sharePlant.mutate({ path: { id: plantId } })
+      sharePlant.mutate({ params: { id: plantId } })
     } catch {
       // User cancelled or capture failed — no action needed
     }
@@ -447,7 +447,7 @@ export function PlantDetailScreen() {
     async (payload: SayGoodbyePayload) => {
       if (!plantId || !plant) return
       const result = await markPlantDead.mutateAsync({
-        path: { id: plantId },
+        params: { id: plantId },
         payload,
       })
       pipe(
@@ -469,7 +469,7 @@ export function PlantDetailScreen() {
   // create, so the paywall alert mirrors the add-plant flow.
   const handleBringBack = useCallback(async () => {
     if (!plantId || !plant) return
-    const result = await revivePlant.mutateAsync({ path: { id: plantId } })
+    const result = await revivePlant.mutateAsync({ params: { id: plantId } })
     pipe(
       result,
       Result.match({
@@ -490,7 +490,7 @@ export function PlantDetailScreen() {
   const handleConfirmDelete = useCallback(() => {
     if (!plantId) return
     deletePlant.mutate(
-      { path: { id: plantId } },
+      { params: { id: plantId } },
       {
         onSuccess: () => {
           setShowDeleteConfirm(false)

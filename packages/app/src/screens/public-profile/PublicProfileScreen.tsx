@@ -59,9 +59,9 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
   const handleFollowToggle = useCallback(() => {
     if (!profile) return
     if (profile.isFollowing) {
-      unfollowMutation.mutate({ path: { userId } })
+      unfollowMutation.mutate({ params: { userId } })
     } else {
-      followMutation.mutate({ path: { userId } })
+      followMutation.mutate({ params: { userId } })
     }
   }, [profile, userId, followMutation, unfollowMutation])
 

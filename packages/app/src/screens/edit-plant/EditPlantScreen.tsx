@@ -232,7 +232,7 @@ export function EditPlantScreen() {
     note?: string
   }) => {
     markPlantDead.mutate(
-      { path: { id: plantId }, payload },
+      { params: { id: plantId }, payload },
       {
         onSuccess: (result) => {
           if (Result.isSuccess(result)) {

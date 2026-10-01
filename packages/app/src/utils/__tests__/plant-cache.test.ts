@@ -45,7 +45,7 @@ describe('plant-cache keys', () => {
     expect(plantDetailKey('abc')).toEqual([
       'plants',
       'getPlant',
-      { path: { id: 'abc' } },
+      { params: { id: 'abc' } },
     ])
   })
 
@@ -53,7 +53,7 @@ describe('plant-cache keys', () => {
     expect(plantPhotosKey('abc')).toEqual([
       'plants',
       'getPlantPhotos',
-      { path: { id: 'abc' }, urlParams: { page: '1', limit: '100' } },
+      { params: { id: 'abc' }, query: { page: '1', limit: '100' } },
     ])
   })
 })

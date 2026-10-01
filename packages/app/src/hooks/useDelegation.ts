@@ -6,7 +6,7 @@ export function useDelegation(delegationId: string) {
     'delegations',
     'getDelegation',
     {
-      path: { delegationId },
+      params: { delegationId },
     },
     {
       enabled: !!delegationId,

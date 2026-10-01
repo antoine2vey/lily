@@ -114,10 +114,10 @@ export const mockFixedDate = (
       year,
       month,
       day,
-      hours,
-      minutes,
-      seconds: 0,
-      millis: 0,
+      hour: hours,
+      minute: minutes,
+      second: 0,
+      millisecond: 0,
     })
   )
 
@@ -142,9 +142,9 @@ export const mockFixedIsoString = (
       year,
       month,
       day,
-      hours,
-      minutes,
-      seconds: 0,
-      millis: 0,
+      hour: hours,
+      minute: minutes,
+      second: 0,
+      millisecond: 0,
     })
   )

@@ -30,9 +30,11 @@ import {
   Array as A,
   Cause,
   Clock,
+  Context,
   Deferred,
   Effect,
   Exit,
+  Layer,
   Match,
   Option,
   pipe,
@@ -47,31 +49,13 @@ import {
   HttpClientRequest,
   type HttpClientResponse,
 } from 'effect/http'
-import { type HttpApi, HttpApiClient } from 'effect/http-api'
+import { HttpApiClient } from 'effect/http-api'
 import * as SecureStore from 'expo-secure-store'
 import {
   addAuthBreadcrumb,
   trackAuthAnomaly,
   trackForcedLogout,
 } from '@/utils/auth-telemetry'
-
-// Type helpers to extract HttpApi type parameters
-type ExtractGroups<T> = T extends HttpApi.HttpApi<
-  infer _Id,
-  infer G,
-  infer _E,
-  infer _R
->
-  ? G
-  : never
-type ExtractError<T> = T extends HttpApi.HttpApi<
-  infer _Id,
-  infer _G,
-  infer E,
-  infer _R
->
-  ? E
-  : never
 
 export const ACCESS_TOKEN_KEY = 'lily_access_token'
 export const REFRESH_TOKEN_KEY = 'lily_refresh_token'
@@ -199,16 +183,15 @@ export function extractErrorField(
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
   if (typeof error === 'string') {
     return error
   }
   if (error !== null && typeof error === 'object') {
-    // Access message directly - it may be a getter on the prototype
+    // Access message directly - it may be a getter on the prototype.
+    // Tagged errors without a `message` field have an empty one; those fall
+    // through to their serialized fields.
     const msg = (error as { message?: unknown }).message
-    if (typeof msg === 'string') {
+    if (typeof msg === 'string' && msg !== '') {
       return msg
     }
   }
@@ -276,9 +259,9 @@ function extractApiFailureFromCause(cause: Cause.Cause<unknown>): ApiFailure {
   }
 
   // Try to extract from Die (defects)
-  const defectOpt = Cause.dieOption(cause)
-  if (Option.isSome(defectOpt)) {
-    const defect = defectOpt.value
+  const defectResult = Cause.findDefect(cause)
+  if (Result.isSuccess(defectResult)) {
+    const defect = defectResult.success
     if (isKnownError(defect)) {
       return defect
     }
@@ -514,25 +497,25 @@ const performRefresh = (
       }
     },
   }).pipe(
-    Effect.tapBoth({
-      onSuccess: (token) =>
-        Effect.gen(function* () {
-          const atMillis = yield* Clock.currentTimeMillis
-          yield* Ref.set(stateRef, {
-            inFlight: Option.none(),
-            lastRefresh: Option.some({ token, atMillis }),
-          })
-          yield* Deferred.succeed(deferred, token)
-        }),
-      onFailure: (error) =>
-        Effect.gen(function* () {
-          yield* Ref.update(stateRef, (state) => ({
-            ...state,
-            inFlight: Option.none(),
-          }))
-          yield* Deferred.fail(deferred, error)
-        }),
-    })
+    Effect.tap((token) =>
+      Effect.gen(function* () {
+        const atMillis = yield* Clock.currentTimeMillis
+        yield* Ref.set(stateRef, {
+          inFlight: Option.none(),
+          lastRefresh: Option.some({ token, atMillis }),
+        })
+        yield* Deferred.succeed(deferred, token)
+      })
+    ),
+    Effect.tapError((error) =>
+      Effect.gen(function* () {
+        yield* Ref.update(stateRef, (state) => ({
+          ...state,
+          inFlight: Option.none(),
+        }))
+        yield* Deferred.fail(deferred, error)
+      })
+    )
   )
 
 /**
@@ -547,15 +530,10 @@ export async function refreshAccessTokenAsync(): Promise<string | null> {
   })
 }
 
-type Client = HttpApiClient.Client<
-  ExtractGroups<typeof Api>,
-  ExtractError<typeof Api>,
-  never
->
+type Client = HttpApiClient.ForApi<typeof Api>
 
-class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
-  dependencies: [FetchHttpClient.layer],
-  effect: Effect.gen(function* () {
+class ApiClient extends Context.Service<ApiClient>()('ApiClient', {
+  make: Effect.gen(function* () {
     return {
       client: yield* HttpApiClient.make(Api, {
         baseUrl: API_BASE_URL,
@@ -580,9 +558,13 @@ class ApiClient extends Effect.Service<ApiClient>()('ApiClient', {
       }),
     }
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(FetchHttpClient.layer)
+  )
+}
 
-type GetRequestParams<
+export type GetRequestParams<
   X extends keyof Client,
   Y extends keyof Client[X],
   // biome-ignore lint/suspicious/noExplicitAny: needed for conditional type matching
@@ -624,7 +606,7 @@ type ExcludeHttpResponseTuple<T> = Exclude<
 type GetCleanSuccessType<
   X extends keyof Client,
   Y extends keyof Client[X],
-> = ExcludeHttpResponseTuple<Effect.Effect.Success<GetReturnType<X, Y>>>
+> = ExcludeHttpResponseTuple<Effect.Success<GetReturnType<X, Y>>>
 
 /**
  * Result type for API operations - Either<ApiFailure, Success>
@@ -718,7 +700,7 @@ export async function runApiEffect<
   const program = apiEffect(section, method, params)
 
   const exit = await Effect.runPromiseExit(
-    program.pipe(Effect.provide(ApiClient.Default))
+    program.pipe(Effect.provide(ApiClient.layer))
   )
 
   return Exit.match(exit, {

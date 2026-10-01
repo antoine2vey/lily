@@ -32,7 +32,7 @@ describe('usePlants', () => {
       'plants',
       'getPlants',
       expect.objectContaining({
-        urlParams: expect.objectContaining({
+        query: expect.objectContaining({
           page: '1',
           limit: '20',
           filter: 'all',
@@ -54,7 +54,7 @@ describe('usePlants', () => {
       'plants',
       'getPlants',
       expect.objectContaining({
-        urlParams: expect.objectContaining({
+        query: expect.objectContaining({
           page: '2',
           limit: '10',
         }),
@@ -74,7 +74,7 @@ describe('usePlants', () => {
       'plants',
       'getPlants',
       expect.objectContaining({
-        urlParams: expect.objectContaining({
+        query: expect.objectContaining({
           filter: 'needsWater',
         }),
       }),
@@ -93,7 +93,7 @@ describe('usePlants', () => {
       'plants',
       'getPlants',
       expect.objectContaining({
-        urlParams: expect.objectContaining({
+        query: expect.objectContaining({
           sort: 'name',
         }),
       }),

@@ -44,8 +44,8 @@ export function GrowthJournalScreen() {
     'plants',
     'getPlantPhotos',
     {
-      path: { id: plantId },
-      urlParams: { page: PHOTOS_PAGE, limit: PHOTOS_LIMIT },
+      params: { id: plantId },
+      query: { page: PHOTOS_PAGE, limit: PHOTOS_LIMIT },
     },
     {
       enabled: !!plantId,

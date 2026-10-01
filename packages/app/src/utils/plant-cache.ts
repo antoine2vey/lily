@@ -6,7 +6,7 @@ import {
   type PlantPhotosListResponse,
 } from '@lily/shared'
 import { Array, Result } from 'effect'
-import type { ApiResult } from '@/utils/client'
+import type { ApiResult, GetRequestParams } from '@/utils/client'
 
 // Single source of truth for the Growth Journal photo pagination, shared by the
 // screen's query and the optimistic cache key so they can never drift.
@@ -23,7 +23,11 @@ export const DETAIL_PHOTO_CAP = 10
  * that optimistic setQueryData writes hit the cached entries.
  */
 export const plantDetailKey = (id: string) =>
-  ['plants', 'getPlant', { path: { id } }] as const
+  [
+    'plants',
+    'getPlant',
+    { params: { id } } satisfies GetRequestParams<'plants', 'getPlant'>,
+  ] as const
 
 export const plantPhotosKey = (
   id: string,
@@ -33,7 +37,10 @@ export const plantPhotosKey = (
   [
     'plants',
     'getPlantPhotos',
-    { path: { id }, urlParams: { page, limit } },
+    {
+      params: { id },
+      query: { page, limit },
+    } satisfies GetRequestParams<'plants', 'getPlantPhotos'>,
   ] as const
 
 /** Temp photos created optimistically carry this id prefix until the server replies. */

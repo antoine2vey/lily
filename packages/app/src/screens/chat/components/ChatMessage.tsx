@@ -69,7 +69,7 @@ export function ChatMessage({
   // When a completed diagnosis exists, text moves to the full-width section
   const bubbleParts = pipe(
     message.parts,
-    Array.filterMap(
+    Array.map(
       (part, index): Option.Option<ReactElement> =>
         pipe(
           Match.value(part),
@@ -82,7 +82,10 @@ export function ChatMessage({
               const displayText =
                 p.text === QUOTA_EXCEEDED_KEY ? t('quotaExceeded') : p.text
               return Option.some(
-                <View key={`text-${index}`}>
+                <View
+                  // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
+                  key={`text-${index}`}
+                >
                   {isUser ? (
                     <Text className="text-md text-text-primary dark:text-white leading-relaxed font-regular">
                       {displayText}
@@ -100,6 +103,7 @@ export function ChatMessage({
               if (p.mediaType.startsWith('image/')) {
                 return Option.some(
                   <View
+                    // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
                     key={`file-${index}`}
                     className="mb-2 rounded-md overflow-hidden"
                   >
@@ -126,7 +130,8 @@ export function ChatMessage({
           ),
           Match.orElse((): Option.Option<ReactElement> => Option.none())
         )
-    )
+    ),
+    Array.getSomes
   )
 
   // Text bubble rendered above diagnosis cards when tool is complete
@@ -136,7 +141,7 @@ export function ChatMessage({
     Match.when(true, (): ReactElement | null => {
       const texts = pipe(
         message.parts,
-        Array.filterMap(
+        Array.map(
           (part, index): Option.Option<ReactElement> =>
             pipe(
               Match.value(part),
@@ -145,7 +150,10 @@ export function ChatMessage({
                 (p: TextPart): Option.Option<ReactElement> => {
                   if (p.text === '') return Option.none()
                   return Option.some(
-                    <View key={`diag-text-${index}`}>
+                    <View
+                      // biome-ignore lint/suspicious/noArrayIndexKey: message parts carry no id and only ever append, so the index is stable
+                      key={`diag-text-${index}`}
+                    >
                       <MarkdownText>{p.text}</MarkdownText>
                     </View>
                   )
@@ -153,7 +161,8 @@ export function ChatMessage({
               ),
               Match.orElse((): Option.Option<ReactElement> => Option.none())
             )
-        )
+        ),
+        Array.getSomes
       )
       if (!Array.isReadonlyArrayNonEmpty(texts)) return null
       return (
@@ -178,7 +187,7 @@ export function ChatMessage({
   // Full-width parts: completed tool output rendered outside the bubble
   const fullWidthParts = pipe(
     message.parts,
-    Array.filterMap((part, index): Option.Option<ReactElement> => {
+    Array.map((part, index): Option.Option<ReactElement> => {
       if (!isToolUIPart(part)) return Option.none()
       const toolName = getToolName(part)
       return pipe(
@@ -192,7 +201,8 @@ export function ChatMessage({
           })
         )
       )
-    })
+    }),
+    Array.getSomes
   )
 
   const hasBubbleParts = Array.isReadonlyArrayNonEmpty(bubbleParts)

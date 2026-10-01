@@ -25,7 +25,7 @@ async function completeTaskApi(params: CompleteTaskParams): Promise<void> {
   const { plantId, type } = params
 
   await apiEffectRunner('plants', 'carePlant', {
-    path: { id: plantId },
+    params: { id: plantId },
     payload: { careType: type },
   })
 }

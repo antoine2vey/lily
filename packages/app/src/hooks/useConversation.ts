@@ -7,7 +7,7 @@ export function useConversation(conversationId?: string) {
     'aiChat',
     'getConversation',
     {
-      path: {
+      params: {
         conversationId: pipe(
           Option.fromNullishOr(conversationId),
           Option.getOrElse(() => '')

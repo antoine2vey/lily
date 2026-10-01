@@ -6,7 +6,7 @@ export function useSearchUsers(query: string, enabled = true) {
     'social',
     'searchUsers',
     {
-      urlParams: { query, page: '1', limit: '20' },
+      query: { query, page: '1', limit: '20' },
     },
     {
       enabled: enabled && Str.isNonEmpty(Str.trim(query)),

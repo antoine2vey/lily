@@ -21,7 +21,7 @@ export function useDeadPlants() {
     'plants',
     'getPlants',
     {
-      urlParams: {
+      query: {
         page: '1',
         limit: '100',
         filter: 'dead',

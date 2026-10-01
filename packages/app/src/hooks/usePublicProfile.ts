@@ -4,7 +4,7 @@ export function usePublicProfile(userId: string) {
   return useEffectQuery(
     'social',
     'getPublicProfile',
-    { path: { userId } },
+    { params: { userId } },
     {
       enabled: !!userId,
     }

@@ -13,7 +13,7 @@ export function useConversations(
     'aiChat',
     'listConversations',
     {
-      urlParams: {
+      query: {
         page: String(opts.page ?? 1),
         limit: String(opts.limit ?? 20),
         ...(opts.kind ? { kind: opts.kind } : {}),

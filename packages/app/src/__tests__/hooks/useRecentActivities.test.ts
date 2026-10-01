@@ -35,7 +35,7 @@ describe('useRecentActivities', () => {
       expect(mockedUseEffectQuery).toHaveBeenCalledWith(
         'careLogs',
         'getRecentActivities',
-        { urlParams: { limit: '10' } },
+        { query: { limit: '10' } },
         expect.objectContaining({
           staleTime: expect.any(Number),
         })
@@ -55,7 +55,7 @@ describe('useRecentActivities', () => {
       expect(mockedUseEffectQuery).toHaveBeenCalledWith(
         'careLogs',
         'getRecentActivities',
-        { urlParams: { limit: '5' } },
+        { query: { limit: '5' } },
         expect.any(Object)
       )
     })
@@ -73,7 +73,7 @@ describe('useRecentActivities', () => {
       expect(mockedUseEffectQuery).toHaveBeenCalledWith(
         'careLogs',
         'getRecentActivities',
-        { urlParams: { limit: '20' } },
+        { query: { limit: '20' } },
         expect.any(Object)
       )
     })

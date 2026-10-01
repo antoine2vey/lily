@@ -69,13 +69,13 @@ export function useConversationMessages(conversationId?: string) {
     'aiChat',
     'getConversationMessages',
     {
-      path: {
+      params: {
         conversationId: pipe(
           Option.fromNullishOr(conversationId),
           Option.getOrElse(() => '')
         ),
       },
-      urlParams: { page: '1', limit: '50' },
+      query: { page: '1', limit: '50' },
     },
     { enabled: !!conversationId, staleTime: 0 }
   )

@@ -46,7 +46,7 @@ export function useCarePlanStepActions() {
   const fireComplete = useCallback(
     (planId: string, stepId: string) => {
       completeStep.mutate(
-        { path: { planId, stepId } },
+        { params: { planId, stepId } },
         { onSuccess: () => toast.success(t('plans.stepCompleted')) }
       )
     },
@@ -57,7 +57,7 @@ export function useCarePlanStepActions() {
     (plan: CarePlan, step: CarePlanStep) => {
       if (Option.isSome(Option.fromNullishOr(step.completedAt))) {
         uncompleteStep.mutate(
-          { path: { planId: plan.id, stepId: step.id } },
+          { params: { planId: plan.id, stepId: step.id } },
           { onSuccess: () => toast.success(t('plans.stepReopened')) }
         )
         return

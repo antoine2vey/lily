@@ -133,7 +133,7 @@ const postActivityToken = async (
 const postActivityEnded = async (activityId: string): Promise<void> => {
   try {
     await apiEffectRunner('activityPushTokens', 'endActivity', {
-      path: { activityId },
+      params: { activityId },
     })
   } catch (err) {
     // The DELETE might return 404 if the server already cleaned up — not

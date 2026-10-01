@@ -21,10 +21,10 @@ const combineDateAndTime = (date: Date, time: Date): Date => {
     year: dateParts.year,
     month: dateParts.month,
     day: dateParts.day,
-    hours: timeParts.hour,
-    minutes: timeParts.minute,
-    seconds: 0,
-    millis: 0,
+    hour: timeParts.hour,
+    minute: timeParts.minute,
+    second: 0,
+    millisecond: 0,
   })
   return DateTime.toDateUtc(combined)
 }
@@ -38,7 +38,7 @@ async function saveCareLogApi(input: SaveCareLogInput): Promise<CareLog[]> {
       (plantId) =>
         Effect.tryPromise(() =>
           apiEffectRunner('careLogs', 'createCareLog', {
-            path: { plantId },
+            params: { plantId },
             payload: {
               type: input.type,
               notes: input.notes,

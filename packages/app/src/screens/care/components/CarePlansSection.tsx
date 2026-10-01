@@ -44,11 +44,11 @@ export function CarePlansSection() {
 
   const confirmDeletion = () => {
     if (pendingDeletion._tag === 'Plan') {
-      deletePlan.mutate({ path: { planId: pendingDeletion.plan.id } })
+      deletePlan.mutate({ params: { planId: pendingDeletion.plan.id } })
     }
     if (pendingDeletion._tag === 'Step') {
       deleteStep.mutate({
-        path: {
+        params: {
           planId: pendingDeletion.plan.id,
           stepId: pendingDeletion.step.id,
         },

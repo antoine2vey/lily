@@ -89,7 +89,7 @@ export function AddPlantStep({
     'plantCatalog',
     'getPlantCatalog',
     {
-      urlParams: {
+      query: {
         q: debouncedQuery,
       },
     },

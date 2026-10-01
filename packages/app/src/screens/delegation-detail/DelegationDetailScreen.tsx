@@ -49,7 +49,7 @@ export function DelegationDetailScreen() {
   const handleAccept = () => {
     if (!delegationId) return
     respond(
-      { path: { delegationId }, payload: { accept: true } },
+      { params: { delegationId }, payload: { accept: true } },
       {
         onSuccess: () => toast.success(t('toast.accepted')),
         onError: () => toast.error(t('toast.acceptFailed')),
@@ -60,7 +60,7 @@ export function DelegationDetailScreen() {
   const handleReject = () => {
     if (!delegationId) return
     respond(
-      { path: { delegationId }, payload: { accept: false } },
+      { params: { delegationId }, payload: { accept: false } },
       {
         onSuccess: () => {
           toast.success(t('toast.declined'))
@@ -74,7 +74,7 @@ export function DelegationDetailScreen() {
   const handleCancel = () => {
     if (!delegationId) return
     cancel(
-      { path: { delegationId } },
+      { params: { delegationId } },
       {
         onSuccess: () => {
           toast.success(t('toast.canceled'))
@@ -88,7 +88,7 @@ export function DelegationDetailScreen() {
   const handleComplete = () => {
     if (!delegationId) return
     complete(
-      { path: { delegationId } },
+      { params: { delegationId } },
       {
         onSuccess: () => toast.success(t('toast.completed')),
         onError: () => toast.error(t('toast.completeFailed')),

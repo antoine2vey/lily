@@ -168,10 +168,10 @@ export function ManualAddScheduleScreen() {
     pipe(
       Option.fromNullishOr(prefill),
       Option.map((p) =>
-        Array.filterMap(
-          [p.description as string | null, p.wateringTips as string | null],
-          Option.fromNullishOr
-        )
+        Array.getSomes([
+          Option.fromNullishOr(p.description as string | null),
+          Option.fromNullishOr(p.wateringTips as string | null),
+        ])
       ),
       Option.map((parts) => Array.join(parts, '\n')),
       Option.getOrElse(() => '')

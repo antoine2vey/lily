@@ -45,7 +45,7 @@ export function useRecentActivities(limit = 10) {
   const query = useEffectQuery(
     'careLogs',
     'getRecentActivities',
-    { urlParams: { limit: String(limit) } },
+    { query: { limit: String(limit) } },
     { staleTime: StaleTime.short }
   )
 

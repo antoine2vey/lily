@@ -195,7 +195,7 @@ export function CorrectCareDatesSheet({
     }
 
     correctCareDates.mutate(
-      { path: { id: plantId }, payload },
+      { params: { id: plantId }, payload },
       {
         onSuccess: () => {
           onClose()

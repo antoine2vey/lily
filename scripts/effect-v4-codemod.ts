@@ -15,6 +15,10 @@
  *
  * Usage (from the repo root):
  *   bun scripts/effect-v4-codemod.ts [--dry-run] [--package <name>]...
+ *     [--skip <Module.member>]...
+ *
+ * `--skip Schema.Date` disables one member rename, for reruns over packages
+ * that already hold hand-written v4 code using that name.
  */
 import { writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -1873,6 +1877,15 @@ const main = () => {
   const argv = process.argv.slice(2)
   const dryRun = argv.includes('--dry-run')
   const only = argv.flatMap((a, i) => (argv[i - 1] === '--package' ? [a] : []))
+  for (const key of argv.flatMap((a, i) =>
+    argv[i - 1] === '--skip' ? [a] : []
+  )) {
+    const [module, member] = key.split('.')
+    const renames = module === undefined ? undefined : MEMBER_RENAMES[module]
+    if (renames === undefined || member === undefined || !(member in renames))
+      throw new Error(`--skip ${key}: no such member rename`)
+    delete renames[member]
+  }
   const packages = PACKAGE_ORDER.filter(
     (p) => only.length === 0 || only.includes(p)
   )

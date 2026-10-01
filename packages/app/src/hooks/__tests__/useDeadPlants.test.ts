@@ -29,7 +29,7 @@ describe('useDeadPlants', () => {
     expect(mockedUseEffectQuery).toHaveBeenCalledWith(
       'plants',
       'getPlants',
-      { urlParams: expect.objectContaining({ filter: 'dead' }) },
+      { query: expect.objectContaining({ filter: 'dead' }) },
       expect.any(Object)
     )
   })

@@ -241,7 +241,7 @@ export function RoomsScreen() {
     if (!editingRoomId || String.isEmpty(String.trim(form.name))) return
     updateRoom.mutate(
       {
-        path: { id: editingRoomId },
+        params: { id: editingRoomId },
         payload: {
           name: form.name,
           icon: form.icon,
@@ -268,7 +268,7 @@ export function RoomsScreen() {
   const handleDelete = useCallback(() => {
     if (!deletingRoom) return
     deleteRoom.mutate(
-      { path: { id: deletingRoom.id } },
+      { params: { id: deletingRoom.id } },
       {
         onSuccess: () => {
           setShowDeleteConfirm(false)

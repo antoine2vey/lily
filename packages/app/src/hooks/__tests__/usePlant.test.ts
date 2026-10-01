@@ -31,7 +31,7 @@ describe('usePlant', () => {
     expect(mockedUseEffectQuery).toHaveBeenCalledWith(
       'plants',
       'getPlant',
-      { path: { id: 'plant-1' } },
+      { params: { id: 'plant-1' } },
       expect.objectContaining({
         enabled: true,
         staleTime: expect.any(Number),
@@ -90,7 +90,7 @@ describe('usePlant', () => {
       expect.any(String),
       expect.any(String),
       expect.objectContaining({
-        path: { id: 'plant-123' },
+        params: { id: 'plant-123' },
       }),
       expect.any(Object)
     )

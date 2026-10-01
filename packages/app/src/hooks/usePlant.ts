@@ -6,7 +6,7 @@ export function usePlant(plantId: string) {
     'plants',
     'getPlant',
     {
-      path: { id: plantId },
+      params: { id: plantId },
     },
     {
       enabled: !!plantId,

@@ -38,9 +38,9 @@ export function UserCardItem({
 
   const handleFollowToggle = useCallback(() => {
     if (isFollowing) {
-      unfollowMutation.mutate({ path: { userId: id } })
+      unfollowMutation.mutate({ params: { userId: id } })
     } else {
-      followMutation.mutate({ path: { userId: id } })
+      followMutation.mutate({ params: { userId: id } })
     }
   }, [isFollowing, id, followMutation, unfollowMutation])
 

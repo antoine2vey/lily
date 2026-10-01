@@ -164,8 +164,8 @@ export function useCareHistory({
     'careLogs',
     'getCareLogs',
     {
-      path: { plantId },
-      urlParams: {
+      params: { plantId },
+      query: {
         page: String(page),
         limit: String(limit),
         type,

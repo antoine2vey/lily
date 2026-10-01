@@ -94,7 +94,7 @@ describe('useDeletePhoto optimistic lifecycle', () => {
 
     await act(async () => {
       await result.current.mutateAsync({
-        path: { id: PLANT_ID, photoId: 'a' },
+        params: { id: PLANT_ID, photoId: 'a' },
       })
     })
 
@@ -115,7 +115,7 @@ describe('useDeletePhoto optimistic lifecycle', () => {
 
     await act(async () => {
       await result.current.mutateAsync({
-        path: { id: PLANT_ID, photoId: 'a' },
+        params: { id: PLANT_ID, photoId: 'a' },
       })
     })
 

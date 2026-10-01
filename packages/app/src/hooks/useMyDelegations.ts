@@ -8,7 +8,7 @@ interface MyDelegationsParams {
 
 export function useMyDelegations(params?: MyDelegationsParams) {
   return useEffectQuery('delegations', 'getMyDelegations', {
-    urlParams: {
+    query: {
       page: '1',
       limit: '20',
       role: pipe(

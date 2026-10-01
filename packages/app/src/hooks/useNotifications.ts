@@ -1,18 +1,25 @@
 import type { Notification, NotificationsListResponse } from '@lily/shared'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Result } from 'effect'
-import { type ApiResult, apiEffectRunner, useEffectQuery } from '@/utils/client'
+import {
+  type ApiResult,
+  apiEffectRunner,
+  type GetRequestParams,
+  useEffectQuery,
+} from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
 const NOTIFICATIONS_QUERY_KEY = [
   'notifications',
   'getNotifications',
-  { urlParams: { page: '1', limit: '20', status: 'sent' } },
+  {
+    query: { page: '1', limit: '20', status: 'sent' },
+  } satisfies GetRequestParams<'notifications', 'getNotifications'>,
 ]
 
 export function useNotifications(page = 1) {
   return useEffectQuery('notifications', 'getNotifications', {
-    urlParams: { page: String(page), limit: '20', status: 'sent' },
+    query: { page: String(page), limit: '20', status: 'sent' },
   })
 }
 
@@ -31,7 +38,7 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: async (notificationId: string) =>
       apiEffectRunner('notifications', 'markNotificationRead', {
-        path: { notificationId },
+        params: { notificationId },
       }),
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({
@@ -121,7 +128,7 @@ export function useDeleteNotification() {
   return useMutation({
     mutationFn: async (notificationId: string) =>
       apiEffectRunner('notifications', 'deleteNotification', {
-        path: { notificationId },
+        params: { notificationId },
       }),
     onMutate: async (notificationId) => {
       await queryClient.cancelQueries({

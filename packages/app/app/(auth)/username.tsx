@@ -82,7 +82,7 @@ export default function UsernameSetupScreen() {
       setValidation({ _tag: 'Checking' })
       try {
         const result = await apiEffectRunner('username', 'checkUsername', {
-          urlParams: { username: value },
+          query: { username: value },
         })
         // Ignore stale responses
         if (checkRequestRef.current !== requestId) return
@@ -127,7 +127,7 @@ export default function UsernameSetupScreen() {
     try {
       // Re-check availability right before saving to avoid race conditions
       const check = await apiEffectRunner('username', 'checkUsername', {
-        urlParams: { username },
+        query: { username },
       })
       if (!check.available) {
         setValidation({

@@ -125,7 +125,7 @@ export function CarePlanCard({
         <Pressable
           testID={`care-plan-card-${carePlanId}-accept`}
           onPress={() =>
-            acceptMutation.mutate({ path: { planId: carePlanId } })
+            acceptMutation.mutate({ params: { planId: carePlanId } })
           }
           disabled={isBusy}
           className="flex-1 flex-row items-center justify-center py-2.5 rounded-md bg-primary"
@@ -151,7 +151,7 @@ export function CarePlanCard({
         <Pressable
           testID={`care-plan-card-${carePlanId}-dismiss`}
           onPress={() =>
-            dismissMutation.mutate({ path: { planId: carePlanId } })
+            dismissMutation.mutate({ params: { planId: carePlanId } })
           }
           disabled={isBusy}
           className="px-3 py-2.5 rounded-md bg-surface-tinted dark:bg-slate-700"

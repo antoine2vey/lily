@@ -288,7 +288,7 @@ export function HomeScreen() {
     isRefetching,
     refetch: refetchPlants,
   } = useEffectQuery('plants', 'getPlants', {
-    urlParams: {
+    query: {
       page: '1',
       limit: '1',
       filter: 'all',
@@ -307,7 +307,7 @@ export function HomeScreen() {
   const { count: unreadCount } = useUnreadCount()
 
   const { data: unhealthyData } = useEffectQuery('plants', 'getPlants', {
-    urlParams: {
+    query: {
       page: '1',
       limit: '1',
       filter: 'needsAttention',

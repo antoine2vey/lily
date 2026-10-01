@@ -96,7 +96,7 @@ async function unregisterDeviceFromPush(): Promise<void> {
     const tokenId = await SecureStore.getItemAsync(DEVICE_TOKEN_ID_KEY)
     if (tokenId) {
       await apiEffectRunner('deviceTokens', 'unregisterDeviceToken', {
-        path: { tokenId },
+        params: { tokenId },
       })
       await SecureStore.deleteItemAsync(DEVICE_TOKEN_ID_KEY)
     }
@@ -148,11 +148,12 @@ function scheduleStartupReconcile(
     apiEffectRunner('auth', 'getCurrentUser', {})
   ).pipe(
     Effect.retry(
-      Schedule.intersect(
-        Schedule.recurs(5),
-        Schedule.exponential(Duration.seconds(5))
-      ).pipe(
-        Schedule.whileInput((error: unknown) => !isAuthFailureError(error))
+      Schedule.while(
+        Schedule.max([
+          Schedule.recurs(5),
+          Schedule.exponential(Duration.seconds(5)),
+        ]),
+        ({ input }) => !isAuthFailureError(input)
       )
     ),
     Effect.tap((user) =>
@@ -305,16 +306,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 })
               ),
               Effect.retry(
-                Schedule.intersect(
-                  Schedule.recurs(2),
-                  Schedule.spaced(Duration.millis(1500))
-                ).pipe(
-                  // Retry transient failures only — an auth error already
-                  // went through token refresh inside runApiEffect, so
-                  // retrying it would just rotate/burn refresh attempts
-                  Schedule.whileInput(
-                    (error: unknown) => !isAuthFailureError(error)
-                  )
+                // Retry transient failures only — an auth error already
+                // went through token refresh inside runApiEffect, so
+                // retrying it would just rotate/burn refresh attempts
+                Schedule.while(
+                  Schedule.max([
+                    Schedule.recurs(2),
+                    Schedule.spaced(Duration.millis(1500)),
+                  ]),
+                  ({ input }) => !isAuthFailureError(input)
                 )
               ),
               Effect.catch((error) =>

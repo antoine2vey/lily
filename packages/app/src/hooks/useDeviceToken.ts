@@ -128,7 +128,7 @@ export function useUnregisterDeviceToken() {
       onSome: async (tokenId) => {
         try {
           await mutation.mutateAsync({
-            path: { tokenId },
+            params: { tokenId },
           })
           return true
         } catch (error) {

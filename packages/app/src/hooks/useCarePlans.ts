@@ -4,7 +4,7 @@ import { useEffectQuery } from '@/utils/client'
 /** Accepted plans for the Care tab. */
 export function useCarePlans() {
   return useEffectQuery('carePlans', 'getCarePlans', {
-    urlParams: { status: 'accepted' },
+    query: { status: 'accepted' },
   })
 }
 
@@ -14,7 +14,7 @@ export function usePlantCarePlans(plantId: string | undefined) {
     'carePlans',
     'getPlantCarePlans',
     {
-      path: {
+      params: {
         plantId: pipe(
           Option.fromNullishOr(plantId),
           Option.getOrElse(() => '')

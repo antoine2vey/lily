@@ -48,8 +48,8 @@ export function useDeletePhoto() {
 
   return useEffectMutation('plants', 'deletePlantPhoto', {
     onMutate: async (vars) => {
-      const plantId = vars.path.id
-      const { photoId } = vars.path
+      const plantId = vars.params.id
+      const { photoId } = vars.params
       const detailKey = plantDetailKey(plantId)
       const photosKey = plantPhotosKey(plantId)
 
@@ -82,8 +82,12 @@ export function useDeletePhoto() {
     },
     onSettled: (_data, _err, vars) => {
       // Scoped to this plant's two queries — avoids refetching every other plant.
-      queryClient.invalidateQueries({ queryKey: plantDetailKey(vars.path.id) })
-      queryClient.invalidateQueries({ queryKey: plantPhotosKey(vars.path.id) })
+      queryClient.invalidateQueries({
+        queryKey: plantDetailKey(vars.params.id),
+      })
+      queryClient.invalidateQueries({
+        queryKey: plantPhotosKey(vars.params.id),
+      })
     },
   })
 }
