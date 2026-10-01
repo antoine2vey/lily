@@ -6,55 +6,72 @@ import {
   NotificationsListResponse,
   UnreadCountResponse,
 } from '@lily/shared/notification'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameter for notification ID
-const notificationIdParam = HttpApiSchema.param(
-  'notificationId',
-  Schema.String.check(Schema.isGUID())
-)
+const notificationIdParam = Schema.String.check(Schema.isGUID())
 
 // Query parameters for notifications listing (extends base pagination)
 export const NotificationsQueryParams = Schema.Struct({
   ...PaginationParams.fields,
-  status: Schema.optionalWith(Schema.String, { default: () => 'all' }),
+  status: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('all')),
+    Schema.withConstructorDefault(Effect.succeed('all'))
+  ),
 })
 
 // Define the Notifications API group
 export const NotificationsApi = HttpApiGroup.make('notifications')
   .add(
     // GET /notifications - List notifications with pagination
-    HttpApiEndpoint.get('getNotifications')`/`
-      .setUrlParams(NotificationsQueryParams)
-      .addSuccess(NotificationsListResponse)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getNotifications', '/', {
+      query: NotificationsQueryParams,
+      success: NotificationsListResponse,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
   )
   .add(
     // GET /notifications/unread-count - Get unread notification count
-    HttpApiEndpoint.get('getUnreadCount')`/unread-count`
-      .addSuccess(UnreadCountResponse)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getUnreadCount', '/unread-count', {
+      success: UnreadCountResponse,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
   )
   .add(
     // PUT /notifications/read-all - Mark all notifications as read
-    HttpApiEndpoint.put('markAllRead')`/read-all`
-      .addSuccess(Schema.Void)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.put('markAllRead', '/read-all', {
+      success: Schema.Void,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
   )
   .add(
     // PUT /notifications/:notificationId/read - Mark notification as read
-    HttpApiEndpoint.put('markNotificationRead')`/${notificationIdParam}/read`
-      .addSuccess(Notification)
-      .addError(NotificationNotFoundError)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.put('markNotificationRead', '/:notificationId/read', {
+      params: { notificationId: notificationIdParam },
+      success: Notification,
+      error: [
+        NotificationNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // DELETE /notifications/:notificationId - Delete a notification
-    HttpApiEndpoint.delete('deleteNotification')`/${notificationIdParam}`
-      .addSuccess(Notification)
-      .addError(NotificationNotFoundError)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.delete('deleteNotification', '/:notificationId', {
+      params: { notificationId: notificationIdParam },
+      success: Notification,
+      error: [
+        NotificationNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .prefix('/notifications')
   .middleware(Authentication)

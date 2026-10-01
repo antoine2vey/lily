@@ -14,9 +14,11 @@ export class AdminUser extends Context.Service<AdminUser, UserProfile>()(
  * Admin authorization middleware
  * Validates bearer token AND verifies admin role
  */
-export class AdminAuth extends HttpApiMiddleware.Tag<AdminAuth>()('AdminAuth', {
-  failure: ForbiddenError,
-  provides: AdminUser,
+export class AdminAuth extends HttpApiMiddleware.Service<
+  AdminAuth,
+  { provides: AdminUser }
+>()('AdminAuth', {
+  error: ForbiddenError,
   security: {
     bearer: HttpApiSecurity.bearer,
   },

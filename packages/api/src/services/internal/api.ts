@@ -2,7 +2,7 @@ import { ServiceAuthentication } from '@lily/api/services/internal/middleware'
 import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import { AuthResponse } from '@lily/shared/auth'
 import { Schema } from 'effect'
-import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 const AuthError = Schema.Struct({ message: Schema.String })
 
@@ -20,8 +20,8 @@ export type ServiceTokenRequest = typeof ServiceTokenRequest.Type
  */
 export const InternalMagicLinkRequest = Schema.Struct({
   email: Schema.String,
-  callbackUrl: Schema.String.pipe(
-    Schema.filter(
+  callbackUrl: Schema.String.check(
+    Schema.makeFilter(
       (url) => {
         try {
           const parsed = new URL(url)
@@ -30,7 +30,7 @@ export const InternalMagicLinkRequest = Schema.Struct({
           return false
         }
       },
-      { message: () => 'callbackUrl must be a valid HTTP(S) URL' }
+      { message: 'callbackUrl must be a valid HTTP(S) URL' }
     )
   ),
   language: Schema.optional(Schema.Literals(['en', 'fr'])),
@@ -46,17 +46,21 @@ export type InternalMagicLinkRequest = typeof InternalMagicLinkRequest.Type
  */
 export const InternalApi = HttpApiGroup.make('internal')
   .add(
-    HttpApiEndpoint.post('issueServiceToken')`/service-token`
-      .setPayload(ServiceTokenRequest)
-      .addSuccess(AuthResponse)
-      .addError(AuthError, { status: 400 })
+    HttpApiEndpoint.post('issueServiceToken', '/service-token', {
+      payload: ServiceTokenRequest,
+      success: AuthResponse,
+      error: AuthError.pipe(HttpApiSchema.status(400)),
+    })
   )
   .add(
-    HttpApiEndpoint.post('sendMagicLink')`/magic-link`
-      .setPayload(InternalMagicLinkRequest)
-      .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(AuthError, { status: 400 })
-      .addError(RateLimitExceededError, { status: 429 })
+    HttpApiEndpoint.post('sendMagicLink', '/magic-link', {
+      payload: InternalMagicLinkRequest,
+      success: Schema.Struct({ message: Schema.String }),
+      error: [
+        AuthError.pipe(HttpApiSchema.status(400)),
+        RateLimitExceededError,
+      ],
+    })
   )
   .prefix('/internal')
   .middleware(ServiceAuthentication)

@@ -16,7 +16,7 @@ import {
   GiftCodeNotFoundError,
 } from '@lily/shared/errors/gift-code'
 import { Schema } from 'effect'
-import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // RevenueCat webhook headers - authorization bearer token
 const RevenueCatWebhookHeaders = Schema.Struct({
@@ -27,24 +27,32 @@ const RevenueCatWebhookHeaders = Schema.Struct({
 export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
   .add(
     // GET /subscriptions/current - Get current subscription status
-    HttpApiEndpoint.get('getCurrentSubscription')`/current`
-      .addSuccess(SubscriptionInfo)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getCurrentSubscription', '/current', {
+      success: SubscriptionInfo,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
   )
   .add(
     // GET /subscriptions/tiers - Get all available tiers
-    HttpApiEndpoint.get('getTiers')`/tiers`.addSuccess(Schema.Array(TierConfig))
+    HttpApiEndpoint.get('getTiers', '/tiers', {
+      success: Schema.Array(TierConfig),
+    })
   )
   .add(
     // POST /subscriptions/redeem-code - Redeem a gift code
-    HttpApiEndpoint.post('redeemGiftCode')`/redeem-code`
-      .setPayload(RedeemGiftCodeRequest)
-      .addSuccess(RedeemGiftCodeResponse)
-      .addError(GiftCodeNotFoundError, { status: 404 })
-      .addError(GiftCodeInactiveError, { status: 400 })
-      .addError(GiftCodeExpiredError, { status: 400 })
-      .addError(GiftCodeExhaustedError, { status: 400 })
-      .addError(GiftCodeAlreadyRedeemedError, { status: 409 })
+    HttpApiEndpoint.post('redeemGiftCode', '/redeem-code', {
+      payload: RedeemGiftCodeRequest,
+      success: RedeemGiftCodeResponse,
+      error: [
+        GiftCodeNotFoundError,
+        GiftCodeInactiveError,
+        GiftCodeExpiredError,
+        GiftCodeExhaustedError,
+        GiftCodeAlreadyRedeemedError,
+      ],
+    })
   )
   .prefix('/subscriptions')
   .middleware(Authentication)
@@ -55,9 +63,10 @@ export const SubscriptionWebhooksApi = HttpApiGroup.make(
 )
   .add(
     // POST /subscriptions/webhook/revenuecat - Handle RevenueCat webhooks (no auth)
-    HttpApiEndpoint.post('handleRevenueCatWebhook')`/webhook/revenuecat`
-      .setHeaders(RevenueCatWebhookHeaders)
-      .addSuccess(Schema.Struct({ received: Schema.Boolean }))
-      .addError(PaymentProviderError, { status: 400 })
+    HttpApiEndpoint.post('handleRevenueCatWebhook', '/webhook/revenuecat', {
+      headers: RevenueCatWebhookHeaders,
+      success: Schema.Struct({ received: Schema.Boolean }),
+      error: PaymentProviderError.pipe(HttpApiSchema.status(400)),
+    })
   )
   .prefix('/subscriptions')

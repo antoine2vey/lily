@@ -12,90 +12,107 @@ import {
   PlantNotAuthorizedError,
   PlantNotFoundError,
 } from '@lily/shared/errors/plant'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameters
-const plantIdParam = HttpApiSchema.param(
-  'plantId',
-  Schema.String.check(Schema.isGUID())
-)
-const logIdParam = HttpApiSchema.param(
-  'logId',
-  Schema.String.check(Schema.isGUID())
-)
+const plantIdParam = Schema.String.check(Schema.isGUID())
+const logIdParam = Schema.String.check(Schema.isGUID())
 
 // Query parameters for care logs listing (extends base pagination)
 export const CareLogsQueryParams = Schema.Struct({
   ...PaginationParams.fields,
-  type: Schema.optionalWith(Schema.String, { default: () => 'all' }),
+  type: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('all')),
+    Schema.withConstructorDefault(Effect.succeed('all'))
+  ),
 })
 
 // Query params for recent activities
 export const RecentActivitiesQueryParams = Schema.Struct({
-  limit: Schema.optionalWith(Schema.String, { default: () => '10' }),
+  limit: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('10')),
+    Schema.withConstructorDefault(Effect.succeed('10'))
+  ),
 })
 
 // Define the Care Logs API group - nested under plants
 export const CareLogsApi = HttpApiGroup.make('careLogs')
   .add(
     // GET /care-logs/recent - Get recent activities across all plants
-    HttpApiEndpoint.get('getRecentActivities')`/care-logs/recent`
-      .setUrlParams(RecentActivitiesQueryParams)
-      .addSuccess(RecentActivitiesListResponse)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getRecentActivities', '/care-logs/recent', {
+      query: RecentActivitiesQueryParams,
+      success: RecentActivitiesListResponse,
+      error: Schema.Struct({ error: Schema.String }).pipe(
+        HttpApiSchema.status(401)
+      ),
+    })
   )
   .add(
     // GET /plants/:plantId/logs - List care logs (filter by type)
-    HttpApiEndpoint.get('getCareLogs')`/plants/${plantIdParam}/logs`
-      .setUrlParams(CareLogsQueryParams)
-      .addSuccess(CareLogsListResponse)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getCareLogs', '/plants/:plantId/logs', {
+      params: { plantId: plantIdParam },
+      query: CareLogsQueryParams,
+      success: CareLogsListResponse,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // POST /plants/:plantId/logs - Add a log entry
-    HttpApiEndpoint.post('createCareLog')`/plants/${plantIdParam}/logs`
-      .setPayload(CareLogCreateRequest)
-      .addSuccess(CareLog, { status: 201 })
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.post('createCareLog', '/plants/:plantId/logs', {
+      params: { plantId: plantIdParam },
+      payload: CareLogCreateRequest,
+      success: CareLog.pipe(HttpApiSchema.status(201)),
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // GET /plants/:plantId/logs/:logId - Get a single log entry
-    HttpApiEndpoint.get(
-      'getCareLog'
-    )`/plants/${plantIdParam}/logs/${logIdParam}`
-      .addSuccess(CareLog)
-      .addError(CareLogNotFoundError)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getCareLog', '/plants/:plantId/logs/:logId', {
+      params: { plantId: plantIdParam, logId: logIdParam },
+      success: CareLog,
+      error: [
+        CareLogNotFoundError,
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // PUT /plants/:plantId/logs/:logId - Update a log entry
-    HttpApiEndpoint.put(
-      'updateCareLog'
-    )`/plants/${plantIdParam}/logs/${logIdParam}`
-      .setPayload(CareLogUpdateRequest)
-      .addSuccess(CareLog)
-      .addError(CareLogNotFoundError)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.put('updateCareLog', '/plants/:plantId/logs/:logId', {
+      params: { plantId: plantIdParam, logId: logIdParam },
+      payload: CareLogUpdateRequest,
+      success: CareLog,
+      error: [
+        CareLogNotFoundError,
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // DELETE /plants/:plantId/logs/:logId - Delete a log entry
-    HttpApiEndpoint.delete(
-      'deleteCareLog'
-    )`/plants/${plantIdParam}/logs/${logIdParam}`
-      .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(CareLogNotFoundError)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.delete('deleteCareLog', '/plants/:plantId/logs/:logId', {
+      params: { plantId: plantIdParam, logId: logIdParam },
+      success: Schema.Struct({ message: Schema.String }),
+      error: [
+        CareLogNotFoundError,
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .middleware(Authentication)

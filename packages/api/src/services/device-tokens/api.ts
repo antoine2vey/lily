@@ -8,27 +8,31 @@ import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 // Path parameter for token ID
-const tokenIdParam = HttpApiSchema.param(
-  'tokenId',
-  Schema.String.check(Schema.isGUID())
-)
+const tokenIdParam = Schema.String.check(Schema.isGUID())
 
 // Define the Device Tokens API group
 export const DeviceTokensApi = HttpApiGroup.make('deviceTokens')
   .add(
     // POST /device-tokens - Register/update a device token
-    HttpApiEndpoint.post('registerDeviceToken')`/`
-      .setPayload(DeviceTokenCreateRequest)
-      .addSuccess(DeviceToken, { status: 201 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 400 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.post('registerDeviceToken', '/', {
+      payload: DeviceTokenCreateRequest,
+      success: DeviceToken.pipe(HttpApiSchema.status(201)),
+      error: [
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(400)),
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     // DELETE /device-tokens/:tokenId - Unregister device token
-    HttpApiEndpoint.delete('unregisterDeviceToken')`/${tokenIdParam}`
-      .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(DeviceTokenNotFoundError)
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.delete('unregisterDeviceToken', '/:tokenId', {
+      params: { tokenId: tokenIdParam },
+      success: Schema.Struct({ message: Schema.String }),
+      error: [
+        DeviceTokenNotFoundError,
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .prefix('/device-tokens')
   .middleware(Authentication)

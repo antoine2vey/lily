@@ -13,27 +13,25 @@ import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 export const VacationApi = HttpApiGroup.make('vacation')
   .add(
     // GET /vacation - Current vacation state (uses CurrentUser)
-    HttpApiEndpoint.get('getVacation')`/`
-      .addSuccess(VacationState)
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.get('getVacation', '/', {
+      success: VacationState,
+      error: [UserNotFoundError, UnauthorizedError],
+    })
   )
   .add(
     // PUT /vacation - Schedule or update a vacation (uses CurrentUser)
-    HttpApiEndpoint.put('setVacation')`/`
-      .setPayload(SetVacationRequest)
-      .addSuccess(VacationState)
-      .addError(VacationDateError, { status: 400 })
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.put('setVacation', '/', {
+      payload: SetVacationRequest,
+      success: VacationState,
+      error: [VacationDateError, UserNotFoundError, UnauthorizedError],
+    })
   )
   .add(
     // DELETE /vacation - Cancel a scheduled vacation or end an active one now
-    HttpApiEndpoint.delete('cancelVacation')`/`
-      .addSuccess(VacationState)
-      .addError(VacationNotFoundError, { status: 404 })
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.delete('cancelVacation', '/', {
+      success: VacationState,
+      error: [VacationNotFoundError, UserNotFoundError, UnauthorizedError],
+    })
   )
   .prefix('/vacation')
   .middleware(Authentication)

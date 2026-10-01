@@ -21,82 +21,108 @@ import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 export const AdminAnalyticsApi = HttpApiGroup.make('admin-analytics')
   .add(
-    HttpApiEndpoint.get('usersByStatus')`/users-by-status`
-      .addSuccess(UsersByStatusResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('activeSubscribersByTier')`/active-subscribers-by-tier`
-      .addSuccess(ActiveSubscribersByTierResponse)
-      .addError(ForbiddenError, { status: 403 })
+    HttpApiEndpoint.get('usersByStatus', '/users-by-status', {
+      success: UsersByStatusResponse,
+      error: ForbiddenError,
+    })
   )
   .add(
     HttpApiEndpoint.get(
-      'plantsPerUserDistribution'
-    )`/plants-per-user-distribution`
-      .addSuccess(PlantsPerUserDistributionResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('careLogVolumeByType')`/care-log-volume-by-type`
-      .setUrlParams(AnalyticsFilters)
-      .addSuccess(CareLogVolumeByTypeResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('deadLetterVolume')`/dead-letter-volume`
-      .setUrlParams(AnalyticsFilters)
-      .addSuccess(DeadLetterVolumeResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('aiChatVolume')`/ai-chat-volume`
-      .setUrlParams(AnalyticsFilters)
-      .addSuccess(AiChatVolumeResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('diagnosisResolutionRate')`/diagnosis-resolution-rate`
-      .addSuccess(DiagnosisResolutionRateResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('paywallAttribution')`/paywall-attribution`
-      .addSuccess(PaywallAttributionResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('signupToFirstPlant')`/signup-to-first-plant`
-      .addSuccess(SignupToFirstPlantResponse)
-      .addError(ForbiddenError, { status: 403 })
-  )
-  .add(
-    HttpApiEndpoint.get('trialToPaid')`/trial-to-paid`
-      .addSuccess(TrialToPaidResponse)
-      .addError(ForbiddenError, { status: 403 })
+      'activeSubscribersByTier',
+      '/active-subscribers-by-tier',
+      {
+        success: ActiveSubscribersByTierResponse,
+        error: ForbiddenError,
+      }
+    )
   )
   .add(
     HttpApiEndpoint.get(
-      'notificationToCareAction'
-    )`/notification-to-care-action`
-      .setUrlParams(AnalyticsFilters)
-      .addSuccess(NotificationToCareActionResponse)
-      .addError(ForbiddenError, { status: 403 })
+      'plantsPerUserDistribution',
+      '/plants-per-user-distribution',
+      {
+        success: PlantsPerUserDistributionResponse,
+        error: ForbiddenError,
+      }
+    )
   )
   .add(
-    HttpApiEndpoint.get('mrrEstimate')`/mrr-estimate`
-      .addSuccess(MrrEstimateResponse)
-      .addError(ForbiddenError, { status: 403 })
+    HttpApiEndpoint.get('careLogVolumeByType', '/care-log-volume-by-type', {
+      query: AnalyticsFilters,
+      success: CareLogVolumeByTypeResponse,
+      error: ForbiddenError,
+    })
   )
   .add(
-    HttpApiEndpoint.get('dauWauMau')`/dau-wau-mau`
-      .addSuccess(DauWauMauResponse)
-      .addError(ForbiddenError, { status: 403 })
+    HttpApiEndpoint.get('deadLetterVolume', '/dead-letter-volume', {
+      query: AnalyticsFilters,
+      success: DeadLetterVolumeResponse,
+      error: ForbiddenError,
+    })
   )
   .add(
-    HttpApiEndpoint.get('paidChurn')`/paid-churn`
-      .addSuccess(PaidChurnResponse)
-      .addError(ForbiddenError, { status: 403 })
+    HttpApiEndpoint.get('aiChatVolume', '/ai-chat-volume', {
+      query: AnalyticsFilters,
+      success: AiChatVolumeResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get(
+      'diagnosisResolutionRate',
+      '/diagnosis-resolution-rate',
+      {
+        success: DiagnosisResolutionRateResponse,
+        error: ForbiddenError,
+      }
+    )
+  )
+  .add(
+    HttpApiEndpoint.get('paywallAttribution', '/paywall-attribution', {
+      success: PaywallAttributionResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('signupToFirstPlant', '/signup-to-first-plant', {
+      success: SignupToFirstPlantResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('trialToPaid', '/trial-to-paid', {
+      success: TrialToPaidResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get(
+      'notificationToCareAction',
+      '/notification-to-care-action',
+      {
+        query: AnalyticsFilters,
+        success: NotificationToCareActionResponse,
+        error: ForbiddenError,
+      }
+    )
+  )
+  .add(
+    HttpApiEndpoint.get('mrrEstimate', '/mrr-estimate', {
+      success: MrrEstimateResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('dauWauMau', '/dau-wau-mau', {
+      success: DauWauMauResponse,
+      error: ForbiddenError,
+    })
+  )
+  .add(
+    HttpApiEndpoint.get('paidChurn', '/paid-churn', {
+      success: PaidChurnResponse,
+      error: ForbiddenError,
+    })
   )
   .prefix('/admin/analytics')
   .middleware(AdminAuth)

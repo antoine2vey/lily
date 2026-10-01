@@ -17,41 +17,42 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 export const UsersApi = HttpApiGroup.make('users')
   .add(
     // GET /users/settings - Fetch profile info & notification prefs (uses CurrentUser)
-    HttpApiEndpoint.get('getUserSettings')`/settings`
-      .addSuccess(UserSettings)
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.get('getUserSettings', '/settings', {
+      success: UserSettings,
+      error: [UserNotFoundError, UnauthorizedError],
+    })
   )
   .add(
     // PUT /users/settings - Update profile & global notification settings (uses CurrentUser)
-    HttpApiEndpoint.put('updateUserSettings')`/settings`
-      .setPayload(UserSettingsUpdateRequest)
-      .addSuccess(UserSettings)
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.put('updateUserSettings', '/settings', {
+      payload: UserSettingsUpdateRequest,
+      success: UserSettings,
+      error: [UserNotFoundError, UnauthorizedError],
+    })
   )
   .add(
     // POST /users/avatar - Upload user avatar (uses CurrentUser)
-    HttpApiEndpoint.post('uploadAvatar')`/avatar`
-      .setPayload(
-        Schema.Struct({
-          files: Multipart.FilesSchema,
-        }).pipe(HttpApiSchema.asMultipart())
-      )
-      .addSuccess(Schema.Struct({ url: Schema.String }))
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(MultipleFilesError, { status: 400 })
-      .addError(NoFilesError, { status: 400 })
-      .addError(GCSUploadError, { status: 500 })
-      .addError(GCSConfigError, { status: 500 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.post('uploadAvatar', '/avatar', {
+      payload: Schema.Struct({
+        files: Multipart.FilesSchema,
+      }).pipe(HttpApiSchema.asMultipart()),
+      success: Schema.Struct({ url: Schema.String }),
+      error: [
+        UserNotFoundError,
+        MultipleFilesError.pipe(HttpApiSchema.status(400)),
+        NoFilesError.pipe(HttpApiSchema.status(400)),
+        GCSUploadError.pipe(HttpApiSchema.status(500)),
+        GCSConfigError.pipe(HttpApiSchema.status(500)),
+        UnauthorizedError,
+      ],
+    })
   )
   .add(
     // DELETE /users/account - Soft-delete account (30-day grace period)
-    HttpApiEndpoint.delete('deleteAccount')`/account`
-      .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(UserNotFoundError, { status: 404 })
-      .addError(UnauthorizedError, { status: 401 })
+    HttpApiEndpoint.delete('deleteAccount', '/account', {
+      success: Schema.Struct({ message: Schema.String }),
+      error: [UserNotFoundError, UnauthorizedError],
+    })
   )
   .prefix('/users')
   .middleware(Authentication)

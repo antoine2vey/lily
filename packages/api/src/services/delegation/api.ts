@@ -16,70 +16,87 @@ import {
   UserNotFoundError,
 } from '@lily/shared'
 import { PlantNotAuthorizedError } from '@lily/shared/errors/plant'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const delegationIdParam = HttpApiSchema.param(
-  'delegationId',
-  Schema.String.check(Schema.isGUID())
-)
+const delegationIdParam = Schema.String.check(Schema.isGUID())
 
 const DelegationListParams = Schema.Struct({
   ...PaginationParams.fields,
-  role: Schema.optionalWith(Schema.String, { default: () => 'both' }),
+  role: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('both')),
+    Schema.withConstructorDefault(Effect.succeed('both'))
+  ),
   status: Schema.optional(Schema.String),
 })
 
 export const DelegationApi = HttpApiGroup.make('delegations')
   .add(
-    HttpApiEndpoint.post('createDelegation')`/`
-      .setPayload(CreateDelegationRequest)
-      .addSuccess(Delegation, { status: 201 })
-      .addError(LimitExceededError)
-      .addError(CannotDelegateSelfError)
-      .addError(DelegationDateError)
-      .addError(DelegationOverlapError)
-      .addError(DelegationNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(UserNotFoundError)
+    HttpApiEndpoint.post('createDelegation', '/', {
+      payload: CreateDelegationRequest,
+      success: Delegation.pipe(HttpApiSchema.status(201)),
+      error: [
+        LimitExceededError,
+        CannotDelegateSelfError,
+        DelegationDateError,
+        DelegationOverlapError,
+        DelegationNotFoundError,
+        PlantNotAuthorizedError,
+        UserNotFoundError,
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.post('respondToDelegation')`/${delegationIdParam}/respond`
-      .setPayload(RespondDelegationRequest)
-      .addSuccess(Delegation)
-      .addError(DelegationNotFoundError)
-      .addError(DelegationNotAuthorizedError)
-      .addError(DelegationInvalidStatusError)
+    HttpApiEndpoint.post('respondToDelegation', '/:delegationId/respond', {
+      params: { delegationId: delegationIdParam },
+      payload: RespondDelegationRequest,
+      success: Delegation,
+      error: [
+        DelegationNotFoundError,
+        DelegationNotAuthorizedError,
+        DelegationInvalidStatusError,
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.post('cancelDelegation')`/${delegationIdParam}/cancel`
-      .addSuccess(Delegation)
-      .addError(DelegationNotFoundError)
-      .addError(DelegationNotAuthorizedError)
-      .addError(DelegationInvalidStatusError)
+    HttpApiEndpoint.post('cancelDelegation', '/:delegationId/cancel', {
+      params: { delegationId: delegationIdParam },
+      success: Delegation,
+      error: [
+        DelegationNotFoundError,
+        DelegationNotAuthorizedError,
+        DelegationInvalidStatusError,
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.post('completeDelegation')`/${delegationIdParam}/complete`
-      .addSuccess(Delegation)
-      .addError(DelegationNotFoundError)
-      .addError(DelegationNotAuthorizedError)
-      .addError(DelegationInvalidStatusError)
+    HttpApiEndpoint.post('completeDelegation', '/:delegationId/complete', {
+      params: { delegationId: delegationIdParam },
+      success: Delegation,
+      error: [
+        DelegationNotFoundError,
+        DelegationNotAuthorizedError,
+        DelegationInvalidStatusError,
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.get('getDelegation')`/${delegationIdParam}`
-      .addSuccess(Delegation)
-      .addError(DelegationNotFoundError)
-      .addError(DelegationNotAuthorizedError)
+    HttpApiEndpoint.get('getDelegation', '/:delegationId', {
+      params: { delegationId: delegationIdParam },
+      success: Delegation,
+      error: [DelegationNotFoundError, DelegationNotAuthorizedError],
+    })
   )
   .add(
-    HttpApiEndpoint.get('getMyDelegations')`/`
-      .setUrlParams(DelegationListParams)
-      .addSuccess(DelegationListResponse)
+    HttpApiEndpoint.get('getMyDelegations', '/', {
+      query: DelegationListParams,
+      success: DelegationListResponse,
+    })
   )
   .add(
-    HttpApiEndpoint.get('getDelegatedTasks')`/tasks`.addSuccess(
-      Schema.Array(DelegatedCareTask)
-    )
+    HttpApiEndpoint.get('getDelegatedTasks', '/tasks', {
+      success: Schema.Array(DelegatedCareTask),
+    })
   )
   .prefix('/delegations')
   .middleware(Authentication)

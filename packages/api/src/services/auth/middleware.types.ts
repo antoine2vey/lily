@@ -14,13 +14,12 @@ export class CurrentUser extends Context.Service<CurrentUser, UserProfile>()(
  * Authentication middleware using Bearer token
  * Validates JWT token and provides CurrentUser context to handlers
  */
-export class Authentication extends HttpApiMiddleware.Tag<Authentication>()(
-  'Authentication',
-  {
-    failure: UnauthorizedError,
-    provides: CurrentUser,
-    security: {
-      bearer: HttpApiSecurity.bearer,
-    },
-  }
-) {}
+export class Authentication extends HttpApiMiddleware.Service<
+  Authentication,
+  { provides: CurrentUser }
+>()('Authentication', {
+  error: UnauthorizedError,
+  security: {
+    bearer: HttpApiSecurity.bearer,
+  },
+}) {}

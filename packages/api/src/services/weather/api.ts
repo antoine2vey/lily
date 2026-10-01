@@ -10,16 +10,16 @@ import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
 export const WeatherApi = HttpApiGroup.make('weather')
   .add(
-    HttpApiEndpoint.get('getWeather')`/`
-      .addSuccess(WeatherForecast)
-      .addError(WeatherNotAvailableError, { status: 404 })
-      .addError(WeatherFetchError, { status: 502 })
+    HttpApiEndpoint.get('getWeather', '/', {
+      success: WeatherForecast,
+      error: [WeatherNotAvailableError, WeatherFetchError],
+    })
   )
   .add(
-    HttpApiEndpoint.get('getCareAdjustments')`/adjustments`
-      .addSuccess(Schema.Array(CareAdjustment))
-      .addError(WeatherNotAvailableError, { status: 404 })
-      .addError(WeatherFetchError, { status: 502 })
+    HttpApiEndpoint.get('getCareAdjustments', '/adjustments', {
+      success: Schema.Array(CareAdjustment),
+      error: [WeatherNotAvailableError, WeatherFetchError],
+    })
   )
   .prefix('/weather')
   .middleware(Authentication)

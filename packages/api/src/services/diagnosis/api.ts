@@ -8,19 +8,20 @@ import { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const plantIdParam = HttpApiSchema.param(
-  'plantId',
-  Schema.String.check(Schema.isGUID())
-)
+const plantIdParam = Schema.String.check(Schema.isGUID())
 
 export const DiagnosisApi = HttpApiGroup.make('diagnosis')
   .add(
-    HttpApiEndpoint.get('getDiagnoses')`/plants/${plantIdParam}/diagnoses`
-      .setUrlParams(PaginationParams)
-      .addSuccess(DiagnosisListResponse)
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(PlantNotAuthorizedError, { status: 403 })
-      .addError(GCSUploadError, { status: 500 })
-      .addError(Schema.Struct({ error: Schema.String }), { status: 401 })
+    HttpApiEndpoint.get('getDiagnoses', '/plants/:plantId/diagnoses', {
+      params: { plantId: plantIdParam },
+      query: PaginationParams,
+      success: DiagnosisListResponse,
+      error: [
+        PlantNotFoundError,
+        PlantNotAuthorizedError,
+        GCSUploadError.pipe(HttpApiSchema.status(500)),
+        Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .middleware(Authentication)

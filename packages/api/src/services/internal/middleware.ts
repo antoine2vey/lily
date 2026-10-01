@@ -17,16 +17,15 @@ export class ServiceAuth extends Context.Service<
  * Protects internal endpoints with an API key in the `X-Service-Secret` header.
  * The implementation validates the key against the `SERVICE_TOKEN_SECRET` env var.
  */
-export class ServiceAuthentication extends HttpApiMiddleware.Tag<ServiceAuthentication>()(
-  'ServiceAuthentication',
-  {
-    failure: UnauthorizedError,
-    provides: ServiceAuth,
-    security: {
-      apiKey: HttpApiSecurity.apiKey({
-        key: 'X-Service-Secret',
-        in: 'header',
-      }),
-    },
-  }
-) {}
+export class ServiceAuthentication extends HttpApiMiddleware.Service<
+  ServiceAuthentication,
+  { provides: ServiceAuth }
+>()('ServiceAuthentication', {
+  error: UnauthorizedError,
+  security: {
+    apiKey: HttpApiSecurity.apiKey({
+      key: 'X-Service-Secret',
+      in: 'header',
+    }),
+  },
+}) {}

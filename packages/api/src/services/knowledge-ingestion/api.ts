@@ -11,42 +11,47 @@ import {
   KnowledgeStats,
 } from '@lily/shared/knowledge'
 import { Schema } from 'effect'
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api'
 
-const jobIdParam = HttpApiSchema.param(
-  'id',
-  Schema.String.check(Schema.isGUID())
-)
+const jobIdParam = Schema.String.check(Schema.isGUID())
 
 export const KnowledgeIngestionApi = HttpApiGroup.make('knowledgeIngestion')
   .add(
-    HttpApiEndpoint.post('createIngestJob')`/jobs`
-      .setPayload(CreateIngestJobRequest)
-      .addSuccess(IngestJob)
+    HttpApiEndpoint.post('createIngestJob', '/jobs', {
+      payload: CreateIngestJobRequest,
+      success: IngestJob,
+    })
   )
   .add(
-    HttpApiEndpoint.get('listIngestJobs')`/jobs`.addSuccess(
-      Schema.Array(IngestJob)
-    )
+    HttpApiEndpoint.get('listIngestJobs', '/jobs', {
+      success: Schema.Array(IngestJob),
+    })
   )
   .add(
-    HttpApiEndpoint.get('getIngestJob')`/jobs/${jobIdParam}`
-      .addSuccess(IngestJob)
-      .addError(IngestJobNotFoundError, { status: 404 })
+    HttpApiEndpoint.get('getIngestJob', '/jobs/:id', {
+      params: { id: jobIdParam },
+      success: IngestJob,
+      error: IngestJobNotFoundError,
+    })
   )
   .add(
-    HttpApiEndpoint.delete('deleteIngestJob')`/jobs/${jobIdParam}`
-      .addSuccess(Schema.Void)
-      .addError(IngestJobNotFoundError, { status: 404 })
+    HttpApiEndpoint.delete('deleteIngestJob', '/jobs/:id', {
+      params: { id: jobIdParam },
+      success: Schema.Void,
+      error: IngestJobNotFoundError,
+    })
   )
   .add(
-    HttpApiEndpoint.get('getKnowledgeStats')`/stats`.addSuccess(KnowledgeStats)
+    HttpApiEndpoint.get('getKnowledgeStats', '/stats', {
+      success: KnowledgeStats,
+    })
   )
   .add(
-    HttpApiEndpoint.post('searchKnowledge')`/search`
-      .setPayload(KnowledgeSearchRequest)
-      .addSuccess(Schema.Array(ChunkSearchResult))
-      .addError(EmbeddingError, { status: 500 })
+    HttpApiEndpoint.post('searchKnowledge', '/search', {
+      payload: KnowledgeSearchRequest,
+      success: Schema.Array(ChunkSearchResult),
+      error: EmbeddingError,
+    })
   )
   .prefix('/knowledge')
   .middleware(AdminAuth)

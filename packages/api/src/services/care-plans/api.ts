@@ -13,18 +13,9 @@ import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const planIdParam = HttpApiSchema.param(
-  'planId',
-  Schema.String.check(Schema.isGUID())
-)
-const stepIdParam = HttpApiSchema.param(
-  'stepId',
-  Schema.String.check(Schema.isGUID())
-)
-const plantIdParam = HttpApiSchema.param(
-  'plantId',
-  Schema.String.check(Schema.isGUID())
-)
+const planIdParam = Schema.String.check(Schema.isGUID())
+const stepIdParam = Schema.String.check(Schema.isGUID())
+const plantIdParam = Schema.String.check(Schema.isGUID())
 
 const Unauthorized = Schema.Struct({ error: Schema.String })
 
@@ -33,64 +24,93 @@ const Unauthorized = Schema.Struct({ error: Schema.String })
 export const CarePlansApi = HttpApiGroup.make('carePlans')
   .add(
     // GET /care-plans?status=accepted — plans for the Care tab
-    HttpApiEndpoint.get('getCarePlans')`/`
-      .setUrlParams(CarePlanListParams)
-      .addSuccess(CarePlanListResponse)
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.get('getCarePlans', '/', {
+      query: CarePlanListParams,
+      success: CarePlanListResponse,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    })
   )
   .add(
     // GET /care-plans/plant/:plantId — every plan for one plant (any status)
-    HttpApiEndpoint.get('getPlantCarePlans')`/plant/${plantIdParam}`
-      .addSuccess(CarePlanListResponse)
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.get('getPlantCarePlans', '/plant/:plantId', {
+      params: { plantId: plantIdParam },
+      success: CarePlanListResponse,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    })
   )
   .add(
-    HttpApiEndpoint.patch('acceptCarePlan')`/${planIdParam}/accept`
-      .addSuccess(CarePlan)
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(CarePlanNotProposedError, { status: 409 })
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.patch('acceptCarePlan', '/:planId/accept', {
+      params: { planId: planIdParam },
+      success: CarePlan,
+      error: [
+        CarePlanNotFoundError,
+        CarePlanNotProposedError,
+        Unauthorized.pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.patch('dismissCarePlan')`/${planIdParam}/dismiss`
-      .addSuccess(CarePlan)
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(CarePlanNotProposedError, { status: 409 })
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.patch('dismissCarePlan', '/:planId/dismiss', {
+      params: { planId: planIdParam },
+      success: CarePlan,
+      error: [
+        CarePlanNotFoundError,
+        CarePlanNotProposedError,
+        Unauthorized.pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
-    HttpApiEndpoint.delete('deleteCarePlan')`/${planIdParam}`
-      .addSuccess(Schema.Struct({ message: Schema.String }))
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.delete('deleteCarePlan', '/:planId', {
+      params: { planId: planIdParam },
+      success: Schema.Struct({ message: Schema.String }),
+      error: [
+        CarePlanNotFoundError,
+        Unauthorized.pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .add(
     HttpApiEndpoint.patch(
-      'completeCarePlanStep'
-    )`/${planIdParam}/steps/${stepIdParam}/complete`
-      .addSuccess(CarePlan)
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(CarePlanStepNotFoundError, { status: 404 })
-      .addError(PlantNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+      'completeCarePlanStep',
+      '/:planId/steps/:stepId/complete',
+      {
+        params: { planId: planIdParam, stepId: stepIdParam },
+        success: CarePlan,
+        error: [
+          CarePlanNotFoundError,
+          CarePlanStepNotFoundError,
+          PlantNotFoundError,
+          Unauthorized.pipe(HttpApiSchema.status(401)),
+        ],
+      }
+    )
   )
   .add(
     HttpApiEndpoint.patch(
-      'uncompleteCarePlanStep'
-    )`/${planIdParam}/steps/${stepIdParam}/uncomplete`
-      .addSuccess(CarePlan)
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(CarePlanStepNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+      'uncompleteCarePlanStep',
+      '/:planId/steps/:stepId/uncomplete',
+      {
+        params: { planId: planIdParam, stepId: stepIdParam },
+        success: CarePlan,
+        error: [
+          CarePlanNotFoundError,
+          CarePlanStepNotFoundError,
+          Unauthorized.pipe(HttpApiSchema.status(401)),
+        ],
+      }
+    )
   )
   .add(
-    HttpApiEndpoint.delete(
-      'deleteCarePlanStep'
-    )`/${planIdParam}/steps/${stepIdParam}`
-      .addSuccess(CarePlan)
-      .addError(CarePlanNotFoundError, { status: 404 })
-      .addError(CarePlanStepNotFoundError, { status: 404 })
-      .addError(Unauthorized, { status: 401 })
+    HttpApiEndpoint.delete('deleteCarePlanStep', '/:planId/steps/:stepId', {
+      params: { planId: planIdParam, stepId: stepIdParam },
+      success: CarePlan,
+      error: [
+        CarePlanNotFoundError,
+        CarePlanStepNotFoundError,
+        Unauthorized.pipe(HttpApiSchema.status(401)),
+      ],
+    })
   )
   .prefix('/care-plans')
   .middleware(Authentication)

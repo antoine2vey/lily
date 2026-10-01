@@ -11,5 +11,7 @@ const HealthResponse = Schema.Struct({
 
 // Health endpoint at root level (no /api prefix)
 export const HealthApiGroup = HttpApiGroup.make('health').add(
-  HttpApiEndpoint.get('check', '/health').addSuccess(HealthResponse)
+  HttpApiEndpoint.get('check', '/health', {
+    success: HealthResponse,
+  })
 )

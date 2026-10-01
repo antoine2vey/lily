@@ -1,0 +1,3017 @@
+{
+  "endpoints": [
+    {
+      "group": "achievements",
+      "identifier": "getUserAchievements",
+      "method": "GET",
+      "path": "/api/achievements",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "achievements",
+      "identifier": "achievementEvents",
+      "method": "GET",
+      "path": "/api/achievements/events",
+      "success": [
+        204
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "achievements",
+      "identifier": "unlockAchievement",
+      "method": "POST",
+      "path": "/api/achievements/unlock",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "activityPushTokens",
+      "identifier": "registerStartToken",
+      "method": "POST",
+      "path": "/api/activity-push-tokens/start",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "activityPushTokens",
+      "identifier": "registerActivityToken",
+      "method": "POST",
+      "path": "/api/activity-push-tokens",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "activityPushTokens",
+      "identifier": "endActivity",
+      "method": "PUT",
+      "path": "/api/activity-push-tokens/:activityId/end",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "listUsers",
+      "method": "GET",
+      "path": "/api/admin/users",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "getUser",
+      "method": "GET",
+      "path": "/api/admin/users/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "updateUser",
+      "method": "PUT",
+      "path": "/api/admin/users/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "updateUserRole",
+      "method": "PUT",
+      "path": "/api/admin/users/:id/role",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "updateUserStatus",
+      "method": "PUT",
+      "path": "/api/admin/users/:id/status",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "deleteUser",
+      "method": "DELETE",
+      "path": "/api/admin/users/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "giftSubscription",
+      "method": "POST",
+      "path": "/api/admin/users/:id/gift-subscription",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "StorePayerProtectedError",
+          "status": 409
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "listGiftHistory",
+      "method": "GET",
+      "path": "/api/admin/gift-history",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "revokeGiftSubscription",
+      "method": "POST",
+      "path": "/api/admin/users/:id/revoke-gift",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CannotModifySelfError",
+          "status": 400
+        },
+        {
+          "tag": "StorePayerProtectedError",
+          "status": 409
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "previewPrompt",
+      "method": "GET",
+      "path": "/api/admin/prompt-preview/:messageId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ChatMessageNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "listGiftCodes",
+      "method": "GET",
+      "path": "/api/admin/gift-codes",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "createGiftCode",
+      "method": "POST",
+      "path": "/api/admin/gift-codes",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "GiftCodeDuplicateError",
+          "status": 409
+        },
+        {
+          "tag": "GiftCodeExpiryInPastError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "getGiftCode",
+      "method": "GET",
+      "path": "/api/admin/gift-codes/:codeId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "GiftCodeNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "updateGiftCode",
+      "method": "PUT",
+      "path": "/api/admin/gift-codes/:codeId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "GiftCodeNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "GiftCodeDuplicateError",
+          "status": 409
+        },
+        {
+          "tag": "GiftCodeMaxUsagesTooLowError",
+          "status": 400
+        },
+        {
+          "tag": "GiftCodeExpiryInPastError",
+          "status": 400
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "deleteGiftCode",
+      "method": "DELETE",
+      "path": "/api/admin/gift-codes/:codeId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "GiftCodeNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "triggerLiveActivityStart",
+      "method": "POST",
+      "path": "/api/admin/users/:id/live-activity/trigger-start",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "getUserOverview",
+      "method": "GET",
+      "path": "/api/admin/users/:id/overview",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "getUserPlants",
+      "method": "GET",
+      "path": "/api/admin/users/:id/plants",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "listUserConversations",
+      "method": "GET",
+      "path": "/api/admin/users/:id/conversations",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin",
+      "identifier": "listUserConversationMessages",
+      "method": "GET",
+      "path": "/api/admin/users/:id/conversations/:conversationId/messages",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "usersByStatus",
+      "method": "GET",
+      "path": "/api/admin/analytics/users-by-status",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "activeSubscribersByTier",
+      "method": "GET",
+      "path": "/api/admin/analytics/active-subscribers-by-tier",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "plantsPerUserDistribution",
+      "method": "GET",
+      "path": "/api/admin/analytics/plants-per-user-distribution",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "careLogVolumeByType",
+      "method": "GET",
+      "path": "/api/admin/analytics/care-log-volume-by-type",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "deadLetterVolume",
+      "method": "GET",
+      "path": "/api/admin/analytics/dead-letter-volume",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "aiChatVolume",
+      "method": "GET",
+      "path": "/api/admin/analytics/ai-chat-volume",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "diagnosisResolutionRate",
+      "method": "GET",
+      "path": "/api/admin/analytics/diagnosis-resolution-rate",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "paywallAttribution",
+      "method": "GET",
+      "path": "/api/admin/analytics/paywall-attribution",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "signupToFirstPlant",
+      "method": "GET",
+      "path": "/api/admin/analytics/signup-to-first-plant",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "trialToPaid",
+      "method": "GET",
+      "path": "/api/admin/analytics/trial-to-paid",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "notificationToCareAction",
+      "method": "GET",
+      "path": "/api/admin/analytics/notification-to-care-action",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "mrrEstimate",
+      "method": "GET",
+      "path": "/api/admin/analytics/mrr-estimate",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "dauWauMau",
+      "method": "GET",
+      "path": "/api/admin/analytics/dau-wau-mau",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "admin-analytics",
+      "identifier": "paidChurn",
+      "method": "GET",
+      "path": "/api/admin/analytics/paid-churn",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ForbiddenError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "createConversation",
+      "method": "POST",
+      "path": "/api/chat/conversations",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "listConversations",
+      "method": "GET",
+      "path": "/api/chat/conversations",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "getConversation",
+      "method": "GET",
+      "path": "/api/chat/conversations/:conversationId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "deleteConversation",
+      "method": "DELETE",
+      "path": "/api/chat/conversations/:conversationId",
+      "success": [
+        204
+      ],
+      "errors": [
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "getConversationMessages",
+      "method": "GET",
+      "path": "/api/chat/conversations/:conversationId/messages",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "streamConversationMessage",
+      "method": "POST",
+      "path": "/api/chat/conversations/:conversationId/stream",
+      "success": [
+        204
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "aiChat",
+      "identifier": "uploadConversationImage",
+      "method": "POST",
+      "path": "/api/chat/conversations/:conversationId/upload",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "ConversationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "sendMagicLink",
+      "method": "POST",
+      "path": "/api/auth/magic-link",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        },
+        {
+          "tag": "RateLimitExceededError",
+          "status": 429
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "magicLinkCallback",
+      "method": "GET",
+      "path": "/api/auth/magic-link/callback",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "verifyMagicLink",
+      "method": "POST",
+      "path": "/api/auth/verify",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        },
+        {
+          "tag": "RateLimitExceededError",
+          "status": 429
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "oauthSignIn",
+      "method": "POST",
+      "path": "/api/auth/oauth/signin",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "refreshToken",
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 401
+        },
+        {
+          "tag": "RateLimitExceededError",
+          "status": 429
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "auth",
+      "identifier": "getCurrentUser",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 401
+        }
+      ],
+      "middlewares": [
+        "Authentication"
+      ]
+    },
+    {
+      "group": "auth",
+      "identifier": "logout",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 401
+        }
+      ],
+      "middlewares": [
+        "Authentication"
+      ]
+    },
+    {
+      "group": "auth",
+      "identifier": "setUsername",
+      "method": "POST",
+      "path": "/api/auth/username",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        },
+        {
+          "tag": "inline:AuthError",
+          "status": 401
+        }
+      ],
+      "middlewares": [
+        "Authentication"
+      ]
+    },
+    {
+      "group": "careLogs",
+      "identifier": "getRecentActivities",
+      "method": "GET",
+      "path": "/api/care-logs/recent",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careLogs",
+      "identifier": "getCareLogs",
+      "method": "GET",
+      "path": "/api/plants/:plantId/logs",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careLogs",
+      "identifier": "createCareLog",
+      "method": "POST",
+      "path": "/api/plants/:plantId/logs",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careLogs",
+      "identifier": "getCareLog",
+      "method": "GET",
+      "path": "/api/plants/:plantId/logs/:logId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CareLogNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careLogs",
+      "identifier": "updateCareLog",
+      "method": "PUT",
+      "path": "/api/plants/:plantId/logs/:logId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CareLogNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careLogs",
+      "identifier": "deleteCareLog",
+      "method": "DELETE",
+      "path": "/api/plants/:plantId/logs/:logId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CareLogNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "getCarePlans",
+      "method": "GET",
+      "path": "/api/care-plans",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "getPlantCarePlans",
+      "method": "GET",
+      "path": "/api/care-plans/plant/:plantId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "acceptCarePlan",
+      "method": "PATCH",
+      "path": "/api/care-plans/:planId/accept",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CarePlanNotProposedError",
+          "status": 409
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "dismissCarePlan",
+      "method": "PATCH",
+      "path": "/api/care-plans/:planId/dismiss",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CarePlanNotProposedError",
+          "status": 409
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "deleteCarePlan",
+      "method": "DELETE",
+      "path": "/api/care-plans/:planId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "completeCarePlanStep",
+      "method": "PATCH",
+      "path": "/api/care-plans/:planId/steps/:stepId/complete",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CarePlanStepNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "uncompleteCarePlanStep",
+      "method": "PATCH",
+      "path": "/api/care-plans/:planId/steps/:stepId/uncomplete",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CarePlanStepNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "carePlans",
+      "identifier": "deleteCarePlanStep",
+      "method": "DELETE",
+      "path": "/api/care-plans/:planId/steps/:stepId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "CarePlanNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "CarePlanStepNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Unauthorized",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "careTasks",
+      "identifier": "getCareTasks",
+      "method": "GET",
+      "path": "/api/care-tasks",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "createDelegation",
+      "method": "POST",
+      "path": "/api/delegations",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "CannotDelegateSelfError",
+          "status": 400
+        },
+        {
+          "tag": "DelegationDateError",
+          "status": 400
+        },
+        {
+          "tag": "DelegationOverlapError",
+          "status": 409
+        },
+        {
+          "tag": "DelegationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "respondToDelegation",
+      "method": "POST",
+      "path": "/api/delegations/:delegationId/respond",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "DelegationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "DelegationNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "DelegationInvalidStatusError",
+          "status": 409
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "cancelDelegation",
+      "method": "POST",
+      "path": "/api/delegations/:delegationId/cancel",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "DelegationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "DelegationNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "DelegationInvalidStatusError",
+          "status": 409
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "completeDelegation",
+      "method": "POST",
+      "path": "/api/delegations/:delegationId/complete",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "DelegationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "DelegationNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "DelegationInvalidStatusError",
+          "status": 409
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "getDelegation",
+      "method": "GET",
+      "path": "/api/delegations/:delegationId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "DelegationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "DelegationNotAuthorizedError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "getMyDelegations",
+      "method": "GET",
+      "path": "/api/delegations",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "delegations",
+      "identifier": "getDelegatedTasks",
+      "method": "GET",
+      "path": "/api/delegations/tasks",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "deviceTokens",
+      "identifier": "registerDeviceToken",
+      "method": "POST",
+      "path": "/api/device-tokens",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "deviceTokens",
+      "identifier": "unregisterDeviceToken",
+      "method": "DELETE",
+      "path": "/api/device-tokens/:tokenId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "DeviceTokenNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "diagnosis",
+      "identifier": "getDiagnoses",
+      "method": "GET",
+      "path": "/api/plants/:plantId/diagnoses",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "health",
+      "identifier": "check",
+      "method": "GET",
+      "path": "/health",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "internal",
+      "identifier": "issueServiceToken",
+      "method": "POST",
+      "path": "/internal/service-token",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "internal",
+      "identifier": "sendMagicLink",
+      "method": "POST",
+      "path": "/internal/magic-link",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:AuthError",
+          "status": 400
+        },
+        {
+          "tag": "RateLimitExceededError",
+          "status": 429
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "knowledge",
+      "identifier": "queryKnowledge",
+      "method": "POST",
+      "path": "/api/knowledge/query",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "createIngestJob",
+      "method": "POST",
+      "path": "/api/knowledge/jobs",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "listIngestJobs",
+      "method": "GET",
+      "path": "/api/knowledge/jobs",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "getIngestJob",
+      "method": "GET",
+      "path": "/api/knowledge/jobs/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "IngestJobNotFoundError",
+          "status": 404
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "deleteIngestJob",
+      "method": "DELETE",
+      "path": "/api/knowledge/jobs/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "IngestJobNotFoundError",
+          "status": 404
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "getKnowledgeStats",
+      "method": "GET",
+      "path": "/api/knowledge/stats",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "knowledgeIngestion",
+      "identifier": "searchKnowledge",
+      "method": "POST",
+      "path": "/api/knowledge/search",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "EmbeddingError",
+          "status": 500
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "notifications",
+      "identifier": "getNotifications",
+      "method": "GET",
+      "path": "/api/notifications",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "notifications",
+      "identifier": "getUnreadCount",
+      "method": "GET",
+      "path": "/api/notifications/unread-count",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "notifications",
+      "identifier": "markAllRead",
+      "method": "PUT",
+      "path": "/api/notifications/read-all",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "notifications",
+      "identifier": "markNotificationRead",
+      "method": "PUT",
+      "path": "/api/notifications/:notificationId/read",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "NotificationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "notifications",
+      "identifier": "deleteNotification",
+      "method": "DELETE",
+      "path": "/api/notifications/:notificationId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "NotificationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plantCatalog",
+      "identifier": "getPlantCatalog",
+      "method": "GET",
+      "path": "/api/plant-catalog",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "getPlants",
+      "method": "GET",
+      "path": "/api/plants",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "createPlant",
+      "method": "POST",
+      "path": "/api/plants",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "scanCard",
+      "method": "POST",
+      "path": "/api/plants/scan-card",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "MultipleFilesError",
+          "status": 400
+        },
+        {
+          "tag": "NoFilesError",
+          "status": 400
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "OpenAIError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "scanCardMultiple",
+      "method": "POST",
+      "path": "/api/plants/scan-card-multiple",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "NoFilesError",
+          "status": 400
+        },
+        {
+          "tag": "TooManyFilesError",
+          "status": 400
+        },
+        {
+          "tag": "InvalidFileTypeError",
+          "status": 400
+        },
+        {
+          "tag": "FileTooLargeError",
+          "status": 400
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "OpenAIError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "detect",
+      "method": "POST",
+      "path": "/api/plants/detect",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "MultipleFilesError",
+          "status": 400
+        },
+        {
+          "tag": "NoFilesError",
+          "status": 400
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "OpenAIError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "aiIdentify",
+      "method": "POST",
+      "path": "/api/plants/ai-identify",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "MultipleFilesError",
+          "status": 400
+        },
+        {
+          "tag": "NoFilesError",
+          "status": 400
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "OpenAIError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "aiReIdentify",
+      "method": "POST",
+      "path": "/api/plants/ai-re-identify",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "OpenAIError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "careMultiplePlants",
+      "method": "POST",
+      "path": "/api/plants/care-multiple",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "getPlant",
+      "method": "GET",
+      "path": "/api/plants/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "updatePlant",
+      "method": "PUT",
+      "path": "/api/plants/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "deletePlant",
+      "method": "DELETE",
+      "path": "/api/plants/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "markPlantDead",
+      "method": "POST",
+      "path": "/api/plants/:id/death",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "PlantAlreadyDeadError",
+          "status": 409
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "revivePlant",
+      "method": "DELETE",
+      "path": "/api/plants/:id/death",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "LimitExceededError",
+          "status": 403
+        },
+        {
+          "tag": "PlantNotDeadError",
+          "status": 409
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "getPlantPhotos",
+      "method": "GET",
+      "path": "/api/plants/:id/photos",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "uploadPlantPhoto",
+      "method": "POST",
+      "path": "/api/plants/:id/photos",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "deletePlantPhoto",
+      "method": "DELETE",
+      "path": "/api/plants/:id/photos/:photoId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "carePlant",
+      "method": "POST",
+      "path": "/api/plants/:id/care",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "FutureDateNotAllowedError",
+          "status": 400
+        },
+        {
+          "tag": "AlreadyCaredTodayError",
+          "status": 409
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "correctCareDates",
+      "method": "PATCH",
+      "path": "/api/plants/:id/care-dates",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "FutureDateNotAllowedError",
+          "status": 400
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "plants",
+      "identifier": "sharePlant",
+      "method": "POST",
+      "path": "/api/plants/:id/share",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PlantNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "PlantNotAuthorizedError",
+          "status": 403
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "rooms",
+      "identifier": "getRooms",
+      "method": "GET",
+      "path": "/api/rooms",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "rooms",
+      "identifier": "createRoom",
+      "method": "POST",
+      "path": "/api/rooms",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "rooms",
+      "identifier": "updateRoom",
+      "method": "PUT",
+      "path": "/api/rooms/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "RoomNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "rooms",
+      "identifier": "deleteRoom",
+      "method": "DELETE",
+      "path": "/api/rooms/:id",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "RoomNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "followUser",
+      "method": "POST",
+      "path": "/api/social/follow/:userId",
+      "success": [
+        201
+      ],
+      "errors": [
+        {
+          "tag": "AlreadyFollowingError",
+          "status": 409
+        },
+        {
+          "tag": "CannotFollowSelfError",
+          "status": 400
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UserNotPublicError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "unfollowUser",
+      "method": "DELETE",
+      "path": "/api/social/follow/:userId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "NotFollowingError",
+          "status": 404
+        },
+        {
+          "tag": "CannotFollowSelfError",
+          "status": 400
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getFollowers",
+      "method": "GET",
+      "path": "/api/social/followers",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getFollowing",
+      "method": "GET",
+      "path": "/api/social/following",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getUserFollowers",
+      "method": "GET",
+      "path": "/api/social/users/:userId/followers",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UserNotPublicError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getUserFollowing",
+      "method": "GET",
+      "path": "/api/social/users/:userId/following",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UserNotPublicError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getPublicProfile",
+      "method": "GET",
+      "path": "/api/social/profile/:userId",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UserNotPublicError",
+          "status": 403
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "searchUsers",
+      "method": "GET",
+      "path": "/api/social/search",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "getSuggestedUsers",
+      "method": "GET",
+      "path": "/api/social/suggested",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "social",
+      "identifier": "sendNudge",
+      "method": "POST",
+      "path": "/api/social/nudge",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "NudgeNotAllowedError",
+          "status": 403
+        },
+        {
+          "tag": "NudgeRateLimitError",
+          "status": 429
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "subscriptions",
+      "identifier": "getCurrentSubscription",
+      "method": "GET",
+      "path": "/api/subscriptions/current",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "subscriptions",
+      "identifier": "getTiers",
+      "method": "GET",
+      "path": "/api/subscriptions/tiers",
+      "success": [
+        200
+      ],
+      "errors": [],
+      "middlewares": []
+    },
+    {
+      "group": "subscriptions",
+      "identifier": "redeemGiftCode",
+      "method": "POST",
+      "path": "/api/subscriptions/redeem-code",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "GiftCodeNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "GiftCodeInactiveError",
+          "status": 400
+        },
+        {
+          "tag": "GiftCodeExpiredError",
+          "status": 400
+        },
+        {
+          "tag": "GiftCodeExhaustedError",
+          "status": 400
+        },
+        {
+          "tag": "GiftCodeAlreadyRedeemedError",
+          "status": 409
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "subscription-webhooks",
+      "identifier": "handleRevenueCatWebhook",
+      "method": "POST",
+      "path": "/api/subscriptions/webhook/revenuecat",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "PaymentProviderError",
+          "status": 400
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "users",
+      "identifier": "getUserSettings",
+      "method": "GET",
+      "path": "/api/users/settings",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "users",
+      "identifier": "updateUserSettings",
+      "method": "PUT",
+      "path": "/api/users/settings",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "users",
+      "identifier": "uploadAvatar",
+      "method": "POST",
+      "path": "/api/users/avatar",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "MultipleFilesError",
+          "status": 400
+        },
+        {
+          "tag": "NoFilesError",
+          "status": 400
+        },
+        {
+          "tag": "GCSUploadError",
+          "status": 500
+        },
+        {
+          "tag": "GCSConfigError",
+          "status": 500
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "users",
+      "identifier": "deleteAccount",
+      "method": "DELETE",
+      "path": "/api/users/account",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "username",
+      "identifier": "checkUsername",
+      "method": "GET",
+      "path": "/api/username/check",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "inline:Schema.Struct({error:Schema.String})",
+          "status": 400
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "vacation",
+      "identifier": "getVacation",
+      "method": "GET",
+      "path": "/api/vacation",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "vacation",
+      "identifier": "setVacation",
+      "method": "PUT",
+      "path": "/api/vacation",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "VacationDateError",
+          "status": 400
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "vacation",
+      "identifier": "cancelVacation",
+      "method": "DELETE",
+      "path": "/api/vacation",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "VacationNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UserNotFoundError",
+          "status": 404
+        },
+        {
+          "tag": "UnauthorizedError",
+          "status": 401
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "weather",
+      "identifier": "getWeather",
+      "method": "GET",
+      "path": "/api/weather",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "WeatherNotAvailableError",
+          "status": 404
+        },
+        {
+          "tag": "WeatherFetchError",
+          "status": 502
+        }
+      ],
+      "middlewares": []
+    },
+    {
+      "group": "weather",
+      "identifier": "getCareAdjustments",
+      "method": "GET",
+      "path": "/api/weather/adjustments",
+      "success": [
+        200
+      ],
+      "errors": [
+        {
+          "tag": "WeatherNotAvailableError",
+          "status": 404
+        },
+        {
+          "tag": "WeatherFetchError",
+          "status": 502
+        }
+      ],
+      "middlewares": []
+    }
+  ]
+}
