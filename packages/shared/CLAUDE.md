@@ -21,18 +21,18 @@ Use Effect Schema for type definitions with runtime validation:
 
 ```typescript
 // schema.ts
-import { Schema } from 'effect'
+import { Schema, Struct } from 'effect'
 
 export class Plant extends Schema.Class<Plant>('Plant')({
   id: Schema.String,
   name: Schema.String,
   health: PlantHealthSchema,
   userId: Schema.String,
-  createdAt: Schema.Date,
+  createdAt: Schema.DateFromString,
 }) {}
 
-export const PlantCreateRequest = Plant.pipe(
-  Schema.omit('id', 'createdAt')
+export const PlantCreateRequest = Schema.Struct(Plant.fields).mapFields(
+  Struct.omit(['id', 'createdAt'])
 )
 ```
 

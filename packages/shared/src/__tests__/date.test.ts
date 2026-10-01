@@ -49,18 +49,18 @@ const createFixedDateTime = (
   year: number,
   month: number,
   day: number,
-  hours = 12,
-  minutes = 0,
-  seconds = 0
+  hour = 12,
+  minute = 0,
+  second = 0
 ): DateTime.DateTime =>
   DateTime.makeUnsafe({
     year,
     month,
     day,
-    hours,
-    minutes,
-    seconds,
-    millis: 0,
+    hour,
+    minute,
+    second,
+    millisecond: 0,
   })
 
 describe('Date Utilities', () => {

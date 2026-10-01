@@ -2,8 +2,10 @@ import { Storage } from '@google-cloud/storage'
 import {
   Array,
   Config,
+  Context,
   Duration,
   Effect,
+  Layer,
   Option,
   pipe,
   Redacted,
@@ -56,8 +58,8 @@ export type GCSUploadResponse = Schema.Schema.Type<
   typeof GCSUploadResponseSchema
 >
 
-export class GCSService extends Effect.Service<GCSService>()('GCSService', {
-  effect: Effect.gen(function* () {
+export class GCSService extends Context.Service<GCSService>()('GCSService', {
+  make: Effect.gen(function* () {
     // Get GCS configuration from environment variables
     const config = yield* Effect.gen(function* () {
       const projectIdRedacted = yield* Config.Redacted('GCP_PROJECT_ID')
@@ -301,4 +303,6 @@ export class GCSService extends Effect.Service<GCSService>()('GCSService', {
         }).pipe(Effect.withSpan('GCS.uploadPrivateFile')),
     }
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}

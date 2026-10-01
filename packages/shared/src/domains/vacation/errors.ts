@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
   'VacationDateError',
@@ -11,9 +11,14 @@ export class VacationDateError extends Schema.TaggedError<VacationDateError>()(
 export class VacationNotFoundError extends Schema.TaggedError<VacationNotFoundError>()(
   'VacationNotFoundError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'No vacation is scheduled or active',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('No vacation is scheduled or active')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('No vacation is scheduled or active')
+      )
+    ),
   },
   { httpApiStatus: 404 }
 ) {}

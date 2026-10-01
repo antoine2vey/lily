@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Schema } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Schema } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 
@@ -57,8 +57,8 @@ export const PersistedFileBuffer = Schema.Struct({
 })
 export type PersistedFileBuffer = Schema.Schema.Type<typeof PersistedFileBuffer>
 
-export class FileService extends Effect.Service<FileService>()('FileService', {
-  effect: Effect.gen(function* () {
+export class FileService extends Context.Service<FileService>()('FileService', {
+  make: Effect.gen(function* () {
     const fileSystem = yield* FileSystem
 
     return {
@@ -173,4 +173,6 @@ export class FileService extends Effect.Service<FileService>()('FileService', {
         }),
     }
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}

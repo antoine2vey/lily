@@ -137,10 +137,10 @@ export const startOfMonthAsDate = (): Date => {
       year: parts.year,
       month: parts.month,
       day: 1,
-      hours: 0,
-      minutes: 0,
-      seconds: 0,
-      millis: 0,
+      hour: 0,
+      minute: 0,
+      second: 0,
+      millisecond: 0,
     })
   )
 }
@@ -158,10 +158,10 @@ export const endOfMonthAsDate = (): Date => {
     year: parts.month === 12 ? parts.year + 1 : parts.year,
     month: parts.month === 12 ? 1 : parts.month + 1,
     day: 1,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    millis: 0,
+    hour: 0,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
   })
   const lastMoment = DateTime.subtract(nextMonth, { milliseconds: 1 })
   return DateTime.toDateUtc(lastMoment)

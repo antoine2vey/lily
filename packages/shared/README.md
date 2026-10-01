@@ -131,7 +131,7 @@ export class Plant extends Schema.Class<Plant>('Plant')({
   id: Schema.String,
   name: Schema.String,
   species: Schema.optional(Schema.String),
-  health: Schema.Literal('healthy', 'needs_attention', 'critical'),
+  health: Schema.Literals(['healthy', 'needs_attention', 'critical']),
 }) {}
 ```
 
@@ -221,12 +221,9 @@ export interface IAiService {
   ) => Effect.Effect<string, AiError>
 }
 
-// 2. Create Context.Tag
-export class AiService extends Context.Tag('AiService')<
-  AiService,
-  IAiService
->() {
-  static Default = Layer.effect(/* implementation */)
+// 2. Create Context.Service
+export class AiService extends Context.Service<AiService, IAiService>()('AiService') {
+  static readonly layer = Layer.effect(/* implementation */)
 }
 ```
 

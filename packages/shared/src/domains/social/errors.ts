@@ -1,9 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class UserNotPublicError extends Schema.TaggedError<UserNotPublicError>()(
   'UserNotPublicError',
   {
-    userId: Schema.optionalWith(Schema.String, { default: () => '' }),
+    userId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 403 }
 ) {}
@@ -33,9 +36,14 @@ export class CannotFollowSelfError extends Schema.TaggedError<CannotFollowSelfEr
 export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>()(
   'NudgeRateLimitError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'You can only nudge this user once per day',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('You can only nudge this user once per day')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('You can only nudge this user once per day')
+      )
+    ),
   },
   { httpApiStatus: 429 }
 ) {}
@@ -43,9 +51,14 @@ export class NudgeRateLimitError extends Schema.TaggedError<NudgeRateLimitError>
 export class NudgeNotAllowedError extends Schema.TaggedError<NudgeNotAllowedError>()(
   'NudgeNotAllowedError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'You can only nudge users you follow',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('You can only nudge users you follow')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('You can only nudge users you follow')
+      )
+    ),
   },
   { httpApiStatus: 403 }
 ) {}

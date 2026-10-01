@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { OrientationSchema } from '../common/orientation'
 
 export const Room = Schema.Struct({
@@ -25,10 +25,16 @@ export const RoomRef = Schema.Struct({
 
 export const RoomCreateRequest = Schema.Struct({
   name: Schema.String,
-  icon: Schema.optionalWith(Schema.String, { default: () => '🏠' }),
+  icon: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('🏠')),
+    Schema.withConstructorDefault(Effect.succeed('🏠'))
+  ),
   luminosity: Schema.optional(Schema.Number),
   orientation: Schema.optional(OrientationSchema),
-  isOutdoor: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  isOutdoor: Schema.Boolean.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(false)),
+    Schema.withConstructorDefault(Effect.succeed(false))
+  ),
 })
 
 export const RoomUpdateRequest = Schema.Struct({

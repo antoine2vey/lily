@@ -13,7 +13,7 @@ Service abstractions define interfaces for external integrations and cross-cutti
 | **Purpose** | Cross-cutting functionality | Entity schemas & validation |
 | **Location** | `shared/services/` (interface) + `api/services/` (impl) | `shared/domains/` |
 | **Examples** | AI, email, push, file storage | plant, user, subscription |
-| **Contains** | Interfaces, Context.Tags | Schemas, errors, types |
+| **Contains** | Interfaces, Context.Services | Schemas, errors, types |
 | **Implementation** | Multiple providers possible | Single schema definition |
 | **Used By** | Primarily API | API & App |
 
@@ -191,13 +191,10 @@ export interface IMyService {
   readonly myMethod: (param: string) => Effect.Effect<string, MyError>
 }
 
-// 2. Create Context.Tag
-export class MyService extends Context.Tag('MyService')<
-  MyService,
-  IMyService
->() {
-  // Optional: Default implementation
-  static Default = Layer.effect(
+// 2. Create Context.Service
+export class MyService extends Context.Service<MyService, IMyService>()('MyService') {
+  // Optional: default layer
+  static readonly layer = Layer.effect(
     MyService,
     Effect.gen(function* () {
       // Get config/dependencies
@@ -301,10 +298,7 @@ export interface IEventBus {
   readonly dequeue: () => Effect.Effect<AppEvent, never>
 }
 
-export class EventBus extends Context.Tag('EventBus')<
-  EventBus,
-  IEventBus
->() {}
+export class EventBus extends Context.Service<EventBus, IEventBus>()('EventBus') {}
 ```
 
 **Redis Implementation** (api/services/event-bus/redis.ts):
@@ -354,7 +348,7 @@ export const InMemoryEventBusLive = Layer.effect(
 
       dequeue: () =>
         Effect.sync(() =>
-          pipe(Option.fromNullable(queue.shift()), Option.getOrNull)
+          pipe(Option.fromNullishOr(queue.shift()), Option.getOrNull)
         ),
     }
   })
@@ -391,11 +385,8 @@ export interface IMyService {
   >
 }
 
-// Create Context.Tag
-export class MyService extends Context.Tag('MyService')<
-  MyService,
-  IMyService
->() {}
+// Create Context.Service
+export class MyService extends Context.Service<MyService, IMyService>()('MyService') {}
 ```
 
 ### Step 2: Export from shared/services/index.ts
@@ -489,7 +480,7 @@ export const createMockMyService = (options: {
     performAction: (input) =>
       Effect.succeed(
         pipe(
-          Option.fromNullable(options.performActionResult),
+          Option.fromNullishOr(options.performActionResult),
           Option.getOrElse(() => `Mock result for ${input}`)
         )
       ),
@@ -576,8 +567,8 @@ export interface IQueueService {
 // 1. Interface
 export interface IService { readonly method: () => Effect.Effect<T, E> }
 
-// 2. Context.Tag
-export class Service extends Context.Tag('Service')<Service, IService>() {}
+// 2. Context.Service
+export class Service extends Context.Service<Service, IService>()('Service') {}
 
 // 3. Implementation (in API)
 export const ServiceLive = Layer.effect(Service, Effect.gen(/* impl */))

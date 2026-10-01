@@ -1,4 +1,4 @@
-import { Array, DateTime, Effect, Option, Order, pipe } from 'effect'
+import { Array, DateTime, Effect, Filter, Option, Order, pipe } from 'effect'
 
 import { DndWindowBlockedError } from './errors'
 import { DEFAULT_TIMEZONE, isInDndWindow, timeToMinutes } from './timezone'
@@ -28,10 +28,13 @@ export const earliestOverdueDate = (
   now: Date
 ): Date =>
   pipe(
-    Array.filterMap(dates, (d) =>
-      pipe(
-        Option.fromNullishOr(d),
-        Option.filter((date) => date.getTime() <= now.getTime())
+    Array.filterMap(
+      dates,
+      Filter.fromPredicateOption((d: Date | null) =>
+        pipe(
+          Option.fromNullishOr(d),
+          Option.filter((date) => date.getTime() <= now.getTime())
+        )
       )
     ),
     Array.reduce(now, Order.min(Order.Date))

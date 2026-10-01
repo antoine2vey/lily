@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { CareType } from '../care/types'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
@@ -86,12 +86,14 @@ export const Plant = Schema.Struct({
   diedAt: Schema.NullOr(Schema.DateFromString),
   deathCause: Schema.NullOr(PlantDeathCause),
   deathNote: Schema.NullOr(Schema.String),
-  ownership: Schema.optionalWith(PlantOwnership, {
-    default: () => 'owned' as const,
-  }),
-  ownerName: Schema.optionalWith(Schema.NullOr(Schema.String), {
-    default: () => null,
-  }),
+  ownership: PlantOwnership.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('owned' as const)),
+    Schema.withConstructorDefault(Effect.succeed('owned' as const))
+  ),
+  ownerName: Schema.NullOr(Schema.String).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(null)),
+    Schema.withConstructorDefault(Effect.succeed(null))
+  ),
   schedules: Schema.Array(PlantCareSchedule),
 })
 

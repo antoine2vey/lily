@@ -1,11 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
   'UserNotFoundError',
   {
-    userId: Schema.optionalWith(Schema.String, {
-      default: () => '',
-    }),
+    userId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
@@ -13,9 +14,10 @@ export class UserNotFoundError extends Schema.TaggedError<UserNotFoundError>()(
 export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundError>()(
   'SessionNotFoundError',
   {
-    sessionId: Schema.optionalWith(Schema.String, {
-      default: () => '',
-    }),
+    sessionId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 401 }
 ) {}
@@ -23,9 +25,10 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
 export class UnauthorizedError extends Schema.TaggedError<UnauthorizedError>()(
   'UnauthorizedError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Unauthorized',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('Unauthorized')),
+      Schema.withConstructorDefault(Effect.succeed('Unauthorized'))
+    ),
   },
   { httpApiStatus: 401 }
 ) {}

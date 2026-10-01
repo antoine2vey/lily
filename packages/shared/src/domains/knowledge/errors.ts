@@ -1,9 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class IngestJobNotFoundError extends Schema.TaggedError<IngestJobNotFoundError>()(
   'IngestJobNotFoundError',
   {
-    jobId: Schema.optionalWith(Schema.String, { default: () => '' }),
+    jobId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
@@ -12,7 +15,10 @@ export class AdapterError extends Schema.TaggedError<AdapterError>()(
   'AdapterError',
   {
     message: Schema.String,
-    adapter: Schema.optionalWith(Schema.String, { default: () => '' }),
+    adapter: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 500 }
 ) {}

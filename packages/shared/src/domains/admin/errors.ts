@@ -1,11 +1,16 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
   'ForbiddenError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Access forbidden - admin role required',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('Access forbidden - admin role required')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('Access forbidden - admin role required')
+      )
+    ),
   },
   { httpApiStatus: 403 }
 ) {}
@@ -13,9 +18,14 @@ export class ForbiddenError extends Schema.TaggedError<ForbiddenError>()(
 export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfError>()(
   'CannotModifySelfError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Cannot modify your own role or status',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('Cannot modify your own role or status')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('Cannot modify your own role or status')
+      )
+    ),
   },
   { httpApiStatus: 400 }
 ) {}
@@ -23,9 +33,10 @@ export class CannotModifySelfError extends Schema.TaggedError<CannotModifySelfEr
 export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotFoundError>()(
   'ChatMessageNotFoundError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Chat message not found',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('Chat message not found')),
+      Schema.withConstructorDefault(Effect.succeed('Chat message not found'))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
@@ -36,10 +47,18 @@ export class ChatMessageNotFoundError extends Schema.TaggedError<ChatMessageNotF
 export class StorePayerProtectedError extends Schema.TaggedError<StorePayerProtectedError>()(
   'StorePayerProtectedError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () =>
-        'User has an active store-billed subscription; gifting or revoking would overwrite it',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed(
+          'User has an active store-billed subscription; gifting or revoking would overwrite it'
+        )
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed(
+          'User has an active store-billed subscription; gifting or revoking would overwrite it'
+        )
+      )
+    ),
   },
   { httpApiStatus: 409 }
 ) {}

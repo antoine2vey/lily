@@ -1,9 +1,15 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 // Base query params for all paginated endpoints (as strings for URL encoding)
 export const PaginationParams = Schema.Struct({
-  page: Schema.optionalWith(Schema.String, { default: () => '1' }),
-  limit: Schema.optionalWith(Schema.String, { default: () => '20' }),
+  page: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('1')),
+    Schema.withConstructorDefault(Effect.succeed('1'))
+  ),
+  limit: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('20')),
+    Schema.withConstructorDefault(Effect.succeed('20'))
+  ),
 })
 
 export type PaginationParams = typeof PaginationParams.Type

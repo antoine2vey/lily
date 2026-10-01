@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
 // Plant preview for public profile grid
@@ -56,8 +56,14 @@ export type NudgeResponse = typeof NudgeResponse.Type
 // Search query params
 export const UserSearchParams = Schema.Struct({
   query: Schema.String,
-  page: Schema.optionalWith(Schema.String, { default: () => '1' }),
-  limit: Schema.optionalWith(Schema.String, { default: () => '20' }),
+  page: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('1')),
+    Schema.withConstructorDefault(Effect.succeed('1'))
+  ),
+  limit: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('20')),
+    Schema.withConstructorDefault(Effect.succeed('20'))
+  ),
 })
 export type UserSearchParams = typeof UserSearchParams.Type
 

@@ -19,6 +19,35 @@ interface RetryState<T extends PlantAIResult> {
   readonly done: boolean
 }
 
+const nextRetryState = <T extends PlantAIResult>(
+  state: RetryState<T>,
+  result: T
+): RetryState<T> =>
+  pipe(
+    Match.value(isPlantResultSufficient(result)),
+    Match.when(true, () => ({
+      attempt: state.attempt + 1,
+      best: Option.some(result),
+      done: true,
+    })),
+    Match.orElse(() => ({
+      attempt: state.attempt + 1,
+      best: pipe(
+        state.best,
+        Option.match({
+          onNone: () => Option.some(result),
+          onSome: (prev) =>
+            pipe(
+              Match.value(result.confidence > prev.confidence),
+              Match.when(true, () => Option.some(result)),
+              Match.orElse(() => Option.some(prev))
+            ),
+        })
+      ),
+      done: false,
+    }))
+  )
+
 /**
  * Wrap an AI call effect with automatic quality retry.
  * Retries up to `maxAttempts` times when the result is missing
@@ -28,43 +57,14 @@ export const withQualityRetry = <T extends PlantAIResult, E>(
   call: Effect.Effect<T, E>,
   maxAttempts = 3
 ): Effect.Effect<T, E> =>
-  pipe(
-    Effect.iterate(
-      {
-        attempt: 0,
-        best: Option.none<T>(),
-        done: false,
-      } as RetryState<T>,
-      {
-        while: (state) => !state.done && state.attempt < maxAttempts,
-        body: (state) =>
-          Effect.map(call, (result) =>
-            pipe(
-              Match.value(isPlantResultSufficient(result)),
-              Match.when(true, () => ({
-                attempt: state.attempt + 1,
-                best: Option.some(result),
-                done: true,
-              })),
-              Match.orElse(() => ({
-                attempt: state.attempt + 1,
-                best: pipe(
-                  state.best,
-                  Option.match({
-                    onNone: () => Option.some(result),
-                    onSome: (prev) =>
-                      pipe(
-                        Match.value(result.confidence > prev.confidence),
-                        Match.when(true, () => Option.some(result)),
-                        Match.orElse(() => Option.some(prev))
-                      ),
-                  })
-                ),
-                done: false,
-              }))
-            )
-          ),
-      }
-    ),
-    Effect.map((state) => Option.getOrThrow(state.best))
-  )
+  Effect.gen(function* () {
+    let state: RetryState<T> = {
+      attempt: 0,
+      best: Option.none(),
+      done: false,
+    }
+    while (!state.done && state.attempt < maxAttempts) {
+      state = nextRetryState(state, yield* call)
+    }
+    return Option.getOrThrow(state.best)
+  })

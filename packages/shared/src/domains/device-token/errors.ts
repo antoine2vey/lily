@@ -1,11 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class DeviceTokenNotFoundError extends Schema.TaggedError<DeviceTokenNotFoundError>()(
   'DeviceTokenNotFoundError',
   {
-    token: Schema.optionalWith(Schema.String, {
-      default: () => '',
-    }),
+    token: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}

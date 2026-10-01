@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { PaginatedResponse } from '../common/pagination'
 
 export const IngestJobStatus = Schema.Literals([
@@ -25,19 +25,19 @@ export type ContentCategory = typeof ContentCategory.Type
 export const RedditAdapterConfig = Schema.Struct({
   type: Schema.Literal('reddit'),
   subreddits: Schema.Array(Schema.String),
-  sort: Schema.optionalWith(Schema.Literals(['hot', 'top', 'new']), {
-    default: () => 'top' as const,
-  }),
-  timeFilter: Schema.optionalWith(
-    Schema.Literals(['day', 'week', 'month', 'year', 'all']),
-    { default: () => 'year' as const }
+  sort: Schema.Literals(['hot', 'top', 'new']).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('top' as const)),
+    Schema.withConstructorDefault(Effect.succeed('top' as const))
   ),
-  limit: Schema.optionalWith(
-    Schema.Number.pipe(
-      Schema.check(Schema.isInt()),
-      Schema.check(Schema.isBetween({ minimum: 1, maximum: 1000 }))
-    ),
-    { default: () => 25 }
+  timeFilter: Schema.Literals(['day', 'week', 'month', 'year', 'all']).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed('year' as const)),
+    Schema.withConstructorDefault(Effect.succeed('year' as const))
+  ),
+  limit: Schema.Number.pipe(
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isBetween({ minimum: 1, maximum: 1000 })),
+    Schema.withDecodingDefaultType(Effect.succeed(25)),
+    Schema.withConstructorDefault(Effect.succeed(25))
   ),
 })
 
@@ -138,8 +138,14 @@ export type IngestJobListResponse = typeof IngestJobListResponse.Type
 export const KnowledgeSearchRequest = Schema.Struct({
   query: Schema.String,
   plantType: Schema.optional(Schema.String),
-  limit: Schema.optionalWith(Schema.Number, { default: () => 5 }),
-  minSimilarity: Schema.optionalWith(Schema.Number, { default: () => 0.3 }),
+  limit: Schema.Number.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(5)),
+    Schema.withConstructorDefault(Effect.succeed(5))
+  ),
+  minSimilarity: Schema.Number.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(0.3)),
+    Schema.withConstructorDefault(Effect.succeed(0.3))
+  ),
 })
 
 export type KnowledgeSearchRequest = typeof KnowledgeSearchRequest.Type

@@ -18,8 +18,8 @@ export const ORIENTATIONS = [
 
 export type Orientation = (typeof ORIENTATIONS)[number]
 
-/** Schema.Literal union — reuse in request/response schemas for free validation. */
-export const OrientationSchema = Schema.Literal(...ORIENTATIONS)
+/** Schema.Literals union — reuse in request/response schemas for free validation. */
+export const OrientationSchema = Schema.Literals(ORIENTATIONS)
 
 /** Display metadata (arrow icon + center bearing). Labels are i18n, not here. */
 export const ORIENTATION_INFO: Record<

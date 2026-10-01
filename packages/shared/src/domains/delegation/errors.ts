@@ -1,9 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFoundError>()(
   'DelegationNotFoundError',
   {
-    delegationId: Schema.optionalWith(Schema.String, { default: () => '' }),
+    delegationId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
@@ -11,9 +14,14 @@ export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFou
 export class DelegationNotAuthorizedError extends Schema.TaggedError<DelegationNotAuthorizedError>()(
   'DelegationNotAuthorizedError',
   {
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'You are not authorized to perform this action',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed('You are not authorized to perform this action')
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed('You are not authorized to perform this action')
+      )
+    ),
   },
   { httpApiStatus: 403 }
 ) {}
@@ -23,9 +31,18 @@ export class DelegationInvalidStatusError extends Schema.TaggedError<DelegationI
   {
     currentStatus: Schema.String,
     expectedStatus: Schema.String,
-    message: Schema.optionalWith(Schema.String, {
-      default: () => 'Delegation is not in the correct status for this action',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed(
+          'Delegation is not in the correct status for this action'
+        )
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed(
+          'Delegation is not in the correct status for this action'
+        )
+      )
+    ),
   },
   { httpApiStatus: 409 }
 ) {}
@@ -34,10 +51,18 @@ export class DelegationOverlapError extends Schema.TaggedError<DelegationOverlap
   'DelegationOverlapError',
   {
     plantIds: Schema.Array(Schema.String),
-    message: Schema.optionalWith(Schema.String, {
-      default: () =>
-        'Some plants already have an active or accepted delegation for this period',
-    }),
+    message: Schema.String.pipe(
+      Schema.withDecodingDefaultType(
+        Effect.succeed(
+          'Some plants already have an active or accepted delegation for this period'
+        )
+      ),
+      Schema.withConstructorDefault(
+        Effect.succeed(
+          'Some plants already have an active or accepted delegation for this period'
+        )
+      )
+    ),
   },
   { httpApiStatus: 409 }
 ) {}

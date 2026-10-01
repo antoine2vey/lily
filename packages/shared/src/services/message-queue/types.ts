@@ -30,9 +30,7 @@ export const NOTIFICATION_TOPICS = [
   'plant_anniversary',
 ] as const
 
-export const NotificationTopic = Schema.Union([
-  Array.map(NOTIFICATION_TOPICS, (t) => Schema.Literal(t)),
-])
+export const NotificationTopic = Schema.Literals(NOTIFICATION_TOPICS)
 export type NotificationTopic = (typeof NOTIFICATION_TOPICS)[number]
 
 // Topic categories — every NotificationTopic must be classified here.

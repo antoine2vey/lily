@@ -1,9 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundError>()(
   'CarePlanNotFoundError',
   {
-    planId: Schema.optionalWith(Schema.String, { default: () => '' }),
+    planId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
@@ -11,7 +14,10 @@ export class CarePlanNotFoundError extends Schema.TaggedError<CarePlanNotFoundEr
 export class CarePlanStepNotFoundError extends Schema.TaggedError<CarePlanStepNotFoundError>()(
   'CarePlanStepNotFoundError',
   {
-    stepId: Schema.optionalWith(Schema.String, { default: () => '' }),
+    stepId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}

@@ -1,11 +1,12 @@
-import { Data, Schema } from 'effect'
+import { Data, Effect, Schema } from 'effect'
 
 export class NotificationNotFoundError extends Schema.TaggedError<NotificationNotFoundError>()(
   'NotificationNotFoundError',
   {
-    notificationId: Schema.optionalWith(Schema.String, {
-      default: () => '',
-    }),
+    notificationId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}

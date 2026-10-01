@@ -1,4 +1,4 @@
-import { Effect, Exit, Schema } from 'effect'
+import { Cause, Effect, Exit, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_NOTIFICATION_TIME,
@@ -54,8 +54,7 @@ describe('Timezone Utilities', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result)) {
-        const error = result.cause
-        expect(error._tag).toBe('Fail')
+        expect(Cause.hasFails(result.cause)).toBe(true)
       }
     })
 
@@ -72,12 +71,10 @@ describe('Timezone Utilities', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result)) {
-        const cause = result.cause
-        if (cause._tag === 'Fail') {
-          const error = cause.error as InvalidTimezoneError
-          expect(error._tag).toBe('InvalidTimezoneError')
-          expect(error.timezone).toBe('NotReal/Zone')
-        }
+        const error = Option.getOrThrow(Cause.findErrorOption(result.cause))
+        expect(error).toBeInstanceOf(InvalidTimezoneError)
+        expect(error._tag).toBe('InvalidTimezoneError')
+        expect(error.timezone).toBe('NotReal/Zone')
       }
     })
   })
@@ -160,12 +157,10 @@ describe('Timezone Utilities', () => {
 
       expect(Exit.isFailure(result)).toBe(true)
       if (Exit.isFailure(result)) {
-        const cause = result.cause
-        if (cause._tag === 'Fail') {
-          const error = cause.error as InvalidTimeFormatError
-          expect(error._tag).toBe('InvalidTimeFormatError')
-          expect(error.time).toBe('invalid')
-        }
+        const error = Option.getOrThrow(Cause.findErrorOption(result.cause))
+        expect(error).toBeInstanceOf(InvalidTimeFormatError)
+        expect(error._tag).toBe('InvalidTimeFormatError')
+        expect(error.time).toBe('invalid')
       }
     })
   })

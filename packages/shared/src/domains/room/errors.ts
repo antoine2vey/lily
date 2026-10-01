@@ -1,11 +1,12 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 export class RoomNotFoundError extends Schema.TaggedError<RoomNotFoundError>()(
   'RoomNotFoundError',
   {
-    roomId: Schema.optionalWith(Schema.String, {
-      default: () => '',
-    }),
+    roomId: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed('')),
+      Schema.withConstructorDefault(Effect.succeed(''))
+    ),
   },
   { httpApiStatus: 404 }
 ) {}
