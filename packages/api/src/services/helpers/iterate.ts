@@ -1,8 +1,7 @@
 import { Effect } from 'effect'
 
 /**
- * Runs `body` while `while` holds, feeding each result into the next turn
- * (the v3 `Effect.iterate`, which v4 removed).
+ * Runs `body` while `while` holds, feeding each result into the next turn.
  */
 export const iterate = <S, E, R>(
   initial: S,

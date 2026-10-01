@@ -1,9 +1,6 @@
 import { type AppEvent, EventBus, type IEventBus } from '@lily/shared/server'
 import { Effect, Layer, Queue } from 'effect'
 
-// In-memory implementation of IEventBus for testing and local development.
-// Same fan-out shape as the Redis provider: every subscriber owns a queue and
-// every published event is offered to each of them.
 export const InMemoryEventBusLive = Layer.effect(
   EventBus,
   Effect.sync(() => {

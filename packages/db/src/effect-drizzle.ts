@@ -1,6 +1,4 @@
 /**
- * Effect v4 port of `@effect/sql-drizzle/Pg`, which has no v4 release.
- *
  * Drizzle queries become `Effect<A, SqlError>` and run through the ambient
  * `SqlClient`, so `SqlClient.withTransaction` covers them.
  */
@@ -74,7 +72,7 @@ const makeRemoteCallback = Effect.gen(function* () {
   const callback: RemoteCallback = (sql, params, method) => {
     const statement = client.unsafe(sql, params)
     const query = Match.type<Method>().pipe(
-      // rows = [QueryResult], as v3 returned it; unwrapPgRows relies on that.
+      // rows = [QueryResult]; unwrapPgRows relies on that.
       Match.when('execute', () =>
         Effect.map(statement.raw, (result) => ({ rows: [result] }))
       ),

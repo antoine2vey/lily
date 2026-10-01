@@ -333,7 +333,6 @@ describe('AuthContext', () => {
       })
 
       expect(storage.removeStoredAccessToken).toHaveBeenCalled()
-      // Auth failures already went through token refresh: never retried
       expect(apiEffectRunner).toHaveBeenCalledTimes(1)
     })
   })

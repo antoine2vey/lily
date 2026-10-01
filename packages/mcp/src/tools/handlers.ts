@@ -36,13 +36,8 @@ import {
 } from 'effect'
 import { McpSchema, McpServer, Tool } from 'effect/ai'
 
-/** Services the tool effects need, captured when the layer is built. */
 type ToolDeps = ApiClient | OAuthService | OAuthRepository
 
-/**
- * What a tool effect returns: markdown for the model in `text`, and for
- * widget tools the remaining fields as the widget's `structuredContent`.
- */
 type ToolOutput = { readonly text: string; readonly [key: string]: unknown }
 
 const widgetMetaOf = (tool: Tool.Any) =>
@@ -108,7 +103,7 @@ const errorResult = (error: unknown) =>
     content: [
       {
         type: 'text',
-        // v4 tagged errors without a message field have message ''.
+        // Tagged errors without a message field have message ''.
         text:
           Predicate.hasProperty(error, 'message') &&
           Predicate.isString(error.message) &&
@@ -119,11 +114,6 @@ const errorResult = (error: unknown) =>
     ],
   })
 
-/**
- * Registers every tool on the MCP server. Each call decodes the arguments,
- * resolves the caller from the bearer token, runs the tool effect, and maps
- * the outcome to a `CallToolResult`.
- */
 export const ToolsLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer

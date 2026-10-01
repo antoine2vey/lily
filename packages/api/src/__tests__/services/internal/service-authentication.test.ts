@@ -20,7 +20,6 @@ describe('ServiceAuthenticationLive', () => {
 
   const testLayer = Layer.provide(ServiceAuthenticationLive, configLayer)
 
-  // 204 only when the middleware provided a verified ServiceAuth.
   const handler = ServiceAuth.useSync((auth) =>
     HttpServerResponse.empty({ status: auth.verified ? 204 : 500 })
   )

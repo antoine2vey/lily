@@ -254,7 +254,6 @@ const RedisFullLive = Layer.mergeAll(
 // Repo-dependent infra: these need specific repositories to be available.
 // LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
 // UsageTrackerLive needs SubscriptionRepository.
-// RagService.layer needs ProcessedChunkRepository.
 const RepoDependentInfraLive = Layer.mergeAll(
   LimitCheckerLive,
   UsageTrackerLive,

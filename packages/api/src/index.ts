@@ -172,7 +172,6 @@ const ExtensionApiHandlers = Layer.mergeAll(
   VacationApiLive(Api)
 )
 
-// Register every API group with the router, plus /openapi.json and /docs
 const ApiRoutes = HttpApiBuilder.layer(Api, {
   openapiPath: '/openapi.json',
 }).pipe(Layer.provide(CoreApiHandlers), Layer.provide(ExtensionApiHandlers))
@@ -183,7 +182,6 @@ const AllRoutes = Layer.mergeAll(
   HttpRouter.cors({ maxAge: 86400 })
 )
 
-// Set up the server using BunHttpServer on port 3000.
 // ObservabilityMiddleware already logs every request, so the router's
 // built-in request logger is disabled to avoid a duplicate line.
 const ServerLive = HttpRouter.serve(AllRoutes, {

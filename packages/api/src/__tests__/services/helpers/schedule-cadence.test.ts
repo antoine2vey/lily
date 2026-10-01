@@ -25,9 +25,7 @@ import {
 import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
-// The retry and scheduler-loop timelines below were measured on the v3
-// originals (Schedule.compose / intersect / whileInput, effect 3.19.19) before
-// the v4 rewrite, so they pin the production cadence, not the v4 internals.
+// Timelines pin the production retry and scheduler cadence.
 
 const runTestClock = <A>(effect: Effect.Effect<A, never, Scope.Scope>) =>
   effect.pipe(

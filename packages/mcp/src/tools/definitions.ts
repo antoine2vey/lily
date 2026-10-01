@@ -3,13 +3,6 @@ import { PlantFilter } from '@lily/shared'
 import { Schema } from 'effect'
 import { Tool } from 'effect/ai'
 
-/**
- * Tool definitions for the MCP server, registered in `tools/handlers.ts`.
- *
- * Widget tools carry a `Tool.Meta` annotation naming their HTML template;
- * it is emitted as `_meta` on the tool in `tools/list` and on each result.
- */
-
 export const ListPlants = Tool.make('list_plants', {
   description:
     'Lists your living plants with their health status, room, and care info. Use filter "dead" to list the cemetery (plants that died, with date and cause).',

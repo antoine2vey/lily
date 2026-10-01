@@ -1,4 +1,3 @@
-/** HTML widget template resource URIs, registered in `widgets/resources.ts`. */
 export const WidgetUri = {
   plantList: 'ui://widget/plant-list',
   plantDetails: 'ui://widget/plant-details',
