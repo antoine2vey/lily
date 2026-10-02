@@ -1,4 +1,4 @@
-import { DateTime } from 'effect'
+import { DateTime, Option, pipe } from 'effect'
 
 /** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
@@ -128,6 +128,44 @@ export const localDayKey = (
   const parts = DateTime.toParts(withTimeZone(dateTime, timezone))
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`
 }
+
+/**
+ * The instant of local midnight that starts the calendar day `dayKey`
+ * (YYYY-MM-DD) in `timezone`, shifted by `daysLater` calendar days. Inverse of
+ * `localDayKey`: `localDayKey(startOfLocalDay(k, tz), tz) === k`.
+ *
+ * DST-safe: the day is shifted as calendar parts, not as 24h of elapsed time,
+ * so a 23h or 25h day still lands on the next local midnight.
+ *
+ * @param dayKey - Date key in YYYY-MM-DD form
+ * @param timezone - IANA timezone string
+ * @param daysLater - Calendar days to add to `dayKey` (default 0)
+ * @returns None when `dayKey` is not a real calendar date or `timezone` is unknown
+ */
+export const startOfLocalDay = (
+  dayKey: string,
+  timezone: string,
+  daysLater = 0
+): Option.Option<DateTime.Zoned> =>
+  pipe(
+    DateTime.make(`${dayKey}T00:00:00.000Z`),
+    Option.filter((utc) => localDayKey(utc, 'UTC') === dayKey),
+    Option.flatMap((utc) => {
+      const parts = DateTime.toParts(utc)
+      return DateTime.makeZoned(
+        {
+          year: parts.year,
+          month: parts.month,
+          day: parts.day + daysLater,
+          hour: 0,
+          minute: 0,
+          second: 0,
+          millisecond: 0,
+        },
+        { timeZone: timezone, adjustForTimeZone: true }
+      )
+    })
+  )
 
 /**
  * Get start of today as Date in a specific timezone.
