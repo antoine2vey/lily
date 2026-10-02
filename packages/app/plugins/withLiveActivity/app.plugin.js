@@ -11,6 +11,7 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
+const plist = require('@expo/plist').default
 const {
   withDangerousMod,
   withInfoPlist,
@@ -38,6 +39,57 @@ const FRAMEWORKS = [
   'WidgetKit.framework',
   'ActivityKit.framework',
 ]
+
+const WIDGET_CHANNEL_KEY = 'LilyWidgetChannel'
+const WIDGET_CHANNEL = {
+  snapshotFile: 'today-widget.json',
+  todayKind: 'LilyTodayWidget',
+}
+const APP_GROUPS_KEY = 'com.apple.security.application-groups'
+
+const resolveAppGroup = (config) => {
+  const hostGroups = config.ios?.entitlements?.[APP_GROUPS_KEY]
+  const extension = (
+    config.extra?.eas?.build?.experimental?.ios?.appExtensions ?? []
+  ).find((ext) => ext?.targetName === WIDGET_TARGET_NAME)
+  const extensionGroups = extension?.entitlements?.[APP_GROUPS_KEY]
+
+  const single = (groups) =>
+    Array.isArray(groups) &&
+    groups.length === 1 &&
+    typeof groups[0] === 'string'
+      ? groups[0]
+      : null
+  const host = single(hostGroups)
+  const ext = single(extensionGroups)
+  if (host === null || ext === null || host !== ext) {
+    throw new Error(
+      `[withLiveActivity] The Today widget needs one App Group shared by the app and ${WIDGET_TARGET_NAME}. ` +
+        `Declare the same single group in app.json at both:\n` +
+        `  expo.ios.entitlements["${APP_GROUPS_KEY}"] (found ${JSON.stringify(hostGroups)})\n` +
+        `  expo.extra.eas.build.experimental.ios.appExtensions[targetName="${WIDGET_TARGET_NAME}"].entitlements["${APP_GROUPS_KEY}"] (found ${JSON.stringify(extensionGroups)})\n` +
+        'EAS enables the capability only on App IDs whose entitlements it reads; a group missing on either side fails codesigning.'
+    )
+  }
+  return host
+}
+
+const widgetChannel = (appGroup) => ({ appGroup, ...WIDGET_CHANNEL })
+
+const mergePlistFile = (file, patch) => {
+  const current = plist.parse(fs.readFileSync(file, 'utf8'))
+  fs.writeFileSync(file, plist.build({ ...current, ...patch }))
+}
+
+const patchExtensionPlists = (projectRoot, appGroup) => {
+  const dir = path.join(projectRoot, 'ios', WIDGET_TARGET_NAME)
+  mergePlistFile(path.join(dir, `${WIDGET_TARGET_NAME}.entitlements`), {
+    [APP_GROUPS_KEY]: [appGroup],
+  })
+  mergePlistFile(path.join(dir, 'Info.plist'), {
+    [WIDGET_CHANNEL_KEY]: widgetChannel(appGroup),
+  })
+}
 
 /** Recursively copy `src` → `dst`, mirroring directory structure. */
 const copyRecursive = (src, dst) => {
@@ -153,9 +205,10 @@ const addAssetCatalogResource = ({
   }
 }
 
-/** @type {import('@expo/config-plugins').ConfigPlugin} */
-const withLiveActivityInfoPlist = (config) =>
+/** @type {import('@expo/config-plugins').ConfigPlugin<string>} */
+const withLiveActivityInfoPlist = (config, appGroup) =>
   withInfoPlist(config, (cfg) => {
+    cfg.modResults[WIDGET_CHANNEL_KEY] = widgetChannel(appGroup)
     cfg.modResults.NSSupportsLiveActivities = true
     cfg.modResults.NSSupportsLiveActivitiesFrequentUpdates = true
     // Required for push-to-start: iOS only wakes the app to dispatch a
@@ -196,11 +249,12 @@ const applyVersionSettings = (project, cfg) => {
   }
 }
 
-/** @type {import('@expo/config-plugins').ConfigPlugin} */
-const withWidgetExtensionTarget = (config) =>
+/** @type {import('@expo/config-plugins').ConfigPlugin<string>} */
+const withWidgetExtensionTarget = (config, appGroup) =>
   withXcodeProject(config, (cfg) => {
     const project = cfg.modResults
     syncWidgetSources(cfg.modRequest.projectRoot)
+    patchExtensionPlists(cfg.modRequest.projectRoot, appGroup)
 
     // Idempotency: skip target creation if already there, but always re-sync
     // the widget version so app.json bumps flow through without --clean.
@@ -431,9 +485,14 @@ const withPodfileBundleSigningFix = (config) =>
   ])
 
 /** @type {import('@expo/config-plugins').ConfigPlugin} */
-const withLiveActivity = (config) =>
-  withPodfileBundleSigningFix(
-    withWidgetExtensionTarget(withLiveActivityInfoPlist(config))
+const withLiveActivity = (config) => {
+  const appGroup = resolveAppGroup(config)
+  return withPodfileBundleSigningFix(
+    withWidgetExtensionTarget(
+      withLiveActivityInfoPlist(config, appGroup),
+      appGroup
+    )
   )
+}
 
 module.exports = withLiveActivity

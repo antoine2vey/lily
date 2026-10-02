@@ -96,6 +96,7 @@
   },
   "devDependencies": {
     "@expo/config-plugins": "~54.0.4",
+    "@expo/plist": "^0.4.8",
     "@sentry/cli": "3.2.2",
     "@babel/core": "^7.25.2",
     "@babel/plugin-transform-react-jsx": "^7.28.6",

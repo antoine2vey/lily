@@ -8,4 +8,7 @@ module.exports = {
     'ios/**',
     'android/**',
   ],
+  extraSources: [
+    { type: 'dir', filePath: 'templates', reasons: ['widgetTemplates'] },
+  ],
 }

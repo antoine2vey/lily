@@ -29,7 +29,8 @@
       "usesAppleSignIn": true,
       "usesIAP": true,
       "entitlements": {
-        "com.apple.developer.usernotifications.time-sensitive": true
+        "com.apple.developer.usernotifications.time-sensitive": true,
+        "com.apple.security.application-groups": ["group.com.lilyapp.app"]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -137,7 +138,12 @@
               "appExtensions": [
                 {
                   "targetName": "LilyWidgetsExtension",
-                  "bundleIdentifier": "com.lilyapp.app.LilyWidgets"
+                  "bundleIdentifier": "com.lilyapp.app.LilyWidgets",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.lilyapp.app"
+                    ]
+                  }
                 }
               ]
             }
