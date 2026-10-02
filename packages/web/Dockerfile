@@ -3,7 +3,6 @@ FROM oven/bun:1.3.8-debian AS builder
 WORKDIR /app
 
 COPY package.json bun.lock ./
-COPY patches ./patches
 COPY packages/admin/package.json ./packages/admin/
 COPY packages/api/package.json ./packages/api/
 COPY packages/app/package.json ./packages/app/
