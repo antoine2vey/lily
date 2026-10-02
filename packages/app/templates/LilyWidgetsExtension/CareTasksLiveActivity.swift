@@ -43,9 +43,7 @@ struct CareTasksLockScreenView: View {
   let state: CareTasksAttributes.ContentState
 
   private var ratio: Double {
-    let total = state.completedToday + state.totalPlants
-    guard total > 0 else { return 0 }
-    return min(1, max(0, Double(state.completedToday) / Double(total)))
+    careProgress(completed: state.completedToday, pending: state.totalPlants)
   }
 
   var body: some View {
@@ -179,9 +177,7 @@ struct DIExpandedBottom: View {
   let state: CareTasksAttributes.ContentState
 
   private var ratio: Double {
-    let total = state.completedToday + state.totalPlants
-    guard total > 0 else { return 0 }
-    return min(1, max(0, Double(state.completedToday) / Double(total)))
+    careProgress(completed: state.completedToday, pending: state.totalPlants)
   }
 
   var body: some View {
@@ -216,6 +212,7 @@ struct DIExpandedBottom: View {
 @available(iOS 16.2, *)
 struct ProgressBar: View {
   let ratio: Double
+  var height: CGFloat = 12
 
   var body: some View {
     GeometryReader { geo in
@@ -244,7 +241,7 @@ struct ProgressBar: View {
           .frame(width: max(0, geo.size.width * ratio))
       }
     }
-    .frame(height: 12)
+    .frame(height: height)
   }
 }
 
@@ -273,34 +270,3 @@ struct Stripes: Shape {
     return p.strokedPath(StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
   }
 }
-
-// MARK: - CareType → presentation helpers
-//
-// Strings here mirror the CareType union in
-// `packages/shared/src/domains/care/types.ts`. Update both sides together.
-
-@available(iOS 16.2, *)
-private func careEmoji(_ careType: String) -> String {
-  switch careType {
-  case "watering": return "💧"
-  case "fertilization": return "🌿"
-  // 💦 (splash / fine droplets) reads as "mist" better than a single
-  // droplet; ☁️ was too ambiguous (weather vs care action).
-  case "misting": return "💦"
-  // 🪴 "potted plant" — literal match for repotting.
-  case "repotting": return "🪴"
-  default: return "🌱"
-  }
-}
-
-@available(iOS 16.2, *)
-private func careTint(_ careType: String) -> Color {
-  switch careType {
-  case "watering": return Color(red: 0.30, green: 0.55, blue: 0.85)
-  case "fertilization": return Color(red: 0.36, green: 0.55, blue: 0.36)
-  case "misting": return Color(red: 0.45, green: 0.65, blue: 0.85)
-  case "repotting": return Color(red: 0.65, green: 0.45, blue: 0.30)
-  default: return .gray
-  }
-}
-

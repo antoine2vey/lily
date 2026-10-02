@@ -24,6 +24,10 @@ const SWIFT_SOURCES = [
   'LilyWidgetsBundle.swift',
   'CareTasksAttributes.swift',
   'CareTasksLiveActivity.swift',
+  'CareStyle.swift',
+  'TodayWidgetSnapshot.swift',
+  'TodayWidget.swift',
+  'TodayWidgetViews.swift',
 ]
 // Bundled into the widget extension's Resources build phase. The asset
 // catalog ships the app icon used by the live activity lock-screen view —
