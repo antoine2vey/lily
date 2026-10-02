@@ -163,4 +163,19 @@ export default {
       subtitle: 'Great job staying on top of plant care!',
     },
   },
+  widget: {
+    title: 'Today',
+    needsCare:
+      '{count, plural, one {# plant needs care} other {# plants need care}}',
+    needsCareCaption:
+      '{count, plural, one {plant needs care} other {plants need care}}',
+    morePlants: '{count, plural, one {+# plant} other {+# plants}}',
+    allDone: 'All done for today',
+    nextCareIn:
+      '{count, plural, =1 {Next care tomorrow} other {Next care in # days}}',
+    nothingDue: 'Nothing due today',
+    daysLate: '{count, plural, one {# day late} other {# days late}}',
+    stale: 'Open Lily to refresh',
+    signedOut: "Sign in to see today's care",
+  },
 } as const

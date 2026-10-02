@@ -1,0 +1,57 @@
+{
+  "_tag": "Ready",
+  "v": 1,
+  "title": "Today",
+  "days": [
+    {
+      "startsAt": 1774479600000,
+      "status": "due",
+      "plantCount": 2,
+      "overdueCount": 1,
+      "completedCount": 1,
+      "headline": "2 plants need care",
+      "caption": "plants need care",
+      "rows": [
+        {
+          "plantId": "plant-monstera",
+          "plantName": "Monstera",
+          "careTypes": ["watering", "misting"],
+          "detail": "Water · Mist",
+          "lateLabel": "2 days late"
+        },
+        {
+          "plantId": "plant-fern",
+          "plantName": "Boston Fern",
+          "careTypes": ["fertilization"],
+          "detail": "Fertilize",
+          "lateLabel": null
+        }
+      ],
+      "moreLabels": ["+1 plant", null]
+    },
+    {
+      "startsAt": 1774566000000,
+      "status": "allDone",
+      "plantCount": 0,
+      "overdueCount": 0,
+      "completedCount": 3,
+      "headline": "All done for today",
+      "caption": "All done for today",
+      "rows": [],
+      "moreLabels": []
+    },
+    {
+      "startsAt": 1774652400000,
+      "status": "clear",
+      "plantCount": 0,
+      "overdueCount": 0,
+      "completedCount": 0,
+      "headline": "Next care tomorrow",
+      "caption": "Next care tomorrow",
+      "rows": [],
+      "moreLabels": []
+    }
+  ],
+  "staleAt": 1774738800000,
+  "staleMessage": "Open Lily to refresh"
+}

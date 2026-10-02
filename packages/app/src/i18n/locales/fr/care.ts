@@ -164,4 +164,20 @@ export default {
       subtitle: 'Bravo pour votre régularité !',
     },
   },
+  widget: {
+    title: "Aujourd'hui",
+    needsCare:
+      '{count, plural, one {# plante à soigner} other {# plantes à soigner}}',
+    needsCareCaption:
+      '{count, plural, one {plante à soigner} other {plantes à soigner}}',
+    morePlants: '{count, plural, one {+# plante} other {+# plantes}}',
+    allDone: "Tout est fait pour aujourd'hui",
+    nextCareIn:
+      '{count, plural, =1 {Prochain soin demain} other {Prochain soin dans # jours}}',
+    nothingDue: "Rien de prévu aujourd'hui",
+    daysLate:
+      '{count, plural, one {# jour de retard} other {# jours de retard}}',
+    stale: 'Ouvrez Lily pour actualiser',
+    signedOut: 'Connectez-vous pour voir vos soins du jour',
+  },
 } as const
