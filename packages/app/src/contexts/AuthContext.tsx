@@ -107,7 +107,7 @@ async function unregisterDeviceFromPush(): Promise<void> {
 }
 
 // Auth state discriminated union
-type AuthState =
+export type AuthState =
   | { _tag: 'Loading' }
   | { _tag: 'Authenticated'; user: UserProfile; accessToken: string }
   | { _tag: 'Unauthenticated' }

@@ -39,6 +39,7 @@ import { useOTAUpdates } from '@/hooks/useOTAUpdates'
 import '@/i18n'
 import * as RevenueCatService from '@/services/revenuecat'
 import { setupNotificationListeners } from '@/utils/notifications'
+import { TodayWidgetSync } from '@/widgets/today/TodayWidgetSync'
 
 // RevenueCat service is now initialized lazily in RevenueCatProvider
 
@@ -159,6 +160,7 @@ export default Sentry.wrap(function RootLayout() {
               <RevenueCatProvider>
                 <ThemedStatusBar />
                 <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
+                <TodayWidgetSync />
                 <Toaster />
               </RevenueCatProvider>
             </AuthProvider>
