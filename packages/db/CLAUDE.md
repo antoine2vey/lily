@@ -1,7 +1,5 @@
 # DB Package Architecture
 
-> Coding standards (Effect-first, imports, services, errors) are in the root `CODING_STANDARDS.md`.
-
 ## Schema Location
 
 All database schemas are in `src/schema/`:
