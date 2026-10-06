@@ -1,16 +1,6 @@
 # Lily - Coding Rules
 
-Plant care app. TypeScript monorepo (Bun 1.3.8, Effect 4.0.0):
-
-- **api** — Backend API server (`effect/http-api`, `@effect/platform-bun`)
-- **db** — Drizzle ORM schema and migrations (PostgreSQL)
-- **shared** — Shared types, schemas, and utilities
-- **app** — React Native mobile app (Expo 54, React Native 0.81)
-- **web** — Marketing site (Next.js 16, static export, i18n en/fr)
-- **admin** — Admin dashboard (Vite + React 19)
-- **mcp** — Model Context Protocol server (`effect/ai` McpServer)
-- **knowledge-db** — Pgvector knowledge base for RAG
-- **plant-scanner** — iOS-only Expo native AR/ML scanning module
+Plant care app. TypeScript monorepo (Bun 1.3.8, Effect 4.0.0).
 
 ## Imports
 
@@ -42,38 +32,20 @@ Shared date utilities available in `@lily/shared`: `parseApiDate`, `now`, `nowAs
 3. All deps provided via `AppLive` at root — no per-handler `Layer.provide`
 4. Typed errors via `Schema.TaggedError`, propagated through Effect system
 5. Services are `class X extends Context.Service<X, Shape>()('id') {}` with a `static readonly layer`; no `Context.Tag` or `Effect.Service`
-
-## Monorepo Discipline
-
-- **tsconfig extends**: every package's `tsconfig.json` MUST `extends: "../../tsconfig.json"`. Exception: a package whose build tool needs a different base (today only the Expo app, on `expo/tsconfig.base`) explicitly mirrors the root's strict-plus flags.
-- **package.json `sideEffects`**: every package MUST declare `sideEffects` (either `false` or a precise glob list). Pure libraries are `false`; apps with CSS imports list them.
-- **TypeScript version**: every package's `typescript` devDependency MUST match the root version exactly.
-- **`@ts-expect-error` over `@ts-ignore`**: suppress a type error with `@ts-expect-error` plus a one-line rationale.
-- **CI gate**: CI and the `.husky/pre-push` hook both run lint, `tsc` and tests; a failure blocks the push. Emergency bypass: `HUSKY=0 git push`.
-- **Root composite build**: `bun run tsc:build` exercises the project-reference graph end-to-end. Run it locally before large refactors.
+6. Suppress a type error with `@ts-expect-error` (over `@ts-ignore`) plus a one-line rationale
 
 ## Commands
 
 **Always run commands from the monorepo root** as `bun run <script>`. Never `cd` into a package directory.
 
-## Effect Docs
+## Situational docs
 
-The repo is on Effect 4. Most online docs, the Effect docs MCP server and `effect-solutions` describe Effect 3 (`Context.Tag`, `@effect/platform`), so check anything from them against v4 before using it.
-
-- `node_modules/.bun/effect@4.0.0/node_modules/effect/AGENTS.md` and its `ai-docs/` are the v4 guides shipped with the package
-- The `effect` package source (`.../effect/src`) is the reference for module APIs, including `http`, `http-api`, `sql`, `ai` and `observability`
-- The Effect language service reports leftover v3 APIs as `effect(outdatedApi)` in `bun run tsc`
+- **Packages**: locating which package owns a feature, or working in a package with no `CLAUDE.md` of its own: read `packages/README.md`, then that package's README.
+- **Monorepo discipline**: adding a package, editing a package's `package.json` or `tsconfig.json`, a push blocked by the pre-push hook, or before a large cross-package refactor: read `docs/agents/monorepo.md`.
+- **Effect lookups**: most online docs, the Effect docs MCP server and `effect-solutions` describe Effect 3. Looking up an Effect API, or `bun run tsc` reporting `effect(outdatedApi)`: read `docs/agents/effect-docs.md` for the v4 sources.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues live in GitHub Issues for `antoine2vey/lily`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Five canonical triage roles, default names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Multi-context monorepo: a root `CONTEXT-MAP.md` indexes per-package `CONTEXT.md` glossaries, created lazily (none exist yet). See `docs/agents/domain.md`.
+- **Issue tracker**: publishing, fetching or editing issues: read `docs/agents/issue-tracker.md`.
+- **Triage labels**: applying a triage role to an issue: read `docs/agents/triage-labels.md`.
+- **Domain docs**: naming a domain concept, or exploring an area that may have a glossary or ADRs: read `docs/agents/domain.md`.
