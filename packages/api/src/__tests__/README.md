@@ -615,7 +615,7 @@ it('debug test', async () => {
 ## Related Documentation
 
 - [API Package README](../../README.md) - API architecture
-- [CLAUDE.md](../../../../CLAUDE.md) - Testing guidelines
+- [API CLAUDE.md](../../CLAUDE.md) - Testing guidelines
 - [Service Guide](../services/README.md) - Service architecture
 - [Vitest Documentation](https://vitest.dev) - Test framework docs
 - [Effect.js Testing](https://effect.website/docs/testing) - Effect testing patterns

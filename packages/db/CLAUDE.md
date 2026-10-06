@@ -1,8 +1,6 @@
 # DB Package Architecture
 
-This document describes the architecture and patterns specific to the database package.
-
-> **Global rules** (Effect patterns, code conventions) are in the root `/CLAUDE.md`
+> Coding standards (Effect-first, imports, services, errors) are in the root `CODING_STANDARDS.md`.
 
 ## Schema Location
 

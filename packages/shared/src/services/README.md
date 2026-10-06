@@ -555,7 +555,7 @@ export interface IQueueService {
 ## Related Documentation
 
 - [Shared Package README](../../README.md) - Package overview
-- [CLAUDE.md](../../../../CLAUDE.md) - Service patterns
+- [CODING_STANDARDS.md](../../../../CODING_STANDARDS.md) - Effect-first coding standards
 - [Domains README](../domains/README.md) - Service vs Domain distinction
 - [API Services](../../../api/src/services/README.md) - Service implementations
 - [Effect.js Context](https://effect.website/docs/context-management) - Dependency injection

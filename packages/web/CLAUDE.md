@@ -2,7 +2,7 @@
 
 Marketing/landing site for the Lily plant care app. **Next.js 16 static export** (no server runtime), deployed as a CDN-hosted site.
 
-> **See also:** Root `CLAUDE.md` for monorepo-wide rules (Effect.js, formatting, imports).
+> Coding standards (Effect-first, imports, services, errors) are in the root `CODING_STANDARDS.md`.
 
 ---
 
@@ -20,7 +20,7 @@ Marketing/landing site for the Lily plant care app. **Next.js 16 static export**
 
 ## Effect.js in this package
 
-Follow root `CLAUDE.md` Effect rules. Web-specific note: since this is a static build (no Effect runtime), use Effect utilities **for pure data transformations only** — array ops, Option handling, pattern matching, date parsing. Never use `Effect.runSync` or `Effect.runPromise` at runtime in components.
+Since this is a static build (no Effect runtime), use Effect utilities **for pure data transformations only** — array ops, Option handling, pattern matching, date parsing. Never use `Effect.runSync` or `Effect.runPromise` at runtime in components.
 
 ---
 
