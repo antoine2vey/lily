@@ -60,7 +60,7 @@ bun run --filter=@lily/db db:studio                 # Drizzle Studio
 
 ## Coding conventions
 
-This is an **Effect-first** codebase. Before writing code, read [`CLAUDE.md`](CLAUDE.md) — it's the authoritative guide. The essentials:
+This is an **Effect-first** codebase. Before writing code, read [`CODING_STANDARDS.md`](CODING_STANDARDS.md) — it's the authoritative guide. The essentials:
 
 - Use Effect modules everywhere; native JS equivalents (`arr.map`, `Object.keys`, `switch`, `??`, `new Date()`) are forbidden.
 - Typed errors via `Schema.TaggedError`, handled by tag — never `catchAll`. Union types use `Match.exhaustive`.

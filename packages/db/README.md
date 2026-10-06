@@ -382,7 +382,7 @@ plantId: uuid('plant_id').references(() => plants.id), // Can be null
 ## Related Documentation
 
 - [Root README](../../README.md) - Project overview
-- [CLAUDE.md](../../CLAUDE.md) - Repository pattern usage
+- [CODING_STANDARDS.md](../../CODING_STANDARDS.md) - Effect-first coding standards
 - [API Package](../api/README.md) - How repositories use this schema
 - [Schema Guide](./src/schema/README.md) - Detailed schema patterns
 - [Drizzle ORM Docs](https://orm.drizzle.team) - Official Drizzle documentation

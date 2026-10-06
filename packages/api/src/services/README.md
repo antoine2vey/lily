@@ -560,7 +560,7 @@ export const uploadPhoto = (file: PersistedFile) =>
 ## Related Documentation
 
 - [API Package README](../../README.md) - API architecture overview
-- [CLAUDE.md](../../../../CLAUDE.md) - Effect.js patterns & code conventions
+- [CODING_STANDARDS.md](../../../../CODING_STANDARDS.md) - Effect-first coding standards
 - [Testing Guide](../__tests__/README.md) - Testing patterns
 - [Repository Guide](../repositories/README.md) - Repository pattern
 - [Shared Package](../../../shared/README.md) - Schemas and types

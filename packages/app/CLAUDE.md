@@ -1,9 +1,5 @@
 # App Package Architecture
 
-This document describes the architecture and patterns specific to the React Native mobile app.
-
-> **Global rules** (Effect patterns, code conventions) are in the root `/CLAUDE.md`
-
 ---
 
 ## Critical Styling Rules
@@ -138,7 +134,7 @@ Use Tailwind spacing classes (based on 4px increments):
 
 ## Component Variant Pattern
 
-When creating components with variants, use Effect's `Match` module for exhaustive variant handling. Return className strings, not style objects.
+Map each variant to a className string, not a style object:
 
 ```tsx
 import { Match, pipe } from 'effect'
@@ -219,8 +215,8 @@ const styles = StyleSheet.create({
 
 ```tsx
 import Animated, { FadeIn } from 'react-native-reanimated'
-import { SkeletonBox, SkeletonCircle } from 'src/components/skeletons'
-import { useDelayedLoading } from 'src/hooks/useDelayedLoading'
+import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 
 // 1. Distinguish initial load from refetch
 const isInitialLoading = isLoading && !data
@@ -251,7 +247,7 @@ const showSkeleton = useDelayedLoading(isInitialLoading)
 
 - `SkeletonBox` — rectangular placeholder (`width`, `height`, `rounded`)
 - `SkeletonCircle` — circular placeholder (`size`)
-- Both are theme-aware (light/dark shimmer colors) via `src/components/skeletons`
+- Both are theme-aware (light/dark shimmer colors) via `@/components/skeletons`
 
 ```tsx
 // Example: card skeleton matching real card layout

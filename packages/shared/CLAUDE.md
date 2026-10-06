@@ -1,9 +1,5 @@
 # Shared Package Architecture
 
-This document describes the architecture and patterns specific to the shared package.
-
-> **Global rules** (Effect patterns, code conventions) are in the root `/CLAUDE.md`
-
 ## Domain Structure
 
 Each domain follows this structure:
@@ -38,7 +34,7 @@ export const PlantCreateRequest = Schema.Struct(Plant.fields).mapFields(
 
 ## Error Definitions
 
-Use Schema.TaggedError for typed errors:
+Each domain declares its errors in `errors.ts`:
 
 ```typescript
 // errors.ts

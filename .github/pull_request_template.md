@@ -19,7 +19,7 @@
 - [ ] `bun run tsc` passes
 - [ ] `bun run lint` passes
 - [ ] `bun run test` passes (added/updated tests for new behavior)
-- [ ] Follows the Effect-first conventions in [`CLAUDE.md`](../CLAUDE.md)
+- [ ] Follows the Effect-first conventions in [`CODING_STANDARDS.md`](../CODING_STANDARDS.md)
 - [ ] No secrets, credentials, or personal data added to the repo
 - [ ] Docs / READMEs updated if behavior or setup changed
 
