@@ -1,7 +1,5 @@
 # Shared Package Architecture
 
-> Coding standards (Effect-first, imports, services, errors) are in the root `CODING_STANDARDS.md`.
-
 ## Domain Structure
 
 Each domain follows this structure:

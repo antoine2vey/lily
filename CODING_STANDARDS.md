@@ -1,6 +1,6 @@
 # Coding Standards
 
-Lily is **Effect-first** (Effect 4): wherever an Effect module covers an operation, write the Effect version. These standards apply to every TypeScript package; package-scoped rules are listed under [Package standards](#package-standards).
+Lily is **Effect-first** (Effect 4): wherever an Effect module covers an operation, write the Effect version. These standards apply to every TypeScript package.
 
 ## Collections
 

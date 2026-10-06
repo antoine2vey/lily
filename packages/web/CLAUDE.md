@@ -2,8 +2,6 @@
 
 Marketing/landing site for the Lily plant care app. **Next.js 16 static export** (no server runtime), deployed as a CDN-hosted site.
 
-> Coding standards (Effect-first, imports, services, errors) are in the root `CODING_STANDARDS.md`.
-
 ---
 
 ## Architecture
