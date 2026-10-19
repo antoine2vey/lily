@@ -11,7 +11,7 @@ import {
   sendMagicLink,
 } from '@lily/api/services/auth/endpoints/send-magic-link'
 import { AuthError } from '@lily/shared'
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
 describe('sendMagicLink', () => {
@@ -68,10 +68,27 @@ describe('sendMagicLink', () => {
       )
     )
 
-    expect(result).toEqual(
-      Exit.fail(
+    expect(Exit.findErrorOption(result)).toEqual(
+      Option.some(
         new AuthError({
           message: "We couldn't send the sign-in email. Please try again.",
+        })
+      )
+    )
+  })
+
+  it('should word the send failure in the requested language', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: 'test@example.com', language: 'fr' }).pipe(
+        Effect.provide(createTestLayer({ emailFails: true }))
+      )
+    )
+
+    expect(Exit.findErrorOption(result)).toEqual(
+      Option.some(
+        new AuthError({
+          message:
+            "Impossible d'envoyer l'e-mail de connexion. Veuillez réessayer.",
         })
       )
     )
