@@ -593,7 +593,7 @@ export interface IUserRepository {
 ## Related Documentation
 
 - [Database Package README](../../README.md) - Schema overview & migrations
-- [CLAUDE.md](../../../../CLAUDE.md) - Repository patterns
+- [CODING_STANDARDS.md](../../../../CODING_STANDARDS.md) - Effect-first coding standards
 - [Repositories](../../../api/src/repositories/README.md) - How repositories use schemas
 - [Drizzle ORM Docs](https://orm.drizzle.team) - Official documentation
 

@@ -5,18 +5,26 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { paginate } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 // Mutable version of Notification for internal mock state
 type MutableNotification = {
   -readonly [K in keyof Notification]: Notification[K]
 }
 
+export interface MockNotificationRepositoryOptions {
+  queuedAt?: Record<string, Date>
+  deliveryClaims?: Record<string, string>
+}
+
 export const createMockNotificationRepository = (
-  notifications: Notification[]
+  notifications: Notification[],
+  options: MockNotificationRepositoryOptions = {}
 ): Layer.Layer<NotificationRepository> => {
   // Use the passed array directly so callers can observe mutations
   const notificationsState = notifications as MutableNotification[]
+  const queuedAt = new Map(Record.toEntries(options.queuedAt ?? {}))
+  const deliveryClaims = new Map(Record.toEntries(options.deliveryClaims ?? {}))
 
   const repo: INotificationRepository = {
     findByUserId: (params: FindNotificationsParams) => {
@@ -72,6 +80,7 @@ export const createMockNotificationRepository = (
     },
 
     create: (data) => {
+      const status = data.status ?? 'pending'
       const newNotification: MutableNotification = {
         id: `notification-${crypto.randomUUID()}`,
         type: data.type,
@@ -79,12 +88,13 @@ export const createMockNotificationRepository = (
         body: data.body,
         scheduledAt: data.scheduledAt,
         isRead: false,
-        status: 'pending',
+        status,
         retryCount: 0,
         userId: data.userId,
         plantId: data.plantId,
         createdAt: new Date(),
       }
+      if (status === 'queued') queuedAt.set(newNotification.id, new Date())
       notificationsState.push(newNotification)
       return Effect.succeed(newNotification)
     },
@@ -97,16 +107,90 @@ export const createMockNotificationRepository = (
     },
 
     // Scheduler methods
-    findPendingToSchedule: (limit: number) =>
-      Effect.succeed(
-        pipe(
+    claimPendingToSchedule: (limit: number) =>
+      Effect.sync(() => {
+        const now = new Date()
+        const claimed = pipe(
           Array.filter(
             notificationsState,
-            (n) => n.status === 'pending' && n.scheduledAt <= new Date()
+            (n) => n.status === 'pending' && n.scheduledAt <= now
           ),
-          (filtered) => filtered.slice(0, limit)
+          Array.take(limit)
         )
-      ),
+        Array.forEach(claimed, (n) => {
+          n.status = 'queued'
+          queuedAt.set(n.id, now)
+        })
+        return claimed
+      }),
+
+    releaseUnclaimed: (ids) =>
+      Effect.sync(() => {
+        Array.forEach(notificationsState, (n) => {
+          if (
+            Array.contains(ids, n.id) &&
+            n.status === 'queued' &&
+            !deliveryClaims.has(n.id)
+          ) {
+            n.status = 'pending'
+            queuedAt.delete(n.id)
+          }
+        })
+      }),
+
+    claimForDelivery: (ids, messageId) =>
+      Effect.sync(() => {
+        const claimed: string[] = []
+        Array.forEach(notificationsState, (n) => {
+          const owner = Option.fromNullishOr(deliveryClaims.get(n.id))
+          const claimable =
+            Array.contains(ids, n.id) &&
+            n.status === 'queued' &&
+            Option.getOrElse(
+              Option.map(owner, (id) => id === messageId),
+              () => true
+            )
+          if (!claimable) return
+          deliveryClaims.set(n.id, messageId)
+          claimed.push(n.id)
+        })
+        return claimed
+      }),
+
+    releaseUnclaimedOlderThan: (queuedBefore) =>
+      Effect.sync(() => {
+        let count = 0
+        Array.forEach(notificationsState, (n) => {
+          const at = queuedAt.get(n.id)
+          if (
+            n.status === 'queued' &&
+            !deliveryClaims.has(n.id) &&
+            at !== undefined &&
+            at < queuedBefore
+          ) {
+            n.status = 'pending'
+            queuedAt.delete(n.id)
+            count++
+          }
+        })
+        return count
+      }),
+
+    failAbandonedDeliveries: (queuedBefore, error) =>
+      Effect.sync(() => {
+        let count = 0
+        Array.forEach(notificationsState, (n) => {
+          const at = queuedAt.get(n.id)
+          const abandoned =
+            at === undefined || (deliveryClaims.has(n.id) && at < queuedBefore)
+          if (n.status === 'queued' && abandoned) {
+            n.status = 'failed'
+            n.lastError = error
+            count++
+          }
+        })
+        return count
+      }),
 
     incrementRetryCount: (id: string) => {
       const notificationOption = Array.findFirst(
@@ -201,20 +285,13 @@ export const createMockNotificationRepository = (
     },
 
     // Batch scheduler methods
-    markManyAsQueued: (ids: readonly string[]) =>
-      Effect.sync(() => {
-        Array.forEach(ids, (id) => {
-          const n = Array.findFirst(notificationsState, (n) => n.id === id)
-          Option.map(n, (notification) => {
-            notification.status = 'queued'
-          })
-        })
-      }),
-
     markManyAsSent: (ids: readonly string[]) =>
       Effect.sync(() => {
         Array.forEach(ids, (id) => {
-          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          const n = Array.findFirst(
+            notificationsState,
+            (n) => n.id === id && n.status === 'queued'
+          )
           Option.map(n, (notification) => {
             notification.status = 'sent'
             notification.sentAt = new Date()
@@ -225,7 +302,10 @@ export const createMockNotificationRepository = (
     markManyAsFailed: (ids: readonly string[], error: string) =>
       Effect.sync(() => {
         Array.forEach(ids, (id) => {
-          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          const n = Array.findFirst(
+            notificationsState,
+            (n) => n.id === id && n.status === 'queued'
+          )
           Option.map(n, (notification) => {
             notification.status = 'failed'
             notification.lastError = error
@@ -255,16 +335,14 @@ export const createMockNotificationRepository = (
         )
       }),
 
-    markManyAsQueuedWithContent: (
-      ids: readonly string[],
-      title: string,
-      body: string
-    ) =>
+    setQueuedContent: (ids: readonly string[], title: string, body: string) =>
       Effect.sync(() => {
         Array.forEach(ids, (id) => {
-          const n = Array.findFirst(notificationsState, (n) => n.id === id)
+          const n = Array.findFirst(
+            notificationsState,
+            (n) => n.id === id && n.status === 'queued'
+          )
           Option.map(n, (notification) => {
-            notification.status = 'queued'
             notification.title = title
             notification.body = body
           })

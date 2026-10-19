@@ -1,8 +1,9 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Array, Effect, Match, pipe } from 'effect'
+import { Array, type Effect, Match, pipe } from 'effect'
 
-import { mapOpenAIError, type OpenAIError } from '../../domains/ai-chat/errors'
+import type { OpenAIError } from '../../domains/ai-chat/errors'
+import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 import { type PlantAIResult, plantSchema } from './plant-schema'
 import {
   careInstructions,
@@ -44,8 +45,10 @@ const singleCall = (
   urls: string | readonly string[],
   locale: string
 ): Effect.Effect<PlantRecognitionResult, OpenAIError> =>
-  Effect.tryPromise({
-    try: async () => {
+  callOpenAI(
+    'Plant recognition',
+    OPENAI_TIMEOUTS.vision,
+    async (abortSignal) => {
       const urlList = pipe(
         Match.value(urls),
         Match.when(Match.string, (u) => [u]),
@@ -62,6 +65,7 @@ const singleCall = (
       const result = await generateText({
         model: openai('gpt-4o-mini'),
         maxRetries: 0,
+        abortSignal,
         output: Output.object({ schema: plantSchema }),
         system: systemPrompt(locale),
         messages: [
@@ -72,9 +76,8 @@ const singleCall = (
         ],
       })
       return result.output as PlantRecognitionResult
-    },
-    catch: mapOpenAIError('Plant recognition'),
-  })
+    }
+  )
 
 export const plantRecognition = (
   urls: string | readonly string[],

@@ -1,5 +1,6 @@
 import type { UserProfile } from '@lily/shared/auth'
 import { ForbiddenError } from '@lily/shared/errors/admin'
+import { ServiceUnavailableError } from '@lily/shared/errors/database'
 import { Context } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
@@ -18,7 +19,7 @@ export class AdminAuth extends HttpApiMiddleware.Service<
   AdminAuth,
   { provides: AdminUser }
 >()('AdminAuth', {
-  error: ForbiddenError,
+  error: [ForbiddenError, ServiceUnavailableError],
   security: {
     bearer: HttpApiSecurity.bearer,
   },

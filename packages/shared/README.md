@@ -447,7 +447,7 @@ export enum PlantHealth {
 ## Related Documentation
 
 - [Root README](../../README.md) - Project overview
-- [CLAUDE.md](../../CLAUDE.md) - Schema patterns and conventions
+- [CODING_STANDARDS.md](../../CODING_STANDARDS.md) - Effect-first coding standards
 - [API Package](../api/README.md) - How API uses these schemas
 - [Domain Guide](./src/domains/README.md) - Detailed domain patterns
 - [Service Guide](./src/services/README.md) - Service abstraction patterns

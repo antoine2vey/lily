@@ -690,7 +690,7 @@ const [{ count }] = await db
 ## Related Documentation
 
 - [API Package README](../../README.md) - API architecture
-- [CLAUDE.md](../../../../CLAUDE.md) - Repository pattern conventions
+- [CODING_STANDARDS.md](../../../../CODING_STANDARDS.md) - Effect-first coding standards
 - [Database Package](../../../db/README.md) - Schema definitions
 - [Services Guide](../services/README.md) - How services use repositories
 - [Testing Guide](../__tests__/README.md) - Testing repositories

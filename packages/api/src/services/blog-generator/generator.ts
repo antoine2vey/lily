@@ -3,10 +3,10 @@ import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { CHAT_MODEL, FAST_MODEL } from '@lily/api/services/ai/models'
 import { iterate } from '@lily/api/services/helpers/iterate'
 import type { LocalizedText } from '@lily/db/schema'
-import type { LanguageCode } from '@lily/shared'
+import { callOpenAI, type LanguageCode } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array, Effect, Option, pipe, Record } from 'effect'
-import { BlogGenerationError, mapOpenAIError } from './errors'
+import { BlogGenerationError } from './errors'
 import { publishBlogPost } from './github'
 import {
   GENERATION_SYSTEM_PROMPT,
@@ -15,6 +15,7 @@ import {
   TRANSLATION_PROMPT,
 } from './prompts'
 import { ReviewSchema } from './schemas'
+import { BLOG_OPENAI_TIMEOUTS } from './timeouts'
 import type {
   GeneratedContent,
   ResearchBrief,
@@ -79,16 +80,18 @@ const generateContent = Effect.fn('blog-generator.generateContent')(function* (
     : basePrompt
 
   // Generate primary (English) content
-  const enResult = yield* Effect.tryPromise({
-    try: () =>
+  const enResult = yield* callOpenAI(
+    'English content generation',
+    BLOG_OPENAI_TIMEOUTS.content,
+    (abortSignal) =>
       generateText({
         model: openai(CHAT_MODEL),
         maxRetries: 0,
+        abortSignal,
         system: GENERATION_SYSTEM_PROMPT,
         prompt: userPrompt,
-      }),
-    catch: mapOpenAIError('English content generation'),
-  })
+      })
+  )
 
   return { content: { en: stripCodeFences(enResult.text) } }
 })
@@ -112,11 +115,14 @@ const translateContent = Effect.fn('blog-generator.translateContent')(
       translationLanguages,
       (lang) =>
         Effect.gen(function* () {
-          const result = yield* Effect.tryPromise({
-            try: () =>
+          const result = yield* callOpenAI(
+            `Translation to ${lang.name}`,
+            BLOG_OPENAI_TIMEOUTS.translation,
+            (abortSignal) =>
               generateText({
                 model: openai(FAST_MODEL),
                 maxRetries: 0,
+                abortSignal,
                 system: TRANSLATION_PROMPT,
                 prompt: `Translate this blog post to ${lang.name} (locale code: ${lang.code}).
 
@@ -131,9 +137,8 @@ If a link in the source uses a slug NOT in the list above, drop the link and kee
 
 ENGLISH SOURCE:
 ${englishContent}`,
-              }),
-            catch: mapOpenAIError(`Translation to ${lang.name}`),
-          })
+              })
+          )
           content[lang.code] = stripCodeFences(result.text)
         }),
       { concurrency: 'unbounded' }
@@ -169,11 +174,14 @@ const reviewContent = Effect.fn('blog-generator.reviewContent')(function* (
     Array.join(', ')
   )
 
-  const result = yield* Effect.tryPromise({
-    try: () =>
+  const result = yield* callOpenAI(
+    'Content review',
+    BLOG_OPENAI_TIMEOUTS.review,
+    (abortSignal) =>
       generateText({
         model: openai(FAST_MODEL),
         maxRetries: 0,
+        abortSignal,
         output: Output.object({ schema: ReviewSchema }),
         system: REVIEW_SYSTEM_PROMPT,
         prompt: `Review this blog post for quality and originality.
@@ -186,9 +194,8 @@ ${sourceSnippets}
 
 VALID INTERNAL LINK PATHS (any link NOT in this list is broken):
 ${validLinks || 'None — no internal links should be present'}`,
-      }),
-    catch: mapOpenAIError('Content review'),
-  })
+      })
+  )
 
   return result.output as ReviewResult
 })

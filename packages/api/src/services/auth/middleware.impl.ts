@@ -14,7 +14,7 @@ export { Authentication, CurrentUser } from './middleware.types'
 /**
  * Base layer for Authentication middleware (requires JWTService and UserRepository)
  */
-const AuthenticationBase = Layer.effect(
+export const AuthenticationBase = Layer.effect(
   Authentication,
   Effect.gen(function* () {
     const jwtService = yield* JWTService
@@ -31,16 +31,9 @@ const AuthenticationBase = Layer.effect(
         }).pipe(
           Effect.provideService(JWTService, jwtService),
           Effect.provideService(UserRepository, userRepo),
-          Effect.catchTags({
-            SqlError: () =>
-              Effect.fail(
-                new UnauthorizedError({
-                  message: 'Authentication failed',
-                })
-              ),
-            JWTError: (e) =>
-              Effect.fail(new UnauthorizedError({ message: e.message })),
-          })
+          Effect.catchTag('JWTError', (e) =>
+            Effect.fail(new UnauthorizedError({ message: e.message }))
+          )
         )
 
         return yield* Effect.provideService(httpEffect, CurrentUser, profile)

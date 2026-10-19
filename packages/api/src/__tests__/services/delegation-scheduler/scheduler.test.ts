@@ -8,7 +8,10 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
+import {
+  DelegationRepository,
+  type DelegationRow,
+} from '@lily/api/repositories/delegation.repository'
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -101,6 +104,59 @@ describe('DelegationScheduler', () => {
       await Effect.runPromise(pollAndTransition.pipe(Effect.provide(layer)))
 
       expect(delegations[0]?.status).toBe('active')
+    })
+
+    it('leaves a delegation canceled between the read and the activation, and sends nothing', async () => {
+      notifications.length = 0
+      const delegation: DelegationRow = {
+        ...mockDelegation1,
+        status: 'accepted' as const,
+        startDate: pastDate,
+        endDate: futureDate,
+      }
+      const delegations = [delegation]
+      // The owner cancels after the scheduler has read the row but before
+      // it writes the new status.
+      const racingCancel = Layer.effect(
+        DelegationRepository,
+        Effect.map(DelegationRepository, (repo) => ({
+          ...repo,
+          findAcceptedReadyToActivate: (now: Date) =>
+            repo.findAcceptedReadyToActivate(now).pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  delegation.status = 'canceled'
+                })
+              )
+            ),
+        }))
+      ).pipe(
+        Layer.provide(
+          createMockDelegationRepository({
+            delegations,
+            plants: mockDelegationPlants,
+            delegationPlants: [
+              { delegationId: delegation.id, plantId: 'plant-1' },
+            ],
+          })
+        )
+      )
+
+      await Effect.runPromise(
+        pollAndTransition.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              racingCancel,
+              createMockNotificationRepository(notifications),
+              createMockUserRepository([mockUser1, mockUser2]),
+              createMockMessageQueue()
+            )
+          )
+        )
+      )
+
+      expect(delegations[0]?.status).toBe('canceled')
+      expect(notifications).toHaveLength(0)
     })
 
     it('should handle empty results gracefully', async () => {

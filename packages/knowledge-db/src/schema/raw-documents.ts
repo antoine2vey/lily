@@ -1,5 +1,5 @@
 import { ingestJobs } from '@lily/knowledge-db/schema/ingest-jobs'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   index,
   integer,
@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -32,6 +33,13 @@ export const rawDocuments = pgTable(
   (table) => [
     index('raw_documents_source_id_idx').on(table.sourceId),
     index('raw_documents_ingest_job_id_idx').on(table.ingestJobId),
+    // Rows older than the cutoff may repeat a source_id. In production the
+    // cutoff is the moment migration 0005 ran (see that file).
+    uniqueIndex('raw_documents_source_id_unique')
+      .on(table.sourceId)
+      .where(
+        sql`${table.sourceId} IS NOT NULL AND ${table.fetchedAt} >= '2026-10-19 00:00:00+00'`
+      ),
   ]
 )
 

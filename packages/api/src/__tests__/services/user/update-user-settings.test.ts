@@ -1,4 +1,5 @@
 import { schedulesFromPlants } from '@lily/api/__tests__/fixtures/care-schedules'
+import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { mockUsers } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -8,7 +9,8 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
-import { Effect, Layer } from 'effect'
+import type { Notification } from '@lily/shared/notification'
+import { Array as Arr, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('updateUserSettings', () => {
@@ -118,6 +120,40 @@ describe('updateUserSettings', () => {
     expect(result.privacy.shareGrowthData).toBe(false)
     // Unchanged field should remain
     expect(result.privacy.personalizedTips).toBe(true)
+  })
+
+  it('deletes pending rows of a preference the user turns off', async () => {
+    const due = (overrides: Partial<Notification>) =>
+      createTestNotification({
+        userId: 'user-1',
+        status: 'pending',
+        ...overrides,
+      })
+    const notifications = [
+      due({ id: 'care', type: 'watering_reminder' }),
+      due({ id: 'tip', type: 'daily_tip' }),
+      due({ id: 'social', type: 'new_follower' }),
+      due({ id: 'in-flight', type: 'watering_reminder', status: 'queued' }),
+    ]
+    const layer = Layer.mergeAll(
+      createMockUserRepository([...mockUsers]),
+      createMockCurrentUser({ id: 'user-1' }),
+      createMockNotificationRepository(notifications),
+      createMockPlantRepository({ plants: mockPlants }),
+      createMockCareLogRepository([]),
+      createMockCareScheduleRepository({
+        schedules: schedulesFromPlants(mockPlants),
+        plants: mockPlants,
+      })
+    )
+
+    await Effect.runPromise(
+      updateUserSettings({
+        notifications: { careReminders: false, tips: false },
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(Arr.map(notifications, (n) => n.id)).toEqual(['social', 'in-flight'])
   })
 
   it('should preserve unchanged fields', async () => {

@@ -93,7 +93,8 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
     const docRepo = yield* RawDocumentRepository
     const chunkRepo = yield* ProcessedChunkRepository
 
-    // Skip duplicates by sourceId
+    // Skip documents stored by an earlier job. A document stored by another
+    // worker between this check and the insert is caught by createIfNew.
     if (doc.sourceId) {
       const existing = yield* docRepo.findBySourceId(doc.sourceId)
       if (existing) {
@@ -101,11 +102,13 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
       }
     }
 
-    // Store raw document
-    const insertedDoc = yield* docRepo.create({
+    const insertedDoc = yield* docRepo.createIfNew({
       ...doc,
       ingestJobId: jobId,
     })
+    if (!insertedDoc) {
+      return { inserted: false, chunksCreated: 0 } as const
+    }
 
     // Chunk content with parent-child structure
     const chunkResult = chunkDocumentWithParent(insertedDoc)
@@ -238,10 +241,10 @@ const processDocument = (doc: RawDocumentInput, jobId: string) =>
   })
 
 /**
- * Process a single ingest job:
+ * Process a job the worker has already claimed:
  * 1. Fetch documents via adapter
  * 2. For each document: deduplicate, store, chunk, enrich, embed, store chunks
- * 3. Update job counts incrementally
+ * 3. Record progress after every document, which also refreshes the claim
  *
  * Documents are processed one by one so that if the job crashes,
  * previously processed documents and their chunks are already persisted.
@@ -250,10 +253,6 @@ export const processIngestJob = (job: IngestJob) =>
   Effect.gen(function* () {
     const jobRepo = yield* IngestJobRepository
 
-    // Mark as in progress
-    yield* jobRepo.updateStatus(job.id, 'in_progress')
-
-    // 1. Stream documents from adapter and process each one immediately
     const adapter = yield* getAdapter(job.adapter)
     const docStream = adapter.fetch(job.config as AdapterConfig)
 
@@ -265,30 +264,22 @@ export const processIngestJob = (job: IngestJob) =>
         const result = yield* processDocument(doc, job.id)
 
         if (result.inserted) {
-          const inserted = yield* Ref.updateAndGet(
-            totalInsertedRef,
-            (n) => n + 1
-          )
-          const chunks = yield* Ref.updateAndGet(
-            totalChunksRef,
-            (n) => n + result.chunksCreated
-          )
-
-          yield* jobRepo.updateStatus(job.id, 'in_progress', {
-            documentsFetched: inserted,
-            chunksCreated: chunks,
-          })
+          yield* Ref.update(totalInsertedRef, (n) => n + 1)
+          yield* Ref.update(totalChunksRef, (n) => n + result.chunksCreated)
         }
+
+        // Written for skipped documents too: a run of duplicates is still a
+        // live worker, and the claim must not look abandoned.
+        yield* jobRepo.recordProgress(job.id, {
+          documentsFetched: yield* Ref.get(totalInsertedRef),
+          chunksCreated: yield* Ref.get(totalChunksRef),
+        })
       })
     )
 
-    // 2. Mark job as completed
-    const finalInserted = yield* Ref.get(totalInsertedRef)
-    const finalChunks = yield* Ref.get(totalChunksRef)
-
-    yield* jobRepo.updateStatus(job.id, 'completed', {
-      documentsFetched: finalInserted,
-      chunksCreated: finalChunks,
+    yield* jobRepo.complete(job.id, {
+      documentsFetched: yield* Ref.get(totalInsertedRef),
+      chunksCreated: yield* Ref.get(totalChunksRef),
     })
   }).pipe(
     Effect.catchTags({

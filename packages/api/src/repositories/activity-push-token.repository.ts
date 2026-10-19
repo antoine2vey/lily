@@ -1,7 +1,7 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
-import { and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -95,10 +95,11 @@ export interface IActivityPushTokenRepository {
     unconfirmedOlderThan: Date
     confirmedOlderThan: Date
   }) => Effect.Effect<number, SqlError>
-  readonly markStartSent: (
+  readonly claimStartTokens: (
     userId: string,
-    deviceTokenIds: readonly string[]
-  ) => Effect.Effect<number, SqlError>
+    deviceTokenIds: readonly string[],
+    cutoff: Date
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
 }
 
 export class ActivityPushTokenRepository extends Context.Service<
@@ -331,24 +332,36 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       // worker reads this back to enforce a start cooldown (see
       // sendLiveActivityForCare); the stamp is written BEFORE the APNs call so
       // a retry after a timeout cannot double-start.
-      markStartSent: Effect.fn('ActivityPushTokenRepository.markStartSent')(
-        function* (userId: string, deviceTokenIds: readonly string[]) {
-          if (deviceTokenIds.length === 0) return 0
-          const rows = yield* db
-            .update(activityPushTokens)
-            .set({ lastStartSentAt: nowAsDate(), updatedAt: nowAsDate() })
-            .where(
-              and(
-                eq(activityPushTokens.userId, userId),
-                eq(activityPushTokens.kind, 'start'),
-                eq(activityPushTokens.status, 'active'),
-                inArray(activityPushTokens.deviceTokenId, [...deviceTokenIds])
+      claimStartTokens: Effect.fn(
+        'ActivityPushTokenRepository.claimStartTokens'
+      )(function* (
+        userId: string,
+        deviceTokenIds: readonly string[],
+        cutoff: Date
+      ) {
+        if (deviceTokenIds.length === 0) return []
+        const rows = yield* db
+          .update(activityPushTokens)
+          .set({ lastStartSentAt: nowAsDate(), updatedAt: nowAsDate() })
+          .where(
+            and(
+              eq(activityPushTokens.userId, userId),
+              eq(activityPushTokens.kind, 'start'),
+              eq(activityPushTokens.status, 'active'),
+              inArray(activityPushTokens.deviceTokenId, [...deviceTokenIds]),
+              or(
+                isNull(activityPushTokens.lastStartSentAt),
+                lt(activityPushTokens.lastStartSentAt, cutoff),
+                gte(
+                  activityPushTokens.lastConfirmedAt,
+                  activityPushTokens.lastStartSentAt
+                )
               )
             )
-            .returning({ id: activityPushTokens.id })
-          return Array.length(rows)
-        }
-      ),
+          )
+          .returning({ deviceTokenId: activityPushTokens.deviceTokenId })
+        return Array.map(rows, (row) => row.deviceTokenId)
+      }),
 
       // Background sweep: kills start-tokens that have never been confirmed
       // (likely never delivered to a device) past `unconfirmedOlderThan`, and

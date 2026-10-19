@@ -29,7 +29,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 /**
  * Every endpoint behind a security middleware, paired with the wire shape
  * that middleware promises when it rejects the request: the `_tag` of its
- * declared error and that error's HTTP status.
+ * declared error and that error's HTTP status. The 503 an outage produces is
+ * not a credential rejection and is covered in auth-middleware-unavailable.
  */
 type SecuredEndpoint = {
   readonly name: string
@@ -93,6 +94,7 @@ const securedEndpoints: ReadonlyArray<SecuredEndpoint> = pipe(
       Array.flatMap((security) =>
         pipe(
           Array.fromIterable(security.error),
+          Array.filter((schema) => statusOf(schema) !== 503),
           Array.map(
             (schema): SecuredEndpoint => ({
               name: `${group.identifier}.${endpoint.identifier}`,
