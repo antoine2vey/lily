@@ -529,11 +529,9 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   const queue = yield* MessageQueue
   const notificationRepo = yield* NotificationRepository
 
-  const requeuedPerTopic = yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
-    queue.requeueStale(topic, VISIBILITY_TIMEOUT)
-  )
-  const requeued = Array.reduce(requeuedPerTopic, 0, (sum, n) => sum + n)
-
+  // Rows are settled before messages go back on the queue: a worker can take a
+  // requeued message at once, and a pre-fix message's row must already be
+  // unclaimable by then.
   const now = DateTime.nowUnsafe()
   const released = yield* notificationRepo.releaseUnclaimedOlderThan(
     DateTime.toDateUtc(DateTime.subtractDuration(now, VISIBILITY_TIMEOUT))
@@ -542,6 +540,11 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
     DateTime.toDateUtc(DateTime.subtractDuration(now, DELIVERY_TIMEOUT)),
     'delivery not confirmed'
   )
+
+  const requeuedPerTopic = yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
+    queue.requeueStale(topic, VISIBILITY_TIMEOUT)
+  )
+  const requeued = Array.reduce(requeuedPerTopic, 0, (sum, n) => sum + n)
 
   if (requeued + released + failed > 0) {
     yield* Effect.logWarning('[notification-recovery] Recovered deliveries', {

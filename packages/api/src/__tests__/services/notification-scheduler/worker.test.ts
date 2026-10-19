@@ -1241,5 +1241,36 @@ describe('Notification Worker', () => {
       expect(rows.abandoned.status).toBe('failed')
       expect(rows.legacy.status).toBe('failed')
     })
+
+    it('settles legacy rows before any stranded message is back on the queue', async () => {
+      const legacy = createTestNotification({
+        id: 'legacy',
+        userId: 'user-1',
+        status: 'queued',
+      })
+      const statusWhenRequeued: string[] = []
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockMessageQueue({
+                onRequeueStale: () => {
+                  statusWhenRequeued.push(legacy.status)
+                  return 1
+                },
+              }),
+              createMockNotificationRepository([legacy])
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      // A worker can take a requeued message the moment it lands, so a
+      // pre-fix row must already be unclaimable or a weeks-old reminder goes out.
+      expect(statusWhenRequeued).not.toHaveLength(0)
+      expect(Array.every(statusWhenRequeued, (s) => s === 'failed')).toBe(true)
+    })
   })
 })
