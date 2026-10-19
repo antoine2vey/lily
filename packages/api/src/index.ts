@@ -42,6 +42,7 @@ import {
   SubscriptionsApiLive,
   SubscriptionWebhooksApiLive,
 } from '@lily/api/services/subscriptions/handlers'
+import { startSubscriptionReconciliationScheduler } from '@lily/api/services/subscriptions/reconciliation-scheduler'
 import { startTipsScheduler } from '@lily/api/services/tips-scheduler/scheduler'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
@@ -105,6 +106,10 @@ const ActivitySchedulerLive = Layer.effectDiscard(startActivityScheduler)
 
 const VacationSchedulerLive = Layer.effectDiscard(startVacationScheduler)
 
+const SubscriptionReconciliationSchedulerLive = Layer.effectDiscard(
+  startSubscriptionReconciliationScheduler
+)
+
 const LiveActivitySubscriberLive = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* startLiveActivitySubscriber
@@ -135,7 +140,8 @@ const AllSchedulersLive = Layer.mergeAll(
   AnalyticsSchedulerLive,
   ActivitySchedulerLive,
   LiveActivitySubscriberLive,
-  VacationSchedulerLive
+  VacationSchedulerLive,
+  SubscriptionReconciliationSchedulerLive
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
