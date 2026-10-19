@@ -7,7 +7,10 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
-import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import {
+  createMockAlerter,
+  MockAlerterLive,
+} from '@lily/api/__tests__/mocks/alerter'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import {
@@ -24,20 +27,34 @@ import {
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import {
   consumeFromTopic,
   handleFailedMessage,
   processMessage,
+  recoverStrandedDeliveries,
 } from '@lily/api/services/notification-scheduler/worker'
 import type { ActivityPushToken } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
-import type {
-  LiveActivityPushMessage,
-  PushMessage,
-  QueueMessage,
+import {
+  type LiveActivityPushMessage,
+  NOTIFICATION_TOPICS,
+  type PushMessage,
+  type QueueMessage,
 } from '@lily/shared/server'
-import { Effect, Layer, Option, pipe, References } from 'effect'
+import {
+  Array,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  pipe,
+  Record,
+  References,
+} from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
+import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 // Empty mocks for the Live Activity path — worker unconditionally reads
@@ -991,6 +1008,238 @@ describe('Notification Worker', () => {
       )
 
       expect(sentMessages.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('delivery claims', () => {
+    const queuedRow = (id: string) =>
+      createTestNotification({ id, userId: 'user-1', status: 'queued' })
+
+    const deliveryLayer = (
+      notificationRepo: Layer.Layer<NotificationRepository>,
+      onSendBatch: (msgs: PushMessage[]) => void
+    ) =>
+      Layer.mergeAll(
+        MockAlerterLive,
+        createMockPushService({ onSendBatch }),
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        notificationRepo,
+        LaMocksLive,
+        LivingPlantsLive
+      )
+
+    it('sends nothing for a message whose rows another message already claimed', async () => {
+      const batches: PushMessage[][] = []
+      const layer = deliveryLayer(
+        createMockNotificationRepository([queuedRow('notification-1')], {
+          deliveryClaims: { 'notification-1': 'msg-first' },
+        }),
+        (msgs) => batches.push(msgs)
+      )
+      const run = (id: string) =>
+        Effect.runPromise(
+          processMessage(createTestQueueMessage({ id })).pipe(
+            Effect.provide(layer),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+      await run('msg-duplicate')
+      expect(batches).toHaveLength(0)
+
+      await run('msg-first')
+      expect(batches).toHaveLength(1)
+    })
+
+    it('does not resend the push when bookkeeping fails after it went out', async () => {
+      const notification = queuedRow('notification-1')
+      const batches: PushMessage[][] = []
+      const requeued: QueueMessage[] = []
+      const acked: string[] = []
+      const alerter = createMockAlerter()
+      const dbDown = new SqlError({
+        reason: new UnknownError({ cause: 'db down', message: 'db down' }),
+      })
+      const bookkeepingFails = Layer.effect(
+        NotificationRepository,
+        Effect.map(NotificationRepository, (repo) => ({
+          ...repo,
+          markManyAsSent: () => Effect.fail(dbDown),
+        }))
+      ).pipe(Layer.provide(createMockNotificationRepository([notification])))
+      const queueMessages = [createTestQueueMessage({ id: 'msg-once' })]
+      const layer = Layer.mergeAll(
+        alerter.layer,
+        createMockPushService({ onSendBatch: (msgs) => batches.push(msgs) }),
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        bookkeepingFails,
+        createMockMessageQueue({
+          onDequeue: () => {
+            const msg = pipe(
+              Option.fromNullishOr(queueMessages.shift()),
+              Option.getOrNull
+            )
+            return msg ? { message: msg, rawData: JSON.stringify(msg) } : null
+          },
+          onEnqueue: (_, message) => requeued.push(message),
+          onAck: (_, rawData) => acked.push(rawData),
+        }),
+        createMockDeadLetterRepository(),
+        LaMocksLive,
+        LivingPlantsLive
+      )
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const fiber = yield* Effect.forkChild(
+            consumeFromTopic('watering_reminder').pipe(Effect.provide(layer))
+          )
+          yield* Effect.forEach(Array.range(1, 30), () =>
+            TestClock.adjust('1 second')
+          )
+          yield* Fiber.join(fiber)
+        }).pipe(
+          Effect.scoped,
+          Effect.provide(TestClock.layer()),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(batches).toHaveLength(1)
+      expect(requeued).toHaveLength(0)
+      expect(acked).toHaveLength(1)
+      expect(
+        Array.some(
+          alerter.events,
+          (e) =>
+            e._tag === 'warning' &&
+            e.summary === 'Push sent but delivery bookkeeping failed'
+        )
+      ).toBe(true)
+    })
+
+    it('starts one Live Activity across two messages for the same user', async () => {
+      const laMessages: LiveActivityPushMessage[] = []
+      const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+      const layer = Layer.mergeAll(
+        MockAlerterLive,
+        createMockPushService({
+          onSendLiveActivity: (m) => laMessages.push(m),
+        }),
+        createMockDeviceTokenRepository(mockDeviceTokens),
+        createMockNotificationRepository([
+          queuedRow('notification-1'),
+          queuedRow('notification-2'),
+        ]),
+        createMockActivityPushTokenRepository({
+          tokens: [
+            {
+              id: 'apt-1',
+              userId: 'user-1',
+              deviceTokenId: 'token-1',
+              kind: 'start',
+              activityId: null,
+              token: 'start-token-1',
+              status: 'active',
+              startedAt: new Date(),
+              endsAt: null,
+              lastConfirmedAt: null,
+              lastFailedAt: null,
+              lastStartSentAt: null,
+              updatedAt: new Date(),
+            },
+          ],
+        }),
+        createMockCareScheduleRepository({
+          plants: [plant],
+          schedules: [
+            createTestSchedule({
+              plantId: 'plant-1',
+              careType: 'watering',
+              nextCareAt: new Date(Date.now() - 60_000),
+            }),
+          ],
+        }),
+        createMockCareLogRepository([]),
+        createMockUserRepository([
+          createTestUser({ id: 'user-1', timezone: 'UTC' }),
+        ]),
+        createMockPlantRepository({ plants: [plant] })
+      )
+      const run = (id: string, notificationId: string) =>
+        Effect.runPromise(
+          processMessage(
+            createTestQueueMessage({
+              id,
+              payload: {
+                userId: 'user-1',
+                title: 'Water time',
+                body: 'Your plant is thirsty',
+                notificationIds: [notificationId],
+                plantIds: ['plant-1'],
+              },
+            })
+          ).pipe(
+            Effect.provide(layer),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+
+      await run('msg-morning', 'notification-1')
+      await run('msg-afternoon', 'notification-2')
+
+      const starts = Array.filter(
+        laMessages,
+        (m) => m._tag === 'LiveActivityStart'
+      )
+      expect(starts).toHaveLength(1)
+    })
+  })
+
+  describe('recoverStrandedDeliveries', () => {
+    const minutesAgo = (minutes: number) =>
+      new Date(Date.now() - minutes * 60_000)
+
+    it('requeues stranded messages and settles rows their delivery left behind', async () => {
+      const row = (id: string) =>
+        createTestNotification({ id, userId: 'user-1', status: 'queued' })
+      const rows = {
+        lost: row('lost'),
+        slow: row('slow'),
+        abandoned: row('abandoned'),
+        legacy: row('legacy'),
+      }
+      const sweptTopics: string[] = []
+
+      await Effect.runPromise(
+        recoverStrandedDeliveries.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockMessageQueue({
+                onRequeueStale: (topic) => {
+                  sweptTopics.push(topic)
+                  return 0
+                },
+              }),
+              createMockNotificationRepository(Record.values(rows), {
+                queuedAt: {
+                  lost: minutesAgo(11),
+                  slow: minutesAgo(1),
+                  abandoned: minutesAgo(90),
+                },
+                deliveryClaims: { abandoned: 'msg-abandoned' },
+              })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(sweptTopics).toEqual([...NOTIFICATION_TOPICS])
+      expect(rows.lost.status).toBe('pending')
+      expect(rows.slow.status).toBe('queued')
+      expect(rows.abandoned.status).toBe('failed')
+      expect(rows.legacy.status).toBe('failed')
     })
   })
 })

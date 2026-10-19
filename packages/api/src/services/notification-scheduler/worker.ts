@@ -5,8 +5,8 @@ import { NotificationRepository } from '@lily/api/repositories/notification.repo
 import { PlantRepository } from '@lily/api/repositories/plant.repository'
 import { Alerter, logAndAlertWarning } from '@lily/api/services/alerting'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
+import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
-import type { ActivityPushToken } from '@lily/shared'
 import {
   type InterruptionLevel,
   type LiveActivityAlert,
@@ -48,36 +48,8 @@ const MAX_RETRIES = 3
 // and stays well under the 24h cadence of the next day's reminder.
 const LA_START_COOLDOWN = Duration.hours(10)
 
-// A start is "unresolved" while it was dispatched inside the cooldown and the
-// device has not registered an update token since. Once confirmed, reaching
-// the start path again means that activity is gone (its update token was
-// invalidated, or the row ended/expired), so a fresh start is correct.
-const hasUnresolvedStart = (
-  tok: Pick<ActivityPushToken, 'lastStartSentAt' | 'lastConfirmedAt'>,
-  now: DateTime.Utc
-): boolean =>
-  Option.match(Option.fromNullishOr(tok.lastStartSentAt), {
-    onNone: () => false,
-    onSome: (sentAtDate) => {
-      const sentAt = DateTime.makeUnsafe(sentAtDate)
-      const withinCooldown = Duration.isLessThan(
-        DateTime.distance(sentAt, now),
-        LA_START_COOLDOWN
-      )
-      const confirmedSince = Option.match(
-        Option.fromNullishOr(tok.lastConfirmedAt),
-        {
-          onNone: () => false,
-          onSome: (confirmedAt) =>
-            DateTime.isGreaterThanOrEqualTo(
-              DateTime.makeUnsafe(confirmedAt),
-              sentAt
-            ),
-        }
-      )
-      return withinCooldown && !confirmedSince
-    },
-  })
+const VISIBILITY_TIMEOUT = Duration.minutes(10)
+const DELIVERY_TIMEOUT = Duration.hours(1)
 
 // Care reminders are the "do it today or it slips" cluster — we want them to
 // pierce Focus/DND on iOS 15+ so the plant actually gets cared for. Everything
@@ -103,10 +75,8 @@ const resolveInterruptionLevel = (
 //
 //   - Active update token → send an `update`.
 //   - Else push-to-start token (iOS 17.2+) with no unresolved earlier start
-//     (see hasUnresolvedStart) → send a `start` (creates the card).
+//     → send a `start`.
 //   - Else silently skip.
-//
-// Failures are logged but never propagate.
 const sendLiveActivityForCare = (
   userId: string,
   startAlert: LiveActivityAlert
@@ -176,10 +146,16 @@ const sendLiveActivityForCare = (
       return
     }
 
-    const now = DateTime.nowUnsafe()
-    const startTokens = Array.filter(
-      allStartTokens,
-      (tok) => !hasUnresolvedStart(tok, now)
+    const cutoff = DateTime.toDateUtc(
+      DateTime.subtractDuration(DateTime.nowUnsafe(), LA_START_COOLDOWN)
+    )
+    const claimedDeviceIds = yield* activityRepo.claimStartTokens(
+      userId,
+      Array.map(allStartTokens, (tok) => tok.deviceTokenId),
+      cutoff
+    )
+    const startTokens = Array.filter(allStartTokens, (tok) =>
+      Array.contains(claimedDeviceIds, tok.deviceTokenId)
     )
     const unresolved = allStartTokens.length - startTokens.length
     if (unresolved > 0) {
@@ -189,14 +165,6 @@ const sendLiveActivityForCare = (
       )
     }
     if (Array.isReadonlyArrayEmpty(startTokens)) return
-
-    // Stamp BEFORE dispatching: if APNs times out and the message is retried,
-    // the retry must not start a second activity. A genuinely failed send
-    // simply waits out the cooldown; the next reminder starts a fresh card.
-    yield* activityRepo.markStartSent(
-      userId,
-      Array.map(startTokens, (tok) => tok.deviceTokenId)
-    )
 
     const activityId = crypto.randomUUID()
     yield* Effect.logInfo('[worker] LA start dispatching', {
@@ -259,7 +227,65 @@ export const workerRetryPolicy = Schedule.max([
   Schedule.recurs(MAX_RETRIES),
 ])
 
-// Process a single message - send push notification
+const completeDelivery = (
+  message: QueueMessage,
+  claimedIds: ReadonlyArray<string>,
+  results: ReadonlyArray<{ status: 'ok' | 'error' }>,
+  deviceCount: number
+) =>
+  Effect.gen(function* () {
+    const notificationRepo = yield* NotificationRepository
+    const alerter = yield* Alerter
+
+    const failures = Array.filter(results, (r) => r.status === 'error')
+    if (failures.length > 0) {
+      yield* logAndAlertWarning(
+        alerter,
+        'notification-worker',
+        'Some push notifications failed',
+        { total: results.length, failed: failures.length }
+      )
+    }
+
+    yield* notificationRepo
+      .markManyAsSent(claimedIds)
+      .pipe(Effect.retry(workerRetryPolicy))
+
+    // For care topics on iOS 17.2+ subscribers, refresh the LA card. Updates
+    // are silent; starts re-use the regular banner's title/body as the LA
+    // alert because production iOS drops alert-less push-to-start. Users on
+    // the start path see the banner twice (regular + LA-start) — acceptable
+    // for now; consolidating those is a separate UX change.
+    if (TOPIC_CATEGORY[message.topic] === 'care') {
+      yield* sendLiveActivityForCare(message.payload.userId, {
+        title: message.payload.title,
+        body: message.payload.body,
+        sound: 'default',
+      }).pipe(Effect.retry(workerRetryPolicy))
+    }
+
+    yield* Effect.log('Push notification sent', {
+      notificationIds: claimedIds,
+      devices: deviceCount,
+    })
+  }).pipe(
+    Effect.catchTag('SqlError', (error) =>
+      Effect.gen(function* () {
+        const alerter = yield* Alerter
+        yield* logAndAlertWarning(
+          alerter,
+          'notification-worker',
+          'Push sent but delivery bookkeeping failed',
+          {
+            messageId: message.id,
+            notificationIds: claimedIds,
+            error: String(error),
+          }
+        )
+      })
+    )
+  ) satisfies Effect.Effect<void, never, unknown>
+
 export const processMessage = Effect.fn('notification-worker.process')(
   function* (message: QueueMessage) {
     const { notificationIds } = message.payload
@@ -269,6 +295,21 @@ export const processMessage = Effect.fn('notification-worker.process')(
     const deviceTokenRepo = yield* DeviceTokenRepository
     const notificationRepo = yield* NotificationRepository
     const plantRepo = yield* PlantRepository
+
+    const claimedIds = yield* notificationRepo.claimForDelivery(
+      notificationIds,
+      message.id
+    )
+    if (Array.isReadonlyArrayEmpty(claimedIds)) {
+      yield* Effect.log(
+        'Skipping message - rows already delivered or claimed',
+        {
+          messageId: message.id,
+          notificationIds,
+        }
+      )
+      return
+    }
 
     // Guard the enqueue→deliver window: a plant buried after the scheduler
     // resolved it must not be nagged about. Only the all-dead case is
@@ -282,10 +323,10 @@ export const processMessage = Effect.fn('notification-worker.process')(
       const anyLiving = Array.some(plants, (p) => p.diedAt === null)
       if (!anyLiving) {
         yield* Effect.log('Dropping care push - every plant is dead', {
-          notificationIds,
+          notificationIds: claimedIds,
           plantIds: message.payload.plantIds,
         })
-        yield* notificationRepo.markManyAsSent(notificationIds)
+        yield* notificationRepo.markManyAsSent(claimedIds)
         return
       }
     }
@@ -297,10 +338,10 @@ export const processMessage = Effect.fn('notification-worker.process')(
     if (activeTokens.length === 0) {
       yield* Effect.logWarning('No active device tokens for user', {
         userId: message.payload.userId,
-        notificationIds,
+        notificationIds: claimedIds,
       })
       // Still mark as sent since there's no device to send to
-      yield* notificationRepo.markManyAsSent(notificationIds)
+      yield* notificationRepo.markManyAsSent(claimedIds)
       return
     }
 
@@ -335,38 +376,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
     const results = yield* pushService.sendBatch(pushMessages)
 
-    // Check if any failed
-    const failures = Array.filter(results, (r) => r.status === 'error')
-    if (failures.length > 0) {
-      const alerter = yield* Alerter
-      yield* logAndAlertWarning(
-        alerter,
-        'notification-worker',
-        'Some push notifications failed',
-        { total: results.length, failed: failures.length }
-      )
-    }
-
-    // For care topics on iOS 17.2+ subscribers, refresh the LA card. Updates
-    // are silent; starts re-use the regular banner's title/body as the LA
-    // alert because production iOS drops alert-less push-to-start. Users on
-    // the start path see the banner twice (regular + LA-start) — acceptable
-    // for now; consolidating those is a separate UX change.
-    if (TOPIC_CATEGORY[message.topic] === 'care') {
-      yield* sendLiveActivityForCare(message.payload.userId, {
-        title: message.payload.title,
-        body: message.payload.body,
-        sound: 'default',
-      })
-    }
-
-    // Mark all notifications as sent
-    yield* notificationRepo.markManyAsSent(notificationIds)
-
-    yield* Effect.log('Push notification sent', {
-      notificationIds,
-      devices: activeTokens.length,
-    })
+    yield* completeDelivery(message, claimedIds, results, activeTokens.length)
   }
 )
 
@@ -515,10 +525,44 @@ const validateTopic = Match.type<NotificationTopic>().pipe(
   Match.exhaustive
 )
 
+export const recoverStrandedDeliveries = Effect.gen(function* () {
+  const queue = yield* MessageQueue
+  const notificationRepo = yield* NotificationRepository
+
+  const requeuedPerTopic = yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>
+    queue.requeueStale(topic, VISIBILITY_TIMEOUT)
+  )
+  const requeued = Array.reduce(requeuedPerTopic, 0, (sum, n) => sum + n)
+
+  const now = DateTime.nowUnsafe()
+  const released = yield* notificationRepo.releaseUnclaimedOlderThan(
+    DateTime.toDateUtc(DateTime.subtractDuration(now, VISIBILITY_TIMEOUT))
+  )
+  const failed = yield* notificationRepo.failAbandonedDeliveries(
+    DateTime.toDateUtc(DateTime.subtractDuration(now, DELIVERY_TIMEOUT)),
+    'delivery not confirmed'
+  )
+
+  if (requeued + released + failed > 0) {
+    yield* Effect.logWarning('[notification-recovery] Recovered deliveries', {
+      requeuedMessages: requeued,
+      releasedRows: released,
+      failedRows: failed,
+    })
+  }
+}).pipe(Effect.withSpan('notification-recovery.sweep'))
+
 // Start workers for all topics
 export const startNotificationWorker = Effect.gen(function* () {
   // Validate all topics are handled at startup (compile + runtime check)
   Array.forEach(NOTIFICATION_TOPICS, validateTopic)
+
+  yield* createScheduler({
+    name: 'notification-recovery',
+    interval: '5 minutes',
+    runOnStartup: false,
+    task: recoverStrandedDeliveries,
+  })
 
   // Start a worker for each topic
   yield* Effect.forEach(NOTIFICATION_TOPICS, (topic) =>

@@ -11,7 +11,12 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations'
 import type { User } from '@lily/shared'
-import type { NotificationTopic, QueueMessage } from '@lily/shared/server'
+import type { Notification } from '@lily/shared/notification'
+import {
+  type NotificationTopic,
+  type QueueMessage,
+  QueueOperationError,
+} from '@lily/shared/server'
 import { Array as Arr, Effect, Layer, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -1614,6 +1619,108 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages[0]?.message.payload.notificationIds).toEqual([
         'pending-alive',
       ])
+    })
+  })
+
+  describe('row claims', () => {
+    const dueNotification = (overrides: Partial<Notification> = {}) =>
+      createTestNotification({
+        type: 'watering_reminder',
+        status: 'pending',
+        scheduledAt: new Date(Date.now() - 60000),
+        userId: 'user-1',
+        plantId: 'plant-1',
+        ...overrides,
+      })
+    const plant = createTestPlant({ id: 'plant-1', name: 'Monstera' })
+
+    it('moves a row to queued before its message is enqueued', async () => {
+      const notification = dueNotification({ id: 'claim-1' })
+      const statusAtEnqueue: string[] = []
+
+      await runPollAndEnqueue(
+        [notification],
+        [defaultUser],
+        () => statusAtEnqueue.push(notification.status),
+        [plant]
+      )
+
+      expect(statusAtEnqueue).toEqual(['queued'])
+      expect(notification.status).toBe('queued')
+    })
+
+    it('deletes rows the recipient opted out of instead of leaving them pending', async () => {
+      const notifications = [
+        dueNotification({ id: 'care-off', type: 'watering_reminder' }),
+        dueNotification({
+          id: 'tips-off',
+          type: 'daily_tip',
+          plantId: undefined,
+        }),
+        dueNotification({
+          id: 'unknown',
+          type: 'unknown_type',
+          plantId: undefined,
+        }),
+      ]
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: false,
+        tips: false,
+        doNotDisturb: false,
+        timezone: 'UTC',
+      })
+
+      await runPollAndEnqueue(notifications, [user], undefined, [plant])
+
+      expect(notifications).toHaveLength(0)
+    })
+
+    it('hands rows deferred by DND back to pending for a later tick', async () => {
+      const notification = dueNotification({ id: 'dnd-1' })
+      const user = createTestUser({
+        id: 'user-1',
+        careReminders: true,
+        doNotDisturb: true,
+        doNotDisturbStart: '00:00',
+        doNotDisturbEnd: '23:59',
+        timezone: 'UTC',
+      })
+      const enqueued: QueueMessage[] = []
+
+      await runPollAndEnqueue(
+        [notification],
+        [user],
+        (_, message) => enqueued.push(message),
+        [plant]
+      )
+
+      expect(enqueued).toHaveLength(0)
+      expect(notification.status).toBe('pending')
+    })
+
+    it('releases claimed rows when the queue rejects the message', async () => {
+      const notification = dueNotification({ id: 'release-1' })
+
+      await Effect.runPromise(
+        pollAndEnqueue.pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              createMockNotificationRepository([notification]),
+              createMockMessageQueue({
+                enqueueFailure: new QueueOperationError({
+                  message: 'redis down',
+                }),
+              }),
+              createMockUserRepository([defaultUser]),
+              createMockPlantRepository({ plants: [plant] })
+            )
+          ),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
+      )
+
+      expect(notification.status).toBe('pending')
     })
   })
 })
