@@ -1,6 +1,7 @@
 import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
+  revenuecatWebhookEvents,
   subscriptionEvents,
   subscriptionTiers,
   subscriptionUsage,
@@ -18,7 +19,7 @@ import {
   type TierConfig,
   type UsageField,
 } from '@lily/shared'
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -41,11 +42,20 @@ export interface CreateSubscriptionData {
   trialEndsAt?: Date | null
   currentPeriodStart: Date
   currentPeriodEnd: Date
+  // Left undefined, an upsert keeps the row's current canceledAt.
+  canceledAt?: Date | null
   externalSubscriptionId?: string | null
   externalCustomerId?: string | null
   provider?: 'revenuecat'
   productId?: string | null
   store?: 'APP_STORE' | 'PLAY_STORE' | null
+}
+
+export interface RevenueCatWebhookEventRecord {
+  id: string
+  eventType: string
+  appUserId: string
+  environment: string
 }
 
 export interface ISubscriptionRepository {
@@ -60,6 +70,17 @@ export interface ISubscriptionRepository {
     ReadonlyArray<typeof userSubscriptions.$inferSelect>,
     SqlError
   >
+
+  // Rows linked to a store purchase (gifts and free rows have no external id)
+  readonly findStoreSubscriptions: () => Effect.Effect<
+    ReadonlyArray<typeof userSubscriptions.$inferSelect>,
+    SqlError
+  >
+
+  // Records a RevenueCat event id. False when the id was already recorded.
+  readonly claimWebhookEvent: (
+    event: RevenueCatWebhookEventRecord
+  ) => Effect.Effect<boolean, SqlError>
 
   readonly findByExternalId: (
     externalSubscriptionId: string
@@ -175,6 +196,26 @@ export const SubscriptionRepositoryLive = Layer.effect(
         }
       ),
 
+      findStoreSubscriptions: Effect.fn(
+        'SubscriptionRepository.findStoreSubscriptions'
+      )(function* () {
+        return yield* db
+          .select()
+          .from(userSubscriptions)
+          .where(isNotNull(userSubscriptions.externalSubscriptionId))
+      }),
+
+      claimWebhookEvent: Effect.fn('SubscriptionRepository.claimWebhookEvent')(
+        function* (event: RevenueCatWebhookEventRecord) {
+          const inserted = yield* db
+            .insert(revenuecatWebhookEvents)
+            .values(event)
+            .onConflictDoNothing()
+            .returning({ id: revenuecatWebhookEvents.id })
+          return Array.isReadonlyArrayNonEmpty(inserted)
+        }
+      ),
+
       findByExternalId: Effect.fn('SubscriptionRepository.findByExternalId')(
         function* (externalSubscriptionId: string) {
           const [subscription] = yield* db
@@ -207,6 +248,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
             ),
             currentPeriodStart: data.currentPeriodStart,
             currentPeriodEnd: data.currentPeriodEnd,
+            canceledAt: Option.getOrNull(Option.fromNullishOr(data.canceledAt)),
             externalSubscriptionId: Option.getOrNull(
               Option.fromNullishOr(data.externalSubscriptionId)
             ),
@@ -223,6 +265,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .onConflictDoUpdate({
             target: userSubscriptions.userId,
             set: {
+              ...compact({ canceledAt: data.canceledAt }),
               tier: data.tier,
               status: data.status,
               trialStartsAt: Option.getOrNull(

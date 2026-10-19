@@ -143,6 +143,19 @@ export const subscriptionEvents = pgTable('subscription_events', {
     .defaultNow(),
 })
 
+// Every RevenueCat webhook event applied once, keyed by RevenueCat's event
+// id. A redelivery conflicts on the primary key and is acknowledged without
+// being applied again. Rows are kept for audit.
+export const revenuecatWebhookEvents = pgTable('revenuecat_webhook_events', {
+  id: text('id').primaryKey(),
+  eventType: text('event_type').notNull(),
+  appUserId: text('app_user_id').notNull(),
+  environment: text('environment').notNull(),
+  receivedAt: timestamp('received_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+})
+
 // Relations
 export const userSubscriptionsRelations = relations(
   userSubscriptions,
