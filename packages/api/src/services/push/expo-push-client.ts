@@ -14,8 +14,9 @@ const EXPO_REQUEST_TIMEOUT = Duration.seconds(15)
 
 // The SDK takes no AbortSignal, and under Bun its node-fetch is Bun's fetch,
 // which ignores the `httpAgent` option, so nothing here can close the socket.
-// On timeout the fiber stops waiting and the request finishes or fails on its
-// own. A send may still have reached Expo, so a retry can deliver it twice.
+// On timeout the fiber stops waiting and the request runs on until Expo
+// answers or Bun's own 300 s fetch timeout closes it. A send may still have
+// reached Expo, so a retry can deliver it twice.
 const request = <A>(message: string, call: () => Promise<A>) =>
   Effect.tryPromise({
     try: call,
