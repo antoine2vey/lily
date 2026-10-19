@@ -16,6 +16,7 @@ import type { CarePlan } from '@lily/shared/care-plan'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { Effect, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 /**
@@ -44,6 +45,7 @@ export const completeCarePlanStep = ({
   | DelegationRepository
   | EventBus
   | CurrentUser
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* CarePlanRepository
