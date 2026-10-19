@@ -3,7 +3,7 @@ import {
   createMockPushService,
   createSuccessPushService,
 } from '@lily/api/__tests__/mocks/push.service'
-import { buildExpoMessage } from '@lily/api/services/push/expo.provider'
+import { buildExpoMessage } from '@lily/api/services/push/expo-plus-apns.provider'
 import { PushService } from '@lily/shared/server'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'

@@ -98,6 +98,18 @@ export const createMockDeviceTokenRepository = (
           Array.filter(store, (t) => t.userId === userId && t.isActive)
         )
       ),
+
+    deactivateByToken: (token, unchangedSince) => {
+      const idx = store.findIndex(
+        (t) =>
+          t.token === token &&
+          t.isActive &&
+          t.updatedAt.getTime() <= unchangedSince.getTime()
+      )
+      if (idx === -1) return Effect.succeed(false)
+      store[idx] = { ...store[idx]!, isActive: false, updatedAt: new Date() }
+      return Effect.succeed(true)
+    },
   }
 
   return Layer.succeed(DeviceTokenRepository, repo)
