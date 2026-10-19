@@ -1,12 +1,16 @@
 import { AiService } from '@lily/api/services/ai/service'
-import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
+import {
+  ChatStreamError,
+  type StepData,
+} from '@lily/api/services/ai-chat/plant-chat'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
-import { Deferred, Effect, Layer, Option, pipe } from 'effect'
+import { Deferred, Effect, Exit, Layer, Option, pipe } from 'effect'
 
 export interface MockAiServiceData {
   plantChatResponse?: string
   mockSteps?: readonly StepData[]
+  chatStreamError?: string
 }
 
 // Create an async generator to simulate the text stream
@@ -19,6 +23,10 @@ async function* createMockUIMessageStream(text: string) {
   yield { type: 'text-start' as const, id: 'mock-msg' }
   yield { type: 'text-delta' as const, delta: text, id: 'mock-msg' }
   yield { type: 'text-end' as const, id: 'mock-msg' }
+}
+
+async function* createMockErrorStream(errorText: string) {
+  yield { type: 'error' as const, errorText }
 }
 
 export const createMockAiService = (
@@ -58,17 +66,39 @@ export const createMockAiService = (
       _imageOptions?: { imageUrl?: string; imageKey?: string }
     ) =>
       Effect.gen(function* () {
-        const completionDeferred = yield* Deferred.make<readonly StepData[]>()
+        const completionDeferred = yield* Deferred.make<
+          readonly StepData[],
+          ChatStreamError
+        >()
 
-        // Immediately resolve the deferred with mock steps
-        yield* Deferred.succeed(completionDeferred, steps)
+        const failure = Option.fromNullishOr(data.chatStreamError)
+
+        yield* Deferred.done(
+          completionDeferred,
+          pipe(
+            failure,
+            Option.match({
+              onNone: () => Exit.succeed(steps),
+              onSome: (message) =>
+                Exit.fail(new ChatStreamError({ message, cause: message })),
+            })
+          )
+        )
 
         return {
           stream: {
             textStream: createTextStream(response),
             text: Promise.resolve(response),
             toolResults: Promise.resolve([]),
-            toUIMessageStream: () => createMockUIMessageStream(response),
+            consumeStream: () => Promise.resolve(),
+            toUIMessageStream: () =>
+              pipe(
+                failure,
+                Option.match({
+                  onNone: () => createMockUIMessageStream(response),
+                  onSome: createMockErrorStream,
+                })
+              ),
             response: Promise.resolve({
               messages: [
                 {

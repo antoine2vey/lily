@@ -15,11 +15,20 @@ import type {
 } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
 export interface MockChatRepositoryData {
   messages: ChatMessage[]
   conversations?: ChatConversation[]
+  saveChatFails?: boolean
 }
+
+const saveChatFailure = new SqlError({
+  reason: new UnknownError({
+    cause: new Error('database unreachable'),
+    message: 'database unreachable',
+  }),
+})
 
 const toRow = (msg: ChatMessage) => ({
   id: msg.id,
@@ -54,6 +63,8 @@ export const createMockChatRepository = (
       Array.findFirst(conversations, (c) => c.id === id),
       Option.getOrUndefined
     )
+
+  const savedByMessageId = new Map<string, string>()
 
   const repo: IChatRepository = {
     findConversationById: (id) =>
@@ -249,6 +260,7 @@ export const createMockChatRepository = (
     },
 
     saveChat: (params: SaveChatParams) => {
+      if (data.saveChatFails) return Effect.fail(saveChatFailure)
       const saved: SavedChatMessage[] = []
 
       Array.forEach(params.messages, (msg) => {
@@ -259,16 +271,18 @@ export const createMockChatRepository = (
           Array.join('')
         )
 
-        const existing = Array.findFirst(
-          data.messages,
-          (m) =>
-            m.id === msg.id &&
-            m.conversationId === params.conversationId &&
-            m.userId === params.userId
+        const existing = pipe(
+          Option.fromNullishOr(
+            savedByMessageId.get(`${params.conversationId}:${msg.id}`)
+          ),
+          Option.flatMap((dbId) =>
+            Array.findFirst(data.messages, (m) => m.id === dbId)
+          )
         )
 
         if (Option.isNone(existing)) {
           const dbId = crypto.randomUUID()
+          savedByMessageId.set(`${params.conversationId}:${msg.id}`, dbId)
           const newMessage: ChatMessage = {
             id: dbId,
             role: msg.role as 'user' | 'assistant',

@@ -8,7 +8,7 @@ import { giftCodeRedemptions, giftCodes, users } from '@lily/db/schema'
 import { compact } from '@lily/shared'
 import type { GiftDuration } from '@lily/shared/admin'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
-import { Context, Effect, Layer, Option, String as Str } from 'effect'
+import { Array, Context, Effect, Layer, Option, String as Str } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type GiftCodeRecord = Omit<typeof giftCodes.$inferSelect, 'duration'> & {
@@ -59,7 +59,11 @@ export interface IGiftCodeRepository {
     id: string
   ) => Effect.Effect<GiftCodeRecord | null, SqlError>
 
-  readonly incrementUsage: (id: string) => Effect.Effect<void, SqlError>
+  /**
+   * Atomically takes one usage of the code. `false` when the code is
+   * exhausted. `maxUsages` of 0 means unlimited.
+   */
+  readonly claimUsage: (id: string) => Effect.Effect<boolean, SqlError>
 
   readonly createRedemption: (
     giftCodeId: string,
@@ -191,15 +195,22 @@ export const GiftCodeRepositoryLive = Layer.effect(
         return deleted ? asRecord(deleted) : null
       }),
 
-      incrementUsage: Effect.fn('GiftCodeRepository.incrementUsage')(function* (
+      claimUsage: Effect.fn('GiftCodeRepository.claimUsage')(function* (
         id: string
       ) {
-        yield* db
+        const claimed = yield* db
           .update(giftCodes)
           .set({
             currentUsages: sql`${giftCodes.currentUsages} + 1`,
           })
-          .where(eq(giftCodes.id, id))
+          .where(
+            and(
+              eq(giftCodes.id, id),
+              sql`(${giftCodes.maxUsages} = 0 OR ${giftCodes.currentUsages} < ${giftCodes.maxUsages})`
+            )
+          )
+          .returning({ id: giftCodes.id })
+        return Array.isReadonlyArrayNonEmpty(claimed)
       }),
 
       createRedemption: Effect.fn('GiftCodeRepository.createRedemption')(

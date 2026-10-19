@@ -356,240 +356,6 @@ describe('LimitChecker', () => {
     })
   })
 
-  describe('checkAiChatLimit', () => {
-    it('should allow free user under chat limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 5, // Under limit of 10
-        cardScansCount: 0,
-        plantIdentifiesCount: 0,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isSuccess(result)).toBe(true)
-    })
-
-    it('should reject free user at chat limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 10, // At limit
-        cardScansCount: 0,
-        plantIdentifiesCount: 0,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isFailure(result)).toBe(true)
-      const error = failureOf(result) as LimitExceededError
-      expect(error.feature).toBe('ai_chats')
-      expect(error.limit).toBe(10)
-      expect(error.current).toBe(10)
-    })
-
-    it('should allow paid user unlimited chats', async () => {
-      const subscription: typeof userSubscriptions.$inferSelect = {
-        id: 'sub-1',
-        userId: 'user-1',
-        tier: 'paid',
-        status: 'active',
-        trialStartsAt: null,
-        trialEndsAt: null,
-        currentPeriodStart: nowAsDate(),
-        currentPeriodEnd: nowAsDate(),
-        externalSubscriptionId: 'sub_123',
-        externalCustomerId: 'cus_123',
-        provider: 'revenuecat',
-        productId: null,
-        store: null,
-        canceledAt: null,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 1000, // Way over free limit
-        cardScansCount: 0,
-        plantIdentifiesCount: 0,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        subscription,
-        tier: 'paid',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isSuccess(result)).toBe(true)
-    })
-  })
-
-  describe('checkCardScanLimit', () => {
-    it('should allow free user under scan limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 0,
-        cardScansCount: 3, // Under limit of 5
-        plantIdentifiesCount: 0,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isSuccess(result)).toBe(true)
-    })
-
-    it('should reject free user at scan limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 0,
-        cardScansCount: 5, // At limit
-        plantIdentifiesCount: 0,
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isFailure(result)).toBe(true)
-      const error = failureOf(result) as LimitExceededError
-      expect(error.feature).toBe('card_scans')
-      expect(error.limit).toBe(5)
-      expect(error.current).toBe(5)
-    })
-  })
-
-  describe('checkPlantIdentifyLimit', () => {
-    it('should allow free user under identify limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 0,
-        cardScansCount: 0,
-        plantIdentifiesCount: 2, // Under limit of 3
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isSuccess(result)).toBe(true)
-    })
-
-    it('should reject free user at identify limit', async () => {
-      const usage: typeof subscriptionUsage.$inferSelect = {
-        id: 'usage-1',
-        userId: 'user-1',
-        periodStart: nowAsDate(),
-        periodEnd: nowAsDate(),
-        aiChatsCount: 0,
-        cardScansCount: 0,
-        plantIdentifiesCount: 3, // At limit
-        createdAt: nowAsDate(),
-        updatedAt: nowAsDate(),
-      }
-
-      const testLayer = createTestLayers({
-        tier: 'free',
-        usage,
-      })
-
-      const result = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-
-      expect(Exit.isFailure(result)).toBe(true)
-      const error = failureOf(result) as LimitExceededError
-      expect(error.feature).toBe('plant_identifies')
-      expect(error.limit).toBe(3)
-      expect(error.current).toBe(3)
-    })
-  })
-
   describe('trialing user with expired period', () => {
     it('should enforce free limits for trialing user with past currentPeriodEnd', async () => {
       const subscription: typeof userSubscriptions.$inferSelect = {
@@ -627,7 +393,7 @@ describe('LimitChecker', () => {
       expect(Exit.isFailure(result)).toBe(true)
     })
 
-    it('should allow trialing user with valid period for all limit types', async () => {
+    it('should allow trialing user with valid period for the plant limit', async () => {
       const subscription: typeof userSubscriptions.$inferSelect = {
         id: 'sub-1',
         userId: 'user-1',
@@ -666,7 +432,6 @@ describe('LimitChecker', () => {
         plantCount: 50,
       })
 
-      // All limit checks should pass for trialing user with valid period
       const plantResult = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const limitChecker = yield* LimitChecker
@@ -674,30 +439,6 @@ describe('LimitChecker', () => {
         }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
       )
       expect(Exit.isSuccess(plantResult)).toBe(true)
-
-      const chatResult = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkAiChatLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-      expect(Exit.isSuccess(chatResult)).toBe(true)
-
-      const scanResult = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkCardScanLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-      expect(Exit.isSuccess(scanResult)).toBe(true)
-
-      const identifyResult = await Effect.runPromiseExit(
-        Effect.gen(function* () {
-          const limitChecker = yield* LimitChecker
-          yield* limitChecker.checkPlantIdentifyLimit('user-1')
-        }).pipe(Effect.provide(LimitCheckerLive.pipe(Layer.provide(testLayer))))
-      )
-      expect(Exit.isSuccess(identifyResult)).toBe(true)
     })
 
     it('should enforce free limits for canceled-during-trial with expired period', async () => {

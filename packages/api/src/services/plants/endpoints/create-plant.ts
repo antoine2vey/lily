@@ -7,7 +7,19 @@ import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { type LimitExceededError, luxToSliderValue } from '@lily/shared'
 import type { EnhancedPlantCreateRequest, Plant } from '@lily/shared/plant'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
+
+const PLANT_LIMIT_LOCK_KEYSPACE = 1
+
+const withPlantLimitLock =
+  (sql: SqlClient.SqlClient, userId: string) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    sql.withTransaction(
+      sql`SELECT pg_advisory_xact_lock(${PLANT_LIMIT_LOCK_KEYSPACE}, hashtext(${userId}))`.pipe(
+        Effect.andThen(effect)
+      )
+    )
 
 export const createPlant = (
   request: EnhancedPlantCreateRequest
@@ -19,6 +31,7 @@ export const createPlant = (
   | EventBus
   | CurrentUser
   | LimitChecker
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const repo = yield* PlantRepository
@@ -26,51 +39,63 @@ export const createPlant = (
     const eventBus = yield* EventBus
     const { id: userId } = yield* CurrentUser
     const limitChecker = yield* LimitChecker
+    const sql = yield* SqlClient.SqlClient
 
     yield* Effect.annotateCurrentSpan('plant.name', request.name)
-
-    // Check if user has reached their plant limit
-    yield* limitChecker.checkPlantLimit(userId)
 
     // Set next care dates to now (due immediately)
     const now = DateTime.toDateUtc(DateTime.nowUnsafe())
 
-    const plantOrNull = yield* repo.create({
-      name: request.name,
-      description: pipe(
-        Option.fromNullishOr(request.description),
-        Option.getOrNull
-      ),
-      category: pipe(Option.fromNullishOr(request.category), Option.getOrNull),
-      imageUrl: pipe(Option.fromNullishOr(request.imageUrl), Option.getOrNull),
-      humidityRating: pipe(
-        Option.fromNullishOr(request.humidityRating),
-        Option.getOrElse(() => 0)
-      ),
-      lightingRating: pipe(
-        Option.fromNullishOr(request.lightingRating),
-        Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
-      ),
-      petToxicityRating: pipe(
-        Option.fromNullishOr(request.petToxicityRating),
-        Option.getOrElse(() => 0)
-      ),
-      wateringRating: pipe(
-        Option.fromNullishOr(request.wateringRating),
-        Option.getOrElse(() => 0)
-      ),
-      health: 'HEALTHY',
-      potWidthCm: pipe(
-        Option.fromNullishOr(request.potWidthCm),
-        Option.getOrNull
-      ),
-      potHeightCm: pipe(
-        Option.fromNullishOr(request.potHeightCm),
-        Option.getOrNull
-      ),
-      userId,
-      roomId: pipe(Option.fromNullishOr(request.roomId), Option.getOrNull),
-    })
+    const plantOrNull = yield* withPlantLimitLock(
+      sql,
+      userId
+    )(
+      Effect.gen(function* () {
+        yield* limitChecker.checkPlantLimit(userId)
+        return yield* repo.create({
+          name: request.name,
+          description: pipe(
+            Option.fromNullishOr(request.description),
+            Option.getOrNull
+          ),
+          category: pipe(
+            Option.fromNullishOr(request.category),
+            Option.getOrNull
+          ),
+          imageUrl: pipe(
+            Option.fromNullishOr(request.imageUrl),
+            Option.getOrNull
+          ),
+          humidityRating: pipe(
+            Option.fromNullishOr(request.humidityRating),
+            Option.getOrElse(() => 0)
+          ),
+          lightingRating: pipe(
+            Option.fromNullishOr(request.lightingRating),
+            Option.getOrElse(() => luxToSliderValue(request.luxNeeded))
+          ),
+          petToxicityRating: pipe(
+            Option.fromNullishOr(request.petToxicityRating),
+            Option.getOrElse(() => 0)
+          ),
+          wateringRating: pipe(
+            Option.fromNullishOr(request.wateringRating),
+            Option.getOrElse(() => 0)
+          ),
+          health: 'HEALTHY',
+          potWidthCm: pipe(
+            Option.fromNullishOr(request.potWidthCm),
+            Option.getOrNull
+          ),
+          potHeightCm: pipe(
+            Option.fromNullishOr(request.potHeightCm),
+            Option.getOrNull
+          ),
+          userId,
+          roomId: pipe(Option.fromNullishOr(request.roomId), Option.getOrNull),
+        })
+      })
+    )
 
     if (!plantOrNull) {
       return yield* Effect.die(

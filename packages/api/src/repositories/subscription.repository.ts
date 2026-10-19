@@ -121,16 +121,22 @@ export interface ISubscriptionRepository {
     userId: string
   ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
 
-  readonly getOrCreateUsage: (
+  /**
+   * Atomically takes one unit of `field` for the current month. Returns the
+   * updated row, or `null` when `limit` is already reached. A `null` limit
+   * never refuses.
+   */
+  readonly reserveUsage: (
     userId: string,
-    periodStart: Date,
-    periodEnd: Date
-  ) => Effect.Effect<typeof subscriptionUsage.$inferSelect, SqlError>
+    field: UsageField,
+    limit: number | null
+  ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
 
-  readonly incrementUsage: (
+  /** Gives back one unit taken by `reserveUsage`; never goes below zero. */
+  readonly releaseUsage: (
     userId: string,
     field: UsageField
-  ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
+  ) => Effect.Effect<void, SqlError>
 
   // Gift history
   readonly findGiftEvents: (params: {
@@ -174,6 +180,24 @@ export const SubscriptionRepositoryLive = Layer.effect(
       periodStart: startOfMonthAsDate(),
       periodEnd: endOfMonthAsDate(),
     })
+
+    const usageColumn = (field: UsageField) =>
+      pipe(
+        Match.value(field),
+        Match.when('aiChats', () => ({
+          column: subscriptionUsage.aiChatsCount,
+          columnName: 'aiChatsCount' as const,
+        })),
+        Match.when('cardScans', () => ({
+          column: subscriptionUsage.cardScansCount,
+          columnName: 'cardScansCount' as const,
+        })),
+        Match.when('plantIdentifies', () => ({
+          column: subscriptionUsage.plantIdentifiesCount,
+          columnName: 'plantIdentifiesCount' as const,
+        })),
+        Match.exhaustive
+      )
 
     return {
       findByUserId: Effect.fn('SubscriptionRepository.findByUserId')(function* (
@@ -454,103 +478,72 @@ export const SubscriptionRepositoryLive = Layer.effect(
         }
       ),
 
-      getOrCreateUsage: Effect.fn('SubscriptionRepository.getOrCreateUsage')(
-        function* (userId: string, periodStart: Date, periodEnd: Date) {
-          const existingResult = yield* db
-            .select()
-            .from(subscriptionUsage)
-            .where(
-              and(
-                eq(subscriptionUsage.userId, userId),
-                eq(subscriptionUsage.periodStart, periodStart)
+      reserveUsage: Effect.fn('SubscriptionRepository.reserveUsage')(function* (
+        userId: string,
+        field: UsageField,
+        limit: number | null
+      ) {
+        const { periodStart, periodEnd } = getMonthBoundaries()
+
+        yield* db
+          .insert(subscriptionUsage)
+          .values({
+            userId,
+            periodStart,
+            periodEnd,
+            aiChatsCount: 0,
+            cardScansCount: 0,
+            plantIdentifiesCount: 0,
+          })
+          .onConflictDoNothing()
+
+        const { column, columnName } = usageColumn(field)
+
+        // The row lock serializes concurrent reservations and Postgres
+        // re-evaluates the WHERE on the locked row, so at most `limit`
+        // reservations succeed per period.
+        const [usage] = yield* db
+          .update(subscriptionUsage)
+          .set({
+            [columnName]: sql`${column} + 1`,
+            updatedAt: nowAsDate(),
+          })
+          .where(
+            and(
+              eq(subscriptionUsage.userId, userId),
+              eq(subscriptionUsage.periodStart, periodStart),
+              pipe(
+                Option.fromNullishOr(limit),
+                Option.map((max) => sql`${column} < ${max}`),
+                Option.getOrUndefined
               )
             )
-
-          const existing = Array.head(existingResult)
-          if (Option.isSome(existing)) return existing.value
-
-          const insertResult = yield* db
-            .insert(subscriptionUsage)
-            .values({
-              userId,
-              periodStart,
-              periodEnd,
-              aiChatsCount: 0,
-              cardScansCount: 0,
-              plantIdentifiesCount: 0,
-            })
-            .returning()
-
-          const inserted = Array.head(insertResult)
-          if (Option.isSome(inserted)) return inserted.value
-
-          const fallbackResult = yield* db
-            .select()
-            .from(subscriptionUsage)
-            .where(
-              and(
-                eq(subscriptionUsage.userId, userId),
-                eq(subscriptionUsage.periodStart, periodStart)
-              )
-            )
-
-          return Option.getOrThrowWith(
-            Array.head(fallbackResult),
-            () => new Error('Failed to create or retrieve usage record')
           )
-        }
-      ),
+          .returning()
 
-      incrementUsage: Effect.fn('SubscriptionRepository.incrementUsage')(
-        function* (userId: string, field: UsageField) {
-          const { periodStart, periodEnd } = getMonthBoundaries()
+        return Option.getOrNull(Option.fromNullishOr(usage))
+      }),
 
-          yield* db
-            .insert(subscriptionUsage)
-            .values({
-              userId,
-              periodStart,
-              periodEnd,
-              aiChatsCount: 0,
-              cardScansCount: 0,
-              plantIdentifiesCount: 0,
-            })
-            .onConflictDoNothing()
+      releaseUsage: Effect.fn('SubscriptionRepository.releaseUsage')(function* (
+        userId: string,
+        field: UsageField
+      ) {
+        const { periodStart } = getMonthBoundaries()
+        const { column, columnName } = usageColumn(field)
 
-          const { column, columnName } = pipe(
-            Match.value(field),
-            Match.when('aiChats', () => ({
-              column: subscriptionUsage.aiChatsCount,
-              columnName: 'aiChatsCount' as const,
-            })),
-            Match.when('cardScans', () => ({
-              column: subscriptionUsage.cardScansCount,
-              columnName: 'cardScansCount' as const,
-            })),
-            Match.when('plantIdentifies', () => ({
-              column: subscriptionUsage.plantIdentifiesCount,
-              columnName: 'plantIdentifiesCount' as const,
-            })),
-            Match.exhaustive
-          )
-
-          const [usage] = yield* db
-            .update(subscriptionUsage)
-            .set({
-              [columnName]: sql`${column} + 1`,
-              updatedAt: nowAsDate(),
-            })
-            .where(
-              and(
-                eq(subscriptionUsage.userId, userId),
-                eq(subscriptionUsage.periodStart, periodStart)
-              )
+        yield* db
+          .update(subscriptionUsage)
+          .set({
+            [columnName]: sql`GREATEST(${column} - 1, 0)`,
+            updatedAt: nowAsDate(),
+          })
+          .where(
+            and(
+              eq(subscriptionUsage.userId, userId),
+              eq(subscriptionUsage.periodStart, periodStart)
             )
-            .returning()
-
-          return Option.getOrNull(Option.fromNullishOr(usage))
-        }
-      ),
+          )
+      }),
 
       findGiftEvents: Effect.fn('SubscriptionRepository.findGiftEvents')(
         function* (params: { page: number; limit: number }) {

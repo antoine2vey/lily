@@ -1,10 +1,37 @@
 import { PushSendError } from '@lily/shared/server'
-import { Array, Context, Effect, Layer } from 'effect'
+import { Array, Context, Duration, Effect, Layer } from 'effect'
 import Expo, {
   type ExpoPushMessage,
   type ExpoPushReceipt,
   type ExpoPushTicket,
 } from 'expo-server-sdk'
+
+// ExpoPlusApns.sendBatch, one send request plus token bookkeeping, ran p99
+// 0.63 s and at most 2.8 s over the 30 days to 2026-10-19. The SDK retries a
+// 429 twice with 1 s then 2 s of backoff inside one call, so a healthy call
+// can take a few seconds. A request with no answer after 15 s is dead.
+const EXPO_REQUEST_TIMEOUT = Duration.seconds(15)
+
+// The SDK takes no AbortSignal, and under Bun its node-fetch is Bun's fetch,
+// which ignores the `httpAgent` option, so nothing here can close the socket.
+// On timeout the fiber stops waiting and the request runs on until Expo
+// answers or Bun's own 300 s fetch timeout closes it. A send may still have
+// reached Expo, so a retry can deliver it twice.
+const request = <A>(message: string, call: () => Promise<A>) =>
+  Effect.tryPromise({
+    try: call,
+    catch: (cause) => new PushSendError({ message, cause }),
+  }).pipe(
+    Effect.timeoutOrElse({
+      duration: EXPO_REQUEST_TIMEOUT,
+      orElse: () =>
+        Effect.fail(
+          new PushSendError({
+            message: `${message}: no response within ${Duration.format(EXPO_REQUEST_TIMEOUT)}`,
+          })
+        ),
+    })
+  )
 
 // Expo's verdict that the app behind a token is gone (uninstalled, or the OS
 // revoked the registration). Sending to it again can never deliver.
@@ -31,28 +58,18 @@ export class ExpoPushClient extends Context.Service<
     return ExpoPushClient.of({
       send: (messages) =>
         Effect.forEach(expo.chunkPushNotifications([...messages]), (chunk) =>
-          Effect.tryPromise({
-            try: () => expo.sendPushNotificationsAsync(chunk),
-            catch: (error) =>
-              new PushSendError({
-                message: 'Failed to send push notification batch',
-                cause: error,
-              }),
-          })
+          request('Failed to send push notification batch', () =>
+            expo.sendPushNotificationsAsync(chunk)
+          )
         ).pipe(Effect.map(Array.flatten)),
 
       getReceipts: (ticketIds) =>
         Effect.forEach(
           expo.chunkPushNotificationReceiptIds([...ticketIds]),
           (chunk) =>
-            Effect.tryPromise({
-              try: () => expo.getPushNotificationReceiptsAsync(chunk),
-              catch: (error) =>
-                new PushSendError({
-                  message: 'Failed to fetch push receipts',
-                  cause: error,
-                }),
-            })
+            request('Failed to fetch push receipts', () =>
+              expo.getPushNotificationReceiptsAsync(chunk)
+            )
         ).pipe(
           Effect.map((pages) =>
             Array.reduce(pages, {}, (all, page) => ({ ...all, ...page }))
