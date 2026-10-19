@@ -46,6 +46,8 @@ export const notifications = pgTable(
     sentAt: timestamp('sent_at', { withTimezone: true }),
     isRead: boolean('is_read').notNull().default(false),
     status: notificationStatusEnum('status').notNull().default('pending'),
+    queuedAt: timestamp('queued_at', { withTimezone: true }),
+    deliveryMessageId: text('delivery_message_id'),
     retryCount: integer('retry_count').notNull().default(0),
     lastError: text('last_error'),
     createdAt: timestamp('created_at', { withTimezone: true })

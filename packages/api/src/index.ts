@@ -25,6 +25,7 @@ import { DiagnosisApiLive } from '@lily/api/services/diagnosis/handlers'
 import { startEngagementScheduler } from '@lily/api/services/engagement-scheduler/scheduler'
 import { HealthApiLive } from '@lily/api/services/health/handlers'
 import { startHealthScheduler } from '@lily/api/services/health-scheduler/scheduler'
+import { SHUTDOWN_DRAIN_DEADLINE } from '@lily/api/services/helpers/create-scheduler'
 import { InternalApiLive } from '@lily/api/services/internal/handlers'
 import { KnowledgeApiLive } from '@lily/api/services/knowledge/handlers'
 import { KnowledgeIngestionApiLive } from '@lily/api/services/knowledge-ingestion/handlers'
@@ -36,6 +37,7 @@ import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/scheduler'
 import { PlantCatalogApiLive } from '@lily/api/services/plant-catalog/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
+import { startPushReceiptScheduler } from '@lily/api/services/push-receipt-scheduler/scheduler'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { SocialApiLive } from '@lily/api/services/social/handlers'
 import {
@@ -135,7 +137,8 @@ const AllSchedulersLive = Layer.mergeAll(
   AnalyticsSchedulerLive,
   ActivitySchedulerLive,
   LiveActivitySubscriberLive,
-  VacationSchedulerLive
+  VacationSchedulerLive,
+  Layer.effectDiscard(startPushReceiptScheduler)
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
@@ -184,15 +187,24 @@ const AllRoutes = Layer.mergeAll(
 
 // ObservabilityMiddleware already logs every request, so the router's
 // built-in request logger is disabled to avoid a duplicate line.
-const ServerLive = HttpRouter.serve(AllRoutes, {
-  middleware: ObservabilityMiddleware,
-  disableLogger: true,
-}).pipe(
-  Layer.provide(AllSchedulersLive),
+// Merged rather than provided, so on SIGTERM the HTTP server and the
+// schedulers drain in parallel, both before AppLive's connections close.
+const ServerLive = Layer.mergeAll(
+  HttpRouter.serve(AllRoutes, {
+    middleware: ObservabilityMiddleware,
+    disableLogger: true,
+  }),
+  AllSchedulersLive
+).pipe(
   Layer.provide(AppLive),
   Layer.provide(SharedLive),
   Layer.provide(
-    BunHttpServer.layer({ port: 3000, hostname: '0.0.0.0', idleTimeout: 120 })
+    BunHttpServer.layer({
+      port: 3000,
+      hostname: '0.0.0.0',
+      idleTimeout: 120,
+      gracefulShutdownTimeout: SHUTDOWN_DRAIN_DEADLINE,
+    })
   )
 )
 

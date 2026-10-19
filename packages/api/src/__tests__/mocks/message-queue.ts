@@ -2,7 +2,9 @@ import {
   type IMessageQueue,
   MessageQueue,
   type NotificationTopic,
+  type QueueConnectionError,
   type QueueMessage,
+  type QueueOperationError,
 } from '@lily/shared/server'
 import { Effect, Layer, Option, pipe } from 'effect'
 
@@ -13,6 +15,8 @@ export interface MockMessageQueueOptions {
   ) => { message: QueueMessage; rawData: string } | null
   onAck?: (topic: NotificationTopic, rawData: string) => void
   onNack?: (topic: NotificationTopic, rawData: string) => void
+  onRequeueStale?: (topic: NotificationTopic) => number
+  enqueueFailure?: QueueOperationError | QueueConnectionError
 }
 
 export const createMockMessageQueue = (
@@ -33,9 +37,13 @@ export const createMockMessageQueue = (
 
   const service: IMessageQueue = {
     enqueue: (topic, message) =>
-      Effect.sync(() => {
-        getQueue(topic).push(message)
-        options.onEnqueue?.(topic, message)
+      Option.match(Option.fromNullishOr(options.enqueueFailure), {
+        onNone: () =>
+          Effect.sync(() => {
+            getQueue(topic).push(message)
+            options.onEnqueue?.(topic, message)
+          }),
+        onSome: (failure) => Effect.fail(failure),
       }),
 
     dequeue: (topic) =>
@@ -58,6 +66,9 @@ export const createMockMessageQueue = (
       Effect.sync(() => {
         options.onNack?.(topic, rawData)
       }),
+
+    requeueStale: (topic) =>
+      Effect.sync(() => options.onRequeueStale?.(topic) ?? 0),
   }
 
   return Layer.succeed(MessageQueue, service)
@@ -94,6 +105,8 @@ export const createMockMessageQueueWithMessages = (
     ack: (_topic, _rawData) => Effect.void,
 
     nack: (_topic, _rawData) => Effect.void,
+
+    requeueStale: (_topic, _olderThan) => Effect.succeed(0),
   }
 
   return Layer.succeed(MessageQueue, service)

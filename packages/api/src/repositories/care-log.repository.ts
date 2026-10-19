@@ -88,6 +88,15 @@ export interface ICareLogRepository {
     startUtc: Date,
     endUtc: Date
   ) => Effect.Effect<boolean, SqlError>
+  /**
+   * Serializes care writes for one plant and care type until the enclosing
+   * transaction ends. Only meaningful inside `SqlClient.withTransaction`:
+   * the lock is `pg_advisory_xact_lock`, released at commit or rollback.
+   */
+  readonly lockPlantCareType: (
+    plantId: string,
+    type: CareType
+  ) => Effect.Effect<void, SqlError>
   readonly countTodayByUser: (
     userId: string,
     timezone: string
@@ -284,6 +293,14 @@ export const CareLogRepositoryLive = Layer.effect(
           .limit(1)
         return row !== undefined
       }),
+
+      lockPlantCareType: Effect.fn('CareLogRepository.lockPlantCareType')(
+        function* (plantId: string, type: CareType) {
+          yield* db.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtext(${plantId}), hashtext(${type}))`
+          )
+        }
+      ),
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
         function* (userId: string, timezone: string) {

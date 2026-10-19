@@ -1,6 +1,6 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { rateLimits } from '@lily/db/schema/auth'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -9,7 +9,6 @@ import {
   Effect,
   Layer,
   Option,
-  pipe,
 } from 'effect'
 import { RateLimitExceededError } from './errors'
 
@@ -61,51 +60,33 @@ export const RateLimiterServiceLive = Layer.effect(
       checkRateLimit: Effect.fn('RateLimiterService.checkRateLimit')(
         function* (key: string, config: RateLimitConfig) {
           const nowDt = DateTime.nowUnsafe()
-          const currentTime = DateTime.toDateUtc(nowDt)
-          const windowStart = DateTime.toDateUtc(
+          const windowStart = DateTime.formatIso(
             DateTime.subtract(nowDt, { seconds: config.windowSeconds })
           )
+          const windowExpired = sql`${rateLimits.windowStart} < ${windowStart}::timestamptz`
 
-          // Find existing rate limit record
-          const records = yield* db
-            .select()
-            .from(rateLimits)
-            .where(eq(rateLimits.key, key))
-
-          const existingRecord = pipe(records, Array.head)
-
-          if (Option.isNone(existingRecord)) {
-            // Create new record
-            yield* db.insert(rateLimits).values({
-              key,
-              count: 1,
-              windowStart: currentTime,
+          const rows = yield* db
+            .insert(rateLimits)
+            .values({ key, count: 1, windowStart: DateTime.toDateUtc(nowDt) })
+            .onConflictDoUpdate({
+              target: rateLimits.key,
+              set: {
+                count: sql`CASE WHEN ${windowExpired} THEN 1 ELSE ${rateLimits.count} + 1 END`,
+                windowStart: sql`CASE WHEN ${windowExpired} THEN excluded.window_start ELSE ${rateLimits.windowStart} END`,
+              },
             })
-            return
-          }
+            .returning({
+              count: rateLimits.count,
+              windowStart: rateLimits.windowStart,
+            })
 
-          const record = existingRecord.value
+          const record = yield* Option.match(Array.head(rows), {
+            onNone: () =>
+              Effect.die(new Error('rate_limits upsert returned no row')),
+            onSome: Effect.succeed,
+          })
 
-          // Check if window has expired
-          if (
-            DateTime.isLessThan(
-              DateTime.makeUnsafe(record.windowStart),
-              DateTime.makeUnsafe(windowStart)
-            )
-          ) {
-            // Reset the window
-            yield* db
-              .update(rateLimits)
-              .set({
-                count: 1,
-                windowStart: currentTime,
-              })
-              .where(eq(rateLimits.key, key))
-            return
-          }
-
-          // Check if rate limit exceeded
-          if (record.count >= config.maxRequests) {
+          if (record.count > config.maxRequests) {
             const windowEndDt = DateTime.addDuration(
               DateTime.makeUnsafe(record.windowStart),
               Duration.seconds(config.windowSeconds)
@@ -118,14 +99,6 @@ export const RateLimiterServiceLive = Layer.effect(
               retryAfter,
             })
           }
-
-          // Increment counter
-          yield* db
-            .update(rateLimits)
-            .set({
-              count: record.count + 1,
-            })
-            .where(eq(rateLimits.key, key))
         },
         Effect.catchTag('SqlError', (e) => Effect.die(e))
       ),

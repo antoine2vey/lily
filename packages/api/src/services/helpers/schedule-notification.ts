@@ -42,9 +42,6 @@ export const scheduleDeferredCareNotification = (
  * Build translated content, create a notification record, and immediately
  * enqueue it for delivery. Uses the recipient's current language so that
  * notifications arrive in the correct locale regardless of when they are sent.
- *
- * Queue failures are logged and swallowed — notifications are a side effect
- * and must not prevent the parent operation (follow, nudge, delegation) from succeeding.
  */
 export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
   type: T,
@@ -64,6 +61,7 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
       title,
       body,
       scheduledAt: nowAsDate(),
+      status: 'queued',
     })
 
     yield* pipe(
@@ -74,10 +72,19 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
             'Notification insert returned no row, skipping enqueue',
             { type, userId }
           ),
-        onSome: (notification) =>
-          Effect.gen(function* () {
-            const topic = Option.getOrThrow(mapNotificationTypeToTopic(type))
-            yield* queue.enqueue(topic, {
+        onSome: (notification) => {
+          const topic = Option.getOrThrow(mapNotificationTypeToTopic(type))
+          const release = (error: unknown) =>
+            Effect.logWarning(
+              'Failed to enqueue notification, left for the scheduler',
+              { type, userId, error }
+            ).pipe(
+              Effect.andThen(
+                notificationRepo.releaseUnclaimed([notification.id])
+              )
+            )
+          return queue
+            .enqueue(topic, {
               id: crypto.randomUUID(),
               topic,
               payload: {
@@ -92,23 +99,13 @@ export const scheduleSimpleNotification = <T extends SimpleNotificationType>(
               createdAt: nowAsDate(),
               scheduledAt: nowAsDate(),
             })
-            yield* notificationRepo.markManyAsQueued([notification.id])
-          }),
+            .pipe(
+              Effect.catchTags({
+                QueueOperationError: release,
+                QueueConnectionError: release,
+              })
+            )
+        },
       })
     )
-  }).pipe(
-    Effect.catchTags({
-      QueueOperationError: (error) =>
-        Effect.logWarning('Failed to enqueue notification, skipping', {
-          type,
-          userId,
-          error,
-        }),
-      QueueConnectionError: (error) =>
-        Effect.logWarning('Queue unavailable for notification, skipping', {
-          type,
-          userId,
-          error,
-        }),
-    })
-  )
+  })

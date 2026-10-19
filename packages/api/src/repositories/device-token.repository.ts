@@ -3,7 +3,7 @@ import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { deviceTokens } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, lte } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -54,6 +54,12 @@ export interface IDeviceTokenRepository {
   readonly countActiveByUserId: (
     userId: string
   ) => Effect.Effect<number, SqlError>
+  // Marks the token inactive unless its row changed after `unchangedSince`
+  // (the device re-registered it since). True when a row was deactivated.
+  readonly deactivateByToken: (
+    token: string,
+    unchangedSince: Date
+  ) => Effect.Effect<boolean, SqlError>
 }
 
 // Tag for dependency injection
@@ -180,6 +186,23 @@ export const DeviceTokenRepositoryLive = Layer.effect(
           )
         return extractCount(result)
       }),
+
+      deactivateByToken: Effect.fn('DeviceTokenRepository.deactivateByToken')(
+        function* (token: string, unchangedSince: Date) {
+          const rows = yield* db
+            .update(deviceTokens)
+            .set({ isActive: false, updatedAt: nowAsDate() })
+            .where(
+              and(
+                eq(deviceTokens.token, token),
+                eq(deviceTokens.isActive, true),
+                lte(deviceTokens.updatedAt, unchangedSince)
+              )
+            )
+            .returning({ id: deviceTokens.id })
+          return Array.isArrayNonEmpty(rows)
+        }
+      ),
     }
   })
 )

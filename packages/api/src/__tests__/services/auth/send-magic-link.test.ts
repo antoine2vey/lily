@@ -10,7 +10,8 @@ import {
   MagicLinkConfig,
   sendMagicLink,
 } from '@lily/api/services/auth/endpoints/send-magic-link'
-import { Effect, Layer } from 'effect'
+import { AuthError } from '@lily/shared'
+import { Effect, Exit, Layer, Option } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
 
 describe('sendMagicLink', () => {
@@ -23,6 +24,7 @@ describe('sendMagicLink', () => {
       shouldExceedRateLimit?: boolean
       disableMagicLink?: boolean
       reviewerEmails?: ReadonlyArray<string>
+      emailFails?: boolean
     } = {}
   ) =>
     Layer.mergeAll(
@@ -32,7 +34,7 @@ describe('sendMagicLink', () => {
           ? { shouldExceedLimit: options.shouldExceedRateLimit }
           : {}
       ),
-      createMockEmailService(),
+      createMockEmailService({ shouldFail: options.emailFails ?? false }),
       MockAlerterLive,
       Layer.succeed(MagicLinkConfig, {
         disableVerification: options.disableMagicLink ?? false,
@@ -57,6 +59,39 @@ describe('sendMagicLink', () => {
       'If an account exists, a magic link has been sent.'
     )
     expect(result.instantCode).toBeUndefined()
+  })
+
+  it('should fail instead of reporting success when the email is not sent', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: 'test@example.com' }).pipe(
+        Effect.provide(createTestLayer({ emailFails: true }))
+      )
+    )
+
+    expect(Exit.findErrorOption(result)).toEqual(
+      Option.some(
+        new AuthError({
+          message: "We couldn't send the sign-in email. Please try again.",
+        })
+      )
+    )
+  })
+
+  it('should word the send failure in the requested language', async () => {
+    const result = await runExitWithConfig(
+      sendMagicLink({ email: 'test@example.com', language: 'fr' }).pipe(
+        Effect.provide(createTestLayer({ emailFails: true }))
+      )
+    )
+
+    expect(Exit.findErrorOption(result)).toEqual(
+      Option.some(
+        new AuthError({
+          message:
+            "Impossible d'envoyer l'e-mail de connexion. Veuillez réessayer.",
+        })
+      )
+    )
   })
 
   it('should normalize email (lowercase, trim)', async () => {

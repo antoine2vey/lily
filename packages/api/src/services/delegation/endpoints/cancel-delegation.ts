@@ -1,16 +1,21 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
-  DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
+  type DelegationStatus,
   nowAsDate,
 } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 
-const CANCELABLE_STATUSES = ['pending', 'accepted', 'active']
+const CANCELABLE_STATUSES: readonly DelegationStatus[] = [
+  'pending',
+  'accepted',
+  'active',
+]
 
 export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
   function* (delegationId: string) {
@@ -29,16 +34,13 @@ export const cancelDelegation = Effect.fn('DelegationService.cancelDelegation')(
       })
     }
 
-    if (!Array.contains(CANCELABLE_STATUSES, delegation.status)) {
-      return yield* new DelegationInvalidStatusError({
-        currentStatus: delegation.status,
-        expectedStatus: 'pending, accepted, or active',
-        message: 'This delegation cannot be canceled in its current state',
-      })
-    }
-
-    yield* delegationRepo.updateStatus(delegationId, 'canceled', {
-      canceledAt: nowAsDate(),
+    yield* transitionDelegation({
+      delegationId,
+      from: CANCELABLE_STATUSES,
+      to: 'canceled',
+      expectedStatus: 'pending, accepted, or active',
+      message: 'This delegation cannot be canceled in its current state',
+      timestamps: { canceledAt: nowAsDate() },
     })
 
     const ownerName = pipe(

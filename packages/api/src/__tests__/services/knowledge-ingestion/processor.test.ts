@@ -3,7 +3,9 @@ import { createMockDeadLetterRepository } from '@lily/api/__tests__/mocks/dead-l
 import { createMockIngestJobRepository } from '@lily/api/__tests__/mocks/ingest-job.repository'
 import { createMockProcessedChunkRepository } from '@lily/api/__tests__/mocks/processed-chunk.repository'
 import { createMockRawDocumentRepository } from '@lily/api/__tests__/mocks/raw-document.repository'
+import { IngestJobRepository } from '@lily/api/repositories/ingest-job.repository'
 import type { CreateProcessedChunkData } from '@lily/api/repositories/processed-chunk.repository'
+import { RawDocumentRepository } from '@lily/api/repositories/raw-document.repository'
 import type { RawDocumentInput } from '@lily/api/services/knowledge-ingestion/adapters/types'
 import { processIngestJob } from '@lily/api/services/knowledge-ingestion/processor'
 import { AdapterError } from '@lily/shared/errors/knowledge'
@@ -201,41 +203,44 @@ describe('processIngestJob', () => {
     expect(jobs[0]?.chunksCreated).toBe(1)
   })
 
-  it('should update counts incrementally via updateStatus', async () => {
-    const docs = [makeTestDoc(), makeTestDoc()]
+  it('records progress after every document, duplicates included, then completes', async () => {
+    const existingDoc: RawDocument = {
+      id: 'existing-doc',
+      source: 'reddit',
+      sourceUrl: 'https://reddit.com/existing',
+      sourceId: 'already-stored',
+      title: 'Existing',
+      content: makeLongContent(500),
+      author: undefined,
+      score: undefined,
+      metadata: undefined,
+      ingestJobId: 'old-job',
+      fetchedAt: new Date(),
+    }
+    const docs = [
+      makeTestDoc(),
+      makeTestDoc({ sourceId: 'already-stored' }),
+      makeTestDoc(),
+    ]
     const job = createTestIngestJob({ id: 'test-job-2' })
-    const _jobs = [job]
-    const insertedChunks: CreateProcessedChunkData[] = []
-    const statusUpdates: {
-      status: string
-      docs?: number | undefined
-      chunks?: number | undefined
-    }[] = []
+    const jobs = [job]
+    const progress: { documentsFetched: number; chunksCreated: number }[] = []
+    const completed: { documentsFetched: number; chunksCreated: number }[] = []
 
-    // Capture status updates
-    const originalJobs = [job]
-    const jobLayer = Layer.succeed(
-      (await import('@lily/api/repositories/ingest-job.repository'))
-        .IngestJobRepository,
-      {
-        create: () => Effect.succeed(job),
-        findById: () => Effect.succeed(job),
-        findAll: () => Effect.succeed(originalJobs),
-        findPending: () => Effect.succeed([]),
-        updateStatus: (_id, status, counts) => {
-          statusUpdates.push({
-            status,
-            docs: counts?.documentsFetched,
-            chunks: counts?.chunksCreated,
-          })
-          const updated = { ...job, status, ...counts, updatedAt: new Date() }
-          return Effect.succeed(updated)
-        },
-        updateError: () => Effect.void,
-        count: () => Effect.succeed(1),
-        delete: () => Effect.succeed(false),
-      }
-    )
+    const recordingJobs = Layer.effect(
+      IngestJobRepository,
+      Effect.map(IngestJobRepository, (repo) => ({
+        ...repo,
+        recordProgress: (id: string, counts: (typeof progress)[number]) =>
+          repo
+            .recordProgress(id, counts)
+            .pipe(Effect.tap(() => Effect.sync(() => progress.push(counts)))),
+        complete: (id: string, counts: (typeof completed)[number]) =>
+          repo
+            .complete(id, counts)
+            .pipe(Effect.tap(() => Effect.sync(() => completed.push(counts)))),
+      }))
+    ).pipe(Layer.provide(createMockIngestJobRepository({ jobs })))
 
     mockedGetAdapter.mockReturnValueOnce(
       Effect.succeed({
@@ -245,25 +250,61 @@ describe('processIngestJob', () => {
     )
     mockedEmbedTexts.mockReturnValue(Effect.succeed([[0.1, 0.2]]))
 
-    const layer = Layer.mergeAll(
-      jobLayer,
-      createMockRawDocumentRepository({ documents: [] }),
-      createMockProcessedChunkRepository({ insertedChunks }),
-      createMockDeadLetterRepository()
+    await Effect.runPromise(
+      processIngestJob(job).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            recordingJobs,
+            createMockRawDocumentRepository({ documents: [existingDoc] }),
+            createMockProcessedChunkRepository({ insertedChunks: [] }),
+            createMockDeadLetterRepository()
+          )
+        )
+      )
     )
 
-    await Effect.runPromise(processIngestJob(job).pipe(Effect.provide(layer)))
+    expect(progress.map((p) => p.documentsFetched)).toEqual([1, 1, 2])
+    expect(completed).toEqual([{ documentsFetched: 2, chunksCreated: 2 }])
+    expect(jobs[0]?.status).toBe('completed')
+  })
 
-    // First call: mark in_progress
-    expect(statusUpdates[0]?.status).toBe('in_progress')
-    // Should have incremental updates for each doc
-    const inProgressUpdates = statusUpdates.filter(
-      (u) => u.status === 'in_progress' && u.docs !== undefined
+  it('does not store chunks for a document another worker inserted first', async () => {
+    const doc = makeTestDoc({ sourceId: 'raced' })
+    const job = createTestIngestJob({ id: 'test-job-race' })
+    const jobs = [job]
+    const insertedChunks: CreateProcessedChunkData[] = []
+
+    // The pre-check misses the row and the insert hits the unique index.
+    const racingDocs = Layer.succeed(RawDocumentRepository, {
+      findBySourceId: () => Effect.succeed(null),
+      createIfNew: () => Effect.succeed(null),
+      countByJobId: () => Effect.succeed(0),
+    })
+
+    mockedGetAdapter.mockReturnValueOnce(
+      Effect.succeed({
+        name: 'reddit',
+        fetch: () => Stream.fromIterable([doc]),
+      })
     )
-    expect(inProgressUpdates.length).toBeGreaterThanOrEqual(2)
-    // Final: completed
-    const completedUpdate = statusUpdates.find((u) => u.status === 'completed')
-    expect(completedUpdate).toBeDefined()
+    mockedEmbedTexts.mockReturnValue(Effect.succeed([[0.1, 0.2]]))
+
+    await Effect.runPromise(
+      processIngestJob(job).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockIngestJobRepository({ jobs }),
+            racingDocs,
+            createMockProcessedChunkRepository({ insertedChunks }),
+            createMockDeadLetterRepository()
+          )
+        )
+      )
+    )
+
+    expect(insertedChunks).toHaveLength(0)
+    expect(jobs[0]?.status).toBe('completed')
+    expect(jobs[0]?.documentsFetched).toBe(0)
   })
 
   it('should skip duplicate documents by sourceId', async () => {

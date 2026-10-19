@@ -178,6 +178,8 @@ export const createMockCareLogRepository = (
         )
       ),
 
+    lockPlantCareType: () => Effect.void,
+
     findLatestByPlantAndType: (plantId: string, type: CareType) => {
       const byDateDesc = Order.flip(
         Order.mapInput(Order.Date, (log: CareLog) => log.date)

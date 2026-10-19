@@ -30,7 +30,7 @@ const processDelegationBatch = (
     ownerId: string
     caretakerId: string
   }>,
-  newStatus: DelegationStatus,
+  transition: { from: DelegationStatus; to: DelegationStatus },
   notificationType: SimpleNotificationType,
   timestamps: Record<string, Date> | undefined
 ) =>
@@ -40,7 +40,20 @@ const processDelegationBatch = (
 
     const results = yield* Effect.forEach(delegations, (d) =>
       Effect.gen(function* () {
-        yield* delegationRepo.updateStatus(d.id, newStatus, timestamps)
+        // Compare-and-swap: a user cancel (or another scheduler process)
+        // that landed since the read wins, and nobody is notified twice.
+        const transitioned = yield* delegationRepo.transitionStatus(
+          d.id,
+          [transition.from],
+          transition.to,
+          timestamps
+        )
+        if (!transitioned) {
+          yield* Effect.log(
+            `[delegation-scheduler] Skipped ${d.id}: no longer ${transition.from}`
+          )
+          return 0 as const
+        }
         const plants = yield* delegationRepo.getPlantsByDelegation(d.id)
         const ownerLang = yield* getUserLanguage(userRepo, d.ownerId)
         const caretakerLang = yield* getUserLanguage(userRepo, d.caretakerId)
@@ -78,6 +91,7 @@ const processDelegationBatch = (
         `[delegation-scheduler] Processed ${succeeded}/${delegations.length} delegations`
       )
     }
+    return succeeded
   })
 
 export const pollAndTransition = Effect.gen(function* () {
@@ -85,27 +99,27 @@ export const pollAndTransition = Effect.gen(function* () {
   const now = nowAsDate()
 
   const toActivate = yield* delegationRepo.findAcceptedReadyToActivate(now)
-  yield* processDelegationBatch(
+  const activated = yield* processDelegationBatch(
     toActivate,
-    'active',
+    { from: 'accepted', to: 'active' },
     'delegation_activated',
     undefined
   )
 
-  if (Array.isArrayNonEmpty(toActivate)) {
-    yield* Effect.log(`Activated ${toActivate.length} delegations`)
+  if (activated > 0) {
+    yield* Effect.log(`Activated ${activated} delegations`)
   }
 
   const toComplete = yield* delegationRepo.findActiveReadyToComplete(now)
-  yield* processDelegationBatch(
+  const completed = yield* processDelegationBatch(
     toComplete,
-    'completed',
+    { from: 'active', to: 'completed' },
     'delegation_completed',
     { completedAt: now }
   )
 
-  if (Array.isArrayNonEmpty(toComplete)) {
-    yield* Effect.log(`Completed ${toComplete.length} delegations`)
+  if (completed > 0) {
+    yield* Effect.log(`Completed ${completed} delegations`)
   }
 }).pipe(Effect.withSpan('DelegationScheduler.pollAndTransition'))
 

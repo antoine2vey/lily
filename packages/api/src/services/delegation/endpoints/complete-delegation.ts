@@ -1,7 +1,7 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
 import {
-  DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
   nowAsDate,
@@ -25,16 +25,13 @@ export const completeDelegation = Effect.fn(
     })
   }
 
-  if (delegation.status !== 'active') {
-    return yield* new DelegationInvalidStatusError({
-      currentStatus: delegation.status,
-      expectedStatus: 'active',
-      message: 'Only active delegations can be completed early',
-    })
-  }
-
-  yield* delegationRepo.updateStatus(delegationId, 'completed', {
-    completedAt: nowAsDate(),
+  yield* transitionDelegation({
+    delegationId,
+    from: ['active'],
+    to: 'completed',
+    expectedStatus: 'active',
+    message: 'Only active delegations can be completed early',
+    timestamps: { completedAt: nowAsDate() },
   })
 
   const updated = yield* delegationRepo.findById(delegationId)

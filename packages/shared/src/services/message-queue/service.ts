@@ -4,7 +4,7 @@ import type {
   QueueMessage,
   QueueOperationError,
 } from '@lily/shared/services/message-queue/types'
-import { Context, type Effect } from 'effect'
+import { Context, type Duration, type Effect } from 'effect'
 
 // Provider-agnostic message queue interface
 export interface IMessageQueue {
@@ -29,6 +29,11 @@ export interface IMessageQueue {
     topic: NotificationTopic,
     rawData: string
   ) => Effect.Effect<void, QueueOperationError>
+
+  readonly requeueStale: (
+    topic: NotificationTopic,
+    olderThan: Duration.Duration
+  ) => Effect.Effect<number, QueueOperationError>
 }
 
 // Context tag for dependency injection

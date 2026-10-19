@@ -115,22 +115,33 @@ export const createMockDelegationRepository = (
         )
       ),
 
-    updateStatus: (id, status, timestamps) =>
-      Effect.sync(() => {
-        const idx = Array.findFirstIndex(delegations, (d) => d.id === id)
-        Option.map(idx, (i) => {
-          Option.map(Option.fromNullishOr(delegations[i]), (d) => {
-            delegations[i] = {
-              ...d,
-              status,
-              respondedAt: timestamps?.respondedAt ?? d.respondedAt,
-              canceledAt: timestamps?.canceledAt ?? d.canceledAt,
-              completedAt: timestamps?.completedAt ?? d.completedAt,
-              updatedAt: new Date(),
-            }
-          })
-        })
-      }),
+    transitionStatus: (id, from, to, timestamps) =>
+      Effect.sync(() =>
+        pipe(
+          Array.findFirstIndex(
+            delegations,
+            (d) => d.id === id && Array.contains(from, d.status)
+          ),
+          Option.flatMap((i) =>
+            pipe(
+              Option.fromNullishOr(delegations[i]),
+              Option.map((d) => {
+                const updated: DelegationRow = {
+                  ...d,
+                  status: to,
+                  respondedAt: timestamps?.respondedAt ?? d.respondedAt,
+                  canceledAt: timestamps?.canceledAt ?? d.canceledAt,
+                  completedAt: timestamps?.completedAt ?? d.completedAt,
+                  updatedAt: new Date(),
+                }
+                delegations[i] = updated
+                return updated
+              })
+            )
+          ),
+          Option.getOrNull
+        )
+      ),
 
     findByUser: (params) =>
       Effect.succeed(
