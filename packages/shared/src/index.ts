@@ -58,6 +58,7 @@ export * from './domains/weather/errors'
 export * from './domains/weather/schema'
 
 // AI utilities (client-safe - no Node.js dependencies)
+export * from './services/ai/call-openai'
 export * from './services/ai/quality-check'
 
 // Note: Server-only services (GCS, Email, Push, MessageQueue, EventBus)

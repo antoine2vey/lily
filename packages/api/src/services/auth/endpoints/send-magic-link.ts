@@ -12,7 +12,7 @@ import {
   RATE_LIMITS,
   RateLimiterService,
 } from '@lily/api/services/rate-limiter/service'
-import type { AuthError } from '@lily/shared'
+import { AuthError, type LanguageCode } from '@lily/shared'
 import type { MagicLinkRequest, MagicLinkSentResponse } from '@lily/shared/auth'
 import type { EmailService } from '@lily/shared/server'
 import {
@@ -22,6 +22,8 @@ import {
   Context,
   Effect,
   Layer,
+  Match,
+  Option,
   pipe,
   String as Str,
 } from 'effect'
@@ -60,6 +62,21 @@ export const MagicLinkConfigLive = Layer.effect(
     }
   })
 )
+
+const emailNotSent = (language: LanguageCode) =>
+  new AuthError({
+    message: Match.value(language).pipe(
+      Match.when(
+        'fr',
+        () => "Impossible d'envoyer l'e-mail de connexion. Veuillez réessayer."
+      ),
+      Match.when(
+        'en',
+        () => "We couldn't send the sign-in email. Please try again."
+      ),
+      Match.exhaustive
+    ),
+  })
 
 export const sendMagicLink = ({
   email,
@@ -132,11 +149,18 @@ export const sendMagicLink = ({
       yield* Console.log(`${'='.repeat(50)}\n`)
     }
 
+    const emailLanguage = pipe(
+      Option.fromNullishOr(language),
+      Option.getOrElse((): LanguageCode => 'en')
+    )
+
+    // Every address gets a link (sign-in doubles as sign-up), so reporting a
+    // failed send reveals nothing about which accounts exist.
     yield* sendMagicLinkEmail({
       email: normalized,
       token,
       callbackUrl: `${APP_VERIFY_DEEP_LINK_PREFIX}${token}`,
-      language: language ?? 'en',
+      language: emailLanguage,
     }).pipe(
       Effect.catchTags({
         EmailSendError: (e) =>
@@ -149,7 +173,7 @@ export const sendMagicLink = ({
                 error: String(e).slice(0, 300),
               }
             )
-          ),
+          ).pipe(Effect.andThen(Effect.fail(emailNotSent(emailLanguage)))),
         EmailConfigError: (e) =>
           Effect.flatMap(Alerter, (alerter) =>
             logAndAlertWarning(
@@ -158,14 +182,13 @@ export const sendMagicLink = ({
               'Magic link email config error',
               { error: String(e).slice(0, 300) }
             )
-          ),
+          ).pipe(Effect.andThen(Effect.fail(emailNotSent(emailLanguage)))),
         ConfigError: (e) =>
           Effect.logWarning('[auth] Magic link config error', {
             error: String(e),
-          }),
+          }).pipe(Effect.andThen(Effect.fail(emailNotSent(emailLanguage)))),
       })
     )
 
-    // Return generic success message (don't reveal if email exists)
     return { message: 'If an account exists, a magic link has been sent.' }
   }).pipe(Effect.withSpan('AuthService.sendMagicLink'))

@@ -1,4 +1,5 @@
 import type { IWeatherProvider } from '@lily/api/services/weather/provider'
+import { fetchForecastJson } from '@lily/api/services/weather/providers/fetch-forecast-json'
 import type { WeatherData, WeatherForecast } from '@lily/shared'
 import { roundCoord, toIsoString, WeatherFetchError } from '@lily/shared'
 import {
@@ -153,20 +154,8 @@ export const createOpenWeatherMapProvider = (
     const rlng = roundCoord(lng)
     const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${rlat}&lon=${rlng}&exclude=minutely,hourly,alerts&units=metric&appid=${apiKey}`
 
-    return Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error(
-            `OpenWeatherMap API returned ${response.status}: ${response.statusText}`
-          )
-        }
-        return (await response.json()) as OWMResponse
-      },
-      catch: (error) =>
-        new WeatherFetchError({
-          message: `OpenWeatherMap fetch failed: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-    }).pipe(Effect.map(normalizeResponse))
+    return fetchForecastJson<OWMResponse>('OpenWeatherMap', url).pipe(
+      Effect.map(normalizeResponse)
+    )
   },
 })

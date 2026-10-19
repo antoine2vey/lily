@@ -3,6 +3,7 @@ import {
   Array,
   Config,
   Data,
+  Duration,
   Effect,
   Match,
   Option,
@@ -18,6 +19,17 @@ import { importPKCS8, SignJWT } from 'jose'
 
 const SANDBOX = 'https://api.sandbox.push.apple.com'
 const PRODUCTION = 'https://api.push.apple.com'
+
+// ExpoPlusApns.sendLiveActivity, one APNs round trip, ran p99 0.44 s and at
+// most 0.48 s over the 30 days to 2026-10-19. A send with no answer after 10 s
+// is on a dead connection.
+const REQUEST_TIMEOUT = Duration.seconds(10)
+
+// A half-open TCP connection raises no error, so the session would keep
+// queueing streams on it until the process restarts. A PING with no ACK
+// detects that between sends and drops the session.
+const PING_INTERVAL = Duration.minutes(1)
+const PING_ACK_TIMEOUT = Duration.seconds(5)
 
 // Apple rejects JWTs older than 60 min. 50 min leaves headroom for clock skew.
 const JWT_TTL_SECONDS = 50 * 60
@@ -155,18 +167,52 @@ export interface ApnsClient {
   }) => Effect.Effect<{ apnsId: string }, ApnsSendError>
 }
 
+interface TransportOptions {
+  readonly baseUrl: string
+  readonly requestTimeout: Duration.Duration
+  readonly pingInterval: Duration.Duration
+  readonly pingAckTimeout: Duration.Duration
+}
+
+const keepAlive = (
+  session: http2.ClientHttp2Session,
+  { pingInterval, pingAckTimeout }: TransportOptions
+) => {
+  const interval = setInterval(() => {
+    // 'close' fires a tick after destroy(), and ping() throws on a destroyed
+    // session, which would crash the process from inside a timer.
+    if (session.destroyed || session.closed) {
+      clearInterval(interval)
+      return
+    }
+    const deadline = setTimeout(
+      () => session.destroy(),
+      Duration.toMillis(pingAckTimeout)
+    )
+    deadline.unref()
+    session.ping((err) => {
+      clearTimeout(deadline)
+      if (err) session.destroy()
+    })
+  }, Duration.toMillis(pingInterval))
+  interval.unref()
+  session.on('close', () => clearInterval(interval))
+}
+
 // Apple recommends reusing a single HTTP/2 session. We reconnect on Apple's
-// ~1h idle timeout or any transport error; the next send reopens.
+// ~1h idle timeout, any transport error, a missed PING ACK or a timed-out
+// send; the next send reopens.
 const getOrCreateSession = (
   state: { current: http2.ClientHttp2Session | null },
-  baseUrl: string
+  options: TransportOptions
 ): http2.ClientHttp2Session => {
   if (state.current && !state.current.closed && !state.current.destroyed) {
     return state.current
   }
-  const session = http2.connect(baseUrl)
+  const session = http2.connect(options.baseUrl)
   session.on('error', () => session.destroy())
   session.on('goaway', () => session.destroy())
+  keepAlive(session, options)
   state.current = session
   return session
 }
@@ -175,7 +221,8 @@ const sendRequest = (
   session: http2.ClientHttp2Session,
   path: string,
   headers: Record<string, string>,
-  body: string
+  body: string,
+  signal: AbortSignal
 ): Promise<{ status: number; apnsId: string; body: string }> =>
   new Promise((resolve, reject) => {
     const req = session.request({
@@ -183,6 +230,9 @@ const sendRequest = (
       ':path': path,
       ...headers,
     })
+    const cancel = () => req.close(http2.constants.NGHTTP2_CANCEL)
+    signal.addEventListener('abort', cancel, { once: true })
+    req.on('close', () => signal.removeEventListener('abort', cancel))
 
     let status = 0
     let apnsId = ''
@@ -218,22 +268,32 @@ const sendRequest = (
     req.end()
   })
 
-export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
+export const makeApnsClient = (
+  cfg: ApnsConfig,
+  overrides: Partial<TransportOptions> = {}
+): ApnsClient => {
   const jwtState = makeJwtState(cfg)
-  const baseUrl = Match.value(cfg.environment).pipe(
-    Match.when('production', () => PRODUCTION),
-    Match.when('sandbox', () => SANDBOX),
-    Match.exhaustive
-  )
+  const transport: TransportOptions = {
+    baseUrl: Match.value(cfg.environment).pipe(
+      Match.when('production', () => PRODUCTION),
+      Match.when('sandbox', () => SANDBOX),
+      Match.exhaustive
+    ),
+    requestTimeout: REQUEST_TIMEOUT,
+    pingInterval: PING_INTERVAL,
+    pingAckTimeout: PING_ACK_TIMEOUT,
+    ...overrides,
+  }
   const topic = `${cfg.bundleId}.push-type.liveactivity`
   const sessionState: { current: http2.ClientHttp2Session | null } = {
     current: null,
   }
 
   return {
-    send: (args) =>
-      Effect.tryPromise({
-        try: async () => {
+    send: (args) => {
+      let session: http2.ClientHttp2Session | undefined
+      return Effect.tryPromise({
+        try: async (signal) => {
           const jwt = await jwtState.getToken()
 
           const aps: Record<string, unknown> = {
@@ -253,7 +313,7 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
           }
 
           const body = JSON.stringify({ aps })
-          const session = getOrCreateSession(sessionState, baseUrl)
+          session = getOrCreateSession(sessionState, transport)
           const {
             status,
             apnsId,
@@ -271,7 +331,8 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
                 ? { 'apns-expiration': String(args.expiration) }
                 : {}),
             },
-            body
+            body,
+            signal
           )
 
           if (status >= 200 && status < 300) {
@@ -321,6 +382,21 @@ export const makeApnsClient = (cfg: ApnsConfig): ApnsClient => {
             cause: err,
           })
         },
-      }),
+      }).pipe(
+        Effect.timeoutOrElse({
+          duration: transport.requestTimeout,
+          orElse: () =>
+            Effect.sync(() => session?.destroy()).pipe(
+              Effect.andThen(
+                Effect.fail(
+                  new ApnsSendError({
+                    message: `APNs LA send failed: no response within ${Duration.format(transport.requestTimeout)}`,
+                  })
+                )
+              )
+            ),
+        })
+      )
+    },
   }
 }

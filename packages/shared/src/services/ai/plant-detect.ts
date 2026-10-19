@@ -1,8 +1,9 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Effect } from 'effect'
+import type { Effect } from 'effect'
 
-import { mapOpenAIError, type OpenAIError } from '../../domains/ai-chat/errors'
+import type { OpenAIError } from '../../domains/ai-chat/errors'
+import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 import { detectSchema, type PlantDetectResult } from './plant-schema'
 import {
   careInstructions,
@@ -58,23 +59,21 @@ const singleCall = (
   url: string,
   locale: string
 ): Effect.Effect<PlantDetectResult, OpenAIError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const result = await generateText({
-        model: openai('gpt-4o-mini'),
-        maxRetries: 0,
-        output: Output.object({ schema: detectSchema }),
-        system: systemPrompt(locale),
-        messages: [
-          {
-            role: 'user',
-            content: [{ type: 'image', image: url }],
-          },
-        ],
-      })
-      return result.output as PlantDetectResult
-    },
-    catch: mapOpenAIError('Plant detection'),
+  callOpenAI('Plant detection', OPENAI_TIMEOUTS.vision, async (abortSignal) => {
+    const result = await generateText({
+      model: openai('gpt-4o-mini'),
+      maxRetries: 0,
+      abortSignal,
+      output: Output.object({ schema: detectSchema }),
+      system: systemPrompt(locale),
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image', image: url }],
+        },
+      ],
+    })
+    return result.output as PlantDetectResult
   })
 
 export const plantDetect = (
