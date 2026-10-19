@@ -16,7 +16,19 @@ import type {
   NotificationsListResponse,
 } from '@lily/shared/notification'
 import type { NotificationTopic } from '@lily/shared/server'
-import { and, count, desc, eq, inArray, lte, sql } from 'drizzle-orm'
+import {
+  and,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -35,6 +47,7 @@ export interface CreateNotificationData {
   scheduledAt: Date
   userId: string
   plantId?: string
+  status?: Extract<NotificationStatus, 'pending' | 'queued'>
 }
 
 // Helper to map database row to API Notification type
@@ -72,9 +85,23 @@ export interface INotificationRepository {
   ) => Effect.Effect<Notification | null, SqlError>
   readonly delete: (id: string) => Effect.Effect<Notification | null, SqlError>
   // Scheduler methods
-  readonly findPendingToSchedule: (
+  readonly claimPendingToSchedule: (
     limit: number
   ) => Effect.Effect<Notification[], SqlError>
+  readonly releaseUnclaimed: (
+    ids: ReadonlyArray<string>
+  ) => Effect.Effect<void, SqlError>
+  readonly claimForDelivery: (
+    ids: ReadonlyArray<string>,
+    messageId: string
+  ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+  readonly releaseUnclaimedOlderThan: (
+    queuedBefore: Date
+  ) => Effect.Effect<number, SqlError>
+  readonly failAbandonedDeliveries: (
+    queuedBefore: Date,
+    error: string
+  ) => Effect.Effect<number, SqlError>
   readonly incrementRetryCount: (
     id: string
   ) => Effect.Effect<Notification | null, SqlError>
@@ -104,9 +131,6 @@ export interface INotificationRepository {
     scheduledAt: Date
   ) => Effect.Effect<Notification | null, SqlError>
   // Batch scheduler methods
-  readonly markManyAsQueued: (
-    ids: readonly string[]
-  ) => Effect.Effect<void, SqlError>
   readonly markManyAsSent: (
     ids: readonly string[]
   ) => Effect.Effect<void, SqlError>
@@ -125,7 +149,7 @@ export interface INotificationRepository {
   readonly markAllAsReadByUserId: (
     userId: string
   ) => Effect.Effect<void, SqlError>
-  readonly markManyAsQueuedWithContent: (
+  readonly setQueuedContent: (
     ids: readonly string[],
     title: string,
     body: string
@@ -199,6 +223,10 @@ export const NotificationRepositoryLive = Layer.effect(
       create: Effect.fn('NotificationRepository.create')(function* (
         data: CreateNotificationData
       ) {
+        const status = Option.getOrElse(
+          Option.fromNullishOr(data.status),
+          () => 'pending' as const
+        )
         const [row] = yield* db
           .insert(notifications)
           .values({
@@ -208,6 +236,8 @@ export const NotificationRepositoryLive = Layer.effect(
             scheduledAt: data.scheduledAt,
             userId: data.userId,
             plantId: Option.getOrNull(Option.fromNullishOr(data.plantId)),
+            status,
+            queuedAt: status === 'queued' ? nowAsDate() : null,
           })
           .returning()
         return row ? mapToNotification(row) : null
@@ -224,21 +254,104 @@ export const NotificationRepositoryLive = Layer.effect(
       }),
 
       // Scheduler methods
-      findPendingToSchedule: Effect.fn(
-        'NotificationRepository.findPendingToSchedule'
+      claimPendingToSchedule: Effect.fn(
+        'NotificationRepository.claimPendingToSchedule'
       )(function* (limit: number) {
-        const rows = yield* db
-          .select()
+        const now = nowAsDate()
+        const due = db
+          .select({ id: notifications.id })
           .from(notifications)
           .where(
             and(
               eq(notifications.status, 'pending'),
-              lte(notifications.scheduledAt, nowAsDate())
+              lte(notifications.scheduledAt, now)
             )
           )
           .orderBy(notifications.scheduledAt)
           .limit(limit)
+          .for('update', { skipLocked: true })
+        const rows = yield* db
+          .update(notifications)
+          .set({ status: 'queued', queuedAt: now })
+          .where(inArray(notifications.id, due))
+          .returning()
         return Array.map(rows, mapToNotification)
+      }),
+
+      releaseUnclaimed: Effect.fn('NotificationRepository.releaseUnclaimed')(
+        function* (ids: ReadonlyArray<string>) {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({ status: 'pending', queuedAt: null })
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued'),
+                isNull(notifications.deliveryMessageId)
+              )
+            )
+        }
+      ),
+
+      claimForDelivery: Effect.fn('NotificationRepository.claimForDelivery')(
+        function* (ids: ReadonlyArray<string>, messageId: string) {
+          if (ids.length === 0) return []
+          const rows = yield* db
+            .update(notifications)
+            .set({ deliveryMessageId: messageId })
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued'),
+                or(
+                  isNull(notifications.deliveryMessageId),
+                  eq(notifications.deliveryMessageId, messageId)
+                )
+              )
+            )
+            .returning({ id: notifications.id })
+          return Array.map(rows, (row) => row.id)
+        }
+      ),
+
+      releaseUnclaimedOlderThan: Effect.fn(
+        'NotificationRepository.releaseUnclaimedOlderThan'
+      )(function* (queuedBefore: Date) {
+        const rows = yield* db
+          .update(notifications)
+          .set({ status: 'pending', queuedAt: null })
+          .where(
+            and(
+              eq(notifications.status, 'queued'),
+              isNull(notifications.deliveryMessageId),
+              lt(notifications.queuedAt, queuedBefore)
+            )
+          )
+          .returning({ id: notifications.id })
+        return Array.length(rows)
+      }),
+
+      failAbandonedDeliveries: Effect.fn(
+        'NotificationRepository.failAbandonedDeliveries'
+      )(function* (queuedBefore: Date, error: string) {
+        const rows = yield* db
+          .update(notifications)
+          .set({ status: 'failed', lastError: error })
+          .where(
+            and(
+              eq(notifications.status, 'queued'),
+              or(
+                isNull(notifications.queuedAt),
+                and(
+                  isNotNull(notifications.deliveryMessageId),
+                  lt(notifications.queuedAt, queuedBefore)
+                )
+              )
+            )
+          )
+          .returning({ id: notifications.id })
+        return Array.length(rows)
       }),
 
       incrementRetryCount: Effect.fn(
@@ -360,16 +473,6 @@ export const NotificationRepositoryLive = Layer.effect(
       ),
 
       // Batch scheduler methods
-      markManyAsQueued: Effect.fn('NotificationRepository.markManyAsQueued')(
-        function* (ids: readonly string[]) {
-          if (ids.length === 0) return
-          yield* db
-            .update(notifications)
-            .set({ status: 'queued' })
-            .where(inArray(notifications.id, [...ids]))
-        }
-      ),
-
       markManyAsSent: Effect.fn('NotificationRepository.markManyAsSent')(
         function* (ids: readonly string[]) {
           if (ids.length === 0) return
@@ -379,7 +482,12 @@ export const NotificationRepositoryLive = Layer.effect(
               status: 'sent',
               sentAt: nowAsDate(),
             })
-            .where(inArray(notifications.id, [...ids]))
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued')
+              )
+            )
         }
       ),
 
@@ -392,7 +500,12 @@ export const NotificationRepositoryLive = Layer.effect(
               status: 'failed',
               lastError: error,
             })
-            .where(inArray(notifications.id, [...ids]))
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued')
+              )
+            )
         }
       ),
 
@@ -426,15 +539,20 @@ export const NotificationRepositoryLive = Layer.effect(
           )
       }),
 
-      markManyAsQueuedWithContent: Effect.fn(
-        'NotificationRepository.markManyAsQueuedWithContent'
-      )(function* (ids: readonly string[], title: string, body: string) {
-        if (ids.length === 0) return
-        yield* db
-          .update(notifications)
-          .set({ status: 'queued', title, body })
-          .where(inArray(notifications.id, [...ids]))
-      }),
+      setQueuedContent: Effect.fn('NotificationRepository.setQueuedContent')(
+        function* (ids: readonly string[], title: string, body: string) {
+          if (ids.length === 0) return
+          yield* db
+            .update(notifications)
+            .set({ title, body })
+            .where(
+              and(
+                inArray(notifications.id, [...ids]),
+                eq(notifications.status, 'queued')
+              )
+            )
+        }
+      ),
 
       hasNotificationOfTypeTodayForUser: Effect.fn(
         'NotificationRepository.hasNotificationOfTypeTodayForUser'
