@@ -2,7 +2,6 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError, OpenAIError } from '@lily/shared'
 import type { AIIdentifyResponse } from '@lily/shared/plant'
@@ -46,7 +45,6 @@ export const scanCardMultiple = (
   | EventBus
   | CurrentUser
   | ScanRepository
-  | LimitChecker
   | UsageTracker
 > =>
   Effect.gen(function* () {
@@ -56,51 +54,51 @@ export const scanCardMultiple = (
     const eventBus = yield* EventBus
     const scanRepo = yield* ScanRepository
     const { id: userId } = yield* CurrentUser
-    const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
 
-    // Check if user has reached their card scan limit before uploading
-    yield* limitChecker.checkCardScanLimit(userId)
-
-    // Validate and read all files
-    const files = yield* fileService.getUploadedFiles(images, { maxFiles: 5 })
-
-    // Upload all images to GCS in parallel
-    const uploadResults = yield* Effect.all(
-      Arr.map(files, (file) =>
-        gcs.uploadFile({
-          fileBuffer: Buffer.from(file.buffer),
-          fileName: file.name,
-          contentType: file.contentType,
+    return yield* usageTracker.withReservation(
+      userId,
+      'cardScans',
+      Effect.gen(function* () {
+        const files = yield* fileService.getUploadedFiles(images, {
+          maxFiles: 5,
         })
-      ),
-      { concurrency: 'unbounded' }
-    )
 
-    const urls = Arr.map(uploadResults, (r) => r.url)
+        const uploadResults = yield* Effect.all(
+          Arr.map(files, (file) =>
+            gcs.uploadFile({
+              fileBuffer: Buffer.from(file.buffer),
+              fileName: file.name,
+              contentType: file.contentType,
+            })
+          ),
+          { concurrency: 'unbounded' }
+        )
 
-    // Single AI call with all images — returns one plant result
-    const result = yield* ai.plantCardScanMultiple(urls, locale)
+        const urls = Arr.map(uploadResults, (r) => r.url)
 
-    // Record scan and track usage (single scan, multiple images)
-    const scan = yield* scanRepo.create({ userId, scanType: 'card' })
-    yield* publishWithRetry(
-      eventBus.publish({
-        _tag: 'PlantScanned',
-        userId,
-        scanId: scan.id,
+        // Single AI call with all images — returns one plant result
+        const result = yield* ai.plantCardScanMultiple(urls, locale)
+
+        const scan = yield* scanRepo.create({ userId, scanType: 'card' })
+        yield* publishWithRetry(
+          eventBus.publish({
+            _tag: 'PlantScanned',
+            userId,
+            scanId: scan.id,
+          })
+        )
+
+        // Use first uploaded image as the plant imageUrl
+        return {
+          ...result,
+          imageUrl: pipe(
+            Arr.head(urls),
+            Option.getOrElse(() => '')
+          ),
+        }
       })
     )
-    yield* usageTracker.trackCardScan(userId)
-
-    // Use first uploaded image as the plant imageUrl
-    return {
-      ...result,
-      imageUrl: pipe(
-        Arr.head(urls),
-        Option.getOrElse(() => '')
-      ),
-    }
   }).pipe(
     Effect.withSpan('PlantsService.scanCardMultiple', {
       attributes: { 'scan.imageCount': images.length },

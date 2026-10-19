@@ -5,22 +5,13 @@ import { Effect, Layer } from 'effect'
 
 interface MockLimitCheckerOptions {
   plantLimitReached?: boolean | undefined
-  aiChatLimitReached?: boolean | undefined
-  cardScanLimitReached?: boolean | undefined
-  plantIdentifyLimitReached?: boolean | undefined
   delegationAccessDenied?: boolean | undefined
 }
 
 export const createMockLimitChecker = (
   options: MockLimitCheckerOptions = {}
 ): Layer.Layer<LimitChecker> => {
-  const {
-    plantLimitReached = false,
-    aiChatLimitReached = false,
-    cardScanLimitReached = false,
-    plantIdentifyLimitReached = false,
-    delegationAccessDenied = false,
-  } = options
+  const { plantLimitReached = false, delegationAccessDenied = false } = options
 
   const checker: ILimitChecker = {
     checkPlantLimit: () =>
@@ -31,42 +22,6 @@ export const createMockLimitChecker = (
               limit: 5,
               current: 5,
               message: 'Plant limit reached',
-            })
-          )
-        : Effect.void,
-
-    checkAiChatLimit: () =>
-      aiChatLimitReached
-        ? Effect.fail(
-            new LimitExceededError({
-              feature: 'ai_chats',
-              limit: 10,
-              current: 10,
-              message: 'AI chat limit reached',
-            })
-          )
-        : Effect.void,
-
-    checkCardScanLimit: () =>
-      cardScanLimitReached
-        ? Effect.fail(
-            new LimitExceededError({
-              feature: 'card_scans',
-              limit: 5,
-              current: 5,
-              message: 'Card scan limit reached',
-            })
-          )
-        : Effect.void,
-
-    checkPlantIdentifyLimit: () =>
-      plantIdentifyLimitReached
-        ? Effect.fail(
-            new LimitExceededError({
-              feature: 'plant_identifies',
-              limit: 3,
-              current: 3,
-              message: 'Plant identify limit reached',
             })
           )
         : Effect.void,

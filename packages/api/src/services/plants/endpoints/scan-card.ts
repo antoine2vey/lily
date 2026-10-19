@@ -2,7 +2,6 @@ import { EventBus, publishWithRetry } from '@lily/api/events'
 import { ScanRepository } from '@lily/api/repositories/scan.repository'
 import { AiService } from '@lily/api/services/ai/service'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
 import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { LimitExceededError, OpenAIError } from '@lily/shared'
 import type { AIIdentifyResponse } from '@lily/shared/plant'
@@ -42,7 +41,6 @@ export const scanCard = (
   | EventBus
   | CurrentUser
   | ScanRepository
-  | LimitChecker
   | UsageTracker
 > =>
   Effect.gen(function* () {
@@ -52,36 +50,34 @@ export const scanCard = (
     const eventBus = yield* EventBus
     const scanRepo = yield* ScanRepository
     const { id: userId } = yield* CurrentUser
-    const limitChecker = yield* LimitChecker
     const usageTracker = yield* UsageTracker
 
-    // Check if user has reached their card scan limit
-    yield* limitChecker.checkCardScanLimit(userId)
+    return yield* usageTracker.withReservation(
+      userId,
+      'cardScans',
+      Effect.gen(function* () {
+        const file = yield* fileService.getFirstUploadedFile(images)
 
-    const file = yield* fileService.getFirstUploadedFile(images)
+        const { url } = yield* gcs.uploadPrivateFile({
+          fileBuffer: Buffer.from(file.buffer),
+          fileName: file.name,
+          contentType: file.contentType,
+        })
 
-    const { url } = yield* gcs.uploadPrivateFile({
-      fileBuffer: Buffer.from(file.buffer),
-      fileName: file.name,
-      contentType: file.contentType,
-    })
+        const result = yield* ai.plantCardScan(url, locale)
 
-    const result = yield* ai.plantCardScan(url, locale)
+        // Record the scan for SCAN_CHAMP achievement
+        const scan = yield* scanRepo.create({ userId, scanType: 'card' })
 
-    // Record the scan for SCAN_CHAMP achievement
-    const scan = yield* scanRepo.create({ userId, scanType: 'card' })
+        yield* publishWithRetry(
+          eventBus.publish({
+            _tag: 'PlantScanned',
+            userId,
+            scanId: scan.id,
+          })
+        )
 
-    // Emit PlantScanned event
-    yield* publishWithRetry(
-      eventBus.publish({
-        _tag: 'PlantScanned',
-        userId,
-        scanId: scan.id,
+        return { ...result, imageUrl: url }
       })
     )
-
-    // Track usage after successful scan
-    yield* usageTracker.trackCardScan(userId)
-
-    return { ...result, imageUrl: url }
   }).pipe(Effect.withSpan('PlantsService.scanCard'))

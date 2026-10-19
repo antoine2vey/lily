@@ -3,7 +3,6 @@ import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { ChatRepository } from '@lily/api/repositories/chat.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { AiService } from '@lily/api/services/ai/service'
-import { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type { UIMessage } from 'ai'
 import { Array, Effect, Filter, Option, pipe } from 'effect'
@@ -91,7 +90,6 @@ export const persistChatCompletion = (
   | DiagnosisRepository
   | CarePlanRepository
   | EventBus
-  | UsageTracker
   | AiService
 > =>
   Effect.gen(function* () {
@@ -99,7 +97,6 @@ export const persistChatCompletion = (
     const diagnosisRepo = yield* DiagnosisRepository
     const carePlanRepo = yield* CarePlanRepository
     const eventBus = yield* EventBus
-    const usageTracker = yield* UsageTracker
     const { conversation, userId, userMessage, steps } = params
 
     const fullText = pipe(
@@ -238,6 +235,4 @@ export const persistChatCompletion = (
         { discard: true }
       )
     }
-
-    yield* usageTracker.trackAiChat(userId)
   }).pipe(Effect.withSpan('persistChatCompletion'))

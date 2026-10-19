@@ -1,4 +1,5 @@
 import { createMockGiftCodeRepository } from '@lily/api/__tests__/mocks/gift-code.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import type { GiftCodeRecord } from '@lily/api/repositories/gift-code.repository'
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
@@ -49,7 +50,7 @@ const baseLayers = (
   opts: {
     codes?: readonly GiftCodeRecord[]
     redemptions?: readonly Redemption[]
-    onIncrementUsage?: (id: string) => void
+    onClaimUsage?: (id: string) => void
     onCreateRedemption?: (giftCodeId: string, userId: string) => void
     onCreate?: (data: CreateSubscriptionData) => void
   } = {}
@@ -60,8 +61,8 @@ const baseLayers = (
       ...(opts.redemptions !== undefined
         ? { redemptions: opts.redemptions }
         : {}),
-      ...(opts.onIncrementUsage !== undefined
-        ? { onIncrementUsage: opts.onIncrementUsage }
+      ...(opts.onClaimUsage !== undefined
+        ? { onClaimUsage: opts.onClaimUsage }
         : {}),
       ...(opts.onCreateRedemption !== undefined
         ? { onCreateRedemption: opts.onCreateRedemption }
@@ -69,13 +70,14 @@ const baseLayers = (
     }),
     createMockSubscriptionRepository({
       ...(opts.onCreate !== undefined ? { onCreate: opts.onCreate } : {}),
-    })
+    }),
+    MockSqlClientLive
   )
 
 describe('redeemGiftCode', () => {
   it('should successfully redeem a valid code', async () => {
     let capturedSubscription: CreateSubscriptionData | undefined
-    let incrementedCodeId: string | undefined
+    let claimedCodeId: string | undefined
     let redemptionCreated = false
 
     const result = await Effect.runPromise(
@@ -85,8 +87,8 @@ describe('redeemGiftCode', () => {
             onCreate: (data) => {
               capturedSubscription = data
             },
-            onIncrementUsage: (id) => {
-              incrementedCodeId = id
+            onClaimUsage: (id) => {
+              claimedCodeId = id
             },
             onCreateRedemption: () => {
               redemptionCreated = true
@@ -105,7 +107,7 @@ describe('redeemGiftCode', () => {
     )
     expect(capturedSubscription?.tier).toBe('paid')
     expect(capturedSubscription?.status).toBe('active')
-    expect(incrementedCodeId).toBe('code-1')
+    expect(claimedCodeId).toBe('code-1')
     expect(redemptionCreated).toBe(true)
   })
 
@@ -162,10 +164,21 @@ describe('redeemGiftCode', () => {
     }
   })
 
-  it('should fail when code is exhausted', async () => {
+  it('should fail when code is exhausted and grant nothing', async () => {
+    let subscriptionCreated = false
     const result = await Effect.runPromiseExit(
-      redeemGiftCode('user-1', 'EXHAUSTED').pipe(Effect.provide(baseLayers()))
+      redeemGiftCode('user-1', 'EXHAUSTED').pipe(
+        Effect.provide(
+          baseLayers({
+            onCreate: () => {
+              subscriptionCreated = true
+            },
+          })
+        )
+      )
     )
+
+    expect(subscriptionCreated).toBe(false)
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
@@ -185,11 +198,21 @@ describe('redeemGiftCode', () => {
       redeemedAt: new Date(),
     }
 
+    let subscriptionCreated = false
     const result = await Effect.runPromiseExit(
       redeemGiftCode('user-1', 'TESTCODE').pipe(
-        Effect.provide(baseLayers({ redemptions: [existingRedemption] }))
+        Effect.provide(
+          baseLayers({
+            redemptions: [existingRedemption],
+            onCreate: () => {
+              subscriptionCreated = true
+            },
+          })
+        )
       )
     )
+
+    expect(subscriptionCreated).toBe(false)
 
     expect(Exit.isFailure(result)).toBe(true)
     if (Exit.isFailure(result)) {
