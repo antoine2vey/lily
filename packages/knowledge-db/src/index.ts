@@ -1,9 +1,10 @@
 import { PgClient, PgTypes } from '@effect/sql-pg'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
+import { pgPoolConfig } from '@lily/db/pool-config'
 import { registerHalfvec } from '@lily/knowledge-db/halfvec'
 import * as schema from '@lily/knowledge-db/schema'
 import type { PgRemoteDatabase } from 'drizzle-orm/pg-proxy'
-import { Config, Context, Effect, Layer } from 'effect'
+import { Context, Effect, Layer } from 'effect'
 
 export class KnowledgeDrizzle extends Context.Service<
   KnowledgeDrizzle,
@@ -14,9 +15,9 @@ export class KnowledgeDrizzle extends Context.Service<
 // known once the client can ask the database for it.
 const KnowledgePgClientLive = PgClient.layerFrom(
   Effect.gen(function* () {
-    const url = yield* Config.Redacted('KNOWLEDGE_DATABASE_URL')
+    const config = yield* pgPoolConfig('KNOWLEDGE_DATABASE')
     const types = PgTypes.makeRegistry()
-    const client = yield* PgClient.make({ url, types })
+    const client = yield* PgClient.make({ ...config, types })
     yield* registerHalfvec(client, types)
     return client
   })

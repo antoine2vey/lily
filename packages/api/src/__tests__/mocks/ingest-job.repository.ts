@@ -2,15 +2,39 @@ import {
   type IIngestJobRepository,
   IngestJobRepository,
 } from '@lily/api/repositories/ingest-job.repository'
-import type { IngestJob, IngestJobStatus } from '@lily/shared/knowledge'
-import { Array, Effect, Layer, Option, pipe } from 'effect'
+import type { IngestJob } from '@lily/shared/knowledge'
+import { Array, Effect, Layer, Option, Order, pipe } from 'effect'
+
+/** The API job shape plus the worker's claim stamp, which the API hides. */
+export type MockIngestJob = IngestJob & { claimedAt?: Date | null }
+
+const byCreatedAt = Order.mapInput(
+  Order.Date,
+  (job: MockIngestJob) => job.createdAt
+)
 
 export const createMockIngestJobRepository = (data: {
-  jobs: IngestJob[]
+  jobs: MockIngestJob[]
 }): Layer.Layer<IngestJobRepository> => {
+  const replace = (id: string, patch: Partial<MockIngestJob>) =>
+    pipe(
+      Array.findFirstIndex(data.jobs, (j) => j.id === id),
+      Option.flatMap((idx) =>
+        Option.map(Option.fromNullishOr(data.jobs[idx]), (existing) => {
+          const updated: MockIngestJob = {
+            ...existing,
+            ...patch,
+            updatedAt: new Date(),
+          }
+          data.jobs[idx] = updated
+          return updated
+        })
+      )
+    )
+
   const repo: IIngestJobRepository = {
     create: (adapter: string, config: unknown) => {
-      const job: IngestJob = {
+      const job: MockIngestJob = {
         id: `job-${crypto.randomUUID()}`,
         adapter,
         config,
@@ -36,56 +60,61 @@ export const createMockIngestJobRepository = (data: {
 
     findAll: () => Effect.succeed(data.jobs),
 
-    findPending: () =>
-      Effect.succeed(Array.filter(data.jobs, (j) => j.status === 'pending')),
+    claimNext: () =>
+      Effect.sync(() =>
+        pipe(
+          Array.filter(data.jobs, (j) => j.status === 'pending'),
+          Array.sort(byCreatedAt),
+          Array.head,
+          Option.flatMap((job) =>
+            replace(job.id, { status: 'in_progress', claimedAt: new Date() })
+          ),
+          Option.getOrNull
+        )
+      ),
 
-    updateStatus: (
-      id: string,
-      status: IngestJobStatus,
-      counts?: { documentsFetched?: number; chunksCreated?: number }
-    ) => {
-      const idx = data.jobs.findIndex((j) => j.id === id)
-      const existing = data.jobs[idx]
-      if (idx === -1 || !existing) {
-        return Effect.succeed(null)
-      }
-      const updated: IngestJob = {
-        ...existing,
-        status,
-        ...(counts?.documentsFetched !== undefined
-          ? { documentsFetched: counts.documentsFetched }
-          : {}),
-        ...(counts?.chunksCreated !== undefined
-          ? { chunksCreated: counts.chunksCreated }
-          : {}),
-        updatedAt: new Date(),
-      }
-      data.jobs[idx] = updated
-      return Effect.succeed(updated)
-    },
+    releaseStaleClaims: (before: Date) =>
+      Effect.sync(() => {
+        const stale = Array.filter(
+          data.jobs,
+          (j) =>
+            j.status === 'in_progress' &&
+            (j.claimedAt == null || j.claimedAt < before)
+        )
+        Array.forEach(stale, (j) =>
+          replace(j.id, { status: 'pending', claimedAt: null })
+        )
+        return stale.length
+      }),
 
-    updateError: (id: string, error: string) => {
-      const idx = data.jobs.findIndex((j) => j.id === id)
-      const existing = data.jobs[idx]
-      if (idx !== -1 && existing) {
-        data.jobs[idx] = {
-          ...existing,
-          error,
-          status: 'failed' as const,
-          updatedAt: new Date(),
-        }
-      }
-      return Effect.void
-    },
+    recordProgress: (id, counts) =>
+      Effect.sync(() => {
+        replace(id, { ...counts, claimedAt: new Date() })
+      }),
+
+    complete: (id, counts) =>
+      Effect.sync(() => {
+        replace(id, { ...counts, status: 'completed' })
+      }),
+
+    updateError: (id: string, error: string) =>
+      Effect.sync(() => {
+        replace(id, { error, status: 'failed' })
+      }),
 
     count: () => Effect.succeed(data.jobs.length),
 
-    delete: (id: string) => {
-      const idx = data.jobs.findIndex((j) => j.id === id)
-      if (idx === -1) return Effect.succeed(false)
-      data.jobs.splice(idx, 1)
-      return Effect.succeed(true)
-    },
+    delete: (id: string) =>
+      Effect.sync(() =>
+        pipe(
+          Array.findFirstIndex(data.jobs, (j) => j.id === id),
+          Option.map((idx) => {
+            data.jobs.splice(idx, 1)
+            return true
+          }),
+          Option.getOrElse(() => false)
+        )
+      ),
   }
 
   return Layer.succeed(IngestJobRepository, repo)

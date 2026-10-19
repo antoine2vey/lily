@@ -10,7 +10,13 @@ export const createMockRawDocumentRepository = (data: {
   documents: RawDocument[]
 }): Layer.Layer<RawDocumentRepository> => {
   const repo: IRawDocumentRepository = {
-    create: (input: CreateRawDocumentData) => {
+    createIfNew: (input: CreateRawDocumentData) => {
+      const taken =
+        input.sourceId !== undefined &&
+        Array.some(data.documents, (d) => d.sourceId === input.sourceId)
+      if (taken) {
+        return Effect.succeed(null)
+      }
       const doc: RawDocument = {
         id: `doc-${crypto.randomUUID()}`,
         source: input.source,

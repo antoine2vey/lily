@@ -18,6 +18,7 @@ import {
   TOPIC_CATEGORY,
 } from '@lily/shared/server'
 import { Array, DateTime, Effect, Filter, Option, pipe, Record } from 'effect'
+import type { SqlError } from 'effect/sql/SqlError'
 
 const BATCH_SIZE = 100
 
@@ -40,7 +41,6 @@ export const mapNotificationTypeToTopic = (
     ? Option.some(type as NotificationTopic)
     : Option.none()
 
-// Poll database and enqueue pending notifications.
 // Returns true when a full batch was found (more rows likely waiting).
 export const pollAndEnqueue = Effect.gen(function* () {
   const notificationRepo = yield* NotificationRepository
@@ -49,11 +49,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
   const queue = yield* MessageQueue
 
   const pendingNotifications =
-    yield* notificationRepo.findPendingToSchedule(BATCH_SIZE)
+    yield* notificationRepo.claimPendingToSchedule(BATCH_SIZE)
 
   if (pendingNotifications.length === 0) return false
 
-  yield* Effect.log('Found pending notifications', {
+  yield* Effect.log('Claimed due notifications', {
     count: pendingNotifications.length,
   })
 
@@ -97,28 +97,28 @@ export const pollAndEnqueue = Effect.gen(function* () {
     topic: NotificationTopic
   }
   const validNotifications: ValidNotification[] = []
-  const deadPlantNotificationIds: string[] = []
+  const dropIds: string[] = []
+  const deferIds: string[] = []
 
   for (const notification of pendingNotifications) {
-    // A plant in the cemetery (or gone) must never produce a push. Rows are
-    // deleted below so findPendingToSchedule does not return them every poll.
     const plantIdOpt = Option.fromNullishOr(notification.plantId)
     if (Option.isSome(plantIdOpt) && !livingPlantIds.has(plantIdOpt.value)) {
-      yield* Effect.log('Skipping notification - plant dead or missing', {
+      yield* Effect.log('Dropping notification - plant dead or missing', {
         id: notification.id,
         plantId: notification.plantId,
       })
-      deadPlantNotificationIds.push(notification.id)
+      dropIds.push(notification.id)
       continue
     }
 
     const topicOption = mapNotificationTypeToTopic(notification.type)
 
     if (Option.isNone(topicOption)) {
-      yield* Effect.logWarning('Unknown notification type', {
+      yield* Effect.logWarning('Dropping notification - unknown type', {
         type: notification.type,
         id: notification.id,
       })
+      dropIds.push(notification.id)
       continue
     }
 
@@ -128,42 +128,40 @@ export const pollAndEnqueue = Effect.gen(function* () {
       Option.fromNullishOr(userSettingsMap.get(notification.userId))
     )
 
-    // Safety net: skip care reminders if user has disabled them
     if (isCareReminderType(topic) && user && !user.careReminders) {
-      yield* Effect.log('Skipping care reminder - user disabled', {
+      yield* Effect.log('Dropping care reminder - user disabled', {
         id: notification.id,
         userId: notification.userId,
       })
+      dropIds.push(notification.id)
       continue
     }
 
-    // Safety net: skip engagement notifications if user has disabled tips
     if (isEngagementType(topic) && user && !user.tips) {
       yield* Effect.log(
-        'Skipping engagement notification - user disabled tips',
+        'Dropping engagement notification - user disabled tips',
         {
           id: notification.id,
           userId: notification.userId,
         }
       )
+      dropIds.push(notification.id)
       continue
     }
 
-    // Safety net: skip care/engagement notifications while the recipient is
-    // on vacation (social topics still go out — e.g. delegation responses)
     if (
       user &&
       TOPIC_CATEGORY[topic] !== 'social' &&
       isOnVacation(user, currentTime)
     ) {
-      yield* Effect.log('Skipping notification - user on vacation', {
+      yield* Effect.log('Deferring notification - user on vacation', {
         id: notification.id,
         userId: notification.userId,
       })
+      deferIds.push(notification.id)
       continue
     }
 
-    // Safety net: skip notifications during DND hours
     if (user?.doNotDisturb) {
       const inDnd = yield* isInDoNotDisturbWindow(
         currentTime,
@@ -173,10 +171,11 @@ export const pollAndEnqueue = Effect.gen(function* () {
       )
 
       if (inDnd) {
-        yield* Effect.log('Skipping notification - user in DND', {
+        yield* Effect.log('Deferring notification - user in DND', {
           id: notification.id,
           userId: notification.userId,
         })
+        deferIds.push(notification.id)
         continue
       }
     }
@@ -184,7 +183,8 @@ export const pollAndEnqueue = Effect.gen(function* () {
     validNotifications.push({ notification, topic })
   }
 
-  yield* notificationRepo.deleteByIds(deadPlantNotificationIds)
+  yield* notificationRepo.deleteByIds(dropIds)
+  yield* notificationRepo.releaseUnclaimed(deferIds)
 
   if (validNotifications.length === 0) return false
 
@@ -207,12 +207,25 @@ export const pollAndEnqueue = Effect.gen(function* () {
   // Phase 4: Enqueue one message per group (concurrently)
   yield* Effect.forEach(
     Record.toEntries(grouped),
-    ([_key, group]) =>
-      Effect.gen(function* () {
+    ([_key, group]) => {
+      const notificationIds = Array.map(group, (n) => n.notification.id)
+      const releaseGroupAfterSqlError = (error: SqlError) =>
+        Effect.logWarning('[notification-scheduler] Failed to enqueue group', {
+          notificationIds,
+          error: String(error),
+        }).pipe(
+          Effect.andThen(notificationRepo.releaseUnclaimed(notificationIds)),
+          Effect.catchTag('SqlError', (releaseError) =>
+            Effect.logWarning(
+              '[notification-scheduler] Group left queued for the recovery sweep',
+              { notificationIds, error: String(releaseError) }
+            )
+          )
+        )
+      return Effect.gen(function* () {
         const first = Array.head(group)
         if (Option.isNone(first)) return
 
-        const notificationIds = Array.map(group, (n) => n.notification.id)
         const userId = first.value.notification.userId
 
         // Deduped: a plant due for two care types contributes one id, so the
@@ -313,56 +326,52 @@ export const pollAndEnqueue = Effect.gen(function* () {
           onNonEmpty: (items) => buildCareDigestContent(items, language),
         })
 
-        yield* queue.enqueue(topic, {
-          id: crypto.randomUUID(),
-          topic,
-          payload: {
-            userId,
-            title,
-            body,
-            notificationIds,
-            plantIds,
-            language,
-          },
-          retryCount: 0,
-          createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
-          scheduledAt: first.value.notification.scheduledAt,
-        })
+        if (isCareReminderType(topic)) {
+          yield* notificationRepo.setQueuedContent(notificationIds, title, body)
+        }
 
-        yield* isCareReminderType(topic)
-          ? notificationRepo.markManyAsQueuedWithContent(
-              notificationIds,
+        const releaseGroup = (error: unknown) =>
+          Effect.logWarning(
+            '[notification-scheduler] Enqueue failed, released group',
+            { notificationIds, topic, error: String(error) }
+          ).pipe(
+            Effect.andThen(notificationRepo.releaseUnclaimed(notificationIds)),
+            Effect.as(false)
+          )
+
+        const enqueued = yield* queue
+          .enqueue(topic, {
+            id: crypto.randomUUID(),
+            topic,
+            payload: {
+              userId,
               title,
-              body
-            )
-          : notificationRepo.markManyAsQueued(notificationIds)
+              body,
+              notificationIds,
+              plantIds,
+              language,
+            },
+            retryCount: 0,
+            createdAt: DateTime.toDateUtc(DateTime.nowUnsafe()),
+            scheduledAt: first.value.notification.scheduledAt,
+          })
+          .pipe(
+            Effect.as(true),
+            Effect.catchTags({
+              QueueOperationError: releaseGroup,
+              QueueConnectionError: releaseGroup,
+            })
+          )
 
-        yield* Effect.log('[notification-scheduler] Enqueued group', {
-          notificationIds,
-          topic,
-          count: group.length,
-        })
-      }).pipe(
-        Effect.catchTags({
-          SqlError: (e) =>
-            Effect.logWarning(
-              '[notification-scheduler] Failed to enqueue group',
-              { error: String(e) }
-            ),
-          QueueOperationError: (e) =>
-            Effect.logWarning(
-              '[notification-scheduler] Queue operation failed',
-              {
-                error: String(e),
-              }
-            ),
-          QueueConnectionError: (e) =>
-            Effect.logWarning(
-              '[notification-scheduler] Queue connection failed',
-              { error: String(e) }
-            ),
-        })
-      ),
+        if (enqueued) {
+          yield* Effect.log('[notification-scheduler] Enqueued group', {
+            notificationIds,
+            topic,
+            count: group.length,
+          })
+        }
+      }).pipe(Effect.catchTag('SqlError', releaseGroupAfterSqlError))
+    },
     { concurrency: 10 }
   )
 

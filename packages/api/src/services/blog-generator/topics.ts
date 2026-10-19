@@ -2,12 +2,12 @@ import { openai } from '@ai-sdk/openai'
 import { BlogPostRepository } from '@lily/api/repositories/blog-post.repository'
 import { PlantCatalogRepository } from '@lily/api/repositories/plant-catalog.repository'
 import { FAST_MODEL } from '@lily/api/services/ai/models'
-import { nowAsIsoString } from '@lily/shared'
+import { callOpenAI, nowAsIsoString } from '@lily/shared'
 import { generateText, Output } from 'ai'
 import { Array as Arr, Effect, Random, String as Str } from 'effect'
-import { mapOpenAIError } from './errors'
 import { TOPIC_SELECTION_PROMPT } from './prompts'
 import { TopicSchema } from './schemas'
+import { BLOG_OPENAI_TIMEOUTS } from './timeouts'
 import { BLOG_CATEGORIES, type TopicSuggestion } from './types'
 
 const TOPIC_TEMPLATES = [
@@ -92,11 +92,14 @@ export const selectTopic = Effect.fn('blog-generator.selectTopic')(function* (
     ? `\n\nALREADY ATTEMPTED THIS SESSION (just collided — DO NOT repick or pick a close variant):\n${Arr.join(attemptedSlugs, '\n')}`
     : ''
 
-  const result = yield* Effect.tryPromise({
-    try: () =>
+  const result = yield* callOpenAI(
+    'Topic selection',
+    BLOG_OPENAI_TIMEOUTS.topicSelection,
+    (abortSignal) =>
       generateText({
         model: openai(FAST_MODEL),
         maxRetries: 0,
+        abortSignal,
         temperature: 1.1,
         output: Output.object({ schema: TopicSchema }),
         system: TOPIC_SELECTION_PROMPT,
@@ -114,9 +117,8 @@ RECENT categories (vary from these):
 ${Arr.join(recentCategories, ', ')}
 
 Today's date: ${Str.takeLeft(nowAsIsoString(), 10)}`,
-      }),
-    catch: mapOpenAIError('Topic selection'),
-  })
+      })
+  )
 
   return result.output as TopicSuggestion
 })

@@ -299,7 +299,7 @@ Required in `.env`:
 ## Related Documentation
 
 - [Root README](../../README.md) - Project overview and setup
-- [CLAUDE.md](../../CLAUDE.md) - Code patterns and Effect.js conventions
+- [CODING_STANDARDS.md](../../CODING_STANDARDS.md) - Effect-first coding standards
 - [Database Package](../db/README.md) - Schema and migrations
 - [Shared Package](../shared/README.md) - Types and service interfaces
 - [Service Architecture](./src/services/README.md) - Service patterns

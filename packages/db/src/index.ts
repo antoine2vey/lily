@@ -1,11 +1,9 @@
 import { PgClient } from '@effect/sql-pg'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
-import { Config, Layer } from 'effect'
+import { pgPoolConfig } from '@lily/db/pool-config'
+import { Layer } from 'effect'
 
-// PostgreSQL client configuration
-export const PgLive = PgClient.layerConfig({
-  url: Config.Redacted('DATABASE_URL'),
-})
+export const PgLive = PgClient.layerConfig(pgPoolConfig('DATABASE'))
 
 // Drizzle layer with schema (includes PgDrizzle only)
 export const DrizzleLive = PgDrizzle.layer.pipe(Layer.provide(PgLive))

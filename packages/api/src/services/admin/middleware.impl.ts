@@ -15,7 +15,7 @@ export { AdminAuth, AdminUser } from './middleware.types'
  * Base layer for AdminAuth middleware
  * Validates bearer token and checks admin role in one step
  */
-const AdminAuthBase = Layer.effect(
+export const AdminAuthBase = Layer.effect(
   AdminAuth,
   Effect.gen(function* () {
     const jwtService = yield* JWTService
@@ -31,12 +31,9 @@ const AdminAuthBase = Layer.effect(
           }).pipe(
             Effect.provideService(JWTService, jwtService),
             Effect.provideService(UserRepository, userRepo),
-            Effect.catchTags({
-              SqlError: () =>
-                Effect.fail(new ForbiddenError({ message: 'Access denied' })),
-              JWTError: (e) =>
-                Effect.fail(new ForbiddenError({ message: e.message })),
-            })
+            Effect.catchTag('JWTError', (e) =>
+              Effect.fail(new ForbiddenError({ message: e.message }))
+            )
           )
 
           return yield* Effect.provideService(httpEffect, AdminUser, profile)

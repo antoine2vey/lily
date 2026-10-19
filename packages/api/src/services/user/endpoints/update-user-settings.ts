@@ -6,6 +6,7 @@ import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { calculateScheduledAt } from '@lily/api/services/notifications/timezone-scheduler'
 import { type CareType, compact, trimAndNullify } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
+import { CARE_TOPICS, ENGAGEMENT_TOPICS } from '@lily/shared/server'
 import type { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Array, Effect, Match, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -77,6 +78,16 @@ export const updateUserSettings = (
 
     if (!user) {
       return yield* new UserNotFoundError()
+    }
+
+    if (data.notifications?.careReminders === false) {
+      yield* notificationRepo.deletePendingByUserIdAndTypes(id, CARE_TOPICS)
+    }
+    if (data.notifications?.tips === false) {
+      yield* notificationRepo.deletePendingByUserIdAndTypes(
+        id,
+        ENGAGEMENT_TOPICS
+      )
     }
 
     const careLogsCount = yield* careLogRepo.countByUser(id)
