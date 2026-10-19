@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
+    # Covers the 20s HTTP and scheduler drain on SIGTERM
+    stop_grace_period: 30s
     ports:
       - "3000:3000"
     environment:
