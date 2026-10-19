@@ -1,0 +1,51 @@
+name: Railway config
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - '.railway/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+  id-token: write
+
+concurrency:
+  group: railway-config-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: 'false'
+      - uses: railwayapp/config@v1.2.0
+        with:
+          command: plan
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+          cli-version: '5.70.0'
+          package-manager: none
+
+  apply:
+    name: Apply
+    if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+      # Destructive changes (deleting a service, volume or variable) fail here
+      # and must be applied by hand with `railway config apply`.
+      - uses: railwayapp/config@v1.2.0
+        with:
+          command: apply
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+          cli-version: '5.70.0'
+          confirm-destructive: 'false'
