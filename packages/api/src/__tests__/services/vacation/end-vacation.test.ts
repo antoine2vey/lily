@@ -136,10 +136,10 @@ const findNext = (
     Option.getOrNull
   )
 
-const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
+const run = <A>(effect: Effect.Effect<A, unknown, never>): Promise<A> =>
   Effect.runPromise(
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
-  ) as Promise<void>
+  ) as Promise<A>
 
 describe('endVacation', () => {
   // endVacation rebuilds reminders only for schedules due after the real
@@ -159,7 +159,7 @@ describe('endVacation', () => {
     const { owner, schedules, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -173,7 +173,7 @@ describe('endVacation', () => {
     const { owner, schedules, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -185,7 +185,7 @@ describe('endVacation', () => {
     const { owner, schedules, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -199,7 +199,7 @@ describe('endVacation', () => {
     const { owner, schedules, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -213,7 +213,7 @@ describe('endVacation', () => {
     const { owner, users, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -231,7 +231,7 @@ describe('endVacation', () => {
     const { owner, caretaker, notifications, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
@@ -250,23 +250,42 @@ describe('endVacation', () => {
     expect(byPlant('plant-delegated')).toBeNull()
   })
 
-  it('should be a no-op when rerun after completion (crash-retry safety)', async () => {
+  it('should do nothing when rerun from the same snapshot after completion', async () => {
     const { owner, schedules, layer } = buildScenario()
 
     await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
     const afterFirstRun = Array.map(schedules, (s) => s.nextCareAt?.getTime())
 
-    await run(
-      endVacation({ userId: owner.id, effectiveEnd: EFFECTIVE_END }).pipe(
+    const secondClaim = await run(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
         Effect.provide(layer)
       )
     )
     const afterSecondRun = Array.map(schedules, (s) => s.nextCareAt?.getTime())
 
+    expect(secondClaim).toBeNull()
     expect(afterSecondRun).toEqual(afterFirstRun)
+  })
+
+  it('should not touch schedules when the vacation changed since the snapshot was read', async () => {
+    const { owner, users, schedules, layer } = buildScenario()
+    const extendedEnd = new Date('2026-08-24T06:00:00.000Z')
+    users[0] = { ...owner, vacationEnd: extendedEnd }
+    const before = Array.map(schedules, (s) => s.nextCareAt?.getTime())
+
+    const claim = await run(
+      endVacation({ user: owner, effectiveEnd: EFFECTIVE_END }).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(claim).toBeNull()
+    expect(Array.map(schedules, (s) => s.nextCareAt?.getTime())).toEqual(before)
+    expect(users[0]?.vacationStatus).toBe('active')
+    expect(users[0]?.vacationEnd).toEqual(extendedEnd)
   })
 })

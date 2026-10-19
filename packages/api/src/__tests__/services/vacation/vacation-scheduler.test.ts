@@ -30,11 +30,6 @@ const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<void>
 
-/**
- * A user repository whose poll query runs `afterRead` once it has returned,
- * which plays a concurrent writer that lands between the scheduler's read
- * and its write.
- */
 const withRacingWrite = (
   users: User[],
   poll: 'findVacationsToActivate' | 'findVacationsToEnd',

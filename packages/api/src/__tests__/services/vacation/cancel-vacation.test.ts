@@ -7,9 +7,22 @@ import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/noti
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
+import {
+  type IUserRepository,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
 import type { User } from '@lily/shared'
-import { Array, Effect, Layer, Option, pipe, References } from 'effect'
+import {
+  Array,
+  Cause,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  pipe,
+  References,
+} from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const daysFromNow = (days: number): Date =>
@@ -107,5 +120,97 @@ describe('cancelVacation', () => {
       Option.getOrNull
     )
     expect(updated?.vacationStatus).toBe('none')
+  })
+
+  it('should end the vacation when the scheduler activates it between the read and the cancel', async () => {
+    const user = createTestUser({
+      id: 'user-1',
+      timezone: 'UTC',
+      careReminders: true,
+      vacationStatus: 'scheduled',
+      vacationStart: daysFromNow(-1),
+      vacationEnd: daysFromNow(6),
+    })
+    const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const schedules = [
+      createTestSchedule({ plantId: plant.id, nextCareAt: daysFromNow(-1) }),
+    ]
+    const users = [user]
+    const activateOnce = Effect.sync(() => {
+      if (users[0]?.vacationStatus === 'scheduled') {
+        users[0] = { ...user, vacationStatus: 'active' }
+      }
+    })
+    const racingActivation = Layer.effect(
+      UserRepository,
+      Effect.map(
+        UserRepository,
+        (repo): IUserRepository => ({
+          ...repo,
+          findById: (id) => repo.findById(id).pipe(Effect.tap(activateOnce)),
+        })
+      )
+    ).pipe(Layer.provide(createMockUserRepository(users)))
+
+    const state = await run(
+      cancelVacation().pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            racingActivation,
+            createMockNotificationRepository([]),
+            createMockCareScheduleRepository({ schedules, plants: [plant] }),
+            createMockDelegationRepository({}),
+            createMockCurrentUser({ id: 'user-1' })
+          )
+        )
+      )
+    )
+
+    expect(state).toEqual({ status: 'none', startDate: null, endDate: null })
+    expect(users[0]?.vacationStatus).toBe('none')
+    expect(schedules[0]?.nextCareAt?.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('should die when every claim loses', async () => {
+    const user = createTestUser({
+      id: 'user-1',
+      vacationStatus: 'scheduled',
+      vacationStart: daysFromNow(5),
+      vacationEnd: daysFromNow(12),
+    })
+    const alwaysLosing = Layer.effect(
+      UserRepository,
+      Effect.map(
+        UserRepository,
+        (repo): IUserRepository => ({
+          ...repo,
+          transitionVacation: () => Effect.succeed(null),
+        })
+      )
+    ).pipe(Layer.provide(createMockUserRepository([user])))
+
+    const exit = await Effect.runPromiseExit(
+      cancelVacation().pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            alwaysLosing,
+            createMockNotificationRepository([]),
+            createMockCareScheduleRepository({}),
+            createMockDelegationRepository({}),
+            createMockCurrentUser({ id: 'user-1' })
+          )
+        ),
+        Effect.provideService(References.MinimumLogLevel, 'None')
+      )
+    )
+
+    const defect = Exit.match(exit, {
+      onFailure: (cause) => Cause.squash(cause),
+      onSuccess: () => null,
+    })
+    expect(defect).toMatchObject({
+      _tag: 'VacationClaimLost',
+      userId: 'user-1',
+    })
   })
 })

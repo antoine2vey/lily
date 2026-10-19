@@ -4,22 +4,26 @@ import {
 } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  type VacationSnapshot,
+} from '@lily/api/repositories/user.repository'
 import { scheduleCareReminder } from '@lily/api/services/plants/helpers/schedule-care-reminder'
+import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
-  userId: string
+  readonly user: VacationSnapshot & Pick<typeof users.$inferSelect, 'timezone'>
   /** The stored vacationEnd (scheduler) or `now` (manual end-early). */
-  effectiveEnd: Date
+  readonly effectiveEnd: Date
 }
 
 /**
- * End a user's vacation: shift the care schedules that fell due while they
- * were away, flip the status back to 'none', then rebuild care reminders.
+ * End a user's vacation: claim the transition, shift the care schedules
+ * that fell due while they were away, then rebuild care reminders.
  *
  * Shift (mirrors correct-care-dates.ts): each non-delegated schedule with
  * `nextCareAt < effectiveEnd` moves forward by the whole-local-day delta
@@ -31,23 +35,11 @@ export interface EndVacationParams {
  *
  * Plants with an active caretaker are skipped: the caretaker maintained
  * their schedules, and their reminder rows route to the caretaker.
- *
- * Ordering is deliberate:
- * 1. Shift — rerun-safe: shifted rows land past effectiveEnd, so a crashed
- *    run re-selects only not-yet-shifted rows on the next scheduler poll
- *    (status is still 'active', so the poll retries this routine).
- * 2. Flip status to 'none' — must happen BEFORE the reminder rebuild,
- *    because scheduleCareReminder skips recipients who are on vacation.
- * 3. Rebuild reminders for every schedule with a future nextCareAt. Write-
- *    time muting suppressed reminder creation during the vacation, and
- *    activation deleted the pending rows, so every reminder is recreated
- *    here. A crash mid-rebuild is self-healing: the overdue scheduler
- *    picks up any plant whose reminder row is missing once it falls due.
  */
 export const endVacation = (
   params: EndVacationParams
 ): Effect.Effect<
-  void,
+  typeof users.$inferSelect | null,
   SqlError,
   | UserRepository
   | CareScheduleRepository
@@ -55,23 +47,28 @@ export const endVacation = (
   | NotificationRepository
 > =>
   Effect.gen(function* () {
-    const { userId, effectiveEnd } = params
+    const { user, effectiveEnd } = params
     const userRepo = yield* UserRepository
     const scheduleRepo = yield* CareScheduleRepository
     const delegationRepo = yield* DelegationRepository
 
-    const user = yield* userRepo.findById(userId)
-    const userOption = Option.fromNullishOr(user)
+    const claimed = yield* userRepo.transitionVacation(user, {
+      vacationStatus: 'none',
+      vacationStart: null,
+      vacationEnd: null,
+    })
+    if (!claimed) {
+      return null
+    }
+
     const timezone = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.timezone)),
+      Option.fromNullishOr(user.timezone),
       Option.getOrElse(() => 'UTC')
     )
     // Missing vacationStart (defensive) degrades to delta 0 — the floor
     // clamp alone still moves overdue tasks to tomorrow.
     const vacationStart = pipe(
-      userOption,
-      Option.flatMap((u) => Option.fromNullishOr(u.vacationStart)),
+      Option.fromNullishOr(user.vacationStart),
       Option.getOrElse(() => effectiveEnd)
     )
 
@@ -90,7 +87,7 @@ export const endVacation = (
     )
     const effectiveEndMs = DateTime.toEpochMillis(effectiveEndDt)
 
-    const rows = yield* scheduleRepo.findByOwnerWithPlant(userId)
+    const rows = yield* scheduleRepo.findByOwnerWithPlant(user.id)
 
     // One caretaker lookup per plant, not per schedule row.
     const plantIds = pipe(
@@ -111,7 +108,6 @@ export const endVacation = (
         Option.isSome
       )
 
-    // 1. Shift
     const shifted = yield* Effect.forEach(rows, (row) =>
       Effect.gen(function* () {
         const nextCareAt = row.schedule.nextCareAt
@@ -137,26 +133,12 @@ export const endVacation = (
       })
     )
 
-    // Sweep muted pending rows that slipped in during the vacation (e.g.
-    // trial_ending is created regardless of vacation and would otherwise
-    // deliver stale after return). Care reminders are rebuilt fresh below.
     const notificationRepo = yield* NotificationRepository
     yield* notificationRepo.deletePendingByUserIdAndTypes(
-      userId,
+      user.id,
       VACATION_MUTED_TOPICS
     )
 
-    // 2. Clear vacation state — before the rebuild, see ordering note above.
-    yield* userRepo.update(userId, {
-      vacationStatus: 'none',
-      vacationStart: null,
-      vacationEnd: null,
-    })
-
-    // 3. Rebuild reminders for every schedule that is due in the future.
-    // scheduleCareReminder is idempotent (delete-then-insert) and resolves
-    // delegation routing itself, so delegated plants harmlessly refresh
-    // their caretaker's row.
     const nowMs = DateTime.toEpochMillis(DateTime.nowUnsafe())
     yield* Effect.forEach(
       Array.filter(
@@ -176,8 +158,9 @@ export const endVacation = (
           remindersEnabled: row.plant.remindersEnabled,
         })
     )
+    return claimed
   }).pipe(
     Effect.withSpan('VacationService.endVacation', {
-      attributes: { 'user.id': params.userId },
+      attributes: { 'user.id': params.user.id },
     })
   )

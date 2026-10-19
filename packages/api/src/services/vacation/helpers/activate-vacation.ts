@@ -1,32 +1,43 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  type VacationSnapshot,
+} from '@lily/api/repositories/user.repository'
+import type { users } from '@lily/db/schema'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Effect } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Activate a user's vacation: delete their own pending care/engagement
- * notification rows and flip the status to 'active'.
- *
- * Caretaker-routed reminder rows for delegated plants carry the caretaker's
- * userId, so they are untouched — those reminders must survive the owner's
- * vacation. Deleting (rather than rescheduling) is correct because the
- * end-routine rebuilds all care reminders from the shifted schedules.
- */
-export const activateVacation = (
-  userId: string
-): Effect.Effect<void, SqlError, UserRepository | NotificationRepository> =>
-  Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
-    const userRepo = yield* UserRepository
+export interface ActivateVacationParams {
+  readonly expected: VacationSnapshot
+  readonly range?: { vacationStart: Date; vacationEnd: Date }
+}
 
+export const activateVacation = (
+  params: ActivateVacationParams
+): Effect.Effect<
+  typeof users.$inferSelect | null,
+  SqlError,
+  UserRepository | NotificationRepository
+> =>
+  Effect.gen(function* () {
+    const userRepo = yield* UserRepository
+    const claimed = yield* userRepo.transitionVacation(params.expected, {
+      vacationStatus: 'active',
+      ...params.range,
+    })
+    if (!claimed) {
+      return null
+    }
+
+    const notificationRepo = yield* NotificationRepository
     yield* notificationRepo.deletePendingByUserIdAndTypes(
-      userId,
+      claimed.id,
       VACATION_MUTED_TOPICS
     )
-    yield* userRepo.update(userId, { vacationStatus: 'active' })
+    return claimed
   }).pipe(
     Effect.withSpan('VacationService.activateVacation', {
-      attributes: { 'user.id': userId },
+      attributes: { 'user.id': params.expected.id },
     })
   )
