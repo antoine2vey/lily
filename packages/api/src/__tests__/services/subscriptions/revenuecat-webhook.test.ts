@@ -97,6 +97,7 @@ interface Harness {
   subscription?: typeof userSubscriptions.$inferSelect | null
   subscriberInfo?: Effect.Effect<RevenueCatSubscriberInfo, PaymentProviderError>
   environment?: RevenueCatEnvironment
+  failingCreates?: number | undefined
 }
 
 const harness = (options: Harness = {}) => {
@@ -113,6 +114,7 @@ const harness = (options: Harness = {}) => {
       subscription: options.subscription ?? null,
       onCreate,
       onLogEvent,
+      failingCreates: options.failingCreates,
     }),
     createMockRevenueCatProvider({
       environment: options.environment ?? 'PRODUCTION',
@@ -171,15 +173,28 @@ describe('handleRevenueCatWebhook', () => {
     expect(h.onCreate).toHaveBeenCalledTimes(1)
   })
 
-  it('ignores a redelivered event even after the store state changed', async () => {
+  it('applies the store state when RevenueCat retries a delivery whose write failed', async () => {
+    const h = harness({ failingCreates: 1 })
+
+    const failed = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
+    expect(failed._tag).toBe('Failure')
+    expect((await h.currentRow())?.status).toBeUndefined()
+
+    const retried = await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
+
+    expect(retried._tag).toBe('Success')
+    expect(h.onCreate).toHaveBeenCalledTimes(1)
+    expect((await h.currentRow())?.status).toBe('active')
+  })
+
+  it('a redelivered event re-applies the current store state', async () => {
     const h = harness()
 
     await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
     h.setSubscriberInfo(expiredSubscriber)
     await h.deliver(webhookPayload('INITIAL_PURCHASE', 'evt-1'))
 
-    expect(h.onCreate).toHaveBeenCalledTimes(1)
-    expect((await h.currentRow())?.status).toBe('active')
+    expect((await h.currentRow())?.status).toBe('expired')
   })
 
   it('keeps an admin gift when an unrelated store event arrives', async () => {

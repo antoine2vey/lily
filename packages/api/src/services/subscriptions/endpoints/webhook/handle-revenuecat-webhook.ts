@@ -51,17 +51,9 @@ export const handleRevenueCatWebhook = (
 
     const state = yield* fetchStoreState(event.app_user_id)
 
-    const claimed = yield* subRepo.claimWebhookEvent({
-      id: event.id,
-      eventType: event.type,
-      appUserId: event.app_user_id,
-      environment: event.environment,
-    })
-    if (!claimed) {
-      yield* Effect.log('[Webhook] Ignored redelivered event', { id: event.id })
-      return
-    }
-
+    // Applied before the event is recorded: applying the fetched state is
+    // idempotent, so a crash between the two only means a redelivery applies
+    // it again. Recording first would make that redelivery a silent no-op.
     const outcome = yield* applyStoreState({
       userId: event.app_user_id,
       state,
@@ -72,5 +64,16 @@ export const handleRevenueCatWebhook = (
       source: `webhook:${event.type}`,
     })
 
-    yield* Effect.log('[Webhook] Applied event', { id: event.id, outcome })
+    const firstDelivery = yield* subRepo.claimWebhookEvent({
+      id: event.id,
+      eventType: event.type,
+      appUserId: event.app_user_id,
+      environment: event.environment,
+    })
+
+    yield* Effect.log('[Webhook] Applied event', {
+      id: event.id,
+      outcome,
+      redelivered: !firstDelivery,
+    })
   }).pipe(Effect.withSpan('SubscriptionService.handleRevenueCatWebhookEvent'))

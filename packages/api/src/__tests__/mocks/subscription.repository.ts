@@ -11,6 +11,7 @@ import type {
   TierConfig,
 } from '@lily/shared'
 import { Effect, Layer, Option, pipe } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 
 // Default free tier config
 const freeTierConfig: TierConfig = {
@@ -50,6 +51,8 @@ interface MockSubscriptionOptions {
   ) => void
   // Shared across layers to model the unique event-id table.
   claimedWebhookEventIds?: Set<string>
+  // The first `create` calls fail with a SqlError, then writes succeed.
+  failingCreates?: number | undefined
 }
 
 const rowFromCreate = (
@@ -97,6 +100,10 @@ export const createMockSubscriptionRepository = (
   )
   const claimedWebhookEventIds =
     options.claimedWebhookEventIds ?? new Set<string>()
+  let failingCreates = Option.getOrElse(
+    Option.fromNullishOr(options.failingCreates),
+    () => 0
+  )
 
   const tierConfig = tier === 'paid' ? paidTierConfig : freeTierConfig
 
@@ -117,6 +124,17 @@ export const createMockSubscriptionRepository = (
       }),
     findByExternalId: () => Effect.succeed(subscription),
     create: (data) => {
+      if (failingCreates > 0) {
+        failingCreates--
+        return Effect.fail(
+          new SqlError({
+            reason: new UnknownError({
+              cause: new Error('connection lost'),
+              message: 'connection lost',
+            }),
+          })
+        )
+      }
       if (options.onCreate) {
         options.onCreate(data)
       }
