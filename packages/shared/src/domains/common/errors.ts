@@ -17,3 +17,16 @@ export class ExternalServiceError extends Schema.TaggedError<ExternalServiceErro
     message: Schema.String,
   }
 ) {}
+
+/**
+ * A dependency the request needs (the database) is unreachable. Declared on
+ * the auth middleware so an outage answers 503 instead of telling signed-in
+ * clients their credentials are invalid.
+ */
+export class ServiceUnavailableError extends Schema.TaggedError<ServiceUnavailableError>()(
+  'ServiceUnavailableError',
+  {
+    message: Schema.String,
+  },
+  { httpApiStatus: 503 }
+) {}
