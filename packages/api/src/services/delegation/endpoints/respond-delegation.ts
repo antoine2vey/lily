@@ -1,12 +1,11 @@
 import { DelegationRepository } from '@lily/api/repositories/delegation.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { transitionDelegation } from '@lily/api/services/delegation/helpers/transition-delegation'
 import { scheduleSimpleNotification } from '@lily/api/services/helpers/schedule-notification'
 import {
-  DelegationInvalidStatusError,
   DelegationNotAuthorizedError,
   DelegationNotFoundError,
-  type DelegationStatus,
   nowAsDate,
 } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
@@ -29,17 +28,13 @@ export const respondToDelegation = Effect.fn(
     })
   }
 
-  if (delegation.status !== 'pending') {
-    return yield* new DelegationInvalidStatusError({
-      currentStatus: delegation.status,
-      expectedStatus: 'pending',
-      message: 'This delegation has already been responded to',
-    })
-  }
-
-  const newStatus: DelegationStatus = params.accept ? 'accepted' : 'rejected'
-  yield* delegationRepo.updateStatus(delegationId, newStatus, {
-    respondedAt: nowAsDate(),
+  yield* transitionDelegation({
+    delegationId,
+    from: ['pending'],
+    to: params.accept ? 'accepted' : 'rejected',
+    expectedStatus: 'pending',
+    message: 'This delegation has already been responded to',
+    timestamps: { respondedAt: nowAsDate() },
   })
 
   const caretakerName = pipe(
