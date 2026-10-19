@@ -1,6 +1,7 @@
 import type { IWeatherProvider } from '@lily/api/services/weather/provider'
+import { fetchForecastJson } from '@lily/api/services/weather/providers/fetch-forecast-json'
 import type { WeatherData, WeatherForecast } from '@lily/shared'
-import { roundCoord, WeatherFetchError } from '@lily/shared'
+import { roundCoord } from '@lily/shared'
 import { Array, Effect, pipe } from 'effect'
 
 // Open-Meteo API response shape (subset we use)
@@ -71,20 +72,8 @@ export const createOpenMeteoProvider = (): IWeatherProvider => ({
     const rlng = roundCoord(lng)
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${rlat}&longitude=${rlng}&daily=${DAILY_VARS}&forecast_days=${forecastDays}&timezone=UTC`
 
-    return Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error(
-            `Open-Meteo API returned ${response.status}: ${response.statusText}`
-          )
-        }
-        return (await response.json()) as OpenMeteoResponse
-      },
-      catch: (error) =>
-        new WeatherFetchError({
-          message: `Open-Meteo fetch failed: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-    }).pipe(Effect.map(normalizeResponse))
+    return fetchForecastJson<OpenMeteoResponse>('Open-Meteo', url).pipe(
+      Effect.map(normalizeResponse)
+    )
   },
 })
