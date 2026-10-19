@@ -33,10 +33,12 @@ import {
   Array,
   Deferred,
   Effect,
+  Exit,
   Match,
   Option,
   Predicate,
   pipe,
+  Schema,
   Struct,
 } from 'effect'
 
@@ -55,9 +57,20 @@ export interface StepData {
   }[]
 }
 
+/** The model or provider failed before the reply completed. */
+export class ChatStreamError extends Schema.TaggedError<ChatStreamError>()(
+  'ChatStreamError',
+  {
+    message: Schema.String,
+    cause: Schema.Defect(),
+  }
+) {}
+
+export const CHAT_MAX_OUTPUT_TOKENS = 2048
+
 export interface PlantChatResult {
   stream: PlantChatStreamResult
-  completionDeferred: Deferred.Deferred<readonly StepData[]>
+  completionDeferred: Deferred.Deferred<readonly StepData[], ChatStreamError>
 }
 
 export interface PlantChatImageOptions {
@@ -148,8 +161,10 @@ export const chatStream = (
 
     const useVisionModel = Boolean(imageOptions?.imageUrl)
 
-    // Deferred that resolves with step data when streaming finishes
-    const completionDeferred = yield* Deferred.make<readonly StepData[]>()
+    const completionDeferred = yield* Deferred.make<
+      readonly StepData[],
+      ChatStreamError
+    >()
 
     const stream: PlantChatStreamResult = streamText({
       model: openai(useVisionModel ? CHAT_MODEL : FAST_MODEL),
@@ -158,6 +173,15 @@ export const chatStream = (
       messages: finalModelMessages,
       tools,
       stopWhen: stepCountIs(3),
+      maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
+      onError: ({ error }) => {
+        Deferred.doneUnsafe(
+          completionDeferred,
+          Exit.fail(
+            new ChatStreamError({ message: String(error), cause: error })
+          )
+        )
+      },
       onFinish: ({ steps }) => {
         const stepData: readonly StepData[] = Array.map(steps, (step) => ({
           text: step.text,
@@ -169,7 +193,7 @@ export const chatStream = (
           })),
         }))
 
-        Deferred.doneUnsafe(completionDeferred, Effect.succeed(stepData))
+        Deferred.doneUnsafe(completionDeferred, Exit.succeed(stepData))
       },
     })
 

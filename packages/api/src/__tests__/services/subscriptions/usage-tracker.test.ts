@@ -1,10 +1,10 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
+import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import {
   type INotificationRepository,
   NotificationRepository,
 } from '@lily/api/repositories/notification.repository'
-import type { ISubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import {
   type IUserRepository,
   UserRepository,
@@ -14,231 +14,192 @@ import {
   UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import type { subscriptionUsage } from '@lily/db/schema'
-import { Array, Effect, Layer } from 'effect'
+import { LimitExceededError, type UsageField } from '@lily/shared'
+import { Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-describe('UsageTracker', () => {
-  const createMockUsage = (
-    overrides: Partial<typeof subscriptionUsage.$inferSelect> = {}
-  ): typeof subscriptionUsage.$inferSelect => ({
-    id: 'usage-1',
-    userId: 'user-1',
-    periodStart: new Date(),
-    periodEnd: new Date(),
-    aiChatsCount: 0,
-    cardScansCount: 0,
-    plantIdentifiesCount: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
+const usageAt = (
+  overrides: Partial<typeof subscriptionUsage.$inferSelect> = {}
+): typeof subscriptionUsage.$inferSelect => ({
+  id: 'usage-1',
+  userId: 'user-1',
+  periodStart: new Date(),
+  periodEnd: new Date(),
+  aiChatsCount: 0,
+  cardScansCount: 0,
+  plantIdentifiesCount: 0,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+})
+
+const createTestLayer = (options: {
+  usage?: typeof subscriptionUsage.$inferSelect
+  tier?: 'free' | 'paid'
+}) => {
+  const reserved: UsageField[] = []
+  const released: UsageField[] = []
+
+  const notifRepo = new Proxy({} as INotificationRepository, {
+    get: () => () => Effect.succeed(null),
+  })
+  const userRepo = new Proxy({} as IUserRepository, {
+    get: () => () => Effect.succeed(null),
   })
 
-  // Helper to create test layer with tracking
-  const createTestLayer = (options: {
-    incrementUsageFn?: (
-      userId: string,
-      field: 'aiChats' | 'cardScans' | 'plantIdentifies'
-    ) => typeof subscriptionUsage.$inferSelect
-  }) => {
-    const incrementCalls: Array<{
-      userId: string
-      field: 'aiChats' | 'cardScans' | 'plantIdentifies'
-    }> = []
-
-    const repo: ISubscriptionRepository = {
-      findByUserId: () => Effect.succeed(null),
-      findByUserIds: () => Effect.succeed([]),
-      findByExternalId: () => Effect.succeed(null),
-      create: () => Effect.succeed(null),
-      updateStatus: () => Effect.succeed(null),
-      updateFromWebhook: () => Effect.succeed(null),
-      updateByUserId: () => Effect.succeed(null),
-      cancel: () => Effect.succeed(null),
-      getTier: () =>
-        Effect.succeed({
-          tier: 'free' as const,
-          name: 'Free',
-          priceMonthly: 0,
-          maxPlants: 5,
-          maxAiChatsMonthly: 10,
-          maxCardScansMonthly: 5,
-          maxPlantIdentifiesMonthly: 3,
-        }),
-      getAllTiers: () => Effect.succeed([]),
-      getCurrentUsage: () => Effect.succeed(createMockUsage()),
-      getOrCreateUsage: () => Effect.succeed(createMockUsage()),
-      incrementUsage: (userId, field) => {
-        incrementCalls.push({ userId, field })
-        const result = options.incrementUsageFn
-          ? options.incrementUsageFn(userId, field)
-          : createMockUsage({ [`${field}Count`]: 1 })
-        return Effect.succeed(result)
-      },
-      findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
-      logEvent: () => Effect.void,
-    }
-
-    // Proxy-based stub: approaching_limit check is forked and error-swallowed
-    const notifRepo = new Proxy({} as INotificationRepository, {
-      get: () => () => Effect.succeed(null),
-    })
-
-    // Proxy-based stub: returns Effect.succeed(null) for any method call
-    const userRepo = new Proxy({} as IUserRepository, {
-      get: () => () => Effect.succeed(null),
-    })
-
-    return {
-      layer: Layer.mergeAll(
+  const layer = UsageTrackerLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
         MockAlerterLive,
-        Layer.succeed(SubscriptionRepository, repo),
+        createMockSubscriptionRepository({
+          usage: options.usage,
+          tier: options.tier,
+          onReserveUsage: (_userId, field) => reserved.push(field),
+          onReleaseUsage: (_userId, field) => released.push(field),
+        }),
         Layer.succeed(NotificationRepository, notifRepo),
         Layer.succeed(UserRepository, userRepo)
-      ),
-      incrementCalls,
-    }
-  }
+      )
+    )
+  )
 
-  describe('trackAiChat', () => {
-    it('should call incrementUsage with aiChats field', async () => {
-      const { layer, incrementCalls } = createTestLayer({})
+  return { layer, reserved, released }
+}
+
+describe('UsageTracker', () => {
+  describe('reserve', () => {
+    it('counts one unit for a free user under the limit', async () => {
+      const { layer, reserved } = createTestLayer({
+        usage: usageAt({ aiChatsCount: 4 }),
+      })
+
+      const reservation = await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.reserve('user-1', 'aiChats')
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(reservation.usage.aiChatsCount).toBe(5)
+      expect(reserved).toEqual(['aiChats'])
+    })
+
+    it('fails with LimitExceededError at the free limit and counts nothing', async () => {
+      const { layer, reserved } = createTestLayer({
+        usage: usageAt({ plantIdentifiesCount: 3 }),
+      })
+
+      const exit = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.reserve('user-1', 'plantIdentifies')
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(Exit.isFailure(exit)).toBe(true)
+      const error = failureOf(exit)
+      expect(error).toBeInstanceOf(LimitExceededError)
+      expect((error as LimitExceededError).feature).toBe('plant_identifies')
+      expect((error as LimitExceededError).limit).toBe(3)
+      expect(reserved).toEqual([])
+    })
+
+    it('still counts usage for a paid user with no limit', async () => {
+      const { layer, reserved } = createTestLayer({
+        usage: usageAt({ cardScansCount: 500 }),
+        tier: 'paid',
+      })
+
+      const reservation = await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.reserve('user-1', 'cardScans')
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(reservation.usage.cardScansCount).toBe(501)
+      expect(reserved).toEqual(['cardScans'])
+    })
+
+    it('release gives the unit back', async () => {
+      const { layer, released } = createTestLayer({ usage: usageAt() })
 
       await Effect.runPromise(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          yield* tracker.trackAiChat('user-123')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
+          const reservation = yield* tracker.reserve('user-1', 'aiChats')
+          yield* reservation.release
+        }).pipe(Effect.provide(layer))
       )
 
-      expect(incrementCalls).toHaveLength(1)
-      expect(incrementCalls[0]).toEqual({
-        userId: 'user-123',
-        field: 'aiChats',
-      })
+      expect(released).toEqual(['aiChats'])
     })
+  })
 
-    it('should return updated usage record', async () => {
-      const expectedUsage = createMockUsage({ aiChatsCount: 5 })
-      const { layer } = createTestLayer({
-        incrementUsageFn: () => expectedUsage,
+  describe('withReservation', () => {
+    it('keeps the unit when the body succeeds', async () => {
+      const { layer, reserved, released } = createTestLayer({
+        usage: usageAt(),
       })
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          return yield* tracker.trackAiChat('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
+          return yield* tracker.withReservation(
+            'user-1',
+            'cardScans',
+            Effect.succeed('scanned')
+          )
+        }).pipe(Effect.provide(layer))
       )
 
-      expect(result?.aiChatsCount).toBe(5)
+      expect(result).toBe('scanned')
+      expect(reserved).toEqual(['cardScans'])
+      expect(released).toEqual([])
     })
-  })
 
-  describe('trackCardScan', () => {
-    it('should call incrementUsage with cardScans field', async () => {
-      const { layer, incrementCalls } = createTestLayer({})
+    it('refunds the unit and surfaces the error when the body fails', async () => {
+      const { layer, reserved, released } = createTestLayer({
+        usage: usageAt(),
+      })
 
-      await Effect.runPromise(
+      const exit = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          yield* tracker.trackCardScan('user-456')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
+          return yield* tracker.withReservation(
+            'user-1',
+            'plantIdentifies',
+            Effect.fail({ _tag: 'OpenAIError' as const })
+          )
+        }).pipe(Effect.provide(layer))
       )
 
-      expect(incrementCalls).toHaveLength(1)
-      expect(incrementCalls[0]).toEqual({
-        userId: 'user-456',
-        field: 'cardScans',
-      })
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(reserved).toEqual(['plantIdentifies'])
+      expect(released).toEqual(['plantIdentifies'])
     })
 
-    it('should return updated usage record', async () => {
-      const expectedUsage = createMockUsage({ cardScansCount: 3 })
+    it('does not run the body when the limit is reached', async () => {
       const { layer } = createTestLayer({
-        incrementUsageFn: () => expectedUsage,
+        usage: usageAt({ aiChatsCount: 10 }),
       })
+      let ran = false
 
-      const result = await Effect.runPromise(
+      const exit = await Effect.runPromiseExit(
         Effect.gen(function* () {
           const tracker = yield* UsageTracker
-          return yield* tracker.trackCardScan('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
+          return yield* tracker.withReservation(
+            'user-1',
+            'aiChats',
+            Effect.sync(() => {
+              ran = true
+            })
+          )
+        }).pipe(Effect.provide(layer))
       )
 
-      expect(result?.cardScansCount).toBe(3)
-    })
-  })
-
-  describe('trackPlantIdentify', () => {
-    it('should call incrementUsage with plantIdentifies field', async () => {
-      const { layer, incrementCalls } = createTestLayer({})
-
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          yield* tracker.trackPlantIdentify('user-789')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
-      )
-
-      expect(incrementCalls).toHaveLength(1)
-      expect(incrementCalls[0]).toEqual({
-        userId: 'user-789',
-        field: 'plantIdentifies',
-      })
-    })
-
-    it('should return updated usage record', async () => {
-      const expectedUsage = createMockUsage({ plantIdentifiesCount: 2 })
-      const { layer } = createTestLayer({
-        incrementUsageFn: () => expectedUsage,
-      })
-
-      const result = await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          return yield* tracker.trackPlantIdentify('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
-      )
-
-      expect(result?.plantIdentifiesCount).toBe(2)
-    })
-  })
-
-  describe('multiple tracking calls', () => {
-    it('should correctly track multiple different operations', async () => {
-      const { layer, incrementCalls } = createTestLayer({})
-
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          yield* tracker.trackAiChat('user-1')
-          yield* tracker.trackCardScan('user-1')
-          yield* tracker.trackPlantIdentify('user-1')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
-      )
-
-      expect(incrementCalls).toHaveLength(3)
-      expect(Array.map(incrementCalls, (c) => c.field)).toEqual([
-        'aiChats',
-        'cardScans',
-        'plantIdentifies',
-      ])
-    })
-
-    it('should track for different users independently', async () => {
-      const { layer, incrementCalls } = createTestLayer({})
-
-      await Effect.runPromise(
-        Effect.gen(function* () {
-          const tracker = yield* UsageTracker
-          yield* tracker.trackAiChat('user-1')
-          yield* tracker.trackAiChat('user-2')
-        }).pipe(Effect.provide(UsageTrackerLive.pipe(Layer.provide(layer))))
-      )
-
-      expect(incrementCalls).toHaveLength(2)
-      expect(incrementCalls[0]?.userId).toBe('user-1')
-      expect(incrementCalls[1]?.userId).toBe('user-2')
+      expect(failureOf(exit)).toBeInstanceOf(LimitExceededError)
+      expect(ran).toBe(false)
     })
   })
 })

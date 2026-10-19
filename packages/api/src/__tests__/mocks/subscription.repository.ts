@@ -4,7 +4,7 @@ import type {
 } from '@lily/api/repositories/subscription.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
-import type { SubscriptionTier, TierConfig } from '@lily/shared'
+import type { SubscriptionTier, TierConfig, UsageField } from '@lily/shared'
 import { Effect, Layer, Option, pipe } from 'effect'
 
 // Default free tier config
@@ -38,6 +38,8 @@ interface MockSubscriptionOptions {
     userId: string,
     data: Partial<CreateSubscriptionData>
   ) => void
+  onReserveUsage?: (userId: string, field: UsageField) => void
+  onReleaseUsage?: (userId: string, field: UsageField) => void
 }
 
 export const createMockSubscriptionRepository = (
@@ -77,40 +79,31 @@ export const createMockSubscriptionRepository = (
     getTier: () => Effect.succeed(tierConfig),
     getAllTiers: () => Effect.succeed([freeTierConfig, paidTierConfig]),
     getCurrentUsage: () => Effect.succeed(usage),
-    getOrCreateUsage: () =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(usage),
-          Option.getOrElse(() => ({
-            id: 'usage-1',
-            userId: 'user-1',
-            periodStart: new Date(),
-            periodEnd: new Date(),
-            aiChatsCount: 0,
-            cardScansCount: 0,
-            plantIdentifiesCount: 0,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))
-        )
-      ),
-    incrementUsage: () =>
-      Effect.succeed(
-        pipe(
-          Option.fromNullishOr(usage),
-          Option.getOrElse(() => ({
-            id: 'usage-1',
-            userId: 'user-1',
-            periodStart: new Date(),
-            periodEnd: new Date(),
-            aiChatsCount: 1,
-            cardScansCount: 0,
-            plantIdentifiesCount: 0,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }))
-        )
-      ),
+    reserveUsage: (userId, field, limit) => {
+      const countKey = `${field}Count` as const
+      const current = pipe(
+        Option.fromNullishOr(usage),
+        Option.map((u) => u[countKey]),
+        Option.getOrElse(() => 0)
+      )
+      if (limit !== null && current >= limit) return Effect.succeed(null)
+      options.onReserveUsage?.(userId, field)
+      return Effect.succeed({
+        id: 'usage-1',
+        userId,
+        periodStart: new Date(),
+        periodEnd: new Date(),
+        aiChatsCount: 0,
+        cardScansCount: 0,
+        plantIdentifiesCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...usage,
+        [countKey]: current + 1,
+      })
+    },
+    releaseUsage: (userId, field) =>
+      Effect.sync(() => options.onReleaseUsage?.(userId, field)),
     findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
     logEvent: () => Effect.void,
   }

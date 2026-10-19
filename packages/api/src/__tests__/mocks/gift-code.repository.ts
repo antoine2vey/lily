@@ -5,13 +5,14 @@ import type {
 import { GiftCodeRepository } from '@lily/api/repositories/gift-code.repository'
 import type { giftCodeRedemptions } from '@lily/db/schema'
 import { Effect, Layer, Option, pipe } from 'effect'
+import { SqlError, UniqueViolation } from 'effect/sql/SqlError'
 
 type Redemption = typeof giftCodeRedemptions.$inferSelect
 
 interface MockGiftCodeOptions {
   codes?: readonly GiftCodeRecord[]
   redemptions?: readonly Redemption[]
-  onIncrementUsage?: (id: string) => void
+  onClaimUsage?: (id: string) => void
   onCreateRedemption?: (giftCodeId: string, userId: string) => void
 }
 
@@ -84,12 +85,30 @@ export const createMockGiftCodeRepository = (
       return Effect.succeed(existing ?? null)
     },
 
-    incrementUsage: (id) => {
-      if (options.onIncrementUsage) options.onIncrementUsage(id)
-      return Effect.void
+    claimUsage: (id) => {
+      const code = codes.find((c) => c.id === id)
+      if (!code) return Effect.succeed(false)
+      if (code.maxUsages > 0 && code.currentUsages >= code.maxUsages) {
+        return Effect.succeed(false)
+      }
+      options.onClaimUsage?.(id)
+      return Effect.succeed(true)
     },
 
     createRedemption: (giftCodeId, userId) => {
+      const duplicate = redemptions.some(
+        (r) => r.giftCodeId === giftCodeId && r.userId === userId
+      )
+      if (duplicate) {
+        return Effect.fail(
+          new SqlError({
+            reason: new UniqueViolation({
+              cause: new Error('duplicate key'),
+              constraint: 'gift_code_redemptions_code_user_idx',
+            }),
+          })
+        )
+      }
       if (options.onCreateRedemption)
         options.onCreateRedemption(giftCodeId, userId)
       const redemption: Redemption = {

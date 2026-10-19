@@ -7,6 +7,7 @@ import {
 } from '@lily/api/__tests__/mocks/limit-checker'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import type { AppEvent } from '@lily/api/events'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
@@ -45,6 +46,7 @@ describe('createPlant', () => {
         createMockEventBus(),
         createMockCurrentUser({ id: 'user-1' }),
         MockLimitCheckerLive,
+        MockSqlClientLive,
         createMockCareScheduleRepository({ schedules })
       ),
       schedules,
@@ -219,6 +221,7 @@ describe('createPlant', () => {
             eventBusMock,
             createMockCurrentUser({ id: 'user-1' }),
             MockLimitCheckerLive,
+            MockSqlClientLive,
             createMockCareScheduleRepository({ schedules })
           )
         )
@@ -303,6 +306,7 @@ describe('createPlant', () => {
       createMockEventBus(),
       createMockCurrentUser({ id: 'user-1' }),
       createMockLimitChecker({ plantLimitReached: true }),
+      MockSqlClientLive,
       createMockCareScheduleRepository({ schedules })
     )
 

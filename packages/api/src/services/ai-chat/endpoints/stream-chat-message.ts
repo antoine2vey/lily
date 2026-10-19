@@ -15,8 +15,10 @@ import type { StepData } from '@lily/api/services/ai-chat/plant-chat'
 import { resolveMessageImageUrls } from '@lily/api/services/ai-chat/resolve-image-urls'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import type { RagService } from '@lily/api/services/rag/service'
-import { LimitChecker } from '@lily/api/services/subscriptions/limit-checker'
-import type { UsageTracker } from '@lily/api/services/subscriptions/usage-tracker'
+import {
+  type UsageReservation,
+  UsageTracker,
+} from '@lily/api/services/subscriptions/usage-tracker'
 import type { ChatConversation } from '@lily/shared/ai-chat'
 import type {
   PlantNotAuthorizedError,
@@ -25,7 +27,16 @@ import type {
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type { GCSUploadError } from '@lily/shared/services/file/gcs-errors'
 import type { UIMessage } from 'ai'
-import { Array, Deferred, Effect, Option, pipe, Schedule, Stream } from 'effect'
+import {
+  Array,
+  Deferred,
+  Effect,
+  Fiber,
+  Option,
+  pipe,
+  Schedule,
+  Stream,
+} from 'effect'
 import { HttpServerResponse } from 'effect/http'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -34,6 +45,8 @@ export const postStreamRetryPolicy = Schedule.max([
   Schedule.exponential('200 millis'),
   Schedule.recurs(3),
 ])
+
+export const streamCompletionTimeout = '3 minutes'
 
 const QUOTA_EXCEEDED_KEY = '__QUOTA_EXCEEDED__'
 
@@ -97,6 +110,14 @@ const makeSseResponse = (
     HttpServerResponse.setHeaders(SSE_HEADERS)
   )
 
+const isEmptyReply = (steps: readonly StepData[]) =>
+  Array.every(
+    steps,
+    (step) =>
+      step.text.trim().length === 0 &&
+      Array.isReadonlyArrayEmpty(step.toolResults)
+  )
+
 export const streamChatMessage = (
   conversation: ChatConversation,
   request: StreamChatRequest
@@ -114,7 +135,6 @@ export const streamChatMessage = (
   | CarePlanRepository
   | UserRepository
   | DelegationRepository
-  | LimitChecker
   | UsageTracker
   | GCSService
   | RagService
@@ -123,7 +143,7 @@ export const streamChatMessage = (
     const chatRepo = yield* ChatRepository
     const aiService = yield* AiService
     const { id: userId } = yield* CurrentUser
-    const limitChecker = yield* LimitChecker
+    const usageTracker = yield* UsageTracker
     const gcs = yield* GCSService
 
     // If imageKey is provided, generate a fresh signed URL for AI processing
@@ -146,12 +166,16 @@ export const streamChatMessage = (
       }) as UIMessage['parts'],
     }
 
-    const limitExceeded = yield* limitChecker.checkAiChatLimit(userId).pipe(
-      Effect.map(() => false),
-      Effect.catchTag('LimitExceededError', () => Effect.succeed(true))
-    )
+    const reservation: Option.Option<UsageReservation> = yield* usageTracker
+      .reserve(userId, 'aiChats')
+      .pipe(
+        Effect.map(Option.some),
+        Effect.catchTag('LimitExceededError', () =>
+          Effect.succeed(Option.none())
+        )
+      )
 
-    if (limitExceeded) {
+    if (Option.isNone(reservation)) {
       const assistantUIMessage: UIMessage = {
         id: generateMessageId('assistant'),
         role: 'assistant',
@@ -178,70 +202,116 @@ export const streamChatMessage = (
       return makeSseResponse(uiStreamToSse(quotaChunks()))
     }
 
-    const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
-      conversation.id
-    )
-
-    const resolvedPreviousMessages =
-      yield* resolveMessageImageUrls(previousMessages)
-
-    const aiFileParts = makeImageParts(imageSignedUrl)
-    const userMessageForAi: UIMessage = {
-      id: userMessage.id,
-      role: userMessage.role,
-      parts: Array.append(aiFileParts, {
-        type: 'text' as const,
-        text: request.message,
-      }) as UIMessage['parts'],
-    }
-    const allMessages = Array.append(
-      resolvedPreviousMessages,
-      userMessageForAi
-    ) as UIMessage[]
-
-    const imageOptions = pipe(
-      Option.fromNullishOr(imageSignedUrl),
-      Option.map((url) => ({
-        imageUrl: url,
-        imageKey: request.imageKey,
-      })),
-      Option.getOrUndefined
-    )
-
-    const { stream: streamResult, completionDeferred } =
-      yield* aiService.chatStream(conversation, allMessages, imageOptions)
-
-    const uiStream = streamResult.toUIMessageStream()
-    const context = yield* Effect.context<
-      | ChatRepository
-      | DiagnosisRepository
-      | CarePlanRepository
-      | EventBus
-      | UsageTracker
-      | AiService
-    >()
-
-    const onComplete = Deferred.await(completionDeferred).pipe(
-      Effect.timeout('30 seconds'),
-      Effect.catchTag('TimeoutError', () =>
-        Effect.logError('AI stream completion timed out', {
-          conversationId: conversation.id,
-          userId,
-        }).pipe(Effect.as([] as readonly StepData[]))
-      ),
-      Effect.flatMap((steps) =>
-        persistChatCompletion({ conversation, userId, userMessage, steps })
-      ),
-      Effect.retry(postStreamRetryPolicy),
+    const refund = reservation.value.release.pipe(
       Effect.catchTag('SqlError', (error) =>
-        Effect.logError('Failed to save chat message after stream', {
+        Effect.logError('Failed to refund chat usage', {
           error: String(error),
           conversationId: conversation.id,
           userId,
         })
-      ),
-      Effect.provide(context)
+      )
     )
 
-    return makeSseResponse(uiStreamToSse(uiStream, onComplete))
+    const startStream = Effect.gen(function* () {
+      const previousMessages = yield* chatRepo.getMessagesAsUIMessages(
+        conversation.id
+      )
+
+      yield* chatRepo.saveChat({
+        conversationId: conversation.id,
+        userId,
+        messages: [userMessage],
+      })
+      yield* chatRepo.touchLastMessageAt(conversation.id)
+
+      const resolvedPreviousMessages =
+        yield* resolveMessageImageUrls(previousMessages)
+
+      const aiFileParts = makeImageParts(imageSignedUrl)
+      const userMessageForAi: UIMessage = {
+        id: userMessage.id,
+        role: userMessage.role,
+        parts: Array.append(aiFileParts, {
+          type: 'text' as const,
+          text: request.message,
+        }) as UIMessage['parts'],
+      }
+      const allMessages = Array.append(
+        resolvedPreviousMessages,
+        userMessageForAi
+      ) as UIMessage[]
+
+      const imageOptions = pipe(
+        Option.fromNullishOr(imageSignedUrl),
+        Option.map((url) => ({
+          imageUrl: url,
+          imageKey: request.imageKey,
+        })),
+        Option.getOrUndefined
+      )
+
+      const { stream: streamResult, completionDeferred } =
+        yield* aiService.chatStream(conversation, allMessages, imageOptions)
+
+      const uiStream = streamResult.toUIMessageStream()
+      const context = yield* Effect.context<
+        | ChatRepository
+        | DiagnosisRepository
+        | CarePlanRepository
+        | EventBus
+        | AiService
+      >()
+
+      const logAndRefund = (reason: string, error: unknown) =>
+        Effect.logError(reason, {
+          error: String(error),
+          conversationId: conversation.id,
+          userId,
+        }).pipe(Effect.andThen(refund))
+
+      // Drains the model stream server-side (the response body is a tee of
+      // the same stream), so the reply is saved even if the client goes away.
+      const settle = Effect.gen(function* () {
+        const steps = yield* Effect.promise(() =>
+          streamResult.consumeStream()
+        ).pipe(
+          Effect.andThen(Deferred.await(completionDeferred)),
+          Effect.timeout(streamCompletionTimeout)
+        )
+
+        if (isEmptyReply(steps)) {
+          return yield* logAndRefund('AI stream produced an empty reply', steps)
+        }
+
+        yield* persistChatCompletion({
+          conversation,
+          userId,
+          userMessage,
+          steps,
+        }).pipe(
+          Effect.retry(postStreamRetryPolicy),
+          Effect.catchTag('SqlError', (error) =>
+            Effect.logError('Failed to save chat message after stream', {
+              error: String(error),
+              conversationId: conversation.id,
+              userId,
+            })
+          )
+        )
+      }).pipe(
+        Effect.catchTags({
+          ChatStreamError: (error) => logAndRefund('AI stream failed', error),
+          TimeoutError: (error) => logAndRefund('AI stream timed out', error),
+        }),
+        Effect.provide(context)
+      )
+
+      const settled = yield* Effect.forkDetach(settle)
+
+      return makeSseResponse(
+        uiStreamToSse(uiStream, Effect.asVoid(Fiber.await(settled)))
+      )
+    })
+
+    return yield* Effect.onError(startStream, () => refund)
   })
