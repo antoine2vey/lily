@@ -2,7 +2,12 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import {
+  type IUserRepository,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
 import { setVacation } from '@lily/api/services/vacation/endpoints/set-vacation'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -18,6 +23,7 @@ const createLayer = (
   currentUserId = 'user-1'
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository(users),
     createMockNotificationRepository(notifications),
     createMockCurrentUser({ id: currentUserId })
@@ -181,6 +187,54 @@ describe('setVacation', () => {
       expect(state.status).toBe('active')
       expect(state.endDate).toEqual(newEnd)
       expect(state.startDate).toEqual(start)
+    })
+
+    it('should start a new vacation when the scheduler ends the active one between the read and the extend', async () => {
+      const start = daysFromNow(-2)
+      const user = activeUser(start, daysFromNow(5))
+      const newEnd = daysFromNow(10)
+      const users = [user]
+      const endOnce = Effect.sync(() => {
+        if (users[0]?.vacationStatus === 'active') {
+          users[0] = {
+            ...user,
+            vacationStatus: 'none',
+            vacationStart: null,
+            vacationEnd: null,
+          }
+        }
+      })
+      const racingEnd = Layer.effect(
+        UserRepository,
+        Effect.map(
+          UserRepository,
+          (repo): IUserRepository => ({
+            ...repo,
+            findById: (id) => repo.findById(id).pipe(Effect.tap(endOnce)),
+          })
+        )
+      ).pipe(Layer.provide(createMockUserRepository(users)))
+
+      const state = await run(
+        setVacation({ startDate: start, endDate: newEnd }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              MockSqlClientLive,
+              racingEnd,
+              createMockNotificationRepository([]),
+              createMockCurrentUser({ id: 'user-1' })
+            )
+          )
+        )
+      )
+
+      expect(state).toEqual({
+        status: 'active',
+        startDate: start,
+        endDate: newEnd,
+      })
+      expect(users[0]?.vacationStatus).toBe('active')
+      expect(users[0]?.vacationEnd).toEqual(newEnd)
     })
 
     it('should reject changing the start date of an active vacation', async () => {

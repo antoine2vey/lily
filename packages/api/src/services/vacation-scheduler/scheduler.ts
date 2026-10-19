@@ -3,18 +3,27 @@ import { createScheduler } from '@lily/api/services/helpers/create-scheduler'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import { endVacation } from '@lily/api/services/vacation/helpers/end-vacation'
 import { nowAsDate } from '@lily/shared'
-import { Array, Effect, Option, pipe } from 'effect'
+import { Effect, Number, Option, pipe } from 'effect'
 
-const withUserErrorIsolation = <A, R>(
-  effect: Effect.Effect<A, unknown, R>,
+const transitionUser = <R>(
+  transition: Effect.Effect<unknown, unknown, R>,
   userId: string
-) =>
-  effect.pipe(
+): Effect.Effect<number, never, R> =>
+  transition.pipe(
+    Effect.flatMap((claimed) =>
+      Option.match(Option.fromNullishOr(claimed), {
+        onNone: () =>
+          Effect.log('[vacation-scheduler] Skipped user: vacation changed', {
+            userId,
+          }).pipe(Effect.as(0)),
+        onSome: () => Effect.succeed(1),
+      })
+    ),
     Effect.catch((e) =>
       Effect.logWarning('[vacation-scheduler] Failed to process user', {
         userId,
         error: String(e),
-      })
+      }).pipe(Effect.as(0))
     )
   )
 
@@ -36,18 +45,19 @@ export const pollAndTransitionVacations = Effect.gen(function* () {
   const now = nowAsDate()
 
   const toActivate = yield* userRepo.findVacationsToActivate(now)
-  yield* Effect.forEach(toActivate, (user) =>
-    withUserErrorIsolation(activateVacation(user.id), user.id)
+  const activated = yield* Effect.forEach(toActivate, (user) =>
+    transitionUser(activateVacation({ expected: user }), user.id)
   )
-  if (Array.isArrayNonEmpty(toActivate)) {
-    yield* Effect.log(`Activated ${toActivate.length} vacations`)
+  const activatedCount = Number.sumAll(activated)
+  if (activatedCount > 0) {
+    yield* Effect.log(`Activated ${activatedCount} vacations`)
   }
 
   const toEnd = yield* userRepo.findVacationsToEnd(now)
-  yield* Effect.forEach(toEnd, (user) =>
-    withUserErrorIsolation(
+  const ended = yield* Effect.forEach(toEnd, (user) =>
+    transitionUser(
       endVacation({
-        userId: user.id,
+        user,
         effectiveEnd: pipe(
           Option.fromNullishOr(user.vacationEnd),
           Option.getOrElse(() => now)
@@ -56,8 +66,9 @@ export const pollAndTransitionVacations = Effect.gen(function* () {
       user.id
     )
   )
-  if (Array.isArrayNonEmpty(toEnd)) {
-    yield* Effect.log(`Ended ${toEnd.length} vacations`)
+  const endedCount = Number.sumAll(ended)
+  if (endedCount > 0) {
+    yield* Effect.log(`Ended ${endedCount} vacations`)
   }
 }).pipe(Effect.withSpan('VacationScheduler.pollAndTransition'))
 
