@@ -13,6 +13,7 @@ import type { users } from '@lily/db/schema'
 import { startOfDay } from '@lily/shared'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Array, DateTime, Duration, Effect, Option, pipe, Record } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface EndVacationParams {
@@ -45,7 +46,18 @@ export const endVacation = (
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
+  | SqlClient.SqlClient
 > =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    return yield* sql.withTransaction(endVacationInTransaction(params))
+  }).pipe(
+    Effect.withSpan('VacationService.endVacation', {
+      attributes: { 'user.id': params.user.id },
+    })
+  )
+
+const endVacationInTransaction = (params: EndVacationParams) =>
   Effect.gen(function* () {
     const { user, effectiveEnd } = params
     const userRepo = yield* UserRepository
@@ -159,8 +171,4 @@ export const endVacation = (
         })
     )
     return claimed
-  }).pipe(
-    Effect.withSpan('VacationService.endVacation', {
-      attributes: { 'user.id': params.user.id },
-    })
-  )
+  })

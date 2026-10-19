@@ -4,6 +4,7 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
@@ -102,6 +103,7 @@ const buildScenario = () => {
   const notifications: Notification[] = []
 
   const layer = Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository(users),
     createMockNotificationRepository(notifications),
     createMockCareScheduleRepository({

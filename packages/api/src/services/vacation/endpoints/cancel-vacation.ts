@@ -15,6 +15,7 @@ import {
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect, Match, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const attemptCancel = Effect.gen(function* () {
@@ -70,6 +71,7 @@ export const cancelVacation = (): Effect.Effect<
   | CareScheduleRepository
   | DelegationRepository
   | NotificationRepository
+  | SqlClient.SqlClient
   | CurrentUser
 > =>
   pipe(

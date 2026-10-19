@@ -2,6 +2,7 @@ import { createTestNotification } from '@lily/api/__tests__/fixtures/notificatio
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   type IUserRepository,
@@ -22,6 +23,7 @@ const createLayer = (
   currentUserId = 'user-1'
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository(users),
     createMockNotificationRepository(notifications),
     createMockCurrentUser({ id: currentUserId })
@@ -217,6 +219,7 @@ describe('setVacation', () => {
         setVacation({ startDate: start, endDate: newEnd }).pipe(
           Effect.provide(
             Layer.mergeAll(
+              MockSqlClientLive,
               racingEnd,
               createMockNotificationRepository([]),
               createMockCurrentUser({ id: 'user-1' })

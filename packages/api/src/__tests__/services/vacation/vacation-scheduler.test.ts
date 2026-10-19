@@ -5,6 +5,7 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import {
   type IUserRepository,
@@ -69,6 +70,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             withRacingWrite(users, 'findVacationsToActivate', () => {
               users[0] = {
                 ...user,
@@ -110,6 +112,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             withRacingWrite(users, 'findVacationsToEnd', () => {
               users[0] = { ...user, vacationEnd: extendedEnd }
             }),
@@ -160,6 +163,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository(notifications),
             createMockCareScheduleRepository({}),
@@ -197,6 +201,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({
@@ -230,6 +235,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),

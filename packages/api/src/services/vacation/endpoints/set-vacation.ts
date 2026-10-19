@@ -15,6 +15,7 @@ import {
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const attemptSet = (request: SetVacationRequest) =>
@@ -111,7 +112,7 @@ export const setVacation = (
 ): Effect.Effect<
   VacationState,
   SqlError | VacationDateError | UserNotFoundError,
-  UserRepository | NotificationRepository | CurrentUser
+  UserRepository | NotificationRepository | SqlClient.SqlClient | CurrentUser
 > =>
   pipe(
     attemptSet(request),

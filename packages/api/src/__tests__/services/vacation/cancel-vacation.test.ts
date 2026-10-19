@@ -5,6 +5,7 @@ import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import {
@@ -34,6 +35,7 @@ const createLayer = (
   plants: ReturnType<typeof createTestPlant>[] = []
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository(users),
     createMockNotificationRepository([]),
     createMockCareScheduleRepository({ schedules, plants }),
@@ -156,6 +158,7 @@ describe('cancelVacation', () => {
       cancelVacation().pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             racingActivation,
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({ schedules, plants: [plant] }),
@@ -193,6 +196,7 @@ describe('cancelVacation', () => {
       cancelVacation().pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             alwaysLosing,
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),
