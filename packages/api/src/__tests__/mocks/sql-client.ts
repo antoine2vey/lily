@@ -1,13 +1,19 @@
-import type { Effect } from 'effect'
-import { Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 
 /**
  * Runs `withTransaction` bodies inline. Repository mocks hold their state in
- * memory, so there is nothing to begin, commit, or roll back.
+ * memory, so there is nothing to begin, commit, or roll back. Raw queries
+ * resolve to no rows.
  */
-export const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> =>
-  Layer.succeed(SqlClient.SqlClient, {
-    withTransaction: (effect: Effect.Effect<unknown, unknown, unknown>) =>
-      effect,
-  } as unknown as SqlClient.SqlClient)
+export const createMockSqlClient = (): Layer.Layer<SqlClient.SqlClient> => {
+  const client = Object.assign(() => Effect.succeed([]), {
+    withTransaction: <A, E, R>(effect: Effect.Effect<A, E, R>) => effect,
+  })
+  return Layer.succeed(
+    SqlClient.SqlClient,
+    client as unknown as SqlClient.SqlClient
+  )
+}
+
+export const MockSqlClientLive = createMockSqlClient()

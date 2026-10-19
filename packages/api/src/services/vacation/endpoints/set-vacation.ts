@@ -3,6 +3,11 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { activateVacation } from '@lily/api/services/vacation/helpers/activate-vacation'
 import {
+  retryLostClaims,
+  VacationClaimLost,
+} from '@lily/api/services/vacation/helpers/lost-claim'
+import { toVacationState } from '@lily/api/services/vacation/helpers/vacation-state'
+import {
   type SetVacationRequest,
   VACATION_MAX_DURATION_DAYS,
   VacationDateError,
@@ -10,24 +15,10 @@ import {
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
-/**
- * Schedule (or reschedule) a vacation.
- *
- * - status 'none' / 'scheduled': stores the range as 'scheduled'; if the
- *   start is already in the past, activates immediately (snappy UX — no
- *   waiting for the 5-minute scheduler poll).
- * - status 'active': only the end date may change (extend/shorten). Ending
- *   now is expressed via DELETE (cancelVacation), not a past end date.
- */
-export const setVacation = (
-  request: SetVacationRequest
-): Effect.Effect<
-  VacationState,
-  SqlError | VacationDateError | UserNotFoundError,
-  UserRepository | NotificationRepository | CurrentUser
-> =>
+const attemptSet = (request: SetVacationRequest) =>
   Effect.gen(function* () {
     const { id } = yield* CurrentUser
     const userRepo = yield* UserRepository
@@ -60,7 +51,7 @@ export const setVacation = (
       })
     }
 
-    return yield* Match.value(user.vacationStatus).pipe(
+    const claimed = yield* Match.value(user.vacationStatus).pipe(
       Match.when('active', () =>
         Effect.gen(function* () {
           const startUnchanged = pipe(
@@ -77,32 +68,54 @@ export const setVacation = (
               message: 'Cannot change the start date of an active vacation',
             })
           }
-          yield* userRepo.update(id, { vacationEnd: request.endDate })
-          return {
-            status: 'active' as const,
-            startDate: user.vacationStart,
-            endDate: request.endDate,
-          }
+          return yield* userRepo.transitionVacation(user, {
+            vacationStatus: 'active',
+            vacationEnd: request.endDate,
+          })
         })
       ),
       Match.whenOr('none', 'scheduled', () =>
-        Effect.gen(function* () {
-          yield* userRepo.update(id, {
-            vacationStatus: 'scheduled',
-            vacationStart: request.startDate,
-            vacationEnd: request.endDate,
-          })
-          const startsNow = DateTime.isLessThanOrEqualTo(startDt, nowDt)
-          if (startsNow) {
-            yield* activateVacation(id)
-          }
-          return {
-            status: startsNow ? ('active' as const) : ('scheduled' as const),
-            startDate: request.startDate,
-            endDate: request.endDate,
-          }
-        })
+        DateTime.isLessThanOrEqualTo(startDt, nowDt)
+          ? activateVacation({
+              expected: user,
+              range: {
+                vacationStart: request.startDate,
+                vacationEnd: request.endDate,
+              },
+            })
+          : userRepo.transitionVacation(user, {
+              vacationStatus: 'scheduled',
+              vacationStart: request.startDate,
+              vacationEnd: request.endDate,
+            })
       ),
       Match.exhaustive
     )
-  }).pipe(Effect.withSpan('VacationService.setVacation'))
+    if (!claimed) {
+      return yield* new VacationClaimLost({ userId: id })
+    }
+
+    return toVacationState(claimed)
+  })
+
+/**
+ * Schedule (or reschedule) a vacation.
+ *
+ * - status 'none' / 'scheduled': stores the range as 'scheduled'; if the
+ *   start is already in the past, activates right away in the same write
+ *   (snappy UX — no waiting for the 5-minute scheduler poll).
+ * - status 'active': only the end date may change (extend/shorten). Ending
+ *   now is expressed via DELETE (cancelVacation), not a past end date.
+ */
+export const setVacation = (
+  request: SetVacationRequest
+): Effect.Effect<
+  VacationState,
+  SqlError | VacationDateError | UserNotFoundError,
+  UserRepository | NotificationRepository | SqlClient.SqlClient | CurrentUser
+> =>
+  pipe(
+    attemptSet(request),
+    retryLostClaims,
+    Effect.withSpan('VacationService.setVacation')
+  )

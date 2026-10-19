@@ -5,7 +5,12 @@ import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockCareScheduleRepository } from '@lily/api/__tests__/mocks/care-schedule.repository'
 import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delegation.repository'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
+import {
+  type IUserRepository,
+  UserRepository,
+} from '@lily/api/repositories/user.repository'
 import { pollAndTransitionVacations } from '@lily/api/services/vacation-scheduler/scheduler'
 import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
@@ -26,7 +31,105 @@ const run = (effect: Effect.Effect<void, unknown, never>): Promise<void> =>
     effect.pipe(Effect.provideService(References.MinimumLogLevel, 'None'))
   ) as Promise<void>
 
+const withRacingWrite = (
+  users: User[],
+  poll: 'findVacationsToActivate' | 'findVacationsToEnd',
+  afterRead: () => void
+) =>
+  Layer.effect(
+    UserRepository,
+    Effect.map(
+      UserRepository,
+      (repo): IUserRepository => ({
+        ...repo,
+        [poll]: (now: Date) =>
+          repo[poll](now).pipe(Effect.tap(() => Effect.sync(afterRead))),
+      })
+    )
+  ).pipe(Layer.provide(createMockUserRepository(users)))
+
 describe('vacation-scheduler', () => {
+  it('leaves a vacation canceled between the read and the activation alone', async () => {
+    const user = createTestUser({
+      id: 'user-1',
+      vacationStatus: 'scheduled',
+      vacationStart: daysFromNow(-1),
+      vacationEnd: daysFromNow(6),
+    })
+    const users = [user]
+    const notifications: Notification[] = [
+      createTestNotification({
+        id: 'n-care',
+        userId: 'user-1',
+        type: 'watering_reminder',
+        status: 'pending',
+      }),
+    ]
+
+    await run(
+      pollAndTransitionVacations.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            MockSqlClientLive,
+            withRacingWrite(users, 'findVacationsToActivate', () => {
+              users[0] = {
+                ...user,
+                vacationStatus: 'none',
+                vacationStart: null,
+                vacationEnd: null,
+              }
+            }),
+            createMockNotificationRepository(notifications),
+            createMockCareScheduleRepository({}),
+            createMockDelegationRepository({})
+          )
+        )
+      )
+    )
+
+    const after = findUser(users, 'user-1')
+    expect(after?.vacationStatus).toBe('none')
+    expect(after?.vacationEnd).toBeNull()
+    expect(Array.map(notifications, (n) => n.id)).toEqual(['n-care'])
+  })
+
+  it('leaves a vacation extended between the read and the end alone', async () => {
+    const user = createTestUser({
+      id: 'user-1',
+      vacationStatus: 'active',
+      vacationStart: daysFromNow(-7),
+      vacationEnd: daysFromNow(-1),
+    })
+    const extendedEnd = daysFromNow(5)
+    const users = [user]
+    const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
+    const dueMidVacation = daysFromNow(-3)
+    const schedules = [
+      createTestSchedule({ plantId: plant.id, nextCareAt: dueMidVacation }),
+    ]
+
+    await run(
+      pollAndTransitionVacations.pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            MockSqlClientLive,
+            withRacingWrite(users, 'findVacationsToEnd', () => {
+              users[0] = { ...user, vacationEnd: extendedEnd }
+            }),
+            createMockNotificationRepository([]),
+            createMockCareScheduleRepository({ schedules, plants: [plant] }),
+            createMockDelegationRepository({})
+          )
+        )
+      )
+    )
+
+    const after = findUser(users, 'user-1')
+    expect(after?.vacationStatus).toBe('active')
+    expect(after?.vacationEnd).toEqual(extendedEnd)
+    expect(schedules[0]?.nextCareAt).toEqual(dueMidVacation)
+  })
+
   it('should activate scheduled vacations whose start has passed and clean muted pending rows', async () => {
     const dueUser = createTestUser({
       id: 'user-due',
@@ -60,6 +163,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository(notifications),
             createMockCareScheduleRepository({}),
@@ -97,6 +201,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({
@@ -130,6 +235,7 @@ describe('vacation-scheduler', () => {
       pollAndTransitionVacations.pipe(
         Effect.provide(
           Layer.mergeAll(
+            MockSqlClientLive,
             createMockUserRepository(users),
             createMockNotificationRepository([]),
             createMockCareScheduleRepository({}),

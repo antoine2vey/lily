@@ -1,32 +1,55 @@
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
-import { UserRepository } from '@lily/api/repositories/user.repository'
+import {
+  UserRepository,
+  type VacationSnapshot,
+} from '@lily/api/repositories/user.repository'
+import type { users } from '@lily/db/schema'
 import { VACATION_MUTED_TOPICS } from '@lily/shared/server'
 import { Effect } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
+export interface ActivateVacationParams {
+  readonly expected: VacationSnapshot
+  readonly range?: { vacationStart: Date; vacationEnd: Date }
+}
+
 /**
- * Activate a user's vacation: delete their own pending care/engagement
- * notification rows and flip the status to 'active'.
- *
- * Caretaker-routed reminder rows for delegated plants carry the caretaker's
- * userId, so they are untouched — those reminders must survive the owner's
- * vacation. Deleting (rather than rescheduling) is correct because the
- * end-routine rebuilds all care reminders from the shifted schedules.
+ * Claims the transition and deletes the user's pending muted rows in one
+ * transaction, so a failed delete rolls the claim back and the next poll
+ * retries. Returns null, with nothing written, when a concurrent write
+ * changed the row since `expected` was read.
  */
 export const activateVacation = (
-  userId: string
-): Effect.Effect<void, SqlError, UserRepository | NotificationRepository> =>
+  params: ActivateVacationParams
+): Effect.Effect<
+  typeof users.$inferSelect | null,
+  SqlError,
+  UserRepository | NotificationRepository | SqlClient.SqlClient
+> =>
   Effect.gen(function* () {
-    const notificationRepo = yield* NotificationRepository
+    const sql = yield* SqlClient.SqlClient
     const userRepo = yield* UserRepository
+    const notificationRepo = yield* NotificationRepository
 
-    yield* notificationRepo.deletePendingByUserIdAndTypes(
-      userId,
-      VACATION_MUTED_TOPICS
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const claimed = yield* userRepo.transitionVacation(params.expected, {
+          vacationStatus: 'active',
+          ...params.range,
+        })
+        if (!claimed) {
+          return null
+        }
+        yield* notificationRepo.deletePendingByUserIdAndTypes(
+          claimed.id,
+          VACATION_MUTED_TOPICS
+        )
+        return claimed
+      })
     )
-    yield* userRepo.update(userId, { vacationStatus: 'active' })
   }).pipe(
     Effect.withSpan('VacationService.activateVacation', {
-      attributes: { 'user.id': userId },
+      attributes: { 'user.id': params.expected.id },
     })
   )
