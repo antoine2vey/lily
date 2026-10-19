@@ -17,6 +17,9 @@ export const ingestJobs = pgTable('ingest_jobs', {
   chunksCreated: integer('chunks_created').notNull().default(0),
   cursor: text('cursor'),
   error: text('error'),
+  // Set when a worker takes the job, refreshed after every document. The
+  // worker re-queues in_progress jobs whose claim is older than its timeout.
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
