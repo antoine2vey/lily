@@ -1,4 +1,47 @@
-import { Cause, type Duration, Effect, type Scope } from 'effect'
+import { Cause, type Duration, Effect, Fiber, type Scope } from 'effect'
+
+/**
+ * How long shutdown waits for an in-flight step. It runs alongside the HTTP
+ * server's graceful shutdown (see `src/index.ts`), so both fit within the
+ * platform's SIGTERM-to-SIGKILL grace period.
+ */
+export const SHUTDOWN_DRAIN_DEADLINE: Duration.Input = '20 seconds'
+
+/**
+ * Lets `step` finish when the calling fiber is interrupted, waiting at most
+ * `deadline` before interrupting the step too. The caller's interruption
+ * still wins once the step settles, so a loop built from drained steps stops
+ * starting new ones on shutdown.
+ *
+ * ```typescript
+ * Effect.forever(processNextMessage.pipe(drainOnInterrupt('worker')))
+ * ```
+ */
+export const drainOnInterrupt =
+  (name: string, deadline: Duration.Input = SHUTDOWN_DRAIN_DEADLINE) =>
+  <A, E, R>(step: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+    Effect.uninterruptibleMask((restore) =>
+      Effect.gen(function* () {
+        const fiber = yield* Effect.forkDetach(step, { startImmediately: true })
+        return yield* restore(Fiber.join(fiber)).pipe(
+          Effect.onInterrupt(() =>
+            Effect.log(
+              `[${name}] Shutting down, finishing the current step`
+            ).pipe(
+              Effect.andThen(Fiber.await(fiber)),
+              Effect.timeoutOrElse({
+                duration: deadline,
+                orElse: () =>
+                  Effect.logWarning(
+                    `[${name}] Step still running after ${String(deadline)}, interrupting it`
+                  ).pipe(Effect.andThen(Fiber.interrupt(fiber))),
+              }),
+              Effect.asVoid
+            )
+          )
+        )
+      })
+    )
 
 /**
  * Creates a standard polling scheduler that runs a task at a fixed interval.
@@ -12,6 +55,8 @@ import { Cause, type Duration, Effect, type Scope } from 'effect'
  * - Fibers are forked into the caller's Scope (the scheduler Layer's), so they
  *   live as long as the server. A `forkChild` here would be interrupted as
  *   soon as the Layer finished building, and no scheduler would ever tick.
+ * - Graceful shutdown: closing that Scope stops new ticks and lets an
+ *   in-flight tick finish (see `drainOnInterrupt`).
  * - Span instrumentation: each poll cycle gets a named span.
  * - Consistent logging: logs scheduler start with interval info.
  *
@@ -41,7 +86,8 @@ export const createScheduler = <E, R>(config: {
         cause: Cause.pretty(cause),
       })
     ),
-    Effect.withSpan(`${config.name}.poll`)
+    Effect.withSpan(`${config.name}.poll`),
+    drainOnInterrupt(config.name)
   )
 
   return Effect.gen(function* () {
@@ -81,7 +127,8 @@ export const createDrainableScheduler = <E, R>(config: {
         cause: pretty,
       }).pipe(Effect.as(false))
     }),
-    Effect.withSpan(`${config.name}.poll`)
+    Effect.withSpan(`${config.name}.poll`),
+    drainOnInterrupt(config.name)
   )
 
   const drainCooldown = '1 second'

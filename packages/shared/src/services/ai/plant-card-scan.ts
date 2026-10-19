@@ -1,8 +1,9 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText, Output } from 'ai'
-import { Array, Effect } from 'effect'
+import { Array, type Effect } from 'effect'
 
-import { mapOpenAIError, type OpenAIError } from '../../domains/ai-chat/errors'
+import type { OpenAIError } from '../../domains/ai-chat/errors'
+import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 import type { PlantAIResult } from './plant-schema'
 import { plantSchema } from './plant-schema'
 import {
@@ -66,34 +67,35 @@ const singleCardCall = (
   url: string,
   locale: string
 ): Effect.Effect<PlantAIResult, OpenAIError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const result = await generateText({
-        model: openai('gpt-4o-mini'),
-        maxRetries: 0,
-        output: Output.object({ schema: plantSchema }),
-        system: singleCardPrompt(locale),
-        messages: [
-          {
-            role: 'user',
-            content: [{ type: 'image', image: url }],
-          },
-        ],
-      })
-      return result.output as PlantAIResult
-    },
-    catch: mapOpenAIError('Card scan'),
+  callOpenAI('Card scan', OPENAI_TIMEOUTS.vision, async (abortSignal) => {
+    const result = await generateText({
+      model: openai('gpt-4o-mini'),
+      maxRetries: 0,
+      abortSignal,
+      output: Output.object({ schema: plantSchema }),
+      system: singleCardPrompt(locale),
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image', image: url }],
+        },
+      ],
+    })
+    return result.output as PlantAIResult
   })
 
 const multipleCardCall = (
   urls: string[],
   locale: string
 ): Effect.Effect<PlantAIResult, OpenAIError> =>
-  Effect.tryPromise({
-    try: async () => {
+  callOpenAI(
+    'Multiple card scan',
+    OPENAI_TIMEOUTS.vision,
+    async (abortSignal) => {
       const result = await generateText({
         model: openai('gpt-4o-mini'),
         maxRetries: 0,
+        abortSignal,
         output: Output.object({ schema: plantSchema }),
         system: multipleCardPrompt(locale),
         messages: [
@@ -110,9 +112,8 @@ const multipleCardCall = (
         ],
       })
       return result.output as PlantAIResult
-    },
-    catch: mapOpenAIError('Multiple card scan'),
-  })
+    }
+  )
 
 export const plantCardScan = (
   url: string,

@@ -8,7 +8,10 @@ import { createMockDelegationRepository } from '@lily/api/__tests__/mocks/delega
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { createMockNotificationRepository } from '@lily/api/__tests__/mocks/notification.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
-import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
+import {
+  DelegationRepository,
+  type DelegationRow,
+} from '@lily/api/repositories/delegation.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { respondToDelegation } from '@lily/api/services/delegation/endpoints/respond-delegation'
 import {
@@ -106,6 +109,62 @@ describe('respondToDelegation', () => {
 
     expect(result.respondedAt).toBeDefined()
     expect(result.respondedAt).toBeInstanceOf(Date)
+  })
+
+  it('fails with the current status when a cancel lands between the read and the accept', async () => {
+    notifications.length = 0
+    const delegation: DelegationRow = {
+      ...mockDelegation1,
+      status: 'pending' as const,
+    }
+    const delegations = [delegation]
+    const racingCancel = Layer.effect(
+      DelegationRepository,
+      Effect.map(DelegationRepository, (repo) => ({
+        ...repo,
+        findById: (id: string) =>
+          repo.findById(id).pipe(
+            Effect.tap(() =>
+              Effect.sync(() => {
+                delegation.status = 'canceled'
+              })
+            )
+          ),
+      }))
+    ).pipe(
+      Layer.provide(
+        createMockDelegationRepository({
+          delegations,
+          users: [
+            { id: mockUser1.id, name: mockUser1.name, image: mockUser1.image },
+            { id: mockUser2.id, name: mockUser2.name, image: mockUser2.image },
+          ],
+          plants: mockDelegationPlants,
+        })
+      )
+    )
+
+    const result = await Effect.runPromiseExit(
+      respondToDelegation(mockDelegation1.id, { accept: true }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            racingCancel,
+            caretakerCurrentUser,
+            createMockNotificationRepository(notifications),
+            createMockMessageQueue(),
+            createMockUserRepository([mockUser1, mockUser2])
+          )
+        )
+      )
+    )
+
+    const error = failureOf(result)
+    expect(error).toBeInstanceOf(DelegationInvalidStatusError)
+    expect((error as DelegationInvalidStatusError).currentStatus).toBe(
+      'canceled'
+    )
+    expect(delegations[0]?.status).toBe('canceled')
+    expect(notifications).toHaveLength(0)
   })
 
   it('should fail with DelegationNotFoundError when not found', async () => {

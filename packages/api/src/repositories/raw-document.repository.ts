@@ -6,6 +6,8 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 type RawDocumentRow = typeof rawDocuments.$inferSelect
 
+const SOURCE_ID_UNIQUE_INDEX = 'raw_documents_source_id_unique'
+
 export interface CreateRawDocumentData {
   source: string
   sourceUrl?: string | undefined
@@ -33,9 +35,14 @@ const mapToRawDocument = (row: RawDocumentRow): RawDocument => ({
 })
 
 export interface IRawDocumentRepository {
-  readonly create: (
+  /**
+   * Inserts the document, or returns null when a row with the same
+   * source_id was stored since the caller last looked (the partial unique
+   * index `raw_documents_source_id_unique` rejects the insert).
+   */
+  readonly createIfNew: (
     data: CreateRawDocumentData
-  ) => Effect.Effect<RawDocument, SqlError>
+  ) => Effect.Effect<RawDocument | null, SqlError>
   readonly findBySourceId: (
     sourceId: string
   ) => Effect.Effect<RawDocument | null, SqlError>
@@ -53,15 +60,26 @@ export const RawDocumentRepositoryLive = Layer.effect(
     const db = yield* KnowledgeDrizzle
 
     return {
-      create: Effect.fn('RawDocumentRepository.create')(function* (
+      createIfNew: Effect.fn('RawDocumentRepository.createIfNew')(function* (
         data: CreateRawDocumentData
       ) {
-        const rows = yield* db.insert(rawDocuments).values(data).returning()
+        const rows = yield* db
+          .insert(rawDocuments)
+          .values(data)
+          .returning()
+          .pipe(
+            Effect.catchIf(
+              (error) =>
+                error.reason._tag === 'UniqueViolation' &&
+                error.reason.constraint === SOURCE_ID_UNIQUE_INDEX,
+              () => Effect.succeed([])
+            )
+          )
 
         return pipe(
           Array.head(rows),
           Option.map(mapToRawDocument),
-          Option.getOrThrow
+          Option.getOrNull
         )
       }),
 

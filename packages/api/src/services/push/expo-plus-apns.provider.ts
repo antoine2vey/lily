@@ -1,3 +1,4 @@
+import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
 import { Alerter, withProviderAlert } from '@lily/api/services/alerting'
 import {
   type ApnsClient,
@@ -5,6 +6,16 @@ import {
   loadApnsConfig,
   makeApnsClient,
 } from '@lily/api/services/push/apns-live-activity'
+import {
+  ExpoPushClient,
+  isDeviceNotRegistered,
+} from '@lily/api/services/push/expo-push-client'
+import { PendingPushReceipts } from '@lily/api/services/push/pending-push-receipts'
+import {
+  type DeadToken,
+  type RetireReason,
+  retireExpoTokens,
+} from '@lily/api/services/push/retire-expo-tokens'
 import {
   CARE_TASKS_ATTRIBUTES_TYPE,
   type IPushService,
@@ -16,7 +27,17 @@ import {
   type PushTicket,
   PushTokenInvalidatedError,
 } from '@lily/shared/server'
-import { Array, Effect, HashSet, Layer, Match, Option, pipe } from 'effect'
+import {
+  Array,
+  DateTime,
+  Effect,
+  HashSet,
+  Layer,
+  Match,
+  Option,
+  pipe,
+  Result,
+} from 'effect'
 import Expo, {
   type ExpoPushMessage,
   type ExpoPushTicket,
@@ -122,7 +143,7 @@ const encodeContentState = (state: {
   updatedAt: (state.updatedAt.getTime() / 1000) | 0,
 })
 
-const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
+export const buildExpoMessage = (message: PushMessage): ExpoPushMessage => {
   const out: ExpoPushMessage = {
     to: message.to,
     title: message.title,
@@ -154,9 +175,24 @@ const convertTicket = (ticket: ExpoPushTicket): PushTicket =>
 export const ExpoPlusApnsPushServiceLive = Layer.effect(
   PushService,
   Effect.gen(function* () {
-    const expo = new Expo()
+    const expoClient = yield* ExpoPushClient
+    const pendingReceipts = yield* PendingPushReceipts
+    const deviceTokens = yield* DeviceTokenRepository
     const alerter = yield* Alerter
     const alert = withProviderAlert(alerter, { provider: 'expo-push' })
+
+    // Retiring is bookkeeping: a DB hiccup must not fail the batch, which the
+    // worker would then retry and re-send to the healthy devices.
+    const retire = (dead: ReadonlyArray<DeadToken>, reason: RetireReason) =>
+      retireExpoTokens(dead, reason).pipe(
+        Effect.provideService(DeviceTokenRepository, deviceTokens),
+        Effect.catchTag('SqlError', (error) =>
+          Effect.logWarning('[push] Could not retire dead Expo tokens', {
+            reason,
+            error: error.message,
+          })
+        )
+      )
 
     const apnsOpt: Option.Option<ApnsConfig> = yield* loadApnsConfig
     const apnsClient: ApnsClient | null = Option.match(apnsOpt, {
@@ -180,15 +216,7 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
             message: `Invalid Expo push token: ${message.to}`,
           })
         }
-        const result = yield* Effect.tryPromise({
-          try: () =>
-            expo.sendPushNotificationsAsync([buildExpoMessage(message)]),
-          catch: (error) =>
-            new PushSendError({
-              message: 'Failed to send push notification',
-              cause: error,
-            }),
-        })
+        const result = yield* expoClient.send([buildExpoMessage(message)])
         const ticket = yield* pipe(
           Array.head(result),
           Option.match({
@@ -211,39 +239,64 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
         return { id: ticket.id, status: 'ok' as const } satisfies PushTicket
       }, alert),
 
+      // A bad token costs only its own message: malformed tokens and tokens
+      // Expo reports as unregistered are retired, the rest still go out.
       sendBatch: Effect.fn('ExpoPlusApns.sendBatch')(function* (
         messages: readonly PushMessage[]
       ) {
         yield* Effect.annotateCurrentSpan('push.count', Array.length(messages))
-        const invalid = Array.filter(
-          messages,
-          (m) => !Expo.isExpoPushToken(m.to)
+        const sentAt = yield* DateTime.now
+        const [deliverable, malformed] = Array.partition(messages, (m) =>
+          Expo.isExpoPushToken(m.to) ? Result.succeed(m) : Result.fail(m)
         )
-        if (Array.isArrayNonEmpty(invalid)) {
-          return yield* new PushConfigError({
-            message: `Invalid Expo push tokens: ${Array.join(
-              Array.map(invalid, (t) => t.to),
-              ', '
-            )}`,
-          })
-        }
-        const chunks = expo.chunkPushNotifications(
-          Array.map(messages, buildExpoMessage)
+        yield* retire(
+          Array.map(malformed, (m) => ({ token: m.to, sentAt })),
+          'malformed'
         )
-        const batches = yield* Effect.forEach(chunks, (chunk) =>
-          Effect.map(
-            Effect.tryPromise({
-              try: () => expo.sendPushNotificationsAsync(chunk),
-              catch: (error) =>
-                new PushSendError({
-                  message: 'Failed to send push notification batch',
-                  cause: error,
-                }),
-            }),
-            (result) => Array.map(result, convertTicket)
+
+        const tickets = yield* expoClient.send(
+          Array.map(deliverable, buildExpoMessage)
+        )
+        const sent = Array.zip(deliverable, tickets)
+
+        yield* retire(
+          Array.filterMap(sent, ([m, ticket]) =>
+            isDeviceNotRegistered(ticket)
+              ? Result.succeed({ token: m.to, sentAt })
+              : Result.failVoid
+          ),
+          'DeviceNotRegistered'
+        )
+        yield* pendingReceipts
+          .add(
+            Array.filterMap(sent, ([m, ticket]) =>
+              ticket.status === 'ok'
+                ? Result.succeed({ ticketId: ticket.id, token: m.to, sentAt })
+                : Result.failVoid
+            )
+          )
+          .pipe(
+            Effect.catchTag('PendingPushReceiptsError', (error) =>
+              Effect.logWarning(
+                '[push] Could not record tickets for receipts',
+                {
+                  error: error.message,
+                }
+              )
+            )
+          )
+
+        return Array.appendAll(
+          Array.map(tickets, convertTicket),
+          Array.map(
+            malformed,
+            (m): PushTicket => ({
+              id: crypto.randomUUID(),
+              status: 'error',
+              message: `Invalid Expo push token: ${m.to}`,
+            })
           )
         )
-        return Array.flatten(batches)
       }, alert),
 
       sendLiveActivity: Effect.fn('ExpoPlusApns.sendLiveActivity')(function* (

@@ -1,7 +1,5 @@
 # API Package Architecture
 
-> Global rules (Effect patterns, formatting) in root `/CLAUDE.md`
-
 ## Service Structure
 
 ```
@@ -15,8 +13,6 @@ services/{domain}/
 **No `service.ts` files.** Handlers call endpoint functions directly. 21 HTTP domains, 10 schedulers, 8 infrastructure services (`ai`, `email`, `event-bus`, `jwt`, `message-queue`, `push`, `rag`, `rate-limiter`), 24 repositories.
 
 ## Handlers
-
-Import endpoints directly. **No `Layer.provide` chains** — all deps come from `AppLive` at root.
 
 ```typescript
 export const PlantsApiLive = (api: Api) =>
@@ -65,7 +61,7 @@ Error isolation built-in: catch + log + continue, never crash server.
 
 ## Error Handling
 
-Typed errors via `Schema.TaggedError`. Use `publishWithRetry()` for event publishing.
+Use `publishWithRetry()` for event publishing.
 
 ## Testing
 

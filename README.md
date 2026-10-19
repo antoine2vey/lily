@@ -112,13 +112,13 @@ web  (static marketing, no runtime backend)
 
 ## Conventions
 
-- **Effect-first.** Use Effect modules everywhere; native JS equivalents (`arr.map`, `Object.keys`, `switch`, `??`, `new Date()`, …) are forbidden. See [`CLAUDE.md`](CLAUDE.md) for the full mapping.
+- **Effect-first.** Use Effect modules everywhere; native JS equivalents (`arr.map`, `Object.keys`, `switch`, `??`, `new Date()`, …) are forbidden. See [`CODING_STANDARDS.md`](CODING_STANDARDS.md) for the full mapping.
 - **Run from root.** Never `cd` into a package — all scripts go through Turbo from the monorepo root.
 - **Drizzle, not Prisma.** Database access is Drizzle ORM via `@effect/sql-drizzle`. Migrations are **hand-authored SQL** (`packages/db/drizzle/`); never run `drizzle-kit generate` (the journal is intentionally out of sync). Prod migrations run via `db:migrate:prod`.
 - **Typed errors.** Errors are `Schema.TaggedError` propagated through the Effect system and handled by tag — never `catchAll`. Union types use `Match.exhaustive`.
 - **Monorepo discipline.** Every package `extends` the root `tsconfig.json`, declares `sideEffects`, and pins the exact root `typescript` version. Use `@ts-expect-error` (with a rationale), never `@ts-ignore`.
 
-Full rules and rationale live in [`CLAUDE.md`](CLAUDE.md).
+Full coding rules live in [`CODING_STANDARDS.md`](CODING_STANDARDS.md); package rules in [`docs/agents/monorepo.md`](docs/agents/monorepo.md).
 
 ## Contributing
 
@@ -134,7 +134,8 @@ Lily is licensed under the [GNU Affero General Public License v3.0](LICENSE). In
 
 ## Docs
 
-- [`CLAUDE.md`](CLAUDE.md) — authoritative project overview: package list, Effect-first coding rules, monorepo discipline, and commands.
+- [`CODING_STANDARDS.md`](CODING_STANDARDS.md) — authoritative Effect-first coding rules, plus pointers to each package's own rules.
+- [`CLAUDE.md`](CLAUDE.md) (also `AGENTS.md`) — entry point for coding agents: routes to the coding standards and the docs in `docs/agents/`.
 - [`packages/api/README.md`](packages/api/README.md) — backend request flow and the endpoints → handlers → services → repositories layering.
 - [`packages/db/README.md`](packages/db/README.md) — primary PostgreSQL schema map (users, plants, auth, chat, notifications, achievements).
 - [`packages/shared/README.md`](packages/shared/README.md) — the domain model and cross-package contract: schemas, validation, and typed errors.

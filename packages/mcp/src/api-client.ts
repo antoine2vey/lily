@@ -3,7 +3,16 @@ import { ExternalServiceError } from '@lily/shared'
 import type { AuthResponse, RefreshTokenResponse } from '@lily/shared/auth'
 import type { CareLogsListResponse } from '@lily/shared/care-log'
 import type { Plant, PlantDetail, PlantsListResponse } from '@lily/shared/plant'
-import { Config, Context, Effect, Layer, Option, pipe, Redacted } from 'effect'
+import {
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Redacted,
+} from 'effect'
 import {
   HttpClient,
   type HttpClientError,
@@ -99,6 +108,17 @@ export interface IApiClient {
   ) => Effect.Effect<RefreshTokenResponse, ExternalServiceError>
 }
 
+// ── Timeouts ───────────────────────────────────────────────────────────
+
+// API request spans ran p99 0.17 s and at most 5.2 s over the 14 days to
+// 2026-10-19, so 15 s only cuts off a hung API.
+const API_TIMEOUT = Duration.seconds(15)
+
+// /api/knowledge/query embeds the question (RagService.retrieve at most 3.2 s
+// over 60 days) under the API's own 30 s embedding deadline. 45 s lets that
+// deadline report its own error first.
+const KNOWLEDGE_QUERY_TIMEOUT = Duration.seconds(45)
+
 // ── Context Tag ────────────────────────────────────────────────────────
 
 export class ApiClient extends Context.Service<ApiClient, IApiClient>()(
@@ -163,48 +183,48 @@ export const ApiClientLive = Layer.unwrap(
           })
 
         /**
-         * Pipe operator: request → execute via internal client → JSON.
-         * Uses X-Service-Secret auth.
+         * Builds a pipe operator: request → execute via `client` → JSON,
+         * failing with ExternalServiceError when the API answers non-2xx or
+         * not at all within `timeout` (the request is aborted then).
          */
-        const internal = <T>(request: HttpClientRequest.HttpClientRequest) =>
-          pipe(
-            request,
-            internalClient.execute,
-            Effect.flatMap(HttpClientResponse.filterStatusOk),
-            Effect.flatMap((res) => res.json),
-            Effect.scoped,
-            Effect.mapError(wrapHttpError)
-          ) as Effect.Effect<T, ExternalServiceError>
+        const send =
+          <R>(
+            client: HttpClient.HttpClient.With<
+              HttpClientError.HttpClientError,
+              R
+            >
+          ) =>
+          <T>(
+            request: HttpClientRequest.HttpClientRequest,
+            timeout: Duration.Duration = API_TIMEOUT
+          ) =>
+            pipe(
+              request,
+              client.execute,
+              Effect.flatMap(HttpClientResponse.filterStatusOk),
+              Effect.flatMap((res) => res.json),
+              Effect.scoped,
+              Effect.mapError(wrapHttpError),
+              Effect.timeoutOrElse({
+                duration: timeout,
+                orElse: () =>
+                  Effect.fail(
+                    new ExternalServiceError({
+                      service: 'lily-api',
+                      method: request.method,
+                      url: request.url,
+                      message: `No response within ${Duration.format(timeout)}`,
+                    })
+                  ),
+              })
+            ) as Effect.Effect<T, ExternalServiceError, R>
 
-        /**
-         * Pipe operator: request → execute via authed client → JSON.
-         * Reads JWT from CurrentJwt context.
-         */
-        const authed = <T>(request: HttpClientRequest.HttpClientRequest) =>
-          pipe(
-            request,
-            authedClient.execute,
-            Effect.flatMap(HttpClientResponse.filterStatusOk),
-            Effect.flatMap((res) => res.json),
-            Effect.scoped,
-            Effect.mapError(wrapHttpError)
-          ) as Effect.Effect<T, ExternalServiceError, CurrentJwt>
-
-        /**
-         * Pipe operator: request → execute via base client → JSON.
-         * No auth headers — used for public endpoints like token refresh.
-         */
-        const unauthenticated = <T>(
-          request: HttpClientRequest.HttpClientRequest
-        ) =>
-          pipe(
-            request,
-            baseClient.execute,
-            Effect.flatMap(HttpClientResponse.filterStatusOk),
-            Effect.flatMap((res) => res.json),
-            Effect.scoped,
-            Effect.mapError(wrapHttpError)
-          ) as Effect.Effect<T, ExternalServiceError>
+        // X-Service-Secret auth
+        const internal = send(internalClient)
+        // JWT from the CurrentJwt context
+        const authed = send(authedClient)
+        // No auth headers, for public endpoints like token refresh
+        const unauthenticated = send(baseClient)
 
         return {
           // ── Internal ──────────────────────────────────────────
@@ -285,7 +305,8 @@ export const ApiClientLive = Layer.unwrap(
               `${baseUrl}/api/knowledge/query`
             ).pipe(
               HttpClientRequest.bodyJsonUnsafe(body),
-              authed<KnowledgeQueryResult>,
+              (request) =>
+                authed<KnowledgeQueryResult>(request, KNOWLEDGE_QUERY_TIMEOUT),
               Effect.withSpan('ApiClient.queryKnowledge')
             )
           },

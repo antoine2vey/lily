@@ -102,15 +102,22 @@ export interface IDelegationRepository {
     id: string
   ) => Effect.Effect<DelegationDetailRow | null, SqlError>
 
-  readonly updateStatus: (
+  /**
+   * Compare-and-swap status change: the row moves to `to` only if its
+   * current status is one of `from`. Returns the updated row, or null when
+   * another writer (a user cancel, a second scheduler process) got there
+   * first. Callers send notifications only for a returned row.
+   */
+  readonly transitionStatus: (
     id: string,
-    status: DelegationStatus,
+    from: readonly DelegationStatus[],
+    to: DelegationStatus,
     timestamps?: {
       respondedAt?: Date | undefined
       canceledAt?: Date | undefined
       completedAt?: Date | undefined
     }
-  ) => Effect.Effect<void, SqlError>
+  ) => Effect.Effect<DelegationRow | null, SqlError>
 
   readonly findByUser: (params: {
     userId: string
@@ -300,12 +307,13 @@ export const DelegationRepositoryLive = Layer.effect(
         } as DelegationDetailRow
       }),
 
-      updateStatus: Effect.fn('DelegationRepository.updateStatus')(
-        function* (id, status, timestamps) {
-          yield* db
+      transitionStatus: Effect.fn('DelegationRepository.transitionStatus')(
+        function* (id, from, to, timestamps) {
+          type StatusValue = typeof careDelegations.$inferSelect.status
+          const [row] = yield* db
             .update(careDelegations)
             .set({
-              status: status as typeof careDelegations.$inferInsert.status,
+              status: to as StatusValue,
               ...(timestamps?.respondedAt
                 ? { respondedAt: timestamps.respondedAt }
                 : {}),
@@ -316,7 +324,18 @@ export const DelegationRepositoryLive = Layer.effect(
                 ? { completedAt: timestamps.completedAt }
                 : {}),
             })
-            .where(eq(careDelegations.id, id))
+            .where(
+              and(
+                eq(careDelegations.id, id),
+                inArray(careDelegations.status, from as readonly StatusValue[])
+              )
+            )
+            .returning()
+          return pipe(
+            Option.fromNullishOr(row),
+            Option.map((r) => r as DelegationRow),
+            Option.getOrNull
+          )
         }
       ),
 

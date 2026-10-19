@@ -45,4 +45,4 @@ Cross-package imports use the package name (`@lily/shared`); within a package, i
 4. Include the standard scripts (`build`/`test`/`lint`/`lint:fix`/`tsc`/`clean`) where applicable.
 5. Run `bun install` to link the workspace, and add a `README.md`.
 
-See the root [`CLAUDE.md`](../CLAUDE.md) for the full monorepo conventions.
+The rules every package must satisfy are in [`docs/agents/monorepo.md`](../docs/agents/monorepo.md); coding rules are in [`CODING_STANDARDS.md`](../CODING_STANDARDS.md).

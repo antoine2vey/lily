@@ -72,6 +72,8 @@ import {
 import { OAuthVerifierServiceLive } from '@lily/api/services/oauth-verifier/service'
 import { ConsolePushServiceLive } from '@lily/api/services/push/console.provider'
 import { ExpoPlusApnsPushServiceLive } from '@lily/api/services/push/expo-plus-apns.provider'
+import { ExpoPushClient } from '@lily/api/services/push/expo-push-client'
+import { PendingPushReceipts } from '@lily/api/services/push/pending-push-receipts'
 import { RagService } from '@lily/api/services/rag/service'
 import { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
@@ -98,7 +100,6 @@ export {
   RedisClientLive,
   RedisMessageQueueLive,
 } from '@lily/api/services/message-queue/redis.provider'
-export { ExpoPushServiceLive } from '@lily/api/services/push/expo.provider'
 export { RateLimiterServiceLive } from '@lily/api/services/rate-limiter/service'
 export { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 export { RevenueCatProviderLive } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
@@ -236,35 +237,40 @@ const SelfContainedInfraLive = Layer.mergeAll(
   FileService.layer,
   RevenueCatProviderLive,
   WeatherProviderLive,
-  ExternalServicesLive,
   JWTServiceLive,
   OAuthVerifierServiceLive,
   RateLimiterServiceLive,
   MagicLinkConfigLive
 ).pipe(Layer.provideMerge(BunServices.layer))
 
-// Redis-dependent layers: EventBus, MessageQueue, and WeatherCache all need RedisClient.
-// Layer.provideMerge provides RedisClient to the three AND outputs it for downstream use.
+// Redis-dependent layers all need RedisClient. Layer.provideMerge provides
+// RedisClient to them AND outputs it for downstream use.
 const RedisFullLive = Layer.mergeAll(
   RedisEventBusLive,
   RedisMessageQueueLive,
-  WeatherCacheLive
+  WeatherCacheLive,
+  PendingPushReceipts.layer
 ).pipe(Layer.provideMerge(RedisClientLive))
 
 // Repo-dependent infra: these need specific repositories to be available.
 // LimitCheckerLive needs SubscriptionRepository + AchievementRepository.
 // UsageTrackerLive needs SubscriptionRepository.
+// The push provider needs DeviceTokenRepository, PendingPushReceipts (Redis)
+// and ExpoPushClient.
 const RepoDependentInfraLive = Layer.mergeAll(
   LimitCheckerLive,
   UsageTrackerLive,
-  RagService.layer
+  RagService.layer,
+  ExternalServicesLive
 )
 
 const AllInfrastructureLive = Layer.mergeAll(
   SelfContainedInfraLive,
-  RedisFullLive,
   RepoDependentInfraLive
-).pipe(Layer.provideMerge(AlerterLive))
+).pipe(
+  Layer.provideMerge(Layer.mergeAll(RedisFullLive, ExpoPushClient.layer)),
+  Layer.provideMerge(AlerterLive)
+)
 
 // ============================================================================
 // AppLive — The single composite layer for the entire application.

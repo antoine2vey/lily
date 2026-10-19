@@ -2,9 +2,9 @@ import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { JWTError } from '@lily/api/services/jwt/errors'
 import { JWTService } from '@lily/api/services/jwt/service'
 import type { users } from '@lily/db/schema'
+import { ServiceUnavailableError } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Effect, Option, pipe, Redacted } from 'effect'
-import type { SqlError } from 'effect/sql/SqlError'
 
 export interface ValidatedUserResult {
   user: typeof users.$inferSelect
@@ -29,7 +29,7 @@ export const validateUserFromToken = <E>(
   config: TokenValidationConfig<E>
 ): Effect.Effect<
   ValidatedUserResult,
-  E | SqlError | JWTError,
+  E | ServiceUnavailableError | JWTError,
   JWTService | UserRepository
 > =>
   Effect.gen(function* () {
@@ -55,6 +55,17 @@ export const validateUserFromToken = <E>(
     // Fetch user from database
     const user = yield* pipe(
       userRepo.findById(payload.sub),
+      Effect.catchTag('SqlError', (error) =>
+        Effect.logError('Auth user lookup failed', error).pipe(
+          Effect.andThen(
+            Effect.fail(
+              new ServiceUnavailableError({
+                message: 'Service temporarily unavailable',
+              })
+            )
+          )
+        )
+      ),
       Effect.map(Option.fromNullishOr),
       Effect.flatMap(
         Option.match({

@@ -67,13 +67,25 @@ export const TOPIC_CATEGORY = {
   plant_anniversary: 'engagement',
 } as const satisfies Record<NotificationTopic, TopicCategory>
 
+const topicsWhere = (
+  predicate: (category: TopicCategory) => boolean
+): ReadonlyArray<NotificationTopic> =>
+  pipe(
+    Record.toEntries(TOPIC_CATEGORY),
+    Array.filter(([, category]) => predicate(category)),
+    Array.map(([topic]) => topic)
+  )
+
 // Topics muted while the recipient is on vacation: everything except
 // 'social' (delegation requests/responses must still reach the user).
 // Derived from TOPIC_CATEGORY so new topics are classified automatically.
-export const VACATION_MUTED_TOPICS: ReadonlyArray<NotificationTopic> = pipe(
-  Record.toEntries(TOPIC_CATEGORY),
-  Array.filter(([, category]) => category !== 'social'),
-  Array.map(([topic]) => topic)
+export const VACATION_MUTED_TOPICS = topicsWhere(
+  (category) => category !== 'social'
+)
+
+export const CARE_TOPICS = topicsWhere((category) => category === 'care')
+export const ENGAGEMENT_TOPICS = topicsWhere(
+  (category) => category === 'engagement'
 )
 
 // Derive subset types from the category map — adding a topic to

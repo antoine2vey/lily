@@ -27,6 +27,7 @@ import {
 } from '@lily/shared/errors/plant'
 import type { EventBus } from '@lily/shared/server'
 import { DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export type { CareType } from '@lily/shared'
@@ -128,8 +129,10 @@ export const executePlantCare = (
   | EventBus
   | CurrentUser
   | CarePlanRepository
+  | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
     const repo = yield* PlantRepository
     const scheduleRepo = yield* CareScheduleRepository
     const notificationRepo = yield* NotificationRepository
@@ -171,25 +174,37 @@ export const executePlantCare = (
     // Idempotency: at most one care log per plant + careType per user-local day.
     // Compare against the day containing careDt (so backdating to a day that
     // already has a log is also blocked), in the user's timezone.
+    // The check and the insert run under a per-(plant, type) advisory lock so
+    // that two concurrent requests (double tap, client retry) cannot both pass
+    // the check. The second one waits for the first to commit, then sees its
+    // row and fails with AlreadyCaredTodayError, so only one CareLogCreated
+    // event is ever published for the pair.
     const dayStart = startOfDay(careDt, timezone)
     const dayEnd = DateTime.addDuration(dayStart, Duration.days(1))
-    const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
-      params.plantId,
-      params.careType,
-      DateTime.toDateUtc(dayStart),
-      DateTime.toDateUtc(dayEnd)
-    )
-    if (alreadyLogged) {
-      return yield* new AlreadyCaredTodayError({ careType: params.careType })
-    }
+    const careLog = yield* sql.withTransaction(
+      Effect.gen(function* () {
+        yield* careLogRepo.lockPlantCareType(params.plantId, params.careType)
+        const alreadyLogged = yield* careLogRepo.existsByPlantAndTypeInRange(
+          params.plantId,
+          params.careType,
+          DateTime.toDateUtc(dayStart),
+          DateTime.toDateUtc(dayEnd)
+        )
+        if (alreadyLogged) {
+          return yield* new AlreadyCaredTodayError({
+            careType: params.careType,
+          })
+        }
 
-    // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
-    // Called before plant update so createCareLog sees the original health state
-    const careLog = yield* createCareLog(params.plantId, {
-      type: params.careType,
-      notes: params.notes,
-      date: careDate,
-    })
+        // Create care log + publish events (CareLogCreated, AttentionResponded, ReminderResponded)
+        // Called before plant update so createCareLog sees the original health state
+        return yield* createCareLog(params.plantId, {
+          type: params.careType,
+          notes: params.notes,
+          date: careDate,
+        })
+      })
+    )
 
     // Care-plan bridging: link the care log to the plan step it satisfies.
     const completedStep = yield* pipe(

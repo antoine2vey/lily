@@ -546,7 +546,7 @@ export const MyEntityPublic = MyEntity.omit({
 ## Related Documentation
 
 - [Shared Package README](../../README.md) - Package overview
-- [CLAUDE.md](../../../../CLAUDE.md) - Schema patterns and conventions
+- [CODING_STANDARDS.md](../../../../CODING_STANDARDS.md) - Effect-first coding standards
 - [API Services](../../../api/src/services/README.md) - How services use domains
 - [Service Abstractions](../services/README.md) - Service vs Domain distinction
 - [Zod Documentation](https://zod.dev) - Zod schema validation
