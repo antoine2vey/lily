@@ -75,44 +75,29 @@ export const RevenueCatWebhookEvent = Schema.Struct({
 })
 export type RevenueCatWebhookEvent = typeof RevenueCatWebhookEvent.Type
 
-// Subscriber info from RevenueCat API (simplified)
-export const RevenueCatEntitlement = Schema.Struct({
+// One entry of `subscriber.subscriptions` from GET /v1/subscribers/{id},
+// keyed by product id. The REST API spells `store` and `period_type` in
+// lowercase ("app_store", "normal"), unlike webhook events. Both are kept as
+// plain strings so a value RevenueCat adds later cannot fail the decode.
+// Reference: https://www.revenuecat.com/docs/api-v1/customers
+export const RevenueCatSubscriberSubscription = Schema.Struct({
   expires_date: Schema.NullOr(Schema.String),
-  grace_period_expires_date: Schema.NullOr(Schema.String),
-  product_identifier: Schema.String,
   purchase_date: Schema.String,
-  original_purchase_date: Schema.optional(Schema.String),
-  store: RevenueCatStore,
+  store: Schema.String,
   is_sandbox: Schema.Boolean,
   unsubscribe_detected_at: Schema.NullOr(Schema.String),
   billing_issues_detected_at: Schema.NullOr(Schema.String),
+  period_type: Schema.optional(Schema.NullOr(Schema.String)),
 })
-export type RevenueCatEntitlement = typeof RevenueCatEntitlement.Type
+export type RevenueCatSubscriberSubscription =
+  typeof RevenueCatSubscriberSubscription.Type
 
 export const RevenueCatSubscriberInfo = Schema.Struct({
-  request_date: Schema.String,
-  request_date_ms: Schema.Number,
   subscriber: Schema.Struct({
     original_app_user_id: Schema.String,
-    first_seen: Schema.String,
-    entitlements: Schema.Record(Schema.String, RevenueCatEntitlement),
     subscriptions: Schema.Record(
       Schema.String,
-      Schema.Struct({
-        expires_date: Schema.NullOr(Schema.String),
-        grace_period_expires_date: Schema.NullOr(Schema.String),
-        purchase_date: Schema.String,
-        original_purchase_date: Schema.String,
-        store: RevenueCatStore,
-        is_sandbox: Schema.Boolean,
-        unsubscribe_detected_at: Schema.NullOr(Schema.String),
-        billing_issues_detected_at: Schema.NullOr(Schema.String),
-        period_type: Schema.optional(RevenueCatPeriodType),
-      })
-    ),
-    non_subscriptions: Schema.Record(
-      Schema.String,
-      Schema.Array(Schema.Unknown)
+      RevenueCatSubscriberSubscription
     ),
   }),
 })

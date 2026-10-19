@@ -1,21 +1,19 @@
-import type { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
-import { handleBillingIssue } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-billing-issue'
-import { handleCancellation } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-cancellation'
-import { handleExpiration } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-expiration'
-import { handleInitialPurchase } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-initial-purchase'
-import { handleProductChange } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-product-change'
-import { handleRenewal } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-renewal'
-import { handleUncancellation } from '@lily/api/services/subscriptions/endpoints/webhook/handlers/handle-uncancellation'
+import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import {
-  mapEventToStatus,
-  mapRevenueCatStore,
-  type WebhookEventContext,
-} from '@lily/api/services/subscriptions/endpoints/webhook/helpers'
+  applyStoreState,
+  fetchStoreState,
+} from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
 import type { PaymentProviderError } from '@lily/shared'
-import { DateTime, Duration, Effect, Match, pipe } from 'effect'
+import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
+/**
+ * A webhook event is only a signal that something changed. The subscriber's
+ * current state is fetched from RevenueCat and written whole, so a late,
+ * repeated or reordered event cannot roll the row back. A failed fetch fails
+ * the request, and RevenueCat retries it.
+ */
 export const handleRevenueCatWebhook = (
   payload: string,
   authorization: string | undefined
@@ -25,71 +23,57 @@ export const handleRevenueCatWebhook = (
   RevenueCatProvider | SubscriptionRepository
 > =>
   Effect.gen(function* () {
-    const revenueCatProvider = yield* RevenueCatProvider
+    const provider = yield* RevenueCatProvider
+    const subRepo = yield* SubscriptionRepository
 
-    // Validate and parse the webhook event
-    const event = yield* revenueCatProvider.constructWebhookEvent(
+    const { event } = yield* provider.constructWebhookEvent(
       payload,
       authorization
     )
 
-    const eventData = event.event
-    const userId = eventData.app_user_id
-    const productId = eventData.product_id
-    const store = mapRevenueCatStore(eventData.store)
-
     yield* Effect.log('[Webhook] Parsed event:', {
-      type: eventData.type,
-      userId,
-      productId,
-      store: eventData.store,
-      periodType: eventData.period_type,
+      id: event.id,
+      type: event.type,
+      userId: event.app_user_id,
+      environment: event.environment,
     })
 
-    const status = mapEventToStatus(eventData.type, eventData.period_type)
+    if (event.type === 'TEST') return
 
-    // Calculate dates from milliseconds using Effect DateTime
-    const purchasedAt = DateTime.toDateUtc(
-      DateTime.makeUnsafe(eventData.purchased_at_ms)
-    )
-    const expiresAt = eventData.expiration_at_ms
-      ? DateTime.toDateUtc(DateTime.makeUnsafe(eventData.expiration_at_ms))
-      : DateTime.toDateUtc(
-          DateTime.addDuration(DateTime.nowUnsafe(), Duration.days(30))
-        )
-
-    // Build shared context for handlers
-    const ctx: WebhookEventContext = {
-      userId,
-      productId,
-      store,
-      status,
-      purchasedAt,
-      expiresAt,
-      eventData: {
-        type: eventData.type,
-        period_type: eventData.period_type,
-        cancel_reason: eventData.cancel_reason,
-        original_transaction_id: eventData.original_transaction_id,
-        id: eventData.id,
-        original_app_user_id: eventData.original_app_user_id,
-        store: eventData.store,
-      },
+    if (event.environment !== provider.environment) {
+      yield* Effect.log('[Webhook] Ignored event from another environment', {
+        id: event.id,
+        environment: event.environment,
+        expected: provider.environment,
+      })
+      return
     }
 
-    // Route to appropriate handler based on event type
-    const handleEvent = pipe(
-      Match.value(eventData.type),
-      Match.when('TEST', () => Effect.void),
-      Match.when('INITIAL_PURCHASE', () => handleInitialPurchase(ctx)),
-      Match.when('RENEWAL', () => handleRenewal(ctx)),
-      Match.when('CANCELLATION', () => handleCancellation(ctx)),
-      Match.when('UNCANCELLATION', () => handleUncancellation(ctx)),
-      Match.when('EXPIRATION', () => handleExpiration(ctx)),
-      Match.when('BILLING_ISSUE', () => handleBillingIssue(ctx)),
-      Match.when('PRODUCT_CHANGE', () => handleProductChange(ctx)),
-      Match.orElse(() => Effect.void)
-    )
+    const state = yield* fetchStoreState(event.app_user_id)
 
-    yield* handleEvent
+    // Applied before the event is recorded: applying the fetched state is
+    // idempotent, so a crash between the two only means a redelivery applies
+    // it again. Recording first would make that redelivery a silent no-op.
+    const outcome = yield* applyStoreState({
+      userId: event.app_user_id,
+      state,
+      externalSubscriptionId: pipe(
+        Option.fromNullishOr(event.original_transaction_id),
+        Option.orElse(() => Option.some(event.id))
+      ),
+      source: `webhook:${event.type}`,
+    })
+
+    const firstDelivery = yield* subRepo.claimWebhookEvent({
+      id: event.id,
+      eventType: event.type,
+      appUserId: event.app_user_id,
+      environment: event.environment,
+    })
+
+    yield* Effect.log('[Webhook] Applied event', {
+      id: event.id,
+      outcome,
+      redelivered: !firstDelivery,
+    })
   }).pipe(Effect.withSpan('SubscriptionService.handleRevenueCatWebhookEvent'))
