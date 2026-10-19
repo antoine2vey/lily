@@ -26,7 +26,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           turbo-cache: 'false'
-      - uses: railwayapp/config@v1.2.0
+      - uses: railwayapp/config@f1f0c715716fe035319b0a716b95c6e83e0f6595 # main 2026-10-13: first with package-manager input
         with:
           command: plan
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
@@ -43,7 +43,7 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
       # Destructive changes (deleting a service, volume or variable) fail here
       # and must be applied by hand with `railway config apply`.
-      - uses: railwayapp/config@v1.2.0
+      - uses: railwayapp/config@f1f0c715716fe035319b0a716b95c6e83e0f6595 # main 2026-10-13: first with package-manager input
         with:
           command: apply
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
