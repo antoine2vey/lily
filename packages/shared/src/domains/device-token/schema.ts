@@ -3,6 +3,15 @@ import { Schema } from 'effect'
 // Re-export errors for convenient imports
 export { DeviceTokenNotFoundError } from './errors'
 
+// What `Notifications.getExpoPushTokenAsync` returns. Stricter than the
+// server SDK's `Expo.isExpoPushToken`, so every token accepted here is one the
+// push provider will send to.
+export const ExpoPushToken = Schema.String.check(
+  Schema.isPattern(/^Expo(nent)?PushToken\[[^\]]+\]$/, {
+    message: 'Expected an Expo push token (ExponentPushToken[...])',
+  })
+)
+
 // Device token schemas
 export const DeviceToken = Schema.Struct({
   id: Schema.String,
@@ -15,7 +24,7 @@ export const DeviceToken = Schema.Struct({
 })
 
 export const DeviceTokenCreateRequest = Schema.Struct({
-  token: Schema.String,
+  token: ExpoPushToken,
   platform: Schema.Literals(['ios', 'android', 'web']),
 })
 
