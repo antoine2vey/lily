@@ -36,6 +36,7 @@ import { NotificationsApiLive } from '@lily/api/services/notifications/handlers'
 import { startOverdueScheduler } from '@lily/api/services/overdue-scheduler/scheduler'
 import { PlantCatalogApiLive } from '@lily/api/services/plant-catalog/handlers'
 import { PlantsApiLive } from '@lily/api/services/plants/handlers'
+import { startPushReceiptScheduler } from '@lily/api/services/push-receipt-scheduler/scheduler'
 import { RoomsApiLive } from '@lily/api/services/rooms/handlers'
 import { SocialApiLive } from '@lily/api/services/social/handlers'
 import {
@@ -135,7 +136,8 @@ const AllSchedulersLive = Layer.mergeAll(
   AnalyticsSchedulerLive,
   ActivitySchedulerLive,
   LiveActivitySubscriberLive,
-  VacationSchedulerLive
+  VacationSchedulerLive,
+  Layer.effectDiscard(startPushReceiptScheduler)
 )
 
 // Group API handler layers to stay under pipe's 20-argument overload limit
