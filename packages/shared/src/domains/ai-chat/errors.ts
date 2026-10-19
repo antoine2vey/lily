@@ -9,6 +9,7 @@ const OpenAIErrorCodeSchema = Schema.Literals([
   'bad_request',
   'not_found',
   'server_error',
+  'timeout',
   'unknown',
 ])
 

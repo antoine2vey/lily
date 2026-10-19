@@ -1,8 +1,9 @@
 import { openai } from '@ai-sdk/openai'
 import { generateText } from 'ai'
-import { Effect, String as Str } from 'effect'
+import { type Effect, String as Str } from 'effect'
 
-import { mapOpenAIError, type OpenAIError } from '../../domains/ai-chat/errors'
+import type { OpenAIError } from '../../domains/ai-chat/errors'
+import { callOpenAI, OPENAI_TIMEOUTS } from './call-openai'
 
 const systemPrompt = `You generate ultra-short titles for chat conversations between a user and a plant-care assistant.
 
@@ -21,15 +22,17 @@ export interface GenerateConversationTitleInput {
 export const generateConversationTitle = (
   input: GenerateConversationTitleInput
 ): Effect.Effect<string, OpenAIError> =>
-  Effect.tryPromise({
-    try: async () => {
+  callOpenAI(
+    'Conversation title generation',
+    OPENAI_TIMEOUTS.conversationTitle,
+    async (abortSignal) => {
       const result = await generateText({
         model: openai('gpt-4o-mini'),
         maxRetries: 0,
+        abortSignal,
         system: systemPrompt,
         prompt: `User: ${input.userMessage}\n\nAssistant: ${input.assistantReply.slice(0, 400)}\n\nTitle:`,
       })
       return Str.trim(result.text).replace(/^["'`]+|["'`.!?]+$/g, '')
-    },
-    catch: mapOpenAIError('Conversation title generation'),
-  })
+    }
+  )
