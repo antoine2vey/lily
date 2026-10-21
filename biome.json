@@ -12,6 +12,7 @@
       "!**/dist/**",
       "!**/.expo/**",
       "!**/ios/Pods/**",
+      "!**/ios/build/**",
       "!**/android/.gradle/**",
       "!**/android/build/**",
       "!**/.next/**",

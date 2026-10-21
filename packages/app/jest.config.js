@@ -5,6 +5,14 @@ process.env.EXPO_PUBLIC_API_URL =
 
 module.exports = {
   preset: 'jest-expo',
+  // Reanimated 4.7 / worklets 0.13 ship `.native.ts` files that need the
+  // native TurboModule; their resolver routes Jest to the JS mock variants.
+  resolver: 'react-native-reanimated/jest/resolver.js',
+  // A broken Homebrew watchman aborts the crawl before any test runs; the node
+  // crawler is what CI uses anyway.
+  watchman: false,
+  // RNGH 3 detectors call into the native module on mount; this mocks it.
+  setupFiles: ['react-native-gesture-handler/jestSetup'],
   setupFilesAfterEnv: ['./src/__tests__/setup.ts'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
   transformIgnorePatterns: [

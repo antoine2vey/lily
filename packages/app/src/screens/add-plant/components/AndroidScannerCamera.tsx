@@ -2,7 +2,7 @@ import type {
   FrameAnalysisEvent,
   PhotoCapturedEvent,
 } from '@lily/plant-scanner'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
@@ -12,12 +12,13 @@ import {
 } from 'react-native'
 import {
   Camera,
+  type Frame,
   useCameraDevice,
   useCameraPermission,
-  useFrameProcessor,
+  useFrameOutput,
+  usePhotoOutput,
 } from 'react-native-vision-camera'
-import { useRunOnJS } from 'react-native-worklets-core'
-import { useResizePlugin } from 'vision-camera-resize-plugin'
+import { scheduleOnRN } from 'react-native-worklets'
 import { CameraPermissionRequest } from '@/components/scanner'
 import { useIconColors } from '@/hooks/useIconColors'
 
@@ -29,8 +30,8 @@ interface Props {
   style?: StyleProp<ViewStyle>
 }
 
-const LUX_SAMPLE_WIDTH = 32
-const LUX_SAMPLE_HEIGHT = 32
+// Every Nth pixel of every Nth row of the luma plane; ~4k samples on a 720p frame.
+const LUX_SAMPLE_STRIDE = 16
 const LUX_EMA_ALPHA = 0.3
 const JS_THROTTLE_MS = 200
 
@@ -41,6 +42,25 @@ const luxToLevel = (lux: number): number => {
   if (lux < 5_000) return 3
   if (lux < 25_000) return 4
   return 5
+}
+
+// Mean luma of the Y plane. YUV 4:2:0 stores luma first, one byte per pixel,
+// so no colour conversion is needed to read brightness.
+const averageLuma = (frame: Frame): number => {
+  'worklet'
+  const plane = frame.getPlanes()[0]
+  if (plane === undefined) return 0
+  const luma = new Uint8Array(plane.getPixelBuffer())
+  let sum = 0
+  let count = 0
+  for (let row = 0; row < plane.height; row += LUX_SAMPLE_STRIDE) {
+    const base = row * plane.bytesPerRow
+    for (let col = 0; col < plane.width; col += LUX_SAMPLE_STRIDE) {
+      sum += luma[base + col] ?? 0
+      count++
+    }
+  }
+  return count === 0 ? 0 : sum / count
 }
 
 export function AndroidScannerCamera({
@@ -54,81 +74,66 @@ export function AndroidScannerCamera({
   const iconColors = useIconColors()
   const { hasPermission, requestPermission } = useCameraPermission()
   const device = useCameraDevice('back')
-  const cameraRef = useRef<Camera>(null)
-  const { resize } = useResizePlugin()
+  const photoOutput = usePhotoOutput()
 
-  // EMA + throttle state lives in refs so worklet captures stable refs.
-  // Worklets see ref.value as a JSI primitive snapshot — we cheat by using
-  // a shared mutable object the worklet writes to via `as any`.
-  const luxStateRef = useRef({ smoothed: -1, lastEmitMs: 0 })
+  // The frame worklet captures `emitFrameAnalysis` once; the ref lets the
+  // latest `onFrameAnalysis` win without rebuilding the worklet per render.
+  const onFrameAnalysisRef = useRef(onFrameAnalysis)
+  onFrameAnalysisRef.current = onFrameAnalysis
+  const emitFrameAnalysis = useCallback((lux: number, level: number) => {
+    onFrameAnalysisRef.current?.({
+      plantDetected: false,
+      detectionStreak: 0,
+      lux,
+      luxLevel: level,
+      potBbox: null,
+      potSizeCm: null,
+      potSizeCategory: null,
+      potConfidence: null,
+    })
+  }, [])
 
-  const emitFrameAnalysis = useRunOnJS(
-    (lux: number, level: number) => {
-      onFrameAnalysis?.({
-        plantDetected: false,
-        detectionStreak: 0,
-        lux,
-        luxLevel: level,
-        potBbox: null,
-        potSizeCm: null,
-        potSizeCategory: null,
-        potConfidence: null,
-      })
-    },
-    [onFrameAnalysis]
-  )
+  // EMA + throttle state. The worklet runtime unpacks this object once per
+  // callback registration and keeps mutating its own copy across frames.
+  const luxState = useMemo(() => ({ smoothed: -1, lastEmitMs: 0 }), [])
 
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
+  const onFrame = useCallback(
+    (frame: Frame) => {
       'worklet'
-      // Downsample to a small RGB buffer; per-frame allocation is ~1KB so
-      // the GC pressure is negligible at 30fps.
-      const rgb = resize(frame, {
-        scale: { width: LUX_SAMPLE_WIDTH, height: LUX_SAMPLE_HEIGHT },
-        pixelFormat: 'rgb',
-        dataType: 'uint8',
-      })
+      try {
+        // Same calibration curve as iOS LuxAnalyzer.
+        const clamped = Math.max(1, Math.min(255, averageLuma(frame)))
+        const rawLux = (clamped / 25) ** 3.2 * 15
 
-      // Rec. 601 luminance, averaged across all sampled pixels.
-      let sum = 0
-      const pixelCount = LUX_SAMPLE_WIDTH * LUX_SAMPLE_HEIGHT
-      for (let i = 0; i < pixelCount; i++) {
-        const base = i * 3
-        const r = rgb[base] ?? 0
-        const g = rgb[base + 1] ?? 0
-        const b = rgb[base + 2] ?? 0
-        sum += 0.299 * r + 0.587 * g + 0.114 * b
+        // EMA smoothing; the first sample seeds the filter.
+        if (luxState.smoothed < 0) {
+          luxState.smoothed = rawLux
+        } else {
+          luxState.smoothed += LUX_EMA_ALPHA * (rawLux - luxState.smoothed)
+        }
+
+        // Frames arrive at ~30fps; the UI needs ~5Hz lux updates.
+        const nowMs = Date.now()
+        if (nowMs - luxState.lastEmitMs < JS_THROTTLE_MS) return
+        luxState.lastEmitMs = nowMs
+
+        const lux = luxState.smoothed
+        scheduleOnRN(emitFrameAnalysis, lux, luxToLevel(lux))
+      } finally {
+        frame.dispose()
       }
-      const avgBrightness = sum / pixelCount
-
-      // Same calibration curve as iOS LuxAnalyzer.
-      const clamped = Math.max(1, Math.min(255, avgBrightness))
-      const rawLux = (clamped / 25) ** 3.2 * 15
-
-      // EMA smoothing — first sample seeds the filter.
-      const state = luxStateRef.current as unknown as {
-        smoothed: number
-        lastEmitMs: number
-      }
-      if (state.smoothed < 0) {
-        state.smoothed = rawLux
-      } else {
-        state.smoothed += LUX_EMA_ALPHA * (rawLux - state.smoothed)
-      }
-
-      // Throttle JS bridge crossings — frame processor runs at 30fps but
-      // the UI doesn't need more than ~5Hz lux updates.
-      const nowMs = Date.now()
-      if (nowMs - state.lastEmitMs < JS_THROTTLE_MS) return
-      state.lastEmitMs = nowMs
-
-      const lux = state.smoothed
-      emitFrameAnalysis(lux, luxToLevel(lux))
     },
-    [resize, emitFrameAnalysis]
+    [luxState, emitFrameAnalysis]
   )
 
-  // Permission gate — request on mount if not yet granted.
+  // Android PRIVATE frames expose no pixel buffer; ask for YUV explicitly.
+  const frameOutput = useFrameOutput({ pixelFormat: 'yuv', onFrame })
+  const outputs = useMemo(
+    () => [photoOutput, frameOutput],
+    [photoOutput, frameOutput]
+  )
+
+  // Permission gate: request on mount if not yet granted.
   useEffect(() => {
     if (!hasPermission) requestPermission()
   }, [hasPermission, requestPermission])
@@ -136,18 +141,17 @@ export function AndroidScannerCamera({
   // Photo capture: edge-triggered on captureRequested flipping true.
   const isCapturingRef = useRef(false)
   useEffect(() => {
-    if (!captureRequested || isCapturingRef.current || !cameraRef.current)
-      return
+    if (!captureRequested || isCapturingRef.current) return
     isCapturingRef.current = true
-    cameraRef.current
-      .takePhoto({ flash: 'off' })
+    photoOutput
+      .capturePhotoToFile({ flashMode: 'off' }, {})
       .then((photo) => {
-        onPhotoCaptured?.({ path: `file://${photo.path}` })
+        onPhotoCaptured?.({ path: `file://${photo.filePath}` })
       })
       .finally(() => {
         isCapturingRef.current = false
       })
-  }, [captureRequested, onPhotoCaptured])
+  }, [captureRequested, onPhotoCaptured, photoOutput])
 
   if (!hasPermission) {
     return (
@@ -172,12 +176,10 @@ export function AndroidScannerCamera({
 
   return (
     <Camera
-      ref={cameraRef}
       style={style}
       device={device}
       isActive={isActive}
-      photo
-      frameProcessor={frameProcessor}
+      outputs={outputs}
     />
   )
 }

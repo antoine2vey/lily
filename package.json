@@ -16,7 +16,7 @@
   "private": true,
   "resolutions": {
     "effect": "4.0.5",
-    "react": "19.1.0",
+    "react": "19.3.0",
     "vite": "^8.0.0"
   },
   "scripts": {

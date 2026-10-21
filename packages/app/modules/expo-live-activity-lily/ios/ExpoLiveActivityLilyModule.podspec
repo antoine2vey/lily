@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   # is only touched on OS versions that ship it. A higher deployment-target
   # here makes expo-modules-autolinking skip the pod entirely on iOS 15.x
   # targets — we want the module available on every iOS build.
-  s.platforms      = { :ios => '15.1' }
+  s.platforms      = { :ios => '16.4' }
   s.swift_version  = '5.9'
   s.source         = { git: '' }
   s.static_framework = true

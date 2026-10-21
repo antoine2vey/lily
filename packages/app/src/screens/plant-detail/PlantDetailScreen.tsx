@@ -10,7 +10,13 @@ import {
 import { Array, Match, Option, pipe, Result } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import * as Sharing from 'expo-sharing'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import {
+  type ComponentRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, Dimensions, Image, Pressable, Text, View } from 'react-native'
 import Animated, {
@@ -242,7 +248,7 @@ export function PlantDetailScreen() {
     query: { page: '1', limit: '3', type: 'all' },
   })
 
-  const shareCardRef = useRef<View>(null)
+  const shareCardRef = useRef<ComponentRef<typeof View>>(null)
 
   const uploadPhoto = useUploadPhoto()
   const carePlant = useCarePlant()

@@ -9,7 +9,10 @@ const SYNC_THROTTLE_MS = 30 * 1000 // 30 seconds
 export function useAppStateSync(isAuthenticated: boolean) {
   const { syncSubscription } = useSubscriptionSync()
   const lastSyncRef = useRef<number>(0)
-  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
+  // RN 0.88 types `currentState` as a bare string; it only ever holds a status.
+  const appStateRef = useRef<AppStateStatus>(
+    AppState.currentState as AppStateStatus
+  )
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -35,10 +38,9 @@ export function useAppStateSync(isAuthenticated: boolean) {
       appStateRef.current = nextAppState
     }
 
-    const subscription = AppState.addEventListener(
-      'change',
-      handleAppStateChange
-    )
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      void handleAppStateChange(nextAppState)
+    })
     return () => subscription.remove()
   }, [isAuthenticated, syncSubscription])
 }

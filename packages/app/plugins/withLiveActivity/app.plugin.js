@@ -16,10 +16,10 @@ const {
   withDangerousMod,
   withInfoPlist,
   withXcodeProject,
-} = require('@expo/config-plugins')
+} = require('expo/config-plugins')
 
 const WIDGET_TARGET_NAME = 'LilyWidgetsExtension'
-const WIDGET_DEPLOYMENT_TARGET = '16.2'
+const WIDGET_DEPLOYMENT_TARGET = '16.4'
 
 const SWIFT_SOURCES = [
   'LilyWidgetsBundle.swift',
@@ -205,7 +205,7 @@ const addAssetCatalogResource = ({
   }
 }
 
-/** @type {import('@expo/config-plugins').ConfigPlugin<string>} */
+/** @type {import('expo/config-plugins').ConfigPlugin<string>} */
 const withLiveActivityInfoPlist = (config, appGroup) =>
   withInfoPlist(config, (cfg) => {
     cfg.modResults[WIDGET_CHANNEL_KEY] = widgetChannel(appGroup)
@@ -249,7 +249,7 @@ const applyVersionSettings = (project, cfg) => {
   }
 }
 
-/** @type {import('@expo/config-plugins').ConfigPlugin<string>} */
+/** @type {import('expo/config-plugins').ConfigPlugin<string>} */
 const withWidgetExtensionTarget = (config, appGroup) =>
   withXcodeProject(config, (cfg) => {
     const project = cfg.modResults
@@ -441,7 +441,7 @@ const PODFILE_SNIPPET = `    ${PODFILE_MARKER_START}
     ${PODFILE_MARKER_END}
 `
 
-/** @type {import('@expo/config-plugins').ConfigPlugin} */
+/** @type {import('expo/config-plugins').ConfigPlugin} */
 const withPodfileBundleSigningFix = (config) =>
   withDangerousMod(config, [
     'ios',
@@ -484,7 +484,7 @@ const withPodfileBundleSigningFix = (config) =>
     },
   ])
 
-/** @type {import('@expo/config-plugins').ConfigPlugin} */
+/** @type {import('expo/config-plugins').ConfigPlugin} */
 const withLiveActivity = (config) => {
   const appGroup = resolveAppGroup(config)
   return withPodfileBundleSigningFix(
