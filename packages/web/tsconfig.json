@@ -8,7 +8,24 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "plugins": [{ "name": "next" }, { "name": "@effect/language-service" }]
+    "plugins": [
+      { "name": "next" },
+      {
+        "name": "@effect/language-service",
+        "allowedUnstableApis": [
+          "effect/ai",
+          "effect/FileSystem",
+          "effect/http",
+          "effect/http-api",
+          "effect/observability",
+          "effect/Path",
+          "effect/PlatformError",
+          "effect/sql",
+          "@effect/platform-bun",
+          "@effect/sql-pg"
+        ]
+      }
+    ]
   },
   "include": [
     "**/*.ts",
