@@ -12,7 +12,7 @@ import {
 import * as Device from 'expo-device'
 import * as Localization from 'expo-localization'
 import * as Notifications from 'expo-notifications'
-import type { Href, Router } from 'expo-router'
+import type { Href, ImperativeRouter } from 'expo-router'
 import { Platform } from 'react-native'
 import {
   endActivity as endLocalActivity,
@@ -405,7 +405,7 @@ let coldStartResponseHandled = false
 const handledResponseIds = new Set<string>()
 
 const routeNotificationResponse = (
-  router: Router,
+  router: ImperativeRouter,
   response: Notifications.NotificationResponse
 ): void => {
   const id = response.notification.request.identifier
@@ -425,7 +425,9 @@ const routeNotificationResponse = (
  * Set up notification interaction listeners
  * Returns a cleanup function to remove the listeners
  */
-export function setupNotificationListeners(router: Router): () => void {
+export function setupNotificationListeners(
+  router: ImperativeRouter
+): () => void {
   // Cold start: a tap that launches the app from a killed state fires
   // before the listener below is registered, so it never receives the
   // response. expo-notifications replays it via

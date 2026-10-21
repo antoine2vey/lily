@@ -1,6 +1,11 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { forwardRef } from 'react'
-import { TextInput, type TextInputProps, View } from 'react-native'
+import type { Ref } from 'react'
+import {
+  TextInput,
+  type TextInputInstance,
+  type TextInputProps,
+  View,
+} from 'react-native'
 import { useIconColors } from '@/hooks/useIconColors'
 
 type InputProps = TextInputProps & {
@@ -11,49 +16,54 @@ type InputProps = TextInputProps & {
   pill?: boolean
 }
 
-export const Input = forwardRef<TextInput, InputProps>(
-  ({ icon, prefix, suffix, error, pill = false, style, ...props }, ref) => {
-    const iconColors = useIconColors()
+export function Input({
+  icon,
+  prefix,
+  suffix,
+  error,
+  pill = false,
+  style,
+  ref,
+  ...props
+}: InputProps & { ref?: Ref<TextInputInstance> }) {
+  const iconColors = useIconColors()
 
-    return (
-      <View
-        className={`
+  return (
+    <View
+      className={`
           flex-row items-center w-full h-14
           ${pill ? 'rounded-full' : 'rounded-xl'}
           bg-surface-tinted dark:bg-surface-dark
           ${error ? 'border-2 border-error' : ''}
           ${pill ? 'pl-4 pr-4' : 'px-5'}
         `}
-      >
-        {icon && (
-          <View className="mr-3">
-            <MaterialIcons
-              name={icon}
-              size={22}
-              color={error ? iconColors.error : iconColors.primary}
-            />
-          </View>
-        )}
-        {prefix && (
-          <View className="mr-1">
-            <TextInput
-              editable={false}
-              value={prefix}
-              className="text-lg text-text-muted font-medium"
-            />
-          </View>
-        )}
-        <TextInput
-          ref={ref}
-          className="flex-1 text-base text-text-primary dark:text-white font-regular"
-          placeholderTextColor={iconColors.muted}
-          style={style}
-          {...props}
-        />
-        {suffix && <View className="ml-2">{suffix}</View>}
-      </View>
-    )
-  }
-)
-
-Input.displayName = 'Input'
+    >
+      {icon && (
+        <View className="mr-3">
+          <MaterialIcons
+            name={icon}
+            size={22}
+            color={error ? iconColors.error : iconColors.primary}
+          />
+        </View>
+      )}
+      {prefix && (
+        <View className="mr-1">
+          <TextInput
+            editable={false}
+            value={prefix}
+            className="text-lg text-text-muted font-medium"
+          />
+        </View>
+      )}
+      <TextInput
+        ref={ref}
+        className="flex-1 text-base text-text-primary dark:text-white font-regular"
+        placeholderTextColor={iconColors.muted}
+        style={style}
+        {...props}
+      />
+      {suffix && <View className="ml-2">{suffix}</View>}
+    </View>
+  )
+}

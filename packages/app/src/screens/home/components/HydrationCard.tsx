@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array } from 'effect'
 import { LinearGradient } from 'expo-linear-gradient'
-import { useEffect, useRef } from 'react'
+import { type ComponentRef, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { PlantImageBadge } from '@/components/PlantImageBadge'
@@ -69,7 +69,7 @@ export function HydrationCard({
   const iconColors = useIconColors()
   const isDark = iconColors.isDark
 
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null)
   const offsetRef = useRef(0)
   const lastScrolledIntPxRef = useRef(0)
   const contentWidthRef = useRef(0)

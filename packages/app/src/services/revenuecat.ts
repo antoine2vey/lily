@@ -96,6 +96,7 @@ const createMockOfferings = (): PurchasesOfferings => {
         subscriptionOptions: null,
         presentedOfferingIdentifier: 'default',
         presentedOfferingContext: null,
+        installmentsInfo: null,
       },
       offeringIdentifier: 'default',
       presentedOfferingContext: {
@@ -103,6 +104,7 @@ const createMockOfferings = (): PurchasesOfferings => {
         placementIdentifier: null,
         targetingContext: null,
       },
+      webCheckoutUrl: null,
     } as PurchasesPackage,
     monthly: {
       identifier: '$rc_monthly',
@@ -136,6 +138,7 @@ const createMockOfferings = (): PurchasesOfferings => {
         subscriptionOptions: null,
         presentedOfferingIdentifier: 'default',
         presentedOfferingContext: null,
+        installmentsInfo: null,
       },
       offeringIdentifier: 'default',
       presentedOfferingContext: {
@@ -143,11 +146,13 @@ const createMockOfferings = (): PurchasesOfferings => {
         placementIdentifier: null,
         targetingContext: null,
       },
+      webCheckoutUrl: null,
     } as PurchasesPackage,
     weekly: null,
     twoMonth: null,
     threeMonth: null,
     sixMonth: null,
+    webCheckoutUrl: null,
   }
 
   return {

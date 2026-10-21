@@ -233,11 +233,11 @@ export function ConversationsDrawer({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={StyleSheet.absoluteFill}>
         <Animated.View
           pointerEvents={visible ? 'auto' : 'none'}
           style={[
-            StyleSheet.absoluteFillObject,
+            StyleSheet.absoluteFill,
             { backgroundColor: 'black' },
             backdropStyle,
           ]}
@@ -245,7 +245,7 @@ export function ConversationsDrawer({
           <Pressable
             testID="drawer-backdrop"
             onPress={onClose}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         </Animated.View>
 
