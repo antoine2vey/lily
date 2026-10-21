@@ -48,7 +48,7 @@ If you're here to read code, these are the parts worth a look:
 
 ## Tech stack
 
-Bun 1.4.3 · Node 24 LTS · TypeScript ^6.0 · Effect 4.0 · Turborepo ^2.11 · Biome 2.6 · Vitest 5 · Drizzle ORM ^0.45 · PostgreSQL 15 + pgvector (pg17) · Redis 7 · Expo ~54 / React Native 0.81 · React 19.1 · Next.js ^16 · Vite ^6
+Bun 1.4.3 · Node 24 LTS · TypeScript ^6.0 · Effect 4.0 · Turborepo ^2.11 · Biome 2.6 · Vitest 5 · Drizzle ORM ^0.45 · PostgreSQL 15 + pgvector (pg17) · Redis 7 · Expo ~54 / React Native 0.81 · React 19.1 · Next.js ^16 · Vite ^8
 
 ## Quickstart
 
