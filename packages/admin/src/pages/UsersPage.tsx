@@ -1,6 +1,6 @@
 import { Array, Match, Option, pipe } from 'effect'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { RoleBadge } from '@/components/RoleBadge'
 import { UserStatusBadge } from '@/components/UserStatusBadge'
 import {

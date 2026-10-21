@@ -1,6 +1,6 @@
 import { Match, pipe, String } from 'effect'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useSendMagicLink, useVerifyCode } from '@/hooks/use-auth'
 
 type Step = 'email' | 'code'

@@ -1,6 +1,6 @@
 import { Array, Match, Option, pipe, String } from 'effect'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useCreateJob } from '@/hooks/use-create-job'
 
 const sortOptions = ['hot', 'top', 'new'] as const

@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router'
 import { getAccessToken, getRefreshToken } from '@/lib/auth'
 
 export const AuthGate = () => {

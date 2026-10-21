@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, Option, pipe } from 'effect'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { RoleBadge } from '@/components/RoleBadge'
 import { UserStatusBadge } from '@/components/UserStatusBadge'
 import { useAdminConversationMessages } from '@/hooks/use-admin-conversation-messages'

@@ -2,7 +2,7 @@ import { GIFT_DURATION_LABELS } from '@lily/shared/admin'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Option, pipe } from 'effect'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import {
   type GiftCodeItem,
   useDeleteGiftCode,
