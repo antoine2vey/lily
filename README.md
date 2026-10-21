@@ -8,9 +8,9 @@ Lily gives every plant you own a personalized, species-aware care schedule — b
 
 [![CI](https://github.com/antoine2vey/lily/actions/workflows/ci.yml/badge.svg)](https://github.com/antoine2vey/lily/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Bun](https://img.shields.io/badge/Bun-1.3.8-000?logo=bun&logoColor=white)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Bun-1.4.3-000?logo=bun&logoColor=white)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Effect](https://img.shields.io/badge/Effect-3.19-5C2D91)](https://effect.website)
+[![Effect](https://img.shields.io/badge/Effect-4.0-5C2D91)](https://effect.website)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
@@ -48,7 +48,7 @@ If you're here to read code, these are the parts worth a look:
 
 ## Tech stack
 
-Bun 1.3.8 · TypeScript ^6.0 · Effect 3.19 · Turborepo ^2.8 · Biome 2.1 · `@effect/platform` 0.94 · Drizzle ORM ^0.45 · PostgreSQL 15 + pgvector (pg17) · Redis 7 · Expo ~54 / React Native 0.81 · React 19.1 · Next.js ^16 · Vite ^6
+Bun 1.4.3 · Node 24 LTS · TypeScript ^6.0 · Effect 4.0 · Turborepo ^2.11 · Biome 2.6 · Vitest 5 · Drizzle ORM ^0.45 · PostgreSQL 15 + pgvector (pg17) · Redis 7 · Expo ~54 / React Native 0.81 · React 19.1 · Next.js ^16 · Vite ^6
 
 ## Quickstart
 
@@ -76,7 +76,7 @@ bun run --filter=@lily/knowledge-db db:push
 bun run dev
 ```
 
-**Prerequisites:** [Bun 1.3.8](https://bun.sh) and Docker. The local Postgres/Redis defaults in `.env.example` match `docker-compose.yml`, so the core stack works out of the box.
+**Prerequisites:** [Bun 1.4.3](https://bun.sh) and Docker. The local Postgres/Redis defaults in `.env.example` match `docker-compose.yml`, so the core stack works out of the box.
 
 ## Commands
 
