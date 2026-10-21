@@ -14,11 +14,26 @@
     "paths": {
       "@/*": ["./src/*"],
       "@lily/api": ["../api/src"],
-      "@lily/api/*": ["../api/src/*"]
+      "@lily/api/*": ["../api/src/*"],
+      "react-native-view-shot": [
+        "./node_modules/react-native-view-shot/lib/index.d.ts"
+      ]
     },
     "plugins": [
       {
-        "name": "@effect/language-service"
+        "name": "@effect/language-service",
+        "allowedUnstableApis": [
+          "effect/ai",
+          "effect/FileSystem",
+          "effect/http",
+          "effect/http-api",
+          "effect/observability",
+          "effect/Path",
+          "effect/PlatformError",
+          "effect/sql",
+          "@effect/platform-bun",
+          "@effect/sql-pg"
+        ]
       }
     ]
   },

@@ -1,8 +1,34 @@
-import '@testing-library/jest-native/extend-expect'
-
 // Import all module mocks
 import './mocks/expo-modules'
 import './mocks/navigation'
+
+// RNGH 3 throws when a GestureDetector renders outside GestureHandlerRootView.
+// The app mounts one at the root layout; tests render components in isolation.
+// RNGH also binds its UI runtime through react-native-worklets on import; the
+// worklets jest resolver serves the web build, whose runtime holder throws.
+// Jest loads the package's `lib/module` build while type-level paths point at
+// `src`, so both copies get the mocks (as RNGH's own jestSetup does).
+const rnghMocks: ReadonlyArray<readonly [string, () => unknown]> = [
+  [
+    'GestureHandlerRootViewContext',
+    () => ({
+      __esModule: true,
+      default: jest.requireActual('react').createContext(true),
+    }),
+  ],
+  [
+    'handlers/gestures/installUIRuntimeBindings',
+    () => ({ __esModule: true, installUIRuntimeBindings: () => {} }),
+  ],
+]
+for (const entry of ['lib/module', 'src']) {
+  for (const [subpath, factory] of rnghMocks) {
+    jest.doMock(
+      require.resolve(`react-native-gesture-handler/${entry}/${subpath}`),
+      factory
+    )
+  }
+}
 
 // Import QueryClient cleanup utility
 import { cleanupQueryClients } from './utils/query-helpers'

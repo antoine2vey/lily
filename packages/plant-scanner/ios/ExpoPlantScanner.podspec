@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.license        = 'MIT'
   s.author         = 'Lily'
   s.source         = { git: '' }
-  s.platform       = :ios, '15.1'
+  s.platform       = :ios, '16.4'
   s.swift_version  = '5.9'
   s.source_files   = '**/*.swift'
   s.resources      = ['*.tflite']

@@ -47,7 +47,7 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [preference, setPreference] = useState<ThemePreference>('system')
   const [isLoading, setIsLoading] = useState(true)
-  const [systemTheme, setSystemTheme] = useState<ColorSchemeName>(() =>
+  const [systemTheme, setSystemTheme] = useState<ColorSchemeName | null>(() =>
     Appearance.getColorScheme()
   )
 

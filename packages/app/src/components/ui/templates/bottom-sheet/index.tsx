@@ -19,11 +19,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import {
-  Gesture,
-  GestureDetector,
-  type PanGesture,
-} from 'react-native-gesture-handler'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   Extrapolation,
   interpolate,
@@ -237,7 +233,7 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
       },
     })
 
-    const handlePanGesture = useMemo<PanGesture>(
+    const handlePanGesture = useMemo(
       () =>
         Gesture.Pan()
           .onBegin(() => {
@@ -558,7 +554,7 @@ const BottomSheetComponent = forwardRef<BottomSheetMethods, BottomSheetProps>(
             style={[styles.backdrop, backdropAnimatedStyle, backdropStyle]}
           >
             <Pressable
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               onPress={handleBackdropPress}
             />
           </Animated.View>
@@ -593,10 +589,10 @@ export const BottomSheet =
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#000000',
   },
   sheet: {

@@ -2,7 +2,7 @@ import { GIFT_DURATION_LABELS } from '@lily/shared/admin'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Option, pipe } from 'effect'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import {
   type GiftCodeItem,
   useDeleteGiftCode,
@@ -55,7 +55,7 @@ const DeleteButton = ({ giftCode }: { giftCode: GiftCodeItem }) => {
       type="button"
       onClick={handleDelete}
       disabled={deleteMutation.isPending}
-      className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+      className="rounded-sm bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
     >
       {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
     </button>
@@ -145,7 +145,7 @@ export const GiftCodesPage = () => {
                           <div className="flex justify-end gap-2">
                             <Link
                               to={`/gift-codes/${giftCode.id}/edit`}
-                              className="rounded bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                              className="rounded-sm bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
                             >
                               Edit
                             </Link>
@@ -169,7 +169,7 @@ export const GiftCodesPage = () => {
                     type="button"
                     onClick={() => setPage((p) => p - 1)}
                     disabled={page <= 1}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                    className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
                     Previous
                   </button>
@@ -177,7 +177,7 @@ export const GiftCodesPage = () => {
                     type="button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={!data.hasMore}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                    className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
                     Next
                   </button>

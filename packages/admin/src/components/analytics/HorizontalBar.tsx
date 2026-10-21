@@ -28,9 +28,9 @@ export const HorizontalBar = ({ rows, total }: HorizontalBarProps) => {
                   <span className="text-gray-400">({pct}%)</span>
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded bg-gray-100">
+              <div className="h-2 w-full overflow-hidden rounded-sm bg-gray-100">
                 <div
-                  className="h-full rounded bg-primary-500"
+                  className="h-full rounded-sm bg-primary-500"
                   style={{
                     width: `${pct}%`,
                     ...(row.accent ? { backgroundColor: row.accent } : {}),

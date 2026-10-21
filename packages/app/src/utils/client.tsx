@@ -598,15 +598,19 @@ function apiEffect<X extends keyof Client, Y extends keyof Client[X]>(
   }) as GetReturnType<X, Y>
 }
 
-type ExcludeHttpResponseTuple<T> = Exclude<
+// ReturnType instantiates the client's response-mode generic with the whole
+// ResponseMode union, so the success type also carries the raw-response shapes
+// we never request.
+type ExcludeResponseModes<T> = Exclude<
   T,
-  readonly [unknown, HttpClientResponse.HttpClientResponse]
+  | readonly [unknown, HttpClientResponse.HttpClientResponse]
+  | HttpClientResponse.HttpClientResponse
 >
 
 type GetCleanSuccessType<
   X extends keyof Client,
   Y extends keyof Client[X],
-> = ExcludeHttpResponseTuple<Effect.Success<GetReturnType<X, Y>>>
+> = ExcludeResponseModes<Effect.Success<GetReturnType<X, Y>>>
 
 /**
  * Result type for API operations - Either<ApiFailure, Success>

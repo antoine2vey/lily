@@ -61,7 +61,7 @@ const ChunkCard = ({ chunk }: { readonly chunk: ChunkSearchResult }) => (
         Option.match({
           onNone: () => null,
           onSome: (pt) => (
-            <span className="rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
+            <span className="rounded-sm bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
               {pt}
             </span>
           ),
@@ -72,7 +72,7 @@ const ChunkCard = ({ chunk }: { readonly chunk: ChunkSearchResult }) => (
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
-            <span className="rounded bg-coral-50 px-1.5 py-0.5 text-xs text-coral-600">
+            <span className="rounded-sm bg-coral-50 px-1.5 py-0.5 text-xs text-coral-600">
               {categoryLabel(cat)}
             </span>
           ),
@@ -130,7 +130,7 @@ export const SearchPage = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="How often should I water my monstera?"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
           />
         </div>
 
@@ -148,7 +148,7 @@ export const SearchPage = () => {
               value={plantType}
               onChange={(e) => setPlantType(e.target.value)}
               placeholder="Optional — e.g. monstera"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -165,7 +165,7 @@ export const SearchPage = () => {
               max={20}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -183,7 +183,7 @@ export const SearchPage = () => {
               step={0.05}
               value={minSimilarity}
               onChange={(e) => setMinSimilarity(Number(e.target.value))}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
             />
           </div>
         </div>

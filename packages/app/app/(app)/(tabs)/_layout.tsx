@@ -1,16 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native'
-import {
-  Badge,
-  Icon,
-  Label,
-  NativeTabs,
-  VectorIcon,
-} from 'expo-router/unstable-native-tabs'
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router'
+import { NativeTabs } from 'expo-router/native-tabs'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useColorScheme, View } from 'react-native'
@@ -21,7 +11,9 @@ import { useGlass } from '@/utils/glass'
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap
 
 const tabIcon = (name: MaterialIconName) => (
-  <Icon src={<VectorIcon family={MaterialIcons} name={name} />} />
+  <NativeTabs.Trigger.Icon
+    src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name={name} />}
+  />
 )
 
 export default function TabsLayout() {
@@ -76,33 +68,41 @@ export default function TabsLayout() {
         >
           <NativeTabs.Trigger name="index">
             {icons.home}
-            <Label>{t('tabs.home')}</Label>
+            <NativeTabs.Trigger.Label>
+              {t('tabs.home')}
+            </NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>
 
           <NativeTabs.Trigger name="plants">
             {icons.plants}
-            <Label>{t('tabs.plants')}</Label>
+            <NativeTabs.Trigger.Label>
+              {t('tabs.plants')}
+            </NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>
 
           <NativeTabs.Trigger name="care">
             {icons.care}
-            <Label>{t('tabs.care')}</Label>
+            <NativeTabs.Trigger.Label>
+              {t('tabs.care')}
+            </NativeTabs.Trigger.Label>
             {/* Liquid Glass → dot (empty Badge), so the tab re-renders only at
                 0↔>0 and never flickers during completions. Elsewhere → exact
                 number, which updates live without flickering the non-glass bar. */}
             {careBadge.visible &&
               (careBadge.count !== null ? (
-                <Badge>
+                <NativeTabs.Trigger.Badge>
                   {careBadge.count > 99 ? '99+' : String(careBadge.count)}
-                </Badge>
+                </NativeTabs.Trigger.Badge>
               ) : (
-                <Badge />
+                <NativeTabs.Trigger.Badge />
               ))}
           </NativeTabs.Trigger>
 
           <NativeTabs.Trigger name="profile">
             {icons.profile}
-            <Label>{t('tabs.profile')}</Label>
+            <NativeTabs.Trigger.Label>
+              {t('tabs.profile')}
+            </NativeTabs.Trigger.Label>
           </NativeTabs.Trigger>
         </NativeTabs>
       </ThemeProvider>

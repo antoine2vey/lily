@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Match, Option, pipe } from 'effect'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { RoleBadge } from '@/components/RoleBadge'
 import { UserStatusBadge } from '@/components/UserStatusBadge'
 import { useAdminConversationMessages } from '@/hooks/use-admin-conversation-messages'
@@ -447,7 +447,7 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
                       <td className="py-2 text-gray-600">
                         {plant.diedAt ? (
                           <span
-                            className="rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-700"
+                            className="rounded-sm bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-700"
                             title={plant.deathCause ?? undefined}
                           >
                             Dead · {formatShortDate(plant.diedAt)}
@@ -482,7 +482,7 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
                   type="button"
                   onClick={() => setPage((p) => p - 1)}
                   disabled={page <= 1}
-                  className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                  className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                 >
                   Previous
                 </button>
@@ -490,7 +490,7 @@ const PlantsTable = ({ id }: { readonly id: string }) => {
                   type="button"
                   onClick={() => setPage((p) => p + 1)}
                   disabled={!data.hasMore}
-                  className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                  className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                 >
                   Next
                 </button>

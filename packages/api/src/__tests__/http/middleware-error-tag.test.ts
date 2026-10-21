@@ -41,11 +41,8 @@ type SecuredEndpoint = {
   readonly status: number
 }
 
-type ErrorSchema = HttpApiMiddleware.AnyService['error'] extends ReadonlySet<
-  infer S
->
-  ? S
-  : never
+type ErrorSchema =
+  HttpApiMiddleware.AnyService['error'] extends ReadonlySet<infer S> ? S : never
 
 type ReflectedEndpoint = {
   readonly group: HttpApiGroup.Top

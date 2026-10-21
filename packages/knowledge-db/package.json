@@ -35,18 +35,17 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@effect/sql-pg": "^4.0.0",
+    "@effect/sql-pg": "^4.0.5",
     "@lily/db": "workspace:*",
-    "drizzle-orm": "^0.45.1",
-    "effect": "^4.0.0",
-    "pg": "^8.16.3",
-    "pgvector": "^0.2.0"
+    "drizzle-orm": "^0.45.4",
+    "effect": "^4.0.5",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.8",
-    "@types/pg": "^8.16.0",
-    "drizzle-kit": "^0.31.8",
-    "typescript": "^6.0.2",
-    "vitest": "^3.2.4"
+    "@types/bun": "^1.4.3",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "7.0.2",
+    "vitest": "^5.0.5"
   }
 }

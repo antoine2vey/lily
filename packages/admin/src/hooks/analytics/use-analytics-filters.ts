@@ -1,6 +1,6 @@
 import { DateTime, Option, pipe } from 'effect'
 import { useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 
 export type AnalyticsRangePreset = '7d' | '30d' | '90d'
 

@@ -1,6 +1,6 @@
 import { Array, Match, Option, pipe } from 'effect'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { RoleBadge } from '@/components/RoleBadge'
 import { UserStatusBadge } from '@/components/UserStatusBadge'
 import {
@@ -64,12 +64,12 @@ export const UsersPage = () => {
           value={search}
           onChange={(e) => onFilterChange(() => setSearch(e.target.value))}
           placeholder="Search by name or email..."
-          className="w-72 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-72 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
         />
         <select
           value={role}
           onChange={(e) => onFilterChange(() => setRole(e.target.value))}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
         >
           <option value="">All roles</option>
           <option value="user">User</option>
@@ -78,7 +78,7 @@ export const UsersPage = () => {
         <select
           value={status}
           onChange={(e) => onFilterChange(() => setStatus(e.target.value))}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
         >
           <option value="">All statuses</option>
           <option value="active">Active</option>
@@ -165,7 +165,7 @@ export const UsersPage = () => {
                       <td className="px-4 py-3 text-right">
                         <Link
                           to={`/users/${user.id}`}
-                          className="rounded bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                          className="rounded-sm bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
                         >
                           View
                         </Link>
@@ -190,7 +190,7 @@ export const UsersPage = () => {
                 type="button"
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page <= 1}
-                className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
               >
                 Previous
               </button>
@@ -198,7 +198,7 @@ export const UsersPage = () => {
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
                 disabled={!data.hasMore}
-                className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
               >
                 Next
               </button>

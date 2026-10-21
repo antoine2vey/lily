@@ -87,7 +87,7 @@ const CopyButton = ({ text }: { readonly text: string }) => {
     <button
       type="button"
       onClick={handleCopy}
-      className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+      className="rounded-sm border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
     >
       {copied ? 'Copied!' : 'Copy'}
     </button>
@@ -124,7 +124,7 @@ const RatingBar = ({
         Array.map((i) => (
           <div
             key={i}
-            className={`h-2 w-4 rounded-sm ${
+            className={`h-2 w-4 rounded-xs ${
               i <= value ? 'bg-primary-500' : 'bg-gray-200'
             }`}
           />
@@ -173,7 +173,7 @@ const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
         Option.match({
           onNone: () => null,
           onSome: (pt) => (
-            <span className="rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
+            <span className="rounded-sm bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
               {pt}
             </span>
           ),
@@ -184,7 +184,7 @@ const RagChunkCard = ({ chunk }: { readonly chunk: PromptPreviewRagChunk }) => (
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
-            <span className="rounded bg-coral-50 px-1.5 py-0.5 text-xs text-coral-600">
+            <span className="rounded-sm bg-coral-50 px-1.5 py-0.5 text-xs text-coral-600">
               {cat}
             </span>
           ),
@@ -213,17 +213,17 @@ const MessageSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
       </span>
       <span className="text-xs text-gray-500">{data.message.createdAt}</span>
       {data.hasImage && (
-        <span className="rounded bg-purple-50 px-1.5 py-0.5 text-xs text-purple-700">
+        <span className="rounded-sm bg-purple-50 px-1.5 py-0.5 text-xs text-purple-700">
           Has image
         </span>
       )}
     </div>
-    <p className="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm text-gray-800">
+    <p className="whitespace-pre-wrap rounded-sm bg-gray-50 p-3 text-sm text-gray-800">
       {data.message.content}
     </p>
     <div className="flex items-center gap-2 text-xs text-gray-500">
       <span>Model:</span>
-      <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs">
+      <span className="rounded-sm bg-gray-100 px-1.5 py-0.5 font-mono text-xs">
         {data.model}
       </span>
     </div>
@@ -244,7 +244,7 @@ const PlantSection = ({ data }: { readonly data: PromptPreviewResponse }) => (
         Option.match({
           onNone: () => null,
           onSome: (cat) => (
-            <span className="rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
+            <span className="rounded-sm bg-primary-50 px-1.5 py-0.5 text-xs text-primary-700">
               {cat}
             </span>
           ),
@@ -309,7 +309,7 @@ const CareHistorySection = ({
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="rounded bg-primary-50 px-1.5 py-0.5 text-xs font-medium text-primary-700">
+                <span className="rounded-sm bg-primary-50 px-1.5 py-0.5 text-xs font-medium text-primary-700">
                   {entry.type}
                 </span>
                 <span className="text-xs text-gray-500">{entry.date}</span>
@@ -342,7 +342,7 @@ const RagSection = ({
   <div className="space-y-3">
     <div>
       <p className="mb-1 text-xs font-medium text-gray-700">RAG Query</p>
-      <p className="rounded bg-purple-50 px-3 py-2 font-mono text-xs text-purple-800">
+      <p className="rounded-sm bg-purple-50 px-3 py-2 font-mono text-xs text-purple-800">
         {ragQuery}
       </p>
     </div>
@@ -433,7 +433,7 @@ export const PromptPreviewPage = () => {
           value={messageId}
           onChange={(e) => setMessageId(e.target.value)}
           placeholder="Enter message UUID (e.g. a1b2c3d4-e5f6-...)"
-          className="block flex-1 rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="block flex-1 rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
         />
         <button
           type="submit"
@@ -535,7 +535,7 @@ export const PromptPreviewPage = () => {
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600">
+                <span className="rounded-sm bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600">
                   {data.model}
                 </span>
                 <CopyButton text={data.systemPrompt} />

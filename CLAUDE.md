@@ -1,6 +1,6 @@
 # Lily
 
-Plant care app. TypeScript monorepo (Bun 1.3.8, Effect 4.0.0).
+Plant care app. TypeScript monorepo (Bun 1.4.3, Effect 4.0.5, TypeScript 7).
 
 **Effect-first.** Before writing, editing or reviewing TypeScript, read `CODING_STANDARDS.md`: the Effect module for each native JS construct, plus the service, error and auth rules.
 

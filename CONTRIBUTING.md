@@ -11,7 +11,7 @@ Thanks for your interest in contributing! This guide covers the dev setup, conve
 
 ## Prerequisites
 
-- [Bun 1.3.8](https://bun.sh) (pinned — match it exactly)
+- [Bun 1.4.3](https://bun.sh) (pinned — match it exactly)
 - Docker (for local Postgres + Redis)
 
 ## Getting started

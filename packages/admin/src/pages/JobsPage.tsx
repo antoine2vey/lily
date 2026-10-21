@@ -1,6 +1,6 @@
 import { formatApiRelativeTime } from '@lily/shared'
 import { Array, Match, Option, pipe } from 'effect'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useDeleteJob } from '@/hooks/use-delete-job'
 import type { IngestJob } from '@/hooks/use-ingest-jobs'

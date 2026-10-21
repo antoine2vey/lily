@@ -1,6 +1,7 @@
 import { type QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   type RenderOptions,
+  type RenderResult,
   render as rtlRender,
 } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
@@ -19,6 +20,10 @@ type AuthState =
   | { _tag: 'Authenticated'; user: typeof defaultMockUser; accessToken: string }
   | { _tag: 'Unauthenticated' }
   | { _tag: 'NeedsUsername'; user: typeof defaultMockUser; accessToken: string }
+
+// Declaration emit needs named return types: the inferred RNTL result reaches
+// into react-test-renderer's types through a path tsc cannot reference.
+type ProviderRenderResult = RenderResult & { queryClient: QueryClient }
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient
@@ -41,7 +46,7 @@ export function render(
     withAuth = true,
     ...options
   }: CustomRenderOptions = {}
-) {
+): ProviderRenderResult {
   const client = queryClient ?? createTestQueryClient()
 
   const resolvedAuthState = authState ?? {
@@ -82,7 +87,10 @@ export function render(
  * Render a component without any providers
  * Useful for testing pure presentational components
  */
-export function renderBare(ui: ReactElement, options?: RenderOptions) {
+export function renderBare(
+  ui: ReactElement,
+  options?: RenderOptions
+): RenderResult {
   return rtlRender(ui, options)
 }
 
@@ -92,7 +100,7 @@ export function renderBare(ui: ReactElement, options?: RenderOptions) {
 export function renderWithQuery(
   ui: ReactElement,
   options?: Omit<CustomRenderOptions, 'withAuth'>
-) {
+): ProviderRenderResult {
   return render(ui, { ...options, withAuth: false })
 }
 
@@ -102,7 +110,7 @@ export function renderWithQuery(
 export function renderUnauthenticated(
   ui: ReactElement,
   options?: Omit<CustomRenderOptions, 'authState'>
-) {
+): ProviderRenderResult {
   return render(ui, {
     ...options,
     authState: { _tag: 'Unauthenticated' },
@@ -115,7 +123,7 @@ export function renderUnauthenticated(
 export function renderNeedsUsername(
   ui: ReactElement,
   options?: Omit<CustomRenderOptions, 'authState'>
-) {
+): ProviderRenderResult {
   return render(ui, {
     ...options,
     authState: {
