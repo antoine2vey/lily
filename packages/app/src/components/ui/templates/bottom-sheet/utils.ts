@@ -52,4 +52,4 @@ const isScrollableList = (
   )
 }
 
-export { parseSnapPoint, triggerHaptic, isScrollableList }
+export { isScrollableList, parseSnapPoint, triggerHaptic }

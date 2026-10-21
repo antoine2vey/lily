@@ -53,4 +53,4 @@ export function useIdentifyPlant() {
 }
 
 // Export types for consumers
-export type { PlantIdentificationResult, PlantAlternative }
+export type { PlantAlternative, PlantIdentificationResult }

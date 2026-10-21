@@ -20,8 +20,8 @@ const {
 }))
 
 vi.mock('octokit', () => ({
-  Octokit: vi.fn().mockImplementation(() => ({
-    rest: {
+  Octokit: class {
+    rest = {
       git: {
         getRef: mockGetRef,
         getCommit: mockGetCommit,
@@ -30,8 +30,8 @@ vi.mock('octokit', () => ({
         createCommit: mockCreateCommit,
         updateRef: mockUpdateRef,
       },
-    },
-  })),
+    }
+  },
 }))
 
 describe('GitHub API — publishBlogPost', () => {
