@@ -117,7 +117,7 @@ export const WeatherCacheLive = Layer.effect(
 
       getAllLocations: () =>
         Effect.tryPromise(async () => {
-          const members = await redis.zrange(WEATHER_GEO_KEY, 0, -1)
+          const members = await redis.zrange(WEATHER_GEO_KEY, 0, '-1')
           return pipe(
             members,
             Array.filterMap(

@@ -136,7 +136,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.131",
-    "@google-cloud/storage": "^7.22.0",
+    "@google-cloud/storage": "^8.4.0",
     "ai": "^6.0.312",
     "effect": "^4.0.5",
     "zod": "^4.6.7"
