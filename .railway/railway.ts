@@ -179,6 +179,7 @@ export default defineRailway(() => {
   })
 
   return project('balanced-manifestation', {
+    // @ts-expect-error railway/iac 3.16 types omit `variables`; the CLI reads it (`config plan` prints "variables: managed")
     variables: { managed: true },
     resources: [
       pgvector,
