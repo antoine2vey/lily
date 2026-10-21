@@ -145,5 +145,5 @@ export function CareEventCard({ event, onPress }: CareEventCardProps) {
   )
 }
 
-export { getEventConfig }
 export type { CareEvent, CareEventType }
+export { getEventConfig }

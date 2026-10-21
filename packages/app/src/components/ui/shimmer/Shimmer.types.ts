@@ -40,9 +40,9 @@ interface IShimmerColorTheme {
 }
 
 export type {
+  IShimmerColorTheme,
   IShimmerEffect,
   IShimmerGroup,
   ShimmerDirection,
   ShimmerPreset,
-  IShimmerColorTheme,
 }

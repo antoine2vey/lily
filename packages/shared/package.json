@@ -132,7 +132,7 @@
   "devDependencies": {
     "tsc-alias": "^1.9.8",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.131",
