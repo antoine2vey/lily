@@ -65,7 +65,7 @@ const RevokeButton = ({ event }: { event: GiftEvent }) => {
       type="button"
       onClick={handleRevoke}
       disabled={revoke.isPending}
-      className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
+      className="rounded-sm bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50"
     >
       {revoke.isPending ? 'Revoking...' : 'Revoke'}
     </button>
@@ -174,7 +174,7 @@ export const GiftHistoryPage = () => {
                     type="button"
                     onClick={() => setPage((p) => p - 1)}
                     disabled={page <= 1}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                    className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
                     Previous
                   </button>
@@ -182,7 +182,7 @@ export const GiftHistoryPage = () => {
                     type="button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={!data.hasMore}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
+                    className="rounded-sm border border-gray-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
                     Next
                   </button>

@@ -9,12 +9,18 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { CHART_COLORS, type TimeSeriesSeries, toChartData } from './chart-utils'
+import {
+  CHART_COLORS,
+  legendInSeriesOrder,
+  seriesColor,
+  type TimeSeriesSeries,
+  toChartData,
+} from './chart-utils'
 
 interface StackedAreaChartProps {
   series: ReadonlyArray<TimeSeriesSeries>
   height?: number
-  colors?: ReadonlyArray<string>
+  colors?: Array.NonEmptyReadonlyArray<string>
 }
 
 export const StackedAreaChart = ({
@@ -30,8 +36,11 @@ export const StackedAreaChart = ({
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
         <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#9ca3af" />
         <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" allowDecimals={false} />
+        <Legend
+          wrapperStyle={{ fontSize: 12 }}
+          itemSorter={legendInSeriesOrder(series)}
+        />
         <Tooltip />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
         {pipe(
           series,
           Array.map((s, idx) => (
@@ -40,8 +49,8 @@ export const StackedAreaChart = ({
               type="monotone"
               dataKey={s.key}
               stackId="1"
-              stroke={colors[idx % colors.length]}
-              fill={colors[idx % colors.length]}
+              stroke={seriesColor(colors, idx)}
+              fill={seriesColor(colors, idx)}
               fillOpacity={0.6}
             />
           ))

@@ -1,6 +1,6 @@
 # Lily - Coding Rules
 
-Plant care app. TypeScript monorepo (Bun 1.3.8, Effect 4.0.0):
+Plant care app. TypeScript monorepo (Bun 1.4.3, Effect 4.0.5):
 
 - **api** — Backend API server (`effect/http-api`, `@effect/platform-bun`)
 - **db** — Drizzle ORM schema and migrations (PostgreSQL)
@@ -71,7 +71,7 @@ bun run lint:fix   # Biome lint + autofix in all packages
 
 The repo is on Effect 4. Most online docs, the Effect docs MCP server and `effect-solutions` describe Effect 3 (`Context.Tag`, `@effect/platform`), so check anything from them against v4 before using it.
 
-- `node_modules/.bun/effect@4.0.0/node_modules/effect/AGENTS.md` and its `ai-docs/` are the v4 guides shipped with the package
+- `node_modules/.bun/effect@4.0.5/node_modules/effect/AGENTS.md` and its `ai-docs/` are the v4 guides shipped with the package
 - The `effect` package source (`.../effect/src`) is the reference for module APIs, including `http`, `http-api`, `sql`, `ai` and `observability`
 - The Effect language service reports leftover v3 APIs as `effect(outdatedApi)` in `bun run tsc`
 

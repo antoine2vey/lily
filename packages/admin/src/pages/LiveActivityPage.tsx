@@ -145,7 +145,7 @@ export const LiveActivityPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by name or email..."
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
               />
               {showDropdown && (
                 <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">

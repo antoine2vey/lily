@@ -1,5 +1,5 @@
 import { Array, pipe } from 'effect'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { useLogout } from '@/hooks/use-auth'
 
 const navItems = [

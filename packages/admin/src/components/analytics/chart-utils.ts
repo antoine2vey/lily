@@ -1,4 +1,5 @@
-import { Array, Order, pipe } from 'effect'
+import { Array, Option, Order, pipe } from 'effect'
+import type { LegendPayload } from 'recharts'
 
 export interface TimeSeriesSeries {
   readonly key: string
@@ -41,3 +42,23 @@ export const CHART_COLORS = [
   '#db2777',
   '#0891b2',
 ] as const
+
+// Recharts 3 sorts legend items by label by default; keep the series order.
+export const legendInSeriesOrder =
+  (series: ReadonlyArray<TimeSeriesSeries>) =>
+  (item: LegendPayload): number =>
+    pipe(
+      series,
+      Array.findFirstIndex((s) => s.key === item.value),
+      Option.getOrElse(() => series.length)
+    )
+
+export const seriesColor = (
+  colors: Array.NonEmptyReadonlyArray<string>,
+  index: number
+): string =>
+  pipe(
+    colors,
+    Array.get(index % colors.length),
+    Option.getOrElse(() => Array.headNonEmpty(colors))
+  )
