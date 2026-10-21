@@ -29,6 +29,12 @@ const loadClient = (): ClientModule => {
   return client
 }
 
+const COLD_TRANSFORM_TIMEOUT_MS = 30_000
+
+const warmJestTransformCache = () => {
+  loadClient()
+}
+
 const jsonResponse = (body: Record<string, string>) => ({
   ok: true,
   status: 200,
@@ -45,6 +51,8 @@ describe('refreshAccessTokenAsync', () => {
   let store: Map<string, string>
   let fetchMock: jest.Mock
   const originalFetch = global.fetch
+
+  beforeAll(warmJestTransformCache, COLD_TRANSFORM_TIMEOUT_MS)
 
   beforeEach(() => {
     store = new Map([
