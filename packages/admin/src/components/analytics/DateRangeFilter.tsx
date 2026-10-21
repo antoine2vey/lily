@@ -25,7 +25,7 @@ export const DateRangeFilter = ({ filters }: DateRangeFilterProps) => (
             key={preset.value}
             type="button"
             onClick={() => filters.setPreset(preset.value)}
-            className={`rounded px-3 py-1 font-medium transition-colors ${
+            className={`rounded-sm px-3 py-1 font-medium transition-colors ${
               isActive
                 ? 'bg-primary-600 text-white'
                 : 'text-gray-600 hover:text-gray-900'

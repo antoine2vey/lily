@@ -155,7 +155,7 @@ export const NewJobPage = () => {
                 value={subreddits}
                 onChange={(e) => setSubreddits(e.target.value)}
                 placeholder="houseplants, plantclinic, gardening"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Comma-separated list of subreddit names (without r/)
@@ -176,7 +176,7 @@ export const NewJobPage = () => {
                   onChange={(e) =>
                     setSort(e.target.value as 'hot' | 'top' | 'new')
                   }
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                 >
                   {pipe(
                     sortOptions,
@@ -209,7 +209,7 @@ export const NewJobPage = () => {
                         | 'all'
                     )
                   }
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                 >
                   {pipe(
                     timeFilterOptions,
@@ -236,7 +236,7 @@ export const NewJobPage = () => {
                   max={1000}
                   value={limit}
                   onChange={(e) => setLimit(Number(e.target.value))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -260,7 +260,7 @@ export const NewJobPage = () => {
                 'https://example.com/plant-care\nhttps://example.com/watering-guide'
               }
               rows={10}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
             />
             <p className="mt-1 text-xs text-gray-400">
               One URL per line.{' '}

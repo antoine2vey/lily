@@ -32,7 +32,7 @@ export const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-xs">
         <h2 className="text-xl font-semibold text-gray-900">Lily Admin</h2>
         <p className="mt-1 text-sm text-gray-500">
           Sign in with your admin account.
@@ -65,7 +65,7 @@ export const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@example.com"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                 />
               </div>
               <button
@@ -99,7 +99,7 @@ export const LoginPage = () => {
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-xs focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                 />
               </div>
               <button

@@ -556,7 +556,7 @@ export const AnalyticsPage = () => {
                   Array.map((row) => (
                     <li
                       key={`${row.topic}-${row.error}`}
-                      className="rounded border border-gray-100 p-2"
+                      className="rounded-sm border border-gray-100 p-2"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-gray-700">

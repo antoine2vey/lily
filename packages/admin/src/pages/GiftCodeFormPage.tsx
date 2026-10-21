@@ -128,7 +128,9 @@ export const GiftCodeFormPage = () => {
         className="max-w-lg space-y-4 rounded-lg border border-gray-200 bg-white p-6"
       >
         {error && (
-          <p className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</p>
+          <p className="rounded-sm bg-red-50 p-3 text-sm text-red-600">
+            {error}
+          </p>
         )}
 
         <div>
@@ -144,7 +146,7 @@ export const GiftCodeFormPage = () => {
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="SPRING2026"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
           />
         </div>
 
@@ -159,7 +161,7 @@ export const GiftCodeFormPage = () => {
             id="duration"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
           >
             {pipe(
               durationOptions,
@@ -186,7 +188,7 @@ export const GiftCodeFormPage = () => {
             min={0}
             value={maxUsages}
             onChange={(e) => setMaxUsages(Number(e.target.value))}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
           />
         </div>
 
@@ -203,7 +205,7 @@ export const GiftCodeFormPage = () => {
             type="datetime-local"
             value={expiresAt}
             onChange={(e) => setExpiresAt(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
           />
         </div>
 
@@ -214,7 +216,7 @@ export const GiftCodeFormPage = () => {
               type="checkbox"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="h-4 w-4 rounded-sm border-gray-300 text-primary-600 focus:ring-primary-500"
             />
             <label
               htmlFor="isActive"
