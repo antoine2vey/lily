@@ -27,16 +27,16 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@effect/platform-bun": "^4.0.0",
+    "@effect/platform-bun": "^4.0.5",
     "@lily/db": "workspace:*",
     "@lily/shared": "workspace:*",
-    "drizzle-orm": "^0.45.1",
-    "effect": "^4.0.0"
+    "drizzle-orm": "^0.45.4",
+    "effect": "^4.0.5"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
-    "typescript": "^6.0.2",
-    "vite-tsconfig-paths": "^6.0.3",
-    "vitest": "^3.2.4"
+    "typescript": "^6.0.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.7"
   }
 }
