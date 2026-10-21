@@ -73,7 +73,7 @@ The repo is on Effect 4. Most online docs, the Effect docs MCP server and `effec
 
 - `node_modules/.bun/effect@4.0.5/node_modules/effect/AGENTS.md` and its `ai-docs/` are the v4 guides shipped with the package
 - The `effect` package source (`.../effect/src`) is the reference for module APIs, including `http`, `http-api`, `sql`, `ai` and `observability`
-- The Effect language service reports leftover v3 APIs as `effect(outdatedApi)` in `bun run tsc`
+- The Effect language service (`@effect/tsgo`, patched into the TypeScript 7 `tsc` by `prepare`) reports leftover v3 APIs as `effect(outdatedApi)` in `bun run tsc`
 
 
 ## Agent skills

@@ -119,7 +119,7 @@
     "react-native-css-interop": "^0.2.7",
     "react-test-renderer": "19.3.0",
     "sharp": "^0.34.1",
-    "typescript": "^6.0.3"
+    "typescript": "7.0.2"
   },
   "private": true
 }
