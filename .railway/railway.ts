@@ -115,6 +115,7 @@ export default defineRailway(() => {
       ],
     },
     replicas: { 'europe-west4-drams3a': 1 },
+    domains: [{ domain: 'api.withlily.app', port: 3000 }],
     networking: { privateNetworkEndpoint: 'api-withlily' },
     env: {
       ALERT_ENVIRONMENT_NAME: preserve(),
