@@ -124,8 +124,9 @@ temp/
 Thumbs.db
 gcs-google-credentials.json
 
-# Claude worktrees
-.claude/worktrees/.reference/
+# Claude Code per-user state
+.claude/worktrees/
+.claude/settings.local.json
 .reference
 
 # Private, non-public docs (internal strategy, pricing, competitive analysis)
