@@ -8,7 +8,7 @@ import {
 } from '@shopify/react-native-skia'
 import { Asset } from 'expo-asset'
 import { useEffect, useState } from 'react'
-import { View } from 'react-native'
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import { type MascotAnimation, mascotClips } from '@/assets/mascot'
 
 interface MascotProps {
@@ -46,6 +46,8 @@ function useClipUri(animation: MascotAnimation): string | null {
 // The mascot never reaches the top of its frame, so the mask skips that strip.
 const SEAM_INSET = 2
 
+const FADE_IN_MS = 250
+
 // The clip is twice as tall as it is wide: color on top, alpha mask below.
 // The mask half, shifted up over the color half, becomes a luminance mask, so
 // the mascot is transparent on both platforms without an alpha video codec.
@@ -53,12 +55,19 @@ export function Mascot({ animation, size = 200, loop = true }: MascotProps) {
   const uri = useClipUri(animation)
   const { currentFrame } = useVideo(uri, { looping: loop })
 
+  // The clip loads and decodes asynchronously; fading in on its first frame
+  // keeps the mascot from popping in after its screen has already appeared.
+  // The frame persists across clip changes, so swapping clips never re-fades.
+  const fadeIn = useAnimatedStyle(() => ({
+    opacity: withTiming(currentFrame.value ? 1 : 0, { duration: FADE_IN_MS }),
+  }))
+
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ width: size, height: size }}
+      style={[{ width: size, height: size }, fadeIn]}
     >
       <Canvas style={{ width: size, height: size }}>
         <Mask
@@ -88,6 +97,6 @@ export function Mascot({ animation, size = 200, loop = true }: MascotProps) {
           />
         </Mask>
       </Canvas>
-    </View>
+    </Animated.View>
   )
 }
