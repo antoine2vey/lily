@@ -36,8 +36,7 @@ export default function Index() {
     Match.value(state),
     Match.when({ _tag: 'Loading' }, () => <GateLoading />),
     Match.when({ _tag: 'Authenticated' }, () => {
-      // Dev builds replay onboarding on every launch so it can be debugged
-      if (__DEV__ || !hasCompletedOnboarding) {
+      if (!hasCompletedOnboarding) {
         return <Redirect href="/(auth)/onboarding" />
       }
       return <Redirect href="/(app)/(tabs)" />
