@@ -28,3 +28,20 @@ export function useWelcomeSeen() {
 
   return { hasSeen, isLoading, markWelcomeSeen }
 }
+
+export type SignedOutRoute = '/(auth)/welcome' | '/(auth)/login'
+
+/**
+ * Where a signed-out user lands. Never `/`: groups are not part of URLs, so
+ * `/` also matches the Home tab and a logout from inside the app stayed there.
+ */
+export const signedOutRoute = (hasSeenWelcome: boolean): SignedOutRoute =>
+  hasSeenWelcome ? '/(auth)/login' : '/(auth)/welcome'
+
+/** Reads the welcome flag at call time, for redirects outside the hook. */
+export const readSignedOutRoute = getItem(ONBOARDING_KEYS.welcome).pipe(
+  Effect.map((value) => signedOutRoute(value === 'true')),
+  Effect.catchTag('OnboardingStorageError', () =>
+    Effect.succeed(signedOutRoute(false))
+  )
+)

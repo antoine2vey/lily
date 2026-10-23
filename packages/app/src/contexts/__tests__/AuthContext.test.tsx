@@ -359,7 +359,7 @@ describe('AuthContext', () => {
       expect(mockReplace).not.toHaveBeenCalled()
     })
 
-    it('sends a signed-out user on another auth screen back to the index', async () => {
+    it('sends a signed-out user on another auth screen to the welcome screen', async () => {
       mockSegments = ['(auth)', 'onboarding']
       const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -367,7 +367,25 @@ describe('AuthContext', () => {
         expect(result.current.state._tag).toBe('Unauthenticated')
       })
 
-      expect(mockReplace).toHaveBeenCalledWith('/')
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/(auth)/welcome')
+      })
+    })
+
+    // `/` also matches the Home tab, so redirecting there left a signed-out
+    // user inside the app.
+    it('takes a user signed out inside the app to the welcome screen, not /', async () => {
+      mockSegments = ['(app)', '(tabs)']
+      const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Unauthenticated')
+      })
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith('/(auth)/welcome')
+      })
+      expect(mockReplace).not.toHaveBeenCalledWith('/')
     })
   })
 })

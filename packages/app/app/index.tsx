@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import { MeshBackground } from '@/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
-import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
+import { signedOutRoute, useWelcomeSeen } from '@/hooks/useWelcomeSeen'
 
 // Shown for a moment while auth and onboarding state load. Login, welcome and
 // onboarding all sit on the mesh, so the gate does too: a plain background
@@ -48,12 +48,7 @@ export default function Index() {
       if (isLoadingWelcome) {
         return <GateLoading />
       }
-      // Dev builds replay the welcome carousel on every signed-out visit so it
-      // can be debugged
-      if (__DEV__ || !hasSeenWelcome) {
-        return <Redirect href="/(auth)/welcome" />
-      }
-      return <Redirect href="/(auth)/login" />
+      return <Redirect href={signedOutRoute(hasSeenWelcome ?? false)} />
     }),
     Match.exhaustive
   )

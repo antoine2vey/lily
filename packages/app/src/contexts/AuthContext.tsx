@@ -22,6 +22,7 @@ import {
   useState,
 } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { readSignedOutRoute } from '@/hooks/useWelcomeSeen'
 import * as RevenueCatService from '@/services/revenuecat'
 import {
   addAuthBreadcrumb,
@@ -403,19 +404,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }),
       Match.when({ _tag: 'Unauthenticated' }, () => {
-        if (!inAuthGroup) {
-          // Logging out from inside the app — the index gate picks welcome
-          // or login (dev builds always show welcome).
-          router.replace('/')
-        } else {
-          // In auth group on a screen a signed-out user can't use (e.g.
-          // onboarding after logout) — let index decide. `verify` stays: it is
-          // where a magic link lands, before the user is signed in.
-          const validScreens = ['login', 'welcome', 'check-email', 'verify']
-          const currentSegment = segments[1] ?? ''
-          if (!Arr.contains(validScreens, currentSegment)) {
-            router.replace('/')
-          }
+        // A logout from inside the app, or a signed-out user on an auth screen
+        // they can't use (onboarding after logout). `verify` stays: it is
+        // where a magic link lands, before the user is signed in.
+        const signedOutScreens = ['login', 'welcome', 'check-email', 'verify']
+        const canStay =
+          inAuthGroup && Arr.contains(signedOutScreens, segments[1] ?? '')
+        if (!canStay) {
+          Effect.runFork(
+            readSignedOutRoute.pipe(
+              Effect.tap((route) => Effect.sync(() => router.replace(route)))
+            )
+          )
         }
       }),
       Match.orElse(() => {})
