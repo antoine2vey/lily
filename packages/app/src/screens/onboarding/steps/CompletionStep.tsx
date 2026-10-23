@@ -1,23 +1,33 @@
-import { Option } from 'effect'
+import { MaterialIcons } from '@expo/vector-icons'
+import { Option, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
+import { GlassCard, MascotHero } from '@/components'
 import { Button } from '@/components/ui/Button'
+import { useIconColors } from '@/hooks/useIconColors'
 import type { OnboardingData } from '@/hooks/useOnboardingFlow'
-import { GlassCard } from '../components/GlassCard'
-import { OnboardingHero } from '../components/OnboardingHero'
 
 interface CompletionStepProps {
   data: OnboardingData
   onComplete: () => void
 }
 
-function SummaryRow({ emoji, text }: { emoji: string; text: string }) {
+interface SummaryRowProps {
+  icon: keyof typeof MaterialIcons.glyphMap
+  text: string
+}
+
+function SummaryRow({ icon, text }: SummaryRowProps) {
+  const iconColors = useIconColors()
+
   return (
-    <View className="flex-row items-center py-2">
-      <Text className="text-base mr-2">{emoji}</Text>
+    <View className="flex-row items-center gap-3">
+      <View className="w-9 h-9 rounded-full items-center justify-center bg-white/15 border border-white/20">
+        <MaterialIcons name={icon} size={18} color={iconColors.white} />
+      </View>
       <Text
-        className="text-sm text-white/70"
-        style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+        className="flex-1 text-sm text-white/85"
+        style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
       >
         {text}
       </Text>
@@ -29,11 +39,17 @@ export function CompletionStep({ data, onComplete }: CompletionStepProps) {
   const { t } = useTranslation('onboarding')
 
   const hasPlant = Option.isSome(Option.fromNullishOr(data.plantName))
+  const roomsCreated = pipe(
+    Option.fromNullishOr(data.roomsCreated),
+    Option.filter((count) => count > 0)
+  )
+  const statusLabel = (enabled: boolean | undefined) =>
+    enabled ? t('completion.summary.enabled') : t('completion.summary.disabled')
 
   return (
     <View className="flex-1">
-      <OnboardingHero
-        emoji="🎉"
+      <MascotHero
+        animation="celebrate"
         title={t('completion.title')}
         subtitle={
           hasPlant
@@ -45,35 +61,36 @@ export function CompletionStep({ data, onComplete }: CompletionStepProps) {
       />
 
       <GlassCard>
-        <View className="mb-4">
+        <View className="gap-3">
           {hasPlant && (
             <SummaryRow
-              emoji="🌱"
+              icon="eco"
               text={t('completion.summary.plants', { count: 1 })}
             />
           )}
-          {data.roomsCreated && data.roomsCreated > 0 && (
-            <SummaryRow
-              emoji="🏠"
-              text={t('completion.summary.rooms', {
-                count: data.roomsCreated,
-              })}
-            />
-          )}
+          {Option.match(roomsCreated, {
+            onNone: () => null,
+            onSome: (count) => (
+              <SummaryRow
+                icon="meeting-room"
+                text={t('completion.summary.rooms', { count })}
+              />
+            ),
+          })}
           <SummaryRow
-            emoji={data.notificationsEnabled ? '🔔' : '🔕'}
+            icon={
+              data.notificationsEnabled
+                ? 'notifications-active'
+                : 'notifications-off'
+            }
             text={t('completion.summary.notifications', {
-              status: data.notificationsEnabled
-                ? t('completion.summary.enabled')
-                : t('completion.summary.disabled'),
+              status: statusLabel(data.notificationsEnabled),
             })}
           />
           <SummaryRow
-            emoji={data.weatherEnabled ? '☀️' : '🌥️'}
+            icon={data.weatherEnabled ? 'wb-sunny' : 'cloud-off'}
             text={t('completion.summary.weather', {
-              status: data.weatherEnabled
-                ? t('completion.summary.enabled')
-                : t('completion.summary.disabled'),
+              status: statusLabel(data.weatherEnabled),
             })}
           />
         </View>

@@ -24,6 +24,7 @@
     "screenshots:ios": "bun scripts/screenshots/run.ts --ios",
     "screenshots:android": "bun scripts/screenshots/run.ts --android",
     "screenshots:compose": "bun scripts/screenshots/run.ts --no-capture",
+    "mascot:encode": "bun scripts/mascot/encode.ts",
     "doctor": "bunx expo-doctor --verbose"
   },
   "dependencies": {

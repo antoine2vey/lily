@@ -1,6 +1,14 @@
 import type { LanguageCode } from '@lily/shared'
 import type { OAuthSignInRequest, UserProfile } from '@lily/shared/auth'
-import { Duration, Effect, Match, Option, pipe, Schedule } from 'effect'
+import {
+  Array as Arr,
+  Duration,
+  Effect,
+  Match,
+  Option,
+  pipe,
+  Schedule,
+} from 'effect'
 import { useRouter, useSegments } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -376,25 +384,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     pipe(
       Match.value(state),
+      // `verify` shows a short welcome after the magic link signs the user
+      // in, then navigates on its own.
       Match.when({ _tag: 'Authenticated' }, () => {
-        if (inAuthGroup && segments[1] !== 'onboarding') {
+        if (
+          inAuthGroup &&
+          !Arr.contains(['onboarding', 'verify'], segments[1] ?? '')
+        ) {
           router.replace('/')
         }
       }),
       Match.when({ _tag: 'NeedsUsername' }, () => {
-        if (!inAuthGroup || segments[1] !== 'username') {
+        if (
+          !inAuthGroup ||
+          !Arr.contains(['username', 'verify'], segments[1] ?? '')
+        ) {
           router.replace('/(auth)/username')
         }
       }),
       Match.when({ _tag: 'Unauthenticated' }, () => {
         if (!inAuthGroup) {
-          // Logging out from inside the app — go straight to login
-          router.replace('/(auth)/login')
+          // Logging out from inside the app — the index gate picks welcome
+          // or login (dev builds always show welcome).
+          router.replace('/')
         } else {
-          // In auth group on a stale screen (e.g. verify) — let index decide
-          const validScreens = ['login', 'welcome', 'check-email']
+          // In auth group on a screen a signed-out user can't use (e.g.
+          // onboarding after logout) — let index decide. `verify` stays: it is
+          // where a magic link lands, before the user is signed in.
+          const validScreens = ['login', 'welcome', 'check-email', 'verify']
           const currentSegment = segments[1] ?? ''
-          if (!validScreens.includes(currentSegment)) {
+          if (!Arr.contains(validScreens, currentSegment)) {
             router.replace('/')
           }
         }

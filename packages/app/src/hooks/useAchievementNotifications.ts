@@ -104,7 +104,9 @@ export function useAchievementNotifications(
             })
           }
         } finally {
-          reader.cancel()
+          // cancel() rejects with AbortError once the effect's signal has
+          // fired (sign-in, sign-out, remount); nothing is left to clean up.
+          reader.cancel().catch(() => {})
         }
       } catch {
         // Connection error — will reconnect below

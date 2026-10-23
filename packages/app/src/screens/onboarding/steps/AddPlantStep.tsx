@@ -2,26 +2,24 @@ import { MaterialIcons } from '@expo/vector-icons'
 import type { CatalogPlant } from '@lily/shared'
 import { keepPreviousData } from '@tanstack/react-query'
 import { Array as Arr, Option, pipe, Result } from 'effect'
-import { BlurView } from 'expo-blur'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   Text,
-  TextInput,
   View,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GlassCard, GlassInput, GlassLink, MascotHero } from '@/components'
 import { Button } from '@/components/ui/Button'
-import { useThemeContext } from '@/contexts/ThemeContext'
 import { useCreatePlant } from '@/hooks/useCreatePlant'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useIconColors } from '@/hooks/useIconColors'
 import type { OnboardingData } from '@/hooks/useOnboardingFlow'
 import { useEffectQuery } from '@/utils/client'
-import { GlassCard } from '../components/GlassCard'
-import { OnboardingHero } from '../components/OnboardingHero'
 
 interface AddPlantStepProps {
   onScan: () => void
@@ -38,13 +36,18 @@ const CatalogItem = memo(function CatalogItem({
   onSelect: () => void
   loading: boolean
 }) {
+  const iconColors = useIconColors()
+
   return (
     <Pressable
       onPress={onSelect}
       disabled={loading}
-      className="flex-row items-center py-3 px-4 border-b border-white/10"
+      accessibilityRole="button"
+      className="flex-row items-center gap-3 py-3 px-1 border-b border-white/10 active:opacity-70"
     >
-      <Text className="text-lg mr-3">🌿</Text>
+      <View className="w-10 h-10 rounded-full bg-white/15 border border-white/15 items-center justify-center">
+        <MaterialIcons name="eco" size={20} color={iconColors.white} />
+      </View>
       <View className="flex-1">
         <Text
           className="text-base text-white"
@@ -52,7 +55,10 @@ const CatalogItem = memo(function CatalogItem({
         >
           {plant.name}
         </Text>
-        <Text className="text-xs text-white/50 mt-0.5">
+        <Text
+          className="text-xs text-white/70 mt-0.5"
+          style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+        >
           {pipe(
             [plant.scientificName, plant.category],
             Arr.map(Option.fromNullishOr),
@@ -62,9 +68,13 @@ const CatalogItem = memo(function CatalogItem({
         </Text>
       </View>
       {loading ? (
-        <ActivityIndicator size="small" color="white" />
+        <ActivityIndicator size="small" color={iconColors.white} />
       ) : (
-        <MaterialIcons name="add-circle-outline" size={24} color="white" />
+        <MaterialIcons
+          name="add-circle-outline"
+          size={24}
+          color={iconColors.white}
+        />
       )}
     </Pressable>
   )
@@ -76,8 +86,7 @@ export function AddPlantStep({
   onSkip,
 }: AddPlantStepProps) {
   const { t } = useTranslation('onboarding')
-  const { isDark } = useThemeContext()
-  const insets = useSafeAreaInsets()
+  const iconColors = useIconColors()
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [addingPlantId, setAddingPlantId] = useState<string | null>(null)
@@ -146,77 +155,80 @@ export function AddPlantStep({
 
   if (showSearch) {
     return (
-      <View className="flex-1">
-        <View className="flex-row items-center px-6 pt-4 mb-4">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
+        <View className="flex-row items-center gap-3 px-4 pt-2 mb-4">
           <Pressable
+            testID="onboarding-search-back-button"
+            accessibilityRole="button"
+            accessibilityLabel={t('common:buttons.back')}
+            hitSlop={8}
             onPress={() => {
               setShowSearch(false)
               setSearchQuery('')
             }}
-            className="mr-3"
+            className="w-10 h-10 rounded-full items-center justify-center bg-white/15 border border-white/25 active:bg-white/25"
           >
-            <MaterialIcons name="arrow-back" size={24} color="white" />
+            <MaterialIcons
+              name="arrow-back"
+              size={22}
+              color={iconColors.white}
+            />
           </Pressable>
           <Text
-            className="text-lg text-white"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+            className="flex-1 text-xl text-white"
+            style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
+            numberOfLines={1}
           >
             {t('addPlant.addManually')}
           </Text>
         </View>
 
-        <View
-          className="flex-1 mx-4 rounded-3xl overflow-hidden"
-          style={{ marginBottom: insets.bottom + 16 }}
-        >
-          <BlurView
-            intensity={40}
-            tint={isDark ? 'dark' : 'light'}
-            className="flex-1 p-4"
-          >
-            <TextInput
-              className="bg-white/10 rounded-full px-5 py-3 text-base text-white mb-4"
-              placeholder={t('addPlant.searchPlaceholder')}
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-            />
+        <GlassCard padding="sm" fill>
+          <GlassInput
+            testID="onboarding-search-input"
+            icon="search"
+            placeholder={t('addPlant.searchPlaceholder')}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+            returnKeyType="search"
+            autoFocus
+          />
 
-            <FlatList
-              data={catalogPlants}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              className="flex-1"
-              ListEmptyComponent={
-                <View className="py-8 items-center">
-                  <Text className="text-sm text-white/40">
-                    {searchQuery
-                      ? t('addPlant.noResults')
-                      : t('addPlant.searchHint')}
-                  </Text>
-                </View>
-              }
-            />
+          <FlatList
+            data={catalogPlants}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            className="flex-1"
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            ListEmptyComponent={
+              <View className="py-8 items-center">
+                <Text
+                  className="text-sm text-white/70 text-center"
+                  style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
+                >
+                  {searchQuery
+                    ? t('addPlant.noResults')
+                    : t('addPlant.searchHint')}
+                </Text>
+              </View>
+            }
+          />
 
-            <Pressable onPress={onSkip} className="py-3 items-center">
-              <Text
-                className="text-sm text-white/40"
-                style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-              >
-                {t('addPlant.skipLabel')}
-              </Text>
-            </Pressable>
-          </BlurView>
-        </View>
-      </View>
+          <GlassLink label={t('addPlant.skipLabel')} onPress={onSkip} />
+        </GlassCard>
+      </KeyboardAvoidingView>
     )
   }
 
   return (
     <View className="flex-1">
-      <OnboardingHero
-        emoji="📸"
+      <MascotHero
+        animation="scan"
         title={t('addPlant.title')}
         subtitle={t('addPlant.subtitle')}
       />
@@ -228,7 +240,7 @@ export function AddPlantStep({
           </Button>
 
           <Button
-            variant="secondary"
+            variant="glass"
             icon="search"
             iconPosition="left"
             onPress={() => setShowSearch(true)}
@@ -238,14 +250,7 @@ export function AddPlantStep({
           </Button>
         </View>
 
-        <Pressable onPress={onSkip} className="mt-4 py-2 items-center">
-          <Text
-            className="text-sm text-white/40"
-            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-          >
-            {t('addPlant.skipLabel')}
-          </Text>
-        </Pressable>
+        <GlassLink label={t('addPlant.skipLabel')} onPress={onSkip} />
       </GlassCard>
     </View>
   )

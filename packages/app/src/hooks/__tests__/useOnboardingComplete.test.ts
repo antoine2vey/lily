@@ -93,16 +93,4 @@ describe('useOnboardingComplete', () => {
       'true'
     )
   })
-
-  it('provides resetOnboarding function', async () => {
-    ;(AsyncStorage.getItem as jest.Mock).mockResolvedValue('true')
-
-    const { result } = renderHook(() => useOnboardingComplete())
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(typeof result.current.resetOnboarding).toBe('function')
-  })
 })

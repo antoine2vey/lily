@@ -1,24 +1,18 @@
 import * as AppleAuthentication from 'expo-apple-authentication'
+import { SymbolView } from 'expo-symbols'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Platform, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable } from 'react-native'
 import { useAuth } from '@/contexts/AuthContext'
-import { useThemeContext } from '@/contexts/ThemeContext'
+import { useIconColors } from '@/hooks/useIconColors'
+import { useLocalization } from '@/hooks/useLocalization'
 
 type Props = {
   onError?: (message: string) => void
 }
 
-/**
- * Native "Sign in with Apple" button (iOS only). Uses Apple's official styled
- * button per HIG. Full name + email are returned only on first authorization —
- * subsequent sign-ins return only the stable `sub`, which our backend uses to
- * look up the linked user.
- */
-export function AppleSignInButton({ onError }: Props) {
-  const { signInWithOAuth } = useAuth()
-  const { isDark } = useThemeContext()
+/** Sign in with Apple exists only on iOS devices that support it. */
+export function useAppleSignInAvailable() {
   const [available, setAvailable] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return
@@ -27,7 +21,20 @@ export function AppleSignInButton({ onError }: Props) {
       .catch(() => setAvailable(false))
   }, [])
 
-  if (Platform.OS !== 'ios' || !available) return null
+  return available
+}
+
+/**
+ * Logo-only "Sign in with Apple" button (iOS only), in the white style the HIG
+ * allows for custom buttons. Full name + email are returned only on first
+ * authorization — subsequent sign-ins return only the stable `sub`, which our
+ * backend uses to look up the linked user.
+ */
+export function AppleSignInButton({ onError }: Props) {
+  const { signInWithOAuth } = useAuth()
+  const { t } = useLocalization()
+  const iconColors = useIconColors()
+  const [loading, setLoading] = useState(false)
 
   const handlePress = async () => {
     setLoading(true)
@@ -66,22 +73,19 @@ export function AppleSignInButton({ onError }: Props) {
   }
 
   return (
-    <View className="w-full h-[52px] rounded-full overflow-hidden">
+    <Pressable
+      testID="apple-sign-in-button"
+      accessibilityRole="button"
+      accessibilityLabel={t('auth:login.appleButton')}
+      onPress={handlePress}
+      disabled={loading}
+      className="w-14 h-14 rounded-full bg-white/15 border border-white/25 items-center justify-center active:bg-white/25"
+    >
       {loading ? (
-        <View className="flex-1 items-center justify-center bg-black/10">
-          <ActivityIndicator />
-        </View>
+        <ActivityIndicator color={iconColors.white} />
       ) : (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={
-            AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
-          }
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={28}
-          style={{ width: '100%', height: 52 }}
-          onPress={handlePress}
-        />
+        <SymbolView name="apple.logo" size={24} tintColor={iconColors.white} />
       )}
-    </View>
+    </Pressable>
   )
 }

@@ -530,6 +530,17 @@ export async function refreshAccessTokenAsync(): Promise<string | null> {
   })
 }
 
+/**
+ * Dev-only artificial latency before every API request, to see loading states
+ * against a local API that answers in milliseconds. Set it when starting Metro:
+ * `EXPO_PUBLIC_DEV_API_LATENCY_MS=1500 bun run --filter=@lily/app start`.
+ */
+const DEV_API_LATENCY_MS = pipe(
+  Option.fromNullishOr(process.env.EXPO_PUBLIC_DEV_API_LATENCY_MS),
+  Option.map(Number),
+  Option.filter((ms) => __DEV__ && Number.isFinite(ms) && ms > 0)
+)
+
 type Client = HttpApiClient.ForApi<typeof Api>
 
 class ApiClient extends Context.Service<ApiClient>()('ApiClient', {
@@ -540,6 +551,9 @@ class ApiClient extends Context.Service<ApiClient>()('ApiClient', {
         transformClient: (httpClient: HttpClient.HttpClient) =>
           HttpClient.mapRequestEffect(httpClient, (request) =>
             Effect.gen(function* () {
+              if (Option.isSome(DEV_API_LATENCY_MS)) {
+                yield* Effect.sleep(DEV_API_LATENCY_MS.value)
+              }
               const token = yield* getAccessToken
               return pipe(
                 Option.fromNullishOr(token),

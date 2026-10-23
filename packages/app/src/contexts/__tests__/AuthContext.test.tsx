@@ -3,13 +3,15 @@ import type React from 'react'
 import { AuthProvider, useAuth } from '../AuthContext'
 
 // Mock expo-router
+const mockReplace = jest.fn()
+let mockSegments: string[] = ['(app)']
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     push: jest.fn(),
-    replace: jest.fn(),
+    replace: mockReplace,
     back: jest.fn(),
   }),
-  useSegments: () => ['(app)'],
+  useSegments: () => mockSegments,
 }))
 
 // Mock expo-secure-store
@@ -334,6 +336,38 @@ describe('AuthContext', () => {
 
       expect(storage.removeStoredAccessToken).toHaveBeenCalled()
       expect(apiEffectRunner).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('signed-out routing', () => {
+    beforeEach(() => {
+      mockReplace.mockClear()
+    })
+
+    afterEach(() => {
+      mockSegments = ['(app)']
+    })
+
+    it('keeps a signed-out user on the magic-link verify screen', async () => {
+      mockSegments = ['(auth)', 'verify']
+      const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Unauthenticated')
+      })
+
+      expect(mockReplace).not.toHaveBeenCalled()
+    })
+
+    it('sends a signed-out user on another auth screen back to the index', async () => {
+      mockSegments = ['(auth)', 'onboarding']
+      const { result } = renderHook(() => useAuth(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.state._tag).toBe('Unauthenticated')
+      })
+
+      expect(mockReplace).toHaveBeenCalledWith('/')
     })
   })
 })

@@ -1,10 +1,10 @@
+import type { MaterialIcons } from '@expo/vector-icons'
 import { Array as Arr, Match, pipe } from 'effect'
 import { useTranslation } from 'react-i18next'
-import { Pressable, Text, View } from 'react-native'
+import { View } from 'react-native'
+import { GlassCard, GlassLink, GlassOption, MascotHero } from '@/components'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ExperienceLevel } from '@/hooks/useOnboardingFlow'
-import { GlassCard } from '../components/GlassCard'
-import { OnboardingHero } from '../components/OnboardingHero'
 
 interface WelcomeStepProps {
   onNext: (data: { experienceLevel: ExperienceLevel }) => void
@@ -15,7 +15,7 @@ interface LevelOption {
   level: ExperienceLevel
   titleKey: string
   descKey: string
-  emoji: string
+  icon: keyof typeof MaterialIcons.glyphMap
 }
 
 const levels: LevelOption[] = [
@@ -23,19 +23,19 @@ const levels: LevelOption[] = [
     level: 'beginner',
     titleKey: 'welcome.beginner',
     descKey: 'welcome.beginnerDesc',
-    emoji: '🌱',
+    icon: 'spa',
   },
   {
     level: 'intermediate',
     titleKey: 'welcome.intermediate',
     descKey: 'welcome.intermediateDesc',
-    emoji: '🪴',
+    icon: 'local-florist',
   },
   {
     level: 'expert',
     titleKey: 'welcome.expert',
     descKey: 'welcome.expertDesc',
-    emoji: '🌳',
+    icon: 'park',
   },
 ]
 
@@ -51,8 +51,8 @@ export function WelcomeStep({ onNext, onSkipOnboarding }: WelcomeStepProps) {
 
   return (
     <View className="flex-1">
-      <OnboardingHero
-        emoji="🌿"
+      <MascotHero
+        animation="hello"
         title={t('welcome.greeting', { name: userName })}
         subtitle={t('welcome.subtitle')}
       />
@@ -60,42 +60,22 @@ export function WelcomeStep({ onNext, onSkipOnboarding }: WelcomeStepProps) {
       <GlassCard padding="sm">
         <View className="gap-3">
           {Arr.map(levels, (option) => (
-            <Pressable
+            <GlassOption
               key={option.level}
+              testID={`onboarding-level-${option.level}`}
+              icon={option.icon}
+              title={t(option.titleKey)}
+              description={t(option.descKey)}
               onPress={() => onNext({ experienceLevel: option.level })}
-              className="flex-row items-center p-4 rounded-2xl bg-white/10 active:bg-white/20"
-            >
-              <Text className="text-2xl mr-3">{option.emoji}</Text>
-              <View className="flex-1">
-                <Text
-                  className="text-base text-white"
-                  style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                >
-                  {t(option.titleKey)}
-                </Text>
-                <Text
-                  className="text-sm text-white/60 mt-0.5"
-                  style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-                >
-                  {t(option.descKey)}
-                </Text>
-              </View>
-            </Pressable>
+            />
           ))}
         </View>
 
-        <Pressable
+        <GlassLink
           testID="onboarding-skip-button"
+          label={t('welcome.skipOnboarding')}
           onPress={onSkipOnboarding}
-          className="mt-4 py-2 items-center"
-        >
-          <Text
-            className="text-sm text-white/40"
-            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-          >
-            {t('welcome.skipOnboarding')}
-          </Text>
-        </Pressable>
+        />
       </GlassCard>
     </View>
   )

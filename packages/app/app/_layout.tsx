@@ -21,13 +21,22 @@ import {
 import * as Sentry from '@sentry/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Match, pipe } from 'effect'
-import { Slot, SplashScreen, useRouter } from 'expo-router'
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider as NavigationThemeProvider,
+  SplashScreen,
+  Stack,
+  useRouter,
+} from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AchievementUnlockedModal } from '@/components/AchievementUnlockedModal'
+import { DevThemeToggle } from '@/components/dev/DevThemeToggle'
+import { MESH_BASE_COLOR } from '@/components/MeshBackground'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LocalizationProvider } from '@/contexts/LocalizationContext'
 import { RevenueCatProvider } from '@/contexts/RevenueCatContext'
@@ -80,6 +89,12 @@ interface RootLayoutNavProps {
 function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   const { state } = useAuth()
   const router = useRouter()
+  const { isDark } = useThemeContext()
+  const meshBase = isDark ? MESH_BASE_COLOR.dark : MESH_BASE_COLOR.light
+  const rootNavigationTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme
+    return { ...base, colors: { ...base.colors, background: meshBase } }
+  }, [isDark, meshBase])
 
   // Show loading state while checking auth or fonts
   const isLoading = pipe(
@@ -132,7 +147,20 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
 
   return (
     <>
-      <Slot />
+      {/* Fades between the gate, the auth and onboarding group and the app.
+          Mid-fade both screens are half transparent, so the navigator's own
+          theme background shows through; without a theme it is React
+          Navigation's light default, which flashed white after "Bienvenue". */}
+      <NavigationThemeProvider value={rootNavigationTheme}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'fade',
+            animationDuration: 350,
+            contentStyle: { backgroundColor: meshBase },
+          }}
+        />
+      </NavigationThemeProvider>
       <AchievementUnlockedModal
         visible={!!currentAchievement}
         achievement={currentAchievement}
@@ -162,6 +190,7 @@ export default Sentry.wrap(function RootLayout() {
                 <RootLayoutNav fontsLoaded={fontsLoaded || !!fontError} />
                 <TodayWidgetSync />
                 <Toaster />
+                {__DEV__ && <DevThemeToggle />}
               </RevenueCatProvider>
             </AuthProvider>
           </LocalizationProvider>

@@ -10,6 +10,10 @@ export const images = {
 
   // Home empty state - terracotta pot with seedling
   seedlingPot: require('../../assets/images/seedling-pot.png'),
+
+  // App icon, for previews that mimic a system notification
+  appIconLight: require('../../assets/icon-light.png'),
+  appIconDark: require('../../assets/icon-dark.png'),
 } as const
 
 export type ImageKey = keyof typeof images

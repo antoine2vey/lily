@@ -28,9 +28,9 @@ export function WelcomeProgressBar({
   })
 
   return (
-    <View className="h-1 mx-16 rounded-full bg-white/15 overflow-hidden">
+    <View className="h-1.5 rounded-full bg-white/15 overflow-hidden">
       <Animated.View
-        className="h-full rounded-full bg-white/70"
+        className="h-full rounded-full bg-white"
         style={fillStyle}
       />
     </View>

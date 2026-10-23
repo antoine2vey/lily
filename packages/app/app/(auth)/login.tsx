@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur'
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
@@ -9,12 +8,10 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from '@/components'
-import { AppleSignInButton } from '@/components/auth/AppleSignInButton'
-import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
-import { Button, Input } from '@/components/ui'
+import { GlassCard, GlassInput, MascotHero, MeshBackground } from '@/components'
+import { SocialSignIn } from '@/components/auth/SocialSignIn'
+import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-import { useThemeContext } from '@/contexts/ThemeContext'
 import { useLocalization } from '@/hooks/useLocalization'
 
 export default function LoginScreen() {
@@ -25,7 +22,6 @@ export default function LoginScreen() {
   const { login } = useAuth()
   const router = useRouter()
   const { t, language } = useLocalization()
-  const { isDark } = useThemeContext()
 
   const handleSubmit = async () => {
     if (!email.trim()) {
@@ -62,91 +58,61 @@ export default function LoginScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section — top half breathes */}
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-6xl mb-4">🌿</Text>
+          <MascotHero
+            animation="hello"
+            title={t('auth:login.title')}
+            subtitle={t('auth:login.subtitle')}
+          />
+
+          <GlassCard style={{ marginTop: 32 }}>
+            <View className="gap-3">
+              <GlassInput
+                testID="login-email-input"
+                icon="mail-outline"
+                error={!!error}
+                placeholder={t('auth:login.emailPlaceholder')}
+                accessibilityLabel={t('auth:login.emailLabel')}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text)
+                  setError(null)
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="go"
+                onSubmitEditing={handleSubmit}
+              />
+              {error && (
+                <Text
+                  className="text-sm text-white px-5"
+                  style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                >
+                  {error}
+                </Text>
+              )}
+
+              <Button
+                testID="login-submit-button"
+                icon="arrow-forward"
+                loading={loading}
+                onPress={handleSubmit}
+                pill
+              >
+                {t('auth:login.submitButton')}
+              </Button>
+            </View>
+
+            <SocialSignIn onError={setError} />
+
             <Text
-              className="text-4xl text-white text-center mb-3"
-              style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-            >
-              {t('auth:login.title')}
-            </Text>
-            <Text
-              className="text-base text-white/70 text-center leading-relaxed max-w-[280px]"
+              className="text-[11px] text-white/60 text-center leading-relaxed px-4"
               style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
             >
-              {t('auth:login.subtitle')}
+              {t('auth:login.termsNotice')}
             </Text>
-          </View>
-
-          {/* Glassmorphism Card — bottom */}
-          <View
-            className="mx-4 rounded-3xl overflow-hidden"
-            style={{ marginBottom: insets.bottom + 16 }}
-          >
-            <BlurView
-              intensity={40}
-              tint={isDark ? 'dark' : 'light'}
-              className="p-6"
-            >
-              <View className="gap-4">
-                <Input
-                  testID="login-email-input"
-                  icon="eco"
-                  placeholder={t('auth:login.emailPlaceholder')}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text)
-                    setError(null)
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                  error={!!error}
-                  pill
-                  returnKeyType="go"
-                  onSubmitEditing={handleSubmit}
-                />
-                {error && (
-                  <Text className="text-error text-sm font-medium px-4 -mt-2">
-                    {error}
-                  </Text>
-                )}
-
-                <Button
-                  testID="login-submit-button"
-                  icon="arrow-forward"
-                  loading={loading}
-                  onPress={handleSubmit}
-                  pill
-                >
-                  {t('auth:login.submitButton')}
-                </Button>
-
-                <View className="flex-row items-center gap-3 my-1">
-                  <View className="flex-1 h-px bg-white/20" />
-                  <Text
-                    className="text-xs text-white/60 uppercase tracking-wide"
-                    style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-                  >
-                    {t('auth:login.orContinueWith')}
-                  </Text>
-                  <View className="flex-1 h-px bg-white/20" />
-                </View>
-
-                <AppleSignInButton onError={setError} />
-                <GoogleSignInButton onError={setError} />
-              </View>
-
-              <Text
-                className="text-[11px] text-white/50 text-center mt-4 leading-relaxed"
-                style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-              >
-                {t('auth:login.termsNotice')}
-              </Text>
-            </BlurView>
-          </View>
+          </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </MeshBackground>

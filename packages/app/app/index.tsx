@@ -1,10 +1,21 @@
 import { Match, pipe } from 'effect'
 import { Redirect } from 'expo-router'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
+import { MeshBackground } from '@/components'
 import { useAuth } from '@/contexts/AuthContext'
 import { useOnboardingComplete } from '@/hooks/useOnboardingComplete'
 import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
-import { iconColorsLight as iconColors } from '@/theme'
+
+// Shown for a moment while auth and onboarding state load. Login, welcome and
+// onboarding all sit on the mesh, so the gate does too: a plain background
+// here flashed white between the magic-link screen and onboarding.
+function GateLoading() {
+  return (
+    <MeshBackground>
+      <View className="flex-1" />
+    </MeshBackground>
+  )
+}
 
 export default function Index() {
   const { state } = useAuth()
@@ -18,23 +29,15 @@ export default function Index() {
     state._tag === 'Authenticated' && isLoadingOnboarding
 
   if (isAuthenticatedAndLoadingOnboarding) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color={iconColors.primary} />
-      </View>
-    )
+    return <GateLoading />
   }
 
   return pipe(
     Match.value(state),
-    Match.when({ _tag: 'Loading' }, () => (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color={iconColors.primary} />
-      </View>
-    )),
+    Match.when({ _tag: 'Loading' }, () => <GateLoading />),
     Match.when({ _tag: 'Authenticated' }, () => {
-      // Check if user needs onboarding
-      if (!hasCompletedOnboarding) {
+      // Dev builds replay onboarding on every launch so it can be debugged
+      if (__DEV__ || !hasCompletedOnboarding) {
         return <Redirect href="/(auth)/onboarding" />
       }
       return <Redirect href="/(app)/(tabs)" />
@@ -44,13 +47,11 @@ export default function Index() {
     )),
     Match.when({ _tag: 'Unauthenticated' }, () => {
       if (isLoadingWelcome) {
-        return (
-          <View className="flex-1 bg-background items-center justify-center">
-            <ActivityIndicator size="large" color={iconColors.primary} />
-          </View>
-        )
+        return <GateLoading />
       }
-      if (!hasSeenWelcome) {
+      // Dev builds replay the welcome carousel on every signed-out visit so it
+      // can be debugged
+      if (__DEV__ || !hasSeenWelcome) {
         return <Redirect href="/(auth)/welcome" />
       }
       return <Redirect href="/(auth)/login" />

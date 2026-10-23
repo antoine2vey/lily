@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Option, pipe, Schema } from 'effect'
 import { useCallback, useEffect, useState } from 'react'
 import {
   completeOnboarding as completeOnboardingStorage,
@@ -43,7 +43,11 @@ const OnboardingDataJson = Schema.fromJsonString(OnboardingDataSchema)
 const decodeOnboardingData = Schema.decodeUnknownSync(OnboardingDataJson)
 const encodeOnboardingData = Schema.encodeSync(OnboardingDataJson)
 
-export function useOnboardingFlow() {
+/**
+ * `devStep` (dev builds only) opens a given step instead of the stored one,
+ * e.g. via `lily://onboarding?step=3`.
+ */
+export function useOnboardingFlow(devStep?: string) {
   const [currentStep, setCurrentStep] = useState(0)
   const [data, setData] = useState<OnboardingData>({})
   const [isLoading, setIsLoading] = useState(true)
@@ -57,7 +61,13 @@ export function useOnboardingFlow() {
           getItem(ONBOARDING_KEYS.data),
         ])
 
-        const step = stepStr ? Number(stepStr) : 0
+        const step = pipe(
+          Option.fromNullishOr(devStep),
+          Option.orElse(() => Option.fromNullishOr(stepStr)),
+          Option.map(Number),
+          Option.filter((n) => Number.isInteger(n) && n >= 0),
+          Option.getOrElse(() => 0)
+        )
         const parsed = dataStr ? decodeOnboardingData(dataStr) : {}
 
         setCurrentStep(step)
@@ -67,7 +77,7 @@ export function useOnboardingFlow() {
         Effect.tap(() => Effect.sync(() => setIsLoading(false)))
       )
     )
-  }, [])
+  }, [devStep])
 
   const persistStep = useCallback((step: number) => {
     Effect.runPromise(

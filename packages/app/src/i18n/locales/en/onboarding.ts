@@ -33,16 +33,21 @@ export default {
   },
   notifications: {
     titleWithPlant: '{plantName} needs care every {days} days',
-    titleGeneric: 'Never miss a watering',
+    titleGeneric: 'Never miss a watering with Lily',
     subtitle: "We'll remind you when your plants need attention",
     enable: 'Enable Reminders',
     skip: 'Maybe Later',
+    previewTime: 'now',
+    previewBody: 'Time to water your {plantName}',
+    previewPlant: 'Monstera',
   },
   location: {
     title: 'Weather-aware care tips',
     subtitle: 'Share your location for season-aware recommendations',
     enable: 'Enable Weather Tips',
     skip: 'Skip',
+    tipSunny: 'Sunny week ahead: check the soil sooner',
+    tipRainy: 'Rain tomorrow: skip watering the balcony',
   },
   preferences: {
     title: 'When do you care for plants?',

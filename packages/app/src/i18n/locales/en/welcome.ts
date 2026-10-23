@@ -1,6 +1,8 @@
 export default {
   skip: 'Skip',
   getStarted: 'Get Started',
+  previous: 'Previous',
+  next: 'Next',
   slides: {
     pain: {
       title: "Plants don't come with instructions",
@@ -11,11 +13,13 @@ export default {
       title: 'Care that knows your plant',
       subtitle:
         'Snap a photo. Lily identifies it, checks your local weather, and tells you exactly what to do \u2014 today.',
+      cardAction: 'Water today',
     },
     transformation: {
       title: 'Watch yourself grow',
       subtitle:
         'Track streaks. Earn achievements. See your collection thrive from a single seedling.',
+      streakUnit: 'days',
     },
     cta: {
       title: 'Your first plant is one photo away',

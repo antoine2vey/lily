@@ -1,134 +1,54 @@
-import { Array as Arr } from 'effect'
-import { useEffect, useMemo } from 'react'
-import { Dimensions, StyleSheet, View } from 'react-native'
+import { useEffect } from 'react'
+import { View } from 'react-native'
 import Animated, {
   Easing,
-  FadeIn,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated'
-import { SlideTextContent } from '../components/SlideTextContent'
+import { HERO_MASCOT_SIZE } from '@/components/MascotHero'
+import { SlideLayout, type SlideProps } from '../components/SlideLayout'
+import { SlideMascot } from '../components/SlideMascot'
 
-const { width, height } = Dimensions.get('window')
+const HALO_SIZE = Math.round(HERO_MASCOT_SIZE * 1.1)
+const RING_SIZE = Math.round(HERO_MASCOT_SIZE * 1.35)
 
-interface CTASlideProps {
-  title: string
-  subtitle: string
-}
-
-interface Particle {
-  id: number
-  x: number
-  y: number
-  size: number
-  durationMs: number
-  initialDelay: number
-}
-
-const PARTICLE_COUNT = 10
-
-export function CTASlide({ title, subtitle }: CTASlideProps) {
-  const particles = useMemo<Particle[]>(
-    () =>
-      Arr.map(Arr.range(0, PARTICLE_COUNT - 1), (i) => ({
-        id: i,
-        x: 20 + Math.random() * (width - 80),
-        y: 40 + Math.random() * (height * 0.5),
-        size: 4 + Math.random() * 12,
-        durationMs: 1500 + Math.random() * 2000,
-        initialDelay: Math.random() * 1000,
-      })),
-    []
-  )
-
-  return (
-    <View style={{ width }} className="flex-1">
-      <View style={StyleSheet.absoluteFill}>
-        {Arr.map(particles, (p) => (
-          <PulsingParticle key={p.id} particle={p} />
-        ))}
-      </View>
-
-      <View className="flex-1 items-center justify-center">
-        <Animated.Text
-          entering={FadeIn.delay(300).duration(600)}
-          className="text-7xl"
-        >
-          🌿
-        </Animated.Text>
-      </View>
-
-      <View className="px-8">
-        <SlideTextContent title={title} subtitle={subtitle} />
-      </View>
-    </View>
-  )
-}
-
-function PulsingParticle({ particle }: { particle: Particle }) {
-  const scale = useSharedValue(0)
-  const opacity = useSharedValue(0)
+export function CTASlide({ title, subtitle, isNear }: SlideProps) {
+  const breath = useSharedValue(0)
 
   useEffect(() => {
-    opacity.value = withDelay(
-      particle.initialDelay,
-      withRepeat(
-        withSequence(
-          withTiming(0.6, {
-            duration: particle.durationMs,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(0.15, {
-            duration: particle.durationMs,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        -1,
-        false
-      )
+    breath.value = withRepeat(
+      withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
     )
-    scale.value = withDelay(
-      particle.initialDelay,
-      withRepeat(
-        withSequence(
-          withTiming(1.3, {
-            duration: particle.durationMs,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          withTiming(0.8, {
-            duration: particle.durationMs,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        -1,
-        false
-      )
-    )
-  }, [opacity, scale, particle.durationMs, particle.initialDelay])
+  }, [breath])
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(breath.value, [0, 1], [0.6, 1]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.94, 1.04]) }],
+  }))
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(breath.value, [0, 1], [0.4, 0.9]),
+    transform: [{ scale: interpolate(breath.value, [0, 1], [0.97, 1.03]) }],
   }))
 
   return (
-    <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          left: particle.x,
-          top: particle.y,
-          width: particle.size,
-          height: particle.size,
-          borderRadius: particle.size / 2,
-          backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        },
-        animStyle,
-      ]}
-    />
+    <SlideLayout title={title} subtitle={subtitle}>
+      <View className="items-center justify-center">
+        <Animated.View
+          className="absolute rounded-full border border-white/15"
+          style={[{ width: RING_SIZE, height: RING_SIZE }, ringStyle]}
+        />
+        <Animated.View
+          className="absolute rounded-full bg-white/10"
+          style={[{ width: HALO_SIZE, height: HALO_SIZE }, haloStyle]}
+        />
+        <SlideMascot animation="hello" mounted={isNear} />
+      </View>
+    </SlideLayout>
   )
 }

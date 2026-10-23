@@ -1,6 +1,8 @@
 export default {
   skip: 'Passer',
   getStarted: 'Commencer',
+  previous: 'Pr\u00e9c\u00e9dent',
+  next: 'Suivant',
   slides: {
     pain: {
       title: "Les plantes n'ont pas de mode d'emploi",
@@ -11,11 +13,13 @@ export default {
       title: 'Un soin adapt\u00e9 \u00e0 chaque plante',
       subtitle:
         "Prends une photo. Lily l'identifie, v\u00e9rifie ta m\u00e9t\u00e9o locale et te dit exactement quoi faire \u2014 aujourd'hui.",
+      cardAction: "Arrose aujourd'hui",
     },
     transformation: {
       title: 'Regarde-toi progresser',
       subtitle:
         "Suis tes s\u00e9ries. D\u00e9bloque des succ\u00e8s. Vois ta collection s'\u00e9panouir \u00e0 partir d'une seule pousse.",
+      streakUnit: 'jours',
     },
     cta: {
       title: "Ta premi\u00e8re plante n'est qu'\u00e0 une photo",

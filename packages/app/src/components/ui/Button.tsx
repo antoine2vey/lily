@@ -10,7 +10,9 @@ import {
 } from 'react-native'
 import { useIconColors } from '@/hooks/useIconColors'
 
-type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost'
+// `glass` is the secondary action on the green mesh background, where the
+// green outline of `secondary` disappears.
+type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'glass'
 
 type ButtonProps = Omit<PressableProps, 'children'> & {
   children: ReactNode
@@ -54,6 +56,12 @@ function getVariantStyles(
       text: 'text-primary',
       iconColor: iconColors.primary,
       loaderColor: iconColors.primary,
+    })),
+    Match.when('glass', () => ({
+      container: `border border-white/25 ${pressed ? 'bg-white/25' : 'bg-white/15'}`,
+      text: 'text-white',
+      iconColor: iconColors.white,
+      loaderColor: iconColors.white,
     })),
     Match.exhaustive
   )

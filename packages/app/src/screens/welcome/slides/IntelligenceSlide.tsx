@@ -1,181 +1,123 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { useEffect } from 'react'
-import { Dimensions, Text, View } from 'react-native'
+import { Image, Text, View } from 'react-native'
 import Animated, {
-  Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated'
-import { SlideTextContent } from '../components/SlideTextContent'
+import { images } from '@/assets/images'
+import { useThemeContext } from '@/contexts/ThemeContext'
+import { useIconColors } from '@/hooks/useIconColors'
+import {
+  OFFSCREEN_RESET_MS,
+  SlideLayout,
+  type SlideProps,
+} from '../components/SlideLayout'
+import { SlideMascot } from '../components/SlideMascot'
 
-const { width } = Dimensions.get('window')
-
-interface IntelligenceSlideProps {
-  title: string
-  subtitle: string
+interface IntelligenceSlideProps extends SlideProps {
+  /** Today's care action shown on the identification card. */
+  cardAction: string
 }
 
-export function IntelligenceSlide({ title, subtitle }: IntelligenceSlideProps) {
-  const scanY = useSharedValue(0)
-  const cardTranslateY = useSharedValue(80)
+const CARD_HIDDEN_OFFSET = 24
+// Short beat after the slide settles, so the card reads as the scan's result.
+const CARD_APPEAR_DELAY_MS = 300
+
+export function IntelligenceSlide({
+  title,
+  subtitle,
+  cardAction,
+  isActive,
+  isNear,
+}: IntelligenceSlideProps) {
+  const iconColors = useIconColors()
+  const { isDark } = useThemeContext()
+  const cardTranslateY = useSharedValue(CARD_HIDDEN_OFFSET)
   const cardOpacity = useSharedValue(0)
-  const orbit1 = useSharedValue(0)
-  const orbit2 = useSharedValue(120)
-  const orbit3 = useSharedValue(240)
 
+  // The card pops up right after the slide settles, each time it shows.
+  // On leaving, it stays put while its slide moves away and only resets once
+  // the swipe is over and it is off screen, so it never blinks out mid-swipe.
   useEffect(() => {
-    scanY.value = withRepeat(
-      withTiming(120, {
-        duration: 1500,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
-    )
-
-    cardTranslateY.value = withDelay(1600, withSpring(0, { damping: 12 }))
-    cardOpacity.value = withDelay(1600, withTiming(1, { duration: 300 }))
-
-    const orbitDuration = 8000
-    orbit1.value = withRepeat(
-      withTiming(360, {
-        duration: orbitDuration,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    )
-    orbit2.value = withRepeat(
-      withTiming(480, {
-        duration: orbitDuration + 1000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    )
-    orbit3.value = withRepeat(
-      withTiming(600, {
-        duration: orbitDuration + 2000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false
-    )
-  }, [scanY, cardTranslateY, cardOpacity, orbit1, orbit2, orbit3])
-
-  const scanLineStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: scanY.value }],
-  }))
+    if (isActive) {
+      cardTranslateY.value = withDelay(
+        CARD_APPEAR_DELAY_MS,
+        withSpring(0, { damping: 14, stiffness: 220 })
+      )
+      cardOpacity.value = withDelay(
+        CARD_APPEAR_DELAY_MS,
+        withTiming(1, { duration: 200 })
+      )
+    } else {
+      cardTranslateY.value = withDelay(
+        OFFSCREEN_RESET_MS,
+        withTiming(CARD_HIDDEN_OFFSET, { duration: 0 })
+      )
+      cardOpacity.value = withDelay(
+        OFFSCREEN_RESET_MS,
+        withTiming(0, { duration: 0 })
+      )
+    }
+  }, [isActive, cardTranslateY, cardOpacity])
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: cardTranslateY.value }],
     opacity: cardOpacity.value,
   }))
 
-  const orbit1Style = useAnimatedStyle(() => {
-    const rad = (orbit1.value * Math.PI) / 180
-    return {
-      transform: [
-        { translateX: Math.cos(rad) * 90 },
-        { translateY: Math.sin(rad) * 90 },
-      ],
-    }
-  })
-
-  const orbit2Style = useAnimatedStyle(() => {
-    const rad = (orbit2.value * Math.PI) / 180
-    return {
-      transform: [
-        { translateX: Math.cos(rad) * 90 },
-        { translateY: Math.sin(rad) * 90 },
-      ],
-    }
-  })
-
-  const orbit3Style = useAnimatedStyle(() => {
-    const rad = (orbit3.value * Math.PI) / 180
-    return {
-      transform: [
-        { translateX: Math.cos(rad) * 90 },
-        { translateY: Math.sin(rad) * 90 },
-      ],
-    }
-  })
-
   return (
-    <View style={{ width }} className="flex-1 items-center px-8">
-      <View className="flex-1 items-center justify-center">
-        <View className="w-44 h-56 rounded-2xl border-2 border-white/30 items-center justify-center overflow-hidden">
-          <Animated.View
-            className="absolute left-2 right-2 h-0.5 bg-primary rounded-full"
-            style={scanLineStyle}
-          />
+    <SlideLayout title={title} subtitle={subtitle}>
+      <SlideMascot animation="scan" mounted={isNear} />
 
-          <Text className="text-5xl">🌿</Text>
-
-          <Animated.View
-            className="absolute bottom-0 left-0 right-0 bg-white/15 rounded-t-xl p-3"
-            style={cardStyle}
+      <Animated.View
+        className="mt-4 flex-row items-center gap-3 rounded-2xl bg-white/15 border border-white/25 p-3 pr-5"
+        style={cardStyle}
+      >
+        <Image
+          source={isDark ? images.appIconDark : images.appIconLight}
+          className="w-11 h-11 rounded-[11px]"
+        />
+        <View>
+          <Text
+            className="text-base text-white"
+            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           >
-            <View className="flex-row items-center gap-2">
-              <Text className="text-lg">🌱</Text>
-              <View className="flex-1">
-                <Text
-                  className="text-xs text-white"
-                  style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                >
-                  Monstera Deliciosa
-                </Text>
-                <View className="flex-row items-center gap-1 mt-0.5">
-                  <MaterialIcons
-                    name="wb-sunny"
-                    size={10}
-                    color="rgba(255,255,255,0.6)"
-                  />
-                  <Text className="text-[10px] text-white/60">22°C</Text>
-                </View>
-              </View>
+            Monstera Deliciosa
+          </Text>
+          <View className="flex-row items-center gap-3 mt-0.5">
+            <View className="flex-row items-center gap-1">
+              <MaterialIcons
+                name="wb-sunny"
+                size={13}
+                color={iconColors.white}
+              />
+              <Text
+                className="text-xs text-white/75"
+                style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+              >
+                22°C
+              </Text>
             </View>
-          </Animated.View>
+            <View className="flex-row items-center gap-1">
+              <MaterialIcons
+                name="water-drop"
+                size={13}
+                color={iconColors.white}
+              />
+              <Text
+                className="text-xs text-white/75"
+                style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+              >
+                {cardAction}
+              </Text>
+            </View>
+          </View>
         </View>
-
-        <Animated.View
-          className="absolute w-8 h-8 rounded-full bg-water-blue/20 items-center justify-center"
-          style={orbit1Style}
-        >
-          <MaterialIcons
-            name="water-drop"
-            size={16}
-            color="rgba(96,165,250,0.8)"
-          />
-        </Animated.View>
-        <Animated.View
-          className="absolute w-8 h-8 rounded-full bg-warning/20 items-center justify-center"
-          style={orbit2Style}
-        >
-          <MaterialIcons
-            name="wb-sunny"
-            size={16}
-            color="rgba(245,158,11,0.8)"
-          />
-        </Animated.View>
-        <Animated.View
-          className="absolute w-8 h-8 rounded-full bg-primary/20 items-center justify-center"
-          style={orbit3Style}
-        >
-          <MaterialIcons
-            name="location-on"
-            size={16}
-            color="rgba(91,140,90,0.8)"
-          />
-        </Animated.View>
-      </View>
-
-      <SlideTextContent title={title} subtitle={subtitle} />
-    </View>
+      </Animated.View>
+    </SlideLayout>
   )
 }

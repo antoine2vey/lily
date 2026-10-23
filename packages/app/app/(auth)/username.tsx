@@ -1,6 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
-import { BlurView } from 'expo-blur'
 import { useRouter } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,15 +8,13 @@ import {
   Platform,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from '@/components'
+import type { MascotAnimation } from '@/assets/mascot'
+import { GlassCard, GlassInput, MascotHero, MeshBackground } from '@/components'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-import { useThemeContext } from '@/contexts/ThemeContext'
-import { useIconColors } from '@/hooks/useIconColors'
 import { apiEffectRunner } from '@/utils/client'
 
 const MAX_USERNAME_LENGTH = 20
@@ -40,8 +37,6 @@ export default function UsernameSetupScreen() {
   const [loading, setLoading] = useState(false)
   const { setUsername: saveUsername } = useAuth()
   const router = useRouter()
-  const iconColors = useIconColors()
-  const { isDark } = useThemeContext()
 
   const checkRequestRef = useRef(0)
 
@@ -156,51 +151,43 @@ export default function UsernameSetupScreen() {
     }
   }
 
-  const getValidationIcon = () =>
-    pipe(
-      Match.value(validation),
-      Match.when({ _tag: 'Available' }, () => (
-        <View className="w-8 h-8 rounded-full bg-primary/20 items-center justify-center">
-          <MaterialIcons name="check" size={20} color={iconColors.primary} />
-        </View>
-      )),
-      Match.when({ _tag: 'Invalid' }, () => (
-        <View className="w-8 h-8 rounded-full bg-error/20 items-center justify-center">
-          <MaterialIcons name="close" size={20} color={iconColors.error} />
-        </View>
-      )),
-      Match.when({ _tag: 'Unavailable' }, () => (
-        <View className="w-8 h-8 rounded-full bg-error/20 items-center justify-center">
-          <MaterialIcons name="close" size={20} color={iconColors.error} />
-        </View>
-      )),
-      Match.when({ _tag: 'Checking' }, () => (
-        <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center">
-          <MaterialIcons name="more-horiz" size={20} color="#FFFFFF" />
-        </View>
-      )),
-      Match.orElse(() => null)
-    )
+  const validationBadge = pipe(
+    Match.value(validation),
+    Match.when({ _tag: 'Available' }, () => (
+      <View className="w-8 h-8 rounded-full bg-primary items-center justify-center">
+        <MaterialIcons name="check" size={20} color="#FFFFFF" />
+      </View>
+    )),
+    Match.when({ _tag: 'Checking' }, () => (
+      <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center">
+        <MaterialIcons name="more-horiz" size={20} color="#FFFFFF" />
+      </View>
+    )),
+    Match.whenOr({ _tag: 'Invalid' }, { _tag: 'Unavailable' }, () => (
+      <View className="w-8 h-8 rounded-full bg-error items-center justify-center">
+        <MaterialIcons name="close" size={20} color="#FFFFFF" />
+      </View>
+    )),
+    Match.orElse(() => null)
+  )
 
-  const getValidationStatus = () =>
-    pipe(
-      Match.value(validation),
-      Match.when({ _tag: 'Available' }, () => (
-        <View className="flex-row items-center gap-1.5">
-          <View className="w-1.5 h-1.5 rounded-full bg-primary" />
-          <Text className="text-xs font-bold text-primary uppercase tracking-wide">
-            {t('username.available')}
-          </Text>
-        </View>
-      )),
-      Match.when({ _tag: 'Invalid' }, ({ reason }) => (
-        <Text className="text-xs font-medium text-error">{reason}</Text>
-      )),
-      Match.when({ _tag: 'Unavailable' }, ({ reason }) => (
-        <Text className="text-xs font-medium text-error">{reason}</Text>
-      )),
-      Match.orElse(() => null)
-    )
+  const validationStatus = pipe(
+    Match.value(validation),
+    Match.when({ _tag: 'Available' }, () => (
+      <StatusLine dotClassName="bg-white" uppercase>
+        {t('username.available')}
+      </StatusLine>
+    )),
+    Match.whenOr({ _tag: 'Invalid' }, { _tag: 'Unavailable' }, ({ reason }) => (
+      <StatusLine dotClassName="bg-error">{reason}</StatusLine>
+    )),
+    Match.orElse(() => <View />)
+  )
+
+  const animation: MascotAnimation =
+    validation._tag === 'Available' ? 'jump' : 'hello'
+  const hasError =
+    validation._tag === 'Invalid' || validation._tag === 'Unavailable'
 
   return (
     <MeshBackground>
@@ -217,88 +204,71 @@ export default function UsernameSetupScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section */}
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-6xl mb-4">👋</Text>
-            <Text
-              className="text-4xl text-white text-center mb-1"
-              style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-            >
-              {t('username.headlinePartOne')}
-            </Text>
-            <Text
-              className="text-4xl text-white text-center mb-3"
-              style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-            >
-              {t('username.headlinePartTwo')}
-            </Text>
-            <Text
-              className="text-base text-white/70 text-center leading-relaxed max-w-[300px]"
-              style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-            >
-              {t('username.description')}
-            </Text>
-          </View>
+          <MascotHero
+            animation={animation}
+            title={`${t('username.headlinePartOne')}\n${t('username.headlinePartTwo')}`}
+            subtitle={t('username.description')}
+          />
 
-          {/* Glassmorphism Card — bottom */}
-          <View
-            className="mx-4 rounded-3xl overflow-hidden"
-            style={{ marginBottom: insets.bottom + 16 }}
-          >
-            <BlurView
-              intensity={40}
-              tint={isDark ? 'dark' : 'light'}
-              className="p-6"
-            >
-              <View className="gap-4">
-                {/* Username Input */}
-                <View>
-                  <View className="flex-row items-center w-full h-14 rounded-full bg-white/20 px-5">
-                    <Text
-                      className="text-lg text-white/60 mr-1"
-                      style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-                    >
-                      @
-                    </Text>
-                    <TextInput
-                      className="flex-1 text-lg text-white"
-                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                      placeholder={t('username.placeholder')}
-                      placeholderTextColor="rgba(255,255,255,0.4)"
-                      value={username}
-                      onChangeText={setUsername}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      maxLength={MAX_USERNAME_LENGTH}
-                    />
-                    {getValidationIcon()}
-                  </View>
+          <GlassCard style={{ marginTop: 32 }}>
+            <View className="gap-2">
+              <GlassInput
+                prefix="@"
+                suffix={validationBadge}
+                error={hasError}
+                placeholder={t('username.placeholder')}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={MAX_USERNAME_LENGTH}
+              />
 
-                  <View className="flex-row justify-between items-center px-4 mt-2">
-                    {getValidationStatus()}
-                    <Text
-                      className="text-sm text-white/40"
-                      style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-                    >
-                      {username.length}/{MAX_USERNAME_LENGTH}
-                    </Text>
-                  </View>
-                </View>
-
-                <Button
-                  icon="arrow-forward"
-                  loading={loading}
-                  disabled={validation._tag !== 'Available'}
-                  onPress={handleSubmit}
-                  pill
+              <View className="flex-row justify-between items-center gap-3 px-5">
+                {validationStatus}
+                <Text
+                  className="text-xs text-white/75"
+                  style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
                 >
-                  {t('username.continueButton')}
-                </Button>
+                  {username.length}/{MAX_USERNAME_LENGTH}
+                </Text>
               </View>
-            </BlurView>
-          </View>
+            </View>
+
+            <Button
+              icon="arrow-forward"
+              loading={loading}
+              disabled={validation._tag !== 'Available'}
+              onPress={handleSubmit}
+              pill
+            >
+              {t('username.continueButton')}
+            </Button>
+          </GlassCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </MeshBackground>
+  )
+}
+
+function StatusLine({
+  dotClassName,
+  uppercase,
+  children,
+}: {
+  dotClassName: string
+  uppercase?: boolean
+  children: string
+}) {
+  return (
+    <View className="flex-1 flex-row items-center gap-2">
+      <View className={`w-1.5 h-1.5 rounded-full ${dotClassName}`} />
+      <Text
+        className={`flex-1 text-xs text-white ${uppercase ? 'uppercase tracking-wide' : ''}`}
+        style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+      >
+        {children}
+      </Text>
+    </View>
   )
 }

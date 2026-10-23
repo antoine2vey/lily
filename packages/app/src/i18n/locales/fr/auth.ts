@@ -37,7 +37,8 @@ export default {
     resendSuccess: 'Un nouveau code a été envoyé à votre adresse e-mail',
     wrongEmail: 'Mauvaise adresse e-mail ?',
     changeEmail: "Changer d'adresse",
-    expiredCode: 'Ce code a expiré. Veuillez en demander un nouveau.',
+    expiredCode:
+      'Ce lien a expiré ou a déjà été utilisé. Veuillez en demander un nouveau.',
     invalidCode: 'Code invalide. Veuillez réessayer.',
     accountStatus: {
       suspended: 'Ce compte a été suspendu.',

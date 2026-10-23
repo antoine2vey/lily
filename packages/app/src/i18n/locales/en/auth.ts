@@ -34,7 +34,8 @@ export default {
     resendSuccess: 'A new code has been sent to your email',
     wrongEmail: 'Wrong email?',
     changeEmail: 'Change email',
-    expiredCode: 'This code has expired. Please request a new one.',
+    expiredCode:
+      'This link has expired or was already used. Please request a new one.',
     invalidCode: 'Invalid code. Please try again.',
     accountStatus: {
       suspended: 'This account has been suspended.',

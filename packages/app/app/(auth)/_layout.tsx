@@ -1,13 +1,22 @@
 import { Stack } from 'expo-router'
-import { iconColorsLight as iconColors } from '@/theme'
+import { MESH_BASE_COLOR } from '@/components/MeshBackground'
+import { useThemeContext } from '@/contexts/ThemeContext'
 
+// Every auth screen draws its own mesh background, so screens crossfade
+// instead of sliding two meshes past each other.
 export default function AuthLayout() {
+  const { isDark } = useThemeContext()
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
+        animationDuration: 350,
         contentStyle: {
-          backgroundColor: iconColors.background,
+          backgroundColor: isDark
+            ? MESH_BASE_COLOR.dark
+            : MESH_BASE_COLOR.light,
         },
       }}
     />

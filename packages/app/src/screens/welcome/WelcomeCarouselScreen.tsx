@@ -1,4 +1,3 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Match, pipe } from 'effect'
 import * as Haptics from 'expo-haptics'
 import { useRouter } from 'expo-router'
@@ -8,7 +7,6 @@ import {
   Dimensions,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  Pressable,
   Text,
   View,
 } from 'react-native'
@@ -19,8 +17,10 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from '@/components'
+import { GlassCard, GlassLink, MeshBackground } from '@/components'
+import { Button } from '@/components/ui'
 import { useWelcomeSeen } from '@/hooks/useWelcomeSeen'
+import { WelcomeNavButton } from './components/WelcomeNavButton'
 import { WelcomeProgressBar } from './components/WelcomeProgressBar'
 import { CTASlide } from './slides/CTASlide'
 import { IntelligenceSlide } from './slides/IntelligenceSlide'
@@ -85,36 +85,47 @@ export function WelcomeCarouselScreen() {
   )
 
   const renderSlide = useCallback(
-    ({ index }: { item: number; index: number }) =>
-      pipe(
+    ({ index }: { item: number; index: number }) => {
+      const slideState = {
+        isActive: index === currentIndex,
+        isNear: Math.abs(index - currentIndex) <= 1,
+      }
+      return pipe(
         Match.value(index as 0 | 1 | 2 | 3),
         Match.when(0, () => (
           <PainSlide
             title={t('slides.pain.title')}
             subtitle={t('slides.pain.subtitle')}
+            {...slideState}
           />
         )),
         Match.when(1, () => (
           <IntelligenceSlide
             title={t('slides.intelligence.title')}
             subtitle={t('slides.intelligence.subtitle')}
+            cardAction={t('slides.intelligence.cardAction')}
+            {...slideState}
           />
         )),
         Match.when(2, () => (
           <TransformationSlide
             title={t('slides.transformation.title')}
             subtitle={t('slides.transformation.subtitle')}
+            streakUnit={t('slides.transformation.streakUnit')}
+            {...slideState}
           />
         )),
         Match.when(3, () => (
           <CTASlide
             title={t('slides.cta.title')}
             subtitle={t('slides.cta.subtitle')}
+            {...slideState}
           />
         )),
         Match.exhaustive
-      ),
-    [t]
+      )
+    },
+    [t, currentIndex]
   )
 
   const isFirst = currentIndex === 0
@@ -127,17 +138,14 @@ export function WelcomeCarouselScreen() {
           <Animated.View
             entering={FadeIn.duration(200)}
             exiting={FadeOut.duration(200)}
-            className="absolute z-10 right-6"
-            style={{ top: insets.top + 12 }}
+            className="absolute z-10 right-4 px-3"
+            style={{ top: insets.top + 8 }}
           >
-            <Pressable onPress={handleDismiss} className="py-2 px-3">
-              <Text
-                className="text-sm text-white/40"
-                style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-              >
-                {t('skip')}
-              </Text>
-            </Pressable>
+            <GlassLink
+              testID="welcome-skip"
+              label={t('skip')}
+              onPress={handleDismiss}
+            />
           </Animated.View>
         )}
 
@@ -145,6 +153,7 @@ export function WelcomeCarouselScreen() {
           ref={flatListRef}
           data={[0, 1, 2, 3]}
           renderItem={renderSlide}
+          extraData={currentIndex}
           keyExtractor={(item) => String(item)}
           horizontal
           pagingEnabled
@@ -160,68 +169,45 @@ export function WelcomeCarouselScreen() {
           })}
         />
 
-        <View
-          style={{ paddingBottom: insets.bottom + 16 }}
-          className="px-6 pt-2"
-        >
+        <GlassCard padding="sm">
           <WelcomeProgressBar scrollX={scrollX} total={TOTAL_SLIDES} />
 
-          <View className="flex-row items-center mt-4">
-            <View className="flex-1 items-start">
-              <Pressable
-                onPress={handlePrev}
-                disabled={isFirst}
-                className="w-12 h-12 rounded-full bg-white/10 items-center justify-center"
-                style={{ opacity: isFirst ? 0.2 : 1 }}
-              >
-                <MaterialIcons
-                  name="chevron-left"
-                  size={28}
-                  color="rgba(255,255,255,0.8)"
-                />
-              </Pressable>
-            </View>
+          <View className="flex-row items-center gap-3">
+            <WelcomeNavButton
+              icon="chevron-left"
+              label={t('previous')}
+              onPress={handlePrev}
+              disabled={isFirst}
+            />
 
-            <Text
-              className="text-sm text-white/40"
-              style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-            >
-              {currentIndex + 1} / {TOTAL_SLIDES}
-            </Text>
-
-            <View className="flex-1 items-end">
-              {isLast ? (
-                <Pressable
+            {isLast ? (
+              <Animated.View entering={FadeIn.duration(250)} className="flex-1">
+                <Button
+                  testID="welcome-get-started"
+                  icon="arrow-forward"
                   onPress={handleDismiss}
-                  className="h-12 px-5 rounded-full bg-primary items-center justify-center flex-row gap-1.5"
+                  pill
                 >
-                  <Text
-                    className="text-sm text-white"
-                    style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                  >
-                    {t('getStarted')}
-                  </Text>
-                  <MaterialIcons
-                    name="arrow-forward"
-                    size={16}
-                    color="rgba(255,255,255,0.9)"
-                  />
-                </Pressable>
-              ) : (
-                <Pressable
+                  {t('getStarted')}
+                </Button>
+              </Animated.View>
+            ) : (
+              <>
+                <Text
+                  className="flex-1 text-sm text-white/75 text-center"
+                  style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                >
+                  {currentIndex + 1} / {TOTAL_SLIDES}
+                </Text>
+                <WelcomeNavButton
+                  icon="chevron-right"
+                  label={t('next')}
                   onPress={handleNext}
-                  className="w-12 h-12 rounded-full bg-white/10 items-center justify-center"
-                >
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={28}
-                    color="rgba(255,255,255,0.8)"
-                  />
-                </Pressable>
-              )}
-            </View>
+                />
+              </>
+            )}
           </View>
-        </View>
+        </GlassCard>
       </View>
     </MeshBackground>
   )

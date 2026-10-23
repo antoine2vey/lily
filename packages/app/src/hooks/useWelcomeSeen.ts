@@ -1,11 +1,6 @@
 import { Effect } from 'effect'
 import { useEffect, useState } from 'react'
-import {
-  getItem,
-  ONBOARDING_KEYS,
-  removeItem,
-  setItem,
-} from '@/hooks/onboarding-storage'
+import { getItem, ONBOARDING_KEYS, setItem } from '@/hooks/onboarding-storage'
 
 export function useWelcomeSeen() {
   const [hasSeen, setHasSeen] = useState<boolean | null>(null)
@@ -31,13 +26,5 @@ export function useWelcomeSeen() {
       )
     )
 
-  const resetWelcome = () =>
-    Effect.runPromise(
-      removeItem(ONBOARDING_KEYS.welcome).pipe(
-        Effect.tap(() => Effect.sync(() => setHasSeen(false))),
-        Effect.catchTag('OnboardingStorageError', () => Effect.void)
-      )
-    )
-
-  return { hasSeen, isLoading, markWelcomeSeen, resetWelcome }
+  return { hasSeen, isLoading, markWelcomeSeen }
 }

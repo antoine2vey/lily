@@ -1,19 +1,39 @@
-import { Match, pipe } from 'effect'
-import { BlurView } from 'expo-blur'
+import { Array as Arr, Match, pipe } from 'effect'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { View } from 'react-native'
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { MeshBackground } from '@/components'
+import type { MascotAnimation } from '@/assets/mascot'
+import { GlassCard, MascotHero, MeshBackground } from '@/components'
 import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
-import { useThemeContext } from '@/contexts/ThemeContext'
+
+// The verify endpoint's English messages for a link that is malformed, expired
+// or already used. They map to one translated message instead of being shown raw.
+const LINK_REJECTED_ERRORS = ['Invalid or expired code', 'Invalid code format']
+
+const WELCOME_HOLD_MS = 2600
+// The API answers in ~60 ms; without a floor "Verifying" shows for one frame
+// and the screen flicks straight to the result.
+const MIN_VERIFYING_MS = 900
+
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
 
 type VerifyState =
   | { _tag: 'Verifying' }
   | { _tag: 'Success' }
   | { _tag: 'Error'; message: string }
+
+interface HeroContent {
+  animation: MascotAnimation
+  title: string
+  subtitle: string
+}
 
 export default function VerifyScreen() {
   const insets = useSafeAreaInsets()
@@ -29,9 +49,18 @@ export default function VerifyScreen() {
   })
   const { verifyMagicLink } = useAuth()
   const router = useRouter()
-  const { isDark } = useThemeContext()
+
+  // A magic-link code is single-use: the effect re-runs when `verifyMagicLink`
+  // or `t` change identity, and a second request for the same code hit the
+  // API's rate limiter and replaced the result with a failure.
+  const attemptedCodeRef = useRef<string | null>(null)
 
   useEffect(() => {
+    if (verificationCode && attemptedCodeRef.current === verificationCode) {
+      return
+    }
+    attemptedCodeRef.current = verificationCode ?? null
+
     const verify = async () => {
       if (!verificationCode) {
         setVerifyState({
@@ -41,17 +70,21 @@ export default function VerifyScreen() {
         return
       }
 
-      const result = await verifyMagicLink(verificationCode)
+      const [result] = await Promise.all([
+        verifyMagicLink(verificationCode),
+        wait(MIN_VERIFYING_MS),
+      ])
 
       if (result.success) {
         setVerifyState({ _tag: 'Success' })
-        // Navigation is handled by AuthContext based on user state
       } else {
         const message = result.status
           ? t(`verify.accountStatus.${result.status}`, {
-              defaultValue: result.error,
+              defaultValue: t('verify.failedToVerify'),
             })
-          : (result.error ?? t('verify.failedToVerify'))
+          : Arr.contains(LINK_REJECTED_ERRORS, result.error ?? '')
+            ? t('verify.expiredCode')
+            : t('verify.failedToVerify')
         setVerifyState({ _tag: 'Error', message })
       }
     }
@@ -59,27 +92,45 @@ export default function VerifyScreen() {
     verify()
   }, [verificationCode, verifyMagicLink, t])
 
+  // Hold the welcome state long enough to read, then let the index route
+  // pick the next screen (username, onboarding or the app). AuthContext leaves
+  // a freshly signed-in user on this screen for that reason.
+  useEffect(() => {
+    if (verifyState._tag !== 'Success') return
+    const timer = setTimeout(() => router.replace('/'), WELCOME_HOLD_MS)
+    return () => clearTimeout(timer)
+  }, [verifyState._tag, router])
+
   const handleRetry = () => {
     router.replace('/(auth)/login')
   }
 
   const heroContent = pipe(
     Match.value(verifyState),
-    Match.when({ _tag: 'Verifying' }, () => ({
-      emoji: '🔐',
-      title: t('verify.verifying'),
-      subtitle: t('verify.verifyingSubtitle'),
-    })),
-    Match.when({ _tag: 'Success' }, () => ({
-      emoji: '🎉',
-      title: t('verify.welcomeTitle'),
-      subtitle: t('verify.welcomeSubtitle'),
-    })),
-    Match.when({ _tag: 'Error' }, ({ message }) => ({
-      emoji: '😔',
-      title: t('verify.failedTitle'),
-      subtitle: message,
-    })),
+    Match.when(
+      { _tag: 'Verifying' },
+      (): HeroContent => ({
+        animation: 'lookAround',
+        title: t('verify.verifying'),
+        subtitle: t('verify.verifyingSubtitle'),
+      })
+    ),
+    Match.when(
+      { _tag: 'Success' },
+      (): HeroContent => ({
+        animation: 'celebrate',
+        title: t('verify.welcomeTitle'),
+        subtitle: t('verify.welcomeSubtitle'),
+      })
+    ),
+    Match.when(
+      { _tag: 'Error' },
+      ({ message }): HeroContent => ({
+        animation: 'rainy',
+        title: t('verify.failedTitle'),
+        subtitle: message,
+      })
+    ),
     Match.exhaustive
   )
 
@@ -93,43 +144,28 @@ export default function VerifyScreen() {
           paddingRight: insets.right,
         }}
       >
-        {/* Hero Section */}
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-6xl mb-4">{heroContent.emoji}</Text>
-          <Text
-            className="text-4xl text-white text-center mb-3"
-            style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
-          >
-            {heroContent.title}
-          </Text>
-          <Text
-            className="text-base text-white/70 text-center leading-relaxed max-w-[280px]"
-            style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
-          >
-            {heroContent.subtitle}
-          </Text>
+        {/* The hero stays mounted across states so the mascot switches clips
+            without blanking; only its text fades (MascotHero), and the layout
+            transition eases it up when the error card appears. */}
+        <Animated.View
+          layout={LinearTransition.duration(350)}
+          className="flex-1"
+        >
+          <MascotHero
+            animation={heroContent.animation}
+            title={heroContent.title}
+            subtitle={heroContent.subtitle}
+          />
+        </Animated.View>
 
-          {verifyState._tag === 'Verifying' && (
-            <ActivityIndicator size="large" color="#FFFFFF" className="mt-8" />
-          )}
-        </View>
-
-        {/* Glassmorphism Card — only show on error */}
         {verifyState._tag === 'Error' && (
-          <View
-            className="mx-4 rounded-3xl overflow-hidden"
-            style={{ marginBottom: insets.bottom + 16 }}
-          >
-            <BlurView
-              intensity={40}
-              tint={isDark ? 'dark' : 'light'}
-              className="p-6"
-            >
+          <Animated.View entering={FadeInDown.duration(350)}>
+            <GlassCard style={{ marginTop: 32 }}>
               <Button onPress={handleRetry} pill>
                 {t('verify.tryAgain')}
               </Button>
-            </BlurView>
-          </View>
+            </GlassCard>
+          </Animated.View>
         )}
       </View>
     </MeshBackground>

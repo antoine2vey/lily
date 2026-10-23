@@ -8,17 +8,17 @@ interface SlideTextContentProps {
 
 export function SlideTextContent({ title, subtitle }: SlideTextContentProps) {
   return (
-    <View className="pb-8">
+    <View className="pb-6">
       <Animated.Text
         entering={FadeIn.delay(200).duration(400)}
-        className="text-3xl text-white text-center mb-3"
+        className="text-3xl text-white text-center"
         style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
       >
         {title}
       </Animated.Text>
       <Animated.Text
         entering={FadeIn.delay(400).duration(400)}
-        className="text-base text-white/70 text-center leading-relaxed max-w-[300px] self-center"
+        className="text-base text-white/75 text-center leading-relaxed max-w-[300px] self-center mt-3"
         style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
       >
         {subtitle}

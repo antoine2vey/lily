@@ -1,11 +1,6 @@
 import { Effect } from 'effect'
 import { useEffect, useState } from 'react'
-import {
-  getItem,
-  ONBOARDING_KEYS,
-  removeItem,
-  setItem,
-} from '@/hooks/onboarding-storage'
+import { getItem, ONBOARDING_KEYS, setItem } from '@/hooks/onboarding-storage'
 
 export function useOnboardingComplete() {
   const [isComplete, setIsComplete] = useState<boolean | null>(null)
@@ -40,19 +35,10 @@ export function useOnboardingComplete() {
       )
     )
 
-  const resetOnboarding = () =>
-    Effect.runPromise(
-      removeItem(ONBOARDING_KEYS.complete).pipe(
-        Effect.tap(() => Effect.sync(() => setIsComplete(false))),
-        Effect.catchTag('OnboardingStorageError', () => Effect.void)
-      )
-    )
-
   return {
     isComplete,
     isLoading,
     currentStep,
     completeOnboarding,
-    resetOnboarding,
   }
 }

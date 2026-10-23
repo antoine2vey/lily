@@ -1,6 +1,6 @@
-import { Array as Arr, Match, pipe, Record } from 'effect'
-import { router } from 'expo-router'
-import { useCallback, useEffect, useRef } from 'react'
+import { Array as Arr, Match, Option, pipe, Record } from 'effect'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,7 +13,7 @@ import { AddPlantStep } from './steps/AddPlantStep'
 import { CompletionStep } from './steps/CompletionStep'
 import { LocationStep } from './steps/LocationStep'
 import { NotificationStep } from './steps/NotificationStep'
-import { PreferencesStep } from './steps/PreferencesStep'
+import { PreferencesStep, TIME_OF_DAY_TINTS } from './steps/PreferencesStep'
 import { RoomsStep } from './steps/RoomsStep'
 import { WelcomeStep } from './steps/WelcomeStep'
 
@@ -51,7 +51,40 @@ async function savePreferences(data: OnboardingData) {
   }
 }
 
+// The completion step is the last one and shows no progress bar.
+const COMPLETION_STEP = 6
+const CARE_TIME_STEP = 5
+
+function StepProgress({
+  current,
+  total,
+  top,
+}: {
+  current: number
+  total: number
+  top: number
+}) {
+  return (
+    // Overlays the top instead of pushing the step down, so the mascot sits
+    // exactly where it does on the auth and welcome screens.
+    <View
+      className="absolute left-0 right-0 z-10 flex-row gap-1.5 px-6 pt-3"
+      style={{ top }}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 1, max: total, now: current + 1 }}
+    >
+      {Arr.map(Arr.range(0, total - 1), (i) => (
+        <View
+          key={i}
+          className={`flex-1 h-1 rounded-full ${i <= current ? 'bg-white' : 'bg-white/20'}`}
+        />
+      ))}
+    </View>
+  )
+}
+
 export function OnboardingFlowScreen() {
+  const { step: devStep } = useLocalSearchParams<{ step?: string }>()
   const insets = useSafeAreaInsets()
   const {
     currentStep,
@@ -61,7 +94,16 @@ export function OnboardingFlowScreen() {
     skipStep,
     complete,
     skipOnboarding,
-  } = useOnboardingFlow()
+  } = useOnboardingFlow(__DEV__ ? devStep : undefined)
+
+  // The care-time step tints the background with the picked time of day.
+  const [pickedTime, setPickedTime] = useState<TimeOfDay | null>(null)
+  const meshTint = pipe(
+    Option.fromNullishOr(pickedTime),
+    Option.filter(() => currentStep === CARE_TIME_STEP),
+    Option.map((time) => TIME_OF_DAY_TINTS[time]),
+    Option.getOrUndefined
+  )
 
   // Skip onboarding for existing users who already have plants (prod only)
   const { data: plantsData } = usePlants()
@@ -90,12 +132,13 @@ export function OnboardingFlowScreen() {
     router.push('/(app)/add-plant/scanner?returnTo=onboarding')
   }, [])
 
+  // Reading the saved step takes a moment; keep the mesh up so the gate's
+  // background carries straight into the first step.
   if (isLoading) {
     return (
-      <View
-        className="flex-1 bg-background dark:bg-background-dark"
-        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-      />
+      <MeshBackground>
+        <View className="flex-1" />
+      </MeshBackground>
     )
   }
 
@@ -134,6 +177,7 @@ export function OnboardingFlowScreen() {
       <PreferencesStep
         onNext={(stepData) => advance(stepData)}
         onSkip={skipStep}
+        onSelectTime={setPickedTime}
       />
     )),
     Match.when(6, () => (
@@ -145,11 +189,15 @@ export function OnboardingFlowScreen() {
   )
 
   return (
-    <MeshBackground>
-      <View
-        className="flex-1"
-        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-      >
+    <MeshBackground tint={meshTint}>
+      {currentStep < COMPLETION_STEP && (
+        <StepProgress
+          current={currentStep}
+          total={COMPLETION_STEP}
+          top={insets.top}
+        />
+      )}
+      <View className="flex-1" style={{ paddingTop: insets.top }}>
         <Animated.View
           key={currentStep}
           entering={FadeIn.duration(300)}

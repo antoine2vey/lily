@@ -3,26 +3,31 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, Text } from 'react-native'
+import { ActivityIndicator, Pressable } from 'react-native'
 import { GoogleLogo } from '@/components/auth/GoogleLogo'
 import { useAuth } from '@/contexts/AuthContext'
+import { useIconColors } from '@/hooks/useIconColors'
 import { useLocalization } from '@/hooks/useLocalization'
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+
+export const isGoogleSignInConfigured = Boolean(GOOGLE_WEB_CLIENT_ID)
 
 type Props = {
   onError?: (message: string) => void
 }
 
 /**
- * "Continue with Google" button — uses the React Native Google Sign-In SDK.
+ * Logo-only "Continue with Google" button (light theme from Google's branding
+ * guidelines) — uses the React Native Google Sign-In SDK.
  * The SDK opens the native Google chooser sheet and returns an ID token that
  * our backend verifies via JWKS before issuing our own JWT pair.
  */
 export function GoogleSignInButton({ onError }: Props) {
   const { signInWithOAuth } = useAuth()
   const { t } = useLocalization()
+  const iconColors = useIconColors()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -34,7 +39,7 @@ export function GoogleSignInButton({ onError }: Props) {
     })
   }, [])
 
-  if (!GOOGLE_WEB_CLIENT_ID) return null
+  if (!isGoogleSignInConfigured) return null
 
   const handlePress = async () => {
     setLoading(true)
@@ -72,25 +77,17 @@ export function GoogleSignInButton({ onError }: Props) {
 
   return (
     <Pressable
+      testID="google-sign-in-button"
+      accessibilityRole="button"
+      accessibilityLabel={t('auth:login.googleButton')}
       onPress={handlePress}
       disabled={loading}
-      className={`w-full h-[52px] rounded-full bg-white border border-border flex-row items-center justify-center gap-3 ${loading ? 'opacity-70' : ''}`}
-      style={({ pressed }) => ({
-        transform: [{ scale: pressed && !loading ? 0.98 : 1 }],
-      })}
+      className="w-14 h-14 rounded-full bg-white/15 border border-white/25 items-center justify-center active:bg-white/25"
     >
       {loading ? (
-        <ActivityIndicator color="#1A1A1A" />
+        <ActivityIndicator color={iconColors.white} />
       ) : (
-        <>
-          <GoogleLogo size={20} />
-          <Text
-            className="text-base text-text-primary"
-            style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-          >
-            {t('auth:login.googleButton')}
-          </Text>
-        </>
+        <GoogleLogo size={22} />
       )}
     </Pressable>
   )

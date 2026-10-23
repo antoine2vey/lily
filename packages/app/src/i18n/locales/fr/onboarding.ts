@@ -33,16 +33,21 @@ export default {
   },
   notifications: {
     titleWithPlant: '{plantName} a besoin de soins tous les {days} jours',
-    titleGeneric: 'Ne manquez jamais un arrosage',
+    titleGeneric: 'Ne manquez jamais un arrosage avec Lily',
     subtitle: "Nous vous rappellerons quand vos plantes ont besoin d'attention",
     enable: 'Activer les rappels',
     skip: 'Plus tard',
+    previewTime: 'maintenant',
+    previewBody: "C'est l'heure d'arroser votre {plantName}",
+    previewPlant: 'Monstera',
   },
   location: {
     title: 'Conseils adaptés à la météo',
     subtitle: 'Partagez votre position pour des recommandations saisonnières',
     enable: 'Activer les conseils météo',
     skip: 'Passer',
+    tipSunny: 'Plein soleil : arrosez un peu plus tôt',
+    tipRainy: "Pluie demain : pas d'arrosage au balcon",
   },
   preferences: {
     title: 'Quand prenez-vous soin de vos plantes ?',
