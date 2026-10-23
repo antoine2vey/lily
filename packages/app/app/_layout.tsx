@@ -35,6 +35,7 @@ import { View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Toaster } from 'sonner-native'
 import { AchievementUnlockedModal } from '@/components/AchievementUnlockedModal'
+import { DevAchievementButton } from '@/components/dev/DevAchievementButton'
 import { DevThemeToggle } from '@/components/dev/DevThemeToggle'
 import { MESH_BASE_COLOR } from '@/components/MeshBackground'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
@@ -113,7 +114,7 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
   )
 
   // Detect newly unlocked achievements and show celebration modal
-  const { currentAchievement, dismiss } =
+  const { achievements, dismiss, preview } =
     useAchievementNotifications(isAuthenticated)
 
   // Add app state sync for subscription (syncs when app returns to foreground)
@@ -161,11 +162,8 @@ function RootLayoutNav({ fontsLoaded }: RootLayoutNavProps) {
           }}
         />
       </NavigationThemeProvider>
-      <AchievementUnlockedModal
-        visible={!!currentAchievement}
-        achievement={currentAchievement}
-        onClose={dismiss}
-      />
+      <AchievementUnlockedModal achievements={achievements} onClose={dismiss} />
+      {__DEV__ && isAuthenticated && <DevAchievementButton onPress={preview} />}
     </>
   )
 }

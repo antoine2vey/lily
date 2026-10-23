@@ -9,8 +9,11 @@ import { ACCESS_TOKEN_KEY, API_BASE_URL } from '@/utils/client'
 import { queryKeys } from '@/utils/query-keys'
 
 interface AchievementNotifications {
-  currentAchievement: AchievementWithProgress | null
-  dismiss: () => void
+  /** Unlocks waiting to be shown, oldest first; the modal shows them as one deck. */
+  achievements: readonly AchievementWithProgress[]
+  /** Drops the first `count`, the pages the modal showed. */
+  dismiss: (count: number) => void
+  preview: () => void
 }
 
 const MAX_RECONNECT_DELAY_MS = 30_000
@@ -164,11 +167,21 @@ export function useAchievementNotifications(
     }
   }, [data])
 
-  const currentAchievement = pipe(Array.head(queue), Option.getOrNull)
-
-  const dismiss = useCallback(() => {
-    setQueue((prev) => pipe(prev, Array.drop(1)))
+  const dismiss = useCallback((count: number) => {
+    setQueue((prev) => pipe(prev, Array.drop(count)))
   }, [])
 
-  return { currentAchievement, dismiss }
+  /** Dev tool: queue one to three catalog achievements to preview the deck. */
+  const preview = useCallback(() => {
+    const catalog = data?.achievements ?? []
+    const start = Math.floor(Math.random() * catalog.length)
+    const count = 1 + Math.floor(Math.random() * 3)
+    const picked = pipe(catalog, Array.drop(start), Array.take(count))
+    setQueue((prev) => [
+      ...prev,
+      ...Array.filter(picked, (a) => !Array.some(prev, (q) => q.key === a.key)),
+    ])
+  }, [data])
+
+  return { achievements: queue, dismiss, preview }
 }

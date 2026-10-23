@@ -22,6 +22,8 @@ export default {
   },
   unlockModal: {
     title: 'Succès débloqué !',
+    titleMany: '{count} succès débloqués !',
+    next: 'Suivant',
     continue: 'Continuer',
   },
   badges: {
