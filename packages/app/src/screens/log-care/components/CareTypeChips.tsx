@@ -42,8 +42,8 @@ export function CareTypeChips({
           {displayLabel}
         </Text>
       )}
-      {/* Toggle container */}
-      <View className="bg-surface-tinted dark:bg-slate-800 p-1.5 rounded-full flex-row h-14">
+      {/* Icon above label: four side-by-side pills clipped the French labels. */}
+      <View className="flex-row gap-2">
         {pipe(
           CARE_TYPES,
           Array.map((careType) => {
@@ -52,8 +52,12 @@ export function CareTypeChips({
               <Pressable
                 key={careType.type}
                 onPress={() => onValueChange(careType.type)}
-                className={`flex-1 h-full flex-row items-center justify-center gap-2 rounded-full ${
-                  isSelected ? 'bg-primary' : ''
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
+                className={`flex-1 items-center justify-center gap-1 rounded-2xl py-3 ${
+                  isSelected
+                    ? 'bg-primary'
+                    : 'bg-surface-tinted dark:bg-slate-800'
                 }`}
               >
                 <MaterialIcons
@@ -62,7 +66,9 @@ export function CareTypeChips({
                   color={isSelected ? iconColors.white : iconColors.textMuted}
                 />
                 <Text
-                  className={`font-bold ${
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  className={`text-xs font-bold ${
                     isSelected
                       ? 'text-white'
                       : 'text-text-muted dark:text-slate-400'

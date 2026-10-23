@@ -9,8 +9,6 @@ export default {
   },
   selectPlant: 'Select Plant',
   selectPlants: 'Select Plants',
-  selectAPlant: 'Select a plant',
-  plantsSelected: '{count} plants selected',
   dateTime: 'Date & Time',
   now: 'Now',
   notesLabel: 'Notes (Optional)',
@@ -18,10 +16,4 @@ export default {
   addPhoto: 'Add Photo',
   saveButton: 'Save Log',
   unknownDate: 'Unknown',
-  datePicker: {
-    selectDate: 'Select Date',
-    selectTime: 'Select Time',
-    done: 'Done',
-    cancel: 'Cancel',
-  },
 } as const

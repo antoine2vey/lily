@@ -14,7 +14,6 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -60,8 +59,10 @@ export function LogCareSheet({
   const [time, setTime] = useState(nowAsDate)
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState<string | null>(null)
-  const [showDatePicker, setShowDatePicker] = useState(false)
-  const [showTimePicker, setShowTimePicker] = useState(false)
+  // Pickers expand inline under their pill instead of opening another sheet.
+  const [openPicker, setOpenPicker] = useState<'date' | 'time' | null>(null)
+  const togglePicker = (picker: 'date' | 'time') =>
+    setOpenPicker((current) => (current === picker ? null : picker))
 
   const { t, i18n } = useTranslation('logCare')
   const { mutate: saveCareLog, isPending } = useSaveCareLog()
@@ -99,7 +100,7 @@ export function LogCareSheet({
       date.getMinutes()
     )
     setDate(newDate)
-    setShowDatePicker(false)
+    setOpenPicker(null)
   }
 
   const selectedDateId = toDateId(date)
@@ -201,7 +202,7 @@ export function LogCareSheet({
             <View className="flex-row gap-3">
               {/* Date picker - flex-3 equivalent */}
               <Pressable
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => togglePicker('date')}
                 className="flex-row items-center h-14 rounded-full bg-surface-tinted dark:bg-slate-800"
                 style={{ flex: 3 }}
               >
@@ -219,7 +220,7 @@ export function LogCareSheet({
 
               {/* Time picker - flex-2 equivalent */}
               <Pressable
-                onPress={() => setShowTimePicker(true)}
+                onPress={() => togglePicker('time')}
                 className="flex-row items-center h-14 rounded-full bg-surface-tinted dark:bg-slate-800"
                 style={{ flex: 2 }}
               >
@@ -235,6 +236,44 @@ export function LogCareSheet({
                 </Text>
               </Pressable>
             </View>
+
+            {openPicker === 'date' && (
+              <View className="mt-3 px-1">
+                <Calendar
+                  calendarMonthId={`${selectedDateId.slice(0, 7)}-01`}
+                  calendarActiveDateRanges={[
+                    { startId: selectedDateId, endId: selectedDateId },
+                  ]}
+                  onCalendarDayPress={handleCalendarDayPress}
+                  calendarMaxDateId={todayId}
+                  calendarFormatLocale={i18n.language}
+                  theme={calendarTheme}
+                />
+              </View>
+            )}
+
+            {openPicker === 'time' &&
+              (Platform.OS === 'ios' ? (
+                <DateTimePicker
+                  value={time}
+                  mode="time"
+                  display="spinner"
+                  themeVariant={isDark ? 'dark' : 'light'}
+                  onChange={(_event: unknown, selected: Date | undefined) => {
+                    if (selected) setTime(selected)
+                  }}
+                />
+              ) : (
+                <DateTimePicker
+                  value={time}
+                  mode="time"
+                  display="default"
+                  onChange={(_event: unknown, selected: Date | undefined) => {
+                    setOpenPicker(null)
+                    if (selected) setTime(selected)
+                  }}
+                />
+              ))}
           </View>
 
           {/* Notes */}
@@ -306,117 +345,6 @@ export function LogCareSheet({
           </Button>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Date Picker Modal */}
-      <Modal
-        visible={showDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View className="flex-1 justify-end">
-          <Pressable
-            className="flex-1"
-            onPress={() => setShowDatePicker(false)}
-          />
-          <View
-            className={`${isDark ? 'bg-neutral-800' : 'bg-white'} rounded-t-2xl`}
-          >
-            <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
-              <Pressable onPress={() => setShowDatePicker(false)}>
-                <Text className="text-base font-medium text-text-muted">
-                  {t('datePicker.cancel')}
-                </Text>
-              </Pressable>
-              <Text
-                className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
-              >
-                {t('datePicker.selectDate')}
-              </Text>
-              <Pressable onPress={() => setShowDatePicker(false)}>
-                <Text className="text-base font-bold text-primary">
-                  {t('datePicker.done')}
-                </Text>
-              </Pressable>
-            </View>
-            <View className="px-3 py-4">
-              <Calendar
-                calendarMonthId={selectedDateId.slice(0, 7)}
-                calendarActiveDateRanges={[
-                  { startId: selectedDateId, endId: selectedDateId },
-                ]}
-                onCalendarDayPress={handleCalendarDayPress}
-                calendarMaxDateId={todayId}
-                calendarFormatLocale={i18n.language}
-                theme={calendarTheme}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Time Picker Modal */}
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={showTimePicker}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowTimePicker(false)}
-        >
-          <View className="flex-1 justify-end">
-            <Pressable
-              className="flex-1"
-              onPress={() => setShowTimePicker(false)}
-            />
-            <View
-              className={`${isDark ? 'bg-neutral-800' : 'bg-white'} rounded-t-md`}
-            >
-              <View className="flex-row justify-between items-center px-4 py-3 border-b border-border/20">
-                <Pressable onPress={() => setShowTimePicker(false)}>
-                  <Text className="text-base font-medium text-text-muted">
-                    {t('datePicker.cancel')}
-                  </Text>
-                </Pressable>
-                <Text
-                  className={`text-base font-bold ${isDark ? 'text-white' : 'text-text-primary'}`}
-                >
-                  {t('datePicker.selectTime')}
-                </Text>
-                <Pressable onPress={() => setShowTimePicker(false)}>
-                  <Text className="text-base font-bold text-primary">
-                    {t('datePicker.done')}
-                  </Text>
-                </Pressable>
-              </View>
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display="spinner"
-                themeVariant={isDark ? 'dark' : 'light'}
-                onChange={(_event: unknown, selectedTime: Date | undefined) => {
-                  if (selectedTime) {
-                    setTime(selectedTime)
-                  }
-                }}
-              />
-            </View>
-          </View>
-        </Modal>
-      ) : (
-        showTimePicker && (
-          <DateTimePicker
-            value={time}
-            mode="time"
-            display="default"
-            onChange={(_event: unknown, selectedTime: Date | undefined) => {
-              setShowTimePicker(false)
-              if (selectedTime) {
-                setTime(selectedTime)
-              }
-            }}
-          />
-        )
-      )}
     </BottomSheet>
   )
 }
