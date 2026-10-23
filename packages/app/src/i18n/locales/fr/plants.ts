@@ -12,13 +12,7 @@ export default {
     sortNextCare: 'Arrosage bientôt',
     sortNeedsAttention: 'À surveiller',
     empty: {
-      title: 'Pas encore de plantes',
-      subtitle: 'Ajoutez votre première plante pour commencer votre collection',
       button: 'Ajouter votre première plante',
-    },
-    noResults: {
-      title: 'Aucune plante trouvée',
-      subtitle: 'Essayez de modifier votre recherche ou vos filtres',
     },
   },
   detail: {
@@ -49,7 +43,6 @@ export default {
     alreadyDone: 'Déjà fait ?',
     notScheduled: 'Non programmé',
     setScheduleToTrack: 'Définir un calendrier',
-    noCareHistory: "Pas encore d'historique",
     idealEnvironment: 'Environnement idéal',
     sunlight: 'Lumière',
     water: 'Eau',

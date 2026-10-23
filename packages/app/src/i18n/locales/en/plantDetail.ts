@@ -38,9 +38,6 @@ export default {
   gallery: {
     addPhoto: 'Add Photo',
     addFirstPhoto: 'Add First Photo',
-    noPhotosTitle: 'No photos yet',
-    noPhotosDescription:
-      "Start documenting your plant's journey by adding your first photo",
     journalTitle: 'Growth Journal',
     viewAll: 'View all',
     growingFor: 'Growing for {duration}',

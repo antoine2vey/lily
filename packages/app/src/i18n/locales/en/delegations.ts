@@ -6,22 +6,6 @@ export default {
     myPlants: 'My Plants',
     caringFor: 'Caring For',
   },
-  empty: {
-    both: {
-      title: 'No delegations yet',
-      description:
-        'Delegate your plant care to friends when you travel, or help them care for theirs.',
-    },
-    owner: {
-      title: 'No plant delegations',
-      description:
-        'You have not delegated any of your plants to someone else yet.',
-    },
-    caretaker: {
-      title: 'Not caring for any plants',
-      description: 'No one has asked you to care for their plants yet.',
-    },
-  },
   create: {
     title: 'New Delegation',
     submit: 'Create Delegation',
@@ -78,9 +62,7 @@ export default {
   plants: {
     title: 'Plants',
     titleWithCount: 'Plants ({count})',
-    empty: 'No plants in this delegation',
     noSchedule: 'No schedule',
-    noPlants: 'No plants to delegate',
     selectCount: 'Plants ({selected}/{total})',
     selectAll: 'Select All',
     deselectAll: 'Deselect All',
@@ -88,7 +70,6 @@ export default {
   caretakerPicker: {
     label: 'Caretaker',
     placeholder: 'Search for a caretaker...',
-    noResults: 'No users found',
     suggested: 'Suggested',
     unknown: 'Unknown',
   },

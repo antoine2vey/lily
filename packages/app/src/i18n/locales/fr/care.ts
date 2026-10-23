@@ -7,8 +7,6 @@ export default {
       today: "Aujourd'hui",
       upcoming: 'À venir',
     },
-    allCaughtUp: 'Tout est à jour !',
-    noTasksScheduled: 'Aucune tâche de soin programmée',
     completeEarly: {
       title: 'Terminer en avance ?',
       message:
@@ -123,10 +121,6 @@ export default {
   },
   history: {
     title: 'Historique des soins',
-    empty: {
-      title: 'Aucun historique',
-      subtitle: 'Commencez à enregistrer des soins pour les voir ici',
-    },
     filterAll: 'Tous',
     filterByType: 'Filtrer par type',
     filterByPlant: 'Par plante',
@@ -150,20 +144,6 @@ export default {
     oneWeek: '1 semaine',
   },
   unknownDay: 'Inconnu',
-  empty: {
-    today: {
-      title: "Aucune tâche pour aujourd'hui",
-      subtitle: 'Profitez de votre journée sans soins !',
-    },
-    upcoming: {
-      title: 'Aucune tâche à venir',
-      subtitle: 'Vos plantes sont bien entretenues',
-    },
-    overdue: {
-      title: 'Aucune tâche en retard',
-      subtitle: 'Bravo pour votre régularité !',
-    },
-  },
   widget: {
     title: "Aujourd'hui",
     needsCare:

@@ -34,7 +34,6 @@ export default {
   drawer: {
     title: 'Conversations',
     newChat: 'New conversation',
-    empty: 'No past conversations yet.',
     untitledGeneral: 'New conversation',
     untitledPlant: 'Plant chat',
   },

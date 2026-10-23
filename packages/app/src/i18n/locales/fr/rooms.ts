@@ -8,9 +8,6 @@ export default {
   plantCount:
     '{count, plural, =0 {Aucune plante} one {# plante} other {# plantes}}',
   empty: {
-    title: 'Aucune pièce',
-    description:
-      'Créez des pièces pour organiser vos plantes par emplacement et les retrouver facilement.',
     button: 'Créer votre première pièce',
   },
   create: {
@@ -41,7 +38,6 @@ export default {
     "La pluie et le vent influenceront les plannings d'arrosage",
   plants: 'Plantes',
   addPlants: 'Ajouter des plantes à cette pièce',
-  noUnassignedPlants: 'Toutes les plantes sont déjà assignées à des pièces',
   plantsSelected: '{count} plante(s) sélectionnée(s)',
   lighting: 'Luminosité',
   lightingLevels: {

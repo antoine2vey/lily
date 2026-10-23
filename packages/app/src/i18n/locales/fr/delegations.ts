@@ -6,23 +6,6 @@ export default {
     myPlants: 'Mes plantes',
     caringFor: "J'aide",
   },
-  empty: {
-    both: {
-      title: 'Aucune délégation',
-      description:
-        "Déléguez l'entretien de vos plantes à vos amis quand vous voyagez, ou aidez-les à s'occuper des leurs.",
-    },
-    owner: {
-      title: 'Aucune plante déléguée',
-      description:
-        "Vous n'avez encore délégué aucune de vos plantes à quelqu'un.",
-    },
-    caretaker: {
-      title: 'Aucune plante à entretenir',
-      description:
-        'Personne ne vous a encore demandé de vous occuper de ses plantes.',
-    },
-  },
   create: {
     title: 'Nouvelle délégation',
     submit: 'Créer la délégation',
@@ -79,9 +62,7 @@ export default {
   plants: {
     title: 'Plantes',
     titleWithCount: 'Plantes ({count})',
-    empty: 'Aucune plante dans cette délégation',
     noSchedule: 'Pas de planning',
-    noPlants: 'Aucune plante à déléguer',
     selectCount: 'Plantes ({selected}/{total})',
     selectAll: 'Tout sélectionner',
     deselectAll: 'Tout désélectionner',
@@ -89,7 +70,6 @@ export default {
   caretakerPicker: {
     label: 'Aidant',
     placeholder: 'Rechercher un aidant...',
-    noResults: 'Aucun utilisateur trouvé',
     suggested: 'Suggestions',
     unknown: 'Inconnu',
   },

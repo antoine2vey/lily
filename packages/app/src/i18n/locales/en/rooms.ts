@@ -7,9 +7,6 @@ export default {
   icon: 'Icon',
   plantCount: '{count, plural, =0 {No plants} one {# plant} other {# plants}}',
   empty: {
-    title: 'No rooms yet',
-    description:
-      'Create rooms to organize your plants by location and easily find them.',
     button: 'Create Your First Room',
   },
   create: {
@@ -40,7 +37,6 @@ export default {
     'Weather like rain and wind will affect plant care schedules',
   plants: 'Plants',
   addPlants: 'Add plants to this room',
-  noUnassignedPlants: 'All plants are already assigned to rooms',
   plantsSelected: '{count} plant(s) selected',
   lighting: 'Lighting',
   lightingLevels: {

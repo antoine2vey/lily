@@ -53,10 +53,6 @@ export default {
     restoring: 'Restoring...',
     signingOut: 'Signing Out...',
   },
-  empty: {
-    default: 'Nothing here yet',
-    noResults: 'No results found',
-  },
   update: {
     available: 'A new version is available',
     reload: 'Update',

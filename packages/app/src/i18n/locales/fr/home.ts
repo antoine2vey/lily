@@ -22,8 +22,6 @@ export default {
     seeAll: 'Tout voir',
   },
   activity: {
-    noActivity:
-      "Pas encore d'activité récente.\nCommencez à prendre soin de vos plantes !",
     plantAdded: 'Nouvelle plante ajoutée : {name}',
     plantMoved: '{name} déplacée à la lumière',
     plantMisted: '{name} vaporisée',
@@ -55,8 +53,6 @@ export default {
     attention: 'À surveiller',
   },
   empty: {
-    title: 'Votre jardin vous attend',
-    subtitle: 'Ajoutez votre première plante pour commencer votre aventure',
     addButton: 'Ajouter votre première plante',
   },
   quickActions: {

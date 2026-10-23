@@ -12,13 +12,7 @@ export default {
     sortNextCare: 'Needs Water Soon',
     sortNeedsAttention: 'Needs Attention',
     empty: {
-      title: 'No plants yet',
-      subtitle: 'Add your first plant to start your collection',
       button: 'Add Your First Plant',
-    },
-    noResults: {
-      title: 'No plants found',
-      subtitle: 'Try adjusting your search or filters',
     },
   },
   detail: {
@@ -49,7 +43,6 @@ export default {
     alreadyDone: 'Already done?',
     notScheduled: 'Not scheduled',
     setScheduleToTrack: 'Set a schedule to track',
-    noCareHistory: 'No care history yet',
     idealEnvironment: 'Ideal Environment',
     sunlight: 'Sunlight',
     water: 'Water',

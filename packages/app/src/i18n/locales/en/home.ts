@@ -22,7 +22,6 @@ export default {
     seeAll: 'See All',
   },
   activity: {
-    noActivity: 'No recent activity yet.\nStart caring for your plants!',
     plantAdded: 'New plant added: {name}',
     plantMoved: 'Moved {name} to light',
     plantMisted: '{name} misted',
@@ -54,8 +53,6 @@ export default {
     attention: 'Needs Attention',
   },
   empty: {
-    title: 'Your garden awaits',
-    subtitle: 'Add your first plant to start your care journey',
     addButton: 'Add Your First Plant',
   },
   quickActions: {

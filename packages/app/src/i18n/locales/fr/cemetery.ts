@@ -2,11 +2,6 @@ export default {
   profileRow: 'Cimetière',
   title: 'Cimetière',
   badge: 'En mémoire',
-  empty: {
-    title: 'Aucune perte pour le moment',
-    description:
-      "Les plantes, c'est difficile. Quand l'une d'elles ne survit pas, dites-lui adieu depuis sa page : elle reposera ici avec son historique et ses photos.",
-  },
   livedFor: 'A vécu {duration} avec vous',
   diedOn: 'Décédée le {date}',
   causes: {

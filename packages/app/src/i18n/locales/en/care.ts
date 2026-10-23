@@ -7,8 +7,6 @@ export default {
       today: 'Today',
       upcoming: 'Upcoming',
     },
-    allCaughtUp: 'All caught up!',
-    noTasksScheduled: 'No care tasks scheduled for now',
     completeEarly: {
       title: 'Complete Early?',
       message:
@@ -122,10 +120,6 @@ export default {
   },
   history: {
     title: 'Care History',
-    empty: {
-      title: 'No care history',
-      subtitle: 'Start logging care activities to see them here',
-    },
     filterAll: 'All',
     filterByType: 'Filter by Type',
     filterByPlant: 'By Plant',
@@ -149,20 +143,6 @@ export default {
     oneWeek: '1 week',
   },
   unknownDay: 'Unknown',
-  empty: {
-    today: {
-      title: 'No tasks for today',
-      subtitle: 'Enjoy your day off from plant care!',
-    },
-    upcoming: {
-      title: 'No upcoming tasks',
-      subtitle: 'Your plants are all set for now',
-    },
-    overdue: {
-      title: 'No overdue tasks',
-      subtitle: 'Great job staying on top of plant care!',
-    },
-  },
   widget: {
     title: 'Today',
     needsCare:

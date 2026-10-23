@@ -2,11 +2,6 @@ export default {
   profileRow: 'Cemetery',
   title: 'Cemetery',
   badge: 'In memory',
-  empty: {
-    title: 'No losses yet',
-    description:
-      "Plants are hard. When one doesn't make it, say goodbye from its page and it will rest here with its history and photos.",
-  },
   livedFor: 'Lived with you for {duration}',
   diedOn: 'Died on {date}',
   causes: {
