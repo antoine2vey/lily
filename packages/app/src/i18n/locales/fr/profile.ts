@@ -7,6 +7,15 @@ export default {
   memberSinceUnknown: 'Inconnu',
   followers: 'Abonnés',
   following: 'Abonnements',
+  social: {
+    searchPlaceholder: 'Rechercher par nom...',
+    suggestedForYou: 'Suggestions pour vous',
+    recentPlants: 'Plantes récentes',
+    plantCount: '{count, plural, one {# plante} other {# plantes}}',
+    follow: "S'abonner",
+    followingButton: 'Abonné(e)',
+    nudgeToWater: "Lui rappeler d'arroser",
+  },
   stats: {
     plants: 'Plantes',
     careLogs: 'Soins',

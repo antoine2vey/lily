@@ -1,6 +1,7 @@
 import { Array, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FlatList, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -18,6 +19,7 @@ interface FollowingScreenProps {
 export function FollowingScreen({ userId }: FollowingScreenProps) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { t } = useTranslation('profile')
   const { data, isLoading } = useFollowing(userId)
 
   const items = pipe(
@@ -81,7 +83,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
           className="flex-1 text-lg text-text-primary dark:text-white text-center mr-10"
           style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
         >
-          Following
+          {t('following')}
         </Text>
       </View>
 

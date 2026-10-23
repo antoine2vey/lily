@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { PublicPlantPreview } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
+import { useTranslation } from 'react-i18next'
 import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native'
 import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -13,6 +14,7 @@ interface PlantGridProps {
 export function PlantGrid({ plants, onPress }: PlantGridProps) {
   const { width } = useWindowDimensions()
   const iconColors = useIconColors()
+  const { t } = useTranslation('profile')
   const padding = 16
   const gap = 8
   const columns = 3
@@ -24,7 +26,7 @@ export function PlantGrid({ plants, onPress }: PlantGridProps) {
         className="text-[11px] text-text-muted dark:text-slate-400 uppercase tracking-wide mb-3"
         style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
       >
-        Recent plants
+        {t('social.recentPlants')}
       </Text>
       {Array.isReadonlyArrayEmpty(plants) ? (
         <EmptyState kind="publicProfilePlants" variant="inline" />

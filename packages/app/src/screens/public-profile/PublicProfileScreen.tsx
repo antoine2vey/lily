@@ -1,8 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import type { PublicPlantPreview } from '@lily/shared'
+import {
+  formatMemberSince,
+  type PublicPlantPreview,
+  parseApiDate,
+} from '@lily/shared'
 import { Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ActivityIndicator,
   Image,
@@ -15,6 +20,7 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
+import { useAuth } from '@/contexts/AuthContext'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useFollowUser } from '@/hooks/useFollowUser'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -33,6 +39,8 @@ interface PublicProfileScreenProps {
 export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { t, i18n } = useTranslation('profile')
+  const { state: authState } = useAuth()
   const iconColors = useIconColors()
   const { data: profile, isLoading, apiError } = usePublicProfile(userId)
   const followMutation = useFollowUser()
@@ -49,8 +57,11 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
   const displayName = pipe(
     Option.fromNullishOr(profile),
     Option.flatMap((p) => Option.fromNullishOr(p.name)),
-    Option.getOrElse(() => 'User')
+    Option.getOrElse(() => t('defaultName'))
   )
+
+  const isSelf =
+    authState._tag === 'Authenticated' && authState.user.id === userId
 
   const handleBack = useCallback(() => {
     router.back()
@@ -149,10 +160,12 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
                   className="text-xs text-text-muted dark:text-slate-400 tracking-wide"
                   style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
                 >
-                  Member since{' '}
-                  {new Date(profile.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    year: 'numeric',
+                  {t('memberSince', {
+                    date: pipe(
+                      parseApiDate(profile.createdAt),
+                      Option.map((dt) => formatMemberSince(dt, i18n.language)),
+                      Option.getOrElse(() => t('memberSinceUnknown'))
+                    ),
                   })}
                 </Text>
               </View>
@@ -161,15 +174,15 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
             <View className="mt-6">
               <ProfileStats
                 stats={[
-                  { value: profile.plantCount, label: 'Plants' },
+                  { value: profile.plantCount, label: t('stats.plants') },
                   {
                     value: profile.followerCount,
-                    label: 'Followers',
+                    label: t('followers'),
                     onPress: handleFollowersPress,
                   },
                   {
                     value: profile.followingCount,
-                    label: 'Following',
+                    label: t('following'),
                     onPress: handleFollowingPress,
                   },
                 ]}
@@ -183,64 +196,68 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
               />
             </View>
 
-            <View className="mt-6 px-4 gap-3">
-              <Pressable
-                onPress={handleFollowToggle}
-                disabled={isFollowPending}
-                className={
-                  profile.isFollowing
-                    ? 'border border-primary dark:border-primary-light rounded-xl py-4 items-center'
-                    : 'bg-primary rounded-xl py-4 items-center'
-                }
-              >
-                {isFollowPending ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={profile.isFollowing ? '#5B8C5A' : '#FFFFFF'}
-                  />
-                ) : (
-                  <Text
-                    className={
-                      profile.isFollowing
-                        ? 'text-base text-primary dark:text-primary-light'
-                        : 'text-base text-white'
-                    }
-                    style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
-                  >
-                    {profile.isFollowing ? 'Following' : 'Follow'}
-                  </Text>
-                )}
-              </Pressable>
-
-              {profile.isFollowing && (
+            {!isSelf && (
+              <View className="mt-6 px-4 gap-3">
                 <Pressable
-                  onPress={handleNudge}
-                  disabled={nudgeMutation.isPending}
-                  className="border border-border dark:border-slate-700 rounded-xl py-3 items-center flex-row justify-center gap-2"
+                  onPress={handleFollowToggle}
+                  disabled={isFollowPending}
+                  className={
+                    profile.isFollowing
+                      ? 'border border-primary dark:border-primary-light rounded-xl py-4 items-center'
+                      : 'bg-primary rounded-xl py-4 items-center'
+                  }
                 >
-                  {nudgeMutation.isPending ? (
+                  {isFollowPending ? (
                     <ActivityIndicator
                       size="small"
-                      color={iconColors.textMuted}
+                      color={profile.isFollowing ? '#5B8C5A' : '#FFFFFF'}
                     />
                   ) : (
-                    <>
-                      <MaterialIcons
-                        name="notifications-active"
-                        size={18}
-                        color={iconColors.textSecondary}
-                      />
-                      <Text
-                        className="text-sm text-text-secondary dark:text-slate-400"
-                        style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
-                      >
-                        Nudge to water
-                      </Text>
-                    </>
+                    <Text
+                      className={
+                        profile.isFollowing
+                          ? 'text-base text-primary dark:text-primary-light'
+                          : 'text-base text-white'
+                      }
+                      style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
+                    >
+                      {profile.isFollowing
+                        ? t('social.followingButton')
+                        : t('social.follow')}
+                    </Text>
                   )}
                 </Pressable>
-              )}
-            </View>
+
+                {profile.isFollowing && (
+                  <Pressable
+                    onPress={handleNudge}
+                    disabled={nudgeMutation.isPending}
+                    className="border border-border dark:border-slate-700 rounded-xl py-3 items-center flex-row justify-center gap-2"
+                  >
+                    {nudgeMutation.isPending ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={iconColors.textMuted}
+                      />
+                    ) : (
+                      <>
+                        <MaterialIcons
+                          name="notifications-active"
+                          size={18}
+                          color={iconColors.textSecondary}
+                        />
+                        <Text
+                          className="text-sm text-text-secondary dark:text-slate-400"
+                          style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
+                        >
+                          {t('social.nudgeToWater')}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            )}
           </ScrollView>
         </Animated.View>
       ) : null}

@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe, String } from 'effect'
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -24,6 +25,7 @@ import { UserSearchSkeleton } from './components/UserSearchSkeleton'
 
 export function UserSearchScreen() {
   const insets = useSafeAreaInsets()
+  const { t } = useTranslation('profile')
   const iconColors = useIconColors()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
@@ -116,7 +118,7 @@ export function UserSearchScreen() {
             className="flex-1 text-lg text-text-primary dark:text-white text-center mr-10"
             style={{ fontFamily: 'SpaceGrotesk_600SemiBold' }}
           >
-            Find Friends
+            {t('actions.findFriends')}
           </Text>
         </View>
 
@@ -126,7 +128,7 @@ export function UserSearchScreen() {
             className="flex-1 text-base text-text-primary dark:text-white"
             value={query}
             onChangeText={setQuery}
-            placeholder="Search by name..."
+            placeholder={t('social.searchPlaceholder')}
             placeholderTextColor={iconColors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -152,7 +154,7 @@ export function UserSearchScreen() {
             className="text-xs text-text-muted dark:text-slate-400 uppercase tracking-wide"
             style={{ fontFamily: 'SpaceGrotesk_500Medium' }}
           >
-            Suggested for you
+            {t('social.suggestedForYou')}
           </Text>
         </View>
       )}

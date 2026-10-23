@@ -7,6 +7,15 @@ export default {
   memberSinceUnknown: 'Unknown',
   followers: 'Followers',
   following: 'Following',
+  social: {
+    searchPlaceholder: 'Search by name...',
+    suggestedForYou: 'Suggested for you',
+    recentPlants: 'Recent plants',
+    plantCount: '{count, plural, one {# plant} other {# plants}}',
+    follow: 'Follow',
+    followingButton: 'Following',
+    nudgeToWater: 'Nudge to water',
+  },
   stats: {
     plants: 'Plants',
     careLogs: 'Care Logs',
