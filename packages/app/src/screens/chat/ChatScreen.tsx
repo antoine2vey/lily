@@ -1,9 +1,10 @@
 import { nowAsIsoString } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { isToolUIPart, type UIMessage } from 'ai'
-import { Array, Option, pipe, Result } from 'effect'
+import { Array, Option, Predicate, pipe, Result } from 'effect'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -61,6 +62,7 @@ const collectToolResultIds = (
   )
 
 export function ChatScreen() {
+  const { t } = useTranslation('chat')
   const insets = useSafeAreaInsets()
   const { conversationId: paramId } = useLocalSearchParams<{
     conversationId?: string
@@ -329,13 +331,15 @@ export function ChatScreen() {
         <AskLilyHeader onMenuPress={openDrawer} />
         <View className="flex-1 items-center justify-center p-6">
           <Text className="text-lg text-center font-semibold text-text-primary dark:text-white">
-            Failed to load chat
+            {t('loadError')}
           </Text>
           <Pressable
             onPress={() => refetchHistory()}
             className="mt-6 px-6 py-3 rounded-full bg-primary"
           >
-            <Text className="font-semibold text-white">Try Again</Text>
+            <Text className="font-semibold text-white">
+              {t('common:buttons.tryAgain')}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -409,6 +413,7 @@ export function ChatScreen() {
         <ChatInput
           onSend={handleSend}
           disabled={isStreaming || uploadImage.isPending}
+          isPlantChat={Predicate.isNotNullish(conversationPlantId)}
         />
       </KeyboardAvoidingView>
 

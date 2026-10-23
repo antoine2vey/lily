@@ -4,7 +4,8 @@ export default {
     online: 'Online',
   },
   input: {
-    placeholder: 'Ask about this plant...',
+    placeholder: 'Ask Lily about your plants...',
+    placeholderPlant: 'Ask about this plant...',
     imageAttached: 'Image attached',
     analysisReady: 'Analysis ready',
   },
@@ -31,6 +32,7 @@ export default {
     dueInDays: 'in {count, plural, one {# day} other {# days}}',
     stepsCount: '{count, plural, one {# step} other {# steps}}',
   },
+  loadError: "Couldn't load this chat",
   drawer: {
     title: 'Conversations',
     newChat: 'New conversation',

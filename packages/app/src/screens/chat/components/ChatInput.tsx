@@ -11,9 +11,10 @@ import { useIconColors } from '@/hooks/useIconColors'
 interface ChatInputProps {
   onSend: (message: string, imageUri?: string) => void
   disabled?: boolean
+  isPlantChat: boolean
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, isPlantChat }: ChatInputProps) {
   const { t } = useTranslation('chat')
   const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
@@ -136,7 +137,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         <TextInput
           value={message}
           onChangeText={setMessage}
-          placeholder={t('input.placeholder')}
+          placeholder={t(
+            isPlantChat ? 'input.placeholderPlant' : 'input.placeholder'
+          )}
           placeholderTextColor={iconColors.textMuted}
           multiline
           className="flex-1 font-regular text-base text-text-primary dark:text-white py-3 max-h-32"

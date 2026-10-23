@@ -4,7 +4,8 @@ export default {
     online: 'En ligne',
   },
   input: {
-    placeholder: 'Posez une question sur cette plante...',
+    placeholder: 'Posez une question à Lily sur vos plantes...',
+    placeholderPlant: 'Posez une question sur cette plante...',
     imageAttached: 'Image jointe',
     analysisReady: 'Analyse prête',
   },
@@ -31,6 +32,7 @@ export default {
     dueInDays: 'dans {count, plural, one {# jour} other {# jours}}',
     stepsCount: '{count, plural, one {# étape} other {# étapes}}',
   },
+  loadError: 'Impossible de charger la discussion',
   drawer: {
     title: 'Conversations',
     newChat: 'Nouvelle conversation',

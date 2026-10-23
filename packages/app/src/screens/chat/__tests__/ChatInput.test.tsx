@@ -8,19 +8,28 @@ describe('ChatInput', () => {
     jest.clearAllMocks()
   })
 
-  it('renders input with placeholder', () => {
-    render(<ChatInput onSend={mockOnSend} />)
+  it('asks about the plant in a plant chat', () => {
+    render(<ChatInput onSend={mockOnSend} isPlantChat />)
 
     expect(screen.getByPlaceholderText('Ask about this plant...')).toBeTruthy()
   })
 
+  it('asks about all plants in a general chat', () => {
+    render(<ChatInput onSend={mockOnSend} isPlantChat={false} />)
+
+    expect(
+      screen.getByPlaceholderText('Ask Lily about your plants...')
+    ).toBeTruthy()
+    expect(screen.queryByPlaceholderText('Ask about this plant...')).toBeNull()
+  })
+
   it('renders component', () => {
-    const { toJSON } = render(<ChatInput onSend={mockOnSend} />)
+    const { toJSON } = render(<ChatInput onSend={mockOnSend} isPlantChat />)
     expect(toJSON()).toBeTruthy()
   })
 
   it('accepts text input', () => {
-    render(<ChatInput onSend={mockOnSend} />)
+    render(<ChatInput onSend={mockOnSend} isPlantChat />)
 
     fireEvent.changeText(
       screen.getByPlaceholderText('Ask about this plant...'),
@@ -32,7 +41,9 @@ describe('ChatInput', () => {
   })
 
   it('shows disabled state when disabled', () => {
-    const { toJSON } = render(<ChatInput onSend={mockOnSend} disabled />)
+    const { toJSON } = render(
+      <ChatInput onSend={mockOnSend} isPlantChat disabled />
+    )
     expect(toJSON()).toBeTruthy()
   })
 })
