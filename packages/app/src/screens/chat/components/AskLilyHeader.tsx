@@ -46,6 +46,7 @@ export function AskLilyHeader({
         <GlassIconButton
           testID="chat-menu-button"
           icon="menu"
+          accessibilityLabel={t('drawer.title')}
           iconColor={iconColors.textPrimary}
           onPress={onMenuPress}
         />

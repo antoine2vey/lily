@@ -7,6 +7,8 @@ interface GlassIconButtonProps {
   icon: keyof typeof MaterialIcons.glyphMap
   onPress: () => void
   iconColor: string
+  /** Icon-only, so this is all VoiceOver has to announce. */
+  accessibilityLabel: string
   testID?: string | undefined
 }
 
@@ -14,6 +16,7 @@ export function GlassIconButton({
   icon,
   onPress,
   iconColor,
+  accessibilityLabel,
   testID,
 }: GlassIconButtonProps) {
   if (useGlass) {
@@ -21,6 +24,8 @@ export function GlassIconButton({
       <Pressable
         testID={testID}
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       >
         <LiquidGlassView
@@ -48,6 +53,8 @@ export function GlassIconButton({
     <Pressable
       testID={testID}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       className="w-10 h-10 items-center justify-center rounded-full bg-white dark:bg-surface-dark"
     >

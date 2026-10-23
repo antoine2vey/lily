@@ -96,12 +96,14 @@ function HeaderButton({
   icon,
   onPress,
   iconColor,
+  accessibilityLabel,
   testID,
   animatedFallbackStyle,
 }: {
   icon: keyof typeof MaterialIcons.glyphMap
   onPress: () => void
   iconColor: string
+  accessibilityLabel: string
   testID?: string
   animatedFallbackStyle: AnimatedFallbackStyle
 }) {
@@ -111,6 +113,7 @@ function HeaderButton({
         icon={icon}
         onPress={onPress}
         iconColor={iconColor}
+        accessibilityLabel={accessibilityLabel}
         testID={testID}
       />
     )
@@ -120,6 +123,8 @@ function HeaderButton({
     <Pressable
       onPress={onPress}
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
     >
       <Animated.View
@@ -778,6 +783,7 @@ export function PlantDetailScreen() {
         <HeaderButton
           icon="arrow-back"
           onPress={handleBack}
+          accessibilityLabel={t('common:a11y.back')}
           iconColor={iconColors.textPrimary}
           testID="back-button"
           animatedFallbackStyle={animatedButtonStyle}
@@ -786,12 +792,18 @@ export function PlantDetailScreen() {
           <HeaderButton
             icon={plant.isFavorite ? 'favorite' : 'favorite-border'}
             onPress={handleToggleFavorite}
+            accessibilityLabel={t(
+              plant.isFavorite
+                ? 'common:a11y.unfavorite'
+                : 'common:a11y.favorite'
+            )}
             iconColor={iconColors.textPrimary}
             animatedFallbackStyle={animatedButtonStyle}
           />
           <HeaderButton
             icon="more-vert"
             onPress={handleMoreOptions}
+            accessibilityLabel={t('common:a11y.moreOptions')}
             iconColor={iconColors.textPrimary}
             testID="more-options-button"
             animatedFallbackStyle={animatedButtonStyle}

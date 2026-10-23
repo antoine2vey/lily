@@ -262,12 +262,14 @@ function StickyBell({
   iconColor: string
   onPress: () => void
 }) {
+  const { t } = useLocalization()
   return (
     <View style={{ width: 40, height: 40 }}>
       <GlassIconButton
         icon="notifications"
         iconColor={iconColor}
         onPress={onPress}
+        accessibilityLabel={t('common:a11y.notifications')}
       />
       <NotificationBadge count={unreadCount} />
     </View>

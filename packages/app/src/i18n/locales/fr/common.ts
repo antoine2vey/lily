@@ -89,4 +89,16 @@ export default {
       sunday: 'Dim',
     },
   },
+  a11y: {
+    back: 'Retour',
+    notifications: 'Notifications',
+    openSearch: 'Rechercher des plantes',
+    closeSearch: 'Fermer la recherche',
+    sort: 'Trier les plantes',
+    settings: 'Paramètres',
+    favorite: 'Ajouter aux favoris',
+    unfavorite: 'Retirer des favoris',
+    moreOptions: "Plus d'options",
+    conversations: 'Conversations',
+  },
 } as const

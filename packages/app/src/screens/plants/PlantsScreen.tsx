@@ -128,17 +128,22 @@ function ActionButtons({
   onSortPress: () => void
   iconColor: string
 }) {
+  const { t } = useTranslation()
   const buttons = (
     <>
       <GlassIconButton
         icon={showSearch ? 'close' : 'search'}
         onPress={onSearchPress}
+        accessibilityLabel={t(
+          showSearch ? 'common:a11y.closeSearch' : 'common:a11y.openSearch'
+        )}
         iconColor={iconColor}
         testID="search-button"
       />
       <GlassIconButton
         icon="sort"
         onPress={onSortPress}
+        accessibilityLabel={t('common:a11y.sort')}
         iconColor={iconColor}
         testID="sort-button"
       />

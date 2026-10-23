@@ -88,4 +88,16 @@ export default {
       sunday: 'Sun',
     },
   },
+  a11y: {
+    back: 'Back',
+    notifications: 'Notifications',
+    openSearch: 'Search plants',
+    closeSearch: 'Close search',
+    sort: 'Sort plants',
+    settings: 'Settings',
+    favorite: 'Add to favorites',
+    unfavorite: 'Remove from favorites',
+    moreOptions: 'More options',
+    conversations: 'Conversations',
+  },
 } as const

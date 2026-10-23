@@ -118,6 +118,7 @@ export function ProfileScreen() {
         <GlassIconButton
           icon="settings"
           onPress={() => router.push('/settings')}
+          accessibilityLabel={t('common:a11y.settings')}
           iconColor={iconColors.textPrimary}
         />
       </View>
