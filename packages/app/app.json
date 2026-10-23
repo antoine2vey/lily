@@ -2,7 +2,7 @@
   "expo": {
     "name": "Lily",
     "slug": "lily",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "owner": "lilyapp",
     "orientation": "portrait",
     "icon": "./assets/icon-light.png",
