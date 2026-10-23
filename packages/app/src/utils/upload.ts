@@ -20,14 +20,23 @@ export class UploadError extends Error {
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: FormData requires any for React Native file objects
-type FileObject = any
-
 interface UploadFile {
   uri: string
   name: string
   type: string
 }
+
+/**
+ * Expo replaces the global `fetch` with `expo/fetch`, which serialises only
+ * form parts that expose `bytes()`. React Native's `{ uri, name, type }` part
+ * throws "Unsupported FormDataPart implementation" before any request is sent.
+ */
+const toFormPart = (file: UploadFile) => ({
+  name: file.name,
+  type: file.type,
+  bytes: async () =>
+    new Uint8Array(await (await fetch(file.uri)).arrayBuffer()),
+})
 
 /**
  * Upload files via multipart/form-data to the API
@@ -49,12 +58,8 @@ export async function uploadMultipart<T>(
   const formData = new FormData()
 
   Array.forEach(files, (file) => {
-    const fileObject: FileObject = {
-      uri: file.uri,
-      type: file.type,
-      name: file.name,
-    }
-    formData.append(fieldName, fileObject)
+    // @ts-expect-error: FormData's types only know string and Blob parts
+    formData.append(fieldName, toFormPart(file))
   })
 
   if (additionalFields) {
