@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { mockPlants } from '@/__tests__/fixtures/plants'
+import { mockRouter } from '@/__tests__/mocks/navigation'
 
 // Mock dependencies
 jest.mock('@/utils/client', () => ({
@@ -154,8 +155,11 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />)
 
+    expect(screen.getByTestId('mascot-hello')).toBeTruthy()
     expect(screen.getByText('Your garden awaits')).toBeTruthy()
-    expect(screen.getByText('Add Your First Plant')).toBeTruthy()
+    expect(
+      screen.getByText("Add your first plant and I'll help you keep it happy.")
+    ).toBeTruthy()
   })
 
   it('renders home content when plants exist', () => {
@@ -180,9 +184,9 @@ describe('HomeScreen', () => {
 
     render(<HomeScreen />)
 
-    // Verify the add plant button exists and is pressable
-    expect(screen.getByText('Add Your First Plant')).toBeTruthy()
     fireEvent.press(screen.getByText('Add Your First Plant'))
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/add-plant/scanner')
   })
 
   it('uses default name when user has no name', () => {

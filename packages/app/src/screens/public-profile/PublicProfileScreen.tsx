@@ -97,10 +97,7 @@ export function PublicProfileScreen({ userId }: PublicProfileScreenProps) {
         </Animated.View>
       ) : hasError ? (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">
-          <EmptyState
-            title="Profile unavailable"
-            description="This profile may be private or doesn't exist"
-          />
+          <EmptyState kind="profileUnavailable" />
         </Animated.View>
       ) : isInitialLoading ? null : profile ? (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">

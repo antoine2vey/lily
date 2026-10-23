@@ -7,7 +7,6 @@ import {
 } from '@lily/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { Array, Option, pipe, Result, String } from 'effect'
-import { useRouter } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -71,7 +70,6 @@ function RoomsContentSkeleton() {
 
 export function RoomsScreen() {
   const { t } = useTranslation('rooms')
-  const router = useRouter()
   const insets = useSafeAreaInsets()
   const iconColors = useIconColors()
   const queryClient = useQueryClient()
@@ -101,6 +99,8 @@ export function RoomsScreen() {
     Option.map((d) => d.items),
     Option.getOrElse(() => [] as readonly Plant[])
   )
+
+  const hasPlants = !Array.isReadonlyArrayEmpty(allPlants)
 
   const availablePlantsForCreate = useMemo(
     () => Array.filter(allPlants, (p) => p.roomId === null),
@@ -317,10 +317,9 @@ export function RoomsScreen() {
           <RoomsContentSkeleton />
         </Animated.View>
       ) : isInitialLoading ? null : Array.isReadonlyArrayEmpty(roomsList) ? (
-        <Animated.View entering={FadeIn.duration(300)}>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
           <EmptyState
-            title={t('empty.title')}
-            description={t('empty.description')}
+            kind="rooms"
             action={{
               label: t('empty.button'),
               onPress: handleOpenCreate,
@@ -406,6 +405,7 @@ export function RoomsScreen() {
           submitLabel={t('create.button')}
           isLoading={createRoom.isPending}
           plants={availablePlantsForCreate}
+          hasPlants={hasPlants}
           selectedPlantIds={selectedPlantIds}
           onTogglePlant={handleTogglePlant}
         />
@@ -428,6 +428,7 @@ export function RoomsScreen() {
           submitLabel={t('edit.button')}
           isLoading={updateRoom.isPending}
           plants={availablePlantsForEdit}
+          hasPlants={hasPlants}
           selectedPlantIds={selectedPlantIds}
           onTogglePlant={handleTogglePlant}
         />
@@ -461,6 +462,7 @@ interface RoomFormProps {
   submitLabel: string
   isLoading: boolean
   plants: readonly Plant[]
+  hasPlants: boolean
   selectedPlantIds: Set<string>
   onTogglePlant: (id: string) => void
 }
@@ -472,6 +474,7 @@ function RoomForm({
   submitLabel,
   isLoading,
   plants,
+  hasPlants,
   selectedPlantIds,
   onTogglePlant,
 }: RoomFormProps) {
@@ -547,6 +550,7 @@ function RoomForm({
           </View>
           <PlantSelector
             plants={plants}
+            hasPlants={hasPlants}
             selectedIds={selectedPlantIds}
             onToggle={onTogglePlant}
           />

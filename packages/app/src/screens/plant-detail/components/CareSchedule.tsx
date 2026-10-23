@@ -1,8 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Match, pipe, String } from 'effect'
+import { Array, Match, pipe, String } from 'effect'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { EmptyState } from '@/components/EmptyState'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useIconColors } from '@/hooks/useIconColors'
 import { MAX_VISIBLE_DAYS } from '@/screens/plants/components/PlantCard'
@@ -31,6 +32,10 @@ interface CareScheduleProps {
   isRepotFirstTime?: boolean | undefined
   onCorrectDates?: (() => void) | undefined
 }
+
+/** Unscheduled care, or care due beyond 14 days, gets no card. */
+const isDueSoon = (days: number | null): days is number =>
+  days !== null && days <= MAX_VISIBLE_DAYS
 
 type UrgencyState = 'overdue' | 'today' | 'soon' | 'normal'
 
@@ -131,8 +136,7 @@ function CareCard({
 }: CareCardProps) {
   const { t } = useTranslation('plants')
 
-  // Hide cards that are not scheduled or beyond 14 days
-  if (days === null || days > MAX_VISIBLE_DAYS) {
+  if (!isDueSoon(days)) {
     return null
   }
 
@@ -219,6 +223,10 @@ export function CareSchedule({
 }: CareScheduleProps) {
   const { t } = useTranslation('plants')
   const iconColors = useIconColors()
+  const hasCareDueSoon = Array.some(
+    [wateringDays, fertilizingDays, mistingDays, repottingDays],
+    isDueSoon
+  )
 
   return (
     <View testID="care-schedule">
@@ -233,48 +241,56 @@ export function CareSchedule({
           </Text>
         </Pressable>
       )}
-      <View className="gap-3 mt-4">
-        <CareCard
-          icon="water-drop"
-          iconColor={iconColors.waterBlue}
-          days={wateringDays}
-          label={t('careTypes.water')}
-          nextDate={wateringDate}
-          onDoNow={onWaterNow}
-          onLogPast={onWaterPast}
-          isFirstTime={isWaterFirstTime}
+      {hasCareDueSoon ? (
+        <View className="gap-3 mt-4">
+          <CareCard
+            icon="water-drop"
+            iconColor={iconColors.waterBlue}
+            days={wateringDays}
+            label={t('careTypes.water')}
+            nextDate={wateringDate}
+            onDoNow={onWaterNow}
+            onLogPast={onWaterPast}
+            isFirstTime={isWaterFirstTime}
+          />
+          <CareCard
+            icon="eco"
+            iconColor={iconColors.fertilizerOrange}
+            days={fertilizingDays}
+            label={t('careTypes.fertilize')}
+            nextDate={fertilizingDate}
+            onDoNow={onFertilizeNow}
+            onLogPast={onFertilizePast}
+            isFirstTime={isFertilizeFirstTime}
+          />
+          <CareCard
+            icon="grain"
+            iconColor={iconColors.mistTeal}
+            days={mistingDays}
+            label={t('careTypes.mist')}
+            nextDate={mistingDate}
+            onDoNow={onMistNow}
+            onLogPast={onMistPast}
+            isFirstTime={isMistFirstTime}
+          />
+          <CareCard
+            icon="yard"
+            iconColor={iconColors.repotBrown}
+            days={repottingDays}
+            label={t('careTypes.repot')}
+            nextDate={repottingDate}
+            onDoNow={onRepotNow}
+            onLogPast={onRepotPast}
+            isFirstTime={isRepotFirstTime}
+          />
+        </View>
+      ) : (
+        <EmptyState
+          kind="plantScheduleClear"
+          variant="inline"
+          testID="care-schedule-empty"
         />
-        <CareCard
-          icon="eco"
-          iconColor={iconColors.fertilizerOrange}
-          days={fertilizingDays}
-          label={t('careTypes.fertilize')}
-          nextDate={fertilizingDate}
-          onDoNow={onFertilizeNow}
-          onLogPast={onFertilizePast}
-          isFirstTime={isFertilizeFirstTime}
-        />
-        <CareCard
-          icon="grain"
-          iconColor={iconColors.mistTeal}
-          days={mistingDays}
-          label={t('careTypes.mist')}
-          nextDate={mistingDate}
-          onDoNow={onMistNow}
-          onLogPast={onMistPast}
-          isFirstTime={isMistFirstTime}
-        />
-        <CareCard
-          icon="yard"
-          iconColor={iconColors.repotBrown}
-          days={repottingDays}
-          label={t('careTypes.repot')}
-          nextDate={repottingDate}
-          onDoNow={onRepotNow}
-          onLogPast={onRepotPast}
-          isFirstTime={isRepotFirstTime}
-        />
-      </View>
+      )}
     </View>
   )
 }

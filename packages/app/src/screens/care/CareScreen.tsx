@@ -17,6 +17,7 @@ import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
+import { EmptyState } from '@/components/EmptyState'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
@@ -232,7 +233,7 @@ export function CareScreen() {
         {(scrollHandler) => (
           <Animated.ScrollView
             className="flex-1 px-6"
-            contentContainerStyle={{ paddingBottom: tabBarInset }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: tabBarInset }}
             showsVerticalScrollIndicator={false}
             onScroll={scrollHandler}
             scrollEventThrottle={16}
@@ -243,7 +244,7 @@ export function CareScreen() {
                 <CareContentSkeleton />
               </Animated.View>
             ) : isInitialLoading ? null : (
-              <Animated.View entering={FadeIn.duration(300)}>
+              <Animated.View entering={FadeIn.duration(300)} className="flex-1">
                 {vacation?.status === 'active' && (
                   <Pressable
                     onPress={() => router.push('/vacation-mode')}
@@ -264,21 +265,7 @@ export function CareScreen() {
                     />
                   </Pressable>
                 )}
-                {totalTasks === 0 && (
-                  <View className="items-center py-12">
-                    <MaterialIcons
-                      name="check-circle"
-                      size={64}
-                      color={iconColors.primary}
-                    />
-                    <Text className="text-lg mt-4 font-semibold text-text-primary dark:text-white">
-                      {t('screen.allCaughtUp')}
-                    </Text>
-                    <Text className="text-sm mt-1 text-center font-regular text-text-muted dark:text-slate-400">
-                      {t('screen.noTasksScheduled')}
-                    </Text>
-                  </View>
-                )}
+                {totalTasks === 0 && <EmptyState kind="careAllCaughtUp" />}
 
                 <View className="gap-6">
                   {overdueCount > 0 && (

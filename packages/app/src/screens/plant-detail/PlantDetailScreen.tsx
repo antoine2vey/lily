@@ -736,11 +736,7 @@ export function PlantDetailScreen() {
           </View>
 
           {/* AI care plans (accepted) */}
-          {plantId && (
-            <View className="mt-10">
-              <PlantCarePlans plantId={plantId} />
-            </View>
-          )}
+          {plantId && <PlantCarePlans plantId={plantId} />}
 
           {/* Growth Journal */}
           <View className="mt-10">

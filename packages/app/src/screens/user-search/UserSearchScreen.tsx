@@ -1,6 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe, String } from 'effect'
-import { useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
@@ -17,7 +16,6 @@ import { UserSearchSkeleton } from './components/UserSearchSkeleton'
 
 export function UserSearchScreen() {
   const insets = useSafeAreaInsets()
-  const router = useRouter()
   const iconColors = useIconColors()
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, 300)
@@ -170,19 +168,9 @@ export function UserSearchScreen() {
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
-              isSearching ? (
-                <EmptyState
-                  illustration="search"
-                  title="No users found"
-                  description="Try searching with a different name"
-                />
-              ) : (
-                <EmptyState
-                  illustration="search"
-                  title="No suggestions yet"
-                  description="Search for people by name to find and follow other plant lovers"
-                />
-              )
+              <EmptyState
+                kind={isSearching ? 'usersNoResults' : 'usersNoSuggestions'}
+              />
             }
           />
         </Animated.View>

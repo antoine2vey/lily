@@ -44,7 +44,8 @@ describe('RecentActivity', () => {
     )
 
     expect(screen.getByText('Recent Activity')).toBeTruthy()
-    expect(screen.getByText(/No recent activity yet/)).toBeTruthy()
+    expect(screen.getByTestId('mascot-rainy')).toBeTruthy()
+    expect(screen.getByText('No activity yet')).toBeTruthy()
   })
 
   it('displays activity list with title', () => {

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 
 const TIMEZONE_OPTIONS = [
@@ -122,33 +123,37 @@ export function TimezonePickerModal({
           className="flex-1 px-4"
           showsVerticalScrollIndicator={false}
         >
-          <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
-            {Array.map(filteredTimezones, (tz, index) => (
-              <Pressable
-                key={tz.value}
-                onPress={() => onTimezoneChange(tz.value)}
-                className={`flex-row items-center px-4 py-4 active:bg-surface-tinted dark:active:bg-slate-800 ${
-                  index < Array.length(filteredTimezones) - 1
-                    ? 'border-b border-border/50 dark:border-slate-700/50'
-                    : ''
-                }`}
-              >
-                <Text className="flex-1 text-base text-text-primary dark:text-white font-medium">
-                  {tz.label}
-                </Text>
-                <Text className="text-sm text-text-muted dark:text-slate-400 mr-2">
-                  {tz.value}
-                </Text>
-                {selectedTimezone === tz.value && (
-                  <MaterialIcons
-                    name="check"
-                    size={20}
-                    color={iconColors.primary}
-                  />
-                )}
-              </Pressable>
-            ))}
-          </View>
+          {Array.isArrayEmpty(filteredTimezones) ? (
+            <EmptyState kind="timezonesNoResults" variant="inline" />
+          ) : (
+            <View className="bg-surface dark:bg-surface-dark rounded-2xl overflow-hidden shadow-sm border border-border/30 dark:border-slate-700/30">
+              {Array.map(filteredTimezones, (tz, index) => (
+                <Pressable
+                  key={tz.value}
+                  onPress={() => onTimezoneChange(tz.value)}
+                  className={`flex-row items-center px-4 py-4 active:bg-surface-tinted dark:active:bg-slate-800 ${
+                    index < Array.length(filteredTimezones) - 1
+                      ? 'border-b border-border/50 dark:border-slate-700/50'
+                      : ''
+                  }`}
+                >
+                  <Text className="flex-1 text-base text-text-primary dark:text-white font-medium">
+                    {tz.label}
+                  </Text>
+                  <Text className="text-sm text-text-muted dark:text-slate-400 mr-2">
+                    {tz.value}
+                  </Text>
+                  {selectedTimezone === tz.value && (
+                    <MaterialIcons
+                      name="check"
+                      size={20}
+                      color={iconColors.primary}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
           <View className="h-8" />
         </ScrollView>
       </View>

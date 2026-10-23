@@ -7,6 +7,7 @@ import cemetery from './cemetery'
 import chat from './chat'
 import common from './common'
 import delegations from './delegations'
+import emptyStates from './emptyStates'
 import home from './home'
 import logCare from './logCare'
 import notifications from './notifications'
@@ -23,6 +24,7 @@ import welcome from './welcome'
 export default {
   common,
   delegations,
+  emptyStates,
   auth,
   home,
   plants,

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from '@/components/Avatar'
+import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 
 interface DelegationPlant {
@@ -33,13 +34,7 @@ export function DelegationPlantList({
   const iconColors = useIconColors()
 
   if (Arr.isArrayEmpty([...plants])) {
-    return (
-      <View className="items-center py-6">
-        <Text className="text-sm text-text-muted dark:text-slate-400">
-          {t('plants.empty')}
-        </Text>
-      </View>
-    )
+    return <EmptyState kind="delegationPlants" variant="inline" />
   }
 
   return (

@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Avatar } from '@/components/Avatar'
+import { EmptyState } from '@/components/EmptyState'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useConversations } from '@/hooks/useConversations'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
@@ -315,19 +316,13 @@ export function ConversationsDrawer({
                 <SkeletonRow />
                 <SkeletonRow />
               </View>
-            ) : (
+            ) : isInitialLoading ? null : (
               <FlatList
                 data={conversations}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={
-                  <View className="items-center py-8">
-                    <Text className="text-sm text-text-muted dark:text-slate-400 text-center px-4">
-                      {t('drawer.empty', {
-                        defaultValue: 'No past conversations yet.',
-                      })}
-                    </Text>
-                  </View>
+                  <EmptyState kind="conversations" variant="inline" />
                 }
                 showsVerticalScrollIndicator={false}
               />

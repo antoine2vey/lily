@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from '@/components/Avatar'
+import { EmptyState } from '@/components/EmptyState'
 import { PlantSelectorSkeleton } from '@/components/skeletons'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { useIconColors } from '@/hooks/useIconColors'
 import { usePlants } from '@/hooks/usePlants'
 
 interface PlantSelectorProps {
@@ -23,7 +23,6 @@ export function PlantSelector({
   onDeselectAll,
 }: PlantSelectorProps) {
   const { t } = useTranslation('delegations')
-  const iconColors = useIconColors()
   const { data: plantsData, isLoading } = usePlants({ limit: '100' })
 
   const isInitialLoading = isLoading && !plantsData
@@ -74,12 +73,7 @@ export function PlantSelector({
       </View>
 
       {Arr.isArrayEmpty(plants) ? (
-        <View className="p-6 items-center rounded-2xl bg-surface dark:bg-surface-dark">
-          <MaterialIcons name="eco" size={32} color={iconColors.textMuted} />
-          <Text className="text-sm mt-2 text-text-muted dark:text-slate-400">
-            {t('plants.noPlants')}
-          </Text>
-        </View>
+        <EmptyState kind="delegationPickPlants" variant="inline" />
       ) : (
         <Animated.View entering={FadeIn.duration(300)} className="gap-2">
           {Arr.map(plants, (plant) => {

@@ -97,8 +97,11 @@ describe('CareScreen', () => {
 
     render(<CareScreen />)
 
+    expect(screen.getByTestId('mascot-sunbathing')).toBeTruthy()
     expect(screen.getByText('All caught up!')).toBeTruthy()
-    expect(screen.getByText('No care tasks scheduled for now')).toBeTruthy()
+    expect(
+      screen.getByText('Nothing to do right now. Time to soak up some sun.')
+    ).toBeTruthy()
   })
 
   it('displays Care title', () => {

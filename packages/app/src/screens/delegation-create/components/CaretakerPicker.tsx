@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { Avatar } from '@/components/Avatar'
+import { EmptyState } from '@/components/EmptyState'
 import { SkeletonBox, SkeletonCircle } from '@/components/skeletons'
 import { useIconColors } from '@/hooks/useIconColors'
 import { useSearchUsers } from '@/hooks/useSearchUsers'
@@ -176,11 +177,7 @@ export function CaretakerPicker({
                 <SearchResultSkeleton />
               </View>
             ) : Arr.isArrayEmpty(users) ? (
-              <View className="p-4 items-center">
-                <Text className="text-sm text-text-muted dark:text-slate-400">
-                  {t('caretakerPicker.noResults')}
-                </Text>
-              </View>
+              <EmptyState kind="usersNoResults" variant="inline" />
             ) : (
               Arr.map(users, (user) => (
                 <Pressable

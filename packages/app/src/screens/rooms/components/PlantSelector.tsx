@@ -1,30 +1,33 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { Plant } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
-import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
+import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 
 interface PlantSelectorProps {
   plants: readonly Plant[]
+  /** False when the user owns no plant at all, not merely none left to assign. */
+  hasPlants: boolean
   selectedIds: Set<string>
   onToggle: (id: string) => void
 }
 
 export function PlantSelector({
   plants,
+  hasPlants,
   selectedIds,
   onToggle,
 }: PlantSelectorProps) {
-  const { t } = useTranslation('rooms')
   const iconColors = useIconColors()
 
   if (Array.isReadonlyArrayEmpty(plants)) {
     return (
-      <Text className="text-sm text-text-muted dark:text-slate-400 text-center py-4">
-        {t('noUnassignedPlants')}
-      </Text>
+      <EmptyState
+        kind={hasPlants ? 'roomsAllAssigned' : 'plantsNone'}
+        variant="inline"
+      />
     )
   }
 

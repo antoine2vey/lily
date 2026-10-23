@@ -417,17 +417,12 @@ export function ManualAddScheduleScreen() {
             />
           </View>
 
-          {/* Room Selection */}
-          <View className="gap-2">
-            <Text className="text-base pl-1 font-semibold text-text-primary dark:text-white">
-              {t('addPlant:schedule.roomLabel')}
-            </Text>
-            <RoomPicker
-              value={roomId}
-              onSelect={setRoomId}
-              plantLuxNeeded={careNeeds.luxNeeded}
-            />
-          </View>
+          <RoomPicker
+            label={t('addPlant:schedule.roomLabel')}
+            value={roomId}
+            onSelect={setRoomId}
+            plantLuxNeeded={careNeeds.luxNeeded}
+          />
 
           {/* Notes Section */}
           <FormTextArea

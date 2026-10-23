@@ -90,5 +90,24 @@ describe('PlantSelector', () => {
 
     // Bottom sheet should open with title "Select Plants"
     expect(screen.getByText('Select Plants')).toBeTruthy()
+    expect(screen.queryByTestId('mascot-jump')).toBeNull()
+  })
+
+  it('shows the no-plants empty state in the sheet for a user with no plants', () => {
+    mockedUsePlants.mockReturnValue({
+      data: { items: [], total: 0 },
+      isLoading: false,
+    })
+    render(
+      <PlantSelector
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    )
+
+    fireEvent.press(screen.getByText('Select a plant'))
+
+    expect(screen.getByTestId('mascot-jump')).toBeTruthy()
+    expect(screen.getByText('No plants yet')).toBeTruthy()
   })
 })

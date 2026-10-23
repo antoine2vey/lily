@@ -11,7 +11,10 @@ interface PlantCarePlansProps {
   plantId: string
 }
 
-/** Accepted plans for this plant, same checklist card as the Care tab. */
+/**
+ * Accepted plans for this plant, same checklist card as the Care tab. Owns its
+ * top margin so a plant with no plans leaves no gap in the detail screen.
+ */
 export function PlantCarePlans({ plantId }: PlantCarePlansProps) {
   const { t } = useTranslation('care')
   const { data } = usePlantCarePlans(plantId)
@@ -26,7 +29,7 @@ export function PlantCarePlans({ plantId }: PlantCarePlansProps) {
   if (!Array.isReadonlyArrayNonEmpty(plans)) return null
 
   return (
-    <View>
+    <View className="mt-10">
       <SectionHeader title={t('plans.section')} />
       <View className="mt-3">
         {Array.map(plans, (plan) => (

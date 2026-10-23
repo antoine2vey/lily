@@ -1,7 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import type { CareType } from '@lily/shared'
 import { Array, Option, pipe } from 'effect'
-import { router, useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
@@ -138,9 +138,11 @@ export function CareHistoryScreen() {
           <Animated.View entering={FadeIn.duration(300)}>
             {!filteredHistory || Array.isReadonlyArrayEmpty(filteredHistory) ? (
               <EmptyState
-                illustration="notification"
-                title={t('history.empty.title')}
-                description={t('history.empty.subtitle')}
+                kind={
+                  selectedFilter === 'all'
+                    ? 'careHistory'
+                    : 'careHistoryFiltered'
+                }
               />
             ) : (
               <Timeline

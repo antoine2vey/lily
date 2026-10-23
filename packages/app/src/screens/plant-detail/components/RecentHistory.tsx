@@ -3,6 +3,7 @@ import { Array, Match, Option, pipe } from 'effect'
 import type { i18n as I18n, TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Text, View } from 'react-native'
+import { EmptyState } from '@/components/EmptyState'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useIconColors } from '@/hooks/useIconColors'
 
@@ -107,12 +108,7 @@ export function RecentHistory({ events, onViewAll }: RecentHistoryProps) {
       />
       <View className="mt-4">
         {Array.length(recentEvents) === 0 ? (
-          <Text
-            className="text-sm py-4 text-center font-regular text-text-muted dark:text-slate-400"
-            testID="no-history"
-          >
-            {t('detail.noCareHistory')}
-          </Text>
+          <EmptyState kind="careHistory" variant="inline" testID="no-history" />
         ) : (
           Array.map(recentEvents, (event) => {
             const config = getEventConfig(event.type, iconColors, t)

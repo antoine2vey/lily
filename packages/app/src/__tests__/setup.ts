@@ -253,6 +253,16 @@ console.error = (...args: unknown[]) => {
   originalConsoleError(...args)
 }
 
+// Skia's video canvas has no Jest backend; tests assert which clip was chosen.
+jest.mock('@/components/Mascot', () => {
+  const { createElement } = require('react')
+  const { View } = require('react-native')
+  return {
+    Mascot: ({ animation }: { animation: string }) =>
+      createElement(View, { testID: `mascot-${animation}` }),
+  }
+})
+
 // Mock safe area context
 jest.mock('react-native-safe-area-context', () => {
   const insets = { top: 0, right: 0, bottom: 0, left: 0 }

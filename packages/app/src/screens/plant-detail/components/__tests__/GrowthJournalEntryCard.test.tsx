@@ -74,8 +74,12 @@ describe('GrowthJournalEntryCard', () => {
       <GrowthJournalEntryCard {...makeProps()} photos={[]} totalCount={0} />
     )
     expect(screen.getByTestId('growth-journal-empty')).toBeTruthy()
-    expect(screen.getByTestId('growth-journal-add-first-photo')).toBeTruthy()
+    expect(screen.getByTestId('mascot-scan')).toBeTruthy()
+    expect(screen.getByText('No photos yet')).toBeTruthy()
     expect(screen.queryByTestId('growth-journal-view-all')).toBeNull()
+
+    fireEvent.press(screen.getByText('Add First Photo'))
+    expect(screen.getByText('Choose from gallery')).toBeTruthy()
   })
 
   it('opens the photo source sheet when the add affordance is pressed', () => {

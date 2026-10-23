@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { Array as Arr, Match, Option, pipe } from 'effect'
+import { Array as Arr, Option, pipe } from 'effect'
 import { router } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,20 +7,24 @@ import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Chip } from '@/components/Chip'
-import { EmptyState } from '@/components/EmptyState'
+import { EmptyState, type EmptyStateKind } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { PullToRefresh } from '@/components/PullToRefresh'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { useIconColors } from '@/hooks/useIconColors'
 import { useMyDelegations } from '@/hooks/useMyDelegations'
 import { DelegationCard } from '@/screens/delegation-list/components/DelegationCard'
 import { DelegationListSkeleton } from '@/screens/delegation-list/components/DelegationListSkeleton'
 
 type FilterRole = 'both' | 'owner' | 'caretaker'
 
+const emptyKinds = {
+  both: 'delegationsAll',
+  owner: 'delegationsOwner',
+  caretaker: 'delegationsCaretaker',
+} as const satisfies Record<FilterRole, EmptyStateKind>
+
 export function DelegationListScreen() {
   const { t } = useTranslation('delegations')
-  const iconColors = useIconColors()
   const insets = useSafeAreaInsets()
   const [activeFilter, setActiveFilter] = useState<FilterRole>('both')
 
@@ -47,23 +51,6 @@ export function DelegationListScreen() {
   const handleDelegationPress = useCallback((delegationId: string) => {
     router.push(`/delegation/${delegationId}`)
   }, [])
-
-  const emptyConfig = pipe(
-    Match.value(activeFilter),
-    Match.when('both', () => ({
-      title: t('empty.both.title'),
-      description: t('empty.both.description'),
-    })),
-    Match.when('owner', () => ({
-      title: t('empty.owner.title'),
-      description: t('empty.owner.description'),
-    })),
-    Match.when('caretaker', () => ({
-      title: t('empty.caretaker.title'),
-      description: t('empty.caretaker.description'),
-    })),
-    Match.exhaustive
-  )
 
   const renderItem = useCallback(
     ({ item }: { item: (typeof delegations)[number] }) => (
@@ -135,8 +122,7 @@ export function DelegationListScreen() {
                 scrollEventThrottle={16}
                 ListEmptyComponent={
                   <EmptyState
-                    title={emptyConfig.title}
-                    description={emptyConfig.description}
+                    kind={emptyKinds[activeFilter]}
                     action={
                       activeFilter !== 'caretaker'
                         ? {

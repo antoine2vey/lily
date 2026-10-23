@@ -4,6 +4,7 @@ import { Array, Match, Option, pipe } from 'effect'
 import type { i18n as I18n, TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { EmptyState } from '@/components/EmptyState'
 import { PlantImageBadge } from '@/components/PlantImageBadge'
 import { SectionHeader } from '@/components/SectionHeader'
 import { useIconColors } from '@/hooks/useIconColors'
@@ -217,10 +218,8 @@ export function RecentActivity({
     return (
       <View>
         <SectionHeader title={t('sections.recentActivity')} />
-        <View className="bg-white dark:bg-surface-dark rounded-[20px] p-6 items-center">
-          <Text className="text-sm text-text-muted dark:text-slate-400 text-center font-regular">
-            {t('activity.noActivity')}
-          </Text>
+        <View className="bg-white dark:bg-surface-dark rounded-[20px] py-2">
+          <EmptyState kind="recentActivity" variant="inline" />
         </View>
       </View>
     )

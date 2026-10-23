@@ -383,13 +383,11 @@ export function EditPlantScreen() {
               placeholder={t('plantDetail:edit.descriptionPlaceholder')}
             />
 
-            {/* Room Assignment */}
-            <View className="gap-2">
-              <Text className="text-sm font-semibold text-text-primary dark:text-white pl-1">
-                {t('plantDetail:edit.roomLabel')}
-              </Text>
-              <RoomPicker value={selectedRoomId} onSelect={setSelectedRoomId} />
-            </View>
+            <RoomPicker
+              label={t('plantDetail:edit.roomLabel')}
+              value={selectedRoomId}
+              onSelect={setSelectedRoomId}
+            />
           </View>
 
           {/* Pot Size Section */}

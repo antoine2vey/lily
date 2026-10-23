@@ -150,9 +150,7 @@ export function GrowthJournalScreen() {
         ) : isInitialLoading ? null : isEmpty ? (
           <Animated.View entering={FadeIn.duration(300)}>
             <EmptyState
-              illustration="plant"
-              title={t('gallery.noPhotosTitle')}
-              description={t('gallery.noPhotosDescription')}
+              kind="plantPhotos"
               action={{
                 label: t('gallery.addFirstPhoto'),
                 onPress: () => setShowPicker(true),

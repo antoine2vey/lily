@@ -121,6 +121,24 @@ describe('CareSchedule', () => {
     expect(screen.getByText('Repotting')).toBeTruthy()
   })
 
+  it('shows the clear-schedule empty state when no care is due within 14 days', () => {
+    render(
+      <CareSchedule {...defaultProps} wateringDays={15} fertilizingDays={20} />
+    )
+
+    expect(screen.queryByTestId('care-card-watering')).toBeNull()
+    expect(screen.getByTestId('care-schedule-empty')).toBeTruthy()
+    expect(screen.getByTestId('mascot-sunbathing')).toBeTruthy()
+    expect(screen.getByText('Nothing due soon')).toBeTruthy()
+  })
+
+  it('omits the empty state while any card is visible', () => {
+    render(<CareSchedule {...defaultProps} wateringDays={15} />)
+
+    expect(screen.getByTestId('care-card-fertilizing')).toBeTruthy()
+    expect(screen.queryByTestId('care-schedule-empty')).toBeNull()
+  })
+
   it('shows card at exactly 14 days boundary', () => {
     render(
       <CareSchedule

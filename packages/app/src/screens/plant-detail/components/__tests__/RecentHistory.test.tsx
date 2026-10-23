@@ -55,7 +55,8 @@ describe('RecentHistory', () => {
     render(<RecentHistory events={[]} onViewAll={mockOnViewAll} />)
 
     expect(screen.getByTestId('no-history')).toBeTruthy()
-    expect(screen.getByText('No care history yet')).toBeTruthy()
+    expect(screen.getByTestId('mascot-rainy')).toBeTruthy()
+    expect(screen.getByText('No care logged yet')).toBeTruthy()
   })
 
   it('limits to 3 events', () => {

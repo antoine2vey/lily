@@ -17,9 +17,9 @@ import Animated, {
   LinearTransition,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { useIconColors } from '@/hooks/useIconColors'
 import {
   useDeleteNotification,
   useMarkAllRead,
@@ -211,7 +211,6 @@ function NotificationRow({
 export function NotificationsScreen() {
   const insets = useSafeAreaInsets()
   const { t } = useTranslation()
-  const iconColors = useIconColors()
 
   const { data, isLoading, refetch } = useNotifications()
   const { mutate: markRead } = useMarkNotificationRead()
@@ -289,7 +288,7 @@ export function NotificationsScreen() {
             className="text-xl text-text-primary dark:text-white font-bold"
             style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
           >
-            {t('notifications:title', { defaultValue: 'Notifications' })}
+            {t('settings:sections.notifications')}
           </Text>
         </View>
         {unreadCount > 0 && (
@@ -320,20 +319,8 @@ export function NotificationsScreen() {
           <NotificationsSkeleton />
         </Animated.View>
       ) : isInitialLoading ? null : notifications.length === 0 ? (
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          className="flex-1 items-center justify-center p-6"
-        >
-          <MaterialIcons
-            name="notifications-none"
-            size={64}
-            color={iconColors.textMuted}
-          />
-          <Text className="text-lg text-center mt-4 text-text-secondary dark:text-text-muted">
-            {t('notifications:empty', {
-              defaultValue: "You're all caught up!",
-            })}
-          </Text>
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <EmptyState kind="notifications" />
         </Animated.View>
       ) : (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">

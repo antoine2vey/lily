@@ -488,9 +488,7 @@ export function PlantsScreen() {
                 className="flex-1"
               >
                 <EmptyState
-                  illustration="plant"
-                  title={t('list.empty.title')}
-                  description={t('list.empty.subtitle')}
+                  kind="plantsNone"
                   action={{
                     label: t('list.empty.button'),
                     onPress: () => router.push('/add-plant/scanner'),
@@ -520,11 +518,7 @@ export function PlantsScreen() {
                   scrollEventThrottle={16}
                   ListEmptyComponent={
                     <View className="flex-1 pt-10">
-                      <EmptyState
-                        illustration="search"
-                        title={t('list.noResults.title')}
-                        description={t('list.noResults.subtitle')}
-                      />
+                      <EmptyState kind="plantsNoResults" />
                     </View>
                   }
                 />

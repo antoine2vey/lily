@@ -1,15 +1,13 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { FlatList, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useFollowing } from '@/hooks/useFollowing'
-import { useIconColors } from '@/hooks/useIconColors'
 import { UserCardItem } from '@/screens/user-search/components/UserCardItem'
 import { UserSearchSkeleton } from '@/screens/user-search/components/UserSearchSkeleton'
 
@@ -20,7 +18,6 @@ interface FollowingScreenProps {
 export function FollowingScreen({ userId }: FollowingScreenProps) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const iconColors = useIconColors()
   const { data, isLoading } = useFollowing(userId)
 
   const items = pipe(
@@ -107,12 +104,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <EmptyState
-                title="Not following anyone yet"
-                description="Find and follow other plant lovers to see them here"
-              />
-            }
+            ListEmptyComponent={<EmptyState kind="following" />}
           />
         </Animated.View>
       )}

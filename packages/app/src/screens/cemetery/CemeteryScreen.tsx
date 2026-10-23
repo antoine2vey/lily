@@ -92,11 +92,8 @@ export function CemeteryScreen() {
       Array.isReadonlyArrayEmpty(plants) ? null : Array.isReadonlyArrayEmpty(
           plants
         ) ? (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <EmptyState
-            title={t('empty.title')}
-            description={t('empty.description')}
-          />
+        <Animated.View entering={FadeIn.duration(300)} className="flex-1">
+          <EmptyState kind="cemetery" />
         </Animated.View>
       ) : (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1">

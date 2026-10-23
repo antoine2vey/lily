@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
+import { EmptyState } from '@/components/EmptyState'
 import { PhotoSourceSheet } from '@/components/PhotoSourceSheet'
 import { useIconColors } from '@/hooks/useIconColors'
 import { buildGrowingForLabel } from '@/screens/plant-detail/plantAge'
@@ -162,36 +163,15 @@ export function GrowthJournalEntryCard({
           </Pressable>
         </>
       ) : (
-        /* Empty state */
-        <View className="items-center py-6" testID="growth-journal-empty">
-          <View className="w-14 h-14 rounded-full bg-primary-tint dark:bg-primary/15 items-center justify-center mb-3">
-            <MaterialIcons
-              name="photo-camera"
-              size={26}
-              color={iconColors.primary}
-            />
-          </View>
-          <Text className="text-base font-bold text-text-primary dark:text-white mb-1">
-            {t('gallery.noPhotosTitle')}
-          </Text>
-          <Text className="text-sm text-center text-text-muted dark:text-slate-400 mb-4 px-4">
-            {t('gallery.noPhotosDescription')}
-          </Text>
-          <Pressable
-            onPress={handleOpenPicker}
-            className="flex-row items-center gap-2 rounded-full bg-primary active:bg-primary-dark px-5 py-2.5"
-            testID="growth-journal-add-first-photo"
-          >
-            <MaterialIcons
-              name="add-a-photo"
-              size={18}
-              color={iconColors.white}
-            />
-            <Text className="text-sm font-semibold text-white">
-              {t('gallery.addFirstPhoto')}
-            </Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          kind="plantPhotos"
+          variant="inline"
+          action={{
+            label: t('gallery.addFirstPhoto'),
+            onPress: handleOpenPicker,
+          }}
+          testID="growth-journal-empty"
+        />
       )}
 
       <PhotoSourceSheet

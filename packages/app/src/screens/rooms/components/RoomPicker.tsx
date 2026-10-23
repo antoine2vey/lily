@@ -6,12 +6,15 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { useRooms } from '@/hooks/useRooms'
 
 interface RoomPickerProps {
+  /** Rendered only alongside the picker, so a user with no rooms sees neither. */
+  label: string
   value: string | null
   onSelect: (roomId: string | null) => void
   plantLuxNeeded?: number
 }
 
 export function RoomPicker({
+  label,
   value,
   onSelect,
   plantLuxNeeded,
@@ -157,6 +160,9 @@ export function RoomPicker({
 
   return (
     <View className="gap-2">
+      <Text className="text-sm font-semibold text-text-primary dark:text-white pl-1">
+        {label}
+      </Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

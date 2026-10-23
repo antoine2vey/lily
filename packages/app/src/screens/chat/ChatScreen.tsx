@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { EmptyState } from '@/components/EmptyState'
 import { useConversation } from '@/hooks/useConversation'
 import { useConversationChat } from '@/hooks/useConversationChat'
 import { useConversationMessages } from '@/hooks/useConversationMessages'
@@ -76,6 +77,9 @@ export function ChatScreen() {
     content: string
     imageUri?: string | undefined
   } | null>(null)
+  // Covers the image upload and the ai SDK's await before it pushes the user
+  // message, when neither the status nor the message list has changed yet.
+  const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
     setActiveConversationId(paramId)
@@ -173,6 +177,7 @@ export function ChatScreen() {
     async (content: string, imageUri?: string) => {
       if (isStreaming) return
       sentInSessionRef.current = true
+      setIsSending(true)
 
       let uploadedImageKey: string | undefined
       let uploadedImageUrl: string | undefined
@@ -205,16 +210,20 @@ export function ChatScreen() {
         Option.map((key) => ({ imageKey: key }))
       )
 
-      await sendMessage(
-        messagePayload,
-        pipe(
-          bodyOption,
-          Option.match({
-            onNone: () => ({}),
-            onSome: (body) => ({ body }),
-          })
+      try {
+        await sendMessage(
+          messagePayload,
+          pipe(
+            bodyOption,
+            Option.match({
+              onNone: () => ({}),
+              onSome: (body) => ({ body }),
+            })
+          )
         )
-      )
+      } finally {
+        setIsSending(false)
+      }
 
       pendingImageUrl.current = undefined
 
@@ -302,6 +311,15 @@ export function ChatScreen() {
   const isInitialLoading = isLoadingHistory && !initialMessages
   const showSkeleton = useDelayedLoading(isInitialLoading)
 
+  // Rendered in place of the list: an inverted FlatList counter-flips its
+  // empty component through a `style` prop, which EmptyState does not take.
+  const isNewChat =
+    Array.isArrayEmpty(chatMessages) &&
+    !isStreaming &&
+    !isSending &&
+    pendingMessage === null &&
+    !createConversation.isPending
+
   if (historyError) {
     return (
       <View
@@ -362,16 +380,20 @@ export function ChatScreen() {
         className="flex-1"
         keyboardVerticalOffset={0}
       >
-        <FlatList
-          ref={flatListRef}
-          data={displayMessages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          inverted
-          contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderListHeader}
-        />
+        {isNewChat ? (
+          <EmptyState kind="chatNew" />
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={displayMessages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            inverted
+            contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderListHeader}
+          />
+        )}
 
         {chatError && (
           <View className="mx-4 mb-2 rounded-md bg-error/10 px-4 py-3">

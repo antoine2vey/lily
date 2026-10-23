@@ -1,15 +1,13 @@
-import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe } from 'effect'
 import { useRouter } from 'expo-router'
 import { useCallback } from 'react'
-import { FlatList, Pressable, Text, View } from 'react-native'
+import { FlatList, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
 import { GlassBackButton } from '@/components/GlassBackButton'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
 import { useFollowers } from '@/hooks/useFollowers'
-import { useIconColors } from '@/hooks/useIconColors'
 import { UserCardItem } from '@/screens/user-search/components/UserCardItem'
 import { UserSearchSkeleton } from '@/screens/user-search/components/UserSearchSkeleton'
 
@@ -20,7 +18,6 @@ interface FollowersScreenProps {
 export function FollowersScreen({ userId }: FollowersScreenProps) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const iconColors = useIconColors()
   const { data, isLoading } = useFollowers(userId)
 
   const items = pipe(
@@ -107,12 +104,7 @@ export function FollowersScreen({ userId }: FollowersScreenProps) {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <EmptyState
-                title="No followers yet"
-                description="When people follow this account, they'll appear here"
-              />
-            }
+            ListEmptyComponent={<EmptyState kind="followers" />}
           />
         </Animated.View>
       )}

@@ -103,10 +103,34 @@ describe('CareHistoryScreen', () => {
 
     render(<CareHistoryScreen />)
 
-    expect(screen.getByText('No care history')).toBeTruthy()
-    expect(
-      screen.getByText('Start logging care activities to see them here')
-    ).toBeTruthy()
+    expect(screen.getByTestId('mascot-rainy')).toBeTruthy()
+    expect(screen.getByText('No care logged yet')).toBeTruthy()
+  })
+
+  it('shows the filtered empty state when a type filter empties the list', () => {
+    mockedUseCareHistory.mockReturnValue({
+      data: [
+        {
+          date: '2024-01-15',
+          events: [
+            {
+              id: '1',
+              type: 'watering',
+              timestamp: mockFixedDate(2024, 1, 15, 10, 0),
+            },
+          ],
+        },
+      ],
+      isLoading: false,
+    })
+
+    render(<CareHistoryScreen />)
+    fireEvent.press(screen.getByTestId('filter-button'))
+    fireEvent.press(screen.getByText('Fertilization'))
+
+    expect(screen.queryByTestId('timeline')).toBeNull()
+    expect(screen.getByTestId('mascot-lookAround')).toBeTruthy()
+    expect(screen.getByText('Nothing for this filter')).toBeTruthy()
   })
 
   it('displays filter button', () => {

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { AnimatedImage } from '@/components/AnimatedImage'
 import { BottomSheet } from '@/components/BottomSheet'
+import { EmptyState } from '@/components/EmptyState'
 import { useIconColors } from '@/hooks/useIconColors'
 import { usePlants } from '@/hooks/usePlants'
 
@@ -169,47 +170,51 @@ export function PlantSelector({
         title={t('log.selectPlantsTitle')}
         snapPoints={['70%']}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {pipe(
-            plants,
-            Array.map((plant) => {
-              const isSelected = Array.contains(selectedIds, plant.id)
-              return (
-                <Pressable
-                  key={plant.id}
-                  onPress={() => togglePlant(plant.id)}
-                  className="flex-row items-center py-3 border-b border-border dark:border-slate-700"
-                >
-                  <AnimatedImage
-                    source={{
-                      uri: Option.getOrUndefined(
-                        Option.fromNullishOr(plant.imageUrl)
-                      ),
-                    }}
-                    className="w-12 h-12 mr-3"
-                    rounded
-                  />
-                  <Text
-                    className={`flex-1 text-base text-text-primary dark:text-white ${isSelected ? 'font-bold' : 'font-regular'}`}
+        {Array.isReadonlyArrayEmpty(plants) ? (
+          <EmptyState kind="plantsNone" variant="inline" />
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {pipe(
+              plants,
+              Array.map((plant) => {
+                const isSelected = Array.contains(selectedIds, plant.id)
+                return (
+                  <Pressable
+                    key={plant.id}
+                    onPress={() => togglePlant(plant.id)}
+                    className="flex-row items-center py-3 border-b border-border dark:border-slate-700"
                   >
-                    {plant.name}
-                  </Text>
-                  <View
-                    className={`w-6 h-6 rounded-full items-center justify-center ${isSelected ? 'bg-primary' : 'border-2 border-border dark:border-slate-600'}`}
-                  >
-                    {isSelected && (
-                      <MaterialIcons
-                        name="check"
-                        size={16}
-                        color={iconColors.white}
-                      />
-                    )}
-                  </View>
-                </Pressable>
-              )
-            })
-          )}
-        </ScrollView>
+                    <AnimatedImage
+                      source={{
+                        uri: Option.getOrUndefined(
+                          Option.fromNullishOr(plant.imageUrl)
+                        ),
+                      }}
+                      className="w-12 h-12 mr-3"
+                      rounded
+                    />
+                    <Text
+                      className={`flex-1 text-base text-text-primary dark:text-white ${isSelected ? 'font-bold' : 'font-regular'}`}
+                    >
+                      {plant.name}
+                    </Text>
+                    <View
+                      className={`w-6 h-6 rounded-full items-center justify-center ${isSelected ? 'bg-primary' : 'border-2 border-border dark:border-slate-600'}`}
+                    >
+                      {isSelected && (
+                        <MaterialIcons
+                          name="check"
+                          size={16}
+                          color={iconColors.white}
+                        />
+                      )}
+                    </View>
+                  </Pressable>
+                )
+              })
+            )}
+          </ScrollView>
+        )}
       </BottomSheet>
     </>
   )

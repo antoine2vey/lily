@@ -8,10 +8,10 @@ import { useCallback, useMemo, useRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { EmptyState } from '@/components/EmptyState'
 import { GlassIconButton } from '@/components/GlassIconButton'
 import { ProgressBar } from '@/components/ProgressBar'
 import { PullToRefresh } from '@/components/PullToRefresh'
-import { Button } from '@/components/ui'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTabBarInset } from '@/contexts/TabBarInsetContext'
 import { useAchievements } from '@/hooks/useAchievements'
@@ -564,25 +564,13 @@ export function HomeScreen() {
                     : { entering: FadeIn.duration(300) })}
                   className="flex-1"
                 >
-                  <View className="gap-1 mt-4">
-                    <Text className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">
-                      {t('home:empty.title')}
-                    </Text>
-                    <Text className="text-base font-medium text-slate-500 dark:text-slate-400 leading-relaxed w-1/2">
-                      {t('home:empty.subtitle')}
-                    </Text>
-                  </View>
-
-                  <View className="w-full mt-8">
-                    <Button
-                      icon="add"
-                      iconPosition="left"
-                      onPress={() => router.push('/add-plant/scanner')}
-                      pill
-                    >
-                      {t('home:empty.addButton')}
-                    </Button>
-                  </View>
+                  <EmptyState
+                    kind="homeNoPlants"
+                    action={{
+                      label: t('home:empty.addButton'),
+                      onPress: () => router.push('/add-plant/scanner'),
+                    }}
+                  />
                 </Animated.View>
               )}
             </View>
