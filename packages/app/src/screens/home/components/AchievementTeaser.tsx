@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
+import { useAchievementCopy } from '@/hooks/useAchievementCopy'
 import { useIconColors } from '@/hooks/useIconColors'
 
 interface AchievementTeaserProps {
@@ -62,6 +63,7 @@ interface AchievementRowProps {
 }
 
 function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
+  const copy = useAchievementCopy()(achievement)
   const isDark = iconColors.isDark
   const progress = achievement.progress ?? 0
   const maxProgress = achievement.maxProgress ?? 1
@@ -92,7 +94,7 @@ function AchievementRow({ achievement, iconColors, t }: AchievementRowProps) {
             className="text-sm font-semibold text-text-primary dark:text-white"
             numberOfLines={1}
           >
-            {achievement.name}
+            {copy.name}
           </Text>
           <Text className="text-xs font-medium text-text-muted">
             {t('achievementTeaser.xMore', { count: remaining })}

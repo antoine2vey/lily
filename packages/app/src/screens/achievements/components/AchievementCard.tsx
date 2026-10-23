@@ -2,6 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons'
 import { Match, Option, pipe } from 'effect'
 import { Pressable, Text, View } from 'react-native'
 import { ProgressBar } from '@/components/ProgressBar'
+import { useAchievementCopy } from '@/hooks/useAchievementCopy'
 import { useIconColors } from '@/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
@@ -57,6 +58,7 @@ export function AchievementCard({
   onPress,
 }: AchievementCardProps) {
   const iconColors = useIconColors()
+  const copy = useAchievementCopy()(achievement)
   const rarityColor = getRarityColor(achievement.rarity, iconColors)
   const iconName = getIconName(achievement.icon)
   const hasProgress =
@@ -96,7 +98,7 @@ export function AchievementCard({
           className={`text-sm text-center font-semibold ${achievement.unlocked ? 'text-text-primary dark:text-white' : 'text-text-muted dark:text-slate-400'}`}
           numberOfLines={1}
         >
-          {achievement.name}
+          {copy.name}
         </Text>
 
         {/* Description */}
@@ -104,7 +106,7 @@ export function AchievementCard({
           className="text-xs text-center mt-1 font-regular text-text-muted dark:text-slate-400"
           numberOfLines={2}
         >
-          {achievement.description}
+          {copy.description}
         </Text>
 
         {/* Progress bar for locked achievements with progress */}

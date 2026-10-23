@@ -36,7 +36,7 @@ describe('AchievementCard', () => {
       />
     )
 
-    expect(screen.getByText('Green Thumb')).toBeTruthy()
+    expect(screen.getByText('First Steps')).toBeTruthy()
   })
 
   it('renders achievement description', () => {
@@ -47,7 +47,9 @@ describe('AchievementCard', () => {
       />
     )
 
-    expect(screen.getByText('Add your first plant')).toBeTruthy()
+    expect(
+      screen.getByText('Added your first plant to the garden')
+    ).toBeTruthy()
   })
 
   it('calls onPress when pressed', () => {
@@ -58,7 +60,7 @@ describe('AchievementCard', () => {
       />
     )
 
-    fireEvent.press(screen.getByText('Green Thumb'))
+    fireEvent.press(screen.getByText('First Steps'))
 
     expect(mockOnPress).toHaveBeenCalledTimes(1)
   })
@@ -76,6 +78,6 @@ describe('AchievementCard', () => {
       <AchievementCard achievement={lockedAchievement} onPress={mockOnPress} />
     )
 
-    expect(screen.getByText('Master Gardener')).toBeTruthy()
+    expect(screen.getByText('Plant Collector')).toBeTruthy()
   })
 })

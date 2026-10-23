@@ -27,6 +27,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { Mascot } from '@/components/Mascot'
+import { useAchievementCopy } from '@/hooks/useAchievementCopy'
 import { useIconColors } from '@/hooks/useIconColors'
 
 const ENTER_DURATION = 250
@@ -94,6 +95,7 @@ function AchievementPage({
   rarityColor: string
 }) {
   const { t } = useTranslation('achievements')
+  const copy = useAchievementCopy()(achievement)
 
   return (
     <View className="items-center" style={{ width }}>
@@ -111,7 +113,7 @@ function AchievementPage({
             className="shrink text-xl text-center font-bold text-text-primary"
             style={{ fontFamily: 'SpaceGrotesk_700Bold' }}
           >
-            {achievement.name}
+            {copy.name}
           </Text>
           <View
             className="shrink-0 px-2.5 py-0.5 rounded-full"
@@ -135,7 +137,7 @@ function AchievementPage({
           className="text-base text-center mt-1 font-regular text-text-secondary"
           style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
         >
-          {achievement.description}
+          {copy.description}
         </Text>
       </StaggerIn>
     </View>

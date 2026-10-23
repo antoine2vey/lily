@@ -1,3 +1,5 @@
+import type { AchievementKey } from '@lily/shared'
+
 export default {
   title: 'Achievements',
   level: 'Level {level}',
@@ -26,22 +28,67 @@ export default {
     next: 'Next',
     continue: 'Continue',
   },
-  badges: {
-    firstPlantAdded: {
-      name: 'First Plant',
-      description: 'Add your first plant',
+  /** Copy per achievement key; the server's text is the English fallback. */
+  catalog: {
+    FIRST_PLANT_ADDED: {
+      name: 'First Steps',
+      description: 'Added your first plant to the garden',
     },
-    wateringNovice: {
+    WATERING_NOVICE: {
       name: 'Watering Novice',
-      description: 'Water your plants 10 times',
+      description: 'Watered your plants 10 times',
     },
-    plantCollector: {
+    PLANT_COLLECTOR: {
       name: 'Plant Collector',
-      description: 'Collect 5 different plants',
+      description: 'Collected 5 plants in your garden',
     },
-    dedicatedCaretaker: {
+    DEDICATED_CARETAKER: {
       name: 'Dedicated Caretaker',
-      description: 'Care for your plants for 30 days',
+      description: 'Cared for plants 3 days in a row',
     },
-  },
+    ATTENTION_ALERT: {
+      name: 'Attention Alert',
+      description: 'Responded to a plant needing attention',
+    },
+    PHOTO_PRO: {
+      name: 'Photo Pro',
+      description: 'Uploaded 10 plant photos',
+    },
+    RARE_COLLECTOR: {
+      name: 'Rare Collector',
+      description: 'Added a rare plant to your collection',
+    },
+    SCAN_CHAMP: {
+      name: 'Scan Champion',
+      description: 'Scanned 5 plant cards',
+    },
+    FERTILIZER_GURU: {
+      name: 'Fertilizer Guru',
+      description: 'Fertilized your plants 10 times',
+    },
+    HISTORY_HERO: {
+      name: 'History Hero',
+      description: 'Viewed your care history',
+    },
+    AI_CONVERSATIONALIST: {
+      name: 'AI Conversationalist',
+      description: 'Had your first chat with the AI assistant',
+    },
+    DISEASE_DETECTIVE: {
+      name: 'Disease Detective',
+      description: 'Identified a plant disease',
+    },
+    GROWTH_TRACKER: {
+      name: 'Growth Tracker',
+      description: 'Tracked plant growth over time',
+    },
+    REMINDER_RESCUER: {
+      name: 'Reminder Rescuer',
+      description: 'Responded to a care reminder',
+    },
+    SHARE_SPROUT: {
+      name: 'Share Sprout',
+      description: 'Shared a plant with someone',
+    },
+  } satisfies Record<AchievementKey, { name: string; description: string }>,
 } as const

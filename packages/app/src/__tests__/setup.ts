@@ -44,9 +44,13 @@ jest.mock('react-i18next', () => {
     keyPath: string,
     options?: Record<string, unknown>
   ): string => {
+    // Like i18next, a missing key renders its defaultValue when one is given
+    const missing =
+      typeof options?.defaultValue === 'string' ? options.defaultValue : keyPath
+
     // Get the namespace object
     const namespaceObj = en[namespace]
-    if (!namespaceObj) return keyPath
+    if (!namespaceObj) return missing
 
     // Navigate the path
     const parts = keyPath.split('.')
@@ -55,7 +59,7 @@ jest.mock('react-i18next', () => {
       if (current && typeof current === 'object' && part in current) {
         current = (current as Record<string, unknown>)[part]
       } else {
-        return keyPath // Key not found, return original key path
+        return missing
       }
     }
 
@@ -74,7 +78,7 @@ jest.mock('react-i18next', () => {
       }
       return current
     }
-    return keyPath
+    return missing
   }
 
   return {

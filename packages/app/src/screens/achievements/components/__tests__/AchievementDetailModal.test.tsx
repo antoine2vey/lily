@@ -51,7 +51,7 @@ describe('AchievementDetailModal', () => {
       />
     )
 
-    expect(screen.getByText('Green Thumb')).toBeTruthy()
+    expect(screen.getByText('First Steps')).toBeTruthy()
   })
 
   it('renders achievement description', () => {
@@ -64,7 +64,7 @@ describe('AchievementDetailModal', () => {
     )
 
     expect(
-      screen.getByText('Add your first plant to your collection')
+      screen.getByText('Added your first plant to the garden')
     ).toBeTruthy()
   })
 

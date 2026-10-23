@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Modal, Pressable, Text, View } from 'react-native'
 import { ProgressBar } from '@/components/ProgressBar'
+import { useAchievementCopy } from '@/hooks/useAchievementCopy'
 import { useIconColors } from '@/hooks/useIconColors'
 
 type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
@@ -81,8 +82,11 @@ export function AchievementDetailModal({
 }: AchievementDetailModalProps) {
   const { t, i18n } = useTranslation('achievements')
   const iconColors = useIconColors()
+  const copyFor = useAchievementCopy()
 
   if (!achievement) return null
+
+  const copy = copyFor(achievement)
 
   const rarityColor = getRarityColor(achievement.rarity, iconColors)
   const iconName = getIconName(achievement.icon)
@@ -157,12 +161,12 @@ export function AchievementDetailModal({
 
             {/* Name */}
             <Text className="text-xl text-center font-bold text-text-primary">
-              {achievement.name}
+              {copy.name}
             </Text>
 
             {/* Description */}
             <Text className="text-base text-center mt-2 font-regular text-text-secondary">
-              {achievement.description}
+              {copy.description}
             </Text>
 
             {/* Unlocked date or progress */}
