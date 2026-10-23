@@ -1,7 +1,15 @@
 import { MaterialIcons } from '@expo/vector-icons'
 import { Array, Option, pipe, String } from 'effect'
 import { useCallback, useState } from 'react'
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native'
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import Animated, { FadeIn } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { EmptyState } from '@/components/EmptyState'
@@ -96,7 +104,8 @@ export function UserSearchScreen() {
   )
 
   return (
-    <View
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       className="flex-1 bg-background dark:bg-background-dark"
       style={{ paddingTop: insets.top }}
     >
@@ -167,6 +176,7 @@ export function UserSearchScreen() {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
+            contentContainerClassName="flex-grow"
             ListEmptyComponent={
               <EmptyState
                 kind={isSearching ? 'usersNoResults' : 'usersNoSuggestions'}
@@ -175,6 +185,6 @@ export function UserSearchScreen() {
           />
         </Animated.View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   )
 }

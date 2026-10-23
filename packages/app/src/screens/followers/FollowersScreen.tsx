@@ -104,6 +104,7 @@ export function FollowersScreen({ userId }: FollowersScreenProps) {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
+            contentContainerClassName="flex-grow"
             ListEmptyComponent={<EmptyState kind="followers" />}
           />
         </Animated.View>

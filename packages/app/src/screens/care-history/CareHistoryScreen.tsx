@@ -128,14 +128,18 @@ export function CareHistoryScreen() {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 24 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 16,
+          paddingTop: 24,
+        }}
       >
         {showSkeleton ? (
           <Animated.View entering={FadeIn.duration(300)}>
             <CareHistorySkeleton />
           </Animated.View>
         ) : isInitialLoading ? null : (
-          <Animated.View entering={FadeIn.duration(300)}>
+          <Animated.View entering={FadeIn.duration(300)} className="flex-1">
             {!filteredHistory || Array.isReadonlyArrayEmpty(filteredHistory) ? (
               <EmptyState
                 kind={

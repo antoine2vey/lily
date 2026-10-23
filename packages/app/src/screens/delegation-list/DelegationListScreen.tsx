@@ -115,6 +115,7 @@ export function DelegationListScreen() {
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={{
+                  flexGrow: 1,
                   paddingHorizontal: 24,
                 }}
                 showsVerticalScrollIndicator={false}

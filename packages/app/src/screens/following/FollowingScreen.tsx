@@ -104,6 +104,7 @@ export function FollowingScreen({ userId }: FollowingScreenProps) {
             renderItem={renderItem}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
+            contentContainerClassName="flex-grow"
             ListEmptyComponent={<EmptyState kind="following" />}
           />
         </Animated.View>

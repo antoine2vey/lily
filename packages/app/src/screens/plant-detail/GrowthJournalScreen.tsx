@@ -138,6 +138,7 @@ export function GrowthJournalScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          flexGrow: 1,
           paddingHorizontal: 16,
           paddingTop: 20,
           paddingBottom: insets.bottom + 96,
@@ -148,7 +149,7 @@ export function GrowthJournalScreen() {
             <GrowthJournalSkeleton />
           </Animated.View>
         ) : isInitialLoading ? null : isEmpty ? (
-          <Animated.View entering={FadeIn.duration(300)}>
+          <Animated.View entering={FadeIn.duration(300)} className="flex-1">
             <EmptyState
               kind="plantPhotos"
               action={{

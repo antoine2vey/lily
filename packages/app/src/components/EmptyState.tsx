@@ -85,7 +85,7 @@ export function EmptyState({
         {t(`${kind}.title`)}
       </Text>
       <Text
-        className={`${style.description} text-center mt-1.5 leading-relaxed text-text-muted dark:text-slate-400`}
+        className={`${style.description} text-center mt-1.5 leading-relaxed text-text-secondary dark:text-slate-400`}
         style={{ fontFamily: 'SpaceGrotesk_400Regular' }}
       >
         {t(`${kind}.description`)}
