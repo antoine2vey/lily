@@ -3,6 +3,7 @@ import {
   mockChatMessages,
   mockPlantConversation,
 } from '@lily/api/__tests__/fixtures/chat'
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockPlants } from '@lily/api/__tests__/fixtures/plants'
 import { createMockAiService } from '@lily/api/__tests__/mocks/ai.service'
 import { createMockCareLogRepository } from '@lily/api/__tests__/mocks/care-log.repository'
@@ -21,6 +22,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { streamChatMessage } from '@lily/api/services/ai-chat/endpoints/stream-chat-message'
 import type { UsageField } from '@lily/shared'
 import type { ChatMessage } from '@lily/shared/ai-chat'
+import { ConversationNotFoundError } from '@lily/shared/ai-chat'
 import type { AppEvent } from '@lily/shared/server'
 import { Effect, Exit, Layer, Stream } from 'effect'
 import type { HttpServerResponse } from 'effect/http'
@@ -120,6 +122,33 @@ describe('streamChatMessage', () => {
     // The result is an HttpServerResponse
     expect(result).toBeDefined()
     expect(result.headers).toBeDefined()
+  })
+
+  describe('imageKey', () => {
+    const streamWithKey = (imageKey: string) =>
+      Effect.runPromiseExit(
+        streamChatMessage(testConversation, {
+          message: 'What is this?',
+          imageKey,
+        }).pipe(Effect.provide(createTestLayer()))
+      )
+
+    it.each([
+      `1770000000000-chat/${testConversation.id}/1770000000000-chat.jpg`,
+      `chat/${testConversation.id}/1770000000000-a1b2.jpg`,
+    ])('accepts a key uploaded to this conversation: %s', async (key) => {
+      expect(Exit.isSuccess(await streamWithKey(key))).toBe(true)
+    })
+
+    it.each([
+      '1770000000000-chat/another-conversation/1770000000000-chat.jpg',
+      '1792786787517-scan-card-1792786787400.jpg',
+      `../chat/${testConversation.id}/x.jpg`,
+    ])('refuses a key from elsewhere in the bucket: %s', async (key) => {
+      const exit = await streamWithKey(key)
+
+      expect(failureOf(exit)).toBeInstanceOf(ConversationNotFoundError)
+    })
   })
 
   it('should return quota exceeded message when limit reached', async () => {

@@ -19,7 +19,10 @@ import {
   type UsageReservation,
   UsageTracker,
 } from '@lily/api/services/subscriptions/usage-tracker'
-import type { ChatConversation } from '@lily/shared/ai-chat'
+import {
+  type ChatConversation,
+  ConversationNotFoundError,
+} from '@lily/shared/ai-chat'
 import type {
   PlantNotAuthorizedError,
   PlantNotFoundError,
@@ -110,6 +113,10 @@ const makeSseResponse = (
     HttpServerResponse.setHeaders(SSE_HEADERS)
   )
 
+// Upload keys are `chat/<conversationId>/...`, older ones with an epoch prefix
+const isKeyOfConversation = (key: string, conversationId: string) =>
+  key.replace(/^\d+-/, '').startsWith(`chat/${conversationId}/`)
+
 const isEmptyReply = (steps: readonly StepData[]) =>
   Array.every(
     steps,
@@ -123,7 +130,11 @@ export const streamChatMessage = (
   request: StreamChatRequest
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
-  PlantNotFoundError | PlantNotAuthorizedError | SqlError | GCSUploadError,
+  | PlantNotFoundError
+  | PlantNotAuthorizedError
+  | ConversationNotFoundError
+  | SqlError
+  | GCSUploadError,
   | ChatRepository
   | AiService
   | EventBus
@@ -145,6 +156,13 @@ export const streamChatMessage = (
     const { id: userId } = yield* CurrentUser
     const usageTracker = yield* UsageTracker
     const gcs = yield* GCSService
+
+    if (
+      request.imageKey !== undefined &&
+      !isKeyOfConversation(request.imageKey, conversation.id)
+    ) {
+      return yield* new ConversationNotFoundError({ id: conversation.id })
+    }
 
     // If imageKey is provided, generate a fresh signed URL for AI processing
     const imageSignedUrl: string | undefined = yield* pipe(
