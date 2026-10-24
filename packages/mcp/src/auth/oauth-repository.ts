@@ -5,8 +5,9 @@ import {
   oauthClients,
   oauthRefreshTokens,
   oauthUserApiCredentials,
+  rateLimits,
 } from '@lily/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { Array, Context, DateTime, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -114,6 +115,14 @@ export interface IOAuthRepository {
   readonly getUserApiCredentials: (
     userId: string
   ) => Effect.Effect<Option.Option<UserApiCredentials>, SqlError>
+  /**
+   * Count one attempt against `key` in a fixed window (the API's
+   * `rate_limits` table) and return the attempts so far in that window.
+   */
+  readonly countAttempt: (
+    key: string,
+    windowSeconds: number
+  ) => Effect.Effect<number, SqlError>
 }
 
 // ── Context Tag ────────────────────────────────────────────────────────
@@ -401,6 +410,31 @@ export const OAuthRepositoryLive = Layer.effect(
           )
         }
       ),
+
+      countAttempt: Effect.fn('OAuthRepository.countAttempt')(function* (
+        key: string,
+        windowSeconds: number
+      ) {
+        const now = DateTime.nowUnsafe()
+        const windowExpired = sql`${rateLimits.windowStart} < ${DateTime.formatIso(
+          DateTime.subtract(now, { seconds: windowSeconds })
+        )}::timestamptz`
+        const rows = yield* db
+          .insert(rateLimits)
+          .values({ key, count: 1, windowStart: DateTime.toDateUtc(now) })
+          .onConflictDoUpdate({
+            target: rateLimits.key,
+            set: {
+              count: sql`CASE WHEN ${windowExpired} THEN 1 ELSE ${rateLimits.count} + 1 END`,
+              windowStart: sql`CASE WHEN ${windowExpired} THEN excluded.window_start ELSE ${rateLimits.windowStart} END`,
+            },
+          })
+          .returning({ count: rateLimits.count })
+        return pipe(
+          Array.head(rows),
+          Option.match({ onNone: () => 1, onSome: (row) => row.count })
+        )
+      }),
     }
   })
 )

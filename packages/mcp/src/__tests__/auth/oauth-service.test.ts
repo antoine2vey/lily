@@ -20,7 +20,14 @@ const createInMemoryOAuthRepository = () => {
   let refreshTokens: RefreshToken[] = []
   let apiCredentials: UserApiCredentials[] = []
 
+  const attempts = new Map<string, number>()
   const repo: IOAuthRepository = {
+    countAttempt: (key) =>
+      Effect.sync(() => {
+        const count = (attempts.get(key) ?? 0) + 1
+        attempts.set(key, count)
+        return count
+      }),
     getClient: (clientId) =>
       Effect.succeed(Array.findFirst(clients, (c) => c.client_id === clientId)),
 
