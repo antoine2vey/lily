@@ -1,11 +1,12 @@
 import { createMockGiftCodeRepository } from '@lily/api/__tests__/mocks/gift-code.repository'
+import { createMockRateLimiterService } from '@lily/api/__tests__/mocks/rate-limiter.service'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import type { GiftCodeRecord } from '@lily/api/repositories/gift-code.repository'
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
 import { redeemGiftCode } from '@lily/api/services/subscriptions/endpoints/redeem-gift-code'
 import type { giftCodeRedemptions } from '@lily/db/schema'
-import { Cause, Effect, Exit, Layer } from 'effect'
+import { Cause, Effect, Exit, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 type Redemption = typeof giftCodeRedemptions.$inferSelect
@@ -71,7 +72,8 @@ const baseLayers = (
     createMockSubscriptionRepository({
       ...(opts.onCreate !== undefined ? { onCreate: opts.onCreate } : {}),
     }),
-    MockSqlClientLive
+    MockSqlClientLive,
+    createMockRateLimiterService()
   )
 
 describe('redeemGiftCode', () => {
@@ -132,6 +134,37 @@ describe('redeemGiftCode', () => {
         expect(error.value._tag).toBe('GiftCodeNotFoundError')
       }
     }
+  })
+
+  it('throttles guessing after five attempts in the window', async () => {
+    const layers = baseLayers()
+    const attempt = (code: string) =>
+      Effect.runPromiseExit(
+        redeemGiftCode('user-1', code).pipe(Effect.provide(layers))
+      )
+    const tagOf = (exit: Exit.Exit<unknown, { readonly _tag: string }>) =>
+      Exit.match(exit, {
+        onSuccess: () => 'success',
+        onFailure: (cause) =>
+          Option.match(Cause.findErrorOption(cause), {
+            onNone: () => 'defect',
+            onSome: (error) => error._tag,
+          }),
+      })
+
+    const tags = []
+    for (const guess of ['A', 'B', 'C', 'D', 'E', 'TESTCODE']) {
+      tags.push(tagOf(await attempt(guess)))
+    }
+
+    expect(tags).toEqual([
+      'GiftCodeNotFoundError',
+      'GiftCodeNotFoundError',
+      'GiftCodeNotFoundError',
+      'GiftCodeNotFoundError',
+      'GiftCodeNotFoundError',
+      'RateLimitExceededError',
+    ])
   })
 
   it('should fail when code is inactive', async () => {

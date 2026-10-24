@@ -27,6 +27,7 @@ export const RATE_LIMITS = {
   MAGIC_LINK: { maxRequests: 3, windowSeconds: 60 },
   VERIFY: { maxRequests: 5, windowSeconds: 10 },
   REFRESH: { maxRequests: 10, windowSeconds: 60 },
+  REDEEM_CODE: { maxRequests: 5, windowSeconds: 600 },
 } as const
 
 /**

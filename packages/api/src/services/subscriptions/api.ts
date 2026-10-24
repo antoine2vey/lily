@@ -1,4 +1,5 @@
 import { Authentication } from '@lily/api/services/auth/middleware.types'
+import { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
 import {
   PaymentProviderError,
   SubscriptionInfo,
@@ -51,6 +52,7 @@ export const SubscriptionsApi = HttpApiGroup.make('subscriptions')
         GiftCodeExpiredError,
         GiftCodeExhaustedError,
         GiftCodeAlreadyRedeemedError,
+        RateLimitExceededError,
       ],
     })
   )

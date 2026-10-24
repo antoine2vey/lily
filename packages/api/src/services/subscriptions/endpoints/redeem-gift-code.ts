@@ -1,6 +1,11 @@
 import { GiftCodeRepository } from '@lily/api/repositories/gift-code.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { computePeriodEnd } from '@lily/api/services/helpers/gift-duration'
+import type { RateLimitExceededError } from '@lily/api/services/rate-limiter/errors'
+import {
+  RATE_LIMITS,
+  RateLimiterService,
+} from '@lily/api/services/rate-limiter/service'
 import { isOverdue } from '@lily/shared'
 import type { RedeemGiftCodeResponse } from '@lily/shared/admin'
 import {
@@ -24,13 +29,24 @@ export const redeemGiftCode = (
   | GiftCodeInactiveError
   | GiftCodeExpiredError
   | GiftCodeExhaustedError
-  | GiftCodeAlreadyRedeemedError,
-  GiftCodeRepository | SubscriptionRepository | SqlClient.SqlClient
+  | GiftCodeAlreadyRedeemedError
+  | RateLimitExceededError,
+  | GiftCodeRepository
+  | SubscriptionRepository
+  | SqlClient.SqlClient
+  | RateLimiterService
 > =>
   Effect.gen(function* () {
     const giftCodeRepo = yield* GiftCodeRepository
     const subRepo = yield* SubscriptionRepository
     const sql = yield* SqlClient.SqlClient
+    const rateLimiter = yield* RateLimiterService
+
+    // Codes are admin-chosen words, so guessing must be throttled
+    yield* rateLimiter.checkRateLimit(
+      `redeem-code:${userId}`,
+      RATE_LIMITS.REDEEM_CODE
+    )
 
     const giftCode = yield* giftCodeRepo.findByCode(code)
     if (!giftCode) {
