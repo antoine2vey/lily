@@ -499,7 +499,7 @@ export const PlantRepositoryLive = Layer.effect(
       ) {
         const [plant] = yield* db
           .update(plants)
-          .set(data)
+          .set({ ...data, updatedAt: nowAsDate() })
           .where(eq(plants.id, id))
           .returning()
         return pipe(Option.fromNullishOr(plant), Option.getOrNull)

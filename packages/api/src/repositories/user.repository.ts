@@ -255,7 +255,7 @@ export const UserRepositoryLive = Layer.effect(
       ) {
         const [user] = yield* db
           .update(users)
-          .set(data)
+          .set({ ...data, updatedAt: nowAsDate() })
           .where(eq(users.id, id))
           .returning()
         return Option.getOrNull(Option.fromNullishOr(user))
