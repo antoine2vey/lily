@@ -1,9 +1,10 @@
+import { clientIp } from '@lily/mcp/auth/client-ip'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { refreshApiJwtIfNeeded } from '@lily/mcp/auth/resolve-user'
 import { SCOPES_SUPPORTED } from '@lily/mcp/auth/scopes'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Array, Effect, Layer, Option, pipe, Schema, String } from 'effect'
+import { Array, Effect, Layer, Option, Schema } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 // ── Validation Schema ─────────────────────────────────────────────────
@@ -34,20 +35,6 @@ const ClientRegistrationBody = Schema.Struct({
 // A real client registers once per connection; this only stops floods
 const MAX_REGISTRATIONS_PER_WINDOW = 10
 const REGISTRATION_WINDOW_SECONDS = 3600
-
-/** Cloudflare's view of the caller, else the first proxy hop. */
-const clientIp = (request: HttpServerRequest.HttpServerRequest) =>
-  pipe(
-    Option.fromNullishOr(request.headers['cf-connecting-ip']),
-    Option.orElse(() =>
-      pipe(
-        Option.fromNullishOr(request.headers['x-forwarded-for']),
-        Option.flatMap((value) => Array.head(String.split(value, ','))),
-        Option.map(String.trim)
-      )
-    ),
-    Option.getOrElse(() => 'unknown')
-  )
 
 const jsonResponse = (body: unknown, status = 200) =>
   HttpServerResponse.json(body, { status })
@@ -131,7 +118,10 @@ export const OAuthRoutes = Layer.mergeAll(
       const repo = yield* OAuthRepository
 
       const attempts = yield* repo.countAttempt(
-        `oauth-register:${clientIp(request)}`,
+        `oauth-register:${clientIp({
+          'x-real-ip': request.headers['x-real-ip'],
+          'cf-connecting-ip': request.headers['cf-connecting-ip'],
+        })}`,
         REGISTRATION_WINDOW_SECONDS
       )
       if (attempts > MAX_REGISTRATIONS_PER_WINDOW) {
