@@ -26,7 +26,7 @@ describe('ServiceAuthenticationLive', () => {
 
   // The middleware reads neither the request nor the route, so the request
   // services its signature requires are left out of the context.
-  const authenticate = (secret: string) =>
+  const authenticate = (secret: string, layer = testLayer) =>
     Effect.gen(function* () {
       const auth = yield* ServiceAuthentication
       return yield* auth.apiKey(handler, {
@@ -34,7 +34,7 @@ describe('ServiceAuthenticationLive', () => {
         endpoint: InternalApi.endpoints.issueServiceToken,
         group: InternalApi as unknown as HttpApiGroup.Top,
       })
-    }).pipe(Effect.provide(testLayer)) as Effect.Effect<
+    }).pipe(Effect.provide(layer)) as Effect.Effect<
       HttpServerResponse.HttpServerResponse,
       unknown
     >
@@ -49,6 +49,20 @@ describe('ServiceAuthenticationLive', () => {
     const exit = await Effect.runPromiseExit(authenticate('wrong-secret'))
 
     expect(failureOf(exit)).toBeInstanceOf(UnauthorizedError)
+  })
+
+  // An empty secret would match a request that sends no header at all
+  it('refuses to start when SERVICE_TOKEN_SECRET is set but empty', async () => {
+    const emptySecretLayer = Layer.provide(
+      ServiceAuthenticationLive,
+      ConfigProvider.layer(
+        ConfigProvider.fromEnv({ env: { SERVICE_TOKEN_SECRET: '' } })
+      )
+    )
+
+    const exit = await Effect.runPromiseExit(authenticate('', emptySecretLayer))
+
+    expect(exit._tag).toBe('Failure')
   })
 
   it('should reject a secret with wrong length', async () => {
