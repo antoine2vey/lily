@@ -79,15 +79,9 @@ export const createMockRefreshTokenRepository = (
 
     revokeAllForUser: (userId: string) =>
       Effect.gen(function* () {
-        let count = 0
-        tokenStore = Array.map(tokenStore, (t) => {
-          if (t.userId === userId && t.revokedAt === null) {
-            count++
-            return { ...t, revokedAt: new Date() }
-          }
-          return t
-        })
-        return count
+        const originalLength = tokenStore.length
+        tokenStore = Array.filter(tokenStore, (t) => t.userId !== userId)
+        return originalLength - tokenStore.length
       }),
 
     deleteExpiredAndRevoked: () =>

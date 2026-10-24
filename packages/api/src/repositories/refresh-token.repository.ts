@@ -1,7 +1,7 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { refreshTokens } from '@lily/db/schema/auth'
 import { daysAgoAsDate, nowAsDate } from '@lily/shared'
-import { and, eq, isNull, lt } from 'drizzle-orm'
+import { eq, lt } from 'drizzle-orm'
 import {
   Array,
   Context,
@@ -139,19 +139,13 @@ export const RefreshTokenRepositoryLive = Layer.effect(
         return pipe(results, Array.head, Option.getOrNull)
       }),
 
+      // Deletes rather than stamping `revokedAt`: a revoked row stays usable
+      // for the rotation grace window, which must not outlive a logout.
       revokeAllForUser: Effect.fn('RefreshTokenRepository.revokeAllForUser')(
         function* (userId: string) {
           const results = yield* db
-            .update(refreshTokens)
-            .set({
-              revokedAt: nowAsDate(),
-            })
-            .where(
-              and(
-                eq(refreshTokens.userId, userId),
-                isNull(refreshTokens.revokedAt)
-              )
-            )
+            .delete(refreshTokens)
+            .where(eq(refreshTokens.userId, userId))
             .returning()
 
           return results.length
