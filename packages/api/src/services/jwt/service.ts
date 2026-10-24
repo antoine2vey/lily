@@ -121,7 +121,7 @@ export const JWTServiceLive = Layer.effect(
               })
             }
             return new JWTError({
-              message: `Invalid token: ${String(error)}`,
+              message: 'Invalid token',
               code: 'INVALID_TOKEN',
             })
           },

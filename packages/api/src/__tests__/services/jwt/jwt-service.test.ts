@@ -1,3 +1,4 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
 import { mockAdminJWTPayload } from '@lily/api/__tests__/fixtures/jwt'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { JWTService, JWTServiceLive } from '@lily/api/services/jwt/service'
@@ -57,6 +58,26 @@ describe('JWTService', () => {
   })
 
   describe('verifyAccessToken', () => {
+    it.each([
+      ['malformed', 'not-a-valid-jwt'],
+      ['alg none', 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.'],
+    ])(
+      'rejects a %s token without naming the JWT library',
+      async (_name, token) => {
+        const exit = await Effect.runPromiseExit(
+          Effect.gen(function* () {
+            const jwtService = yield* JWTService
+            return yield* jwtService.verifyAccessToken(token)
+          }).pipe(Effect.provide(JWTServiceTestLive))
+        )
+
+        expect(failureOf(exit)).toMatchObject({
+          code: 'INVALID_TOKEN',
+          message: 'Invalid token',
+        })
+      }
+    )
+
     it('should return payload for valid token', async () => {
       // First sign a token, then verify it
       const result = await Effect.runPromise(
