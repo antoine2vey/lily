@@ -7,6 +7,7 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -21,7 +22,11 @@ export const uploadPlantPhoto = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   PlantPhotoUploadResponse,
-  SqlError | GCSUploadError | GCSConfigError | PlatformError,
+  | SqlError
+  | GCSUploadError
+  | InvalidImageError
+  | GCSConfigError
+  | PlatformError,
   PlantRepository | GCSService | FileSystem | EventBus | CurrentUser
 > =>
   Effect.gen(function* () {
@@ -37,8 +42,7 @@ export const uploadPlantPhoto = ({
 
         const { url } = yield* gcs.uploadFile({
           fileBuffer: Buffer.from(buffer),
-          fileName: file.name,
-          contentType: file.contentType,
+          folder: `plants/${plantId}`,
         })
 
         return { plantId, url, takenAt: nowAsDate() }

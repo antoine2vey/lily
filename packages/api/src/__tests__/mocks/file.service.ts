@@ -1,3 +1,4 @@
+import { PNG_BYTES } from '@lily/api/__tests__/fixtures/images'
 import {
   FileService,
   type FileTooLargeError,
@@ -33,7 +34,7 @@ export const createMockFileService = (): Layer.Layer<FileService> => {
         return Effect.fail(new NoFilesError({ message: 'No files provided' }))
       }
       return Effect.succeed({
-        buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), // Mock PNG header
+        buffer: PNG_BYTES,
         key: file.key,
         name: file.name,
         contentType: file.contentType,
@@ -55,7 +56,7 @@ export const createMockFileService = (): Layer.Layer<FileService> => {
       }
       return Effect.succeed(
         Array.from(files).map((file) => ({
-          buffer: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+          buffer: PNG_BYTES,
           key: file.key,
           name: file.name,
           contentType: file.contentType,

@@ -1,16 +1,25 @@
 import type { GCSUploadRequest, GCSUploadResponse } from '@lily/shared/server'
 import { GCSService } from '@lily/shared/server'
+import {
+  type InvalidImageError,
+  planImageUpload,
+} from '@lily/shared/services/file/image-upload'
 import { Array, Effect, Layer } from 'effect'
 
 export const createMockGCSService = (): Layer.Layer<GCSService> => {
   const mockService = {
-    uploadFile: (request: GCSUploadRequest): Effect.Effect<GCSUploadResponse> =>
-      Effect.succeed({
-        key: `${Date.now()}-${request.fileName}`,
-        url: `https://storage.googleapis.com/mock-bucket/${request.fileName}`,
-        bucketName: 'mock-bucket',
-        uploadedAt: new Date(),
-      }),
+    uploadFile: (
+      request: GCSUploadRequest
+    ): Effect.Effect<GCSUploadResponse, InvalidImageError> =>
+      Effect.map(
+        planImageUpload(request.fileBuffer, request.folder),
+        ({ key }) => ({
+          key,
+          url: `https://storage.googleapis.com/mock-bucket/${key}`,
+          bucketName: 'mock-bucket',
+          uploadedAt: new Date(),
+        })
+      ),
 
     getSignedUrl: (key: string): Effect.Effect<string> =>
       Effect.succeed(
@@ -31,13 +40,16 @@ export const createMockGCSService = (): Layer.Layer<GCSService> => {
 
     uploadPrivateFile: (
       request: GCSUploadRequest
-    ): Effect.Effect<GCSUploadResponse> =>
-      Effect.succeed({
-        key: `${Date.now()}-${request.fileName}`,
-        url: `https://storage.googleapis.com/mock-private-bucket/${request.fileName}?signed=true`,
-        bucketName: 'mock-private-bucket',
-        uploadedAt: new Date(),
-      }),
+    ): Effect.Effect<GCSUploadResponse, InvalidImageError> =>
+      Effect.map(
+        planImageUpload(request.fileBuffer, request.folder),
+        ({ key }) => ({
+          key,
+          url: `https://storage.googleapis.com/mock-private-bucket/${key}?signed=true`,
+          bucketName: 'mock-private-bucket',
+          uploadedAt: new Date(),
+        })
+      ),
   }
 
   return Layer.succeed(

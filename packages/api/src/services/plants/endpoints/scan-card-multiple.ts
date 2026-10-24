@@ -17,6 +17,7 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Array as Arr, Effect, Option, pipe } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -29,6 +30,7 @@ export const scanCardMultiple = (
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
+  | InvalidImageError
   | GCSConfigError
   | NoFilesError
   | TooManyFilesError
@@ -68,8 +70,7 @@ export const scanCardMultiple = (
           Arr.map(files, (file) =>
             gcs.uploadFile({
               fileBuffer: Buffer.from(file.buffer),
-              fileName: file.name,
-              contentType: file.contentType,
+              folder: 'scan-card',
             })
           ),
           { concurrency: 'unbounded' }

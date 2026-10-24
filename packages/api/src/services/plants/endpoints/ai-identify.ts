@@ -16,6 +16,7 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -28,6 +29,7 @@ export const aiIdentify = (
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
+  | InvalidImageError
   | GCSConfigError
   | MultipleFilesError
   | NoFilesError
@@ -52,8 +54,7 @@ export const aiIdentify = (
 
         const { url } = yield* gcs.uploadFile({
           fileBuffer: Buffer.from(file.buffer),
-          fileName: file.name,
-          contentType: file.contentType,
+          folder: 'identify',
         })
 
         const aiResult = yield* ai.plantRecognition(url, locale)

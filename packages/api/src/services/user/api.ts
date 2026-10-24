@@ -8,6 +8,7 @@ import {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { UserSettings, UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Schema } from 'effect'
 import { Multipart } from 'effect/http'
@@ -41,6 +42,7 @@ export const UsersApi = HttpApiGroup.make('users')
         UserNotFoundError,
         MultipleFilesError.pipe(HttpApiSchema.status(400)),
         NoFilesError.pipe(HttpApiSchema.status(400)),
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         UnauthorizedError,

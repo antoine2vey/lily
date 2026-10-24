@@ -35,6 +35,7 @@ import {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect, Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
@@ -101,6 +102,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         LimitExceededError,
         MultipleFilesError.pipe(HttpApiSchema.status(400)),
         NoFilesError.pipe(HttpApiSchema.status(400)),
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
@@ -125,6 +127,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         TooManyFilesError.pipe(HttpApiSchema.status(400)),
         InvalidFileTypeError.pipe(HttpApiSchema.status(400)),
         FileTooLargeError.pipe(HttpApiSchema.status(400)),
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
@@ -147,6 +150,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         LimitExceededError,
         MultipleFilesError.pipe(HttpApiSchema.status(400)),
         NoFilesError.pipe(HttpApiSchema.status(400)),
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
@@ -169,6 +173,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
         LimitExceededError,
         MultipleFilesError.pipe(HttpApiSchema.status(400)),
         NoFilesError.pipe(HttpApiSchema.status(400)),
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         OpenAIError.pipe(HttpApiSchema.status(500)),
@@ -228,6 +233,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       error: [
         PlantNotFoundError,
         PlantNotAuthorizedError,
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),
@@ -298,6 +304,7 @@ export const PlantsApi = HttpApiGroup.make('plants')
       error: [
         PlantNotFoundError,
         PlantNotAuthorizedError,
+        InvalidImageError,
         GCSUploadError.pipe(HttpApiSchema.status(500)),
         GCSConfigError.pipe(HttpApiSchema.status(500)),
         Schema.Struct({ error: Schema.String }).pipe(HttpApiSchema.status(401)),

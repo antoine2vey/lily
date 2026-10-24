@@ -16,6 +16,7 @@ import {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Schema } from 'effect'
 import { Multipart } from 'effect/http'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
@@ -145,6 +146,7 @@ export const AIChatApi = HttpApiGroup.make('aiChat')
         }),
         error: [
           ConversationNotFoundError.pipe(HttpApiSchema.status(404)),
+          InvalidImageError,
           GCSUploadError.pipe(HttpApiSchema.status(500)),
           GCSConfigError.pipe(HttpApiSchema.status(500)),
           Schema.Struct({ error: Schema.String }).pipe(

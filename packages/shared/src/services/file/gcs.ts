@@ -1,4 +1,4 @@
-import { Storage } from '@google-cloud/storage'
+import { type Bucket, Storage } from '@google-cloud/storage'
 import {
   Array,
   Config,
@@ -6,13 +6,12 @@ import {
   Duration,
   Effect,
   Layer,
-  Option,
-  pipe,
   Redacted,
   Schema,
 } from 'effect'
 import { nowAsDate, nowAsEpochMillis } from '../../domains/common/date'
 import { GCSConfigError, GCSUploadError } from './gcs-errors'
+import { type InvalidImageError, planImageUpload } from './image-upload'
 
 export const GCSCredentialsSchema = Schema.Struct({
   type: Schema.String,
@@ -35,16 +34,11 @@ export const GCSConfigSchema = Schema.Struct({
   credentials: GCSCredentialsSchema,
 })
 
-// Upload Request Schema
-export const GCSUploadRequestSchema = Schema.Struct({
-  fileBuffer: Schema.instanceOf(Buffer),
-  fileName: Schema.String,
-  contentType: Schema.String,
-  key: Schema.optional(Schema.String), // Optional custom key, otherwise uses fileName
-  expiry: Schema.optional(Schema.Number), // Optional expiry in milliseconds
-})
-
-export type GCSUploadRequest = Schema.Schema.Type<typeof GCSUploadRequestSchema>
+export interface GCSUploadRequest {
+  readonly fileBuffer: Buffer
+  /** Key prefix such as `avatars/<userId>`; the file name is generated */
+  readonly folder: string
+}
 
 // Upload Response Schema
 export const GCSUploadResponseSchema = Schema.Struct({
@@ -120,63 +114,40 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
       ai: storage.bucket(yield* Config.String('GCS_AI_BUCKET')),
     }
 
+    const save = (bucket: Bucket, request: GCSUploadRequest) =>
+      Effect.gen(function* () {
+        const { key, contentType } = yield* planImageUpload(
+          request.fileBuffer,
+          request.folder
+        )
+        yield* Effect.annotateCurrentSpan('gcs.key', key)
+        yield* Effect.tryPromise({
+          try: () =>
+            bucket.file(key).save(request.fileBuffer, {
+              metadata: { contentType },
+              resumable: false,
+            }),
+          catch: (error) =>
+            new GCSUploadError({
+              message: `Failed to upload file to GCS: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }),
+        })
+        return key
+      })
+
     return {
       uploadFile: (
         request: GCSUploadRequest
-      ): Effect.Effect<GCSUploadResponse, GCSUploadError> =>
-        Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('gcs.fileName', request.fileName)
-          yield* Effect.annotateCurrentSpan(
-            'gcs.contentType',
-            request.contentType
-          )
-          // Validate request
-          const validatedRequest = yield* Schema.decodeUnknownEffect(
-            GCSUploadRequestSchema
-          )(request).pipe(
-            Effect.mapError(
-              (error) =>
-                new GCSUploadError({
-                  message: `Invalid upload request: ${error.message}`,
-                })
-            )
-          )
-
-          // Generate key if not provided
-          const key = pipe(
-            Option.fromNullishOr(validatedRequest.key),
-            Option.getOrElse(
-              () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
-            )
-          )
-
-          // Upload file to GCS
-          const file = buckets.plant.file(key)
-
-          yield* Effect.tryPromise({
-            try: () =>
-              file.save(validatedRequest.fileBuffer, {
-                metadata: {
-                  contentType: validatedRequest.contentType,
-                },
-                resumable: false,
-              }),
-            catch: (error) =>
-              new GCSUploadError({
-                message: `Failed to upload file to GCS: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              }),
-          })
-
-          // Generate public URL
-          const url = `https://storage.googleapis.com/${buckets.plant.name}/${key}`
-
-          return {
+      ): Effect.Effect<GCSUploadResponse, GCSUploadError | InvalidImageError> =>
+        save(buckets.plant, request).pipe(
+          Effect.map((key) => ({
             key,
-            url,
+            url: `https://storage.googleapis.com/${buckets.plant.name}/${key}`,
             bucketName: buckets.plant.name,
             uploadedAt: nowAsDate(),
-          }
-        }).pipe(Effect.withSpan('GCS.uploadFile')),
+          })),
+          Effect.withSpan('GCS.uploadFile')
+        ),
 
       getSignedUrl: (
         key: string,
@@ -239,51 +210,12 @@ export class GCSService extends Context.Service<GCSService>()('GCSService', {
 
       uploadPrivateFile: (
         request: GCSUploadRequest
-      ): Effect.Effect<GCSUploadResponse, GCSUploadError> =>
+      ): Effect.Effect<GCSUploadResponse, GCSUploadError | InvalidImageError> =>
         Effect.gen(function* () {
-          yield* Effect.annotateCurrentSpan('gcs.fileName', request.fileName)
-          // Validate request (same as uploadFile)
-          const validatedRequest = yield* Schema.decodeUnknownEffect(
-            GCSUploadRequestSchema
-          )(request).pipe(
-            Effect.mapError(
-              (error) =>
-                new GCSUploadError({
-                  message: `Invalid upload request: ${error.message}`,
-                })
-            )
-          )
-
-          // Generate key if not provided (same as uploadFile)
-          const key = pipe(
-            Option.fromNullishOr(validatedRequest.key),
-            Option.getOrElse(
-              () => `${nowAsEpochMillis()}-${validatedRequest.fileName}`
-            )
-          )
-
-          // Upload file to GCS with private access
-          const file = buckets.ai.file(key)
-
-          yield* Effect.tryPromise({
-            try: () =>
-              file.save(validatedRequest.fileBuffer, {
-                metadata: {
-                  contentType: validatedRequest.contentType,
-                },
-                resumable: false,
-                // Make file private by not setting public read access
-              }),
-            catch: (error) =>
-              new GCSUploadError({
-                message: `Failed to upload private file to GCS: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              }),
-          })
-
-          // Return response with a private URL (signed URL for access)
+          const key = yield* save(buckets.ai, request)
           const [url] = yield* Effect.tryPromise({
             try: () =>
-              file.getSignedUrl({
+              buckets.ai.file(key).getSignedUrl({
                 action: 'read',
                 expires:
                   nowAsEpochMillis() + Duration.toMillis(Duration.hours(1)),

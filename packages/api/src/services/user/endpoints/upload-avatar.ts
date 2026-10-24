@@ -1,6 +1,5 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { nowAsEpochMillis } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import {
   FileService,
@@ -12,13 +11,8 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
-import {
-  Effect,
-  Array as EffectArray,
-  String as EffectString,
-  Option,
-  pipe,
-} from 'effect'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
@@ -30,6 +24,7 @@ export const uploadAvatar = (
   { url: string },
   | SqlError
   | GCSUploadError
+  | InvalidImageError
   | GCSConfigError
   | PlatformError
   | MultipleFilesError
@@ -47,13 +42,7 @@ export const uploadAvatar = (
 
     const { url } = yield* gcs.uploadFile({
       fileBuffer: Buffer.from(file.buffer),
-      fileName: `avatars/${userId}-${nowAsEpochMillis()}.${pipe(
-        file.name,
-        EffectString.split('.'),
-        EffectArray.last,
-        Option.getOrElse(() => 'jpg')
-      )}`,
-      contentType: file.contentType,
+      folder: `avatars/${userId}`,
     })
 
     const updated = yield* repo.update(userId, { image: url })

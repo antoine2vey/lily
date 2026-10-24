@@ -1,11 +1,11 @@
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
-import { nowAsEpochMillis } from '@lily/shared'
 import { GCSService } from '@lily/shared/services/file/gcs'
 import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
-import { Array, Effect, pipe, String } from 'effect'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { Array, Effect } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
@@ -18,7 +18,7 @@ export const uploadChatImage = ({
   files: readonly PersistedFile[]
 }): Effect.Effect<
   { imageUrl: string; imageKey: string },
-  GCSUploadError | GCSConfigError | PlatformError,
+  GCSUploadError | InvalidImageError | GCSConfigError | PlatformError,
   GCSService | FileSystem | CurrentUser
 > =>
   Effect.gen(function* () {
@@ -28,20 +28,9 @@ export const uploadChatImage = ({
     const file = yield* Effect.fromOption(Array.head(files)).pipe(Effect.orDie)
     const buffer = yield* fileSystem.readFile(file.path)
 
-    const timestamp = nowAsEpochMillis()
-    const name = pipe(
-      file.name,
-      String.replaceAll('..', ''),
-      String.split('/'),
-      Array.last
-    )
-    const safeName = yield* Effect.fromOption(name).pipe(Effect.orDie)
-    const fileName = `chat/${conversationId}/${timestamp}-${safeName}`
-
     const { key } = yield* gcs.uploadPrivateFile({
       fileBuffer: Buffer.from(buffer),
-      fileName,
-      contentType: file.contentType,
+      folder: `chat/${conversationId}`,
     })
 
     const signedUrl = yield* gcs.getSignedUrl(key)

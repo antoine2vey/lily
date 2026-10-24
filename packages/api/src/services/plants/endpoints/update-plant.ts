@@ -10,7 +10,8 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
-import { Array, DateTime, Effect, Option, pipe, Record, String } from 'effect'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
+import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
 import type { PlatformError } from 'effect/PlatformError'
@@ -39,7 +40,7 @@ const syncOptionalSchedule = (
       )
       yield* scheduleRepo.upsert(plantId, careType, {
         frequencyDays,
-        ...(!existing || !existing.nextCareAt ? { nextCareAt: now } : {}),
+        ...(!existing?.nextCareAt ? { nextCareAt: now } : {}),
       })
     } else {
       yield* scheduleRepo.deleteByPlantAndType(plantId, careType)
@@ -52,7 +53,11 @@ export const updatePlant = (
   image?: PersistedFile
 ): Effect.Effect<
   PlantWithRoom,
-  SqlError | GCSUploadError | GCSConfigError | PlatformError,
+  | SqlError
+  | GCSUploadError
+  | InvalidImageError
+  | GCSConfigError
+  | PlatformError,
   PlantRepository | CareScheduleRepository | GCSService | FileSystem
 > =>
   Effect.gen(function* () {
@@ -68,18 +73,9 @@ export const updatePlant = (
           const gcs = yield* GCSService
           const fileSystem = yield* FileSystem
           const buffer = yield* fileSystem.readFile(image.path)
-          const safeName = pipe(
-            image.name,
-            String.replaceAll('..', ''),
-            String.split('/'),
-            Array.last,
-            Option.getOrElse(() => 'photo.jpg')
-          )
-          const timestamp = DateTime.toEpochMillis(DateTime.nowUnsafe())
           const { url } = yield* gcs.uploadFile({
             fileBuffer: Buffer.from(buffer),
-            fileName: `plants/${request.id}/${timestamp}-${safeName}`,
-            contentType: image.contentType,
+            folder: `plants/${request.id}`,
           })
           return url
         })
@@ -112,7 +108,7 @@ export const updatePlant = (
       )
       yield* scheduleRepo.upsert(request.id, 'watering', {
         frequencyDays: request.wateringFrequencyDays,
-        ...(!existing || !existing.nextCareAt ? { nextCareAt: now } : {}),
+        ...(!existing?.nextCareAt ? { nextCareAt: now } : {}),
       })
     }
 

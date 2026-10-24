@@ -1,10 +1,12 @@
+import { PNG_BYTES } from '@lily/api/__tests__/fixtures/images'
 import { Effect, Layer } from 'effect'
 import { FileSystem } from 'effect/FileSystem'
 
-export const createMockFileSystem = (): Layer.Layer<FileSystem> => {
+export const createMockFileSystem = (
+  fileBytes: Uint8Array = PNG_BYTES
+): Layer.Layer<FileSystem> => {
   const mockFileSystem = {
-    readFile: (_path: string) =>
-      Effect.succeed(new Uint8Array([0x89, 0x50, 0x4e, 0x47])), // Mock PNG header
+    readFile: (_path: string) => Effect.succeed(fileBytes), // Mock PNG header
     writeFile: () => Effect.void,
     exists: () => Effect.succeed(true),
     stat: () =>

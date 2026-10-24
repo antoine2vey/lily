@@ -1,7 +1,10 @@
+import { failureOf } from '@lily/api/__tests__/fixtures/exit'
+import { HTML_BYTES } from '@lily/api/__tests__/fixtures/images'
 import { createMockFileSystem } from '@lily/api/__tests__/mocks/file-system'
 import { createMockGCSService } from '@lily/api/__tests__/mocks/gcs.service'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { uploadChatImage } from '@lily/api/services/ai-chat/endpoints/upload-chat-image'
+import { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect, Layer } from 'effect'
 import type { PersistedFile } from 'effect/http/Multipart'
 import { describe, expect, it } from 'vitest'
@@ -48,7 +51,7 @@ describe('uploadChatImage', () => {
     ).rejects.toBeDefined()
   })
 
-  it('should sanitize path traversal from filename', async () => {
+  it('builds the key without the client file name', async () => {
     const maliciousFile = {
       _tag: 'PersistedFile' as const,
       key: 'file',
@@ -64,7 +67,26 @@ describe('uploadChatImage', () => {
       }).pipe(Effect.provide(createTestLayer()))
     )
 
-    expect(result.imageKey).not.toContain('..')
+    expect(result.imageKey).toMatch(/^\d+-chat\/conv-1\/[0-9a-f-]{36}\.png$/)
+  })
+
+  it('refuses a file that is not an image, whatever it claims to be', async () => {
+    const exit = await Effect.runPromiseExit(
+      uploadChatImage({
+        conversationId: 'conv-1',
+        files: [mockFile],
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            createMockCurrentUser({ id: 'user-1' }),
+            createMockGCSService(),
+            createMockFileSystem(HTML_BYTES)
+          )
+        )
+      )
+    )
+
+    expect(failureOf(exit)).toBeInstanceOf(InvalidImageError)
   })
 
   it('should namespace uploads by conversation id', async () => {

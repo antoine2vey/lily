@@ -15,6 +15,7 @@ import type {
   GCSConfigError,
   GCSUploadError,
 } from '@lily/shared/services/file/gcs-errors'
+import type { InvalidImageError } from '@lily/shared/services/file/image-upload'
 import { Effect } from 'effect'
 import type { FileSystem } from 'effect/FileSystem'
 import type { PersistedFile } from 'effect/http/Multipart'
@@ -27,6 +28,7 @@ export const scanCard = (
 ): Effect.Effect<
   AIIdentifyResponse,
   | GCSUploadError
+  | InvalidImageError
   | GCSConfigError
   | MultipleFilesError
   | NoFilesError
@@ -60,8 +62,7 @@ export const scanCard = (
 
         const { url } = yield* gcs.uploadPrivateFile({
           fileBuffer: Buffer.from(file.buffer),
-          fileName: file.name,
-          contentType: file.contentType,
+          folder: 'scan-card',
         })
 
         const result = yield* ai.plantCardScan(url, locale)
