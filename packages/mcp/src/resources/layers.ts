@@ -1,4 +1,4 @@
-import { ApiClient } from '@lily/mcp/api-client'
+import { ApiClient, publicApiFailure } from '@lily/mcp/api-client'
 import { provideAuth } from '@lily/mcp/auth/resolve-user'
 import {
   readCareScheduleResource,
@@ -21,10 +21,13 @@ const authedPlantContent = (plantId: string) =>
     const plant = yield* apiClient.getPlant(plantId)
     return yield* readPlantResource(plant)
   }).pipe(
-    provideAuth,
-    Effect.catchTag('OAuthError', () =>
-      Effect.succeed(JSON.stringify({ error: 'Authentication required' }))
-    )
+    provideAuth('plants:read'),
+    Effect.catchTags({
+      OAuthError: (err) =>
+        Effect.succeed(JSON.stringify({ error: err.error_description })),
+      ExternalServiceError: (err) =>
+        Effect.succeed(JSON.stringify({ error: publicApiFailure(err) })),
+    })
   )
 
 export const PlantResourceLayer = McpServer.resource`plant://${plantIdParam}`({
@@ -43,10 +46,13 @@ export const PlantResourceLayer = McpServer.resource`plant://${plantIdParam}`({
  * auth resolution. CurrentJwt is provided via provideAuth.
  */
 const authedCareScheduleContent = readCareScheduleResource().pipe(
-  provideAuth,
-  Effect.catchTag('OAuthError', () =>
-    Effect.succeed(JSON.stringify({ error: 'Authentication required' }))
-  )
+  provideAuth('plants:read'),
+  Effect.catchTags({
+    OAuthError: (err) =>
+      Effect.succeed(JSON.stringify({ error: err.error_description })),
+    ExternalServiceError: (err) =>
+      Effect.succeed(JSON.stringify({ error: publicApiFailure(err) })),
+  })
 )
 
 export const CareScheduleResourceLayer = McpServer.resource({

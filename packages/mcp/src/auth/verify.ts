@@ -1,8 +1,9 @@
 import { ApiClient } from '@lily/mcp/api-client'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
+import { grantScopes } from '@lily/mcp/auth/scopes'
 import { McpServerUrl } from '@lily/mcp/config'
-import { Array, Effect, String as EffectString, Option, pipe } from 'effect'
+import { Array, Effect, Option, pipe } from 'effect'
 import { HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 const escapeHtml = (s: string) =>
@@ -108,12 +109,11 @@ export const verifyHandler = Effect.gen(function* () {
     return errorHtml('Only S256 code_challenge_method is supported')
   }
 
-  const scopes = pipe(
-    Option.fromNullishOr(params.get('scope')),
-    Option.map((s) => EffectString.split(s, ' ')),
-    Option.map(Array.fromIterable),
-    Option.getOrElse(() => [] as string[])
-  )
+  const maybeScopes = grantScopes(params.get('scope'))
+  if (Option.isNone(maybeScopes)) {
+    return errorHtml('Unsupported scope requested')
+  }
+  const scopes = maybeScopes.value
   const state = Option.getOrUndefined(Option.fromNullishOr(params.get('state')))
   const resource = Option.getOrUndefined(
     Option.fromNullishOr(params.get('resource'))

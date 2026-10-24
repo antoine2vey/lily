@@ -2,6 +2,7 @@ import { ApiClient, CurrentJwt, CurrentUserId } from '@lily/mcp/api-client'
 import type { UserApiCredentials } from '@lily/mcp/auth/oauth-repository'
 import { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import { OAuthError, OAuthService } from '@lily/mcp/auth/oauth-service'
+import type { Scope } from '@lily/mcp/auth/scopes'
 import {
   Array,
   DateTime,
@@ -122,6 +123,7 @@ interface AuthResult {
  * 4. Return { jwt, userId }
  */
 const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
+  scope: Scope,
   forceRefresh: boolean
 ) {
   // MCP tool handlers are typed without HttpServerRequest; the HTTP transport
@@ -144,6 +146,12 @@ const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
 
   const token = pipe(authHeader, EffectString.slice(7))
   const validation = yield* oauthService.validateBearerToken(token)
+  if (!Array.contains(validation.scopes, scope)) {
+    return yield* new OAuthError({
+      error: 'insufficient_scope',
+      error_description: `This connection was not granted the ${scope} scope`,
+    })
+  }
 
   const maybeCreds = yield* repo.getUserApiCredentials(validation.userId)
   const creds = yield* Option.match(maybeCreds, {
@@ -171,48 +179,51 @@ const resolveAuth = Effect.fn('MCP.resolveAuth')(function* (
 /**
  * Resolve auth — refreshApiJwt handles 401 retry internally.
  */
-const resolveAuthWithRetry = resolveAuth(false).pipe(
-  Effect.catchTags({
-    AccessTokenNotFound: (err) =>
-      new OAuthError({
-        error: err.error,
-        error_description: err.error_description,
-      }),
-    AccessTokenExpired: (err) =>
-      new OAuthError({
-        error: err.error,
-        error_description: err.error_description,
-      }),
-    SqlError: () =>
-      new OAuthError({
-        error: 'server_error',
-        error_description: 'Authentication failed',
-      }),
-  })
-)
+const resolveAuthWithRetry = (scope: Scope) =>
+  resolveAuth(scope, false).pipe(
+    Effect.catchTags({
+      AccessTokenNotFound: (err) =>
+        new OAuthError({
+          error: err.error,
+          error_description: err.error_description,
+        }),
+      AccessTokenExpired: (err) =>
+        new OAuthError({
+          error: err.error,
+          error_description: err.error_description,
+        }),
+      SqlError: () =>
+        new OAuthError({
+          error: 'server_error',
+          error_description: 'Authentication failed',
+        }),
+    })
+  )
 
 /**
  * Provide `CurrentJwt` and `CurrentUserId` into context by resolving
- * the bearer token. If the stored API JWT is expired, refreshes it
- * transparently via `refreshApiJwt`.
+ * the bearer token, failing unless the token was granted `scope`. If the
+ * stored API JWT is expired, refreshes it transparently via `refreshApiJwt`.
  */
-export const provideAuth = <A, E, R>(
-  self: Effect.Effect<A, E, R>
-): Effect.Effect<
-  A,
-  E | OAuthError,
-  | Exclude<Exclude<R, CurrentJwt>, CurrentUserId>
-  | OAuthService
-  | OAuthRepository
-  | ApiClient
-> =>
-  pipe(
-    resolveAuthWithRetry,
-    Effect.flatMap((auth) =>
-      pipe(
-        self,
-        Effect.provideService(CurrentJwt, auth.jwt),
-        Effect.provideService(CurrentUserId, auth.userId)
+export const provideAuth =
+  (scope: Scope) =>
+  <A, E, R>(
+    self: Effect.Effect<A, E, R>
+  ): Effect.Effect<
+    A,
+    E | OAuthError,
+    | Exclude<Exclude<R, CurrentJwt>, CurrentUserId>
+    | OAuthService
+    | OAuthRepository
+    | ApiClient
+  > =>
+    pipe(
+      resolveAuthWithRetry(scope),
+      Effect.flatMap((auth) =>
+        pipe(
+          self,
+          Effect.provideService(CurrentJwt, auth.jwt),
+          Effect.provideService(CurrentUserId, auth.userId)
+        )
       )
     )
-  )

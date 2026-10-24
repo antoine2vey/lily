@@ -9,6 +9,7 @@ import {
   Duration,
   Effect,
   Layer,
+  Match,
   Option,
   pipe,
   Redacted,
@@ -118,6 +119,22 @@ const API_TIMEOUT = Duration.seconds(15)
 // over 60 days) under the API's own 30 s embedding deadline. 45 s lets that
 // deadline report its own error first.
 const KNOWLEDGE_QUERY_TIMEOUT = Duration.seconds(45)
+
+/**
+ * What an MCP client may see of a failed API call. The upstream message
+ * carries the internal API URL, so it stays in the logs.
+ */
+export const publicApiFailure = (error: ExternalServiceError): string =>
+  Match.value(error.statusCode).pipe(
+    Match.when(
+      Match.is(403, 404),
+      () => 'Not found, or not one of your plants.'
+    ),
+    Match.when(429, () => 'Too many requests. Try again in a minute.'),
+    Match.orElse(
+      () => 'The Lily service could not complete this request. Try again later.'
+    )
+  )
 
 // ── Context Tag ────────────────────────────────────────────────────────
 

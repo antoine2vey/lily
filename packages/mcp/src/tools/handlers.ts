@@ -2,10 +2,12 @@ import {
   type ApiClient,
   type CurrentJwt,
   CurrentUserId,
+  publicApiFailure,
 } from '@lily/mcp/api-client'
 import type { OAuthRepository } from '@lily/mcp/auth/oauth-repository'
 import type { OAuthService } from '@lily/mcp/auth/oauth-service'
 import { provideAuth } from '@lily/mcp/auth/resolve-user'
+import type { Scope } from '@lily/mcp/auth/scopes'
 import {
   askPlantQuestionEffect,
   carePlantEffect,
@@ -22,6 +24,7 @@ import {
   GetPlantDetails,
   ListPlants,
 } from '@lily/mcp/tools/definitions'
+import { ExternalServiceError } from '@lily/shared'
 import {
   Cause,
   Context,
@@ -105,11 +108,13 @@ const errorResult = (error: unknown) =>
         type: 'text',
         // Tagged errors without a message field have message ''.
         text:
-          Predicate.hasProperty(error, 'message') &&
-          Predicate.isString(error.message) &&
-          EffectString.isNonEmpty(error.message)
-            ? error.message
-            : JSON.stringify(error),
+          error instanceof ExternalServiceError
+            ? publicApiFailure(error)
+            : Predicate.hasProperty(error, 'message') &&
+                Predicate.isString(error.message) &&
+                EffectString.isNonEmpty(error.message)
+              ? error.message
+              : JSON.stringify(error),
       },
     ],
   })
@@ -121,6 +126,7 @@ export const ToolsLayer = Layer.effectDiscard(
 
     const register = <P, E>(
       tool: Tool.Any & { readonly parametersSchema: Schema.Decoder<P> },
+      scope: Scope,
       run: (params: P) => Effect.Effect<ToolOutput, E, ApiClient | CurrentJwt>
     ) => {
       const decode = Schema.decodeUnknownEffect(tool.parametersSchema)
@@ -142,25 +148,32 @@ export const ToolsLayer = Layer.effectDiscard(
                       )
                     )
                   ),
-                  provideAuth
+                  provideAuth(scope)
                 )
               ),
               Effect.provide(deps),
-              Effect.matchCause({
-                onFailure: (cause) => errorResult(Cause.squash(cause)),
-                onSuccess: (output) => successResult(tool, output),
+              Effect.matchCauseEffect({
+                onFailure: (cause) =>
+                  Effect.as(
+                    Effect.logWarning(`tool=${tool.name} failed`, cause),
+                    errorResult(Cause.squash(cause))
+                  ),
+                onSuccess: (output) =>
+                  Effect.succeed(successResult(tool, output)),
               })
             ),
         })
       )
     }
 
-    yield* register(ListPlants, listPlantsEffect)
-    yield* register(GetPlantDetails, getPlantDetailsEffect)
-    yield* register(GetCareTasks, () => getCareTasksEffect())
-    yield* register(GetOverduePlants, () => getOverduePlantsEffect())
-    yield* register(CarePlant, carePlantEffect)
-    yield* register(AskPlantQuestion, (params) =>
+    yield* register(ListPlants, 'plants:read', listPlantsEffect)
+    yield* register(GetPlantDetails, 'plants:read', getPlantDetailsEffect)
+    yield* register(GetCareTasks, 'plants:read', () => getCareTasksEffect())
+    yield* register(GetOverduePlants, 'plants:read', () =>
+      getOverduePlantsEffect()
+    )
+    yield* register(CarePlant, 'plants:write', carePlantEffect)
+    yield* register(AskPlantQuestion, 'knowledge:read', (params) =>
       Effect.map(askPlantQuestionEffect(params), (text) => ({ text }))
     )
   })
